@@ -1,0 +1,42 @@
+{
+  "markets": {
+    "US": [
+      {"ticker": "AAPL", "display_name": "Apple", "aliases": ["Apple Inc."], "sector_tags": ["big-tech"]},
+      {"ticker": "MSFT", "display_name": "Microsoft", "aliases": ["Microsoft Corporation"], "sector_tags": ["big-tech", "ai-infrastructure"]},
+      {"ticker": "NVDA", "display_name": "Nvidia", "aliases": ["NVIDIA", "NVIDIA Corporation"], "sector_tags": ["semiconductors", "ai-infrastructure"]},
+      {"ticker": "AMZN", "display_name": "Amazon", "aliases": ["Amazon.com", "Amazon.com, Inc."], "sector_tags": ["big-tech", "consumer"]},
+      {"ticker": "META", "display_name": "Meta Platforms", "aliases": ["Meta", "Facebook", "Meta Platforms, Inc."], "sector_tags": ["big-tech"]},
+      {"ticker": "GOOGL", "display_name": "Alphabet", "aliases": ["Google", "Alphabet Inc."], "sector_tags": ["big-tech", "ai-infrastructure"]},
+      {"ticker": "TSLA", "display_name": "Tesla", "aliases": ["Tesla, Inc."], "sector_tags": ["consumer", "industrials"]},
+      {"ticker": "AMD", "display_name": "AMD", "aliases": ["Advanced Micro Devices", "Advanced Micro Devices, Inc."], "sector_tags": ["semiconductors", "ai-infrastructure"]},
+      {"ticker": "AVGO", "display_name": "Broadcom", "aliases": ["Broadcom Inc."], "sector_tags": ["semiconductors", "ai-infrastructure"]},
+      {"ticker": "MU", "display_name": "Micron Technology", "aliases": ["Micron", "Micron Technology, Inc."], "sector_tags": ["semiconductors"]},
+      {"ticker": "QCOM", "display_name": "Qualcomm", "aliases": ["Qualcomm Incorporated"], "sector_tags": ["semiconductors"]},
+      {"ticker": "CRM", "display_name": "Salesforce", "aliases": ["Salesforce, Inc."], "sector_tags": ["big-tech"]},
+      {"ticker": "NOW", "display_name": "ServiceNow", "aliases": ["ServiceNow, Inc."], "sector_tags": ["big-tech"]},
+      {"ticker": "PLTR", "display_name": "Palantir", "aliases": ["Palantir Technologies", "Palantir Technologies Inc."], "sector_tags": ["ai-infrastructure", "industrials"]},
+      {"ticker": "LMT", "display_name": "Lockheed Martin", "aliases": ["Lockheed Martin Corporation"], "sector_tags": ["industrials"]},
+      {"ticker": "RTX", "display_name": "RTX", "aliases": ["Raytheon", "RTX Corporation"], "sector_tags": ["industrials"]},
+      {"ticker": "NOC", "display_name": "Northrop Grumman", "aliases": ["Northrop Grumman Corporation"], "sector_tags": ["industrials"]},
+      {"ticker": "GD", "display_name": "General Dynamics", "aliases": ["General Dynamics Corporation"], "sector_tags": ["industrials"]},
+      {"ticker": "BA", "display_name": "Boeing", "aliases": ["The Boeing Company"], "sector_tags": ["industrials"]},
+      {"ticker": "JPM", "display_name": "JPMorgan Chase", "aliases": ["JPMorgan", "JPMorgan Chase & Co."], "sector_tags": ["financials"]},
+      {"ticker": "GS", "display_name": "Goldman Sachs", "aliases": ["The Goldman Sachs Group, Inc."], "sector_tags": ["financials"]},
+      {"ticker": "MS", "display_name": "Morgan Stanley", "aliases": ["Morgan Stanley"], "sector_tags": ["financials"]},
+      {"ticker": "BAC", "display_name": "Bank of America", "aliases": ["Bank of America Corporation", "BofA"], "sector_tags": ["financials"]},
+      {"ticker": "XOM", "display_name": "Exxon Mobil", "aliases": ["Exxon", "Exxon Mobil Corporation"], "sector_tags": ["energy"]},
+      {"ticker": "CVX", "display_name": "Chevron", "aliases": ["Chevron Corporation"], "sector_tags": ["energy"]},
+      {"ticker": "SLB", "display_name": "SLB", "aliases": ["Schlumberger", "Schlumberger Limited"], "sector_tags": ["energy"]},
+      {"ticker": "LLY", "display_name": "Eli Lilly", "aliases": ["Eli Lilly and Company"], "sector_tags": ["healthcare"]},
+      {"ticker": "UNH", "display_name": "UnitedHealth Group", "aliases": ["UnitedHealth", "UnitedHealth Group Incorporated"], "sector_tags": ["healthcare"]},
+      {"ticker": "PFE", "display_name": "Pfizer", "aliases": ["Pfizer Inc."], "sector_tags": ["healthcare"]},
+      {"ticker": "COST", "display_name": "Costco", "aliases": ["Costco Wholesale Corporation"], "sector_tags": ["consumer"]}
+    ],
+    "IN": [
+      {"ticker": "HDFCBANK", "display_name": "HDFC Bank", "aliases": ["HDFC Bank Ltd."], "sector_tags": ["banking"]},
+      {"ticker": "IDBI", "display_name": "IDBI Bank", "aliases": ["IDBI Bank Ltd."], "sector_tags": ["banking"]},
+      {"ticker": "RELIANCE", "display_name": "Reliance Industries", "aliases": ["Reliance Industries Ltd."], "sector_tags": ["energy"]},
+      {"ticker": "SBIN", "display_name": "State Bank of India", "aliases": ["SBI", "State Bank of India Ltd."], "sector_tags": ["banking"]}
+    ]
+  }
+}

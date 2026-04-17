@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/latest_price.schema.json",
+  "title": "Trace Money Latest Price",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instrument_id",
+    "market",
+    "ticker",
+    "captured_at",
+    "session_phase",
+    "source",
+    "currency",
+    "quote"
+  ],
+  "properties": {
+    "instrument_id": {
+      "type": "string",
+      "pattern": "^(US|IN)_[A-Z0-9._-]+$"
+    },
+    "market": {
+      "type": "string",
+      "enum": ["US", "IN"]
+    },
+    "ticker": {
+      "type": "string"
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "session_phase": {
+      "type": "string",
+      "enum": ["pre_open", "open_check", "mid_check", "close_check", "post_close", "manual"]
+    },
+    "source": {
+      "type": "string"
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "quote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current",
+        "day_change_abs",
+        "day_change_pct",
+        "open",
+        "high",
+        "low",
+        "previous_close",
+        "volume"
+      ],
+      "properties": {
+        "current": {
+          "type": "number"
+        },
+        "day_change_abs": {
+          "type": "number"
+        },
+        "day_change_pct": {
+          "type": "number"
+        },
+        "open": {
+          "type": "number"
+        },
+        "high": {
+          "type": "number"
+        },
+        "low": {
+          "type": "number"
+        },
+        "previous_close": {
+          "type": "number"
+        },
+        "volume": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

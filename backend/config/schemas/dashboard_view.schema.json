@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/dashboard_view.schema.json",
+  "title": "Trace Money Dashboard View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "market",
+    "generated_at",
+    "universe_id",
+    "macro_cards",
+    "market_sentiment",
+    "hero_brief",
+    "sector_flows",
+    "watchlist_rows",
+    "gainers",
+    "losers"
+  ],
+  "properties": {
+    "market": {
+      "type": "string",
+      "enum": ["US", "IN"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "universe_id": {
+      "type": "string"
+    },
+    "macro_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "value", "day_change_pct", "series"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "value": { "type": "number" },
+          "day_change_pct": { "type": "number" },
+          "series": {
+            "type": "array",
+            "items": { "type": "number" }
+          }
+        }
+      }
+    },
+    "market_sentiment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "score"],
+      "properties": {
+        "label": { "type": "string" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "hero_brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "body", "verified_source_count", "updated_at"],
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "verified_source_count": { "type": "integer", "minimum": 0 },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "sector_flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sector", "flow_pct", "direction"],
+        "properties": {
+          "sector": { "type": "string" },
+          "flow_pct": { "type": "number" },
+          "direction": { "type": "string", "enum": ["up", "flat", "down"] }
+        }
+      }
+    },
+    "watchlist_rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "gainers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "losers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    }
+  },
+  "$defs": {
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument_id",
+        "ticker",
+        "name",
+        "price",
+        "day_change_pct",
+        "ai_sentiment_score",
+        "news_count",
+        "source_count"
+      ],
+      "properties": {
+        "instrument_id": { "type": "string" },
+        "ticker": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "day_change_pct": { "type": "number" },
+        "ai_sentiment_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "news_count": { "type": "integer", "minimum": 0 },
+        "source_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

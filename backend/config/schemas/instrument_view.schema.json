@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/instrument_view.schema.json",
+  "title": "Trace Money Instrument View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instrument_id",
+    "market",
+    "generated_at",
+    "instrument",
+    "price_snapshot",
+    "fundamentals",
+    "intelligence_summary",
+    "sentiment_breakdown",
+    "trend_convergence",
+    "momentum_signal",
+    "related_tickers",
+    "timeline"
+  ],
+  "properties": {
+    "instrument_id": {
+      "type": "string",
+      "pattern": "^(US|IN)_[A-Z0-9._-]+$"
+    },
+    "market": {
+      "type": "string",
+      "enum": ["US", "IN"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ticker", "name", "exchange", "sector", "index_memberships"],
+      "properties": {
+        "ticker": { "type": "string" },
+        "name": { "type": "string" },
+        "exchange": { "type": "string" },
+        "sector": { "type": "string" },
+        "industry": { "type": "string" },
+        "logo_url": { "type": "string" },
+        "index_memberships": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "price_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "day_change_pct", "captured_at"],
+      "properties": {
+        "current": { "type": "number" },
+        "day_change_abs": { "type": "number" },
+        "day_change_pct": { "type": "number" },
+        "captured_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "fundamentals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["market_cap", "pe_ttm", "dividend_yield", "week_52_low", "week_52_high"],
+      "properties": {
+        "market_cap": { "type": "number" },
+        "pe_ttm": { "type": "number" },
+        "dividend_yield": { "type": "number" },
+        "annual_dividend": { "type": "number" },
+        "week_52_low": { "type": "number" },
+        "week_52_high": { "type": "number" }
+      }
+    },
+    "intelligence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headline", "body", "catalyst", "risk", "key_points"],
+      "properties": {
+        "headline": { "type": "string" },
+        "body": { "type": "string" },
+        "catalyst": { "type": "string" },
+        "risk": { "type": "string" },
+        "key_points": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "sentiment_breakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_label", "overall_score", "lanes"],
+      "properties": {
+        "overall_label": { "type": "string" },
+        "overall_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "lanes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "positive_pct"],
+            "properties": {
+              "label": { "type": "string" },
+              "positive_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+            }
+          }
+        }
+      }
+    },
+    "analyst_consensus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "target_price": { "type": "number" },
+        "buy": { "type": "integer", "minimum": 0 },
+        "hold": { "type": "integer", "minimum": 0 },
+        "sell": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "trend_convergence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range", "price_series", "mention_volume_series"],
+      "properties": {
+        "range": { "type": "string", "enum": ["1D", "1W", "1M", "3M", "1Y"] },
+        "price_series": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "mention_volume_series": {
+          "type": "array",
+          "items": { "type": "number" }
+        }
+      }
+    },
+    "momentum_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "rsi_14", "score"],
+      "properties": {
+        "label": { "type": "string" },
+        "rsi_14": { "type": "number" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "related_tickers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["instrument_id", "ticker", "name", "price", "day_change_pct"],
+        "properties": {
+          "instrument_id": { "type": "string" },
+          "ticker": { "type": "string" },
+          "name": { "type": "string" },
+          "price": { "type": "number" },
+          "day_change_pct": { "type": "number" }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timestamp", "title", "summary", "sentiment_label", "source_name", "article_url"],
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "sentiment_label": { "type": "string" },
+          "source_name": { "type": "string" },
+          "article_url": { "type": "string" }
+        }
+      }
+    }
+  }
+}

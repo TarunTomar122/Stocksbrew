@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>BSE Notices</title>
+    <item>
+      <title>Market Notice - Revision in surveillance measures for select securities</title>
+      <link>https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx</link>
+      <description>BSE issued a notice updating surveillance measures for select listed securities.</description>
+      <pubDate>Mon, 23 Mar 2026 11:00:00 +0530</pubDate>
+      <guid>bse-notice-1</guid>
+    </item>
+    <item>
+      <title>Exchange Notice - Corporate action processing calendar updated</title>
+      <link>https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx</link>
+      <description>The corporate action processing schedule was updated for the current settlement cycle.</description>
+      <pubDate>Mon, 23 Mar 2026 08:30:00 +0530</pubDate>
+      <guid>bse-notice-2</guid>
+    </item>
+  </channel>
+</rss>

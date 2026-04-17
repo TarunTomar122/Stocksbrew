@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>NSE Corporate Announcements</title>
+    <item>
+      <title>HDFC Bank - Board Meeting to consider dividend</title>
+      <link>https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol=HDFCBANK</link>
+      <description>Corporate announcement for a board meeting to consider dividend recommendation.</description>
+      <pubDate>Mon, 23 Mar 2026 10:15:00 +0530</pubDate>
+      <guid>hdfc-dividend</guid>
+    </item>
+    <item>
+      <title>Vedanta - Buyback committee approves timetable</title>
+      <link>https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol=VEDL</link>
+      <description>Exchange filing covering the buyback schedule and related disclosure updates.</description>
+      <pubDate>Mon, 23 Mar 2026 09:05:00 +0530</pubDate>
+      <guid>vedanta-buyback</guid>
+    </item>
+  </channel>
+</rss>

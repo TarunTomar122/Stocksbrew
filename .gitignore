@@ -1,0 +1,43 @@
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Build / cache
+*.tsbuildinfo
+.pytest_cache/
+coverage/
+
+# Local tool dirs
+.claude/
+
+# Firebase service account keys
+*firebase-adminsdk*.json
+backend/*firebase-adminsdk*.json
+trace-money-*.json
+backend/Untitled

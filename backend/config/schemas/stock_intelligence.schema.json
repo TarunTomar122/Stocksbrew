@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/stock_intelligence.schema.json",
+  "title": "Trace Money Stock Intelligence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instrument_id",
+    "market",
+    "ticker",
+    "as_of",
+    "summary",
+    "sentiment",
+    "coverage",
+    "key_points",
+    "event_mix",
+    "related_instruments",
+    "timeline"
+  ],
+  "properties": {
+    "instrument_id": {
+      "type": "string",
+      "pattern": "^(US|IN)_[A-Z0-9._-]+$"
+    },
+    "market": {
+      "type": "string",
+      "enum": ["US", "IN"]
+    },
+    "ticker": {
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headline", "body", "catalyst", "risk"],
+      "properties": {
+        "headline": { "type": "string" },
+        "body": { "type": "string" },
+        "catalyst": { "type": "string" },
+        "risk": { "type": "string" }
+      }
+    },
+    "sentiment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_label", "overall_score", "breakdown"],
+      "properties": {
+        "overall_label": {
+          "type": "string",
+          "enum": ["bullish", "constructive", "mixed", "cautious", "bearish"]
+        },
+        "overall_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lane", "positive_pct", "neutral_pct", "negative_pct", "sample_size"],
+            "properties": {
+              "lane": {
+                "type": "string",
+                "enum": ["news_articles", "social_media", "institutional_reports", "broad", "core", "promoted"]
+              },
+              "positive_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "neutral_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "negative_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "sample_size": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["article_count", "source_count", "recent_article_count", "verified_source_count"],
+      "properties": {
+        "article_count": { "type": "integer", "minimum": 0 },
+        "source_count": { "type": "integer", "minimum": 0 },
+        "recent_article_count": { "type": "integer", "minimum": 0 },
+        "verified_source_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "key_points": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 6
+    },
+    "event_mix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_tag", "count"],
+        "properties": {
+          "event_tag": { "type": "string" },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "related_instruments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["instrument_id", "ticker", "name", "relation"],
+        "properties": {
+          "instrument_id": { "type": "string" },
+          "ticker": { "type": "string" },
+          "name": { "type": "string" },
+          "relation": { "type": "string", "enum": ["peer", "sector", "supply_chain", "co_mentioned"] }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_id", "timestamp", "title", "summary", "sentiment_label", "source_name", "article_url"],
+        "properties": {
+          "event_id": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "sentiment_label": {
+            "type": "string",
+            "enum": ["bullish", "constructive", "mixed", "cautious", "bearish"]
+          },
+          "source_name": { "type": "string" },
+          "article_url": { "type": "string" }
+        }
+      }
+    }
+  }
+}

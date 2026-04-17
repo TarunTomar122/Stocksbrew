@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/instrument.schema.json",
+  "title": "Trace Money Instrument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instrument_id",
+    "market",
+    "ticker",
+    "name",
+    "exchange",
+    "country",
+    "currency",
+    "sector",
+    "industry",
+    "index_memberships",
+    "peer_ids",
+    "support_tier",
+    "universes",
+    "status",
+    "updated_at"
+  ],
+  "properties": {
+    "instrument_id": {
+      "type": "string",
+      "pattern": "^(US|IN)_[A-Z0-9._-]+$"
+    },
+    "market": {
+      "type": "string",
+      "enum": ["US", "IN"]
+    },
+    "ticker": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "exchange": {
+      "type": "string",
+      "minLength": 1
+    },
+    "country": {
+      "type": "string",
+      "minLength": 2
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "sector": {
+      "type": "string",
+      "minLength": 1
+    },
+    "industry": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "logo_url": {
+      "type": "string"
+    },
+    "index_memberships": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "peer_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(US|IN)_[A-Z0-9._-]+$"
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "support_tier": {
+      "type": "string",
+      "enum": ["core", "discovery"]
+    },
+    "universes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive"]
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

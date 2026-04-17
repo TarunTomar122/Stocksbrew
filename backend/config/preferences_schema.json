@@ -1,0 +1,136 @@
+{
+  "version": "2026-03-24",
+  "limits": {
+    "min_markets": 1,
+    "max_markets": 2,
+    "max_sectors_per_market": 6,
+    "max_stocks_per_market": 25,
+    "max_signal_types": 6
+  },
+  "signal_types": [
+    { "id": "market_news", "label": "Market news" },
+    { "id": "earnings", "label": "Earnings and results" },
+    { "id": "ipo", "label": "IPOs and listings" },
+    { "id": "regulation", "label": "Regulation and policy" },
+    { "id": "rates", "label": "Rates and macro" },
+    { "id": "corporate_actions", "label": "Dividends, buybacks, actions" },
+    { "id": "ratings", "label": "Broker notes and ratings" },
+    { "id": "management", "label": "Management commentary" }
+  ],
+  "markets": [
+    {
+      "id": "IN",
+      "label": "India",
+      "status": "beta",
+      "default_signal_types": ["market_news", "earnings", "ipo", "regulation"],
+      "sectors": [
+        {
+          "id": "banking",
+          "label": "Banking and NBFCs",
+          "keywords": ["bank", "banking", "nbfc", "lender", "loan", "credit"]
+        },
+        {
+          "id": "information-technology",
+          "label": "IT and software",
+          "keywords": ["it", "software", "technology", "saas", "digital", "services"]
+        },
+        {
+          "id": "pharma-healthcare",
+          "label": "Pharma and healthcare",
+          "keywords": ["pharma", "healthcare", "hospital", "drug", "biotech", "medical"]
+        },
+        {
+          "id": "energy",
+          "label": "Energy and utilities",
+          "keywords": ["energy", "oil", "gas", "power", "renewable", "utility", "solar"]
+        },
+        {
+          "id": "autos",
+          "label": "Autos and mobility",
+          "keywords": ["auto", "automobile", "mobility", "ev", "vehicle", "two-wheeler"]
+        },
+        {
+          "id": "consumer",
+          "label": "Consumer and FMCG",
+          "keywords": ["consumer", "fmcg", "retail", "food", "beverage", "staples"]
+        },
+        {
+          "id": "capital-goods",
+          "label": "Capital goods and industrials",
+          "keywords": ["capital goods", "industrial", "manufacturing", "engineering", "infra"]
+        },
+        {
+          "id": "metals",
+          "label": "Metals and mining",
+          "keywords": ["metal", "steel", "mining", "aluminium", "copper", "ore"]
+        },
+        {
+          "id": "real-estate",
+          "label": "Real estate",
+          "keywords": ["realty", "real estate", "housing", "property", "developer"]
+        },
+        {
+          "id": "psu",
+          "label": "PSUs",
+          "keywords": ["psu", "state-run", "government-owned", "public sector"]
+        }
+      ]
+    },
+    {
+      "id": "US",
+      "label": "United States",
+      "status": "active",
+      "default_signal_types": ["market_news", "earnings", "rates", "regulation"],
+      "sectors": [
+        {
+          "id": "big-tech",
+          "label": "Big tech",
+          "keywords": ["big tech", "cloud", "platform", "consumer internet", "software"]
+        },
+        {
+          "id": "semiconductors",
+          "label": "Semiconductors",
+          "keywords": ["semiconductor", "chip", "gpu", "fab", "foundry", "processor"]
+        },
+        {
+          "id": "ai-infrastructure",
+          "label": "AI infrastructure",
+          "keywords": ["ai", "inference", "training", "datacenter", "accelerator"]
+        },
+        {
+          "id": "financials",
+          "label": "Financials",
+          "keywords": ["bank", "lender", "insurance", "financial", "credit"]
+        },
+        {
+          "id": "healthcare",
+          "label": "Healthcare",
+          "keywords": ["healthcare", "hospital", "medical", "provider", "biotech", "drug"]
+        },
+        {
+          "id": "energy",
+          "label": "Energy",
+          "keywords": ["energy", "oil", "gas", "utility", "solar", "power"]
+        },
+        {
+          "id": "consumer",
+          "label": "Consumer",
+          "keywords": ["consumer", "retail", "ecommerce", "travel", "food"]
+        },
+        {
+          "id": "industrials",
+          "label": "Industrials",
+          "keywords": ["industrial", "aerospace", "manufacturing", "defense", "logistics"]
+        }
+      ]
+    }
+  ],
+  "stock_tracking": {
+    "mode": "manual_tickers",
+    "fields": [
+      { "id": "ticker", "label": "Ticker", "required": true },
+      { "id": "display_name", "label": "Display name", "required": false },
+      { "id": "aliases", "label": "Aliases", "required": false }
+    ]
+  }
+}

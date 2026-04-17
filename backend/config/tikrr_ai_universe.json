@@ -1,0 +1,33 @@
+{
+  "_comment": "Stocks that receive full AI-enriched briefings each pipeline run. Non-AI price refresh covers the full tikrr_eval_universe.",
+  "US": [
+    "AAPL",
+    "AMD",
+    "INTC",
+    "MU",
+    "GOOGL",
+    "AMZN",
+    "TSM",
+    "META",
+    "CRM",
+    "NVDA",
+    "PLTR",
+    "TSLA",
+    "GLD",
+    "SLV",
+    "GDX"
+  ],
+  "IN": [
+    "MANKIND",
+    "BAJAJHFL",
+    "IDFCFIRSTB",
+    "NTPCGREEN",
+    "JIOFIN",
+    "HDFCBANK",
+    "ICICIBANK",
+    "GOLDBEES",
+    "SILVERBEES",
+    "AXISBANK",
+    "SBIN"
+  ]
+}
