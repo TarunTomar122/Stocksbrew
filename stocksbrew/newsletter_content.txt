@@ -1,0 +1,111 @@
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:850px; margin:auto; font-family: Arial, sans-serif; background:#ffffff; border: 1px solid #E5E7EB; border-radius: 8px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:20px;">
+  <tr>
+    <td>
+      <h2 style="color:#0050b3; font-size:28px; margin-bottom:8px;">📈 SWIGGY</h2>
+      <p style="font-size:18px; margin:0 0 20px; color:#333;">
+        <strong>🧠 TL;DR:</strong> Market caution advised amid uncertainty over US-India trade talks and profit booking after recent rally.
+      </p>
+
+      <h3 style="font-size:24px; color:#d35400; margin:20px 0 6px;">❗ Key Development</h3>
+      <ul style="padding-left:20px; margin:0; color:#444; font-size:14px;">
+        <li>Sudip Bandyopadhyay highlights justified market caution following a sharp rally and upcoming US-India trade deal deadline.</li>
+        <li>Concerns over volatile US policymaking are contributing to market consolidation and investor vigilance.</li>
+        <li>Shiprocket, backed by Zomato and Temasek, has confidentially filed DRHP with SEBI for an IPO estimated between Rs 2,000 and Rs 2,500 crore.</li>
+      </ul>
+
+      <h3 style="font-size:24px; color:#1a73e8; margin:20px 0 6px;">📉 Sector Sentiment</h3>
+      <ul style="padding-left:20px; margin:0; color:#c0392b; font-size:14px;">
+        <li>Investors remain cautious amid political and trade uncertainties affecting market momentum.</li>
+        <li>Profit booking suggests a neutral to slightly bearish short-term sentiment despite underlying growth prospects.</li>
+      </ul>
+
+      <h3 style="font-size:24px; color:#f39c12; margin:20px 0 6px;">⭐ Investment Rating</h3>
+      <p style="font-size:18px; color:#000;">★★★☆☆ (3/5)</p>
+
+      <h3 style="font-size:24px; color:#8e44ad; margin:20px 0 6px;">🔮 Outlook</h3>
+      <p style="font-size:18px; color:#333;">While Swiggy’s sector benefits from growing digital consumption trends, near-term volatility is expected due to geopolitical and trade uncertainties. The anticipated IPO of Shiprocket could introduce new competition and opportunities within the logistics and delivery ecosystem. Investors should maintain vigilance and consider market consolidation risks before making new commitments.</p>
+
+      <h3 style="font-size:24px; color:#2c3e50; margin:20px 0 6px;">📰 News Articles</h3>
+      <ul style="padding-left:20px; font-size:18px; color:#333;">
+        <li><a href="https://economictimes.indiatimes.com/markets/expert-view/market-caution-justified-after-sharp-rally-investors-should-stay-vigilant-sudip-bandyopadhyay/articleshow/121306256.cms" style="color:#1a0dab;">Market caution justified after sharp rally, investors should stay vigilant: Sudip Bandyopadhyay</a> — Highlights concerns over US-India trade deal deadline and need for investor caution after recent rally.</li>
+        <li><a href="https://economictimes.indiatimes.com/markets/ipos/fpos/zomato-and-temasek-backed-shiprocket-pre-files-drhp-with-sebi-for-ipo/articleshow/121313644.cms" style="color:#1a0dab;">Zomato and Temasek-backed Shiprocket pre-files DRHP with Sebi for IPO</a> — Shiprocket takes first step to go public with an IPO expected around Rs 2,000-2,500 crore.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:850px; margin:auto; font-family: Arial, sans-serif; background:#ffffff; border: 1px solid #E5E7EB; border-radius: 8px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:20px;">
+  <tr>
+    <td>
+      <h2 style="color:#0050b3; font-size:28px; margin-bottom:8px;">📈 HDFC Bank</h2>
+      <p style="font-size:18px; margin:0 0 20px; color:#333;">
+        <strong>🧠 TL;DR:</strong> HDFC Bank shares gain momentum as banking stocks rally, helping Sensex and Nifty break a three-day losing streak.
+      </p>
+
+      <h3 style="font-size:24px; color:#d35400; margin:20px 0 6px;">❗ Key Development</h3>
+      <ul style="padding-left:20px; margin:0; color:#444; font-size:14px;">
+        <li>HDFC Bank and ICICI Bank led buying interest, aiding a sharp rebound in benchmark indices Sensex and Nifty.</li>
+        <li>The Nifty Bank index advanced 0.63%, reflecting broad strength in the banking sector.</li>
+        <li>Stock market witnessed multiple stocks hitting 52-week highs, indicating selective bullishness.</li>
+        <li>Market remains watchful amid ongoing consolidation and external global cues such as US trade negotiations.</li>
+      </ul>
+
+      <h3 style="font-size:24px; color:#1a73e8; margin:20px 0 6px;">📉 Sector Sentiment</h3>
+      <ul style="padding-left:20px; margin:0; color:#c0392b; font-size:14px;">
+        <li>Banking sector sentiment is currently bullish, supported by strong institutional buying.</li>
+        <li>Some caution prevails due to global uncertainties and market consolidation phases.</li>
+      </ul>
+
+      <h3 style="font-size:24px; color:#f39c12; margin:20px 0 6px;">⭐ Investment Rating</h3>
+      <p style="font-size:18px; color:#000;">★★★★☆ (4/5)</p>
+
+      <h3 style="font-size:24px; color:#8e44ad; margin:20px 0 6px;">🔮 Outlook</h3>
+      <p style="font-size:18px; color:#333;">HDFC Bank is well positioned to capitalize on the sector’s rebound, with robust fundamentals and market leadership. Continued positive momentum in banking stocks could sustain gains, although investors should monitor macroeconomic factors like trade talks and volatility indices for near-term risk management.</p>
+
+      <h3 style="font-size:24px; color:#2c3e50; margin:20px 0 6px;">📰 News Articles</h3>
+      <ul style="padding-left:20px; font-size:18px; color:#333;">
+        <li><a href="https://economictimes.indiatimes.com/markets/stocks/stock-watch/stock-market-update-stocks-that-hit-52-week-highs-on-nse/articleshow/121308394.cms" style="color:#1a0dab;">Stock market update: Stocks that hit 52-week highs on NSE</a> — Lists stocks hitting fresh highs, including banking sector momentum.</li>
+        <li><a href="https://www.thehindubusinessline.com/markets/share-market-nifty-sensex-highlights-21-may-2025/article69598216.ece" style="color:#1a0dab;">Share Market Highlights 21 May 2025: Sensex, Nifty break 3-day losing streak as banking stocks shine, Asian markets hold steady</a> — Highlights strong performance by HDFC Bank driving market recovery.</li>
+        <li><a href="https://economictimes.indiatimes.com/markets/stocks/stock-watch/stock-market-update-nifty-bank-index-advances-0-63-in-an-upbeat-market/articleshow/121307795.cms" style="color:#1a0dab;">Stock market update: Nifty Bank index advances 0.63% in an upbeat market</a> — Details the positive movement in banking stocks including HDFC Bank.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:850px; margin:auto; font-family: Arial, sans-serif; background:#ffffff; border: 1px solid #E5E7EB; border-radius: 8px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:20px;">
+  <tr>
+    <td>
+      <h2 style="color:#0050b3; font-size:28px; margin-bottom:8px;">📈 Tata Motors</h2>
+      <p style="font-size:18px; margin:0 0 20px; color:#333;">
+        <strong>🧠 TL;DR:</strong> Tata Motors benefits from broader market rebound and positive auto sector momentum amid rising indices.
+      </p>
+
+      <h3 style="font-size:24px; color:#d35400; margin:20px 0 6px;">❗ Key Development</h3>
+      <ul style="padding-left:20px; margin:0; color:#444; font-size:14px;">
+        <li>Sensex and Nifty ended a three-day losing streak with strong buying interest, benefiting blue-chip stocks including Tata Motors.</li>
+        <li>The Nifty Auto index advanced 0.72%, reflecting sector-wide gains.</li>
+        <li>Market uplift was led by banking stocks but also supported by mining and auto sectors.</li>
+        <li>United Spirits’ strong Q4 performance highlights selective sector strength, though unrelated directly to Tata Motors.</li>
+      </ul>
+
+      <h3 style="font-size:24px; color:#1a73e8; margin:20px 0 6px;">📉 Sector Sentiment</h3>
+      <ul style="padding-left:20px; margin:0; color:#c0392b; font-size:14px;">
+        <li>Auto sector sentiment appears bullish, supported by positive index gains and broader market recovery.</li>
+        <li>Investors show renewed confidence in cyclical stocks like Tata Motors amid improving market conditions.</li>
+      </ul>
+
+      <h3 style="font-size:24px; color:#f39c12; margin:20px 0 6px;">⭐ Investment Rating</h3>
+      <p style="font-size:18px; color:#000;">★★★☆☆ (3/5)</p>
+
+      <h3 style="font-size:24px; color:#8e44ad; margin:20px 0 6px;">🔮 Outlook</h3>
+      <p style="font-size:18px; color:#333;">Tata Motors is positioned to benefit from positive sector trends and market rebounds, especially if economic recovery strengthens demand for automobiles. However, investors should remain cautious of volatility in global markets and commodity prices impacting costs. Medium-term outlook remains cautiously optimistic.</p>
+
+      <h3 style="font-size:24px; color:#2c3e50; margin:20px 0 6px;">📰 News Articles</h3>
+      <ul style="padding-left:20px; font-size:18px; color:#333;">
+        <li><a href="https://www.thehindubusinessline.com/markets/share-market-nifty-sensex-highlights-21-may-2025/article69598216.ece" style="color:#1a0dab;">Share Market Highlights 21 May 2025: Sensex, Nifty break 3-day losing streak as banking stocks shine, Asian markets hold steady</a> — Market rebound supported Tata Motors and other blue chips.</li>
+        <li><a href="https://economictimes.indiatimes.com/markets/stocks/stock-watch/stock-market-update-nifty-auto-index-advances-0-72/articleshow/121314840.cms" style="color:#1a0dab;">Stock market update: Nifty Auto index advances 0.72%</a> — Highlights gains in auto sector with Tata Motors as a key player.</li>
+        <li><a href="https://www.ndtv.com/business-news/indian-stock-market-today-update-sensex-jumps-800-points-market-bounce-back-on-buying-bank-stocks-8468397" style="color:#1a0dab;">Sensex Jumps 800 Points, Market Bounce Back On Buying Bank Stocks</a> — Details broad market bounce including auto sector strength.</li>
+      </ul>
+    </td>
+  </tr>
+</table>

@@ -5,7 +5,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from typing import Callable
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 from bs4 import BeautifulSoup
 import requests
@@ -17,40 +17,23 @@ from backend.rss import fetch_feed
 from backend.source_registry import list_sources_for_market
 
 
-BROAD_SOURCE_IDS = {
-    "US": [
-        "nasdaq-markets",
-        "nasdaq-stocks",
-        "nasdaq-earnings",
-        "investing-stock-market-news",
-        "seekingalpha-market-currents",
-        "foxbusiness-markets",
-    ],
-    "IN": [
-        "livemint-markets",
-        "economic-times-markets",
-        "businessline-markets",
-        "nse-circulars",
-    ],
-}
-
 GOOGLE_BROAD_QUERIES = {
     "US": [
-        ("google-broad-us-market", "US stock market when:1d"),
-        ("google-broad-big-tech", "big tech stocks when:2d"),
-        ("google-broad-semiconductors", "semiconductor stocks when:2d"),
-        ("google-broad-defense", "defense stocks when:2d"),
-        ("google-broad-banks", "bank stocks when:2d"),
-        ("google-broad-energy", "energy stocks when:2d"),
-        ("google-broad-software", "software stocks when:2d"),
+        ("google-broad-us-market", "US stock market earnings guidance outlook news when:1d -wikipedia -pdf"),
+        ("google-sector-us-technology", "US technology sector earnings guidance margins outlook news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
+        ("google-sector-us-consumer-discretionary", "US consumer discretionary sector earnings demand outlook news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
+        ("google-sector-us-industrials", "US industrials sector orders backlog capex outlook news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
+        ("google-sector-us-communication-services", "US communication services sector ad spending outlook earnings news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
+        ("google-sector-us-financials", "US financials sector earnings guidance credit outlook news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
+        ("google-sector-us-healthcare", "US healthcare sector approvals pipeline reimbursement outlook news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
+        ("google-sector-us-energy", "US energy sector production refining margins outlook news when:2d -wikipedia -pdf -statista -zippia -gitnux"),
     ],
     "IN": [
-        ("google-broad-india-market", "India stock market when:1d"),
-        ("google-broad-nifty", "Nifty 50 stocks when:2d"),
-        ("google-broad-bank-nifty", "Bank Nifty stocks when:2d"),
-        ("google-broad-india-it", "India IT stocks when:2d"),
-        ("google-broad-india-energy", "India energy stocks when:2d"),
-        ("google-broad-india-pharma", "India pharma stocks when:2d"),
+        ("google-broad-india-market", "India stock market earnings guidance outlook news when:1d -wikipedia -pdf"),
+        ("google-sector-india-it", "India IT sector earnings guidance margins outlook news when:2d -wikipedia -pdf"),
+        ("google-sector-india-financials", "India financial sector credit growth guidance outlook news when:2d -wikipedia -pdf"),
+        ("google-sector-india-energy", "India energy sector production refining margins outlook news when:2d -wikipedia -pdf"),
+        ("google-sector-india-pharma", "India pharma sector approvals pipeline outlook news when:2d -wikipedia -pdf"),
     ],
 }
 
@@ -137,6 +120,35 @@ LOW_SIGNAL_GOOGLE_PUBLISHERS = {
     "CoinCentral",
     "Rock Paper Shotgun",
 }
+
+TRUSTED_SECTOR_SOURCE_HINTS = (
+    "reuters",
+    "ap",
+    "associated press",
+    "cnbc",
+    "bloomberg",
+    "wall street journal",
+    "wsj",
+    "s&p global",
+    "morningstar",
+    "charles schwab",
+    "marketwatch",
+    "financial times",
+    "ft.com",
+)
+
+TRUSTED_SECTOR_DOMAIN_HINTS = (
+    "reuters.com",
+    "apnews.com",
+    "cnbc.com",
+    "bloomberg.com",
+    "wsj.com",
+    "spglobal.com",
+    "morningstar.com",
+    "schwab.com",
+    "marketwatch.com",
+    "ft.com",
+)
 
 GOOGLE_ALLOWED_PUBLISHERS = {
     "Yahoo Finance",
@@ -260,37 +272,11 @@ def _clean_body_lines(lines: list[str], limit: int = 18) -> str:
 def _fetch_article_body(article: Article) -> str:
     if not article.url or "news.google.com" in article.url:
         return ""
-    try:
-        response = requests.get(article.url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-        response.raise_for_status()
-    except Exception:
+    from backend.curated_fetcher import extract_url
+    extracted = extract_url(article.url)
+    if extracted.status != "ok":
         return ""
-    soup = BeautifulSoup(response.text, "html.parser")
-    paragraphs: list[str] = []
-
-    if "nasdaq.com" in article.url:
-        started = False
-        for tag in soup.find_all(["h1", "p"]):
-            text = " ".join(tag.get_text(" ", strip=True).split())
-            if not text:
-                continue
-            if text.startswith("Chicago, IL"):
-                started = True
-            if started:
-                paragraphs.append(text)
-        return _clean_body_lines(paragraphs)
-
-    for tag in soup.find_all(["article", "main"]):
-        text = " ".join(tag.get_text(" ", strip=True).split())
-        if text and len(text) > 500:
-            paragraphs.append(text)
-            break
-    if not paragraphs:
-        paragraphs = [
-            " ".join(tag.get_text(" ", strip=True).split())
-            for tag in soup.find_all("p")
-        ]
-    return _clean_body_lines(paragraphs)
+    return extracted.body_text
 
 
 def _hydrate_article_bodies(articles: list[Article]) -> list[Article]:
@@ -300,6 +286,8 @@ def _hydrate_article_bodies(articles: list[Article]) -> list[Article]:
     hydrated: list[Article | None] = [None] * len(articles)
 
     def fetch_one(index: int, article: Article) -> tuple[int, Article]:
+        if article.body_text:
+            return index, article
         body_text = _fetch_article_body(article)
         if not body_text:
             return index, article
@@ -324,6 +312,12 @@ def _build_google_broad_sources(market: str) -> list[SourceDefinition]:
             "https://news.google.com/rss/search?q="
             f"{quote_plus(query)}&hl={locale[0]}&gl={locale[1]}&ceid={locale[2]}"
         )
+        if source_id.startswith("google-sector-"):
+            source_coverage_modes = ["sector"]
+        elif source_id.startswith("google-broad-"):
+            source_coverage_modes = ["market"]
+        else:
+            source_coverage_modes = ["market", "sector", "stock"]
         sources.append(
             SourceDefinition(
                 id=source_id,
@@ -337,7 +331,7 @@ def _build_google_broad_sources(market: str) -> list[SourceDefinition]:
                 usage_status="enabled",
                 enabled_by_default=True,
                 licensing_notes=f"Google News RSS search for {query}.",
-                coverage_modes=["market", "sector", "stock"],
+                coverage_modes=source_coverage_modes,
                 sector_tags=[],
                 signal_types=["market_news", "macro", "ratings", "earnings"],
                 source_tier="publisher",
@@ -360,6 +354,20 @@ def _is_low_signal_google_article(article: Article) -> bool:
     if publisher and publisher not in GOOGLE_ALLOWED_PUBLISHERS:
         return True
     return any(term in title for term in LOW_SIGNAL_GOOGLE_TITLE_TERMS)
+
+
+def _is_sector_lane_article(article: Article) -> bool:
+    return article.source_id.startswith("google-sector-")
+
+
+def _is_trusted_sector_article(article: Article) -> bool:
+    source_name = str(article.source_name or "").lower()
+    domain = urlparse(str(article.url or "")).netloc.lower()
+    if domain.startswith("www."):
+        domain = domain[4:]
+    return any(hint in source_name for hint in TRUSTED_SECTOR_SOURCE_HINTS) or any(
+        hint in domain for hint in TRUSTED_SECTOR_DOMAIN_HINTS
+    )
 
 
 def _is_low_signal_article(article: Article) -> bool:
@@ -386,13 +394,18 @@ def _looks_finance_relevant(article: Article) -> bool:
 
 def build_universe_sources(market: str, universe_id: str) -> list[SourceDefinition]:
     instruments = list_instruments(market, universe_id)
-    broad_ids = set(BROAD_SOURCE_IDS.get(market, []))
+    all_market_sources = list_sources_for_market(market)
     broad_sources = [
         source
-        for source in list_sources_for_market(market)
-        if source.id in broad_ids and source.kind == "publisher"
+        for source in all_market_sources
+        if source.lane == "broad" and source.kind in {"publisher", "regulator"}
     ]
-    provider_set = ["google_news"] if market == "IN" else ["nasdaq", "seekingalpha", "google_news"]
+    curated_sources = [source for source in all_market_sources if source.kind == "curated"]
+    provider_set = (
+        ["google_news", "google_news_price"]
+        if market == "IN"
+        else ["nasdaq", "seekingalpha", "google_news", "google_news_price"]
+    )
     ticker_entries = [
         {
             "ticker": instrument["ticker"],
@@ -406,7 +419,7 @@ def build_universe_sources(market: str, universe_id: str) -> list[SourceDefiniti
         for instrument in instruments
     ]
     core_sources = build_ticker_sources(market, ticker_entries, lane="core")
-    return broad_sources + _build_google_broad_sources(market) + core_sources
+    return broad_sources + curated_sources + _build_google_broad_sources(market) + core_sources
 
 
 def article_priority(article: Article, tracked_terms: list[str]) -> tuple[int, str]:
@@ -483,6 +496,193 @@ def _select_articles(articles: list[Article], tracked_terms: list[str], max_arti
     return selected[:max_articles]
 
 
+def collect_per_ticker_articles(
+    market: str,
+    universe_id: str,
+    per_stock_cap: int = 5,
+    broad_cap: int = 12,
+    fetcher: Callable[[str], str] | None = None,
+) -> tuple[list[Article], list[dict[str, object]]]:
+    """Fetch articles partitioned per-ticker plus a small broad-lane bucket.
+
+    The global pool approach (`collect_universe_articles`) pools every source
+    into one article list and caps the total — which means popular tickers
+    drown out quiet ones and the tail gets zero coverage.  This collector
+    instead guarantees each AI-tier instrument gets its own article slice
+    (`per_stock_cap` per ticker) while still pulling a small broad-lane bucket
+    (`broad_cap`) so market- and sector-level briefs have material to work
+    with.
+    """
+    instruments = list_instruments(market, universe_id)
+
+    tracked_terms: list[str] = []
+    focus_terms_by_ticker: dict[str, list[str]] = {}
+    for instrument in instruments:
+        instrument_terms = [instrument["ticker"].lower(), instrument["name"].lower()]
+        tracked_terms.append(instrument["ticker"].lower())
+        tracked_terms.append(instrument["name"].lower())
+        for alias in instrument.get("aliases", []):
+            alias_value = str(alias).lower()
+            tracked_terms.append(alias_value)
+            instrument_terms.append(alias_value)
+        focus_terms_by_ticker[instrument["ticker"].upper()] = list(
+            dict.fromkeys(term for term in instrument_terms if term)
+        )
+    tracked_terms = list(dict.fromkeys(term for term in tracked_terms if term))
+
+    # Build per-ticker core-lane sources (reuses the existing ticker-source
+    # factory so Google News / Nasdaq / SeekingAlpha feeds behave identically
+    # to the pooled flow).
+    provider_set = (
+        ["google_news", "google_news_price"]
+        if market == "IN"
+        else ["nasdaq", "seekingalpha", "google_news", "google_news_price"]
+    )
+    ticker_entries = [
+        {
+            "ticker": instrument["ticker"],
+            "display_name": instrument["name"],
+            "aliases": instrument.get("aliases", []),
+            "sector_tags": (
+                [instrument.get("sector", "").strip().lower().replace(" ", "-")]
+                if instrument.get("sector")
+                else []
+            ),
+            "providers": provider_set,
+            "max_items_per_source": 2,
+            "max_age_hours": 72,
+        }
+        for instrument in instruments
+    ]
+    core_sources = build_ticker_sources(market, ticker_entries, lane="core")
+
+    # Broad/market/sector sources — pulled from the market registry plus the
+    # curated Google News broad/sector queries. Kept small intentionally: this
+    # bucket only needs to feed the market brief and sector gates.
+    all_market_sources = list_sources_for_market(market)
+    broad_sources = [
+        source
+        for source in all_market_sources
+        if source.lane == "broad" and source.kind in {"publisher", "regulator"}
+    ]
+    curated_sources = [source for source in all_market_sources if source.kind == "curated"]
+    broad_bucket_sources = broad_sources + curated_sources + _build_google_broad_sources(market)
+
+    all_sources = broad_bucket_sources + core_sources
+    source_health: list[dict[str, object]] = []
+
+    def fetch_one(source: SourceDefinition) -> tuple[SourceDefinition, list[Article], str | None]:
+        try:
+            if source.kind == "curated":
+                from backend.curated_fetcher import fetch_curated
+                fetched, _attempts = fetch_curated(source)
+                return source, fetched, None
+            fetched = fetch_feed(source, fetcher=fetcher)
+        except Exception as error:
+            return source, [], str(error)
+        return source, fetched, None
+
+    fetched_results: list[tuple[SourceDefinition, list[Article], str | None]] = []
+    with ThreadPoolExecutor(max_workers=min(16, max(1, len(all_sources)))) as executor:
+        futures = [executor.submit(fetch_one, source) for source in all_sources]
+        for future in as_completed(futures):
+            fetched_results.append(future.result())
+
+    fetched_results.sort(key=lambda item: item[0].id)
+
+    # Partition filtered articles into per-ticker buckets and a broad bucket.
+    per_ticker_articles: dict[str, list[Article]] = defaultdict(list)
+    broad_articles: list[Article] = []
+    seen_urls: set[str] = set()
+
+    for source, fetched, error in fetched_results:
+        if error is not None:
+            source_health.append({
+                "source_id": source.id,
+                "source_name": source.name,
+                "ok": False,
+                "article_count": 0,
+                "error": error,
+            })
+            continue
+        kept = 0
+        for article in fetched:
+            if source.kind == "curated":
+                if article.url in seen_urls:
+                    continue
+                seen_urls.add(article.url)
+                broad_articles.append(article)
+                kept += 1
+                continue
+            if _is_low_signal_google_article(article) or _is_low_signal_article(article):
+                continue
+            if _is_sector_lane_article(article) and not _is_trusted_sector_article(article):
+                continue
+            focus_ticker = (source.focus_ticker or "").upper()
+            if focus_ticker:
+                focus_terms = focus_terms_by_ticker.get(focus_ticker, [focus_ticker.lower()])
+                if not _matches_focus_terms(article, focus_terms):
+                    continue
+                if article.url in seen_urls:
+                    continue
+                seen_urls.add(article.url)
+                per_ticker_articles[focus_ticker].append(article)
+                kept += 1
+                continue
+            # Broad/sector/curated lane — apply the same heuristic gate as the
+            # pooled flow so the market-brief bucket stays clean.
+            if source.lane == "broad":
+                if not _matches_market_scope(article, market):
+                    continue
+                if _is_market_level_article(article) and _looks_finance_relevant(article):
+                    pass
+                else:
+                    if _is_sector_lane_article(article) and _looks_finance_relevant(article):
+                        pass
+                    elif not _matches_tracked_terms(article, tracked_terms):
+                        continue
+                    if not _looks_finance_relevant(article):
+                        continue
+                    title_lc = article.title.lower()
+                    hit_count = _tracked_term_hit_count(article, tracked_terms)
+                    if hit_count < 2 and not any(term in title_lc for term in tracked_terms):
+                        continue
+            if article.url in seen_urls:
+                continue
+            seen_urls.add(article.url)
+            broad_articles.append(article)
+            kept += 1
+        source_health.append({
+            "source_id": source.id,
+            "source_name": source.name,
+            "ok": True,
+            "article_count": kept,
+            "error": "",
+        })
+
+    selected: list[Article] = []
+    # Per-ticker slice — top N by priority for each instrument.
+    for instrument in instruments:
+        ticker = instrument["ticker"].upper()
+        bucket = per_ticker_articles.get(ticker, [])
+        bucket.sort(key=lambda item: article_priority(item, tracked_terms), reverse=True)
+        selected.extend(bucket[:per_stock_cap])
+    # Broad slice — top N by priority across the shared bucket.
+    broad_articles.sort(key=lambda item: article_priority(item, tracked_terms), reverse=True)
+    selected.extend(broad_articles[:broad_cap])
+
+    # Final dedupe by URL in case the same article appeared in both buckets.
+    deduped: list[Article] = []
+    final_seen: set[str] = set()
+    for article in selected:
+        if article.url in final_seen:
+            continue
+        final_seen.add(article.url)
+        deduped.append(article)
+
+    return _hydrate_article_bodies(deduped), source_health
+
+
 def collect_universe_articles(
     market: str,
     universe_id: str,
@@ -509,6 +709,10 @@ def collect_universe_articles(
 
     def fetch_one(source: SourceDefinition) -> tuple[SourceDefinition, list[Article], str | None]:
         try:
+            if source.kind == "curated":
+                from backend.curated_fetcher import fetch_curated
+                fetched, _attempts = fetch_curated(source)
+                return source, fetched, None
             fetched = fetch_feed(source, fetcher=fetcher)
         except Exception as error:
             return source, [], str(error)
@@ -534,7 +738,19 @@ def collect_universe_articles(
             continue
         kept = 0
         for article in fetched:
+            # Curated articles are hand-vouched by the operator — they bypass the
+            # broad-lane heuristics (market-scope, tracked-term, low-signal etc.)
+            # that are meant to filter noisy RSS feeds.
+            if source.kind == "curated":
+                if article.url in seen_urls:
+                    continue
+                seen_urls.add(article.url)
+                all_articles.append(article)
+                kept += 1
+                continue
             if _is_low_signal_google_article(article) or _is_low_signal_article(article):
+                continue
+            if _is_sector_lane_article(article) and not _is_trusted_sector_article(article):
                 continue
             if source.focus_ticker:
                 focus_terms = focus_terms_by_ticker.get(source.focus_ticker.upper(), [source.focus_ticker.lower()])
@@ -546,7 +762,9 @@ def collect_universe_articles(
                 if _is_market_level_article(article) and _looks_finance_relevant(article):
                     pass  # market-level articles bypass the tracked-term filter
                 else:
-                    if not _matches_tracked_terms(article, tracked_terms):
+                    if _is_sector_lane_article(article) and _looks_finance_relevant(article):
+                        pass
+                    elif not _matches_tracked_terms(article, tracked_terms):
                         continue
                     if not _looks_finance_relevant(article):
                         continue

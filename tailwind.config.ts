@@ -6,132 +6,113 @@ const config: Config = {
     "./components/**/*.{ts,tsx}",
     "./lib/**/*.{ts,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        orion: {
-          gold: "#D4AF37",
-          bg: "#F9F8F6",
-          text: "#1A1A1A",
-          border: "#1A1A1A",
-        },
-        /** Kept for financial data display — tuned to match Orion palette */
-        gf: {
-          bg: "#F9F8F6",
-          surface: "#FFFFFF",
-          hairline: "#1A1A1A",
-          border: "#1A1A1A",
-          blue: "#D4AF37",
-          "blue-hover": "#B8972E",
-          chip: "#F5EFD7",
-          "chip-text": "#6B5B1E",
-          text: "#1A1A1A",
-          "text-2": "#4A4A4A",
-          "text-3": "#8A8A8A",
-          green: "#2D6A4F",
-          red: "#9B2226",
-        },
-        background: "#F9F8F6",
-        surface: {
-          DEFAULT: "#F9F8F6",
-          dim: "#F0EDE7",
-          bright: "#FDFCFA",
-          "container-lowest": "#FFFFFF",
-          "container-low": "#F5F3EF",
-          container: "#F0EDE7",
-          "container-high": "#E8E5DF",
-          "container-highest": "#E0DDD7",
-          variant: "#E8E5DF",
-          tint: "#1A1A1A",
-        },
-        sidebar: {
-          DEFAULT: "#1A1A1A",
-          hover: "#2A2A2A",
-          active: "#3A3A3A",
-          icon: "#8A8A8A",
-          "icon-active": "#F9F8F6",
-        },
+        /* Brand / primary */
         primary: {
-          DEFAULT: "#1A1A1A",
-          container: "#2A2A2A",
-          fixed: "#E8E5DF",
-          "fixed-dim": "#D0CDC7",
+          DEFAULT: "var(--primary)",
+          container: "var(--primary-container)",
+          fixed: "var(--primary-fixed)",
+          "fixed-dim": "var(--primary-fixed-dim)",
         },
-        accent: {
-          DEFAULT: "#D4AF37",
-          light: "#E0C35A",
-          dim: "#B8972E",
-          muted: "rgba(212, 175, 55, 0.12)",
-          "muted-strong": "rgba(212, 175, 55, 0.20)",
+        "on-primary": {
+          DEFAULT: "var(--on-primary)",
+          container: "var(--on-primary-container)",
+          fixed: "var(--on-primary-fixed)",
+          "fixed-variant": "var(--on-primary-fixed-variant)",
         },
+        "inverse-primary": "var(--inverse-primary)",
+
+        /* Secondary */
         secondary: {
-          DEFAULT: "#6A6A6A",
-          container: "#E8E5DF",
-          fixed: "#E8E5DF",
-          "fixed-dim": "#D0CDC7",
+          DEFAULT: "var(--secondary)",
+          container: "var(--secondary-container)",
+          fixed: "var(--secondary-fixed)",
+          "fixed-dim": "var(--secondary-fixed-dim)",
         },
+        "on-secondary": {
+          DEFAULT: "var(--on-secondary)",
+          container: "var(--on-secondary-container)",
+          fixed: "var(--on-secondary-fixed)",
+          "fixed-variant": "var(--on-secondary-fixed-variant)",
+        },
+
+        /* Tertiary */
         tertiary: {
-          DEFAULT: "#2D6A4F",
-          container: "#34A065",
-          fixed: "#D4F5E2",
-          "fixed-dim": "#A8E6C1",
+          DEFAULT: "var(--tertiary)",
+          container: "var(--tertiary-container)",
+          fixed: "var(--tertiary-fixed)",
+          "fixed-dim": "var(--tertiary-fixed-dim)",
         },
+        "on-tertiary": {
+          DEFAULT: "var(--on-tertiary)",
+          container: "var(--on-tertiary-container)",
+          fixed: "var(--on-tertiary-fixed)",
+          "fixed-variant": "var(--on-tertiary-fixed-variant)",
+        },
+
+        /* Error */
         error: {
-          DEFAULT: "#9B2226",
-          container: "#FFECEA",
+          DEFAULT: "var(--error)",
+          container: "var(--error-container)",
         },
-        outline: {
-          DEFAULT: "#1A1A1A",
-          variant: "#1A1A1A",
+        "on-error": {
+          DEFAULT: "var(--on-error)",
+          container: "var(--on-error-container)",
+        },
+
+        /* Background / surfaces */
+        background: "var(--background)",
+        "on-background": "var(--on-background)",
+        surface: {
+          DEFAULT: "var(--surface)",
+          bright: "var(--surface-bright)",
+          dim: "var(--surface-dim)",
+          tint: "var(--surface-tint)",
+          variant: "var(--surface-variant)",
+          "container-lowest": "var(--surface-container-lowest)",
+          "container-low": "var(--surface-container-low)",
+          container: "var(--surface-container)",
+          "container-high": "var(--surface-container-high)",
+          "container-highest": "var(--surface-container-highest)",
         },
         "on-surface": {
-          DEFAULT: "#1A1A1A",
-          variant: "#4A4A4A",
+          DEFAULT: "var(--on-surface)",
+          variant: "var(--on-surface-variant)",
         },
-        "on-primary": "#F9F8F6",
-        "on-secondary": "#F9F8F6",
-        "on-tertiary": "#F9F8F6",
-        "on-error": "#F9F8F6",
-        "on-background": "#1A1A1A",
-        "inverse-surface": "#1A1A1A",
-        "inverse-on-surface": "#F9F8F6",
-        "inverse-primary": "#D4AF37",
+        "inverse-surface": "var(--inverse-surface)",
+        "inverse-on-surface": "var(--inverse-on-surface)",
+
+        /* Outlines */
+        outline: {
+          DEFAULT: "var(--outline)",
+          variant: "var(--outline-variant)",
+        },
+
+        /* Signal colors for charts/badges */
+        signal: {
+          bullish: "var(--signal-bullish)",
+          bearish: "var(--signal-bearish)",
+          neutral: "var(--signal-neutral)",
+        },
       },
       fontFamily: {
-        headline: ["var(--font-geist-sans)", "Geist", "system-ui", "sans-serif"],
-        body: ["var(--font-geist-sans)", "Geist", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "Geist Mono", "ui-monospace", "monospace"],
-        label: ["var(--font-geist-sans)", "Geist", "system-ui", "sans-serif"],
-        serif: ["var(--font-geist-sans)", "Geist", "system-ui", "sans-serif"],
+        headline: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        body: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        label: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        display: ["'Plus Jakarta Sans'", "Satoshi", "system-ui", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        DEFAULT: "0px",
-        sm: "0px",
-        md: "0px",
-        lg: "0px",
-        xl: "0px",
-        "2xl": "0px",
-        "3xl": "0px",
-        full: "9999px",
-      },
-      boxShadow: {
-        ambient: "0 4px 20px rgba(26, 26, 26, 0.04)",
-        "ambient-lg": "0 8px 30px rgba(26, 26, 26, 0.06)",
-        soft: "0 1px 2px rgba(26, 26, 26, 0.03)",
-        card: "0 2px 8px rgba(26, 26, 26, 0.04)",
-        sm: "0 1px 2px rgba(26, 26, 26, 0.03)",
-      },
-      fontSize: {
-        "2xs": ["0.625rem", { lineHeight: "1rem" }],
-      },
-      width: {
-        sidebar: "4rem",
-      },
-      spacing: {
-        sidebar: "4rem",
+        DEFAULT: "0.125rem",
+        lg: "0.25rem",
+        xl: "0.5rem",
+        full: "0.75rem",
       },
       letterSpacing: {
-        editorial: "0.25em",
+        editorial: "0.15em",
       },
     },
   },

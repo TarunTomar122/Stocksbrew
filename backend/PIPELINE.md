@@ -1,59 +1,21 @@
-# Backend Pipeline Reference
+# Backend Pipeline (TM Only)
 
-This file mirrors the current backend behavior.
-Primary operational runbook is `docs/pipeline.md`.
+Active backend writes only to `tm_*` Firestore collections.
 
-## Active Pipelines
+Stages:
 
-### 1) Primary Tikrr pipeline (current app)
+1. `backend/scripts/sync_instrument_universe.py`
+2. `backend/scripts/sync_price_snapshots.py`
+3. `backend/scripts/ingest_news.py`
+4. `backend/scripts/enrich_articles.py`
+5. `backend/scripts/build_stock_intelligence.py`
+6. `backend/scripts/build_news_intelligence.py`
+7. `backend/scripts/materialize_views.py`
+8. `backend/scripts/build_stock_technicals.py`
+9. `backend/scripts/build_market_breadth.py`
+10. `backend/scripts/build_sentiment_gauge.py`
+11. `backend/scripts/build_user_alert_flags.py`
+12. `backend/scripts/build_heat_list.py`
+13. `backend/scripts/build_divergence.py`
 
-Core scripts:
-
-- `backend/scripts/seed_tikrr_meta.py`
-- `backend/scripts/bootstrap_prices.py`
-- `backend/scripts/refresh_prices.py`
-- `backend/scripts/run_tikrr_demo_batch.py`
-- `backend/scripts/generate_stocks_universe.py`
-
-Data path:
-
-```text
-backend/scripts/run_tikrr_demo_batch.py
-  -> backend/tikrr_pipeline/client.py
-  -> /api/tikrr/*
-  -> Firestore (stocks, markets, sectors, meta, meta_run_status)
-```
-
-### 2) Legacy `tm_*` materialization pipeline (still present)
-
-Core scripts:
-
-- `backend/scripts/sync_instrument_universe.py`
-- `backend/scripts/sync_price_snapshots.py`
-- `backend/scripts/ingest_news.py`
-- `backend/scripts/enrich_articles.py`
-- `backend/scripts/build_stock_intelligence.py`
-- `backend/scripts/build_context_intelligence.py`
-- `backend/scripts/materialize_views.py`
-- `backend/scripts/build_news_intelligence.py`
-
-This track writes `tm_*` and `tm_views_*` collections and is still used by `/instrument/[instrumentId]`.
-
-## Notes on Older Script
-
-`backend/scripts/bootstrap_tikrr_dynamic.py` is still in the repo and still writes primary Tikrr collections, but the actively used batch flow for current docs is `run_tikrr_demo_batch.py`.
-
-## Recommended Commands
-
-```bash
-# seed + bootstrap
-python3 -m backend.scripts.seed_tikrr_meta
-python3 -m backend.scripts.bootstrap_prices --market US --universe us_core_155
-python3 -m backend.scripts.bootstrap_prices --market IN --universe in_core_150
-
-# fast refresh
-python3 -m backend.scripts.refresh_prices --market US --market IN
-
-# AI run
-python3 -m backend.scripts.run_tikrr_demo_batch --market ALL --run-type market_open
-```
+Legacy stock/market/sector pipeline scripts were removed to avoid dual-write confusion.

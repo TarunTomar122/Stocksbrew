@@ -18,7 +18,7 @@ def main() -> None:
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None, help="Universe id such as us_test_5")
     parser.add_argument("--print-json", action="store_true")
-    parser.add_argument("--activate", action="store_true", help="Set this universe as the active frontend universe")
+    parser.add_argument("--activate", action="store_true", help="Set this universe as the active price universe")
     args = parser.parse_args()
 
     universe_id = args.universe or get_default_universe_id(args.market)
@@ -39,7 +39,7 @@ def main() -> None:
     })
     store.save_instruments(args.market, universe_id, instruments)
     if args.activate:
-        store.save_active_universe(args.market, universe_id)
+        store.save_active_price_universe(args.market, universe_id)
 
     if args.print_json:
         print(json.dumps({

@@ -1,0 +1,67 @@
+"""Build materialized watchlist views for every subscribed user.
+
+Runs once per pre-market cycle. For each user with `tracked_stocks` set on
+`users/{uid}`, joins the already-computed intel_pro scores + latest prices
++ alert flags and writes a single doc to `tm_watchlist_views/{uid}`.
+
+The `/watchlist` page reads that one doc → 1 Firestore read per page view
+no matter how many stocks the user tracks.
+
+Cost shape: 1 write per subscriber per run. At 2 runs/day × 100 subscribers
+that's 200 writes/day — rounding-error territory.
+"""
+from __future__ import annotations
+
+import argparse
+
+from backend.storage import TraceMoneyStore
+from backend.watchlist_view import (
+    _active_universe_cache,
+    build_watchlist_view,
+)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build per-user watchlist views")
+    parser.add_argument("--uid", default=None, help="Build for a single user only")
+    parser.add_argument("--dry-run", action="store_true", help="Don't write, just log")
+    args = parser.parse_args()
+
+    store = TraceMoneyStore()
+    active_universes = _active_universe_cache(store)
+
+    if args.uid:
+        user_doc = store.db.collection("users").document(args.uid).get()
+        if not user_doc.exists:
+            raise ValueError(f"No user doc for uid={args.uid}")
+        users = [{"uid": args.uid, **(user_doc.to_dict() or {})}]
+    else:
+        users = store.list_subscribed_users()
+
+    if not users:
+        print("No subscribed users to build.")
+        return
+
+    print(f"Building watchlist views for {len(users)} user(s)...")
+    built = 0
+    skipped = 0
+    for user in users:
+        uid = user["uid"]
+        tracked = user.get("tracked_stocks") or []
+        if not isinstance(tracked, list) or not tracked:
+            skipped += 1
+            continue
+        payload = build_watchlist_view(
+            store, uid, [str(t) for t in tracked], active_universes=active_universes
+        )
+        if args.dry_run:
+            print(f"  [dry] {uid}: {payload['tracked_count']} rows, pulse='{payload['pulse']['headline']}'")
+        else:
+            store.save_watchlist_view(uid, payload)
+            print(f"  [ok] {uid}: {payload['tracked_count']} rows written")
+        built += 1
+    print(f"Done. Built {built}, skipped {skipped} (no tracked_stocks).")
+
+
+if __name__ == "__main__":
+    main()

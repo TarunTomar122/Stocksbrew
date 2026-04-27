@@ -30,6 +30,57 @@ export function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values));
 }
 
+/**
+ * Returns a human-readable relative time string for a given ISO date string.
+ * Safe to call in server components — no client-side Date.now() drift.
+ * Examples: "just now", "5m ago", "2h ago", "Apr 16"
+ */
+export function relativeTime(isoDate: string | undefined): string {
+  if (!isoDate) return "";
+  const ts = Date.parse(isoDate);
+  if (!Number.isFinite(ts)) return "";
+  const diffMs = Date.now() - ts;
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/**
+ * Currency symbol for a given market. Centralized so every price display on
+ * the stock pages / scorecard can call the same helper instead of hardcoding
+ * "$" — which broke for IN stocks. Expand as new markets come online.
+ */
+export function currencySymbolFor(
+  marketOrCurrency: string | undefined | null,
+): string {
+  const s = String(marketOrCurrency ?? "").toUpperCase();
+  if (s === "IN" || s === "INR") return "₹";
+  if (s === "US" || s === "USD") return "$";
+  if (s === "EUR") return "€";
+  if (s === "GBP") return "£";
+  if (s === "JPY") return "¥";
+  return "$"; // Safe default — matches our US-first launch.
+}
+
+/**
+ * Derive the market from an instrument_id like "IN_TATAPOWER" or "US_NVDA".
+ * Used on stock pages where we want the stock's own currency, not the
+ * currently-selected market. Returns null if the id doesn't match the
+ * `{MARKET}_{TICKER}` convention.
+ */
+export function marketFromInstrumentId(
+  instrumentId: string | undefined | null,
+): "US" | "IN" | null {
+  if (!instrumentId) return null;
+  const prefix = instrumentId.split("_", 1)[0]?.toUpperCase();
+  if (prefix === "US" || prefix === "IN") return prefix;
+  return null;
+}
+
 export function coerceIsoDate(value: string | undefined, fallback = new Date(0).toISOString()): string {
   if (!value) {
     return fallback;

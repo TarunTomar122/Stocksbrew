@@ -1,0 +1,87 @@
+{
+  "stocks": [
+    {
+      "symbol": "IDFCFIRSTB",
+      "company_name": "IDFC First Bank",
+      "exchange": "NSE",
+      "search_terms": ["IDFC First Bank Stock India"]
+    },
+    {
+      "symbol": "BAJAJHFL",
+      "company_name": "Bajaj Housing Finance",
+      "exchange": "NSE",
+      "search_terms": ["Bajaj Housing Finance Stock India"]
+    },
+    {
+      "symbol": "TATAMOTORS",
+      "company_name": "Tata Motors",
+      "exchange": "NSE",
+      "search_terms": ["Tata Motors Stock India"]
+    },
+    {
+      "symbol": "TATAPOWER",
+      "company_name": "Tata Power",
+      "exchange": "NSE",
+      "search_terms": ["Tata Power Stock India"]
+    },
+    {
+      "symbol": "JIOFIN",
+      "company_name": "Jio Financial Services",
+      "exchange": "NSE",
+      "search_terms": ["Jio Financial Services Stock India"]
+    },
+    {
+      "symbol": "NTPC",
+      "company_name": "NTPC Limited",
+      "exchange": "NSE",
+      "search_terms": ["NTPC Stock India"]
+    },
+    {
+      "symbol": "ASIANPAINT",
+      "company_name": "Asian Paints",
+      "exchange": "NSE",
+      "search_terms": ["Asian Paints Stock India"]
+    },
+    {
+      "symbol": "MANKIND",
+      "company_name": "Mankind Pharma",
+      "exchange": "NSE",
+      "search_terms": ["Mankind Pharma Stock India"]
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "company_name": "Sun Pharmaceutical",
+      "exchange": "NSE",
+      "search_terms": ["Sun Pharma Stock India"]
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "company_name": "Hindustan Unilever",
+      "exchange": "NSE",
+      "search_terms": ["Hindustan Unilever Stock India"]
+    },
+    {
+      "symbol": "HEROMOTOCO",
+      "company_name": "Hero MotoCorp",
+      "exchange": "NSE",
+      "search_terms": ["Hero MotoCorp Stock India"]
+    },
+    {
+      "symbol": "NIFTYBEES",
+      "company_name": "Nippon India ETF Nifty BeES",
+      "exchange": "NSE",
+      "search_terms": ["Nifty BeES ETF India"]
+    },
+    {
+      "symbol": "GOLDBEES",
+      "company_name": "Nippon India ETF Gold BeES",
+      "exchange": "NSE",
+      "search_terms": ["Gold BeES ETF India"]
+    }
+  ],
+  "config": {
+    "news_days_back": 1,
+    "max_articles_per_stock": 8,
+    "language": "en"
+  }
+} 

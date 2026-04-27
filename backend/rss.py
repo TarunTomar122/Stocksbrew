@@ -87,6 +87,7 @@ def parse_rss(source: SourceDefinition, xml_text: str) -> list[Article]:
                 enrichment_source="raw",
                 source_lane=source.lane,
                 focus_ticker=source.focus_ticker,
+                source_coverage_modes=list(source.coverage_modes),
             )
         )
     return articles

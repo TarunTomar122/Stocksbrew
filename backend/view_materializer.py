@@ -187,6 +187,123 @@ def _synthesize_hero_from_intelligence(
     return " ".join(parts).strip()
 
 
+_MACRO_TILE_ORDER_US = (
+    "US_IDX_SPX", "US_IDX_NDX", "US_MAC_GOLD",
+    "US_MAC_SILVER", "US_MAC_OIL", "US_MAC_VIX",
+)
+_MACRO_TILE_ORDER_IN = (
+    "IN_IDX_NIFTY50", "IN_IDX_BANKNIFTY", "IN_MAC_GOLD",
+    "IN_MAC_SILVER", "IN_MAC_OIL", "IN_IDX_VIX",
+)
+_MACRO_TILE_ORDER = _MACRO_TILE_ORDER_US  # kept for any external callers
+
+_MACRO_TILE_SUBLABELS = {
+    "US_IDX_SPX":    "^GSPC",
+    "US_IDX_NDX":    "^IXIC",
+    "US_MAC_GOLD":   "GC=F",
+    "US_MAC_SILVER": "SI=F",
+    "US_MAC_OIL":    "CL=F",
+    "US_MAC_VIX":    "^VIX",
+    # India
+    "IN_IDX_NIFTY50":  "^NSEI",
+    "IN_IDX_BANKNIFTY": "^NSEBANK",
+    "IN_MAC_GOLD":   "GC=F",
+    "IN_MAC_SILVER": "SI=F",
+    "IN_MAC_OIL":    "CL=F",
+    "IN_IDX_VIX":   "^INDIAVIX",
+}
+
+
+def _directional_series(current: float, previous_close: float, length: int = 6) -> list[float]:
+    """Synthesize a monotonic sparkline from previous_close → current so the
+    tile's trend line reflects today's direction when we don't yet have enough
+    intraday history points. Adds a tiny zig-zag to keep the line readable."""
+    if length < 2:
+        return [_round(current)]
+    start = previous_close if previous_close and previous_close > 0 else current
+    if start <= 0:
+        start = current if current > 0 else 1.0
+    step = (current - start) / (length - 1)
+    wobble = abs(step) * 0.12
+    points: list[float] = []
+    for i in range(length):
+        base = start + step * i
+        offset = wobble if i % 2 else -wobble
+        # don't wobble the endpoints
+        if i == 0 or i == length - 1:
+            offset = 0.0
+        points.append(_round(base + offset, 4))
+    return points
+
+
+def _build_market_tiles(
+    instruments: list[dict[str, Any]],
+    latest_prices: dict[str, dict[str, Any]],
+    price_history: dict[str, list[dict[str, Any]]],
+    macro_instruments: list[dict[str, Any]],
+    macro_prices: dict[str, dict[str, Any]],
+    macro_history: dict[str, list[dict[str, Any]]],
+    rows: list[dict[str, Any]],
+    sector_tiles_input: list[dict[str, Any]] | None = None,
+    market: str = "US",
+) -> list[dict[str, Any]]:
+    """Compose the Market & Sectors strip: indices + macro cues + scraped sector tiles.
+
+    Indices and macros come from the dedicated macro universe (real yfinance
+    prices). Sector tiles are pre-computed by the caller (e.g. scraped from
+    Finviz or NSE) — this function just renders them with a directional sparkline.
+    """
+    tiles: list[dict[str, Any]] = []
+    tile_order = _MACRO_TILE_ORDER_IN if market.upper() == "IN" else _MACRO_TILE_ORDER_US
+
+    # Macro tiles in deterministic order
+    for instrument_id in tile_order:
+        price = macro_prices.get(instrument_id)
+        if not price:
+            continue
+        instrument = next(
+            (inst for inst in macro_instruments if inst["instrument_id"] == instrument_id),
+            None,
+        )
+        if instrument is None:
+            continue
+        quote = price.get("quote", {})
+        current = float(quote.get("current", 0.0))
+        previous_close = float(quote.get("previous_close", 0.0) or 0.0)
+        change_pct = float(quote.get("day_change_pct", 0.0))
+        series = _series_from_points(macro_history.get(instrument_id, []))
+        if len(set(series)) <= 1:
+            series = _directional_series(current, previous_close)
+        tile_kind = "index" if "_IDX_" in instrument_id else "macro"
+        tiles.append({
+            "id": instrument_id,
+            "type": tile_kind,
+            "label": instrument.get("name", instrument.get("ticker", "")),
+            "sublabel": _MACRO_TILE_SUBLABELS.get(instrument_id, instrument.get("ticker", "")),
+            "value": _round(current),
+            "change_pct": _round(change_pct),
+            "series": series,
+        })
+
+    for sector_tile in sector_tiles_input or []:
+        label = str(sector_tile.get("label", "")).strip()
+        if not label:
+            continue
+        change_pct = float(sector_tile.get("change_pct", 0.0))
+        series = _directional_series(100.0 + change_pct, 100.0)
+        tiles.append({
+            "id": f"sector_{label.lower()}",
+            "type": "sector",
+            "label": label,
+            "sublabel": "",
+            "value": _round(100.0 + change_pct, 2),
+            "change_pct": _round(change_pct),
+            "series": series,
+        })
+
+    return tiles
+
+
 def build_dashboard_view(
     market: str,
     universe_id: str,
@@ -196,6 +313,10 @@ def build_dashboard_view(
     stock_intelligence: dict[str, dict[str, Any]] | None = None,
     market_context: dict[str, Any] | None = None,
     sector_context_docs: list[dict[str, Any]] | None = None,
+    macro_instruments: list[dict[str, Any]] | None = None,
+    macro_prices: dict[str, dict[str, Any]] | None = None,
+    macro_history: dict[str, list[dict[str, Any]]] | None = None,
+    sector_tiles_input: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     stock_intelligence = stock_intelligence or {}
     market_context = market_context or {}
@@ -290,21 +411,39 @@ def build_dashboard_view(
             )
         verified_source_count = len(rows)
 
-    macro_cards = []
-    for row in rows[:3]:
-        macro_cards.append({
-            "id": row["instrument_id"],
-            "label": row["ticker"],
-            "value": row["price"],
-            "day_change_pct": row["day_change_pct"],
-            "series": _series_from_points(price_history.get(row["instrument_id"], [])),
-        })
+    market_tiles = _build_market_tiles(
+        instruments,
+        latest_prices,
+        price_history,
+        macro_instruments or [],
+        macro_prices or {},
+        macro_history or {},
+        rows,
+        sector_tiles_input=sector_tiles_input,
+        market=market,
+    )
+
+    # Back-compat: keep `macro_cards` populated from the first few index/macro
+    # tiles so older consumers still work. New consumers should read
+    # `market_tiles` instead — it carries type + sublabel + sector rollups.
+    macro_cards = [
+        {
+            "id": tile["id"],
+            "label": tile["label"],
+            "value": tile["value"],
+            "day_change_pct": tile["change_pct"],
+            "series": tile["series"],
+        }
+        for tile in market_tiles
+        if tile["type"] in ("index", "macro")
+    ][:3]
 
     return {
         "market": market,
         "generated_at": _utc_now(),
         "universe_id": universe_id,
         "macro_cards": macro_cards,
+        "market_tiles": market_tiles,
         "market_sentiment": {
             "label": market_label,
             "score": average_score,
@@ -423,6 +562,7 @@ def build_instrument_view(
             "overall_label": str(stock_intelligence.get("overall_label", label)),
             "overall_score": int(stock_intelligence.get("overall_score", score)),
             "lanes": list(stock_intelligence.get("lanes", sentiment_breakdown["lanes"])),
+            "sources_breakdown": list(stock_intelligence.get("sources_breakdown", [])),
         }
         if stock_intelligence.get("timeline"):
             timeline = list(stock_intelligence["timeline"])

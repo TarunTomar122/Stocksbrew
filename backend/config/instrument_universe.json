@@ -302,6 +302,31 @@
           "US_FCX",
           "US_NEM",
           "US_LIN"
+        ],
+        "us_macro_cues": [
+          "US_IDX_SPX",
+          "US_IDX_NDX",
+          "US_MAC_GOLD",
+          "US_MAC_SILVER",
+          "US_MAC_OIL",
+          "US_MAC_VIX"
+        ],
+        "us_ai_launch": [
+          "US_NVDA",
+          "US_AAPL",
+          "US_TSLA",
+          "US_MSFT",
+          "US_AMZN",
+          "US_GOOGL",
+          "US_META",
+          "US_AMD",
+          "US_PLTR",
+          "US_COIN",
+          "US_AVGO",
+          "US_LLY",
+          "US_JPM",
+          "US_IDX_SPX",
+          "US_NFLX"
         ]
       },
       "instruments": [
@@ -5086,6 +5111,178 @@
           ],
           "status": "active",
           "updated_at": "2026-04-16T08:00:00Z"
+        },
+        {
+          "instrument_id": "US_IDX_SPX",
+          "market": "US",
+          "ticker": "SPX",
+          "name": "S&P 500",
+          "exchange": "CBOE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Index",
+          "description": "S&P 500 broad market index (^GSPC).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_IDX_NDX"
+          ],
+          "aliases": [
+            "S&P 500",
+            "SPX"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "us_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-20T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "^GSPC"
+        },
+        {
+          "instrument_id": "US_IDX_NDX",
+          "market": "US",
+          "ticker": "NDX",
+          "name": "Nasdaq Composite",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Index",
+          "description": "Nasdaq Composite index (^IXIC).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_IDX_SPX"
+          ],
+          "aliases": [
+            "Nasdaq",
+            "NDX",
+            "IXIC"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "us_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-20T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "^IXIC"
+        },
+        {
+          "instrument_id": "US_MAC_GOLD",
+          "market": "US",
+          "ticker": "GOLD",
+          "name": "Gold",
+          "exchange": "COMEX",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Commodity",
+          "description": "Gold futures front-month (GC=F).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_MAC_SILVER"
+          ],
+          "aliases": [
+            "Gold",
+            "GC=F"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "us_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-20T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "GC=F"
+        },
+        {
+          "instrument_id": "US_MAC_SILVER",
+          "market": "US",
+          "ticker": "SILVER",
+          "name": "Silver",
+          "exchange": "COMEX",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Commodity",
+          "description": "Silver futures front-month (SI=F).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_MAC_GOLD"
+          ],
+          "aliases": [
+            "Silver",
+            "SI=F"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "us_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-20T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "SI=F"
+        },
+        {
+          "instrument_id": "US_MAC_OIL",
+          "market": "US",
+          "ticker": "OIL",
+          "name": "Crude Oil",
+          "exchange": "NYMEX",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Commodity",
+          "description": "WTI Crude Oil futures front-month (CL=F).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [],
+          "aliases": [
+            "Oil",
+            "WTI",
+            "CL=F"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "us_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-20T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "CL=F"
+        },
+        {
+          "instrument_id": "US_MAC_VIX",
+          "market": "US",
+          "ticker": "VIX",
+          "name": "VIX",
+          "exchange": "CBOE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Volatility",
+          "description": "CBOE Volatility Index (^VIX).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [],
+          "aliases": [
+            "VIX",
+            "^VIX"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "us_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-20T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "^VIX"
         }
       ]
     },
@@ -5284,6 +5481,31 @@
           "IN_EASEMYTRIP",
           "IN_CDSL",
           "IN_MCXINDIA"
+        ],
+        "in_macro_cues": [
+          "IN_IDX_NIFTY50",
+          "IN_IDX_BANKNIFTY",
+          "IN_MAC_GOLD",
+          "IN_MAC_SILVER",
+          "IN_MAC_OIL",
+          "IN_IDX_VIX"
+        ],
+        "in_ai_launch": [
+          "IN_RELIANCE",
+          "IN_HDFCBANK",
+          "IN_TCS",
+          "IN_INFY",
+          "IN_TATAMOTORS",
+          "IN_ADANIENT",
+          "IN_ZOMATO",
+          "IN_NYKAA",
+          "IN_PAYTM",
+          "IN_IRCTC",
+          "IN_HAL",
+          "IN_BEL",
+          "IN_IRFC",
+          "IN_SUNPHARMA",
+          "IN_ITC"
         ]
       },
       "instruments": [
@@ -10900,6 +11122,174 @@
           ],
           "status": "active",
           "updated_at": "2026-04-16T08:00:00Z"
+        },
+        {
+          "instrument_id": "IN_IDX_NIFTY50",
+          "market": "IN",
+          "ticker": "NIFTY50",
+          "name": "Nifty 50",
+          "exchange": "NSE",
+          "country": "IN",
+          "currency": "INR",
+          "sector": "Macro",
+          "industry": "Index",
+          "description": "NSE Nifty 50 broad market index.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "IN_IDX_BANKNIFTY"
+          ],
+          "aliases": [
+            "NIFTY 50",
+            "Nifty50",
+            "^NSEI"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "in_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-21T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "^NSEI"
+        },
+        {
+          "instrument_id": "IN_IDX_BANKNIFTY",
+          "market": "IN",
+          "ticker": "BANKNIFTY",
+          "name": "Bank Nifty",
+          "exchange": "NSE",
+          "country": "IN",
+          "currency": "INR",
+          "sector": "Macro",
+          "industry": "Index",
+          "description": "NSE Nifty Bank index \u2014 top 12 banking stocks.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "IN_IDX_NIFTY50"
+          ],
+          "aliases": [
+            "NIFTY BANK",
+            "Bank Nifty",
+            "^NSEBANK"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "in_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-21T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "^NSEBANK"
+        },
+        {
+          "instrument_id": "IN_IDX_VIX",
+          "market": "IN",
+          "ticker": "INDIAVIX",
+          "name": "India VIX",
+          "exchange": "NSE",
+          "country": "IN",
+          "currency": "INR",
+          "sector": "Macro",
+          "industry": "Volatility",
+          "description": "India VIX \u2014 NSE volatility index.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [],
+          "aliases": [
+            "INDIA VIX",
+            "^INDIAVIX"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "in_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-21T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "^INDIAVIX"
+        },
+        {
+          "instrument_id": "IN_MAC_GOLD",
+          "market": "IN",
+          "ticker": "GOLD",
+          "name": "Gold",
+          "exchange": "MCX",
+          "country": "IN",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Commodity",
+          "description": "Gold futures \u2014 global price (USD).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [],
+          "aliases": [
+            "Gold",
+            "GC=F"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "in_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-21T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "GC=F"
+        },
+        {
+          "instrument_id": "IN_MAC_SILVER",
+          "market": "IN",
+          "ticker": "SILVER",
+          "name": "Silver",
+          "exchange": "MCX",
+          "country": "IN",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Commodity",
+          "description": "Silver futures \u2014 global price (USD).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [],
+          "aliases": [
+            "Silver",
+            "SI=F"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "in_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-21T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "SI=F"
+        },
+        {
+          "instrument_id": "IN_MAC_OIL",
+          "market": "IN",
+          "ticker": "CRUDEOIL",
+          "name": "Crude Oil",
+          "exchange": "MCX",
+          "country": "IN",
+          "currency": "USD",
+          "sector": "Macro",
+          "industry": "Commodity",
+          "description": "WTI crude oil futures (USD/barrel).",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [],
+          "aliases": [
+            "Crude Oil",
+            "CL=F"
+          ],
+          "support_tier": "macro",
+          "universes": [
+            "in_macro_cues"
+          ],
+          "status": "active",
+          "updated_at": "2026-04-21T00:00:00Z",
+          "type": "macro",
+          "quote_symbol_yahoo": "CL=F"
         }
       ]
     }

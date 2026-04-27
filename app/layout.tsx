@@ -2,27 +2,42 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 
-import { VercelAnalytics } from "@/components/vercel-analytics";
-
+import { Header } from "@/components/header";
+import { getCurrentMarket } from "@/lib/market";
+import { getSearchIndex } from "@/lib/search";
+import { Providers } from "./providers";
 import "./globals.css";
-
 export const metadata: Metadata = {
   title: "tikrr — Market Intelligence",
   description: "Real-time precision analytics for your global portfolio.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const market = getCurrentMarket();
+  const searchIndex = await getSearchIndex(market).catch(() => []);
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap"
+          rel="stylesheet"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="bg-[#F9F8F6] font-body text-[#1A1A1A] antialiased">
-        {children}
-        <VercelAnalytics />
+      <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
+        <Providers>
+          <Header searchIndex={searchIndex} market={market} />
+          {children}
+        </Providers>
       </body>
     </html>
   );

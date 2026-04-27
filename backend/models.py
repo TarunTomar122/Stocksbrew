@@ -27,6 +27,7 @@ class SourceDefinition:
     lane: str = "broad"
     focus_ticker: str = ""
     rank_boost: int = 0
+    urls_file: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -63,6 +64,8 @@ class Article:
     source_lane: str = "broad"
     focus_ticker: str = ""
     body_text: str = ""
+    source_coverage_modes: list[str] = field(default_factory=list)
+    coverage_mode: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

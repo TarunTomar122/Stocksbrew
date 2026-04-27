@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Newsletter - May 23, 2025</title>
+    <style>
+        /* Light mode colors */
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --card-bg: #f8f9fa;
+            --border-color: #e0e0e0;
+            --header-bg: #f1f3f5;
+            --link-color: #0066cc;
+            --bullish-color: #28a745;
+            --bearish-color: #dc3545;
+            --neutral-color: #6c757d;
+            --icon-bg: #e9ecef;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .newsletter-header {
+            background-color: var(--header-bg);
+            padding: 30px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .newsletter-header h1 {
+            margin: 0;
+            color: var(--text-color);
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .newsletter-date {
+            color: var(--neutral-color);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .market-overview {
+            background-color: var(--card-bg);
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .market-overview h1 {
+            color: var(--text-color);
+            font-size: 22px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .market-overview h2 {
+            color: var(--text-color);
+            font-size: 20px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .market-overview h3 {
+            color: var(--text-color);
+            font-size: 18px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .overview-list {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .overview-list li {
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .stock-section {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+
+        .stock-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stock-icon {
+            width: 50px;
+            height: 50px;
+            background-color: var(--icon-bg);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-color);
+            margin-right: 15px;
+        }
+
+        .stock-title {
+            flex-grow: 1;
+        }
+
+        .stock-title h2 {
+            margin: 0;
+            font-size: 20px;
+            color: var(--text-color);
+        }
+
+        .stock-symbol {
+            color: var(--neutral-color);
+            font-size: 14px;
+            margin-top: 3px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section h3 {
+            font-size: 16px;
+            color: var(--text-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        .tldr {
+            background-color: var(--header-bg);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .tldr h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: var(--text-color);
+            font-size: 16px;
+        }
+
+        .tldr p {
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        .sentiment {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .sentiment.bullish {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: var(--bullish-color);
+        }
+
+        .sentiment.bearish {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: var(--bearish-color);
+        }
+
+        .sentiment.neutral {
+            background-color: rgba(108, 117, 125, 0.1);
+            color: var(--neutral-color);
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+        }
+
+        .stars {
+            color: #ffc107;
+            font-size: 18px;
+            margin-right: 8px;
+        }
+
+        .rating-text {
+            color: var(--text-color);
+        }
+
+        .news-links a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+
+        .news-links a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .newsletter-header {
+                padding: 20px;
+            }
+
+            .stock-section {
+                padding: 15px;
+            }
+
+            .stock-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .stock-title h2 {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="newsletter-header">
+            <h1>Stock Market Newsletter</h1>
+            <div class="newsletter-date">May 23, 2025</div>
+        </div>
+
+        <div class="market-overview">
+            Indian stock markets experienced a broad decline influenced by rising U.S. Treasury yields, credit rating concerns, and profit booking, creating negative sentiment across indices, though sector performance varied with some gains in power and fertilisers contrasting with weakness in auto and IT sectors.
+        </div>
+
+        
+    <div class="stock-section">
+        <div class="stock-header">
+            <div class="stock-icon">R</div>
+            <div class="stock-title">
+                <h2>Reliance Industries</h2>
+                <div class="stock-symbol">RELIANCE • NSE</div>
+            </div>
+        </div>
+        
+        <div class="tldr">
+            <h3>🧠 TL;DR</h3>
+            <p>1.  Reliance Industries is facing downward pressure.</p>
+        </div>
+    
+        <div class="section">
+            <h3><span class="section-icon">📈</span>Key Developments</h3>
+            <ul>
+                        <li>Reliance was among the heavyweights contributing to the recent downturn.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">📊</span>Market Impact</h3>
+            <ul>
+                        <li>The decline could lead to increased volatility for Reliance, impacting investor confidence.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">💭</span>Sentiment Analysis</h3>
+            <p><span class="sentiment neutral">Neutral</span></p>
+        </div>
+        
+        <div class="section">
+            <h3><span class="section-icon">⭐</span>Investment Rating</h3>
+            <div class="rating">
+                <span class="stars">★★★☆☆</span>
+                <span class="rating-text">No rating available</span>
+            </div>
+        </div>
+    
+        <div class="section news-links">
+            <h3><span class="section-icon">📰</span>Key Headlines</h3>
+            <ul>
+                        <li>(None specific enough)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="stock-section">
+        <div class="stock-header">
+            <div class="stock-icon">T</div>
+            <div class="stock-title">
+                <h2>Tata Motors</h2>
+                <div class="stock-symbol">TATAMOTORS • NSE</div>
+            </div>
+        </div>
+        
+        <div class="tldr">
+            <h3>🧠 TL;DR</h3>
+            <p>1.  Tata Motors is facing downward pressure as the Nifty Auto index declines.</p>
+        </div>
+    
+        <div class="section">
+            <h3><span class="section-icon">📈</span>Key Developments</h3>
+            <ul>
+                        <li>The Nifty Auto index fell by 1.34% on May 22, 2025, indicating a weak performance in the automotive sector.</li>
+                <li>Tata Motors is part of this index and is likely affected by the overall negative sentiment in the auto market.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">📊</span>Market Impact</h3>
+            <ul>
+                        <li>The decline in the Nifty Auto index suggests potential headwinds for Tata Motors, impacting investor confidence.</li>
+                <li>As the automotive sector struggles, Tata Motors may face pressure on sales and profitability, which could lead to a further decline in stock price.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">💭</span>Sentiment Analysis</h3>
+            <p><span class="sentiment neutral">Neutral</span></p>
+        </div>
+        
+        <div class="section">
+            <h3><span class="section-icon">⭐</span>Investment Rating</h3>
+            <div class="rating">
+                <span class="stars">★★★☆☆</span>
+                <span class="rating-text">No rating available</span>
+            </div>
+        </div>
+    
+        <div class="section news-links">
+            <h3><span class="section-icon">📰</span>Key Headlines</h3>
+            <ul>
+                        <li>"Stock market update: Nifty Auto index falls 1.34% in a weak market"** - The Nifty Auto index's decline indicates broader challenges in the automotive sector.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="stock-section">
+        <div class="stock-header">
+            <div class="stock-icon">I</div>
+            <div class="stock-title">
+                <h2>Infosys</h2>
+                <div class="stock-symbol">INFY • NSE</div>
+            </div>
+        </div>
+        
+        <div class="tldr">
+            <h3>🧠 TL;DR</h3>
+            <p>1.  Infosys remains under pressure amid Covid-19 concerns and foreign inflow issues affecting the tech sector.</p>
+        </div>
+    
+        <div class="section">
+            <h3><span class="section-icon">📈</span>Key Developments</h3>
+            <ul>
+                        <li>(No Infosys-specific developments listed)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">📊</span>Market Impact</h3>
+            <ul>
+                        <li>The decline in indices may lead to a bearish outlook for IT stocks, including Infosys, as investors may pull back on tech investments.</li>
+                <li>Falling foreign inflows could further exacerbate the downward pressure on stock prices, particularly in the tech sector.</li>
+                <li>The ongoing Covid-19 surge raises concerns about economic recovery, potentially affecting Infosys's growth projections.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">💭</span>Sentiment Analysis</h3>
+            <p><span class="sentiment neutral">Neutral</span></p>
+        </div>
+        
+        <div class="section">
+            <h3><span class="section-icon">⭐</span>Investment Rating</h3>
+            <div class="rating">
+                <span class="stars">★★★☆☆</span>
+                <span class="rating-text">No rating available</span>
+            </div>
+        </div>
+    
+        <div class="section news-links">
+            <h3><span class="section-icon">📰</span>Key Headlines</h3>
+            <ul>
+                        <li>(None specific enough)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="stock-section">
+        <div class="stock-header">
+            <div class="stock-icon">S</div>
+            <div class="stock-title">
+                <h2>Swiggy</h2>
+                <div class="stock-symbol">SWIGGY • NSE</div>
+            </div>
+        </div>
+        
+        <div class="tldr">
+            <h3>🧠 TL;DR</h3>
+            <p>1.  Swiggy analysis suggests market caution is warranted amid current conditions, alongside competitor IPO news.</p>
+        </div>
+    
+        <div class="section">
+            <h3><span class="section-icon">📈</span>Key Developments</h3>
+            <ul>
+                        <li>Sudip Bandyopadhyay from Inditrade Capital advises investors to remain cautious due to market consolidation following a recent rally.</li>
+                <li>Shiprocket, backed by Zomato and Temasek, has filed for an IPO, indicating growing interest and potential competition in the logistics sector.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">📊</span>Market Impact</h3>
+            <ul>
+                        <li>The decline in indices may lead to increased volatility in the tech and logistics sectors, impacting Swiggy's market sentiment.</li>
+                <li>Profit booking could slow down investment inflows into growth stocks like Swiggy, affecting short-term performance.</li>
+                <li>The IPO news from Shiprocket may intensify competition in the logistics space, influencing Swiggy's strategic positioning.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="section-icon">💭</span>Sentiment Analysis</h3>
+            <p><span class="sentiment neutral">Neutral</span></p>
+        </div>
+        
+        <div class="section">
+            <h3><span class="section-icon">⭐</span>Investment Rating</h3>
+            <div class="rating">
+                <span class="stars">★★★☆☆</span>
+                <span class="rating-text">No rating available</span>
+            </div>
+        </div>
+    
+        <div class="section news-links">
+            <h3><span class="section-icon">📰</span>Key Headlines</h3>
+            <ul>
+                        <li>Zomato and Temasek-backed Shiprocket pre-files DRHP with Sebi for IPO**: Shiprocket's IPO plans signal robust growth and potential competition in the logistics sector. [Read more](https://economictimes.indiatimes.com/markets/ipos/fpos/zomato-and-temasek-backed-shiprocket-pre-files-drhp-with-sebi-for-ipo/articleshow/121313644.cms)</li>
+            </ul>
+        </div>
+    </div>
+
+    </div>
+</body>
+</html> 

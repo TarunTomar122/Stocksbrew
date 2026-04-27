@@ -95,3 +95,16 @@ class TikrrAPIClient:
         )
         response.raise_for_status()
         return response.json()
+
+    def materialize_views(self, market: str) -> dict[str, Any]:
+        response = requests.post(
+            f"{self.base_url}/materialize",
+            json={
+                "apiKey": self.api_key,
+                "market": market.upper(),
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        return response.json()

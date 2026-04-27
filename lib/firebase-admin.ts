@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 function loadEnvFile(filePath: string): void {
@@ -75,3 +76,4 @@ try {
   // settings() throws if already called — safe to ignore on HMR re-evaluation
 }
 export const adminFirestore = _fs;
+export const adminAuth = getAuth();

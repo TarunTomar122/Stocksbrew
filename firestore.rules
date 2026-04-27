@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read and write their own profile + nested watchlist subtree.
+    // is_subscribed is server-controlled (admin SDK bypasses rules) so clients
+    // cannot self-promote.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.is_subscribed == false;
+      // tracked_stocks must go through /api/track (admin SDK), which enforces
+      // the subscription + tier-limit checks. Blocking client writes to those
+      // fields closes the bypass where a non-subscriber could write them via
+      // client SDK while keeping is_subscribed unchanged.
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.is_subscribed == resource.data.is_subscribed
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['tracked_stocks', 'last_tracked_at']);
+      allow delete: if false;
+
+      match /watchlist/{ticker} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // Everything else (pipeline-managed market/sector/stock docs) is server-only
+    // — admin SDK bypasses these rules; clients must go through API routes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

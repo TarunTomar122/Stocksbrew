@@ -1,0 +1,8 @@
+{
+  "description": "Hand-curated US market/macro article URLs. Edit freely — each URL is fetched independently via trafilatura.",
+  "urls": [
+    "https://www.reuters.com/markets/us/futures-rise-fed-meeting-outlook-earnings-focus-2024-01-30/",
+    "https://www.cnbc.com/2024/01/31/stock-market-today-live-updates.html",
+    "https://www.ft.com/content/markets"
+  ]
+}

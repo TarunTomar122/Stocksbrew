@@ -1,175 +1,233 @@
-export type MarketCode = "IN" | "US";
+export type Market = "US" | "IN";
 
-export type SourceKind = "exchange" | "regulator" | "publisher";
-export type UsageStatus = "enabled" | "review_required" | "planned";
-
-export type SourceDefinition = {
+export type MacroCard = {
   id: string;
-  name: string;
-  kind: SourceKind;
-  marketCodes: MarketCode[];
-  market_codes?: MarketCode[];
-  homepageUrl: string;
-  homepage_url?: string;
-  feedUrl: string;
-  feed_url?: string;
-  verificationUrl: string;
-  verification_url?: string;
-  verifiedAt: string;
-  verified_at?: string;
-  usageStatus: UsageStatus;
-  usage_status?: UsageStatus;
-  enabledByDefault: boolean;
-  enabled_by_default?: boolean;
-  usageNotes: string;
-  usage_notes?: string;
-  licensing_notes?: string;
-  tags: string[];
-  coverage_modes?: string[];
-  signal_types?: string[];
-  sector_tags?: string[];
-};
-
-export type NormalizedArticle = {
-  id: string;
-  sourceId: string;
-  source_id?: string;
-  sourceName: string;
-  source_name?: string;
-  sourceKind: SourceKind;
-  source_kind?: SourceKind;
-  market: MarketCode;
-  title: string;
-  url: string;
-  summary: string;
-  articleOverview: string;
-  article_overview?: string;
-  articleKeyPoints: string[];
-  article_key_points?: string[];
-  publishedAt: string;
-  published_at?: string;
-  topicKey: string;
-  topic_key?: string;
-  topicLabel: string;
-  topic_label?: string;
-  topicKind: string;
-  topic_kind?: string;
-  tags: string[];
-  sector_tags?: string[];
-  stock_candidates?: string[];
-  stock_tickers?: string[];
-  signal_types?: string[];
-  bucket_keys?: string[];
-  bucket_labels?: string[];
-  bucket_kinds?: string[];
-  sentimentScore: number;
-  sentiment_score?: number;
-  sentimentLabel: string;
-  sentiment_label?: string;
-  entityMentions: Array<Record<string, unknown>>;
-  entity_mentions?: Array<Record<string, unknown>>;
-  enrichmentSource: string;
-  enrichment_source?: string;
-  source_lane?: string;
-  focus_ticker?: string;
-};
-
-export type TopicSentimentRange = {
-  min: number;
-  max: number;
-  average: number;
   label: string;
+  value: number;
+  day_change_pct: number;
+  series: number[];
 };
 
-export type BucketHighlight = {
+export type MarketTileDoc = {
   id: string;
-  title: string;
-  source_name?: string;
-  url: string;
-  published_at: string;
-  summary?: string;
-  sentiment_label?: string;
+  type: "index" | "macro" | "sector";
+  label: string;
+  sublabel?: string;
+  value: number;
+  change_pct: number;
+  series: number[];
 };
 
-export type TimelineEvent = {
-  id: string;
-  title: string;
-  summary?: string;
-  timestamp: string;
-  source_name?: string;
-  article_url?: string;
+export type StockIntelSignal = "green" | "yellow" | "red" | "na";
+
+export type StockIntelMetric = {
+  label: string;
+  value: number | null;
+  benchmark: number | null;
+  benchmark_label: string;
+  signal: StockIntelSignal;
+  summary: string;
+  score: number | null;
 };
 
-export type FeedBucket = {
-  slug: string;
-  name: string;
+export type StockIntelPillar = {
+  score: number;
+  verdict: "strong" | "solid" | "mixed" | "weak";
+  weight: number;
+  metrics: StockIntelMetric[];
+};
+
+export type StockIntelCatalyst = {
   kind: string;
-  market: MarketCode;
-  articleCount: number;
-  article_count?: number;
-  sourceCount: number;
-  source_count?: number;
-  sources: string[];
-  tags: string[];
-  sector_tags?: string[];
-  stock_candidates?: string[];
-  signal_types?: string[];
-  overview: string;
-  keyPoints: string[];
-  key_points?: string[];
-  highlights: BucketHighlight[];
-  sentiment: TopicSentimentRange;
-  latestPublishedAt: string;
-  latest_published_at?: string;
-  recent_count?: number;
-  previous_count?: number;
-  related_buckets?: Array<Record<string, unknown>>;
-  timeline: TimelineEvent[];
-  articles: NormalizedArticle[];
+  title: string;
+  urgency: "high" | "med" | "low";
+  date?: string;
 };
 
-export type TopicCluster = FeedBucket;
-
-export type SourceSnapshot = SourceDefinition & {
-  isLive?: boolean;
-  is_live?: boolean;
-  articleCount?: number;
-  article_count?: number;
-  lastSeenAt?: string | null;
-  last_seen_at?: string | null;
-};
-
-export type MarketSnapshot = {
-  market: MarketCode;
-  snapshot_id?: string;
-  as_of_date?: string;
-  generatedAt: string;
-  generated_at?: string;
-  overview: string;
-  includeReviewSources: boolean;
-  include_review_sources?: boolean;
-  stats: {
-    articleCount?: number;
-    article_count?: number;
-    bucketCount?: number;
-    bucket_count?: number;
-    topicCount?: number;
-    topic_count?: number;
-    liveSourceCount?: number;
-    live_source_count?: number;
-    trackedSourceCount?: number;
-    tracked_source_count?: number;
+export type StockIntelPro = {
+  instrument_id: string;
+  ticker: string;
+  sector_slug: string;
+  sector_label: string;
+  industry_label: string;
+  pillars: {
+    valuation: StockIntelPillar;
+    growth: StockIntelPillar;
+    quality: StockIntelPillar;
+    momentum: StockIntelPillar;
   };
-  sources: SourceSnapshot[];
-  pulse?: Record<string, unknown>;
-  big_narratives?: Array<Record<string, unknown>>;
-  most_active?: Array<Record<string, unknown>>;
-  buckets: FeedBucket[];
-  topics?: FeedBucket[];
+  overall: { score: number; verdict: string; stance: string };
+  catalysts: StockIntelCatalyst[];
+  snapshot_date: string;
+  generated_at: string;
 };
 
-export type BuildSnapshotOptions = {
-  market?: MarketCode;
-  includeReviewSources?: boolean;
-  fetchImpl?: typeof fetch;
+export type DashboardRow = {
+  instrument_id: string;
+  ticker: string;
+  name: string;
+  price: number;
+  day_change_pct: number;
+  ai_sentiment_score: number;
+  news_count: number;
+  source_count: number;
+};
+
+export type SectorFlow = {
+  sector: string;
+  flow_pct: number;
+  direction: "up" | "flat" | "down";
+};
+
+export type MarketSentiment = {
+  label: string;
+  score: number;
+};
+
+export type HeroBrief = {
+  title: string;
+  body: string;
+  verified_source_count: number;
+  updated_at: string;
+};
+
+export type EssentialCard = {
+  id: string;
+  sentence: string;
+  event_type:
+    | "macro"
+    | "earnings"
+    | "guidance"
+    | "policy"
+    | "flow"
+    | "technical"
+    | "sentiment"
+    | string;
+  scope?: "market" | "sector" | "stock" | string;
+  direction?: "up" | "down" | "mixed" | string;
+  confidence?: "low" | "med" | "high" | string;
+  impact_score?: number;
+  evidence?: string[];
+  symbol?: string;
+  sector_id?: string;
+  href?: string;
+  series?: number[];
+  generated_at?: string;
+};
+
+export type MarketContextBlock = {
+  today_score?: number;
+  today_label?: string;
+  today_brief?: string;
+  today_key_points?: string[];
+  week_score?: number;
+  week_label?: string;
+  week_brief?: string;
+  week_key_points?: string[];
+  leading_sectors?: string[];
+  lagging_sectors?: string[];
+  top_sectors?: string[];
+  article_count?: number;
+  visual_summary?: {
+    what_changed?: string;
+    what_to_watch?: string;
+    why_it_matters?: string;
+  };
+  generated_at?: string;
+};
+
+export type DashboardView = {
+  market: Market;
+  generated_at: string;
+  universe_id: string;
+  macro_cards: MacroCard[];
+  market_tiles?: MarketTileDoc[];
+  market_sentiment: MarketSentiment;
+  hero_brief: HeroBrief;
+  sector_flows: SectorFlow[];
+  watchlist_rows: DashboardRow[];
+  gainers: DashboardRow[];
+  losers: DashboardRow[];
+  essential_cards?: EssentialCard[];
+  market_context?: MarketContextBlock;
+};
+
+export type LatestPrice = {
+  instrument_id: string;
+  ticker: string;
+  market: Market;
+  currency?: string;
+  captured_at: string;
+  session_phase?: string;
+  quote: {
+    current: number;
+    open?: number;
+    high?: number;
+    low?: number;
+    previous_close?: number;
+    volume?: number;
+    day_change_abs?: number;
+    day_change_pct?: number;
+  };
+  fundamentals?: {
+    market_cap?: number;
+    pe_ttm?: number;
+    dividend_yield?: number;
+    annual_dividend?: number;
+    week_52_high?: number;
+    week_52_low?: number;
+  };
+  analyst_consensus?: {
+    label?: string;
+    target_price?: number;
+    buy?: number;
+    hold?: number;
+    sell?: number;
+  };
+  provider_metadata?: {
+    yahoo_symbol?: string;
+    exchange?: string;
+    name?: string;
+  };
+};
+
+export type SnapshotRow = {
+  instrumentId: string;
+  market: Market;
+  symbol: string;
+  name: string;
+  sectorId?: string;
+  lastUpdated?: string;
+  price: {
+    current: number;
+    change?: number;
+    changePct?: number;
+    previousClose?: number;
+    volume?: number;
+  };
+};
+
+export type Instrument = {
+  instrument_id: string;
+  market: Market;
+  ticker: string;
+  name: string;
+  sector?: string;
+  industry?: string;
+  exchange?: string;
+  currency?: string;
+  country?: string;
+  logo_url?: string;
+  index_memberships?: string[];
+  peer_ids?: string[];
+  description?: string;
+};
+
+export type StockIntelligence = {
+  instrument_id: string;
+  ticker: string;
+  overall_score?: number;
+  news_count?: number;
+  source_count?: number;
+  [key: string]: unknown;
 };

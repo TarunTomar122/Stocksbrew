@@ -1,0 +1,140 @@
+import { adminFirestore } from "@/lib/firebase-admin";
+import { getActiveUniverse } from "@/lib/firestore";
+
+// ─── Public news feed ────────────────────────────────────────────────────────
+//
+// Backs the /news page. Reads enriched articles from the current universe's
+// news run — enrichments carry the sentiment + entity mentions we want to
+// filter on, whereas the raw `articles` subcollection is just ingestion data.
+//
+// We cap rows per market so the server never ships a runaway payload — the
+// page does client-side filtering, so the cap is the working set a single
+// user can realistically scan at once. If we later need deeper archives we
+// can swap this for a paginated or cursor-based loader.
+
+const DEFAULT_LIMIT = 400;
+
+export type NewsArticle = {
+  id: string;
+  market: "US" | "IN";
+  title: string;
+  url: string;
+  source_name: string;
+  source_kind?: string;
+  published_at: string;
+  summary: string;
+  sentiment_label: "bullish" | "bearish" | "neutral" | "mixed" | string;
+  sentiment_score: number;
+  sector_tags: string[];
+  tickers: string[];
+  coverage_mode: string;
+};
+
+type RawEnrichedArticle = {
+  id?: string;
+  market?: string;
+  title?: string;
+  url?: string;
+  source_name?: string;
+  source_kind?: string;
+  published_at?: string;
+  summary?: string;
+  sentiment_label?: string;
+  sentiment_score?: number;
+  sector_tags?: string[];
+  stock_tickers?: string[];
+  entity_mentions?: Array<{ ticker?: string; type?: string; mention_role?: string }>;
+  coverage_mode?: string;
+};
+
+function normalizeSentimentLabel(raw: string | undefined): NewsArticle["sentiment_label"] {
+  const v = (raw ?? "").toLowerCase();
+  if (v === "bullish" || v === "bearish" || v === "neutral" || v === "mixed") return v;
+  return "neutral";
+}
+
+// Some Google News / RSS summaries arrive as raw HTML fragments (e.g.
+// `<font color="#6f6f6f">Business Today</font>`), and occasionally carry
+// long unbreakable tokens (base64-ish blobs from tracking URLs) that wreck
+// the layout. Strip tags, collapse whitespace, and drop runs of 40+
+// non-space characters that aren't a real URL — those never add value.
+function cleanSummary(raw: string | undefined): string {
+  if (!raw) return "";
+  let s = String(raw);
+  s = s.replace(/<[^>]+>/g, " ");
+  s = s.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
+  s = s.replace(/\b[A-Za-z0-9+/=_-]{40,}\b/g, "");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+
+function normalizeArticle(raw: RawEnrichedArticle, marketFallback: "US" | "IN"): NewsArticle | null {
+  const title = String(raw.title ?? "").trim();
+  const url = String(raw.url ?? "").trim();
+  if (!title || !url) return null;
+
+  // Prefer explicit stock_tickers; fall back to non-incidental entity_mentions
+  // so articles that only carry entity_mentions still surface their tickers
+  // on the chip row.
+  const fromMentions = Array.isArray(raw.entity_mentions)
+    ? raw.entity_mentions
+        .filter((m) => String(m.type ?? "").toLowerCase() === "stock")
+        .filter((m) => String(m.mention_role ?? "secondary").toLowerCase() !== "incidental")
+        .map((m) => String(m.ticker ?? "").toUpperCase())
+        .filter(Boolean)
+    : [];
+  const tickers = Array.from(
+    new Set([...(raw.stock_tickers ?? []).map((t) => String(t).toUpperCase()), ...fromMentions]),
+  ).filter(Boolean);
+
+  return {
+    id: String(raw.id ?? url),
+    market: (String(raw.market ?? marketFallback).toUpperCase() === "IN" ? "IN" : "US"),
+    title,
+    url,
+    source_name: String(raw.source_name ?? "").trim(),
+    source_kind: String(raw.source_kind ?? "").trim() || undefined,
+    published_at: String(raw.published_at ?? ""),
+    summary: cleanSummary(raw.summary),
+    sentiment_label: normalizeSentimentLabel(raw.sentiment_label),
+    sentiment_score: typeof raw.sentiment_score === "number" ? raw.sentiment_score : 0,
+    sector_tags: (raw.sector_tags ?? []).map((t) => String(t)).filter(Boolean),
+    tickers,
+    coverage_mode: String(raw.coverage_mode ?? "").trim(),
+  };
+}
+
+export async function getNewsFeed(
+  market: "US" | "IN",
+  limit: number = DEFAULT_LIMIT,
+): Promise<NewsArticle[]> {
+  const universe = await getActiveUniverse(market);
+  const ns = `${market}__${universe}`;
+  // Enrichments carry sentiment + entity_mentions; articles are raw ingest.
+  // We read enrichments first, fall back to raw if the enrichment step hasn't
+  // run yet for this universe.
+  const tryCollections = ["enrichments", "articles"];
+  for (const name of tryCollections) {
+    const collection = adminFirestore
+      .collection("tm_news_runs")
+      .doc(ns)
+      .collection(name);
+    let snap;
+    try {
+      snap = await collection
+        .orderBy("published_at", "desc")
+        .limit(limit)
+        .get();
+    } catch (err) {
+      console.warn(`[news] ordered ${name} query failed, falling back to limited scan:`, err);
+      snap = await collection.limit(limit).get();
+    }
+    if (snap.empty) continue;
+    const rows = snap.docs
+      .map((d) => normalizeArticle(d.data() as RawEnrichedArticle, market))
+      .filter((a): a is NewsArticle => a !== null)
+      .sort((a, b) => (a.published_at < b.published_at ? 1 : -1));
+    return rows.slice(0, limit);
+  }
+  return [];
+}

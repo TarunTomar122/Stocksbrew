@@ -20,7 +20,8 @@
     "entities",
     "model",
     "cache_key",
-    "enriched_at"
+    "enriched_at",
+    "coverage_mode"
   ],
   "properties": {
     "article_id": {
@@ -38,8 +39,16 @@
         "source_id": { "type": "string" },
         "source_name": { "type": "string" },
         "source_kind": { "type": "string", "enum": ["publisher", "exchange", "regulator"] },
-        "source_lane": { "type": "string", "enum": ["broad", "core", "promoted"] }
+        "source_lane": { "type": "string", "enum": ["broad", "core", "promoted"] },
+        "source_coverage_modes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["market", "sector", "stock"] }
+        }
       }
+    },
+    "coverage_mode": {
+      "type": "string",
+      "enum": ["market", "sector", "stock"]
     },
     "title": {
       "type": "string"

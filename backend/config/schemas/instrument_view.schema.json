@@ -105,6 +105,20 @@
               "positive_pct": { "type": "number", "minimum": 0, "maximum": 100 }
             }
           }
+        },
+        "sources_breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_name", "article_count", "mean_sentiment", "lean"],
+            "properties": {
+              "source_name": { "type": "string" },
+              "article_count": { "type": "integer", "minimum": 0 },
+              "mean_sentiment": { "type": "number" },
+              "lean": { "type": "string", "enum": ["bullish", "bearish", "neutral"] }
+            }
+          }
         }
       }
     },

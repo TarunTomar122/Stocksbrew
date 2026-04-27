@@ -11,6 +11,7 @@ from typing import Any
 
 import requests
 
+from backend.coverage_mode import coverage_modes_for_source_id, derive_coverage_mode
 from backend.env import load_backend_env
 from backend.market_strategy import default_llm_concurrency, default_llm_model
 from backend.models import Article
@@ -673,6 +674,13 @@ def apply_enrichment(article: Article, payload: dict[str, Any]) -> Article:
     )
 
     primary_index = 0
+    source_coverage_modes = list(article.source_coverage_modes) or coverage_modes_for_source_id(article.source_id)
+    coverage_mode = derive_coverage_mode(
+        source_id=article.source_id,
+        source_lane=article.source_lane,
+        source_coverage_modes=source_coverage_modes,
+        entity_mentions=entity_mentions,
+    )
     return replace(
         article,
         article_overview=article_overview,
@@ -690,4 +698,6 @@ def apply_enrichment(article: Article, payload: dict[str, Any]) -> Article:
         sentiment_score=overall_sentiment_score,
         sentiment_label=label_sentiment(overall_sentiment_score),
         enrichment_source="llm",
+        source_coverage_modes=source_coverage_modes,
+        coverage_mode=coverage_mode,
     )

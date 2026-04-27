@@ -96,6 +96,22 @@ class YFinanceClient:
         week_52_low = _to_float(info.get("fiftyTwoWeekLow")) or _to_float(getattr(fast_info, "get", lambda _key, _default=None: None)("yearLow"))
         target_price = _to_float(info.get("targetMeanPrice"))
         consensus_label = _consensus_label(info)
+        # Trend signals — Yahoo pre-computes 50D/200D moving averages, so we
+        # don't need to stockpile >200 sessions of history on our side just to
+        # show a "price vs SMA" card. `beta` comes along for free from the
+        # same `.info` payload. All three can be None/absent for illiquid
+        # tickers; the builder / UI already guards for missing values.
+        fifty_day_avg = _to_float(info.get("fiftyDayAverage"))
+        two_hundred_day_avg = _to_float(info.get("twoHundredDayAverage"))
+        beta_raw = info.get("beta")
+        beta: float | None
+        if beta_raw in (None, "", "null"):
+            beta = None
+        else:
+            try:
+                beta = round(float(beta_raw), 2)
+            except (TypeError, ValueError):
+                beta = None
 
         day_change_abs = current - previous_close
         day_change_pct = ((day_change_abs / previous_close) * 100.0) if previous_close else 0.0
@@ -124,6 +140,10 @@ class YFinanceClient:
                 "annual_dividend": annual_dividend,
                 "week_52_low": week_52_low,
                 "week_52_high": week_52_high,
+                # Trend card + risk-surfacing fields (see above).
+                "fifty_day_average": fifty_day_avg or None,
+                "two_hundred_day_average": two_hundred_day_avg or None,
+                "beta": beta,
             },
             "analyst_consensus": {
                 "label": consensus_label,
@@ -147,3 +167,72 @@ class YFinanceClient:
                 except Exception as exc:
                     print(f"yfinance fetch failed for {instrument.get('instrument_id')}: {exc}")
         return rows
+
+
+def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[str, float]:
+    """Scorecard-only fundamentals pulled from Yahoo: Forward P/E, PEG,
+    analyst mean target, and an analyst buy % derived from `recommendationMean`.
+
+    Screener.in and Tickertape don't publish forward consensus for IN stocks,
+    so these fields used to render as "—" on the scorecard. Yahoo aggregates
+    them for most NSE tickers. Returns a dict with only the keys that parsed
+    cleanly — callers should treat absence as "not available", same as every
+    other scraper.
+    """
+    if market == "IN":
+        yahoo_symbol = f"{ticker_symbol.upper()}.NS"
+    else:
+        yahoo_symbol = ticker_symbol.upper()
+
+    try:
+        info = yf.Ticker(yahoo_symbol).info or {}
+    except Exception as exc:  # yfinance raises on transient network hiccups
+        print(f"  [yfinance fail] {ticker_symbol}: {exc}")
+        return {}
+
+    out: dict[str, float] = {}
+
+    def _set(canonical: str, raw: Any) -> None:
+        if raw in (None, "", "null"):
+            return
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return
+        if value <= 0:
+            return
+        out.setdefault(canonical, value)
+
+    _set("fwd_pe", info.get("forwardPE"))
+    _set("peg", info.get("trailingPegRatio"))
+    _set("peg", info.get("pegRatio"))  # fallback if trailingPeg missing
+    _set("target_price", info.get("targetMeanPrice"))
+    # Trend card inputs — Yahoo pre-computes the 50D / 200D moving averages
+    # so we don't have to carry >200 sessions of price history per instrument.
+    # We also grab beta for the same cheap-`.info`-read reason.
+    _set("fifty_day_average", info.get("fiftyDayAverage"))
+    _set("two_hundred_day_average", info.get("twoHundredDayAverage"))
+    # Beta can legitimately be negative (inverse ETFs, hedges) or near zero
+    # (stable utilities), so we don't use `_set` — it would drop those.
+    beta_raw = info.get("beta")
+    if beta_raw not in (None, "", "null"):
+        try:
+            out["beta"] = round(float(beta_raw), 2)
+        except (TypeError, ValueError):
+            pass
+
+    # Yahoo's `recommendationMean` is 1=strong buy, 5=strong sell. Linearly
+    # map 1 → 100 and 5 → 0 so the momentum pillar's `analyst_buy_pct` curve
+    # (already defined in stock_scoring.py) gets a usable value for IN stocks.
+    mean = info.get("recommendationMean")
+    if mean not in (None, "", "null"):
+        try:
+            m = float(mean)
+            if 1.0 <= m <= 5.0:
+                out["analyst_buy_pct"] = round(max(0.0, (5.0 - m) / 4.0 * 100.0), 1)
+        except (TypeError, ValueError):
+            pass
+
+    return out
+
+

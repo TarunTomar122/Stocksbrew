@@ -38,6 +38,13 @@ PROVIDER_TEMPLATES = {
         "verification_url": "https://news.google.com/rss",
         "signal_types": ["market_news", "earnings", "ratings", "macro"],
     },
+    "google_news_price": {
+        "kind": "publisher",
+        "name": "Google News (Price Action)",
+        "homepage_url": "https://news.google.com/",
+        "verification_url": "https://news.google.com/rss",
+        "signal_types": ["market_news", "price_move", "ratings"],
+    },
 }
 
 LANE_RANK_BOOST = {
@@ -154,6 +161,35 @@ def _provider_urls(
                 f"({query}) {finance_terms} "
                 "when:3d -podcast -video -celebrity -crypto"
             )
+        feed_url = (
+            "https://news.google.com/rss/search?q="
+            f"{quote_plus(query)}&hl={locale[0]}&gl={locale[1]}&ceid={locale[2]}"
+        )
+        return str(template["homepage_url"]), feed_url
+    if provider == "google_news_price":
+        # Tight identifier match: the ticker must appear as a cashtag, in
+        # parens, or as an exchange-prefix, or the company name must be quoted.
+        # Combined with price-action phrasing, this complements the earnings/
+        # analyst-angle google_news feed with daily share-price narratives.
+        ident_parts = [
+            f'"{display_name}"',
+            f'"${ticker}"',
+            f'"({ticker})"',
+            f'"NASDAQ:{ticker}"',
+            f'"NYSE:{ticker}"',
+        ]
+        ident = " OR ".join(ident_parts)
+        price_terms = (
+            '("share price" OR "stock price" OR "shares jumped" OR "shares fell" '
+            'OR rallied OR tumbled OR surged OR slumped OR "52-week high" '
+            'OR "52-week low" OR "price target")'
+        )
+        locale = ("en-US", "US", "US:en")
+        if market == "IN":
+            locale = ("en-IN", "IN", "IN:en")
+            query = f"({ident}) {price_terms} (NSE OR BSE OR India) when:2d -podcast -video"
+        else:
+            query = f"({ident}) {price_terms} when:2d -podcast -video"
         feed_url = (
             "https://news.google.com/rss/search?q="
             f"{quote_plus(query)}&hl={locale[0]}&gl={locale[1]}&ceid={locale[2]}"

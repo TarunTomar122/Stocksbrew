@@ -15,7 +15,10 @@
     "key_points",
     "event_mix",
     "related_instruments",
-    "timeline"
+    "timeline",
+    "data_quality",
+    "comparative_context",
+    "run_context"
   ],
   "properties": {
     "instrument_id": {
@@ -136,8 +139,55 @@
             "enum": ["bullish", "constructive", "mixed", "cautious", "bearish"]
           },
           "source_name": { "type": "string" },
-          "article_url": { "type": "string" }
+          "article_url": { "type": "string" },
+          "event_type": { "type": "string" },
+          "confidence_score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "impact_score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "is_new_since_last_run": { "type": "boolean" }
         }
+      }
+    },
+    "data_quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confidence_score", "freshness_status", "freshness_hours", "evidence_count", "source_tier_mix"],
+      "properties": {
+        "confidence_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "freshness_status": { "type": "string", "enum": ["fresh", "aging", "stale", "missing"] },
+        "freshness_hours": { "type": "number", "minimum": 0 },
+        "evidence_count": { "type": "integer", "minimum": 0 },
+        "source_tier_mix": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["broad", "core", "promoted"],
+          "properties": {
+            "broad": { "type": "integer", "minimum": 0 },
+            "core": { "type": "integer", "minimum": 0 },
+            "promoted": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "comparative_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["day_change_pct", "vs_market_day_change_pct", "vs_sector_day_change_pct", "market_percentile"],
+      "properties": {
+        "day_change_pct": { "type": "number" },
+        "vs_market_day_change_pct": { "type": "number" },
+        "vs_sector_day_change_pct": { "type": "number" },
+        "market_percentile": { "type": "integer", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "run_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_at", "lookback_hours", "namespace", "has_prior_run"],
+      "properties": {
+        "run_at": { "type": "string", "format": "date-time" },
+        "lookback_hours": { "type": "number", "minimum": 0 },
+        "namespace": { "type": "string" },
+        "has_prior_run": { "type": "boolean" }
       }
     }
   }

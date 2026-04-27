@@ -3,12 +3,22 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.env import load_backend_env, resolve_backend_path
 
 load_backend_env()
+
+
+def _day_key(captured_at: Any) -> str:
+    """Extract the trading-day key (YYYY-MM-DD) from a captured_at value.
+    Returns '' if the value can't be parsed."""
+    if not captured_at:
+        return ""
+    s = str(captured_at)
+    # ISO-8601 always has 'YYYY-MM-DD' as its first 10 chars.
+    return s[:10] if len(s) >= 10 else ""
 
 
 def _serialize(obj: Any) -> Any:
@@ -101,25 +111,126 @@ class TraceMoneyStore:
         rows.sort(key=lambda row: row.get("instrument_id", ""))
         return rows
 
+    # Max number of daily OHLCV points to keep embedded on tm_latest_prices.
+    # ~260 trading days = 1 year. ~200 bytes/point => ~52KB per doc, well under
+    # Firestore's 1MB per-document cap.
+    PRICE_HISTORY_WINDOW_MAX = 300
+
     def save_price_snapshot(self, payload: dict[str, Any]) -> None:
+        """Update `tm_latest_prices/{id}` with latest quote + a rolling
+        `history_window` array of recent OHLCV points.
+
+        The history_window holds at most PRICE_HISTORY_WINDOW_MAX entries
+        sorted oldest→newest. If the incoming point shares a trading day with
+        the last entry, we replace it (intraday upsert); otherwise we append.
+
+        Replaces the old `tm_price_snapshots/{id}/points/{date}` subcollection
+        design, which incurred one Firestore write per point and blew through
+        free-tier quotas on backfill. The new shape is O(1) writes per
+        ingestion call regardless of how much history is retained.
+        """
         instrument_id = payload["instrument_id"]
-        captured_at = payload["captured_at"]
-        point_id = (
-            captured_at.replace("-", "")
-            .replace(":", "")
-            .replace(".", "")
-            .replace("+", "_")
-        )
-        parent_ref = self.db.collection("tm_price_snapshots").document(instrument_id)
-        parent_ref.set({
-            "instrument_id": instrument_id,
-            "market": payload["market"],
-            "ticker": payload["ticker"],
-            "latest_captured_at": captured_at,
+        latest_ref = self.db.collection("tm_latest_prices").document(instrument_id)
+        existing = latest_ref.get()
+        existing_data = existing.to_dict() if existing.exists else {}
+        window = list(existing_data.get("history_window") or [])
+
+        new_point = _serialize(payload) or {}
+        new_day = _day_key(new_point.get("captured_at"))
+        if window and new_day and _day_key(window[-1].get("captured_at")) == new_day:
+            window[-1] = new_point
+        else:
+            window.append(new_point)
+            if len(window) > self.PRICE_HISTORY_WINDOW_MAX:
+                window = window[-self.PRICE_HISTORY_WINDOW_MAX:]
+
+        latest_ref.set({
+            **new_point,
+            "history_window": window,
+            "history_window_size": len(window),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
-        parent_ref.collection("points").document(point_id).set(payload, merge=True)
-        self.db.collection("tm_latest_prices").document(instrument_id).set(payload, merge=True)
+
+    def save_price_history_bulk(
+        self,
+        instrument_id: str,
+        rows: list[dict[str, Any]],
+    ) -> None:
+        """One-shot write of a full price-history window for an instrument.
+
+        Used by the backfill script. `rows` must be sorted oldest→newest.
+        This replaces the per-day subcollection write pattern so backfilling
+        N days is a single Firestore write instead of N."""
+        if not rows:
+            return
+        serialized = [_serialize(row) or {} for row in rows]
+        capped = serialized[-self.PRICE_HISTORY_WINDOW_MAX:]
+        latest = capped[-1]
+        self.db.collection("tm_latest_prices").document(instrument_id).set({
+            **latest,
+            "history_window": capped,
+            "history_window_size": len(capped),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def save_market_price_snapshot(self, market: str, rows: list[dict[str, Any]], shard_size: int = 64) -> None:
+        market_key = str(market).upper()
+        snapshot_ref = self.db.collection("market_price_snapshots").document(market_key)
+        shards_ref = snapshot_ref.collection("shards")
+        updated_at = datetime.now(timezone.utc).isoformat()
+
+        normalized_rows = [_serialize(row) or {} for row in rows]
+        shard_docs: list[tuple[str, list[dict[str, Any]]]] = []
+        for start in range(0, len(normalized_rows), max(1, shard_size)):
+            index = start // max(1, shard_size)
+            shard_id = f"{index:02d}"
+            shard_docs.append((shard_id, normalized_rows[start:start + max(1, shard_size)]))
+
+        existing_ids = [doc.id for doc in shards_ref.stream()]
+        stale_ids = [doc_id for doc_id in existing_ids if doc_id not in {shard_id for shard_id, _rows in shard_docs}]
+
+        snapshot_ref.set({
+            "market": market_key,
+            "schemaVersion": 1,
+            "snapshotType": "latest_prices",
+            "rowCount": len(normalized_rows),
+            "shardCount": len(shard_docs),
+            "updatedAt": updated_at,
+        }, merge=True)
+
+        if stale_ids:
+            delete_batch = self.db.batch()
+            for shard_id in stale_ids:
+                delete_batch.delete(shards_ref.document(shard_id))
+            delete_batch.commit()
+
+        if shard_docs:
+            batch = self.db.batch()
+            for shard_id, shard_rows in shard_docs:
+                batch.set(shards_ref.document(shard_id), {
+                    "market": market_key,
+                    "shardId": shard_id,
+                    "rowCount": len(shard_rows),
+                    "updatedAt": updated_at,
+                    "rows": shard_rows,
+                })
+            batch.commit()
+
+    def get_market_price_snapshot(self, market: str) -> list[dict[str, Any]]:
+        market_key = str(market).upper()
+        docs = (
+            self.db.collection("market_price_snapshots")
+            .document(market_key)
+            .collection("shards")
+            .stream()
+        )
+        rows: list[dict[str, Any]] = []
+        for doc in sorted(docs, key=lambda item: item.id):
+            payload = _serialize(doc.to_dict()) or {}
+            shard_rows = payload.get("rows") or []
+            if isinstance(shard_rows, list):
+                rows.extend(item for item in shard_rows if isinstance(item, dict))
+        return rows
 
     def save_fundamental_snapshot(self, instrument_id: str, payload: dict[str, Any]) -> None:
         self.db.collection("tm_fundamental_snapshots").document(instrument_id).set({
@@ -136,41 +247,218 @@ class TraceMoneyStore:
         return rows
 
     def get_latest_prices(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Batch-fetch latest price docs. Firestore's get_all() accepts up to
+        500 refs per call, so we chunk — one round trip per 500 instruments
+        instead of N serial round trips."""
         rows: dict[str, dict[str, Any]] = {}
-        for instrument_id in instrument_ids:
-            doc = self.db.collection("tm_latest_prices").document(instrument_id).get()
-            if doc.exists:
-                rows[instrument_id] = _serialize(doc.to_dict()) or {}
+        collection = self.db.collection("tm_latest_prices")
+        for start in range(0, len(instrument_ids), 500):
+            chunk = instrument_ids[start : start + 500]
+            refs = [collection.document(iid) for iid in chunk]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
         return rows
 
     def get_price_history(self, instrument_id: str, limit: int = 12) -> list[dict[str, Any]]:
-        docs = (
-            self.db.collection("tm_price_snapshots")
-            .document(instrument_id)
-            .collection("points")
-            .order_by("captured_at")
-            .limit_to_last(limit)
-            .get()
-        )
-        return [_serialize(doc.to_dict()) or {} for doc in docs]
+        """Return the last `limit` OHLCV points for an instrument, oldest→newest.
 
-    def save_active_universe(self, market: str, universe_id: str) -> None:
+        Reads from the `history_window` array embedded on
+        `tm_latest_prices/{instrument_id}`. One Firestore read per call,
+        regardless of how many days are requested.
+        """
+        doc = self.db.collection("tm_latest_prices").document(instrument_id).get()
+        if not doc.exists:
+            return []
+        data = doc.to_dict() or {}
+        window = list(data.get("history_window") or [])
+        if limit and limit > 0 and len(window) > limit:
+            window = window[-limit:]
+        return [_serialize(row) or {} for row in window]
+
+    def save_active_price_universe(self, market: str, universe_id: str) -> None:
+        market_key = str(market).upper()
         self.db.collection("tm_config").document("active_universes").set({
-            market: universe_id,
+            f"{market_key}_price_universe": universe_id,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
-    def get_active_universe(self, market: str) -> str | None:
+    def save_active_ai_universe(self, market: str, universe_id: str) -> None:
+        market_key = str(market).upper()
+        self.db.collection("tm_config").document("active_universes").set({
+            f"{market_key}_ai_universe": universe_id,
+            market_key: universe_id,  # legacy fallback
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def save_active_universe(self, market: str, universe_id: str) -> None:
+        # Legacy behavior kept for compatibility: set both price + ai universes.
+        self.save_active_price_universe(market, universe_id)
+        self.save_active_ai_universe(market, universe_id)
+
+    def get_active_price_universe(self, market: str) -> str | None:
+        market_key = str(market).upper()
         doc = self.db.collection("tm_config").document("active_universes").get()
         if not doc.exists:
             return None
         data = _serialize(doc.to_dict()) or {}
-        value = data.get(market)
-        return str(value) if value else None
+        value = data.get(f"{market_key}_price_universe")
+        if value:
+            return str(value)
+        fallback = data.get(market_key)
+        return str(fallback) if fallback else None
+
+    def get_active_ai_universe(self, market: str) -> str | None:
+        market_key = str(market).upper()
+        doc = self.db.collection("tm_config").document("active_universes").get()
+        if not doc.exists:
+            return None
+        data = _serialize(doc.to_dict()) or {}
+        value = data.get(f"{market_key}_ai_universe")
+        if value:
+            return str(value)
+        fallback = data.get(market_key)
+        return str(fallback) if fallback else None
+
+    def get_active_universe(self, market: str) -> str | None:
+        # Legacy getter points to AI universe for downstream view/context readers.
+        return self.get_active_ai_universe(market)
 
     def save_dashboard_view(self, market: str, universe_id: str, payload: dict[str, Any]) -> None:
         doc_id = f"{market}__{universe_id}"
         self.db.collection("tm_views_dashboard").document(doc_id).set(payload)
+
+    def save_stock_intel_pro(
+        self, market: str, universe_id: str, instrument_id: str, payload: dict[str, Any]
+    ) -> None:
+        """Write the scored four-pillar doc for a stock."""
+        self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}") \
+            .collection("stocks").document(instrument_id).set(payload)
+
+    def get_stock_intel_pro(
+        self, market: str, universe_id: str, instrument_id: str
+    ) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}") \
+            .collection("stocks").document(instrument_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def list_stock_intel_pro(self, market: str, universe_id: str) -> list[dict[str, Any]]:
+        snap = self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}") \
+            .collection("stocks").stream()
+        return [_serialize(d.to_dict()) for d in snap]
+
+    def save_thematic_screens(self, market: str, payload: dict[str, Any]) -> None:
+        self.db.collection("tm_thematic_screens").document(market).set(payload)
+
+    def get_thematic_screens(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_thematic_screens").document(market).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_stock_metrics_snapshot(
+        self, instrument_id: str, snapshot_date: str, payload: dict[str, Any]
+    ) -> None:
+        """Write one snapshot doc per instrument per day.
+
+        Path: tm_stock_metrics_history/{instrument_id}/snapshots/{YYYY-MM-DD}.
+        Callers are expected to include `captured_at`, sector/industry slugs,
+        and a `metrics` sub-dict of numeric fields so that delta catalysts can
+        be derived downstream.
+        """
+        self.db.collection("tm_stock_metrics_history").document(instrument_id) \
+            .collection("snapshots").document(snapshot_date).set(payload)
+
+    def get_stock_metrics_snapshot(
+        self, instrument_id: str, snapshot_date: str
+    ) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_stock_metrics_history").document(instrument_id) \
+            .collection("snapshots").document(snapshot_date).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def get_latest_stock_metrics_snapshot(
+        self, instrument_id: str
+    ) -> dict[str, Any] | None:
+        query = (
+            self.db.collection("tm_stock_metrics_history").document(instrument_id)
+            .collection("snapshots")
+            .order_by("snapshot_date", direction="DESCENDING")
+            .limit(1)
+            .stream()
+        )
+        for doc in query:
+            return _serialize(doc.to_dict())
+        return None
+
+    def save_sector_benchmarks(
+        self, market: str, snapshot_date: str, benchmarks: dict[str, dict[str, float]]
+    ) -> None:
+        """Write one doc per market+date capturing per-sector valuation medians."""
+        doc_id = f"{market}__{snapshot_date}"
+        payload = {
+            "market": market,
+            "snapshot_date": snapshot_date,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "benchmarks": benchmarks,
+        }
+        self.db.collection("tm_sector_benchmarks").document(doc_id).set(payload)
+
+    # ──────────────────────────── market mood ─────────────────────────────
+
+    def save_market_mood(self, market: str, payload: dict[str, Any]) -> None:
+        """One doc per market per day at tm_market_mood/{market}__{date}."""
+        snapshot_date = payload.get("snapshot_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        doc_id = f"{market}__{snapshot_date}"
+        self.db.collection("tm_market_mood").document(doc_id).set(payload)
+        # Also mirror to `latest/{market}` so the dashboard read is a single doc.
+        self.db.collection("tm_market_mood").document(f"latest__{market}").set(payload)
+
+    def get_latest_market_mood(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_market_mood").document(f"latest__{market}").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    # ──────────────────────── institutional flows ─────────────────────────
+
+    def save_institutional_flows(self, market: str, payload: dict[str, Any]) -> None:
+        """Per-day FII/DII / fund-flow doc plus a `latest__{market}` mirror."""
+        snapshot_date = payload.get("snapshot_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        doc_id = f"{market}__{snapshot_date}"
+        self.db.collection("tm_institutional_flows").document(doc_id).set(payload)
+        self.db.collection("tm_institutional_flows").document(f"latest__{market}").set(payload)
+
+    def get_latest_institutional_flows(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_institutional_flows").document(f"latest__{market}").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    # ─────────────────────────── economic calendar ────────────────────────
+
+    def save_economic_calendar(self, payload: dict[str, Any]) -> None:
+        """Single rolling doc at tm_economic_calendar/latest.
+
+        The calendar is a forward-looking window, so versioning per day adds
+        no value — we overwrite on each sync and the document always answers
+        "what's coming up in the next ~7 days".
+        """
+        self.db.collection("tm_economic_calendar").document("latest").set(payload)
+
+    def get_latest_economic_calendar(self) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_economic_calendar").document("latest").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def get_sector_benchmarks(
+        self, market: str, snapshot_date: str | None = None
+    ) -> dict[str, Any] | None:
+        """Return the benchmarks doc for a date, or walk back up to 14 days."""
+        collection = self.db.collection("tm_sector_benchmarks")
+        if snapshot_date:
+            doc = collection.document(f"{market}__{snapshot_date}").get()
+            return _serialize(doc.to_dict()) if doc.exists else None
+        from datetime import datetime, timedelta, timezone
+        today = datetime.now(timezone.utc).date()
+        for offset in range(0, 14):
+            probe = (today - timedelta(days=offset)).strftime("%Y-%m-%d")
+            doc = collection.document(f"{market}__{probe}").get()
+            if doc.exists:
+                return _serialize(doc.to_dict())
+        return None
 
     def save_instrument_view(self, instrument_id: str, universe_id: str, payload: dict[str, Any]) -> None:
         doc_id = f"{instrument_id}__{universe_id}"
@@ -288,6 +576,301 @@ class TraceMoneyStore:
             .get()
         )
         return [_serialize(doc.to_dict()) or {} for doc in docs]
+
+    def save_market_breadth_doc(self, market: str, date_str: str, payload: dict[str, Any]) -> None:
+        doc_id = f"{market.upper()}_{date_str}"
+        self.db.collection("tm_market_breadth").document(doc_id).set(payload, merge=True)
+
+    def get_market_breadth_doc(self, market: str, date_str: str) -> dict[str, Any] | None:
+        doc_id = f"{market.upper()}_{date_str}"
+        doc = self.db.collection("tm_market_breadth").document(doc_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_sentiment_gauge_doc(self, market: str, date_str: str, payload: dict[str, Any]) -> None:
+        doc_id = f"{market.upper()}_{date_str}"
+        self.db.collection("tm_sentiment_gauge").document(doc_id).set(payload, merge=True)
+
+    def get_sentiment_gauge_doc(self, market: str, date_str: str) -> dict[str, Any] | None:
+        doc_id = f"{market.upper()}_{date_str}"
+        doc = self.db.collection("tm_sentiment_gauge").document(doc_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_stock_technical_docs(self, docs_payload: list[dict[str, Any]]) -> None:
+        if not docs_payload:
+            return
+        batch = self.db.batch()
+        for payload in docs_payload:
+            instrument_id = str(payload.get("instrument_id", "")).strip()
+            as_of_date = str(payload.get("as_of_date", "")).strip()
+            if not instrument_id or not as_of_date:
+                continue
+            doc_id = f"{instrument_id}_{as_of_date}"
+            batch.set(self.db.collection("tm_stock_technicals").document(doc_id), payload, merge=True)
+        batch.commit()
+
+    def get_latest_stock_technical_doc(
+        self, instrument_id: str, lookback_days: int = 14
+    ) -> dict[str, Any] | None:
+        """Walk back up to `lookback_days` daily doc IDs and return the newest
+        existing one. Avoids the composite index required by a where+order_by
+        query, and mirrors the pattern used on the frontend reader."""
+        today = datetime.now(timezone.utc).date()
+        collection = self.db.collection("tm_stock_technicals")
+        refs = [
+            collection.document(f"{instrument_id}_{(today - timedelta(days=i)).isoformat()}")
+            for i in range(lookback_days)
+        ]
+        snaps = list(self.db.get_all(refs))
+        # Reorder to strict newest-first (get_all does not guarantee order).
+        by_id = {snap.id: snap for snap in snaps if snap.exists}
+        for ref in refs:
+            snap = by_id.get(ref.id)
+            if snap is not None:
+                return _serialize(snap.to_dict()) or None
+        return None
+
+    def get_stock_technical_doc(self, instrument_id: str, date_str: str) -> dict[str, Any] | None:
+        doc_id = f"{instrument_id}_{date_str}"
+        doc = self.db.collection("tm_stock_technicals").document(doc_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_user_watchlist(self, user_id: str, payload: dict[str, Any]) -> None:
+        self.db.collection("tm_user_watchlists").document(user_id).set({
+            **payload,
+            "user_id": user_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def get_user_watchlist(self, user_id: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_user_watchlists").document(user_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_watchlist_view(self, uid: str, payload: dict[str, Any]) -> None:
+        """Write a materialized watchlist view for a user.
+
+        One doc per user under `tm_watchlist_views/{uid}`. Holds the fully
+        joined per-stock rows, alert digest, and pulse headline needed by the
+        `/watchlist` page, so a page load is a single Firestore read instead
+        of N per-entity lookups."""
+        self.db.collection("tm_watchlist_views").document(uid).set({
+            **payload,
+            "uid": uid,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=False)
+
+    def get_watchlist_view(self, uid: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_watchlist_views").document(uid).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def list_subscribed_users(self) -> list[dict[str, Any]]:
+        """Return all user docs with tracked_stocks set (for batched view-build jobs)."""
+        docs = self.db.collection("users").where("tracked_stocks", "!=", []).stream()
+        rows = []
+        for doc in docs:
+            data = _serialize(doc.to_dict()) or {}
+            data["uid"] = doc.id
+            rows.append(data)
+        return rows
+
+    def list_user_watchlists(self, market: str | None = None) -> list[dict[str, Any]]:
+        docs = self.db.collection("tm_user_watchlists").stream()
+        rows = [_serialize(doc.to_dict()) or {} for doc in docs]
+        if market:
+            rows = [row for row in rows if str(row.get("market", "")).upper() == str(market).upper()]
+        rows.sort(key=lambda row: str(row.get("user_id", "")))
+        return rows
+
+    def save_user_alert_flags(self, user_id: str, flags: list[dict[str, Any]]) -> None:
+        existing = (
+            self.db.collection("tm_user_alert_flags")
+            .where("user_id", "==", user_id)
+            .stream()
+        )
+        existing_docs = list(existing)
+        if existing_docs:
+            delete_batch = self.db.batch()
+            for doc in existing_docs:
+                delete_batch.delete(doc.reference)
+            delete_batch.commit()
+        if not flags:
+            return
+        batch = self.db.batch()
+        for payload in flags:
+            instrument_id = str(payload.get("instrument_id", "")).strip()
+            if not instrument_id:
+                continue
+            doc_id = f"{user_id}_{instrument_id}"
+            batch.set(self.db.collection("tm_user_alert_flags").document(doc_id), payload, merge=True)
+        batch.commit()
+
+    # ─── Mention stats / heat list ────────────────────────────────────────
+    # `tm_mention_stats/{instrument_id}` holds a rolling 30-day map of daily
+    # mention counts per stock. Each run (build_heat_list) re-buckets the
+    # fresh enrichments by article.published_at date and merges them in,
+    # trimming anything older than 30 days. This gives the heat-list scorer
+    # a baseline it can compare the last 7 days against, without us needing
+    # a new long-lived time-series store — one doc, one read, one write.
+
+    def upsert_mention_stats(
+        self,
+        instrument_id: str,
+        daily_buckets: dict[str, dict[str, float]],
+        *,
+        ticker: str = "",
+        market: str = "",
+        window_days: int = 30,
+    ) -> None:
+        """Merge `daily_buckets` ({YYYY-MM-DD: {count, primary_count,
+        sentiment_sum, sentiment_n}}) into the rolling stats doc and trim
+        anything older than `window_days`."""
+        if not instrument_id:
+            return
+        ref = self.db.collection("tm_mention_stats").document(instrument_id)
+        snap = ref.get()
+        existing = _serialize(snap.to_dict()) if snap.exists else {}
+        days: dict[str, dict[str, float]] = dict(existing.get("days", {}) or {})
+        for date_key, payload in daily_buckets.items():
+            if not date_key:
+                continue
+            merged = dict(days.get(date_key, {}))
+            for field in ("count", "primary_count", "sentiment_sum", "sentiment_n"):
+                merged[field] = float(merged.get(field, 0.0)) + float(payload.get(field, 0.0))
+            days[date_key] = merged
+
+        # Trim to trailing window.
+        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=window_days)).isoformat()
+        days = {k: v for k, v in days.items() if k >= cutoff}
+
+        ref.set({
+            "instrument_id": instrument_id,
+            "ticker": ticker or existing.get("ticker", ""),
+            "market": market or existing.get("market", ""),
+            "days": days,
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def reset_mention_stats_window(
+        self,
+        instrument_id: str,
+        daily_buckets: dict[str, dict[str, float]],
+        *,
+        ticker: str = "",
+        market: str = "",
+    ) -> None:
+        """Replace the rolling stats for `instrument_id` with exactly the
+        provided buckets. Used when we want to recompute from scratch instead
+        of merging (e.g. fresh daily rebuild from a full 30-day enrichment
+        archive, or an initial bootstrap)."""
+        if not instrument_id:
+            return
+        self.db.collection("tm_mention_stats").document(instrument_id).set({
+            "instrument_id": instrument_id,
+            "ticker": ticker,
+            "market": market,
+            "days": daily_buckets,
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def get_mention_stats(self, instrument_id: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_mention_stats").document(instrument_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def get_mention_stats_batch(
+        self, instrument_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Batch-fetch mention stats for many instruments in one roundtrip
+        (uses the same get_all() pattern as get_latest_prices)."""
+        result: dict[str, dict[str, Any]] = {}
+        collection = self.db.collection("tm_mention_stats")
+        for start in range(0, len(instrument_ids), 500):
+            chunk = instrument_ids[start : start + 500]
+            refs = [collection.document(iid) for iid in chunk]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    result[doc.id] = _serialize(doc.to_dict()) or {}
+        return result
+
+    def get_latest_stock_technicals_batch(
+        self, instrument_ids: list[str], lookback_days: int = 7
+    ) -> dict[str, dict[str, Any]]:
+        """Batch-fetch the most recent technical doc for each instrument.
+
+        Tries today first, then walks back up to `lookback_days` days. Each
+        pass is a single get_all() call (at most 500 refs per batch), so the
+        worst case is `lookback_days` roundtrips instead of
+        `len(instrument_ids) * lookback_days` serial reads."""
+        remaining: list[str] = list(instrument_ids)
+        result: dict[str, dict[str, Any]] = {}
+        today = datetime.now(timezone.utc).date()
+        collection = self.db.collection("tm_stock_technicals")
+
+        for offset in range(lookback_days):
+            if not remaining:
+                break
+            date_str = (today - timedelta(days=offset)).isoformat()
+            refs = [collection.document(f"{iid}_{date_str}") for iid in remaining]
+            found_this_pass: set[str] = set()
+            for start in range(0, len(refs), 500):
+                chunk_refs = refs[start : start + 500]
+                for doc in self.db.get_all(chunk_refs):
+                    if not doc.exists:
+                        continue
+                    # Doc id is "{instrument_id}_{date}" — strip the date suffix.
+                    raw_id = doc.id
+                    iid = raw_id[: -(len(date_str) + 1)]  # remove trailing _YYYY-MM-DD
+                    result[iid] = _serialize(doc.to_dict()) or {}
+                    found_this_pass.add(iid)
+            remaining = [iid for iid in remaining if iid not in found_this_pass]
+
+        return result
+
+    def list_mention_stats(self, market: str | None = None) -> list[dict[str, Any]]:
+        query = self.db.collection("tm_mention_stats")
+        if market:
+            query = query.where("market", "==", market)
+        rows = [_serialize(doc.to_dict()) or {} for doc in query.stream()]
+        rows.sort(key=lambda row: str(row.get("instrument_id", "")))
+        return rows
+
+    def save_heat_list(self, market: str, payload: dict[str, Any]) -> None:
+        """Write the ranked heat-list doc for a market.
+
+        One doc per market under `tm_heat_list/{market}`. Holds the fully
+        joined rows the `/heat` page renders so a page load is a single
+        Firestore read."""
+        self.db.collection("tm_heat_list").document(market).set({
+            **payload,
+            "market": market,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def get_heat_list(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_heat_list").document(market).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_divergence_list(self, market: str, payload: dict[str, Any]) -> None:
+        """Write the ranked price-news divergence doc for a market."""
+        self.db.collection("tm_divergence").document(market).set({
+            **payload,
+            "market": market,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def get_divergence_list(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_divergence").document(market).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_sentiment_flip_list(self, market: str, payload: dict[str, Any]) -> None:
+        """Write the ranked sentiment-flip doc for a market."""
+        self.db.collection("tm_sentiment_flip").document(market).set({
+            **payload,
+            "market": market,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def get_sentiment_flip_list(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_sentiment_flip").document(market).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
 
     def get_preferences_schema(self) -> dict[str, Any] | None:
         doc = self.db.collection("tm_config").document("preferences_schema").get()

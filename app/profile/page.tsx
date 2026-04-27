@@ -1,179 +1,215 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { Shell } from "@/components/shell";
+import { getSessionUser } from "@/lib/auth-server";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { SignOutButton } from "@/components/sign-out-button";
 
-const user = {
-  name: "Tanay Tomar",
-  email: "tanay@tikrr.online",
-  initials: "TT",
-  joined: "Jan 2026",
-  tier: "Premium",
-  watchlist: [
-    { ticker: "NVDA", name: "NVIDIA", change: +3.42 },
-    { ticker: "AAPL", name: "Apple", change: -0.67 },
-    { ticker: "MSFT", name: "Microsoft", change: +1.18 },
-    { ticker: "GOOGL", name: "Alphabet", change: +0.94 },
-    { ticker: "TSLA", name: "Tesla", change: +5.21 },
-    { ticker: "AMZN", name: "Amazon", change: +2.14 },
-  ],
-  sectors: ["Technology", "AI & Semiconductors", "Cloud Infrastructure"],
-  activity: {
-    briefings_read: 47,
-    stocks_analyzed: 128,
-    alerts_received: 23,
-    member_days: 62,
-  },
-  notifications: {
-    ai_briefing: { label: "AI Morning Brief", desc: "Your personalized market intelligence at 6:30 AM", enabled: true },
-    price_alerts: { label: "Price Alerts", desc: "When watchlist stocks move more than ±3%", enabled: true },
-    weekly_digest: { label: "Weekly Digest", desc: "Saturday summary of the week's biggest moves", enabled: false },
-    breaking_news: { label: "Breaking Signals", desc: "High-urgency events affecting your watchlist", enabled: true },
-  },
-};
+export const revalidate = 0;
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const session = await getSessionUser();
+  if (!session) redirect("/");
+
+  const userDoc = await getUserDoc(session.uid).catch(() => null);
+  const tracked = Array.isArray(userDoc?.tracked_stocks)
+    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+    : [];
+
+  const subscribed = resolveIsSubscribed(userDoc);
+  const displayName = session.displayName || userDoc?.display_name || null;
+  const email = session.email || userDoc?.email || null;
+  const photoURL = session.photoURL || userDoc?.photo_url || null;
+  const initial = (displayName || email || "?").trim().charAt(0).toUpperCase();
+
+  const joinedAt = userDoc?.created_at
+    ? new Date(userDoc.created_at).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
   return (
-    <Shell>
-      <div className="mx-auto max-w-2xl">
+    <main className="flex-grow">
+      <div className="mx-auto w-full max-w-screen-md px-8 py-12 flex flex-col gap-8">
 
-        {/* Profile header */}
-        <section className="mb-8 overflow-hidden border border-[#1A1A1A]">
-          <div className="border-b border-[#1A1A1A] bg-[#1A1A1A] px-8 py-8">
-            <div className="flex items-center gap-6">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center border border-[#D4AF37] text-2xl font-headline italic text-[#D4AF37]">
-                {user.initials}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="font-headline text-2xl italic text-white">{user.name}</h1>
-                <p className="text-xs text-white/40">{user.email}</p>
-              </div>
-              <div className="hidden text-right sm:block">
-                <span className="border border-[#D4AF37] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4AF37]">
-                  {user.tier}
-                </span>
-              </div>
+        {/* ─── Account ─────────────────────────────────────── */}
+        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-5">
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
+            Account
+          </span>
+
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full overflow-hidden bg-primary flex-shrink-0">
+              {photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoURL} alt="" className="h-14 w-14 object-cover" />
+              ) : (
+                <span className="text-xl font-bold text-on-primary">{initial}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              {displayName && (
+                <p className="text-base font-semibold text-on-surface truncate">{displayName}</p>
+              )}
+              {email && (
+                <p className="text-sm text-on-surface-variant truncate">{email}</p>
+              )}
+              {joinedAt && (
+                <p className="text-[11px] text-on-surface-variant mt-0.5">Member since {joinedAt}</p>
+              )}
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-3 px-8 py-6">
-            {[
-              { v: user.activity.briefings_read, l: "Briefs read" },
-              { v: user.activity.stocks_analyzed, l: "Stocks viewed" },
-              { v: user.activity.alerts_received, l: "Alerts" },
-              { v: user.activity.member_days, l: "Days active" },
-            ].map((s) => (
-              <div key={s.l} className="text-center">
-                <p className="font-mono text-2xl tabular-nums text-[#1A1A1A]">{s.v}</p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[#1A1A1A]/30">{s.l}</p>
-              </div>
-            ))}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-outline-variant/20 pt-4">
+            <InfoRow label="User ID" value={session.uid} mono />
+            <InfoRow
+              label="Plan"
+              value={subscribed ? "Pro" : "Free"}
+              highlight={subscribed}
+            />
           </div>
         </section>
 
-        {/* Watchlist */}
-        <section className="mb-8 border border-[#1A1A1A]/10 p-6">
-          <div className="mb-5 flex items-center justify-between border-b border-[#1A1A1A]/10 pb-4">
-            <h3 className="font-headline text-lg italic">Watchlist</h3>
-            <span className="text-[10px] uppercase tracking-[0.3em] text-[#1A1A1A]/30">{user.watchlist.length} stocks</span>
+        {/* ─── Watchlist ───────────────────────────────────── */}
+        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-4">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
+              Watchlist
+            </span>
+            <a
+              href="/watchlist"
+              className="text-[11px] font-bold text-primary hover:underline"
+            >
+              Manage →
+            </a>
           </div>
-          <div className="grid grid-cols-2 gap-0 sm:grid-cols-3">
-            {user.watchlist.map((stock) => (
-              <Link
-                key={stock.ticker}
-                href={`/stock/${encodeURIComponent(stock.ticker)}?market=us`}
-                className="flex items-center gap-3 border border-[#1A1A1A]/5 p-4 transition hover:border-[#D4AF37] hover:bg-white"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#1A1A1A] text-[10px] font-bold text-[#F9F8F6]">
-                  {stock.ticker.slice(0, 2)}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-[#1A1A1A]">{stock.ticker}</p>
-                  <p
-                    className={`text-[10px] font-bold font-mono tabular-nums ${stock.change >= 0 ? "text-[#2D6A4F]" : "text-[#9B2226]"}`}
-                  >
-                    {stock.change >= 0 ? "+" : ""}
-                    {stock.change.toFixed(2)}%
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
 
-        {/* Sector focus */}
-        <section className="mb-8 border border-[#1A1A1A]/10 p-6">
-          <h3 className="mb-4 font-headline text-lg italic">Sector focus</h3>
-          <div className="flex flex-wrap gap-2">
-            {user.sectors.map((sector) => (
-              <span
-                key={sector}
-                className="border border-[#1A1A1A]/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#1A1A1A]/60"
-              >
-                {sector}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        {/* Alert preferences */}
-        <section className="mb-8 border border-[#1A1A1A]/10 p-6">
-          <h3 className="mb-6 font-headline text-lg italic">Alert preferences</h3>
-          <div className="space-y-6">
-            {Object.values(user.notifications).map((item) => (
-              <div key={item.label} className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-[#1A1A1A]">{item.label}</p>
-                  <p className="mt-0.5 text-xs text-[#1A1A1A]/40">{item.desc}</p>
-                </div>
-                <div
-                  className={`mt-0.5 flex h-6 w-11 shrink-0 cursor-default items-center px-0.5 transition-colors ${
-                    item.enabled ? "bg-[#D4AF37]" : "bg-[#1A1A1A]/10"
-                  }`}
-                >
-                  <div
-                    className={`h-5 w-5 bg-white shadow-sm transition-transform ${
-                      item.enabled ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Subscription */}
-        <section className="relative mb-8 overflow-hidden border border-[#1A1A1A]/10 p-6">
-          <div className="relative">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-headline text-lg italic">Subscription</h3>
-              <span className="border border-[#D4AF37] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4AF37]">{user.tier}</span>
-            </div>
-            <p className="mb-5 text-sm text-[#1A1A1A]/50">
-              Unlimited AI intelligence, real-time alerts, and full watchlist coverage.
+          {tracked.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">
+              No stocks tracked yet.{" "}
+              <a href="/watchlist" className="text-primary hover:underline">
+                Start tracking
+              </a>
+              .
             </p>
-            <div className="mb-4 flex items-baseline gap-1">
-              <span className="font-headline text-4xl italic text-[#1A1A1A]">$12</span>
-              <span className="text-sm text-[#1A1A1A]/30">/month</span>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {tracked.map((id) => (
+                <span
+                  key={id}
+                  className="inline-flex items-center px-2.5 py-1 bg-surface-container-low text-[12px] font-bold text-on-surface rounded-full"
+                >
+                  {id}
+                </span>
+              ))}
             </div>
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[#1A1A1A]/40">
-              <span className="material-symbols-outlined text-[#2D6A4F] text-sm">check_circle</span>
-              Member since {user.joined}
-              <span>·</span>
-              Next billing: Feb 1, 2026
+          )}
+
+          <p className="text-[11px] text-on-surface-variant">
+            {tracked.length} of 10 slots used
+          </p>
+        </section>
+
+        {/* ─── Preferences ─────────────────────────────────── */}
+        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-4">
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
+            Preferences
+          </span>
+
+          <PreferenceRow
+            icon="notifications"
+            label="Alerts"
+            description="Red-flag alerts for overbought RSI, 52-week lows, earnings next day"
+            badge="Coming soon"
+          />
+          <PreferenceRow
+            icon="mail"
+            label="Email digest"
+            description="Daily AI brief across your watchlist, delivered to your inbox"
+            badge="Coming soon"
+          />
+          <PreferenceRow
+            icon="schedule"
+            label="Refresh cadence"
+            description="How often your watchlist brief regenerates"
+            badge="Coming soon"
+          />
+        </section>
+
+        {/* ─── Danger zone ─────────────────────────────────── */}
+        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-4">
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
+            Session
+          </span>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-on-surface">Sign out</p>
+              <p className="text-[12px] text-on-surface-variant">
+                You'll need to sign back in to access your watchlist and AI briefs.
+              </p>
             </div>
+            <SignOutButton />
           </div>
         </section>
 
-        <div className="flex items-center justify-between pb-8 pt-2">
-          <p className="font-headline text-sm italic text-[#1A1A1A]/20">tikrr</p>
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-[#1A1A1A]/30 transition-colors hover:text-[#9B2226]"
-          >
-            <span className="material-symbols-outlined text-sm">logout</span>
-            Sign out
-          </Link>
-        </div>
       </div>
-    </Shell>
+    </main>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  mono,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
+        {label}
+      </span>
+      <span
+        className={`text-[13px] truncate ${mono ? "font-mono text-on-surface-variant" : "font-semibold"} ${highlight ? "text-primary" : "text-on-surface"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function PreferenceRow({
+  icon,
+  label,
+  description,
+  badge,
+}: {
+  icon: string;
+  label: string;
+  description: string;
+  badge?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="material-symbols-outlined text-[18px] text-on-surface-variant mt-0.5 flex-shrink-0">
+        {icon}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-on-surface">{label}</span>
+          {badge && (
+            <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant border border-outline-variant/40 px-1.5 py-0.5 rounded">
+              {badge}
+            </span>
+          )}
+        </div>
+        <p className="text-[12px] text-on-surface-variant mt-0.5">{description}</p>
+      </div>
+    </div>
   );
 }
