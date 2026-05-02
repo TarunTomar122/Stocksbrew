@@ -1,9 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { setMarket } from "@/app/actions/set-market";
 import { AuthButton } from "@/components/auth-button";
 import { useUser } from "@/lib/auth-context";
 import type { Market } from "@/lib/types";
@@ -14,9 +13,9 @@ type Props = {
   market: Market;
 };
 
-const MARKETS: { id: Market; optionLabel: string }[] = [
-  { id: "US", optionLabel: "🇺🇸 United States" },
-  { id: "IN", optionLabel: "🇮🇳 India" },
+const NAV_ITEMS = [
+  { href: "/heat", label: "Heat" },
+  { href: "/news", label: "News" },
 ];
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
@@ -45,17 +44,8 @@ export function Header({ searchIndex, market }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [pending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  function onPickMarket(next: Market) {
-    if (next === market) return;
-    startTransition(async () => {
-      await setMarket(next);
-      router.refresh();
-    });
-  }
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -122,70 +112,38 @@ export function Header({ searchIndex, market }: Props) {
 
   const showDropdown = open && query.trim().length > 0;
 
+  const navItems = user
+    ? [...NAV_ITEMS, { href: "/watchlist", label: "Watchlist" }]
+    : NAV_ITEMS;
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-surface border-b border-outline-variant/20">
-      <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between px-8">
-        <div className="flex items-center gap-6">
+    <header className="sticky top-0 z-50 w-full bg-white border-b border-[#e5e7eb]">
+      <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between px-6 md:px-10 lg:px-16">
+        {/* Left: wordmark + primary nav */}
+        <div className="flex items-center gap-10">
           <a
             href="/"
-            className="font-display text-2xl font-black tracking-tighter text-on-surface"
+            className="flex items-center gap-2 text-[20px] font-semibold text-[#111111] tracking-[-0.04em] leading-none"
           >
-            ti<span className="text-primary">k</span>rr
+            tikrr
           </a>
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="px-3 py-2 text-[14px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
         </div>
 
-        <div className="flex items-center gap-4">
-          <a
-            href="/heat"
-            className="flex items-center gap-1 text-[11px] font-bold tracking-[0.18em] uppercase bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
-          >
-            <span>✦</span>
-            <span>Heat</span>
-          </a>
-          <a
-            href="/news"
-            className="text-[11px] font-bold tracking-[0.18em] uppercase text-on-surface-variant hover:text-on-surface transition-colors"
-          >
-            News
-          </a>
-          {user && (
-            <a
-              href="/watchlist"
-              className="text-[11px] font-bold tracking-[0.18em] uppercase text-on-surface-variant hover:text-on-surface transition-colors"
-            >
-              Watchlist
-            </a>
-          )}
-          <div className="relative">
-            <label htmlFor="header-market" className="sr-only">
-              Market
-            </label>
-            <select
-              id="header-market"
-              value={market}
-              onChange={(e) => onPickMarket(e.target.value as Market)}
-              disabled={pending}
-              aria-label="Market"
-              className={`min-w-[11.5rem] cursor-pointer appearance-none rounded-full border border-outline-variant/40 bg-surface-container-low py-2 pl-3 pr-9 text-[12px] font-bold text-on-surface outline-none transition-[color,box-shadow,border-color] hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/25 ${
-                pending ? "opacity-60" : ""
-              }`}
-            >
-              {MARKETS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.optionLabel}
-                </option>
-              ))}
-            </select>
-            <span
-              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-outline material-symbols-outlined text-[20px]"
-              aria-hidden="true"
-            >
-              expand_more
-            </span>
-          </div>
-
+        {/* Right: search + market + auth */}
+        <div className="flex items-center gap-3">
           <div ref={containerRef} className="relative hidden sm:block">
-            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-outline">
+            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#6b7280]">
               search
             </span>
             <input
@@ -198,24 +156,24 @@ export function Header({ searchIndex, market }: Props) {
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={onKeyDown}
-              placeholder="Search tickers, sectors, news…"
+              placeholder="Search ticker…"
               autoComplete="off"
               spellCheck={false}
-              className="w-56 bg-surface-container-low border border-outline-variant/40 rounded-full py-2 pl-10 pr-4 text-sm text-on-surface placeholder:text-outline outline-none transition-all duration-300 focus:w-72 focus:border-primary"
+              className="h-10 w-56 rounded-lg border border-[#e5e7eb] bg-white pl-10 pr-3 text-[14px] text-[#111111] placeholder:text-[#898989] outline-none transition-all duration-200 focus:w-72 focus:border-[#111111]"
             />
 
             {showDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-surface-container-lowest brutalist-border shadow-lg overflow-hidden rounded-xl">
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-[#e5e7eb] shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
                 {results.length === 0 ? (
-                  <div className="px-4 py-3 text-[13px] text-on-surface-variant">
+                  <div className="px-4 py-3 text-[14px] text-[#6b7280]">
                     No matches. Press Enter to try{" "}
-                    <span className="font-bold text-on-surface">
+                    <span className="font-semibold text-[#111111]">
                       {query.trim().toUpperCase()}
                     </span>
                     .
                   </div>
                 ) : (
-                  <ul className="max-h-[380px] overflow-y-auto">
+                  <ul className="max-h-[380px] overflow-y-auto py-1.5">
                     {results.map((r, i) => {
                       const pct = formatPct(r.day_change_pct);
                       const isActive = i === activeIndex;
@@ -229,22 +187,20 @@ export function Header({ searchIndex, market }: Props) {
                               navigateTo(r);
                             }}
                             className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                              isActive
-                                ? "bg-surface-container-low"
-                                : "hover:bg-surface-container-low"
+                              isActive ? "bg-[#f5f5f5]" : "hover:bg-[#f8f9fa]"
                             }`}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-bold text-on-surface">
+                              <div className="text-[14px] font-semibold text-[#111111]">
                                 {r.ticker}
                               </div>
-                              <div className="text-[11px] font-semibold text-on-surface-variant truncate">
+                              <div className="text-[13px] text-[#6b7280] truncate">
                                 {r.name}
                               </div>
                             </div>
                             <div className="flex flex-col items-end flex-shrink-0">
                               {typeof r.price === "number" && (
-                                <span className="text-[12px] font-semibold text-on-surface tabular-nums">
+                                <span className="text-[13px] font-semibold text-[#111111] tabular-nums">
                                   {r.price.toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
@@ -253,10 +209,8 @@ export function Header({ searchIndex, market }: Props) {
                               )}
                               {pct && (
                                 <span
-                                  className={`text-[11px] font-bold tabular-nums ${
-                                    pct.positive
-                                      ? "text-signal-bullish"
-                                      : "text-signal-bearish"
+                                  className={`text-[12px] font-semibold tabular-nums ${
+                                    pct.positive ? "text-[#10b981]" : "text-[#ef4444]"
                                   }`}
                                 >
                                   {pct.text}
@@ -271,6 +225,13 @@ export function Header({ searchIndex, market }: Props) {
                 )}
               </div>
             )}
+          </div>
+
+          <div
+            className="inline-flex h-10 items-center rounded-lg border border-[#e5e7eb] bg-white px-3 text-[14px] font-medium text-[#111111]"
+            aria-label={`Market: ${market}`}
+          >
+            United States
           </div>
 
           <AuthButton />

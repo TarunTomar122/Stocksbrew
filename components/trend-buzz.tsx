@@ -175,22 +175,6 @@ export function TrendBuzz({ trend }: Props) {
         </div>
       </div>
 
-      {mentionsTotal > 0 && (
-        <div className="mt-6 pt-5 border-t border-outline-variant/30">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-outline">
-              News Buzz
-            </span>
-            <span className="text-[11px] font-bold tabular-nums text-on-surface-variant">
-              {mentionsTotal} article{mentionsTotal === 1 ? "" : "s"}
-            </span>
-          </div>
-          <p className="text-[11px] text-on-surface-variant mb-3">
-            Articles mentioning this stock, per day.
-          </p>
-          <MentionBars data={mentionSeries} />
-        </div>
-      )}
     </section>
   );
 }

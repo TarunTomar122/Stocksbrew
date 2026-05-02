@@ -32,11 +32,7 @@ def main() -> None:
 
     instrument_ids = [i["instrument_id"] for i in instruments]
     intel_pro_docs = store.list_stock_intel_pro(args.market, args.universe)
-    technical_docs = [
-        doc for doc in (
-            store.get_latest_stock_technical_doc(iid) for iid in instrument_ids
-        ) if doc
-    ]
+    technical_docs = list(store.get_latest_stock_technicals_batch(instrument_ids).values())
     latest_prices = store.get_latest_prices(instrument_ids)
 
     doc = build_screens_doc(

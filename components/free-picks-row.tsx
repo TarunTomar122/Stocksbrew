@@ -22,7 +22,7 @@ export function FreePicksRow({ instrumentIds, snapshotRows }: Props) {
   if (!picks.length) return null;
 
   return (
-    <section className="bg-surface-container-lowest brutalist-border rounded-xl p-6 flex flex-col gap-5">
+    <section className="bg-surface-container-lowest rounded-xl p-6 flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary">
           Free AI Briefs

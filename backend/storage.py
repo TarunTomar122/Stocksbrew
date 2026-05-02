@@ -102,12 +102,26 @@ class TraceMoneyStore:
         }, merge=True)
 
     def list_instruments(self, market: str, instrument_ids: list[str] | None = None) -> list[dict[str, Any]]:
-        docs = self.db.collection("tm_instruments").stream()
-        rows = [_serialize(doc.to_dict()) for doc in docs]
-        rows = [row for row in rows if row and row.get("market") == market]
         if instrument_ids is not None:
             allowed = set(instrument_ids)
-            rows = [row for row in rows if row.get("instrument_id") in allowed]
+            refs = [
+                self.db.collection("tm_instruments").document(instrument_id)
+                for instrument_id in sorted(allowed)
+            ]
+            rows = [
+                _serialize(doc.to_dict()) or {}
+                for doc in self.db.get_all(refs)
+                if doc.exists
+            ]
+            rows = [row for row in rows if row.get("market") == market]
+        else:
+            docs = (
+                self.db.collection("tm_instruments")
+                .where("market", "==", market)
+                .stream()
+            )
+            rows = [_serialize(doc.to_dict()) for doc in docs]
+            rows = [row for row in rows if row]
         rows.sort(key=lambda row: row.get("instrument_id", ""))
         return rows
 
@@ -196,6 +210,7 @@ class TraceMoneyStore:
             "rowCount": len(normalized_rows),
             "shardCount": len(shard_docs),
             "updatedAt": updated_at,
+            "rows": normalized_rows,
         }, merge=True)
 
         if stale_ids:
@@ -218,6 +233,12 @@ class TraceMoneyStore:
 
     def get_market_price_snapshot(self, market: str) -> list[dict[str, Any]]:
         market_key = str(market).upper()
+        latest_doc = self.db.collection("market_price_snapshots").document(market_key).get()
+        if latest_doc.exists:
+            latest_payload = _serialize(latest_doc.to_dict()) or {}
+            latest_rows = latest_payload.get("rows")
+            if isinstance(latest_rows, list):
+                return [row for row in latest_rows if isinstance(row, dict)]
         docs = (
             self.db.collection("market_price_snapshots")
             .document(market_key)
@@ -237,6 +258,26 @@ class TraceMoneyStore:
             **payload,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
+
+    def save_stock_facts(self, payload: dict[str, Any]) -> None:
+        instrument_id = payload["instrument_id"]
+        self.db.collection("tm_stock_facts").document(instrument_id).set({
+            **_serialize(payload),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def get_stock_facts_batch(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
+        rows: dict[str, dict[str, Any]] = {}
+        collection = self.db.collection("tm_stock_facts")
+        for start in range(0, len(instrument_ids), 500):
+            refs = [
+                collection.document(instrument_id)
+                for instrument_id in instrument_ids[start : start + 500]
+            ]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
 
     def get_fundamental_snapshots(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
         rows: dict[str, dict[str, Any]] = {}
@@ -342,6 +383,22 @@ class TraceMoneyStore:
             .collection("stocks").document(instrument_id).get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    def get_stock_intel_pro_batch(
+        self, market: str, universe_id: str, instrument_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        rows: dict[str, dict[str, Any]] = {}
+        collection = self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}") \
+            .collection("stocks")
+        for start in range(0, len(instrument_ids), 500):
+            refs = [
+                collection.document(instrument_id)
+                for instrument_id in instrument_ids[start : start + 500]
+            ]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
+
     def list_stock_intel_pro(self, market: str, universe_id: str) -> list[dict[str, Any]]:
         snap = self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}") \
             .collection("stocks").stream()
@@ -366,6 +423,30 @@ class TraceMoneyStore:
         """
         self.db.collection("tm_stock_metrics_history").document(instrument_id) \
             .collection("snapshots").document(snapshot_date).set(payload)
+        self.db.collection("tm_stock_metrics_latest").document(instrument_id).set(payload)
+
+    def get_stock_metrics_snapshots_batch(
+        self, instrument_ids: list[str], snapshot_date: str | None = None
+    ) -> dict[str, dict[str, Any]]:
+        rows: dict[str, dict[str, Any]] = {}
+        if snapshot_date:
+            refs = [
+                self.db.collection("tm_stock_metrics_history").document(instrument_id)
+                .collection("snapshots").document(snapshot_date)
+                for instrument_id in instrument_ids
+            ]
+        else:
+            refs = [
+                self.db.collection("tm_stock_metrics_latest").document(instrument_id)
+                for instrument_id in instrument_ids
+            ]
+        for start in range(0, len(refs), 500):
+            for doc in self.db.get_all(refs[start:start + 500]):
+                if doc.exists:
+                    data = _serialize(doc.to_dict()) or {}
+                    instrument_id = str(data.get("instrument_id") or doc.id)
+                    rows[instrument_id] = data
+        return rows
 
     def get_stock_metrics_snapshot(
         self, instrument_id: str, snapshot_date: str
@@ -400,6 +481,7 @@ class TraceMoneyStore:
             "benchmarks": benchmarks,
         }
         self.db.collection("tm_sector_benchmarks").document(doc_id).set(payload)
+        self.db.collection("tm_sector_benchmarks").document(f"latest__{market}").set(payload)
 
     # ──────────────────────────── market mood ─────────────────────────────
 
@@ -451,6 +533,9 @@ class TraceMoneyStore:
         if snapshot_date:
             doc = collection.document(f"{market}__{snapshot_date}").get()
             return _serialize(doc.to_dict()) if doc.exists else None
+        latest = collection.document(f"latest__{market}").get()
+        if latest.exists:
+            return _serialize(latest.to_dict())
         from datetime import datetime, timedelta, timezone
         today = datetime.now(timezone.utc).date()
         for offset in range(0, 14):
@@ -476,18 +561,35 @@ class TraceMoneyStore:
         return self.db.collection("tm_news_runs").document(f"{market}__{universe_id}")
 
     def _replace_subcollection(self, parent_ref, name: str, docs_payload: list[dict[str, Any]], id_field: str) -> None:
-        existing_docs = list(parent_ref.collection(name).stream())
-        if existing_docs:
-            delete_batch = self.db.batch()
-            for doc in existing_docs:
-                delete_batch.delete(doc.reference)
-            delete_batch.commit()
+        def commit_batch(ops: list[tuple[str, Any, dict[str, Any] | None]]) -> None:
+            if not ops:
+                return
+            batch = self.db.batch()
+            for op, ref, payload in ops:
+                if op == "delete":
+                    batch.delete(ref)
+                else:
+                    batch.set(ref, payload or {})
+            batch.commit()
+
+        pending: list[tuple[str, Any, dict[str, Any] | None]] = []
+        for doc in parent_ref.collection(name).stream():
+            pending.append(("delete", doc.reference, None))
+            if len(pending) >= 450:
+                commit_batch(pending)
+                pending = []
+        commit_batch(pending)
+
         if not docs_payload:
             return
-        batch = self.db.batch()
+        pending = []
         for payload in docs_payload:
-            batch.set(parent_ref.collection(name).document(str(payload[id_field])), payload)
-        batch.commit()
+            ref = parent_ref.collection(name).document(str(payload[id_field]))
+            pending.append(("set", ref, payload))
+            if len(pending) >= 450:
+                commit_batch(pending)
+                pending = []
+        commit_batch(pending)
 
     def save_news_articles(self, market: str, universe_id: str, articles: list[dict[str, Any]], source_health: list[dict[str, Any]] | None = None) -> None:
         namespace = self._news_namespace(market, universe_id)
@@ -497,6 +599,11 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "article_count": len(articles),
             "source_health": source_health or [],
+            "home_feed_articles": sorted(
+                [_serialize(article) or {} for article in articles],
+                key=lambda row: row.get("published_at", ""),
+                reverse=True,
+            )[:30],
         }, merge=True)
         self._replace_subcollection(namespace, "articles", articles, "id")
 
@@ -514,6 +621,11 @@ class TraceMoneyStore:
             "universe_id": universe_id,
             "last_enriched_at": datetime.now(timezone.utc).isoformat(),
             "enrichment_count": len(articles),
+            "home_feed_enrichments": sorted(
+                [_serialize(article) or {} for article in articles],
+                key=lambda row: row.get("published_at", ""),
+                reverse=True,
+            )[:30],
         }, merge=True)
 
     def list_article_enrichments(self, market: str, universe_id: str) -> list[dict[str, Any]]:
@@ -541,6 +653,21 @@ class TraceMoneyStore:
     def get_stock_intelligence_doc(self, market: str, universe_id: str, instrument_id: str) -> dict[str, Any] | None:
         doc = self._news_namespace(market, universe_id).collection("stock_intelligence").document(instrument_id).get()
         return _serialize(doc.to_dict()) if doc.exists else None
+
+    def get_stock_intelligence_docs_batch(
+        self, market: str, universe_id: str, instrument_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        collection = self._news_namespace(market, universe_id).collection("stock_intelligence")
+        rows: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(instrument_ids), 500):
+            refs = [
+                collection.document(instrument_id)
+                for instrument_id in instrument_ids[start : start + 500]
+            ]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
 
     def save_market_context_doc(self, market: str, universe_id: str, payload: dict[str, Any]) -> None:
         self._news_namespace(market, universe_id).collection("market_context").document("overview").set(payload)
@@ -580,6 +707,7 @@ class TraceMoneyStore:
     def save_market_breadth_doc(self, market: str, date_str: str, payload: dict[str, Any]) -> None:
         doc_id = f"{market.upper()}_{date_str}"
         self.db.collection("tm_market_breadth").document(doc_id).set(payload, merge=True)
+        self.db.collection("tm_market_breadth").document(f"latest__{market.upper()}").set(payload, merge=True)
 
     def get_market_breadth_doc(self, market: str, date_str: str) -> dict[str, Any] | None:
         doc_id = f"{market.upper()}_{date_str}"
@@ -589,6 +717,7 @@ class TraceMoneyStore:
     def save_sentiment_gauge_doc(self, market: str, date_str: str, payload: dict[str, Any]) -> None:
         doc_id = f"{market.upper()}_{date_str}"
         self.db.collection("tm_sentiment_gauge").document(doc_id).set(payload, merge=True)
+        self.db.collection("tm_sentiment_gauge").document(f"latest__{market.upper()}").set(payload, merge=True)
 
     def get_sentiment_gauge_doc(self, market: str, date_str: str) -> dict[str, Any] | None:
         doc_id = f"{market.upper()}_{date_str}"
@@ -606,6 +735,7 @@ class TraceMoneyStore:
                 continue
             doc_id = f"{instrument_id}_{as_of_date}"
             batch.set(self.db.collection("tm_stock_technicals").document(doc_id), payload, merge=True)
+            batch.set(self.db.collection("tm_stock_technicals_latest").document(instrument_id), payload, merge=True)
         batch.commit()
 
     def get_latest_stock_technical_doc(
@@ -614,6 +744,9 @@ class TraceMoneyStore:
         """Walk back up to `lookback_days` daily doc IDs and return the newest
         existing one. Avoids the composite index required by a where+order_by
         query, and mirrors the pattern used on the frontend reader."""
+        latest = self.db.collection("tm_stock_technicals_latest").document(instrument_id).get()
+        if latest.exists:
+            return _serialize(latest.to_dict()) or None
         today = datetime.now(timezone.utc).date()
         collection = self.db.collection("tm_stock_technicals")
         refs = [
@@ -652,7 +785,17 @@ class TraceMoneyStore:
         joined per-stock rows, alert digest, and pulse headline needed by the
         `/watchlist` page, so a page load is a single Firestore read instead
         of N per-entity lookups."""
-        self.db.collection("tm_watchlist_views").document(uid).set({
+        ref = self.db.collection("tm_watchlist_views").document(uid)
+        previous = ref.get()
+        if previous.exists:
+            previous_payload = _serialize(previous.to_dict()) or {}
+            history_id = str(
+                previous_payload.get("built_at")
+                or previous_payload.get("updated_at")
+                or datetime.now(timezone.utc).isoformat()
+            ).replace(":", "-").replace(".", "-")
+            ref.collection("history").document(history_id).set(previous_payload)
+        ref.set({
             **payload,
             "uid": uid,
             "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -799,8 +942,17 @@ class TraceMoneyStore:
         pass is a single get_all() call (at most 500 refs per batch), so the
         worst case is `lookback_days` roundtrips instead of
         `len(instrument_ids) * lookback_days` serial reads."""
-        remaining: list[str] = list(instrument_ids)
         result: dict[str, dict[str, Any]] = {}
+        latest_collection = self.db.collection("tm_stock_technicals_latest")
+        for start in range(0, len(instrument_ids), 500):
+            refs = [latest_collection.document(iid) for iid in instrument_ids[start : start + 500]]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    result[doc.id] = _serialize(doc.to_dict()) or {}
+
+        remaining: list[str] = [iid for iid in instrument_ids if iid not in result]
+        if not remaining:
+            return result
         today = datetime.now(timezone.utc).date()
         collection = self.db.collection("tm_stock_technicals")
 

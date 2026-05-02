@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-import json
 import os
 from typing import Any
 
 import requests
 
 from backend.env import load_backend_env
+from backend.llm_client import (
+    MIMO_API_URL,
+    json_response_format,
+    llm_api_key,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 
 load_backend_env()
 
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-DEFAULT_MODEL = os.getenv("TIKRR_PIPELINE_MODEL") or os.getenv("TRACE_MONEY_LLM_MODEL") or "gpt-4o-mini"
+DEFAULT_MODEL = os.getenv("TIKRR_PIPELINE_MODEL") or llm_model()
 
 
 TIKRR_STOCK_JSON_SCHEMA: dict[str, Any] = {
@@ -168,9 +175,9 @@ TIKRR_SECTOR_JSON_SCHEMA: dict[str, Any] = {
 
 class OpenAIJSONClient:
     def __init__(self, api_key: str | None = None, model: str | None = None, timeout: int = 60) -> None:
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+        self.api_key = api_key or llm_api_key()
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY is required")
+            raise RuntimeError("MIMO_API_KEY is required")
         self.model = model or DEFAULT_MODEL
         self.timeout = timeout
 
@@ -185,21 +192,15 @@ class OpenAIJSONClient:
 
     def _generate(self, system_prompt: str, user_prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         response = requests.post(
-            f"{OPENAI_API_BASE}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            MIMO_API_URL,
+            headers=llm_headers(self.api_key),
             json={
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": schema_system_prompt(system_prompt, schema)},
                     {"role": "user", "content": user_prompt},
                 ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": schema,
-                },
+                "response_format": json_response_format(),
                 "temperature": 0.2,
             },
             timeout=self.timeout,
@@ -207,4 +208,4 @@ class OpenAIJSONClient:
         response.raise_for_status()
         payload = response.json()
         content = payload["choices"][0]["message"]["content"]
-        return json.loads(content)
+        return parse_json_content(content)

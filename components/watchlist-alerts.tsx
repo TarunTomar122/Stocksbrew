@@ -27,7 +27,12 @@ export function WatchlistAlerts({ rows }: { rows: WatchlistRow[] }) {
   const flat: FlagChipProps[] = [];
   for (const row of rows) {
     for (const flag of row.alerts) {
-      const kind = typeof flag?.kind === "string" ? flag.kind : "info";
+      const kind =
+        typeof flag?.kind === "string"
+          ? flag.kind
+          : typeof flag?.type === "string"
+            ? flag.type
+            : "info";
       const message =
         typeof flag?.message === "string"
           ? flag.message

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 
+import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { getCurrentMarket } from "@/lib/market";
 import { getSearchIndex } from "@/lib/search";
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <Providers>
           <Header searchIndex={searchIndex} market={market} />
           {children}
+          <Footer />
         </Providers>
       </body>
     </html>

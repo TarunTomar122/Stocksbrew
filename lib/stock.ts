@@ -1,6 +1,6 @@
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getActiveUniverse, getPriceUniverse, getMarketSnapshot } from "@/lib/firestore";
-import type { Instrument, LatestPrice, SnapshotRow, StockIntelPro } from "@/lib/types";
+import { getActiveUniverse, getPriceUniverse } from "@/lib/firestore";
+import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
 
 export type DataQuality = {
   confidence_score?: number;
@@ -69,7 +69,7 @@ export type StockFundamentals = {
 
 export type AnalystConsensus = {
   label?: string;
-  target_price?: number;
+  target_price?: number | null;
   buy?: number;
   hold?: number;
   sell?: number;
@@ -208,6 +208,76 @@ export type StockSummary = {
   fundamentals?: StockFundamentals | null;
 };
 
+export type StockFacts = {
+  instrument_id: string;
+  market: "US" | "IN";
+  ticker: string;
+  captured_at?: string;
+  returns?: {
+    one_month_pct?: number | null;
+    three_month_pct?: number | null;
+    six_month_pct?: number | null;
+    one_year_pct?: number | null;
+  };
+  quick_stats?: {
+    market_cap?: number | null;
+    pe_ttm?: number | null;
+    eps_next_year_growth_pct?: number | null;
+    institutional_ownership_pct?: number | null;
+    recommendation_score?: number | null;
+  };
+  analyst?: {
+    label?: string;
+    target_price?: number | null;
+    target_low?: number | null;
+    target_high?: number | null;
+    buy?: number;
+    hold?: number;
+    sell?: number;
+    analyst_count?: number;
+    source?: string;
+  };
+  events?: Array<{
+    kind?: string;
+    title?: string;
+    date_label?: string;
+    source?: string;
+  }>;
+  financials?: {
+    fiscal_year?: string | null;
+    revenue?: number | null;
+    revenue_growth_yoy_pct?: number | null;
+    gross_profit?: number | null;
+    operating_income?: number | null;
+    net_income?: number | null;
+    eps_diluted?: number | null;
+    source?: string;
+  };
+  institutions?: {
+    ownership_pct?: number | null;
+    total_value_label?: string;
+    total_holders?: string;
+    top_holders?: Array<{
+      name?: string;
+      date?: string;
+      shares?: string;
+      change_pct?: string;
+      market_value?: string;
+    }>;
+    source?: string;
+  };
+};
+
+export async function getStockFacts(
+  instrumentId: string,
+): Promise<StockFacts | null> {
+  const doc = await adminFirestore
+    .collection("tm_stock_facts")
+    .doc(instrumentId)
+    .get();
+  return doc.exists ? (doc.data() as StockFacts) : null;
+}
+
 export async function getStockSummary(
   symbol: string,
   market: "US" | "IN" = "US",
@@ -245,32 +315,67 @@ export async function getStockSummary(
     }
   }
 
-  // Fallback: look for the symbol in the snapshot.
-  const rows = await getMarketSnapshot(market);
-  const match = rows.find(
-    (r: SnapshotRow) => r.symbol?.toUpperCase() === ticker,
-  );
-  if (match) {
-    const instrument = instrumentDoc.exists
-      ? (instrumentDoc.data() as Instrument)
+  // Fallback for renamed / alias routes: resolve one instrument by ticker
+  // instead of loading and scanning the whole market snapshot.
+  const fallbackSnap = await adminFirestore
+    .collection("tm_instruments")
+    .where("market", "==", market)
+    .where("ticker", "==", ticker)
+    .limit(1)
+    .get();
+  const fallbackDoc = fallbackSnap.docs[0];
+  if (fallbackDoc) {
+    const instrument = fallbackDoc.data() as Instrument;
+    const fallbackPriceDoc = await adminFirestore
+      .collection("tm_latest_prices")
+      .doc(instrument.instrument_id)
+      .get();
+    const fallbackPrice = fallbackPriceDoc.exists
+      ? (fallbackPriceDoc.data() as LatestPrice)
       : null;
-    return {
-      instrument_id: match.instrumentId,
-      ticker: match.symbol,
-      name: instrument?.name || match.name || match.symbol,
-      exchange: instrument?.exchange,
-      sector: instrument?.sector,
-      industry: instrument?.industry,
-      currency: "USD",
-      logo_url: instrument?.logo_url,
-      index_memberships: instrument?.index_memberships,
-      price: match.price.current,
-      day_change_abs: match.price.change,
-      day_change_pct: match.price.changePct,
-      previous_close: match.price.previousClose,
-      source: "snapshot",
-      fundamentals: null,
-    };
+    const quote = fallbackPrice?.quote;
+    if (quote && typeof quote.current === "number") {
+      return {
+        instrument_id: instrument.instrument_id,
+        ticker: instrument.ticker,
+        name: instrument.name,
+        exchange: instrument.exchange,
+        sector: instrument.sector,
+        industry: instrument.industry,
+        currency: instrument.currency,
+        logo_url: instrument.logo_url,
+        index_memberships: instrument.index_memberships,
+        price: quote.current,
+        day_change_abs: quote.day_change_abs,
+        day_change_pct: quote.day_change_pct,
+        previous_close: quote.previous_close,
+        source: "instrument",
+        fundamentals: (fallbackPrice?.fundamentals ?? null) as StockFundamentals | null,
+      };
+    }
+  }
+
+  // Last-resort: synthesize a summary from the price doc alone. This covers
+  // tickers that the snapshot pipeline writes but that haven't been registered
+  // in `tm_instruments` yet (a known gap on the IN side).
+  if (priceDoc.exists) {
+    const priceData = priceDoc.data() as LatestPrice;
+    const quote = priceData?.quote;
+    if (quote && typeof quote.current === "number") {
+      return {
+        instrument_id: instrumentId,
+        ticker: priceData.ticker || ticker,
+        name: priceData.provider_metadata?.name || ticker,
+        exchange: priceData.provider_metadata?.exchange,
+        currency: priceData.currency,
+        price: quote.current,
+        day_change_abs: quote.day_change_abs,
+        day_change_pct: quote.day_change_pct,
+        previous_close: quote.previous_close,
+        source: "snapshot",
+        fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
+      };
+    }
   }
 
   return null;
@@ -310,17 +415,16 @@ export async function getStockIntelPro(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<StockIntelPro | null> {
-  // Try the AI/active universe first, then fall back to the price universe.
-  // The AI universe (e.g. us_test_10) covers the 10 headline stocks; the
-  // price universe (e.g. us_core_155) covers the full scored set. Any stock
-  // not in the AI universe still gets a scorecard from the broader run.
+  // The price universe is the broad scored set, so it should be the cheap
+  // first lookup for stock pages. Fall back to the AI universe only for older
+  // data before the broad scorecard job has run.
   const [aiUniverse, priceUniverse] = await Promise.all([
     getActiveUniverse(market),
     getPriceUniverse(market),
   ]);
   const universes = aiUniverse === priceUniverse
-    ? [aiUniverse]
-    : [aiUniverse, priceUniverse];
+    ? [priceUniverse]
+    : [priceUniverse, aiUniverse];
   for (const universe of universes) {
     const doc = await adminFirestore
       .collection("tm_stock_intel_pro")

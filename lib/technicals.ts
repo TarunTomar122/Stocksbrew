@@ -1,4 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
+import { batchGetRefs } from "@/lib/firestore";
 
 export type RsiSignal = {
   value?: number;
@@ -42,17 +43,23 @@ export async function getLatestTechnicals(
   instrumentId: string,
   lookbackDays: number = 7,
 ): Promise<StockTechnicals | null> {
+  const latest = await adminFirestore
+    .collection("tm_stock_technicals_latest")
+    .doc(instrumentId)
+    .get();
+  if (latest.exists) return latest.data() as StockTechnicals;
+
   const now = new Date();
   const ids: string[] = [];
   for (let i = 0; i < lookbackDays; i++) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     ids.push(`${instrumentId}_${formatDate(d)}`);
   }
-  const docs = await Promise.all(
-    ids.map((id) => adminFirestore.collection("tm_stock_technicals").doc(id).get()),
-  );
-  for (const doc of docs) {
-    if (doc.exists) return doc.data() as StockTechnicals;
+  const refs = ids.map((id) => adminFirestore.collection("tm_stock_technicals").doc(id));
+  const docs = await batchGetRefs<StockTechnicals>(refs);
+  for (const id of ids) {
+    const doc = docs.get(id);
+    if (doc) return doc;
   }
   return null;
 }

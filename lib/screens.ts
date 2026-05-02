@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export type ScreenMatchRow = {
@@ -43,7 +45,7 @@ export type ThematicScreensDoc = {
   screens: ThematicScreen[];
 };
 
-export async function getThematicScreens(
+async function getThematicScreensUncached(
   market: "US" | "IN" = "US",
 ): Promise<ThematicScreensDoc | null> {
   const doc = await adminFirestore
@@ -51,6 +53,18 @@ export async function getThematicScreens(
     .doc(market)
     .get();
   return doc.exists ? (doc.data() as ThematicScreensDoc) : null;
+}
+
+const getThematicScreensCached = unstable_cache(
+  getThematicScreensUncached,
+  ["thematic-screens"],
+  { revalidate: 300 },
+);
+
+export async function getThematicScreens(
+  market: "US" | "IN" = "US",
+): Promise<ThematicScreensDoc | null> {
+  return getThematicScreensCached(market);
 }
 
 export async function getScreenById(

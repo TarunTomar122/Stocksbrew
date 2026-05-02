@@ -1,4 +1,7 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
+import { batchGetRefs } from "@/lib/firestore";
 
 export type SentimentGaugeComponent = {
   name: string;
@@ -62,27 +65,58 @@ async function walkBack<T>(
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     ids.push(`${market}_${formatDate(d)}`);
   }
-  const docs = await Promise.all(
-    ids.map((id) => adminFirestore.collection(collection).doc(id).get()),
-  );
-  for (const doc of docs) {
-    if (doc.exists) return doc.data() as T;
+  const refs = ids.map((id) => adminFirestore.collection(collection).doc(id));
+  const docs = await batchGetRefs<T>(refs);
+  for (const id of ids) {
+    const doc = docs.get(id);
+    if (doc) return doc;
   }
   return null;
 }
 
-export async function getSentimentGauge(
+async function getSentimentGaugeUncached(
   market: "US" | "IN" = "US",
   lookbackDays = 7,
 ): Promise<SentimentGaugeDoc | null> {
   return walkBack<SentimentGaugeDoc>("tm_sentiment_gauge", market, lookbackDays);
 }
 
+const getSentimentGaugeCached = unstable_cache(
+  getSentimentGaugeUncached,
+  ["sentiment-gauge"],
+  { revalidate: 120 },
+);
+
+export async function getSentimentGauge(
+  market: "US" | "IN" = "US",
+  lookbackDays = 7,
+): Promise<SentimentGaugeDoc | null> {
+  return getSentimentGaugeCached(market, lookbackDays);
+}
+
+async function getMarketBreadthUncached(
+  market: "US" | "IN" = "US",
+  lookbackDays = 7,
+): Promise<MarketBreadthDoc | null> {
+  const latest = await adminFirestore
+    .collection("tm_market_breadth")
+    .doc(`latest__${market}`)
+    .get();
+  if (latest.exists) return latest.data() as MarketBreadthDoc;
+  return walkBack<MarketBreadthDoc>("tm_market_breadth", market, lookbackDays);
+}
+
+const getMarketBreadthCached = unstable_cache(
+  getMarketBreadthUncached,
+  ["market-breadth"],
+  { revalidate: 120 },
+);
+
 export async function getMarketBreadth(
   market: "US" | "IN" = "US",
   lookbackDays = 7,
 ): Promise<MarketBreadthDoc | null> {
-  return walkBack<MarketBreadthDoc>("tm_market_breadth", market, lookbackDays);
+  return getMarketBreadthCached(market, lookbackDays);
 }
 
 export type MarketMoodDoc = {
@@ -98,7 +132,7 @@ export type MarketMoodDoc = {
   captured_at: string;
 };
 
-export async function getMarketMood(
+async function getMarketMoodUncached(
   market: "US" | "IN" = "US",
 ): Promise<MarketMoodDoc | null> {
   const doc = await adminFirestore
@@ -106,6 +140,18 @@ export async function getMarketMood(
     .doc(`latest__${market}`)
     .get();
   return doc.exists ? (doc.data() as MarketMoodDoc) : null;
+}
+
+const getMarketMoodCached = unstable_cache(
+  getMarketMoodUncached,
+  ["market-mood"],
+  { revalidate: 300 },
+);
+
+export async function getMarketMood(
+  market: "US" | "IN" = "US",
+): Promise<MarketMoodDoc | null> {
+  return getMarketMoodCached(market);
 }
 
 export type InstitutionalFlowRow = {
@@ -125,7 +171,7 @@ export type InstitutionalFlowsDoc = {
   flows: InstitutionalFlowRow[];
 };
 
-export async function getInstitutionalFlows(
+async function getInstitutionalFlowsUncached(
   market: "US" | "IN" = "IN",
 ): Promise<InstitutionalFlowsDoc | null> {
   const doc = await adminFirestore
@@ -133,6 +179,18 @@ export async function getInstitutionalFlows(
     .doc(`latest__${market}`)
     .get();
   return doc.exists ? (doc.data() as InstitutionalFlowsDoc) : null;
+}
+
+const getInstitutionalFlowsCached = unstable_cache(
+  getInstitutionalFlowsUncached,
+  ["institutional-flows"],
+  { revalidate: 300 },
+);
+
+export async function getInstitutionalFlows(
+  market: "US" | "IN" = "IN",
+): Promise<InstitutionalFlowsDoc | null> {
+  return getInstitutionalFlowsCached(market);
 }
 
 export type EconomicEvent = {
@@ -165,10 +223,20 @@ export type EconomicCalendarDoc = {
   earnings: EarningsEvent[];
 };
 
-export async function getEconomicCalendar(): Promise<EconomicCalendarDoc | null> {
+async function getEconomicCalendarUncached(): Promise<EconomicCalendarDoc | null> {
   const doc = await adminFirestore
     .collection("tm_economic_calendar")
     .doc("latest")
     .get();
   return doc.exists ? (doc.data() as EconomicCalendarDoc) : null;
+}
+
+const getEconomicCalendarCached = unstable_cache(
+  getEconomicCalendarUncached,
+  ["economic-calendar"],
+  { revalidate: 1800 },
+);
+
+export async function getEconomicCalendar(): Promise<EconomicCalendarDoc | null> {
+  return getEconomicCalendarCached();
 }

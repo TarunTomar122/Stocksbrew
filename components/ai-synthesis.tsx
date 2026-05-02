@@ -5,55 +5,43 @@ type Props = {
   mocked?: boolean;
 };
 
-function sentimentStyle(label: string): {
-  dot: string;
-  text: string;
-  bg: string;
-  badge: string;
-} {
+function sentimentMeta(label: string): { dot: string; tone: string; chipBg: string; chipFg: string } {
   const v = (label ?? "").toLowerCase();
   if (v === "bullish")
-    return {
-      dot: "bg-signal-bullish",
-      text: "text-signal-bullish",
-      bg: "border-l-signal-bullish",
-      badge: "bg-signal-bullish/15 text-signal-bullish",
-    };
+    return { dot: "#10b981", tone: "text-[#10b981]", chipBg: "#ecfdf5", chipFg: "#065f46" };
   if (v === "bearish")
-    return {
-      dot: "bg-signal-bearish",
-      text: "text-signal-bearish",
-      bg: "border-l-signal-bearish",
-      badge: "bg-signal-bearish/15 text-signal-bearish",
-    };
+    return { dot: "#ef4444", tone: "text-[#ef4444]", chipBg: "#fef2f2", chipFg: "#991b1b" };
   if (v === "mixed")
-    return {
-      dot: "bg-signal-neutral",
-      text: "text-on-surface",
-      bg: "border-l-signal-neutral",
-      badge: "bg-signal-neutral/20 text-on-surface",
-    };
-  return {
-    dot: "bg-outline",
-    text: "text-on-surface-variant",
-    bg: "border-l-outline-variant",
-    badge: "bg-surface-container text-on-surface-variant",
-  };
+    return { dot: "#f59e0b", tone: "text-[#b45309]", chipBg: "#fef3c7", chipFg: "#92400e" };
+  return { dot: "#9ca3af", tone: "text-[#6b7280]", chipBg: "#f3f4f6", chipFg: "#374151" };
 }
 
 function Block({
+  emoji,
+  iconBg,
   eyebrow,
   body,
 }: {
+  emoji: string;
+  iconBg: string;
   eyebrow: string;
   body: string;
 }) {
   return (
-    <div className="flex-1 min-w-0">
-      <div className="text-[10px] font-bold tracking-[0.18em] uppercase text-outline mb-1.5">
-        {eyebrow}
+    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <span
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
+          style={{ background: iconBg }}
+          aria-hidden
+        >
+          {emoji}
+        </span>
+        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          {eyebrow}
+        </span>
       </div>
-      <p className="text-[14px] leading-relaxed text-on-surface-variant">{body}</p>
+      <p className="text-[15px] text-[#111111] leading-[1.6]">{body}</p>
     </div>
   );
 }
@@ -65,8 +53,7 @@ export function AiSynthesis({ intelligence, mocked }: Props) {
     typeof intelligence?.overall_score === "number"
       ? Math.round(intelligence.overall_score)
       : null;
-
-  const style = sentimentStyle(sentimentLabel);
+  const meta = sentimentMeta(sentimentLabel);
 
   const whatChanged =
     vs.what_changed ||
@@ -82,49 +69,63 @@ export function AiSynthesis({ intelligence, mocked }: Props) {
     "No catalysts flagged yet — check back after the next pipeline run.";
 
   return (
-    <section
-      className={`bg-surface-container-lowest brutalist-border p-6 relative border-l-4 ${style.bg}`}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-5">
+    <section className="flex flex-col gap-5">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <span className={`inline-block h-2 w-2 rounded-full ${style.dot}`} />
-            <span className="text-[11px] font-bold tracking-[0.18em] uppercase text-on-surface-variant">
-              News Signal
-            </span>
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ background: meta.dot }}
+              aria-hidden
+            />
+            <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+              News signal
+            </h3>
             {mocked && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-[0.15em] uppercase bg-signal-neutral/25 text-on-surface rounded-sm">
+              <span className="inline-flex items-center rounded-md bg-[#fef3c7] text-[#92400e] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase">
                 Mock
               </span>
             )}
           </div>
-          <p className="text-[12px] text-on-surface-variant">
-            Synthesised from recent articles & analyst reports — not a buy/sell
+          <p className="text-[12px] text-[#6b7280] max-w-[520px]">
+            Synthesised from recent articles &amp; analyst reports — not a buy/sell
             recommendation.
           </p>
         </div>
-
-        {/* Sentiment badge + score */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2">
           {sentimentScore !== null && (
-            <span className="text-[28px] font-bold tabular-nums text-on-surface leading-none">
+            <span className="text-[28px] font-semibold tabular-nums text-[#111111] leading-none">
               {sentimentScore}
             </span>
           )}
           <span
-            className={`px-2.5 py-1 text-[11px] font-bold tracking-[0.12em] uppercase rounded-full ${style.badge}`}
+            className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase"
+            style={{ background: meta.chipBg, color: meta.chipFg }}
           >
             {sentimentLabel}
           </span>
         </div>
       </div>
 
-      {/* Three signal blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-        <Block eyebrow="What the news is saying" body={whatChanged} />
-        <Block eyebrow="Why it matters for the stock" body={whyItMatters} />
-        <Block eyebrow="Watch for next" body={whatToWatch} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Block
+          emoji="📰"
+          iconBg="#eff6ff"
+          eyebrow="What the news is saying"
+          body={whatChanged}
+        />
+        <Block
+          emoji="🎯"
+          iconBg="#fef3c7"
+          eyebrow="Why it matters for the stock"
+          body={whyItMatters}
+        />
+        <Block
+          emoji="🔭"
+          iconBg="#ecfdf5"
+          eyebrow="Watch for next"
+          body={whatToWatch}
+        />
       </div>
     </section>
   );

@@ -13,21 +13,17 @@ const LANE_DEFINITIONS: Record<string, string> = {
 
 function labelTone(label?: string): { color: string; tone: string } {
   const l = (label ?? "").toLowerCase();
-  if (l.includes("bull"))
-    return { color: "var(--signal-bullish)", tone: "Bullish" };
-  if (l.includes("bear"))
-    return { color: "var(--signal-bearish)", tone: "Bearish" };
-  if (l.includes("caut"))
-    return { color: "var(--signal-bearish)", tone: "Cautious" };
-  if (l.includes("mixed") || l.includes("neutral"))
-    return { color: "var(--signal-neutral)", tone: "Mixed" };
-  return { color: "var(--outline)", tone: label || "—" };
+  if (l.includes("bull")) return { color: "#10b981", tone: "Bullish" };
+  if (l.includes("bear")) return { color: "#ef4444", tone: "Bearish" };
+  if (l.includes("caut")) return { color: "#ef4444", tone: "Cautious" };
+  if (l.includes("mixed") || l.includes("neutral")) return { color: "#f59e0b", tone: "Mixed" };
+  return { color: "#9ca3af", tone: label || "—" };
 }
 
 function leanColor(lean: "bullish" | "bearish" | "neutral"): string {
-  if (lean === "bullish") return "var(--signal-bullish)";
-  if (lean === "bearish") return "var(--signal-bearish)";
-  return "var(--signal-neutral)";
+  if (lean === "bullish") return "#10b981";
+  if (lean === "bearish") return "#ef4444";
+  return "#f59e0b";
 }
 
 export function SentimentLanes({ sentiment }: Props) {
@@ -38,58 +34,50 @@ export function SentimentLanes({ sentiment }: Props) {
   const totalArticles = sources.reduce((s, src) => s + src.article_count, 0);
 
   return (
-    <section className="bg-surface-container-lowest brutalist-border p-6 h-full flex flex-col">
-      <h2 className="text-[14px] font-semibold text-on-surface">
-        Sentiment Breakdown
-      </h2>
-      <p className="text-[11px] text-on-surface-variant leading-snug mt-1 mb-4">
-        A 0–100 score from averaging article sentiment across verified news, then
-        split into two lanes so you can see what's driving it.
-      </p>
+    <section className="flex flex-col gap-5 pt-8 border-t border-[#e5e7eb]">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+          Sentiment breakdown
+        </h3>
+        <p className="text-[12px] text-[#6b7280] leading-snug max-w-[640px]">
+          A 0–100 score from averaging article sentiment across verified news,
+          then split into two lanes so you can see what&apos;s driving it.
+        </p>
+      </div>
 
-      <div className="flex items-baseline gap-3 mb-5">
-        <span className="text-[40px] font-bold tracking-[-0.02em] text-on-surface tabular-nums leading-none">
+      <div className="flex items-baseline gap-3">
+        <span className="text-[40px] font-semibold tracking-[-0.02em] text-[#111111] tabular-nums leading-none">
           {Math.round(score)}
         </span>
-        <span
-          className="text-[12px] font-bold tracking-[0.15em] uppercase"
-          style={{ color }}
-        >
+        <span className="text-[12px] font-semibold tracking-[0.1em] uppercase" style={{ color }}>
           {tone}
         </span>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 max-w-[640px]">
         {lanes.length === 0 ? (
-          <div className="text-[13px] text-on-surface-variant py-4">
-            No sentiment lanes yet.
-          </div>
+          <p className="text-[13px] text-[#6b7280]">No sentiment lanes yet.</p>
         ) : (
           lanes.map((lane) => {
             const pct = Math.max(0, Math.min(100, lane.positive_pct));
             const def = LANE_DEFINITIONS[lane.label];
             return (
-              <div key={lane.label}>
-                <div className="flex justify-between items-baseline mb-0.5 gap-3">
-                  <span className="text-[11px] font-semibold text-on-surface">
+              <div key={lane.label} className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-semibold text-[#111111]">
                     {lane.label}
                   </span>
-                  <span className="text-[11px] font-bold text-on-surface tabular-nums">
+                  <span className="text-[12px] font-semibold tabular-nums text-[#111111]">
                     {pct.toFixed(0)}%
                   </span>
                 </div>
                 {def && (
-                  <p className="text-[10px] text-on-surface-variant leading-snug mb-1.5">
-                    {def}
-                  </p>
+                  <p className="text-[11px] text-[#6b7280] leading-snug">{def}</p>
                 )}
-                <div className="w-full h-1.5 bg-surface-container-high">
+                <div className="h-1.5 w-full rounded-full bg-[#f3f4f6] overflow-hidden">
                   <div
-                    className="h-full"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: "var(--signal-bullish)",
-                    }}
+                    className="h-full rounded-full bg-[#10b981]"
+                    style={{ width: `${pct}%` }}
                   />
                 </div>
               </div>
@@ -99,33 +87,29 @@ export function SentimentLanes({ sentiment }: Props) {
       </div>
 
       {sources.length > 0 && (
-        <details className="mt-5 pt-4 border-t border-outline/20 group">
-          <summary className="cursor-pointer text-[11px] font-semibold text-on-surface-variant hover:text-on-surface flex items-center justify-between list-none">
+        <details className="group max-w-[640px]">
+          <summary className="cursor-pointer flex items-center justify-between text-[12px] font-semibold text-[#0052ff] hover:underline list-none">
             <span>
               Based on {totalArticles} article{totalArticles === 1 ? "" : "s"} across{" "}
               {sources.length} source{sources.length === 1 ? "" : "s"}
             </span>
-            <span className="text-on-surface-variant group-open:rotate-180 transition-transform">
-              ▾
-            </span>
+            <span className="text-[#9ca3af] group-open:rotate-180 transition-transform">▾</span>
           </summary>
-          <ul className="flex flex-col gap-1.5 mt-3">
+          <ul className="flex flex-col mt-3">
             {sources.map((src) => (
               <li
                 key={src.source_name}
-                className="flex items-center justify-between gap-3 text-[11px]"
+                className="flex items-center justify-between gap-3 text-[12px] py-2 border-t border-[#f3f4f6] first:border-t-0"
               >
-                <span className="text-on-surface truncate flex-1">
-                  {src.source_name}
-                </span>
-                <span className="text-on-surface-variant tabular-nums flex-shrink-0">
+                <span className="text-[#111111] truncate flex-1">{src.source_name}</span>
+                <span className="text-[#6b7280] tabular-nums shrink-0">
                   {src.article_count} article{src.article_count === 1 ? "" : "s"}
                 </span>
                 <span
-                  className="px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase rounded-sm flex-shrink-0"
+                  className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] shrink-0"
                   style={{
                     color: leanColor(src.lean),
-                    backgroundColor: `color-mix(in srgb, ${leanColor(src.lean)} 15%, transparent)`,
+                    backgroundColor: `color-mix(in srgb, ${leanColor(src.lean)} 12%, transparent)`,
                   }}
                 >
                   {src.lean}

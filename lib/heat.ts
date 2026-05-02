@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 // Heat list reader.
@@ -54,7 +56,7 @@ export type HeatList = {
   rows: HeatRow[];
 };
 
-export async function getHeatList(
+async function getHeatListUncached(
   market: "US" | "IN" = "US",
 ): Promise<HeatList | null> {
   const doc = await adminFirestore.collection("tm_heat_list").doc(market).get();
@@ -65,4 +67,16 @@ export async function getHeatList(
     ...data,
     rows: Array.isArray(data.rows) ? data.rows.slice(0, 10) : [],
   };
+}
+
+const getHeatListCached = unstable_cache(
+  getHeatListUncached,
+  ["heat-list"],
+  { revalidate: 120 },
+);
+
+export async function getHeatList(
+  market: "US" | "IN" = "US",
+): Promise<HeatList | null> {
+  return getHeatListCached(market);
 }

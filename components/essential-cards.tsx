@@ -58,7 +58,7 @@ function MiniSpark({ data, color }: { data: number[]; color: string }) {
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-[120px] h-[32px] flex-shrink-0"
+      className="w-[100px] h-[28px] flex-shrink-0"
       preserveAspectRatio="none"
       aria-hidden="true"
     >
@@ -79,9 +79,12 @@ export function EssentialCards({ cards }: Props) {
 
   return (
     <section>
-      <h2 className="text-[14px] font-semibold text-on-surface mb-3">
-        Essential Signals
-      </h2>
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-1 h-4 bg-primary rounded-full" />
+        <h2 className="text-[13px] font-bold text-on-surface tracking-tight">
+          Essential Signals
+        </h2>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((card) => {
           const meta =
@@ -95,19 +98,19 @@ export function EssentialCards({ cards }: Props) {
 
           const body = (
             <div
-              className="bg-surface-container-lowest brutalist-border p-4 flex flex-col gap-3 h-full"
+              className="bg-surface rounded-2xl p-5 flex flex-col gap-3 h-full shadow-card border border-outline-variant/30 hover:shadow-card-hover hover:border-outline/50 transition-all"
               style={{ borderLeft: `3px solid ${meta.accent}` }}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span
-                    className="text-[10px] font-bold tracking-[0.15em] uppercase"
+                    className="text-[10px] font-bold tracking-[0.12em] uppercase"
                     style={{ color: meta.accent }}
                   >
                     {meta.label}
                   </span>
                   {card.symbol && (
-                    <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface">
+                    <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-on-surface bg-surface-container-high px-1.5 py-px rounded">
                       {card.symbol}
                     </span>
                   )}
@@ -122,7 +125,7 @@ export function EssentialCards({ cards }: Props) {
               </p>
 
               <div className="mt-auto flex items-end justify-between gap-3">
-                <div className="flex flex-col gap-0.5 text-[10px] font-bold tracking-[0.15em] uppercase text-outline">
+                <div className="flex flex-col gap-0.5 text-[10px] font-bold tracking-[0.1em] uppercase text-outline">
                   {conf && <span>Confidence {conf}</span>}
                   {typeof card.impact_score === "number" && (
                     <span>Impact {card.impact_score.toFixed(1)}</span>

@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export type DivergenceDirection =
@@ -45,7 +47,7 @@ export type DivergenceList = {
   rows: DivergenceRow[];
 };
 
-export async function getDivergenceList(
+async function getDivergenceListUncached(
   market: "US" | "IN" = "US",
 ): Promise<DivergenceList | null> {
   const doc = await adminFirestore.collection("tm_divergence").doc(market).get();
@@ -55,4 +57,16 @@ export async function getDivergenceList(
     ...data,
     rows: Array.isArray(data.rows) ? data.rows : [],
   };
+}
+
+const getDivergenceListCached = unstable_cache(
+  getDivergenceListUncached,
+  ["divergence-list"],
+  { revalidate: 120 },
+);
+
+export async function getDivergenceList(
+  market: "US" | "IN" = "US",
+): Promise<DivergenceList | null> {
+  return getDivergenceListCached(market);
 }

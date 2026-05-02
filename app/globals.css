@@ -4,7 +4,7 @@
 
 /* ── Theme tokens: light ─────────────────────────────────────────────────── */
 :root {
-  /* Brand / primary */
+  /* Brand / primary — refined violet */
   --primary:                   #6b38d4;
   --primary-container:         #8455ef;
   --primary-fixed:             #e9ddff;
@@ -15,7 +15,7 @@
   --on-primary-fixed-variant:  #5516be;
   --inverse-primary:           #d0bcff;
 
-  /* Secondary */
+  /* Secondary — warm amber */
   --secondary:                   #9d4300;
   --secondary-container:         #fd761a;
   --secondary-fixed:             #ffdbca;
@@ -41,37 +41,43 @@
   --on-error:               #ffffff;
   --on-error-container:     #93000a;
 
-  /* Surfaces / background */
-  --background:                    #f8f9fb;
-  --surface:                       #f8f9fb;
-  --surface-bright:                #f8f9fb;
-  --surface-dim:                   #d9dadc;
+  /* Surfaces — page is pure white; cards earn their boundary from a hairline. */
+  --background:                    #ffffff;
+  --surface:                       #ffffff;
+  --surface-bright:                #ffffff;
+  --surface-dim:                   #e4e5e7;
   --surface-tint:                  #6d3bd7;
-  --surface-variant:               #e1e2e4;
+  --surface-variant:               #ebecef;
   --surface-container-lowest:      #ffffff;
-  --surface-container-low:         #f3f4f6;
-  --surface-container:             #edeef0;
-  --surface-container-high:        #e7e8ea;
-  --surface-container-highest:     #e1e2e4;
+  --surface-container-low:         #f6f7f9;
+  --surface-container:             #f0f1f3;
+  --surface-container-high:        #eaebed;
+  --surface-container-highest:     #e4e5e7;
   --inverse-surface:               #2e3132;
   --inverse-on-surface:            #f0f1f3;
 
   /* On-surface / text */
-  --on-background:       #191c1e;
-  --on-surface:          #191c1e;
-  --on-surface-variant:  #494454;
+  --on-background:       #111215;
+  --on-surface:          #111215;
+  --on-surface-variant:  #4a4d55;
 
-  /* Outlines */
-  --outline:          #7b7486;
-  --outline-variant:  #cbc3d7;
+  /* Outlines — softer */
+  --outline:          #c5c8ce;
+  --outline-variant:  #e1e3e6;
 
-  /* Semantic status colors used in charts/badges */
-  --signal-bullish:  #8B5CF6;
-  --signal-bearish:  #F97316;
-  --signal-neutral:  #FACC15;
+  /* Semantic status colors */
+  --signal-bullish:  #10b981;
+  --signal-bearish:  #ef4444;
+  --signal-neutral:  #f59e0b;
+
+  /* Shadows as CSS vars for consistency */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-dropdown: 0 12px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-modal: 0 24px 60px rgba(0,0,0,0.14), 0 8px 20px rgba(0,0,0,0.08);
 }
 
-/* ── Theme tokens: dark (placeholder — tune later) ───────────────────────── */
+/* ── Theme tokens: dark ─────────────────────────────────────────────────── */
 .dark {
   --primary:                   #d0bcff;
   --primary-container:         #5516be;
@@ -106,33 +112,38 @@
   --on-error:               #690005;
   --on-error-container:     #ffdad6;
 
-  --background:                    #111315;
-  --surface:                       #111315;
-  --surface-bright:                #37393b;
-  --surface-dim:                   #111315;
+  --background:                    #0c0e11;
+  --surface:                       #15171a;
+  --surface-bright:                #1e2024;
+  --surface-dim:                   #0c0e11;
   --surface-tint:                  #d0bcff;
-  --surface-variant:               #494454;
-  --surface-container-lowest:      #0c0e10;
-  --surface-container-low:         #191c1e;
-  --surface-container:             #1d2022;
-  --surface-container-high:        #272a2c;
-  --surface-container-highest:     #323537;
+  --surface-variant:               #2a2d33;
+  --surface-container-lowest:      #0a0c0e;
+  --surface-container-low:         #111215;
+  --surface-container:             #181a1e;
+  --surface-container-high:        #1e2024;
+  --surface-container-highest:     #25282c;
   --inverse-surface:               #e1e2e4;
   --inverse-on-surface:            #2e3132;
 
-  --on-background:       #e1e2e4;
-  --on-surface:           #e1e2e4;
-  --on-surface-variant:  #cbc3d7;
+  --on-background:       #e8e9eb;
+  --on-surface:          #e8e9eb;
+  --on-surface-variant:  #a0a3ab;
 
-  --outline:          #958e9f;
-  --outline-variant:  #494454;
+  --outline:          #3a3d44;
+  --outline-variant:  #2a2d33;
 
-  --signal-bullish:  #a78bfa;
-  --signal-bearish:  #fb923c;
-  --signal-neutral:  #FACC15;
+  --signal-bullish:  #34d399;
+  --signal-bearish:  #f87171;
+  --signal-neutral:  #fbbf24;
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.20);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.40), 0 2px 6px rgba(0,0,0,0.25);
+  --shadow-dropdown: 0 12px 40px rgba(0,0,0,0.50), 0 4px 12px rgba(0,0,0,0.30);
+  --shadow-modal: 0 24px 60px rgba(0,0,0,0.60), 0 8px 20px rgba(0,0,0,0.35);
 }
 
-/* ── Ticker tape marquee (from mock) ─────────────────────────────────────── */
+/* ── Ticker tape marquee ─────────────────────────────────────────────────── */
 .ticker-wrap {
   width: 100%;
   overflow: hidden;
@@ -188,14 +199,33 @@
   100% { transform: translateY(0); }
 }
 
-/* ── Hairline border with a subtle radius — softer, app-like card ────────── */
+/* ── Hero card slow float (preserves per-card rotation via CSS var) ─────── */
+@keyframes tikrr-card-float {
+  0%   { transform: rotate(var(--rot, 0deg)) translateY(0); }
+  50%  { transform: rotate(var(--rot, 0deg)) translateY(-6px); }
+  100% { transform: rotate(var(--rot, 0deg)) translateY(0); }
+}
+
+.hero-card-float {
+  animation: tikrr-card-float 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── Premium card border ─────────────────────────────────────────────────── */
 .brutalist-border {
-  border: 1px solid #E7EAF0;
-  border-radius: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.brutalist-border:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--outline);
 }
 
 .dark .brutalist-border {
-  border-color: var(--surface-container-high);
+  border-color: var(--outline-variant);
 }
 
 /* ── Base resets ─────────────────────────────────────────────────────────── */
@@ -206,4 +236,61 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--on-background);
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Subtle custom scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--primary-fixed-dim);
+  color: var(--on-primary-fixed-variant);
+}
+.dark ::selection {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+/* ── Focus rings ─────────────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* ── Input autofill fix ──────────────────────────────────────────────────── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px var(--surface-container-low) inset;
+  -webkit-text-fill-color: var(--on-surface);
+  transition: background-color 5000s ease-in-out 0s;
 }

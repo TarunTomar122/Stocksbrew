@@ -13,6 +13,15 @@ import requests
 
 from backend.coverage_mode import coverage_modes_for_source_id, derive_coverage_mode
 from backend.env import load_backend_env
+from backend.llm_client import (
+    MIMO_API_URL,
+    json_response_format,
+    llm_api_key,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 from backend.market_strategy import default_llm_concurrency, default_llm_model
 from backend.models import Article
 from backend.preferences import sector_label_map
@@ -30,7 +39,7 @@ from backend.topicing import (
 load_backend_env()
 
 
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+LLM_API_URL = MIMO_API_URL
 DEFAULT_MODEL = default_llm_model()
 CACHE_VERSION = "2026-03-26-llm-v3"
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
@@ -406,8 +415,8 @@ class OpenAIArticleEnricher:
         max_workers: int | None = None,
         store: TraceMoneyStore | None = None,
     ) -> None:
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "").strip()
-        self.model = model or os.getenv("TRACE_MONEY_LLM_MODEL", DEFAULT_MODEL)
+        self.api_key = api_key or llm_api_key()
+        self.model = model or llm_model(DEFAULT_MODEL)
         self.timeout = timeout
         configured_workers = max_workers or default_llm_concurrency()
         self.max_workers = max(1, configured_workers)
@@ -421,7 +430,7 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("OPENAI_API_KEY is required because heuristic enrichment has been removed")
+            raise ValueError("MIMO_API_KEY is required because heuristic enrichment has been removed")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending: list[tuple[int, Article, str]] = []
@@ -452,25 +461,28 @@ class OpenAIArticleEnricher:
         payload = response.json()
         message = payload["choices"][0]["message"]
         if message.get("refusal"):
-            raise ValueError("OpenAI refused enrichment request")
+            raise ValueError("MiMo refused enrichment request")
         content = message.get("content", "")
         if not content:
-            raise ValueError("OpenAI returned empty content")
-        return json.loads(content)
+            raise ValueError("MiMo returned empty content")
+        return parse_json_content(content)
 
     def _request_payload(self, article: Article, repair: bool = False) -> dict[str, Any]:
         return {
             "model": self.model,
             "temperature": 0.2,
             "messages": [
-                {"role": "system", "content": _repair_system_prompt(article.market) if repair else _system_prompt(article.market)},
+                {
+                    "role": "system",
+                    "content": schema_system_prompt(
+                        _repair_system_prompt(article.market) if repair else _system_prompt(article.market),
+                        _response_schema(),
+                    ),
+                },
                 *([] if repair else _few_shot_messages()),
                 {"role": "user", "content": _user_prompt(article)},
             ],
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": _response_schema(),
-            },
+            "response_format": json_response_format(),
         }
 
     def _is_retryable(self, error: Exception) -> bool:
@@ -485,11 +497,8 @@ class OpenAIArticleEnricher:
         for attempt in range(1, self.max_attempts + 1):
             try:
                 response = requests.post(
-                    OPENAI_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
+                    LLM_API_URL,
+                    headers=llm_headers(self.api_key),
                     json=self._request_payload(article, repair=repair),
                     timeout=self.timeout,
                 )

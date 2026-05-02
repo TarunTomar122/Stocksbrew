@@ -6,17 +6,25 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
-import os
 import re
 from typing import Any
 
 import requests
 
+from backend.llm_client import (
+    MIMO_API_URL,
+    json_response_format,
+    llm_api_key,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 from backend.models import Article
 
 logger = logging.getLogger(__name__)
 
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+LLM_API_URL = MIMO_API_URL
 STOCK_BRIEF_CACHE_VERSION = "2026-04-21-stock-brief-v7-fundamentals"
 
 
@@ -268,12 +276,12 @@ def _llm_synthesize_brief(
     fundamentals: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
-    """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    """Call MiMo to generate a synthesized stock brief. Returns None on failure."""
+    api_key = llm_api_key()
     if not api_key:
         return None
 
-    model = os.getenv("TRACE_MONEY_LLM_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    model = llm_model()
 
     payload = {
         "today": datetime.now(timezone.utc).date().isoformat(),
@@ -308,28 +316,22 @@ def _llm_synthesize_brief(
 
     try:
         resp = requests.post(
-            OPENAI_API_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            LLM_API_URL,
+            headers=llm_headers(api_key),
             json={
                 "model": model,
                 "temperature": 0.2,
                 "messages": [
-                    {"role": "system", "content": STOCK_BRIEF_SYSTEM_PROMPT},
+                    {"role": "system", "content": schema_system_prompt(STOCK_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
                 ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": STOCK_BRIEF_SCHEMA,
-                },
+                "response_format": json_response_format(),
             },
             timeout=30,
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
-        result = json.loads(content)
+        result = parse_json_content(content)
 
         # Cache the result
         if store is not None and cache_key:
@@ -461,11 +463,11 @@ def generate_no_news_brief(
     `avg_volume` is derived from `tm_price_snapshots` history in the caller so
     this function stays pure and testable.
     """
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = llm_api_key()
     if not api_key:
         return None
 
-    model = os.getenv("TRACE_MONEY_LLM_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    model = llm_model()
     ticker = str(instrument.get("ticker", "")).strip()
     name = str(instrument.get("name", ticker))
 
@@ -519,28 +521,22 @@ def generate_no_news_brief(
 
     try:
         resp = requests.post(
-            OPENAI_API_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            LLM_API_URL,
+            headers=llm_headers(api_key),
             json={
                 "model": model,
                 "temperature": 0.2,
                 "messages": [
-                    {"role": "system", "content": NO_NEWS_BRIEF_SYSTEM_PROMPT},
+                    {"role": "system", "content": schema_system_prompt(NO_NEWS_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
                 ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": STOCK_BRIEF_SCHEMA,
-                },
+                "response_format": json_response_format(),
             },
             timeout=30,
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
-        result = json.loads(content)
+        result = parse_json_content(content)
 
         if store is not None and cache_key:
             try:
@@ -710,6 +706,8 @@ Each entry needs:
 
 STYLE:
 - Every field should be insight-first. Never narrate price moves.
+- Only mention earnings/events if they appear in current_events or premium_signals. Never invent or reuse stale event dates.
+- RSI language must be precise: RSI <=35 can be called oversold/washed out; RSI >=70 can be called overbought/stretched; 35-70 is neutral/normal.
 - Write like you're texting a smart friend, not writing a research report
 - Bold claims > hedged language. "That's a problem" > "this could potentially be concerning"
 - Specific > vague. Name the stock, the event, the number
@@ -809,7 +807,7 @@ PORTFOLIO_BRIEF_SCHEMA = {
     },
 }
 
-PORTFOLIO_BRIEF_CACHE_VERSION = "2026-04-19-portfolio-brief-v11"
+PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-01-portfolio-brief-v13"
 
 
 def generate_portfolio_brief(
@@ -817,17 +815,18 @@ def generate_portfolio_brief(
     store: Any | None = None,
 ) -> dict[str, str] | None:
     """Generate a personalized portfolio brief from stock intelligence docs."""
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = llm_api_key()
     if not api_key or not stock_payloads:
         return None
 
-    model = os.getenv("TRACE_MONEY_LLM_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    model = llm_model()
 
     watchlist_data = []
     for doc in stock_payloads:
         price = doc.get("price", {})
         technicals = doc.get("technicals", {})
         analyst = doc.get("analystConsensus", {})
+        facts = doc.get("facts", {})
         volume = price.get("volume", 0) or 0
         avg_volume = price.get("avgVolume", 0) or 0
         try:
@@ -850,7 +849,15 @@ def generate_portfolio_brief(
             "from_52w_high": technicals.get("fromHigh", ""),
             "technical_trend": technicals.get("trend", "neutral"),
             "analyst_rating": analyst.get("rating", ""),
-            "analyst_target_upside": analyst.get("upside", 0),
+            "analyst_target_upside": doc.get("targetUpsidePct") or analyst.get("upside", 0),
+            "analyst_count": (facts.get("analyst") or {}).get("analyst_count"),
+            "returns": doc.get("returns") or {},
+            "ownership": doc.get("ownership") or {},
+            "financials": doc.get("financials") or {},
+            "premium_signals": (doc.get("premiumSignals") or [])[:6],
+            "current_events": (facts.get("events") or [])[:3],
+            "news_velocity": doc.get("newsVelocity") or {},
+            "key_metric_summaries": doc.get("keyMetricSummaries") or [],
             "article_count": len(doc.get("news", [])),
             "top_news": [n.get("title", "") for n in (doc.get("news") or [])[:3]],
             "earnings_date": (doc.get("earnings") or {}).get("date"),
@@ -877,28 +884,22 @@ def generate_portfolio_brief(
 
     try:
         resp = requests.post(
-            OPENAI_API_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            LLM_API_URL,
+            headers=llm_headers(api_key),
             json={
                 "model": model,
                 "temperature": 0.3,
                 "messages": [
-                    {"role": "system", "content": PORTFOLIO_BRIEF_SYSTEM_PROMPT},
+                    {"role": "system", "content": schema_system_prompt(PORTFOLIO_BRIEF_SYSTEM_PROMPT, PORTFOLIO_BRIEF_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
                 ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": PORTFOLIO_BRIEF_SCHEMA,
-                },
+                "response_format": json_response_format(),
             },
             timeout=30,
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
-        result = json.loads(content)
+        result = parse_json_content(content)
 
         if store is not None and cache_key:
             try:
@@ -975,11 +976,11 @@ def generate_market_brief(
     store: Any | None = None,
 ) -> dict[str, str] | None:
     """Generate a rich LLM-powered market brief."""
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = llm_api_key()
     if not api_key:
         return None
 
-    model = os.getenv("TRACE_MONEY_LLM_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    model = llm_model()
 
     payload = {
         "market": market,
@@ -1005,21 +1006,21 @@ def generate_market_brief(
 
     try:
         resp = requests.post(
-            OPENAI_API_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            LLM_API_URL,
+            headers=llm_headers(api_key),
             json={
                 "model": model,
                 "temperature": 0.3,
                 "messages": [
-                    {"role": "system", "content": MARKET_BRIEF_SYSTEM_PROMPT},
+                    {"role": "system", "content": schema_system_prompt(MARKET_BRIEF_SYSTEM_PROMPT, MARKET_BRIEF_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
                 ],
-                "response_format": {"type": "json_schema", "json_schema": MARKET_BRIEF_SCHEMA},
+                "response_format": json_response_format(),
             },
             timeout=30,
         )
         resp.raise_for_status()
-        result = json.loads(resp.json()["choices"][0]["message"]["content"])
+        result = parse_json_content(resp.json()["choices"][0]["message"]["content"])
 
         if store is not None and cache_key:
             try:
@@ -1083,11 +1084,11 @@ def generate_sector_brief(
     store: Any | None = None,
 ) -> dict[str, str] | None:
     """Generate a rich LLM-powered sector brief."""
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = llm_api_key()
     if not api_key:
         return None
 
-    model = os.getenv("TRACE_MONEY_LLM_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    model = llm_model()
 
     payload = {
         "sector_name": sector_name,
@@ -1114,21 +1115,21 @@ def generate_sector_brief(
 
     try:
         resp = requests.post(
-            OPENAI_API_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            LLM_API_URL,
+            headers=llm_headers(api_key),
             json={
                 "model": model,
                 "temperature": 0.3,
                 "messages": [
-                    {"role": "system", "content": SECTOR_BRIEF_SYSTEM_PROMPT},
+                    {"role": "system", "content": schema_system_prompt(SECTOR_BRIEF_SYSTEM_PROMPT, SECTOR_BRIEF_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
                 ],
-                "response_format": {"type": "json_schema", "json_schema": SECTOR_BRIEF_SCHEMA},
+                "response_format": json_response_format(),
             },
             timeout=30,
         )
         resp.raise_for_status()
-        result = json.loads(resp.json()["choices"][0]["message"]["content"])
+        result = parse_json_content(resp.json()["choices"][0]["message"]["content"])
 
         if store is not None and cache_key:
             try:
@@ -1335,8 +1336,14 @@ LOW_SIGNAL_TITLE_TERMS = (
     "could skyrocket",
     "should you buy",
     "is it time to buy",
+    "is it time to watch",
     "top stocks to buy",
+    "stock to watch",
     "stocks to watch",
+    "should watch",
+    "worth watching",
+    "investors should watch",
+    "watch this week",
     "potential factors",
     "reasons to buy",
     "here's why",
@@ -1710,7 +1717,7 @@ def build_stock_intelligence_docs(
                 continue
             ticker = str(mention.get("ticker", "")).upper().strip()
             instrument = instruments_by_ticker.get(ticker)
-            if instrument:
+            if instrument and _article_quality_score(article, ticker) >= 25:
                 matched_ids.add(instrument["instrument_id"])
         for instrument_id in matched_ids:
             articles_by_instrument[instrument_id].append(article)
@@ -1770,6 +1777,8 @@ def build_stock_intelligence_docs(
             ],
             limit=4,
         )
+        if not key_points:
+            continue
         timeline = [
             {
                 "timestamp": article.published_at,

@@ -1,6 +1,21 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
 
+const MONTHS: Record<string, number> = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
+
 // -----------------------------------------------------------------------------
 // Shapes
 // -----------------------------------------------------------------------------
@@ -24,7 +39,57 @@ export type WatchlistRow = {
     momentum: number | null;
   };
   alerts: Record<string, unknown>[];
+  catalysts: Record<string, unknown>[];
+  facts?: Record<string, unknown>;
+  technicals?: Record<string, unknown>;
+  news_velocity?: Record<string, unknown>;
+  premium_signals?: Record<string, unknown>[];
+  target_upside_pct?: number | null;
+  top_metric_summaries?: string[];
+  brief_tile: {
+    micro: string;
+    vibe: "up" | "down" | "wild";
+    source: "rules" | "mimo";
+  };
+  coverage_status: "ready" | "score_pending";
   has_intel_pro: boolean;
+};
+
+export type WatchlistBrief = {
+  narrative: string;
+  tiles: Array<{
+    ticker: string;
+    micro: string;
+    vibe: "up" | "down" | "wild";
+  }>;
+  movers: Array<{
+    ticker: string;
+    one_liner: string;
+    vibe: "up" | "down" | "wild";
+  }>;
+  signals: Array<{
+    tag: string;
+    headline: string;
+    body: string;
+    detail: string;
+    vibe: "positive" | "negative" | "neutral";
+  }>;
+  blind_spot_title: string;
+  blind_spot_body: string;
+  essential_events: Array<{
+    sentence: string;
+    event_type: string;
+    scope: "market" | "sector" | "stock";
+    direction: "up" | "down" | "mixed";
+    confidence: "low" | "med" | "high";
+    impact_score: number;
+    evidence: string[];
+    symbol: string;
+    sector_id: string;
+  }>;
+  source: "rules" | "mimo";
+  status: "pending" | "fallback" | "ready";
+  generated_at?: string;
 };
 
 export type WatchlistPulse = {
@@ -45,6 +110,10 @@ export type WatchlistView = {
   tracked_ids: string[];
   rows: WatchlistRow[];
   pulse: WatchlistPulse;
+  brief: WatchlistBrief;
+  portfolio?: Record<string, unknown>;
+  event_radar?: Record<string, unknown>[];
+  changes?: Record<string, unknown>;
   built_at: string;
   updated_at?: string;
 };
@@ -74,13 +143,338 @@ function toNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function getActiveAiUniverses(): Promise<Record<"US" | "IN", string>> {
+function roundNumber(v: number | null, digits = 2): number | null {
+  if (v === null) return null;
+  const factor = 10 ** digits;
+  return Math.round(v * factor) / factor;
+}
+
+async function getActiveUniverses(): Promise<Record<"US" | "IN" | "US_price" | "IN_price", string>> {
   const snap = await adminFirestore.collection("tm_config").doc("active_universes").get();
   const data = (snap.exists ? snap.data() : {}) as Record<string, unknown>;
   return {
     US: (data?.US_ai_universe as string) || (data?.US as string) || "",
     IN: (data?.IN_ai_universe as string) || (data?.IN as string) || "",
+    US_price: (data?.US_price_universe as string) || (data?.US as string) || "",
+    IN_price: (data?.IN_price_universe as string) || (data?.IN as string) || "",
   };
+}
+
+function candidateUniverses(
+  market: "US" | "IN",
+  universes: Record<"US" | "IN" | "US_price" | "IN_price", string>,
+): string[] {
+  const seen = new Set<string>();
+  return [universes[market], universes[`${market}_price`]]
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+    .filter((v) => {
+      if (seen.has(v)) return false;
+      seen.add(v);
+      return true;
+    });
+}
+
+async function getDocsById<T>(
+  collection: FirebaseFirestore.CollectionReference,
+  ids: string[],
+): Promise<Map<string, T>> {
+  if (ids.length === 0) return new Map();
+  const refs = ids.map((id) => collection.doc(id));
+  const snaps = await adminFirestore.getAll(...refs);
+  const out = new Map<string, T>();
+  for (const snap of snaps) {
+    if (snap.exists) out.set(snap.id, snap.data() as T);
+  }
+  return out;
+}
+
+function metricValue(intel: Record<string, unknown>, pillar: string, label: string): number | null {
+  const pillars = (intel.pillars as Record<string, unknown>) || {};
+  const pillarDoc = (pillars[pillar] as Record<string, unknown>) || {};
+  const metrics = Array.isArray(pillarDoc.metrics) ? pillarDoc.metrics : [];
+  for (const metric of metrics) {
+    const row = metric as Record<string, unknown>;
+    if (String(row.label || "").trim().toLowerCase() === label.toLowerCase()) {
+      return toNumber(row.value);
+    }
+  }
+  return null;
+}
+
+function metricSummary(intel: Record<string, unknown>, pillar: string, label: string): string {
+  const pillars = (intel.pillars as Record<string, unknown>) || {};
+  const pillarDoc = (pillars[pillar] as Record<string, unknown>) || {};
+  const metrics = Array.isArray(pillarDoc.metrics) ? pillarDoc.metrics : [];
+  for (const metric of metrics) {
+    const row = metric as Record<string, unknown>;
+    if (String(row.label || "").trim().toLowerCase() === label.toLowerCase()) {
+      return String(row.summary || "").trim();
+    }
+  }
+  return "";
+}
+
+function compactFacts(facts: Record<string, unknown>): Record<string, unknown> {
+  const analyst = (facts.analyst as Record<string, unknown>) || {};
+  const returns = (facts.returns as Record<string, unknown>) || {};
+  const quick = (facts.quick_stats as Record<string, unknown>) || {};
+  const financials = (facts.financials as Record<string, unknown>) || {};
+  const institutions = (facts.institutions as Record<string, unknown>) || {};
+  return {
+    returns: {
+      one_month_pct: toNumber(returns.one_month_pct),
+      three_month_pct: toNumber(returns.three_month_pct),
+      six_month_pct: toNumber(returns.six_month_pct),
+      one_year_pct: toNumber(returns.one_year_pct),
+    },
+    quick_stats: {
+      market_cap: toNumber(quick.market_cap),
+      pe_ttm: toNumber(quick.pe_ttm),
+      eps_next_year_growth_pct: toNumber(quick.eps_next_year_growth_pct),
+      institutional_ownership_pct: toNumber(quick.institutional_ownership_pct),
+      recommendation_score: toNumber(quick.recommendation_score),
+    },
+    analyst: {
+      label: analyst.label,
+      target_price: toNumber(analyst.target_price),
+      target_low: toNumber(analyst.target_low),
+      target_high: toNumber(analyst.target_high),
+      buy: toNumber(analyst.buy) ?? 0,
+      hold: toNumber(analyst.hold) ?? 0,
+      sell: toNumber(analyst.sell) ?? 0,
+      analyst_count: toNumber(analyst.analyst_count) ?? 0,
+    },
+    events: Array.isArray(facts.events)
+      ? facts.events.filter((event) => {
+          const row = event as Record<string, unknown>;
+          return eventIsCurrent(String(row.date_label || ""));
+        })
+      : [],
+    financials: {
+      fiscal_year: financials.fiscal_year,
+      revenue: toNumber(financials.revenue),
+      revenue_growth_yoy_pct: toNumber(financials.revenue_growth_yoy_pct),
+      operating_income: toNumber(financials.operating_income),
+      net_income: toNumber(financials.net_income),
+      eps_diluted: toNumber(financials.eps_diluted),
+    },
+    institutions: {
+      ownership_pct: toNumber(institutions.ownership_pct),
+      top_holders: Array.isArray(institutions.top_holders) ? institutions.top_holders.slice(0, 3) : [],
+    },
+  };
+}
+
+function mentionSummary(mentionStats: Record<string, unknown>): Record<string, unknown> {
+  const days = (mentionStats.days as Record<string, Record<string, unknown>>) || {};
+  const payloads = Object.entries(days)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-7)
+    .map(([, payload]) => payload || {});
+  const counts = payloads.map((payload) => toNumber(payload.count) ?? 0);
+  const sentiments = payloads
+    .map((payload) => {
+      const n = toNumber(payload.sentiment_n) ?? 0;
+      if (n <= 0) return null;
+      return (toNumber(payload.sentiment_sum) ?? 0) / n;
+    })
+    .filter((value): value is number => value !== null);
+  return {
+    mentions_1d: counts.at(-1) ?? 0,
+    mentions_7d: roundNumber(counts.reduce((sum, value) => sum + value, 0), 2),
+    avg_sentiment_7d: sentiments.length
+      ? roundNumber(sentiments.reduce((sum, value) => sum + value, 0) / sentiments.length, 3)
+      : null,
+  };
+}
+
+function targetUpsidePct(
+  price: number | null,
+  facts: Record<string, unknown>,
+  intel: Record<string, unknown>,
+): number | null {
+  const analyst = (facts.analyst as Record<string, unknown>) || {};
+  const target = toNumber(analyst.target_price) ?? metricValue(intel, "valuation", "Analyst target");
+  if (!price || !target) return null;
+  return roundNumber(((target - price) / price) * 100, 2);
+}
+
+function eventIsCurrent(dateLabel: string): boolean {
+  const parts = dateLabel.toLowerCase().replaceAll(",", " ").split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return true;
+  const month = MONTHS[parts[0].slice(0, 3)];
+  const day = Number(parts[1]);
+  if (month === undefined || !Number.isFinite(day)) return true;
+  const now = new Date();
+  const eventDate = new Date(Date.UTC(now.getUTCFullYear(), month, day));
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const deltaDays = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
+  return deltaDays >= -1 && deltaDays <= 45;
+}
+
+function catalystIsCurrent(catalyst: Record<string, unknown>): boolean {
+  if (String(catalyst.kind || "").toLowerCase() !== "earnings") return true;
+  const parts = String(catalyst.title || "").split(/\s+/).filter(Boolean);
+  if (parts.length >= 3) return eventIsCurrent(`${parts[1]} ${parts[2]}`);
+  return true;
+}
+
+function premiumSignals(
+  ticker: string,
+  price: number | null,
+  dayChangePct: number | null,
+  facts: Record<string, unknown>,
+  intel: Record<string, unknown>,
+  technicals: Record<string, unknown>,
+  alerts: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const compact = compactFacts(facts);
+  const analyst = (compact.analyst as Record<string, unknown>) || {};
+  const returns = (compact.returns as Record<string, unknown>) || {};
+  const quick = (compact.quick_stats as Record<string, unknown>) || {};
+  const events = Array.isArray(compact.events) ? compact.events as Record<string, unknown>[] : [];
+  const rsiBlock = ((technicals.rsi_14 as Record<string, unknown>) || {});
+  const signals: Record<string, unknown>[] = [];
+  const upside = targetUpsidePct(price, facts, intel);
+  if (upside !== null) {
+    signals.push({
+      kind: "analyst_upside",
+      label: "Analyst runway",
+      value: upside,
+      unit: "%",
+      tone: upside >= 10 ? "positive" : upside >= 0 ? "neutral" : "negative",
+      sentence: `${ticker} has ${upside >= 0 ? "+" : ""}${upside.toFixed(1)}% target runway from ${analyst.analyst_count ?? 0} analysts.`,
+    });
+  }
+  const oneMonth = toNumber(returns.one_month_pct);
+  const oneYear = toNumber(returns.one_year_pct);
+  if (oneMonth !== null || oneYear !== null) {
+    signals.push({
+      kind: "return_profile",
+      label: "Return profile",
+      value: oneMonth,
+      unit: "%",
+      tone: (oneMonth ?? 0) > 5 ? "positive" : (oneMonth ?? 0) < -5 ? "negative" : "neutral",
+      sentence: oneMonth !== null && oneYear !== null
+        ? `Returns: 1M ${oneMonth >= 0 ? "+" : ""}${oneMonth.toFixed(1)}% / 1Y ${oneYear >= 0 ? "+" : ""}${oneYear.toFixed(1)}%`
+        : "Return history available.",
+    });
+  }
+  const rsi = toNumber(rsiBlock.value);
+  if (rsi !== null) {
+    signals.push({
+      kind: "technical_state",
+      label: "Technical setup",
+      value: rsi,
+      unit: "RSI",
+      tone: rsi >= 70 ? "negative" : rsi <= 35 ? "positive" : "neutral",
+      sentence: `RSI ${rsi.toFixed(1)} is ${String(rsiBlock.state || "neutral").replaceAll("_", " ")}.`,
+    });
+  }
+  const ownership = toNumber(quick.institutional_ownership_pct);
+  if (ownership !== null) {
+    signals.push({
+      kind: "ownership",
+      label: "Ownership",
+      value: ownership,
+      unit: "%",
+      tone: ownership >= 60 ? "positive" : "neutral",
+      sentence: `Institutions own ${ownership.toFixed(1)}% of ${ticker}.`,
+    });
+  }
+  for (const event of events.slice(0, 1)) {
+    const title = String(event.title || event.kind || "Event");
+    const dateLabel = String(event.date_label || "").trim();
+    if (dateLabel && eventIsCurrent(dateLabel)) {
+      signals.push({
+        kind: "event",
+        label: title,
+        value: dateLabel,
+        tone: "neutral",
+        sentence: `${title}: ${dateLabel}.`,
+      });
+    }
+  }
+  for (const flag of alerts.slice(0, 1)) {
+    const message = String(flag.message || flag.label || flag.type || "").trim();
+    if (message) {
+      signals.push({
+        kind: "alert",
+        label: "Alert",
+        value: flag.type || flag.kind,
+        tone: String(flag.type || flag.kind || "").includes("bear") ? "negative" : "neutral",
+        sentence: message.slice(0, 140),
+      });
+    }
+  }
+  if (dayChangePct !== null && Math.abs(dayChangePct) >= 3) {
+    signals.push({
+      kind: "price_move",
+      label: "Large move",
+      value: roundNumber(dayChangePct, 2),
+      unit: "%",
+      tone: dayChangePct > 0 ? "positive" : "negative",
+      sentence: `${ticker} moved ${dayChangePct >= 0 ? "+" : ""}${dayChangePct.toFixed(1)}% today.`,
+    });
+  }
+  return signals.slice(0, 6);
+}
+
+function previousRowsById(previousView: WatchlistView | null): Map<string, WatchlistRow> {
+  return new Map((previousView?.rows || []).map((row) => [row.instrument_id, row]));
+}
+
+function scoreDelta(current: WatchlistRow, previous: WatchlistRow | undefined, key: keyof WatchlistRow["scores"]): number | null {
+  const curr = current.scores[key];
+  const prev = previous?.scores[key];
+  if (typeof curr !== "number" || typeof prev !== "number") return null;
+  return roundNumber(curr - prev, 1);
+}
+
+function valueDelta(current: unknown, previous: unknown): number | null {
+  const curr = toNumber(current);
+  const prev = toNumber(previous);
+  if (curr === null || prev === null) return null;
+  return roundNumber(curr - prev, 2);
+}
+
+function applyRowDeltas(rows: WatchlistRow[], previousView: WatchlistView | null): WatchlistRow[] {
+  const previousById = previousRowsById(previousView);
+  return rows.map((row) => {
+    const previous = previousById.get(row.instrument_id);
+    const scoreDeltas = {
+      overall: scoreDelta(row, previous, "overall"),
+      valuation: scoreDelta(row, previous, "valuation"),
+      growth: scoreDelta(row, previous, "growth"),
+      quality: scoreDelta(row, previous, "quality"),
+      momentum: scoreDelta(row, previous, "momentum"),
+    };
+    const targetDelta = valueDelta(row.target_upside_pct, previous?.target_upside_pct);
+    const dayChangeDelta = valueDelta(row.day_change_pct, previous?.day_change_pct);
+    const previousAlertKeys = new Set(
+      (previous?.alerts || []).map((alert) => String(alert.type || alert.kind || alert.message || JSON.stringify(alert))),
+    );
+    const newAlerts = row.alerts.filter((alert) => {
+      const key = String(alert.type || alert.kind || alert.message || JSON.stringify(alert));
+      return !previousAlertKeys.has(key);
+    }).slice(0, 3);
+    const material = [
+      ...Object.values(scoreDeltas),
+      targetDelta,
+      dayChangeDelta,
+    ].filter((value): value is number => typeof value === "number" && Math.abs(value) >= 1);
+    return {
+      ...row,
+      changes: {
+        is_new: !previous,
+        score_deltas: scoreDeltas,
+        target_upside_delta: targetDelta,
+        day_change_delta: dayChangeDelta,
+        new_alerts: newAlerts,
+        has_material_change: !previous || material.length > 0 || newAlerts.length > 0,
+      },
+    } as WatchlistRow & { changes: Record<string, unknown> };
+  });
 }
 
 async function loadAlertsByInstrument(uid: string): Promise<Record<string, Record<string, unknown>[]>> {
@@ -99,44 +493,37 @@ async function loadAlertsByInstrument(uid: string): Promise<Record<string, Recor
   return out;
 }
 
-async function rowFor(
+function rowFromDocs(
   instrumentId: string,
-  universes: Record<"US" | "IN", string>,
+  latest: Record<string, unknown>,
+  intel: Record<string, unknown>,
+  facts: Record<string, unknown>,
+  technicals: Record<string, unknown>,
+  mentionStats: Record<string, unknown>,
   alertsByInstrument: Record<string, Record<string, unknown>[]>,
-): Promise<WatchlistRow | null> {
+): WatchlistRow | null {
   const market = marketFromInstrumentId(instrumentId);
   if (!market) return null;
 
-  const [latestSnap, intelSnap] = await Promise.all([
-    adminFirestore.collection("tm_latest_prices").doc(instrumentId).get(),
-    universes[market]
-      ? adminFirestore
-          .collection("tm_stock_intel_pro")
-          .doc(`${market}__${universes[market]}`)
-          .collection("stocks")
-          .doc(instrumentId)
-          .get()
-      : Promise.resolve(null),
-  ]);
-
-  if (!latestSnap.exists) return null;
-  const latest = latestSnap.data() as Record<string, unknown>;
   const quote = (latest?.quote as Record<string, unknown>) || {};
-  const intel = (intelSnap && "exists" in intelSnap && intelSnap.exists
-    ? intelSnap.data()
-    : {}) as Record<string, unknown>;
-  const pillars = (intel?.pillars as Record<string, { score?: unknown }>) || {};
+  const pillars = (intel?.pillars as Record<string, { score?: unknown; metrics?: Array<{ summary?: string }> }>) || {};
   const overall = (intel?.overall as Record<string, unknown>) || {};
+  const ticker = (latest?.ticker as string) || (intel?.ticker as string) || instrumentId.split("_").slice(1).join("_");
+  const dayChange = toNumber(quote.day_change_pct);
+  const alerts = alertsByInstrument[instrumentId] || [];
+  const { micro, vibe } = rowMicrocopy(ticker, dayChange, intel, alerts);
+  const price = toNumber(quote.current);
+  const factsCompact = compactFacts(facts);
 
   return {
     instrument_id: instrumentId,
-    ticker: (latest?.ticker as string) || (intel?.ticker as string) || "",
+    ticker,
     market,
     sector_label: (intel?.sector_label as string) || "",
     industry_label: (intel?.industry_label as string) || "",
     currency: (latest?.currency as string) || (market === "US" ? "USD" : "INR"),
-    price: toNumber(quote.current),
-    day_change_pct: toNumber(quote.day_change_pct),
+    price,
+    day_change_pct: dayChange,
     day_change_abs: toNumber(quote.day_change_abs),
     scores: {
       overall: toNumber(overall.score),
@@ -146,8 +533,438 @@ async function rowFor(
       quality: toNumber(pillars.quality?.score),
       momentum: toNumber(pillars.momentum?.score),
     },
-    alerts: alertsByInstrument[instrumentId] || [],
+    alerts,
+    catalysts: Array.isArray(intel?.catalysts)
+      ? (intel.catalysts as Record<string, unknown>[]).filter(catalystIsCurrent).slice(0, 3)
+      : [],
+    facts: factsCompact,
+    technicals: {
+      rsi_14: technicals.rsi_14 || {},
+      moving_averages: technicals.moving_averages || {},
+      distance: technicals.distance || {},
+    },
+    news_velocity: mentionSummary(mentionStats),
+    premium_signals: premiumSignals(ticker, price, dayChange, facts, intel, technicals, alerts),
+    target_upside_pct: targetUpsidePct(price, facts, intel),
+    top_metric_summaries: [
+      metricSummary(intel, "valuation", "Analyst target"),
+      metricSummary(intel, "growth", "Revenue growth (TTM)"),
+      metricSummary(intel, "quality", "Institutional ownership"),
+      metricSummary(intel, "momentum", "1-month performance"),
+    ].filter(Boolean).slice(0, 3),
+    brief_tile: {
+      micro,
+      vibe,
+      source: "rules",
+    },
+    coverage_status: Object.keys(intel).length > 0 ? "ready" : "score_pending",
     has_intel_pro: Object.keys(intel).length > 0,
+  };
+}
+
+async function buildRows(
+  ids: string[],
+  universes: Record<"US" | "IN" | "US_price" | "IN_price", string>,
+  alertsByInstrument: Record<string, Record<string, unknown>[]>,
+): Promise<WatchlistRow[]> {
+  const [latestById, factsById, technicalsById, mentionsById] = await Promise.all([
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_latest_prices"), ids),
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_technicals_latest"), ids),
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_mention_stats"), ids),
+  ]);
+
+  const intelById = new Map<string, Record<string, unknown>>();
+  for (const market of ["US", "IN"] as const) {
+    const marketIds = ids.filter((id) => marketFromInstrumentId(id) === market);
+    if (marketIds.length === 0) continue;
+    let missing = marketIds;
+    for (const universe of candidateUniverses(market, universes)) {
+      if (missing.length === 0) break;
+      const docs = await getDocsById<Record<string, unknown>>(
+        adminFirestore
+          .collection("tm_stock_intel_pro")
+          .doc(`${market}__${universe}`)
+          .collection("stocks"),
+        missing,
+      );
+      for (const [instrumentId, doc] of docs.entries()) {
+        intelById.set(instrumentId, doc);
+      }
+      missing = missing.filter((instrumentId) => !intelById.has(instrumentId));
+    }
+  }
+
+  const rows: WatchlistRow[] = [];
+  for (const id of ids) {
+    const latest = latestById.get(id);
+    if (!latest) continue;
+    const row = rowFromDocs(
+      id,
+      latest,
+      intelById.get(id) || {},
+      factsById.get(id) || {},
+      technicalsById.get(id) || {},
+      mentionsById.get(id) || {},
+      alertsByInstrument,
+    );
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const sector = row.sector_label || row.market || "Unknown";
+    counts.set(sector, (counts.get(sector) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([sector, count]) => ({
+      sector,
+      count,
+      weight_pct: Math.round((count / Math.max(rows.length, 1)) * 1000) / 10,
+    }));
+}
+
+function averageScore(rows: WatchlistRow[], key: keyof WatchlistRow["scores"]): number | null {
+  const values = rows
+    .map((row) => row.scores[key])
+    .filter((value): value is number => typeof value === "number");
+  if (!values.length) return null;
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
+async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<string, unknown>>> {
+  const tracked = new Set(rows.map((row) => row.instrument_id));
+  const suggested = new Set<string>();
+  const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))];
+  const preferred = ["quality_compounders", "cheap_growth", "oversold_quality", "smart_money", "tikrr_top"];
+  const suggestions: Array<Record<string, unknown>> = [];
+  const screenDocs = await adminFirestore.getAll(
+    ...markets.map((market) => adminFirestore.collection("tm_thematic_screens").doc(market)),
+  );
+  for (const doc of screenDocs) {
+    const market = doc.id as "US" | "IN";
+    const screens = ((doc.exists ? doc.data()?.screens : []) || []) as Array<Record<string, unknown>>;
+    for (const screenId of preferred) {
+      const screen = screens.find((item) => item.id === screenId);
+      const matches = (screen?.matches || []) as Array<Record<string, unknown>>;
+      const match = matches.find((item) => {
+        const instrumentId = String(item.instrument_id || "");
+        return instrumentId && !tracked.has(instrumentId) && !suggested.has(instrumentId);
+      });
+      if (!match) continue;
+      const instrumentId = String(match.instrument_id);
+      suggested.add(instrumentId);
+      suggestions.push({
+        instrument_id: instrumentId,
+        ticker: match.ticker,
+        name: match.name,
+        market,
+        reason: screen?.title,
+        why: screen?.hook || screen?.tagline,
+        score: match.overall_score,
+        match_score: match.match_score,
+        sector: match.sector,
+      });
+      if (suggestions.length >= 6) return suggestions;
+    }
+  }
+  return suggestions;
+}
+
+async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string, unknown>> {
+  if (!rows.length) {
+    return { summary: "No tracked stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
+  }
+  const clusters = sectorClusters(rows);
+  const dominant = clusters[0];
+  const riskFlags: Array<Record<string, unknown>> = [];
+  if (dominant && Number(dominant.weight_pct) >= 50) {
+    riskFlags.push({
+      kind: "sector_concentration",
+      severity: Number(dominant.weight_pct) >= 70 ? "high" : "medium",
+      headline: `${Math.round(Number(dominant.weight_pct))}% clustered in ${dominant.sector}`,
+      body: "A single-sector watchlist can look great until one macro factor hits every name together.",
+    });
+  }
+  for (const row of rows
+    .filter((item) => typeof item.scores.overall === "number" && item.scores.overall < 45)
+    .sort((a, b) => (a.scores.overall ?? 0) - (b.scores.overall ?? 0))
+    .slice(0, 3)) {
+    riskFlags.push({
+      kind: "low_score",
+      severity: "medium",
+      ticker: row.ticker,
+      headline: `${row.ticker} is the weakest score in the list`,
+      body: `Overall score ${row.scores.overall} with pressure in the factor stack.`,
+    });
+  }
+  for (const row of rows
+    .filter((item) => toNumber(((item.technicals?.rsi_14 as Record<string, unknown>) || {}).value) !== null)
+    .filter((item) => (toNumber(((item.technicals?.rsi_14 as Record<string, unknown>) || {}).value) ?? 0) >= 70)
+    .slice(0, 3)) {
+    const rsi = toNumber(((row.technicals?.rsi_14 as Record<string, unknown>) || {}).value);
+    riskFlags.push({
+      kind: "overbought",
+      severity: "medium",
+      ticker: row.ticker,
+      headline: `${row.ticker} is technically stretched`,
+      body: `RSI is ${rsi?.toFixed(1)}; this is a watch-for-pullback setup.`,
+    });
+  }
+  const opportunities = rows
+    .filter((row) => typeof row.target_upside_pct === "number")
+    .sort((a, b) => (b.target_upside_pct ?? -999) - (a.target_upside_pct ?? -999))
+    .slice(0, 4)
+    .map((row) => ({
+      ticker: row.ticker,
+      kind: "analyst_runway",
+      headline: `${row.ticker} has ${(row.target_upside_pct ?? 0) >= 0 ? "+" : ""}${row.target_upside_pct?.toFixed(1)}% target runway`,
+      body: `Score ${row.scores.overall}; analyst count ${((row.facts?.analyst as Record<string, unknown>) || {}).analyst_count ?? 0}.`,
+    }));
+  const summaryParts: string[] = [];
+  if (dominant) summaryParts.push(`${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`);
+  const avgOverall = averageScore(rows, "overall");
+  if (avgOverall !== null) summaryParts.push(`Average Tikrr score is ${avgOverall}.`);
+  if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
+  if (opportunities.length) summaryParts.push(`${opportunities.length} upside candidates stand out.`);
+
+  return {
+    summary: summaryParts.join(" ") || "Watchlist diagnosis is ready.",
+    clusters,
+    factor_tilt: {
+      overall: averageScore(rows, "overall"),
+      valuation: averageScore(rows, "valuation"),
+      growth: averageScore(rows, "growth"),
+      quality: averageScore(rows, "quality"),
+      momentum: averageScore(rows, "momentum"),
+    },
+    risk_flags: riskFlags.slice(0, 6),
+    opportunities: opportunities.slice(0, 6),
+    suggestions: await screenSuggestions(rows),
+  };
+}
+
+function eventRadar(rows: WatchlistRow[], portfolio: Record<string, unknown>): Record<string, unknown>[] {
+  const events: Record<string, unknown>[] = [];
+  function add(event: Record<string, unknown>) {
+    events.push({
+      tone: "neutral",
+      evidence: [],
+      ...event,
+      urgency: Math.max(0, Math.min(100, Math.round(toNumber(event.urgency) ?? 50))),
+    });
+  }
+
+  for (const row of rows) {
+    const changes = ((row as WatchlistRow & { changes?: Record<string, unknown> }).changes) || {};
+    if (changes.is_new) {
+      add({
+        ticker: row.ticker,
+        kind: "new_tracking",
+        title: `${row.ticker} is new to the watchlist`,
+        body: "Baseline facts, score, technicals, and alerts are now being tracked for changes.",
+        urgency: 60,
+        evidence: ["new baseline"],
+      });
+    } else if (changes.has_material_change) {
+      const scoreDeltas = (changes.score_deltas as Record<string, unknown>) || {};
+      const overallDelta = toNumber(scoreDeltas.overall);
+      if (overallDelta !== null && Math.abs(overallDelta) >= 1) {
+        add({
+          ticker: row.ticker,
+          kind: "conviction_delta",
+          title: `${row.ticker} conviction ${overallDelta > 0 ? "improved" : "weakened"}`,
+          body: `Overall score changed ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)} since the last watchlist build.`,
+          urgency: Math.abs(overallDelta) >= 5 ? 72 : 58,
+          tone: overallDelta > 0 ? "positive" : "negative",
+          evidence: [`score ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)}`],
+        });
+      }
+      const targetDelta = toNumber(changes.target_upside_delta);
+      if (targetDelta !== null && Math.abs(targetDelta) >= 2) {
+        add({
+          ticker: row.ticker,
+          kind: "target_delta",
+          title: `${row.ticker} analyst runway changed`,
+          body: `Target upside moved ${targetDelta >= 0 ? "+" : ""}${targetDelta.toFixed(1)} points since the last refresh.`,
+          urgency: 65,
+          tone: targetDelta > 0 ? "positive" : "negative",
+          evidence: [`runway ${targetDelta >= 0 ? "+" : ""}${targetDelta.toFixed(1)} pts`],
+        });
+      }
+    }
+
+    for (const signal of row.premium_signals || []) {
+      const kind = String(signal.kind || "");
+      const tone = String(signal.tone || "neutral");
+      const value = toNumber(signal.value);
+      if (kind === "event") {
+        add({
+          ticker: row.ticker,
+          kind: "upcoming_event",
+          title: `${row.ticker}: ${String(signal.label || "Event")}`,
+          body: String(signal.sentence || ""),
+          urgency: 70,
+          evidence: [String(signal.value || "")],
+        });
+      } else if (kind === "technical_state" && value !== null && (value >= 70 || value <= 35)) {
+        add({
+          ticker: row.ticker,
+          kind: "technical_extreme",
+          title: `${row.ticker} RSI is ${value >= 70 ? "stretched" : "washed out"}`,
+          body: String(signal.sentence || ""),
+          urgency: value >= 70 ? 68 : 62,
+          tone,
+          evidence: [`RSI ${value.toFixed(1)}`],
+        });
+      } else if (kind === "analyst_upside" && value !== null && Math.abs(value) >= 15) {
+        add({
+          ticker: row.ticker,
+          kind: "analyst_runway",
+          title: `${row.ticker} has meaningful analyst runway`,
+          body: String(signal.sentence || ""),
+          urgency: 64,
+          tone,
+          evidence: [`${value >= 0 ? "+" : ""}${value.toFixed(1)}% target upside`],
+        });
+      } else if (kind === "price_move" && value !== null && Math.abs(value) >= 5) {
+        add({
+          ticker: row.ticker,
+          kind: "large_move",
+          title: `${row.ticker} made a large move`,
+          body: String(signal.sentence || ""),
+          urgency: 66,
+          tone,
+          evidence: [`${value >= 0 ? "+" : ""}${value.toFixed(1)}% today`],
+        });
+      }
+    }
+
+    const newsVelocity = row.news_velocity || {};
+    const mentions7d = toNumber(newsVelocity.mentions_7d) ?? 0;
+    const mentions1d = toNumber(newsVelocity.mentions_1d) ?? 0;
+    if (mentions7d >= 3 || mentions1d >= 2) {
+      add({
+        ticker: row.ticker,
+        kind: "news_velocity",
+        title: `${row.ticker} news activity is elevated`,
+        body: `${mentions1d.toFixed(0)} mention(s) today and ${mentions7d.toFixed(0)} over 7 days.`,
+        urgency: 55 + Math.min(20, Math.round(mentions7d * 3)),
+        evidence: [`${mentions7d.toFixed(0)} mentions / 7D`],
+      });
+    }
+  }
+
+  for (const risk of (((portfolio.risk_flags as Record<string, unknown>[]) || []).slice(0, 3))) {
+    const severity = String(risk.severity || "medium");
+    add({
+      ticker: risk.ticker || "",
+      kind: risk.kind || "portfolio_risk",
+      title: risk.headline || "Portfolio risk flag",
+      body: risk.body || "",
+      urgency: severity === "high" ? 82 : 70,
+      tone: "negative",
+      evidence: [severity],
+    });
+  }
+
+  const seen = new Set<string>();
+  return events
+    .sort((a, b) => (toNumber(b.urgency) ?? 0) - (toNumber(a.urgency) ?? 0))
+    .filter((event) => {
+      const key = `${event.ticker || ""}:${event.kind || ""}:${event.title || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 12);
+}
+
+function changeSummary(rows: WatchlistRow[], previousView: WatchlistView | null): Record<string, unknown> {
+  const withChanges = rows as Array<WatchlistRow & { changes?: Record<string, unknown> }>;
+  const changed = withChanges.filter((row) => row.changes?.has_material_change);
+  const newRows = withChanges.filter((row) => row.changes?.is_new);
+  const scoreChanges = withChanges
+    .map((row) => {
+      const scoreDeltas = (row.changes?.score_deltas as Record<string, unknown>) || {};
+      const delta = toNumber(scoreDeltas.overall);
+      if (delta === null || Math.abs(delta) < 1) return null;
+      return {
+        ticker: row.ticker,
+        delta,
+        direction: delta > 0 ? "up" : "down",
+        sentence: `${row.ticker} score moved ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}.`,
+      };
+    })
+    .filter((item): item is {
+      ticker: string;
+      delta: number;
+      direction: string;
+      sentence: string;
+    } => item !== null)
+    .sort((a, b) => Math.abs(toNumber(b.delta) ?? 0) - Math.abs(toNumber(a.delta) ?? 0));
+  return {
+    has_previous: Boolean(previousView),
+    changed_count: changed.length,
+    new_count: newRows.length,
+    score_changes: scoreChanges.slice(0, 6),
+    new_tickers: newRows.map((row) => row.ticker),
+    summary: previousView
+      ? `${changed.length} tracked stock(s) changed materially since the last build.`
+      : "No previous snapshot yet; this build sets the baseline.",
+  };
+}
+
+function rowMicrocopy(
+  ticker: string,
+  dayChangePct: number | null,
+  intel: Record<string, unknown>,
+  alerts: Record<string, unknown>[],
+): { micro: string; vibe: "up" | "down" | "wild" } {
+  const firstAlert = alerts[0];
+  if (firstAlert) {
+    const message = String(firstAlert.message || firstAlert.label || firstAlert.type || "").trim();
+    if (message) return { micro: message.slice(0, 120), vibe: "wild" };
+  }
+
+  const overall = (intel.overall as Record<string, unknown>) || {};
+  const score = toNumber(overall.score);
+  const pillars = (intel.pillars as Record<string, { score?: unknown; metrics?: Array<{ summary?: string }> }>) || {};
+  let bestPillar = "";
+  let bestScore = -1;
+  for (const [key, payload] of Object.entries(pillars)) {
+    const pillarScore = toNumber(payload?.score);
+    if (pillarScore !== null && pillarScore > bestScore) {
+      bestPillar = key;
+      bestScore = pillarScore;
+    }
+  }
+
+  if (score !== null && bestPillar) {
+    const summary = pillars[bestPillar]?.metrics?.find((m) => m.summary)?.summary;
+    const label = bestPillar.replaceAll("_", " ");
+    const micro = `${label[0]?.toUpperCase() ?? ""}${label.slice(1)} leads the scorecard${summary ? `: ${summary}` : ""}`;
+    return {
+      micro: micro.slice(0, 120),
+      vibe: score >= 70 ? "up" : score >= 50 ? "wild" : "down",
+    };
+  }
+
+  if (dayChangePct !== null) {
+    const direction = dayChangePct >= 0 ? "ripping" : "under pressure";
+    return {
+      micro: `${ticker} is ${direction} with AI score pending.`,
+      vibe: dayChangePct >= 0 ? "up" : "down",
+    };
+  }
+
+  return {
+    micro: `${ticker} has price coverage; deeper AI score is pending.`,
+    vibe: "wild",
   };
 }
 
@@ -191,28 +1008,100 @@ function pulseFromRows(rows: WatchlistRow[]): WatchlistPulse {
   };
 }
 
+function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): WatchlistBrief {
+  const movers = [...rows]
+    .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))
+    .slice(0, 4);
+  const sectors = rows.map((r) => r.sector_label).filter(Boolean);
+  const counts = new Map<string, number>();
+  for (const sector of sectors) counts.set(sector, (counts.get(sector) ?? 0) + 1);
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const concentrated = dominant && dominant[1] >= Math.max(2, Math.ceil(rows.length / 2));
+  const alertEvents = rows.flatMap((row) =>
+    row.alerts.slice(0, 1).map((flag) => ({
+      sentence: String(flag.message || flag.type || "Watchlist alert triggered.").slice(0, 120),
+      event_type: "technical",
+      scope: "stock" as const,
+      direction: (String(flag.direction || "mixed") as "up" | "down" | "mixed"),
+      confidence: "med" as const,
+      impact_score: 65,
+      evidence: [String(flag.type || "alert")],
+      symbol: row.ticker,
+      sector_id: "",
+    })),
+  );
+
+  return {
+    narrative: pulse.subtitle || pulse.headline,
+    tiles: rows.map((row) => ({
+      ticker: row.ticker,
+      micro: row.brief_tile.micro,
+      vibe: row.brief_tile.vibe,
+    })),
+    movers: movers.map((row) => ({
+      ticker: row.ticker,
+      one_liner: row.brief_tile.micro,
+      vibe: row.brief_tile.vibe,
+    })),
+    signals: [
+      {
+        tag: "Breadth",
+        headline: pulse.headline,
+        body: pulse.subtitle,
+        detail: "This refresh uses prices, scorecards, and alert flags while the scheduled personalized AI synthesis catches up.",
+        vibe: "neutral",
+      },
+    ],
+    blind_spot_title: "Exposure check",
+    blind_spot_body: concentrated
+      ? `Most of this watchlist clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
+      : "No obvious concentration yet. Add more stocks and Tikrr will flag sector, style, and event blind spots.",
+    essential_events: alertEvents.length
+      ? alertEvents.slice(0, 5)
+      : movers.slice(0, 3).map((row) => ({
+          sentence: `${row.ticker}: ${row.brief_tile.micro}`.slice(0, 120),
+          event_type: "sentiment",
+          scope: "stock" as const,
+          direction: row.brief_tile.vibe === "wild" ? "mixed" : row.brief_tile.vibe,
+          confidence: row.has_intel_pro ? "med" as const : "low" as const,
+          impact_score: 50,
+          evidence: [row.has_intel_pro ? "score" : "pending"],
+          symbol: row.ticker,
+          sector_id: "",
+        })),
+    source: "rules",
+    status: "pending",
+    generated_at: new Date().toISOString(),
+  };
+}
+
 const WATCHLIST_ROW_CAP = 20;
 
 export async function buildWatchlistView(
   uid: string,
   trackedStocks: string[],
+  previousView?: WatchlistView | null,
 ): Promise<WatchlistView> {
-  const universes = await getActiveAiUniverses();
+  const universes = await getActiveUniverses();
   const alertsByInstrument = await loadAlertsByInstrument(uid);
+  const previous = previousView ?? null;
 
-  const rows: WatchlistRow[] = [];
-  for (const id of (trackedStocks || []).slice(0, WATCHLIST_ROW_CAP)) {
-    const row = await rowFor(id, universes, alertsByInstrument);
-    if (row) rows.push(row);
-  }
+  const ids = (trackedStocks || []).slice(0, WATCHLIST_ROW_CAP);
+  const rows = applyRowDeltas(await buildRows(ids, universes, alertsByInstrument), previous);
   rows.sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0));
+  const pulse = pulseFromRows(rows);
+  const portfolio = await portfolioDiagnostics(rows);
 
   return {
     uid,
     tracked_count: rows.length,
     tracked_ids: rows.map((r) => r.instrument_id),
     rows,
-    pulse: pulseFromRows(rows),
+    pulse,
+    brief: fallbackBriefFromRows(rows, pulse),
+    portfolio,
+    event_radar: eventRadar(rows, portfolio),
+    changes: changeSummary(rows, previous),
     built_at: new Date().toISOString(),
   };
 }
@@ -221,8 +1110,28 @@ export async function rebuildAndSaveWatchlistView(
   uid: string,
   trackedStocks: string[],
 ): Promise<WatchlistView> {
-  const view = await buildWatchlistView(uid, trackedStocks);
-  await adminFirestore.collection("tm_watchlist_views").doc(uid).set(
+  const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
+  const previous = await ref.get();
+  const previousData = previous.exists ? (previous.data() as WatchlistView) : null;
+  const view = await buildWatchlistView(uid, trackedStocks, previousData);
+  if (previousData) {
+    const historyId = String(previousData.built_at || previousData.updated_at || new Date().toISOString())
+      .replaceAll(":", "-")
+      .replaceAll(".", "-");
+    await ref.collection("history").doc(historyId).set(previousData);
+    const oldHistory = await ref
+      .collection("history")
+      .orderBy("built_at", "desc")
+      .limit(30)
+      .get();
+    const docsToDelete = oldHistory.docs.slice(10);
+    if (docsToDelete.length > 0) {
+      const batch = adminFirestore.batch();
+      docsToDelete.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+    }
+  }
+  await ref.set(
     {
       ...view,
       updated_at: FieldValue.serverTimestamp(),

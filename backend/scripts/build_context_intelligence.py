@@ -21,7 +21,9 @@ def _coerce_article(payload: dict) -> Article:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build market and sector context docs")
+    parser = argparse.ArgumentParser(
+        description="Build market and sector context docs"
+    )
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", required=True)
     parser.add_argument("--print-json", action="store_true")
@@ -30,23 +32,47 @@ def main() -> None:
     store = TraceMoneyStore()
     writer = ContextBriefWriter(store=store)
     instruments = list_instruments(args.market, args.universe)
-    articles = [_coerce_article(payload) for payload in store.list_article_enrichments(args.market, args.universe)]
+    articles = [
+        _coerce_article(payload)
+        for payload in store.list_article_enrichments(args.market, args.universe)
+    ]
     stock_docs = store.list_stock_intelligence_docs(args.market, args.universe)
 
     price_by_id: dict[str, dict] = {}
     analyst_by_id: dict[str, dict] = {}
-    for inst in instruments:
-        iid = inst["instrument_id"]
-        price_doc = store.db.collection("tm_latest_prices").document(iid).get()
-        if price_doc.exists:
-            price_by_id[iid] = price_doc.to_dict() or {}
-        view_doc = store.db.collection("tm_views_instrument").document(f"{iid}__{args.universe}").get()
-        if view_doc.exists:
+    instrument_ids = [inst["instrument_id"] for inst in instruments]
+    price_collection = store.db.collection("tm_latest_prices")
+    view_collection = store.db.collection("tm_views_instrument")
+
+    for start in range(0, len(instrument_ids), 500):
+        refs = [
+            price_collection.document(iid)
+            for iid in instrument_ids[start:start + 500]
+        ]
+        for price_doc in store.db.get_all(refs):
+            if price_doc.exists:
+                price_by_id[price_doc.id] = price_doc.to_dict() or {}
+
+    for start in range(0, len(instrument_ids), 500):
+        refs = [
+            view_collection.document(f"{iid}__{args.universe}")
+            for iid in instrument_ids[start:start + 500]
+        ]
+        for view_doc in store.db.get_all(refs):
+            if not view_doc.exists:
+                continue
             data = view_doc.to_dict() or {}
+            iid = view_doc.id.rsplit("__", 1)[0]
             if data.get("analyst_consensus"):
                 analyst_by_id[iid] = data["analyst_consensus"]
 
-    sector_context_docs = build_sector_context_docs(args.market, args.universe, instruments, articles, writer=writer)
+    sector_context_docs = build_sector_context_docs(
+        args.market,
+        args.universe,
+        instruments,
+        articles,
+        writer=writer,
+    )
     # Market-level brief is now handled by sync_market_brief (signal-based, not
     # news-based). Pass an empty context so contextualize_stock_docs doesn't
     # pull in stale market text but still works without changes.
@@ -61,8 +87,16 @@ def main() -> None:
         analyst_by_id=analyst_by_id,
     )
 
-    store.save_sector_context_docs(args.market, args.universe, sector_context_docs)
-    store.save_stock_intelligence_docs(args.market, args.universe, contextual_stock_docs)
+    store.save_sector_context_docs(
+        args.market,
+        args.universe,
+        sector_context_docs,
+    )
+    store.save_stock_intelligence_docs(
+        args.market,
+        args.universe,
+        contextual_stock_docs,
+    )
 
     if args.print_json:
         print(json.dumps({
@@ -72,7 +106,8 @@ def main() -> None:
     else:
         print(
             f"Saved {len(sector_context_docs)} sector docs and "
-            f"{len(contextual_stock_docs)} contextualized stock docs for {args.market} / {args.universe}."
+            f"{len(contextual_stock_docs)} contextualized stock docs "
+            f"for {args.market} / {args.universe}."
         )
 
 

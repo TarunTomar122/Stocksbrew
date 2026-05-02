@@ -87,7 +87,7 @@ function Column({
 
 export function MoversTable({ gainers, losers, mocked }: Props) {
   return (
-    <section className="bg-surface-container-lowest brutalist-border rounded-xl p-6 h-full flex flex-col">
+    <section className="bg-surface-container-lowest rounded-xl p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[14px] font-semibold text-on-surface">
           Top movers

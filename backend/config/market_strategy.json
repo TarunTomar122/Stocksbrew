@@ -1,6 +1,6 @@
 {
   "version": "2026-03-24",
-  "default_llm_model": "gpt-5-nano",
+  "default_llm_model": "mimo-v2.5",
   "default_llm_concurrency": 8,
   "markets": {
     "US": {

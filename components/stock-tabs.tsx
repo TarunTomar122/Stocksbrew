@@ -19,12 +19,9 @@ export function StockTabs({ hasAI }: { hasAI: boolean }) {
   const clickLockUntil = useRef<number>(0);
 
   const visible = hasAI ? TABS : TABS.filter((t) => t.id !== "briefing");
-  // "sector" tab is always shown regardless of AI tier.
 
   useEffect(() => {
     function onScroll() {
-      // During a programmatic scroll triggered by a tab click, ignore scroll
-      // events so the active tab doesn't jitter mid-scroll.
       if (Date.now() < clickLockUntil.current) return;
       const probe = window.scrollY + 160;
       let current = visible[0]?.id ?? "today";
@@ -45,13 +42,13 @@ export function StockTabs({ hasAI }: { hasAI: boolean }) {
     if (!el) return;
     clickLockUntil.current = Date.now() + 700;
     setActive(id);
-    const y = el.getBoundingClientRect().top + window.scrollY - 88;
+    const y = el.getBoundingClientRect().top + window.scrollY - 96;
     window.scrollTo({ top: y, behavior: "smooth" });
   }
 
   return (
-    <nav className="sticky top-16 z-40 -mx-8 px-8 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/20">
-      <div className="flex items-center gap-1 overflow-x-auto">
+    <nav className="sticky top-16 z-40 -mx-5 md:-mx-8 px-5 md:px-8 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20">
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
         {visible.map((t) => {
           const isActive = active === t.id;
           return (
@@ -59,12 +56,12 @@ export function StockTabs({ hasAI }: { hasAI: boolean }) {
               key={t.id}
               type="button"
               onClick={() => goTo(t.id)}
-              className={`group relative flex flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors ${
-                isActive ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"
+              className={`group relative flex flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors rounded-lg ${
+                isActive ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low/50"
               }`}
             >
               <span
-                className={`text-[11px] font-bold tracking-[0.15em] uppercase ${
+                className={`text-[11px] font-bold tracking-[0.1em] uppercase ${
                   isActive ? "text-primary" : ""
                 }`}
               >
@@ -74,7 +71,7 @@ export function StockTabs({ hasAI }: { hasAI: boolean }) {
                 {t.hint}
               </span>
               <span
-                className={`absolute left-0 right-0 bottom-0 h-0.5 rounded-t transition-opacity ${
+                className={`absolute left-2 right-2 bottom-1 h-0.5 rounded-full transition-opacity ${
                   isActive ? "bg-primary opacity-100" : "opacity-0"
                 }`}
               />

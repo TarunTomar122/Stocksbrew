@@ -16,16 +16,18 @@ export default async function NewsPage() {
 
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-8 py-10 flex flex-col gap-6">
-        <header className="flex items-baseline justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-on-surface">News</h1>
-            <p className="text-sm text-on-surface-variant mt-1">
-              {articles.length} {articles.length === 1 ? "article" : "articles"}{" "}
-              pulled for {market === "IN" ? "India" : "US"} today · filter
-              below to narrow in on what matters.
-            </p>
-          </div>
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-12 md:py-16 flex flex-col gap-10">
+        <header className="flex flex-col gap-3 max-w-[720px]">
+          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">
+            News
+          </span>
+          <h1 className="text-[36px] md:text-[44px] font-semibold tracking-[-0.03em] text-[#111111] leading-[1.1]">
+            Today&apos;s news, on the stocks you care about.
+          </h1>
+          <p className="text-[16px] text-[#374151] leading-[1.55]">
+            {articles.length} {articles.length === 1 ? "article" : "articles"} pulled for{" "}
+            {market === "IN" ? "India" : "US"} today. Filter by sector, source, sentiment, or timeframe to narrow in.
+          </p>
         </header>
 
         <NewsExplorer articles={articles} market={market} />

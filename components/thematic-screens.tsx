@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { ThematicScreensDoc, ScreenMatchRow } from "@/lib/screens";
+import { StockLogo } from "@/components/stock-logo";
 
 type Props = {
   doc?: ThematicScreensDoc | null;
   market: "US" | "IN";
 };
 
-// Friendlier, more human copy per screen — overrides the backend taglines
-// since those are more "rule statements" than "why you'd care" descriptions.
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top: {
     title: "Top Tikrr Score",
@@ -50,54 +49,55 @@ function fmtPct(v: number | null | undefined): string {
 
 function fmtPrice(v: number | null | undefined): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return v.toFixed(2);
 }
 
-function MatchRow({ row }: { row: ScreenMatchRow }) {
+function MatchRow({ row, market }: { row: ScreenMatchRow; market: "US" | "IN" }) {
   const change = row.day_change_pct;
   const up = typeof change === "number" && change > 0;
   const down = typeof change === "number" && change < 0;
-  const changeClass = up
-    ? "text-signal-bullish"
+  const tone = up
+    ? "bg-[#ecfdf5] text-[#10b981]"
     : down
-      ? "text-signal-bearish"
-      : "text-on-surface-variant";
-  const arrow = up ? "▲" : down ? "▼" : "•";
+      ? "bg-[#fef2f2] text-[#ef4444]"
+      : "bg-[#f3f4f6] text-[#6b7280]";
 
   return (
     <Link
-      href={`/stock/${row.ticker}`}
-      className="flex items-center justify-between gap-3 py-3 border-b border-outline-variant/30 last:border-b-0 hover:bg-surface-container-low transition-colors -mx-2 px-2 rounded"
+      href={`/stock/${encodeURIComponent(row.ticker)}`}
+      className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] items-center gap-4 px-5 py-3.5 border-t border-[#f3f4f6] hover:bg-[#f8f9fa] transition-colors"
     >
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-[13px] font-bold text-on-surface truncate">
-          {row.ticker}
+      <div className="flex items-center gap-3 min-w-0">
+        <StockLogo ticker={row.ticker} market={market} size={36} />
+        <div className="flex flex-col min-w-0">
+          <span className="text-[14px] font-semibold text-[#111111] truncate">
+            {row.ticker}
+          </span>
+          <span className="text-[11px] text-[#6b7280] truncate">
+            {row.name ?? row.sector ?? ""}
+          </span>
+        </div>
+      </div>
+      <div className="hidden sm:flex flex-col items-end">
+        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          Score
         </span>
-        <span className="text-[11px] text-on-surface-variant truncate">
-          {row.name ?? row.sector ?? ""}
+        <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
+          {typeof row.overall_score === "number"
+            ? Math.round(row.overall_score)
+            : "—"}
         </span>
       </div>
-      <div className="flex items-center gap-5 shrink-0">
-        <div className="hidden sm:flex flex-col items-end">
-          <span className="text-[10px] font-semibold tracking-wide uppercase text-outline">
-            Score
-          </span>
-          <span className="text-[13px] font-bold text-on-surface tabular-nums">
-            {typeof row.overall_score === "number"
-              ? Math.round(row.overall_score)
-              : "—"}
-          </span>
-        </div>
-        <div className="flex flex-col items-end min-w-[72px]">
-          <span className="text-[13px] font-semibold text-on-surface tabular-nums">
-            {fmtPrice(row.price)}
-          </span>
-          <span className={`text-[11px] font-bold tabular-nums flex items-center gap-1 ${changeClass}`}>
-            <span>{arrow}</span>
-            {fmtPct(change)}
-          </span>
-        </div>
+      <span className="text-[14px] font-medium text-[#111111] tabular-nums text-right">
+        {fmtPrice(row.price)}
+      </span>
+      <div className="flex justify-end">
+        <span
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums ${tone}`}
+        >
+          {up ? "▲" : down ? "▼" : "•"} {fmtPct(change)}
+        </span>
       </div>
     </Link>
   );
@@ -111,8 +111,7 @@ export function ThematicScreens({ doc, market }: Props) {
 
   if (!doc || nonEmpty.length === 0) return null;
 
-  const active =
-    nonEmpty.find((s) => s.id === activeId) ?? nonEmpty[0];
+  const active = nonEmpty.find((s) => s.id === activeId) ?? nonEmpty[0];
   const copy = FRIENDLY_COPY[active.id] ?? {
     title: active.title,
     subtitle: active.tagline,
@@ -120,64 +119,52 @@ export function ThematicScreens({ doc, market }: Props) {
 
   return (
     <section>
-      <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap mb-5">
         <div>
-          <h2 className="text-[20px] font-bold text-on-surface leading-tight">
+          <h2 className="text-[18px] md:text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
             Screens worth watching
           </h2>
-          <p className="text-[13px] text-on-surface-variant mt-1">
+          <p className="text-[13px] text-[#6b7280] mt-1.5 leading-relaxed">
             Opinionated filters over the full four-pillar score — hand-picked so you can skip the screener.
           </p>
         </div>
-        <span className="text-[11px] text-on-surface-variant">
+        <span className="text-[12px] text-[#6b7280]">
           {doc.coverage.intel_pro_docs} stocks scored
         </span>
       </div>
 
-      {/* Tab strip */}
       <div className="flex gap-2 flex-wrap mb-4">
         {nonEmpty.map((screen) => {
           const isActive = screen.id === active.id;
-          const label = FRIENDLY_COPY[screen.id]?.title ?? screen.title;
-          // The `tikrr_top` tab is our house pick — we dress it in the brand
-          // gradient (both active and idle) so it reads as "by Tikrr" at a
-          // glance, distinct from the generic theme tabs.
           const isHouse = screen.id === "tikrr_top";
-          const baseClass =
-            "px-3.5 py-2 text-[12px] font-semibold rounded-full transition-all flex items-center gap-2";
-          const toneClass = isHouse
-            ? isActive
-              ? "bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-[0_0_0_1px_rgba(139,92,246,0.35)]"
-              : "bg-gradient-to-r from-indigo-500/15 via-violet-500/15 to-fuchsia-500/15 text-on-surface ring-1 ring-violet-500/40 hover:from-indigo-500/25 hover:via-violet-500/25 hover:to-fuchsia-500/25"
-            : isActive
-              ? "bg-on-surface text-surface"
-              : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container";
+          const label = FRIENDLY_COPY[screen.id]?.title ?? screen.title;
           return (
             <button
               key={screen.id}
               type="button"
               onClick={() => setActiveId(screen.id)}
-              className={`${baseClass} ${toneClass}`}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+                isActive
+                  ? "bg-[#111111] text-white"
+                  : "bg-white text-[#111111] border border-[#e5e7eb] hover:border-[#111111]"
+              }`}
             >
               {isHouse && (
                 <span
-                  aria-hidden="true"
-                  className={`text-[11px] leading-none ${isActive ? "text-white" : "text-violet-500"}`}
-                  title="Tikrr house pick"
+                  className={`text-[12px] leading-none ${
+                    isActive ? "text-[#c7d2fe]" : "text-[#7c3aed]"
+                  }`}
+                  aria-hidden
                 >
                   ✦
                 </span>
               )}
               <span>{label}</span>
               <span
-                className={`text-[10px] font-bold tabular-nums rounded-full px-1.5 py-0.5 ${
-                  isHouse
-                    ? isActive
-                      ? "bg-white/20 text-white"
-                      : "bg-violet-500/20 text-on-surface"
-                    : isActive
-                      ? "bg-surface/20 text-surface"
-                      : "bg-surface-container text-on-surface-variant"
+                className={`text-[10px] font-semibold tabular-nums rounded-full px-1.5 py-0.5 ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-[#f3f4f6] text-[#6b7280]"
                 }`}
               >
                 {screen.match_count}
@@ -187,26 +174,38 @@ export function ThematicScreens({ doc, market }: Props) {
         })}
       </div>
 
-      {/* Active screen panel */}
-      <div className="bg-surface-container-lowest brutalist-border rounded-xl p-6">
-        <div className="flex items-baseline justify-between gap-3 flex-wrap mb-1">
-          <h3 className="text-[16px] font-bold text-on-surface">{copy.title}</h3>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-outline">
+      <div className="rounded-[24px] border border-[#e5e7eb] bg-white overflow-hidden">
+        <div className="flex items-baseline justify-between gap-3 flex-wrap px-5 pt-5">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-[16px] font-semibold text-[#111111] tracking-[-0.01em]">
+              {copy.title}
+            </h3>
+            <p className="text-[13px] text-[#6b7280] leading-relaxed">
+              {copy.subtitle}
+            </p>
+          </div>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af]">
             {active.match_count} {active.match_count === 1 ? "match" : "matches"}
           </span>
         </div>
-        <p className="text-[13px] text-on-surface-variant mb-3">{copy.subtitle}</p>
+
+        <div className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] gap-4 px-5 pt-5 pb-2 text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+          <span>Stock</span>
+          <span className="hidden sm:block text-right">Score</span>
+          <span className="text-right">Price</span>
+          <span className="text-right">Change</span>
+        </div>
 
         <div className="flex flex-col">
           {active.matches.slice(0, 8).map((row) => (
-            <MatchRow key={row.instrument_id} row={row} />
+            <MatchRow key={row.instrument_id} row={row} market={market} />
           ))}
         </div>
 
         {active.match_count > 8 && (
           <Link
             href={`/screens/${active.id}?market=${market}`}
-            className="mt-4 text-[12px] font-semibold text-on-surface hover:underline inline-flex items-center gap-1"
+            className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"
           >
             See all {active.match_count} matches →
           </Link>

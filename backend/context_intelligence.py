@@ -5,27 +5,35 @@ from collections import Counter, defaultdict
 import hashlib
 import json
 from datetime import datetime, timedelta, timezone
-import os
 import re
 from typing import Any
 
 import requests
 
 from backend.env import load_backend_env
+from backend.llm_client import (
+    MIMO_API_URL,
+    json_response_format,
+    llm_api_key,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 from backend.models import Article
 from backend.preferences import sector_label_map
 from backend.storage import TraceMoneyStore
 
 load_backend_env()
 
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+LLM_API_URL = MIMO_API_URL
 CONTEXT_CACHE_VERSION = "2026-04-23-context-v15-strict-dates-no-placeholders"
 
 
 class ContextBriefWriter:
     def __init__(self, store: TraceMoneyStore | None = None) -> None:
-        self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
-        self.model = os.getenv("TRACE_MONEY_LLM_MODEL", "gpt-5-nano").strip() or "gpt-5-nano"
+        self.api_key = llm_api_key()
+        self.model = llm_model()
         self.store = store
 
     @property
@@ -303,28 +311,22 @@ class ContextBriefWriter:
             if cached and isinstance(cached.get("payload"), dict):
                 return cached["payload"]
         response = requests.post(
-            OPENAI_API_URL,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            LLM_API_URL,
+            headers=llm_headers(self.api_key),
             json={
                 "model": self.model,
                 "temperature": 0.2,
                 "messages": [
-                    {"role": "system", "content": self._system_prompt(kind)},
+                    {"role": "system", "content": schema_system_prompt(self._system_prompt(kind), self._schema(kind))},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
                 ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": self._schema(kind),
-                },
+                "response_format": json_response_format(),
             },
             timeout=45,
         )
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
-        result = json.loads(content)
+        result = parse_json_content(content)
         if self.store:
             self.store.save_llm_enrichment(cache_key, {
                 "cache_key": cache_key,

@@ -10,11 +10,11 @@ Minimal test path for:
 
 Set in `backend/.env` or shell:
 
-- `OPENAI_API_KEY`
+- `MIMO_API_KEY`
 - `SEARXNG_BASE_URL=http://localhost:8888`
 - `TIKRR_API_BASE_URL=https://www.tikrr.online/api/tikrr`
 - `TIKRR_API_KEY=openclaw`
-- optional: `TIKRR_PIPELINE_MODEL=gpt-4o-mini`
+- optional: `TIKRR_PIPELINE_MODEL=mimo-v2.5`
 
 ## Start SearXNG
 

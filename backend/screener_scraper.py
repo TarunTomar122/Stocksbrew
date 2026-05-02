@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 from urllib.request import Request, urlopen
 
 _USER_AGENT = (
@@ -54,11 +53,12 @@ def _parse_number(text: str) -> float | None:
 
 _TOP_CARD_RE = re.compile(
     r'<span class="name">\s*([^<]+?)\s*</span>\s*'
-    r'<span class="nowrap value">\s*(?:₹\s*)?<span class="number">([^<]+)</span>',
+    r'<span class="nowrap value">\s*(?:₹\s*)?'
+    r'<span class="number">([^<]+)</span>',
     re.DOTALL,
 )
 
-# High / Low split: "₹ <span class="number">1,612</span> / <span class="number">1,285</span>"
+# High / Low split from Screener's top-card range.
 _HIGH_LOW_RE = re.compile(
     r'<span class="name">\s*High / Low\s*</span>\s*'
     r'<span class="nowrap value">\s*(?:₹\s*)?'
@@ -73,7 +73,9 @@ _INDUSTRY_LABEL_RE = re.compile(r'Industry">([^<]+)</a>')
 # Growth tables embed inside <th colspan="2">Compounded ... Growth</th> then
 # rows like <td>5 Years:</td><td>10%</td>.
 _COMPOUNDED_BLOCK_RE = re.compile(
-    r'<th colspan="2">\s*(Compounded Sales Growth|Compounded Profit Growth|Stock Price CAGR|Return on Equity)\s*</th>(.*?)</table>',
+    r'<th colspan="2">\s*'
+    r'(Compounded Sales Growth|Compounded Profit Growth|Stock Price CAGR|Return on Equity)'
+    r'\s*</th>(.*?)</table>',
     re.DOTALL,
 )
 _COMPOUNDED_ROW_RE = re.compile(
@@ -116,6 +118,24 @@ def _latest_row_value(html: str, label: str) -> float | None:
     return _parse_number(cells[-1])
 
 
+def _latest_percent_row_value(html: str, label: str) -> float | None:
+    pattern = (
+        r'<td[^>]*class="text"[^>]*>[^<]*(?:<[^>]*>[^<]*)*?'
+        + re.escape(label)
+        + r'[^<]*(?:<[^>]*>[^<]*)*?</td>(.*?)</tr>'
+    )
+    m = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+    if not m:
+        return None
+    cells = re.findall(
+        r'<td[^>]*>\s*(-?[0-9][0-9.,]*)\s*%\s*</td>',
+        m.group(1),
+    )
+    if not cells:
+        return None
+    return _parse_number(cells[-1])
+
+
 @dataclass
 class ScreenerQuote:
     ticker: str
@@ -124,6 +144,7 @@ class ScreenerQuote:
     sector_label: str = ""
     industry_slug: str = ""
     industry_label: str = ""
+    shareholding: dict[str, float] = field(default_factory=dict)
 
 
 def _slugify(text: str) -> str:
@@ -183,21 +204,25 @@ def parse_screener_quote(html: str, ticker: str) -> ScreenerQuote:
                 continue
             quote.metrics[f"{prefix}{years}y"] = value
 
-    # Promote the 5-year stock CAGR into the canonical perf_5y slot so downstream
-    # momentum scoring sees a comparable "how has this stock done" number.
+    # Promote the 5-year stock CAGR into the canonical perf_5y slot so
+    # downstream momentum scoring sees a comparable performance number.
     if "stock_cagr_5y" in quote.metrics:
         quote.metrics.setdefault("perf_5y_cagr", quote.metrics["stock_cagr_5y"])
 
     # Ratios / P&L / Balance Sheet rows — Screener doesn't expose these in the
     # top card, but they're in the year-over-year tables further down. Grab the
-    # latest fiscal cell for each canonical quality field so the scorecard stops
-    # showing "—" on IN stocks.
+    # latest fiscal cell for each canonical quality field so IN scorecards
+    # stop showing missing values.
     #
     # Label quirks:
     #   - OPM shows as "OPM %" (value already a percent)
     #   - Debt to equity is a unitless ratio
     #   - Dividend Payout shows as "Dividend Payout %" (already a percent)
     row_fields = [
+        ("revenue", "Sales"),
+        ("operating_income", "Operating Profit"),
+        ("net_income", "Net Profit"),
+        ("eps_diluted", "EPS in Rs"),
         ("oper_margin", "OPM"),
         ("payout_ratio", "Dividend Payout"),
     ]
@@ -206,6 +231,9 @@ def parse_screener_quote(html: str, ticker: str) -> ScreenerQuote:
             continue
         value = _latest_row_value(html, label)
         if value is not None:
+            if canonical in {"revenue", "operating_income", "net_income"}:
+                # Screener reports rupee crore in statement tables.
+                value = value * 1e7
             quote.metrics[canonical] = value
 
     # Screener doesn't publish "Debt to Equity" directly on the consolidated
@@ -216,10 +244,25 @@ def parse_screener_quote(html: str, ticker: str) -> ScreenerQuote:
         borrowings = _latest_row_value(html, "Borrowings")
         equity_cap = _latest_row_value(html, "Equity Capital")
         reserves = _latest_row_value(html, "Reserves")
-        if borrowings is not None and equity_cap is not None and reserves is not None:
+        if (
+            borrowings is not None
+            and equity_cap is not None
+            and reserves is not None
+        ):
             net_worth = equity_cap + reserves
             if net_worth > 0:
                 quote.metrics["debt_eq"] = round(borrowings / net_worth, 2)
+
+    for label, canonical in (
+        ("Promoters", "promoter_pct"),
+        ("FIIs", "fii_pct"),
+        ("DIIs", "dii_pct"),
+        ("Government", "government_pct"),
+        ("Public", "public_pct"),
+    ):
+        value = _latest_percent_row_value(html, label)
+        if value is not None:
+            quote.shareholding[canonical] = value
 
     return quote
 

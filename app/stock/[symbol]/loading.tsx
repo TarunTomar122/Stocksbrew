@@ -1,7 +1,7 @@
 export default function StockLoading() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-8 py-10 flex flex-col gap-8 animate-pulse">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-10 flex flex-col gap-8 animate-pulse">
         {/* Header */}
         <div className="flex items-start gap-4">
           <div className="h-14 w-14 rounded-xl bg-surface-container-low shrink-0" />

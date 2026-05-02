@@ -30,19 +30,17 @@ export function TierCTA({
 
   if (loading) return null;
 
-  // AI-tier stocks are covered for everyone by the twice-daily launch run —
-  // but a signed-in user may still want this stock on their personal
-  // watchlist so it shows up on /watchlist alongside their other picks.
   if (tier === "ai_launch") {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs">
-        <span className="text-emerald-700">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3">
+        <span className="text-[13px] font-medium text-[#065f46]">
           Covered by the free AI tier — full news-backed brief refreshes twice daily.
         </span>
         {user && isSubscribed && (
           <button
+            type="button"
             disabled={pending}
-            className="shrink-0 rounded-full border border-emerald-500/40 px-3 py-1 font-semibold text-emerald-700 hover:bg-emerald-500/15 disabled:opacity-50"
+            className="shrink-0 inline-flex items-center justify-center h-[32px] rounded-full border border-[#10b981] px-3 text-[12px] font-semibold text-[#065f46] hover:bg-white disabled:opacity-50 transition-colors"
             onClick={() => {
               startTransition(async () => {
                 setError(null);
@@ -76,13 +74,14 @@ export function TierCTA({
 
   if (tier === "ai_personal") {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-xs">
-        <span className="text-indigo-700">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3">
+        <span className="text-[13px] font-medium text-[#1e3a8a]">
           Tracked in your personal AI tier — refreshes with the twice-daily run.
         </span>
         <button
+          type="button"
           disabled={pending}
-          className="rounded-full border border-outline-variant/50 px-2 py-1 text-on-surface-variant hover:text-on-surface hover:border-outline-variant"
+          className="shrink-0 inline-flex items-center justify-center h-[32px] rounded-full border border-[#e5e7eb] bg-white px-3 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
           onClick={() => {
             startTransition(async () => {
               setError(null);
@@ -106,12 +105,12 @@ export function TierCTA({
     );
   }
 
-  // Free tier — the big CTA block
+  // Free tier — bigger CTA card
   if (!user) {
     return (
       <CtaCard
         title={`Want the full read on ${ticker}?`}
-        body="Sign in to unlock the free AI tier — news-backed briefs on 15 US + 15 IN stocks, refreshed twice daily. Subscribers can add any of the other 135 stocks to a personal AI tier."
+        body="Sign in to unlock the free AI tier — news-backed briefs on a curated set of launch stocks, refreshed twice daily. Subscribers can track any other stock in a personal AI tier."
         primary={{
           label: "Sign in with Google",
           onClick: async () => {
@@ -121,7 +120,7 @@ export function TierCTA({
               provider.setCustomParameters({ prompt: "select_account" });
               await signInWithPopup(auth, provider);
               router.refresh();
-            } catch (err) {
+            } catch {
               setError("Sign-in cancelled or failed.");
             }
           },
@@ -218,20 +217,21 @@ type CtaCardProps = {
 
 function CtaCard({ title, body, primary, error }: CtaCardProps) {
   return (
-    <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 via-violet-500/5 to-transparent px-4 py-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-2xl border border-[#e5e7eb] bg-white px-5 py-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-on-surface">{title}</h3>
-          <p className="mt-0.5 text-xs text-on-surface-variant">{body}</p>
+          <h3 className="text-[15px] font-semibold text-[#111111] tracking-[-0.01em]">{title}</h3>
+          <p className="mt-1 text-[13px] text-[#6b7280] leading-relaxed">{body}</p>
         </div>
         <button
+          type="button"
           onClick={() => primary.onClick()}
-          className="shrink-0 rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          className="shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
         >
           {primary.label}
         </button>
       </div>
-      {error && <p className="mt-2 text-xs text-rose-500">{error}</p>}
+      {error && <p className="mt-3 text-[12px] font-medium text-[#ef4444]">{error}</p>}
     </div>
   );
 }

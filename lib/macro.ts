@@ -1,4 +1,7 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
+import { batchGetRefs } from "@/lib/firestore";
 
 export type MacroTick = {
   instrument_id: string;
@@ -23,7 +26,7 @@ const MACRO_TICKERS: Record<
   ],
 };
 
-export async function getMacroStrip(
+async function getMacroStripUncached(
   market: "US" | "IN" = "US",
 ): Promise<MacroTick[]> {
   const cfg = MACRO_TICKERS[market] ?? [];
@@ -37,26 +40,17 @@ export async function getMacroStrip(
     if (snap.exists) byId.set(snap.id, snap.data());
   }
 
+  const technicalRefs = cfg.map((c) =>
+    adminFirestore.collection("tm_stock_technicals_latest").doc(c.id),
+  );
+  const technicals = await batchGetRefs<{ distance?: { from_52w_high_pct?: number } }>(
+    technicalRefs,
+  ).catch(() => new Map<string, { distance?: { from_52w_high_pct?: number } }>());
+
   const out: MacroTick[] = [];
   for (const c of cfg) {
     const doc = byId.get(c.id);
     const quote = doc?.quote ?? {};
-    let fromHigh: number | null = null;
-    try {
-      const techSnap = await adminFirestore
-        .collection("tm_stock_technicals")
-        .where("instrument_id", "==", c.id)
-        .orderBy("as_of_date", "desc")
-        .limit(1)
-        .get();
-      if (!techSnap.empty) {
-        const tdata = techSnap.docs[0].data();
-        const v = tdata?.distance?.from_52w_high_pct;
-        if (typeof v === "number") fromHigh = v;
-      }
-    } catch {
-      /* swallow — macro strip is decorative */
-    }
     out.push({
       instrument_id: c.id,
       ticker: c.display,
@@ -64,8 +58,23 @@ export async function getMacroStrip(
       price: typeof quote.current === "number" ? quote.current : null,
       day_change_pct:
         typeof quote.day_change_pct === "number" ? quote.day_change_pct : null,
-      from_52w_high_pct: fromHigh,
+      from_52w_high_pct:
+        typeof technicals.get(c.id)?.distance?.from_52w_high_pct === "number"
+          ? technicals.get(c.id)!.distance!.from_52w_high_pct
+          : null,
     });
   }
   return out;
+}
+
+const getMacroStripCached = unstable_cache(
+  getMacroStripUncached,
+  ["macro-strip"],
+  { revalidate: 60 },
+);
+
+export async function getMacroStrip(
+  market: "US" | "IN" = "US",
+): Promise<MacroTick[]> {
+  return getMacroStripCached(market);
 }

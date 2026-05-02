@@ -281,6 +281,9 @@ def _market_stages(
     def script(name: str, *args: str) -> list[str]:
         return [prefix[0], "-m", f"{prefix[2]}.{name}", *args]
 
+    scrape_workers = "4" if market == "US" else "1"
+    scrape_pause = "0.25" if market == "US" else "1.5"
+
     if session_phase == "auto":
         price_phase, phase_date, phase_note = _auto_price_phase(market, now)
     else:
@@ -304,15 +307,25 @@ def _market_stages(
         Stage(
             key=f"{market}:sync_stock_metrics",
             label=f"{market} stock metrics",
-            command=script("sync_stock_metrics", "--market", market, "--universe", ai_universe),
+            command=script(
+                "sync_stock_metrics",
+                "--market",
+                market,
+                "--universe",
+                price_universe,
+                "--max-workers",
+                scrape_workers,
+                "--pause",
+                scrape_pause,
+            ),
             ttl=FIVE_DAYS,
             market=market,
-            freshness=lambda s, m=market, u=ai_universe: _stock_metrics_time(s, m, u),
+            freshness=lambda s, m=market, u=price_universe: _stock_metrics_time(s, m, u),
         ),
         Stage(
             key=f"{market}:sync_sector_benchmarks",
             label=f"{market} sector benchmarks",
-            command=script("sync_sector_benchmarks", "--market", market, "--universe", ai_universe),
+            command=script("sync_sector_benchmarks", "--market", market, "--universe", price_universe),
             ttl=FIVE_DAYS,
             market=market,
             freshness=lambda s, m=market: _doc_time(s.get_sector_benchmarks(m), "captured_at", "snapshot_date"),
@@ -337,15 +350,34 @@ def _market_stages(
             freshness=lambda s: _doc_time(s.get_latest_institutional_flows("IN"), "captured_at", "snapshot_date"),
         ))
 
+    stages.append(Stage(
+        key=f"{market}:sync_stock_facts",
+        label=f"{market} stock facts",
+        command=script(
+            "sync_stock_facts",
+            "--market",
+            market,
+            "--universe",
+            price_universe,
+            "--max-workers",
+            scrape_workers,
+            "--pause",
+            scrape_pause,
+        ),
+        ttl=DAILY,
+        deps=[f"{market}:sync_price_snapshots"],
+        market=market,
+    ))
+
     stages.extend([
         Stage(
             key=f"{market}:build_stock_intel_pro",
             label=f"{market} stock intel pro",
-            command=script("build_stock_intel_pro", "--market", market, "--universe", ai_universe),
+            command=script("build_stock_intel_pro", "--market", market, "--universe", price_universe),
             ttl=FIVE_DAYS,
             deps=[f"{market}:sync_stock_metrics", f"{market}:sync_sector_benchmarks"],
             market=market,
-            freshness=lambda s, m=market, u=ai_universe: _stock_intel_pro_time(s, m, u),
+            freshness=lambda s, m=market, u=price_universe: _stock_intel_pro_time(s, m, u),
         ),
         Stage(
             key=f"{market}:build_stock_technicals",
@@ -390,7 +422,7 @@ def _market_stages(
         Stage(
             key=f"{market}:build_thematic_screens",
             label=f"{market} thematic screens",
-            command=script("build_thematic_screens", "--market", market, "--universe", ai_universe),
+            command=script("build_thematic_screens", "--market", market, "--universe", price_universe),
             ttl=DAILY,
             deps=[f"{market}:sync_price_snapshots", f"{market}:build_stock_intel_pro", f"{market}:build_stock_technicals"],
             market=market,
@@ -527,7 +559,7 @@ def _run_stage(stage: Stage, *, dry_run: bool, store: TraceMoneyStore, cwd: Path
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run only the stale Trace Money pipeline stages.")
-    parser.add_argument("--markets", default="US,IN", help="Comma-separated markets to manage. Default: US,IN")
+    parser.add_argument("--markets", default="US", help="Comma-separated markets to manage. Default: US")
     parser.add_argument("--dry-run", action="store_true", help="Print the plan without running scripts or writing run state.")
     parser.add_argument("--force", action="append", default=[], help="Force a stage key, or 'all'. Can be repeated.")
     parser.add_argument(

@@ -31,7 +31,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-md px-8 py-12 flex flex-col gap-8">
+      <div className="mx-auto w-full max-w-screen-md px-6 md:px-10 lg:px-16 py-12 flex flex-col gap-8">
 
         {/* ─── Account ─────────────────────────────────────── */}
         <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-5">

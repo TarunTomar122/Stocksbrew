@@ -1,49 +1,60 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ScreenMatchesTable } from "@/components/screen-matches-table";
 import { getCurrentMarket } from "@/lib/market";
-import { getScreenById, type ScreenMatchRow } from "@/lib/screens";
+import { getScreenById } from "@/lib/screens";
 
 type Props = {
   params: { id: string };
   searchParams: { market?: string };
 };
 
-function fmtPct(v: number | null | undefined, digits = 2): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${v.toFixed(digits)}%`;
-}
+const SCREEN_META: Record<
+  string,
+  { icon: string; color: string; fg: string; kicker: string }
+> = {
+  tikrr_top:           { icon: "✦",  color: "#7c3aed", fg: "#ffffff", kicker: "Composite" },
+  quality_compounders: { icon: "Q",  color: "#10b981", fg: "#ffffff", kicker: "Quality" },
+  cheap_growth:        { icon: "↗",  color: "#0052ff", fg: "#ffffff", kicker: "Growth value" },
+  momentum_leaders:    { icon: "▲",  color: "#f59e0b", fg: "#111111", kicker: "Momentum" },
+  oversold_quality:    { icon: "↓",  color: "#ef4444", fg: "#ffffff", kicker: "Mean reversion" },
+  near_52w_high:       { icon: "↑",  color: "#10b981", fg: "#ffffff", kicker: "Breakouts" },
+  smart_money:         { icon: "●",  color: "#1c1c1e", fg: "#ffffff", kicker: "Institutional" },
+};
 
-function fmtPrice(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  return v.toFixed(2);
-}
-
-function fmtScore(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  return Math.round(v).toString();
-}
-
-function extraMatchCell(row: ScreenMatchRow, screenId: string): string {
-  if (screenId === "oversold_quality" && typeof row.rsi_14 === "number") {
-    return `RSI ${row.rsi_14.toFixed(1)}`;
-  }
-  if (screenId === "near_52w_high" && typeof row.from_52w_high_pct === "number") {
-    return `${fmtPct(row.from_52w_high_pct, 2)} from high`;
-  }
-  if (screenId === "smart_money" && typeof row.inst_own_pct === "number") {
-    return `${row.inst_own_pct.toFixed(0)}% inst`;
-  }
-  if (screenId === "momentum_leaders" && row.above_200dma) {
-    return "Above 200DMA";
-  }
-  if (typeof row.match_score === "number") {
-    return `Match ${row.match_score.toFixed(1)}`;
-  }
-  return "";
-}
+const COLUMN_LEGEND = [
+  {
+    label: "Tikrr score",
+    body: "Composite that blends all four pillars with our model weights.",
+    direction: "Higher = stronger overall",
+  },
+  {
+    label: "Valuation",
+    body: "How richly priced vs. fundamentals — earnings, sales, cash flow.",
+    direction: "Higher = cheaper",
+  },
+  {
+    label: "Growth",
+    body: "Revenue and earnings momentum vs. peers and history.",
+    direction: "Higher = faster growth",
+  },
+  {
+    label: "Quality",
+    body: "Margins, returns on capital, balance sheet strength.",
+    direction: "Higher = healthier",
+  },
+  {
+    label: "Momentum",
+    body: "Price action, distance from 52-week highs, trend strength.",
+    direction: "Higher = stronger trend",
+  },
+  {
+    label: "Signal",
+    body: "Screen-specific evidence — RSI for oversold names, distance from 52w high for breakouts, institutional ownership for smart money, otherwise overall match strength.",
+    direction: "Why this stock matched",
+  },
+];
 
 export default async function ScreenDetailPage({ params, searchParams }: Props) {
   const market =
@@ -55,117 +66,130 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
   if (!result) notFound();
   const { doc, screen } = result;
 
+  const meta = SCREEN_META[screen.id] ?? {
+    icon: "S",
+    color: "#475569",
+    fg: "#ffffff",
+    kicker: "Screen",
+  };
+
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-xl px-8 py-12 flex flex-col gap-6">
-        <Link
-          href="/"
-          className="text-[11px] font-bold tracking-[0.15em] uppercase text-on-surface-variant hover:text-on-surface w-fit"
-        >
-          ← Back to dashboard
-        </Link>
+      <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16 flex flex-col gap-10">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-[13px] text-[#6b7280]">
+          <Link
+            href="/screens"
+            className="hover:text-[#111111] transition-colors"
+          >
+            Screens
+          </Link>
+          <span className="text-[#d1d5db]">/</span>
+          <span className="text-[#111111]">{screen.title}</span>
+        </nav>
 
-        <header className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-outline">
-            Pre-built screen · {market} · {doc.universe_id}
-          </span>
-          <h1 className="text-[28px] font-bold text-on-surface leading-tight">
-            {screen.title}
-          </h1>
-          <p className="text-[14px] text-on-surface-variant leading-relaxed max-w-2xl">
-            {screen.tagline}
-          </p>
-          <p className="text-[12px] text-on-surface-variant leading-snug max-w-2xl">
-            <span className="font-semibold text-on-surface">Rule:</span>{" "}
-            {screen.hook}
-          </p>
+        {/* Header */}
+        <header className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-[0.05em] uppercase"
+              style={{ background: `${meta.color}1A`, color: meta.color }}
+            >
+              <span aria-hidden>{meta.icon}</span>
+              {meta.kicker}
+            </span>
+            <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+              {market}
+            </span>
+          </div>
+
+          <div className="flex items-end justify-between gap-6 flex-wrap">
+            <div className="flex flex-col gap-2 max-w-[680px]">
+              <h1 className="text-[30px] md:text-[36px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.15]">
+                {screen.title}
+              </h1>
+              <p className="text-[15px] text-[#4a4d55] leading-[1.55]">
+                {screen.tagline}
+              </p>
+            </div>
+            <div className="flex items-baseline gap-2 tabular-nums">
+              <span className="text-[28px] font-semibold text-[#111111] leading-none">
+                {screen.match_count}
+              </span>
+              <span className="text-[12px] font-medium text-[#6b7280]">
+                {screen.match_count === 1 ? "match" : "matches"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[13px] text-[#6b7280] flex-wrap pt-1 border-t border-[#f3f4f6]">
+            <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+              Rule
+            </span>
+            <span className="text-[13px] text-[#374151]">
+              {screen.hook}
+            </span>
+            <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-[#6b7280]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+              Refreshes daily
+            </span>
+          </div>
         </header>
 
-        <section className="bg-surface-container-lowest brutalist-border">
-          <div className="grid grid-cols-[1.2fr_0.8fr_0.6fr_0.6fr_0.6fr_0.6fr_0.6fr_0.8fr] gap-3 px-4 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-outline border-b border-outline/40">
-            <span>Ticker</span>
-            <span className="hidden md:inline">Sector</span>
-            <span className="text-right">Price</span>
-            <span className="text-right">Day</span>
-            <span className="text-right">Overall</span>
-            <span className="text-right hidden md:inline">Val</span>
-            <span className="text-right hidden md:inline">Gro</span>
-            <span className="text-right">Detail</span>
+        {/* Column legend */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+              How to read this table
+            </h2>
+            <span className="text-[12px] text-[#6b7280]">
+              All scores 0–100 · higher is better
+            </span>
           </div>
-          {screen.matches.length === 0 ? (
-            <div className="px-4 py-8 text-[12px] text-on-surface-variant italic text-center">
-              No stocks match this screen right now. Check back tomorrow — screens
-              refresh daily.
-            </div>
-          ) : (
-            screen.matches.map((row) => {
-              const change = row.day_change_pct;
-              const changeClass =
-                typeof change === "number"
-                  ? change > 0
-                    ? "text-signal-bullish"
-                    : change < 0
-                      ? "text-signal-bearish"
-                      : "text-on-surface-variant"
-                  : "text-on-surface-variant";
-              return (
-                <Link
-                  key={row.instrument_id}
-                  href={`/stock/${row.ticker}`}
-                  className="grid grid-cols-[1.2fr_0.8fr_0.6fr_0.6fr_0.6fr_0.6fr_0.6fr_0.8fr] gap-3 px-4 py-3 items-center border-b border-outline/20 last:border-b-0 hover:bg-surface-container-low transition-colors"
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {COLUMN_LEGEND.map((c) => (
+              <div
+                key={c.label}
+                className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+              >
+                <span className="text-[13px] font-semibold text-[#111111] tracking-[-0.01em]">
+                  {c.label}
+                </span>
+                <p className="text-[12px] text-[#6b7280] leading-snug">
+                  {c.body}
+                </p>
+                <span
+                  className={`inline-flex items-center gap-1 text-[11px] font-medium mt-1 ${
+                    c.label === "Signal" ? "text-[#6b7280]" : "text-[#10b981]"
+                  }`}
                 >
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-bold text-on-surface tabular-nums">
-                      {row.ticker}
-                    </span>
-                    <span className="text-[10px] text-on-surface-variant truncate">
-                      {row.name ?? ""}
-                    </span>
-                  </div>
-                  <span className="hidden md:inline text-[11px] text-on-surface-variant truncate">
-                    {row.sector ?? "—"}
-                  </span>
-                  <span className="text-right text-[12px] text-on-surface tabular-nums">
-                    {fmtPrice(row.price)}
-                  </span>
-                  <span className={`text-right text-[12px] tabular-nums ${changeClass}`}>
-                    {fmtPct(change)}
-                  </span>
-                  <span className="text-right text-[12px] font-bold text-on-surface tabular-nums">
-                    {fmtScore(row.overall_score)}
-                  </span>
-                  <span className="text-right hidden md:inline text-[11px] text-on-surface-variant tabular-nums">
-                    {fmtScore(row.pillar_scores?.valuation)}
-                  </span>
-                  <span className="text-right hidden md:inline text-[11px] text-on-surface-variant tabular-nums">
-                    {fmtScore(row.pillar_scores?.growth)}
-                  </span>
-                  <span className="text-right text-[10px] text-on-surface-variant tabular-nums">
-                    {extraMatchCell(row, screen.id)}
-                  </span>
-                </Link>
-              );
-            })
-          )}
+                  {c.label !== "Signal" && <span aria-hidden>↑</span>}
+                  {c.direction}
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <div className="bg-surface-container-low brutalist-border p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <ScreenMatchesTable matches={screen.matches} screenId={screen.id} market={market} />
+
+        {/* CTA */}
+        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-5">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-outline">
+            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#6b7280]">
               Want this screen in your inbox?
             </span>
-            <span className="text-[13px] text-on-surface">
-              Subscribers get daily updates on new matches, drop-offs, and watchlist
-              alerts when a screen you follow changes.
+            <span className="text-[14px] text-[#111111] leading-snug max-w-[520px]">
+              Subscribers get daily updates on new matches, drop-offs, and watchlist alerts when a screen they follow changes.
             </span>
           </div>
           <Link
             href="/subscribe"
-            className="bg-on-surface text-surface px-4 py-2 text-[11px] font-bold tracking-[0.15em] uppercase shrink-0 w-fit rounded-full"
+            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0 w-fit"
           >
             Save this screen
           </Link>
-        </div>
+        </section>
       </div>
     </main>
   );

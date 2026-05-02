@@ -1,7 +1,7 @@
 export default function NewsLoading() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-8 py-10 flex flex-col gap-6 animate-pulse">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-10 flex flex-col gap-6 animate-pulse">
         {/* Header */}
         <div className="flex flex-col gap-2">
           <div className="h-7 w-24 rounded bg-surface-container-low" />

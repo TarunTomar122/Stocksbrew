@@ -2,10 +2,10 @@ import type { StockIntelMetric } from "@/lib/types";
 import { METRIC_HELP, MetricTooltip } from "@/components/metric-tooltip";
 
 const VALUE_TEXT: Record<string, string> = {
-  green: "text-signal-bullish",
-  yellow: "text-on-surface",
-  red: "text-signal-bearish",
-  na: "text-on-surface-variant",
+  green: "text-[#10b981]",
+  yellow: "text-[#111111]",
+  red: "text-[#ef4444]",
+  na: "text-[#9ca3af]",
 };
 
 function formatValue(v: number | string | null): string {
@@ -65,10 +65,10 @@ export function PercentileRail({ metric }: { metric: StockIntelMetric }) {
   const valueClass = VALUE_TEXT[metric.signal] ?? VALUE_TEXT.na;
 
   return (
-    <div className="py-3 flex flex-col gap-1">
+    <div className="py-3.5 flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[12px] font-semibold text-on-surface truncate">
+          <span className="text-[14px] font-semibold text-[#111111] truncate">
             {metric.label}
           </span>
           {METRIC_HELP[metric.label] && (
@@ -78,12 +78,12 @@ export function PercentileRail({ metric }: { metric: StockIntelMetric }) {
             />
           )}
         </span>
-        <span className={`text-[13px] font-bold tabular-nums shrink-0 ${valueClass}`}>
+        <span className={`text-[16px] font-bold tabular-nums shrink-0 ${valueClass}`}>
           {formatValue(metric.value)}
         </span>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-on-surface-variant">
+      <div className="flex items-center justify-between text-[12px] text-[#6b7280]">
         <span className="font-medium">{contextLine(metric)}</span>
         {metric.benchmark !== null && metric.benchmark !== undefined && (
           <span className="tabular-nums">

@@ -4,24 +4,17 @@ type Props = {
   context: ComparativeContext | null | undefined;
 };
 
-function formatPct(v?: number): { text: string; color: string } | null {
+function formatPct(v?: number): { text: string; positive: boolean } | null {
   if (typeof v !== "number") return null;
   const positive = v >= 0;
-  return {
-    text: `${positive ? "+" : ""}${v.toFixed(2)}%`,
-    color: positive ? "text-signal-bullish" : "text-signal-bearish",
-  };
+  return { text: `${positive ? "+" : ""}${v.toFixed(2)}%`, positive };
 }
 
-function percentileTone(p?: number): { text: string; color: string } | null {
+function percentileTone(p?: number): { text: string; className: string } | null {
   if (typeof p !== "number") return null;
   const rank = Math.round(p);
-  const color =
-    p >= 66
-      ? "text-signal-bullish"
-      : p >= 33
-        ? "text-on-surface"
-        : "text-signal-bearish";
+  const className =
+    p >= 66 ? "text-[#10b981]" : p >= 33 ? "text-[#111111]" : "text-[#ef4444]";
   const suffix =
     rank % 10 === 1 && rank !== 11
       ? "st"
@@ -30,7 +23,7 @@ function percentileTone(p?: number): { text: string; color: string } | null {
         : rank % 10 === 3 && rank !== 13
           ? "rd"
           : "th";
-  return { text: `${rank}${suffix}`, color };
+  return { text: `${rank}${suffix}`, className };
 }
 
 function Cell({
@@ -45,14 +38,14 @@ function Cell({
   hint?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-outline">
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
         {label}
       </span>
-      <span className={`text-[18px] font-bold tabular-nums ${valueClass ?? "text-on-surface"}`}>
+      <span className={`text-[22px] font-semibold tabular-nums leading-none ${valueClass ?? "text-[#111111]"}`}>
         {value}
       </span>
-      {hint && <span className="text-[11px] text-on-surface-variant">{hint}</span>}
+      {hint && <span className="text-[12px] text-[#6b7280]">{hint}</span>}
     </div>
   );
 }
@@ -72,13 +65,16 @@ export function ComparativeContextRow({ context }: Props) {
   const percentile = percentileTone(context.market_percentile);
 
   return (
-    <section className="bg-surface-container-lowest brutalist-border p-5">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <section className="flex flex-col gap-5 pt-6 border-t border-[#e5e7eb]">
+      <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+        Comparative context
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
         {vsMarket && (
           <Cell
             label="vs Market"
             value={vsMarket.text}
-            valueClass={vsMarket.color}
+            valueClass={vsMarket.positive ? "text-[#10b981]" : "text-[#ef4444]"}
             hint="Today vs. the broader market"
           />
         )}
@@ -86,15 +82,15 @@ export function ComparativeContextRow({ context }: Props) {
           <Cell
             label="vs Sector"
             value={vsSector.text}
-            valueClass={vsSector.color}
+            valueClass={vsSector.positive ? "text-[#10b981]" : "text-[#ef4444]"}
             hint="Today vs. its sector peers"
           />
         )}
         {percentile && (
           <Cell
-            label="Market Rank"
+            label="Market rank"
             value={percentile.text}
-            valueClass={percentile.color}
+            valueClass={percentile.className}
             hint="Percentile among all tracked names"
           />
         )}

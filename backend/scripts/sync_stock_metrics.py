@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,15 +37,13 @@ def _sync_us(args: argparse.Namespace) -> None:
     print(f"Fetching Finviz fundamentals for {len(tickers)} tickers (pause={args.pause}s)...")
     quotes = fetch_finviz_quotes(tickers, pause_seconds=args.pause)
 
-    store = TraceMoneyStore()
-    saved = 0
-    for ticker, quote in quotes.items():
+    def build_payload(ticker: str, quote: Any) -> dict[str, Any] | None:
         instrument = ticker_to_instrument.get(ticker)
         if instrument is None:
-            continue
+            return None
         if not quote.metrics:
             print(f"  [skip] {ticker}: no metrics parsed")
-            continue
+            return None
 
         zacks_fields: dict[str, float] = {}
         zacks_meta: dict[str, str] = {}
@@ -66,7 +65,7 @@ def _sync_us(args: argparse.Namespace) -> None:
             print(f"  [zacks fail] {ticker}: {exc}")
 
         merged_metrics = {**quote.metrics, **zacks_fields}
-        payload = {
+        return {
             "instrument_id": instrument["instrument_id"],
             "ticker": ticker,
             "market": args.market,
@@ -82,7 +81,29 @@ def _sync_us(args: argparse.Namespace) -> None:
             "zacks_meta": zacks_meta,
             "source": "finviz+zacks",
         }
-        store.save_stock_metrics_snapshot(instrument["instrument_id"], snapshot_date, payload)
+
+    store = TraceMoneyStore()
+    saved = 0
+    max_workers = max(1, args.max_workers)
+    if max_workers == 1:
+        payloads = [build_payload(ticker, quote) for ticker, quote in quotes.items()]
+    else:
+        payloads = []
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(build_payload, ticker, quote): ticker
+                for ticker, quote in quotes.items()
+            }
+            for future in as_completed(futures):
+                try:
+                    payloads.append(future.result())
+                except Exception as exc:
+                    print(f"  [worker fail] {futures[future]}: {exc}")
+
+    for payload in payloads:
+        if not payload:
+            continue
+        store.save_stock_metrics_snapshot(payload["instrument_id"], snapshot_date, payload)
         saved += 1
 
     print(f"Saved {saved}/{len(tickers)} snapshots for {args.market} / {universe_id} / {snapshot_date}")
@@ -97,10 +118,9 @@ def _sync_in(args: argparse.Namespace) -> None:
     snapshot_date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     captured_at = datetime.now(timezone.utc).isoformat()
 
-    store = TraceMoneyStore()
-    saved = 0
     print(f"Fetching Screener + Tickertape fundamentals for {len(instruments)} IN tickers (pause={args.pause}s)...")
-    for i, instrument in enumerate(instruments):
+
+    def build_payload(instrument: dict[str, Any]) -> dict[str, Any] | None:
         ticker = instrument["ticker"]
         try:
             screener = fetch_screener_quote(ticker)
@@ -114,12 +134,20 @@ def _sync_in(args: argparse.Namespace) -> None:
         except Exception as exc:
             print(f"  [tickertape fail] {ticker}: {exc}")
             tickertape = None
-        if i < len(instruments) - 1:
-            time.sleep(args.pause)
+        time.sleep(args.pause)
 
         merged: dict[str, float] = {}
         if screener:
             merged.update(screener.metrics)
+            if screener.shareholding:
+                inst_own_pct = round(
+                    screener.shareholding.get("fii_pct", 0.0)
+                    + screener.shareholding.get("dii_pct", 0.0),
+                    2,
+                )
+                merged.setdefault("inst_own_pct", inst_own_pct)
+                for key, value in screener.shareholding.items():
+                    merged.setdefault(key, value)
         if tickertape:
             for k, v in tickertape.metrics.items():
                 merged.setdefault(k, v)  # Screener wins on conflicts (more accurate PE from consolidated)
@@ -136,15 +164,30 @@ def _sync_in(args: argparse.Namespace) -> None:
         for k, v in yahoo_metrics.items():
             merged.setdefault(k, v)
 
+        native_metric_count = (
+            (len(screener.metrics) if screener else 0)
+            + (len(tickertape.metrics) if tickertape else 0)
+        )
         if not merged:
             print(f"  [skip] {ticker}: no metrics parsed from either source")
-            continue
+            return None
+        if native_metric_count < 3:
+            print(f"  [skip] {ticker}: only thin Yahoo fallback metrics parsed")
+            return None
 
         # Prefer Tickertape's sector_label because it's more consumer-readable
         # ("Oil & Gas - Refining & Marketing" vs Screener's "Energy"); fall back
         # to Screener when Tickertape is absent.
-        sector_label = (tickertape.sector_label if tickertape else "") or (screener.sector_label if screener else "")
-        industry_label = (tickertape.industry_label if tickertape else "") or (screener.industry_label if screener else "")
+        sector_label = (
+            (tickertape.sector_label if tickertape else "")
+            or (screener.sector_label if screener else "")
+            or str(instrument.get("sector") or "")
+        )
+        industry_label = (
+            (tickertape.industry_label if tickertape else "")
+            or (screener.industry_label if screener else "")
+            or str(instrument.get("industry") or sector_label)
+        )
         # Slug must match how sync_sector_benchmarks saved IN benchmarks (which
         # also slugifies the Tickertape label), so derive from the same label.
         sector_slug = _slug(sector_label) if sector_label else (screener.sector_slug if screener else "")
@@ -156,7 +199,7 @@ def _sync_in(args: argparse.Namespace) -> None:
         if tickertape and tickertape.peers:
             meta["peers"] = tickertape.peers
 
-        payload = {
+        return {
             "instrument_id": instrument["instrument_id"],
             "ticker": ticker,
             "market": args.market,
@@ -172,9 +215,31 @@ def _sync_in(args: argparse.Namespace) -> None:
             "zacks_meta": meta,
             "source": "screener+tickertape",
         }
-        store.save_stock_metrics_snapshot(instrument["instrument_id"], snapshot_date, payload)
+
+    store = TraceMoneyStore()
+    saved = 0
+    max_workers = max(1, args.max_workers)
+    if max_workers == 1:
+        payloads = [build_payload(instrument) for instrument in instruments]
+    else:
+        payloads = []
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(build_payload, instrument): instrument.get("ticker", "")
+                for instrument in instruments
+            }
+            for future in as_completed(futures):
+                try:
+                    payloads.append(future.result())
+                except Exception as exc:
+                    print(f"  [worker fail] {futures[future]}: {exc}")
+
+    for payload in payloads:
+        if not payload:
+            continue
+        store.save_stock_metrics_snapshot(payload["instrument_id"], snapshot_date, payload)
         saved += 1
-        print(f"  [ok] {ticker} — {len(merged)} metrics, sector={sector_label}")
+        print(f"  [ok] {payload['ticker']} — {len(payload.get('metrics') or {})} metrics, sector={payload.get('sector_label', '')}")
 
     print(f"Saved {saved}/{len(instruments)} snapshots for {args.market} / {universe_id} / {snapshot_date}")
 
@@ -189,6 +254,7 @@ def main() -> None:
     parser.add_argument("--universe", default=None, help="Universe id (defaults to the configured AI universe)")
     parser.add_argument("--pause", type=float, default=1.5, help="Seconds between scrape requests")
     parser.add_argument("--date", default=None, help="Snapshot date override YYYY-MM-DD")
+    parser.add_argument("--max-workers", type=int, default=1, help="Bounded per-ticker workers for secondary scrapers")
     args = parser.parse_args()
 
     if args.market == "US":

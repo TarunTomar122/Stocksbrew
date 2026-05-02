@@ -27,45 +27,12 @@ function formatVolume(v: number | undefined): string {
   return String(Math.round(v));
 }
 
-function TickRow({ tick }: { tick: MacroTick }) {
-  const change = tick.day_change_pct;
-  const up = typeof change === "number" && change > 0;
-  const down = typeof change === "number" && change < 0;
-  const color = up
-    ? "text-signal-bullish"
-    : down
-      ? "text-signal-bearish"
-      : "text-on-surface-variant";
-  const arrow = up ? "▲" : down ? "▼" : "•";
-
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-container-low px-3 py-2.5">
-      <div className="flex flex-col min-w-0">
-        <span className="text-[13px] font-bold text-on-surface leading-tight">
-          {tick.ticker}
-        </span>
-        <span className="text-[10px] text-on-surface-variant">{tick.name}</span>
-      </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-[15px] font-semibold text-on-surface tabular-nums">
-          {fmtPrice(tick.price)}
-        </span>
-        <div className={`flex items-center gap-1 tabular-nums ${color} min-w-[60px] justify-end`}>
-          <span className="text-[10px]">{arrow}</span>
-          <span className="text-[12px] font-bold">{fmtPct(change)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function MarketSnapshot({ ticks, breadth }: Props) {
-  const hasTicks = ticks?.length > 0;
   const hasBreadth = !!breadth;
 
-  if (!hasTicks && !hasBreadth) return null;
+  if (!hasBreadth) return null;
 
   // Breadth calculations
   const total = breadth
@@ -81,39 +48,27 @@ export function MarketSnapshot({ ticks, breadth }: Props) {
   const volatility = breadth?.volatility_proxy?.median_abs_day_change_pct;
 
   return (
-    <div className="bg-surface-container-lowest brutalist-border p-6 flex flex-col h-full gap-5">
-
-      {/* ── Index Tape ───────────────────────────────────────────────── */}
-      {hasTicks && (
-        <div>
-          <h3 className="text-[14px] font-semibold text-on-surface">Index Tape</h3>
-          <p className="text-[11px] text-on-surface-variant leading-snug mt-1 mb-3">
-            Where the major benchmarks closed today.
-          </p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {ticks.map((tick) => (
-              <TickRow key={tick.instrument_id} tick={tick} />
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="bg-surface rounded-2xl p-6 md:p-7 flex flex-col h-full gap-5 shadow-card border border-outline-variant/30">
 
       {/* ── Market Breadth ───────────────────────────────────────────── */}
       {hasBreadth && breadth && (
-        <div className={hasTicks ? "pt-4 border-t border-outline-variant/40" : ""}>
-          <h3 className="text-[14px] font-semibold text-on-surface">Market Breadth</h3>
-          <p className="text-[11px] text-on-surface-variant leading-snug mt-1 mb-3">
+        <div className="pt-0">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1 h-4 bg-primary rounded-full" />
+            <h3 className="text-[13px] font-bold text-on-surface tracking-tight">Market Breadth</h3>
+          </div>
+          <p className="text-[11px] text-on-surface-variant leading-snug mt-1 mb-4">
             Are most stocks joining today's move, or is the index being carried by a few?
           </p>
 
-          <div className="flex flex-col gap-2 mb-4">
+          <div className="flex flex-col gap-2 mb-5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-on-surface">Advancers vs Decliners</span>
-              <span className="text-on-surface-variant tabular-nums">
+              <span className="font-bold text-on-surface">Advancers vs Decliners</span>
+              <span className="text-on-surface-variant tabular-nums font-medium">
                 {breadth.advancers} up · {breadth.decliners} down · {breadth.unchanged} flat
               </span>
             </div>
-            <div className="relative h-2 bg-surface-container-high overflow-hidden flex rounded-full">
+            <div className="relative h-2.5 bg-surface-container-high overflow-hidden flex rounded-full">
               <div className="h-full bg-signal-bullish" style={{ width: `${advPct}%` }} />
               <div className="h-full bg-signal-neutral/60" style={{ width: `${unchPct}%` }} />
               <div className="h-full bg-signal-bearish" style={{ width: `${decPct}%` }} />
@@ -121,43 +76,43 @@ export function MarketSnapshot({ ticks, breadth }: Props) {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-variant">Up Volume</span>
-              <span className="text-[20px] font-bold text-signal-bullish tabular-nums mt-0.5">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
+              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">Up Volume</span>
+              <span className="text-[20px] font-bold text-signal-bullish tabular-nums">
                 {formatVolume(upVol)}
               </span>
-              <span className="text-[11px] text-on-surface-variant tabular-nums">
+              <span className="text-[11px] text-on-surface-variant tabular-nums font-medium">
                 {volTotal > 0 ? `${upVolPct.toFixed(0)}% of total` : "—"}
               </span>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-variant">Down Volume</span>
-              <span className="text-[20px] font-bold text-signal-bearish tabular-nums mt-0.5">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
+              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">Down Volume</span>
+              <span className="text-[20px] font-bold text-signal-bearish tabular-nums">
                 {formatVolume(downVol)}
               </span>
-              <span className="text-[11px] text-on-surface-variant tabular-nums">
+              <span className="text-[11px] text-on-surface-variant tabular-nums font-medium">
                 {volTotal > 0 ? `${(100 - upVolPct).toFixed(0)}% of total` : "—"}
               </span>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-variant">52W H / L</span>
-              <span className="text-[20px] font-bold tabular-nums mt-0.5">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
+              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">52W H / L</span>
+              <span className="text-[20px] font-bold tabular-nums">
                 <span className="text-signal-bullish">{breadth.new_52w_high ?? 0}</span>
                 <span className="text-outline mx-1">/</span>
                 <span className="text-signal-bearish">{breadth.new_52w_low ?? 0}</span>
               </span>
-              <span className="text-[11px] text-on-surface-variant">New today</span>
+              <span className="text-[11px] text-on-surface-variant font-medium">New today</span>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-on-surface-variant">Volatility</span>
-              <span className="text-[20px] font-bold text-on-surface tabular-nums mt-0.5">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
+              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">Volatility</span>
+              <span className="text-[20px] font-bold text-on-surface tabular-nums">
                 {typeof volatility === "number" ? `${volatility.toFixed(2)}%` : "—"}
               </span>
-              <span className="text-[11px] text-on-surface-variant">Median |Δ|</span>
+              <span className="text-[11px] text-on-surface-variant font-medium">Median |Δ|</span>
             </div>
           </div>
 
-          <div className="text-[10px] font-bold tracking-[0.15em] uppercase text-outline mt-4">
+          <div className="text-[10px] font-bold tracking-[0.1em] uppercase text-outline mt-4">
             {breadth.instrument_count} instruments · {breadth.as_of_date}
           </div>
         </div>

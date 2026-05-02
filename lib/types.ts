@@ -71,6 +71,7 @@ export type DashboardRow = {
   ai_sentiment_score: number;
   news_count: number;
   source_count: number;
+  volume?: number;
 };
 
 export type SectorFlow = {

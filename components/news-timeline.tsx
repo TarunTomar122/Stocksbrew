@@ -4,20 +4,11 @@ type Props = {
   timeline: TimelineEvent[] | null | undefined;
 };
 
-function sentimentColor(label?: string): string {
+function sentimentMeta(label?: string): { dot: string; tone: string } {
   const l = (label ?? "").toLowerCase();
-  if (l.includes("bull") || l.includes("pos")) return "var(--signal-bullish)";
-  if (l.includes("bear") || l.includes("neg")) return "var(--signal-bearish)";
-  return "var(--signal-neutral)";
-}
-
-function sentimentDot(label?: string) {
-  return (
-    <span
-      className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
-      style={{ backgroundColor: sentimentColor(label) }}
-    />
-  );
+  if (l.includes("bull") || l.includes("pos")) return { dot: "#10b981", tone: "text-[#10b981]" };
+  if (l.includes("bear") || l.includes("neg")) return { dot: "#ef4444", tone: "text-[#ef4444]" };
+  return { dot: "#f59e0b", tone: "text-[#f59e0b]" };
 }
 
 function formatTimestamp(iso?: string): string {
@@ -36,73 +27,82 @@ function formatTimestamp(iso?: string): string {
 }
 
 export function NewsTimeline({ timeline }: Props) {
-  if (!timeline || timeline.length === 0) {
-    return (
-      <section className="bg-surface-container-lowest brutalist-border p-6">
-        <h2 className="text-[14px] font-semibold text-on-surface mb-3">
-          News Timeline
-        </h2>
-        <div className="text-[13px] text-on-surface-variant py-6 text-center">
-          No recent news tracked.
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="bg-surface-container-lowest brutalist-border p-6">
-      <h2 className="text-[14px] font-semibold text-on-surface mb-5">
-        News Timeline
-      </h2>
-      <div className="flex flex-col gap-5">
-        {timeline.map((event, i) => {
-          const hasLink = !!event.article_url;
-          const Wrapper = hasLink ? "a" : "div";
-          const wrapperProps = hasLink
-            ? {
-                href: event.article_url,
-                target: "_blank",
-                rel: "noopener noreferrer",
-                className:
-                  "group flex gap-3 hover:bg-surface-container-low p-2 -mx-2 transition-colors",
-              }
-            : { className: "flex gap-3 p-2 -mx-2" };
+    <section className="flex flex-col gap-4 pt-6 border-t border-[#e5e7eb]">
+      <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+        News timeline
+      </h3>
 
-          return (
-            <Wrapper key={event.event_id ?? i} {...(wrapperProps as Record<string, string>)}>
-              {sentimentDot(event.sentiment_label)}
-              <div className="flex-1 min-w-0">
-                <div
-                  className={`text-[14px] font-semibold text-on-surface leading-snug ${hasLink ? "group-hover:text-primary transition-colors" : ""}`}
-                >
-                  {event.title ?? "Untitled"}
-                </div>
-                {event.summary && (
-                  <div className="mt-1 text-[13px] text-on-surface-variant leading-relaxed line-clamp-2">
-                    {event.summary}
+      {!timeline || timeline.length === 0 ? (
+        <p className="text-[13px] text-[#6b7280]">No recent news tracked.</p>
+      ) : (
+        <div className="flex flex-col">
+          {timeline.map((event, i) => {
+            const meta = sentimentMeta(event.sentiment_label);
+            const hasLink = !!event.article_url;
+            const Wrapper: "a" | "div" = hasLink ? "a" : "div";
+            const linkProps = hasLink
+              ? {
+                  href: event.article_url,
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                }
+              : {};
+            return (
+              <Wrapper
+                key={event.event_id ?? i}
+                {...(linkProps as Record<string, string>)}
+                className="flex gap-3 py-3 border-t border-[#f3f4f6] first:border-t-0 hover:bg-[#f8f9fa] -mx-2 px-2 rounded-lg transition-colors"
+              >
+                <span
+                  className="mt-1.5 h-2 w-2 rounded-full shrink-0"
+                  style={{ background: meta.dot }}
+                  aria-hidden
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-[#111111] leading-snug">
+                    {event.title ?? "Untitled"}
+                  </p>
+                  {event.summary && (
+                    <p className="mt-1 text-[13px] text-[#374151] leading-relaxed line-clamp-2">
+                      {event.summary}
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center gap-2 text-[11px] flex-wrap">
+                    {event.source_name && (
+                      <span className="font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
+                        {event.source_name}
+                      </span>
+                    )}
+                    {event.timestamp && (
+                      <>
+                        <span className="text-[#d1d5db]">·</span>
+                        <span className="text-[#6b7280]">{formatTimestamp(event.timestamp)}</span>
+                      </>
+                    )}
+                    {typeof event.impact_score === "number" && (
+                      <>
+                        <span className="text-[#d1d5db]">·</span>
+                        <span className={`font-semibold ${meta.tone}`}>
+                          Impact {event.impact_score.toFixed(1)}
+                        </span>
+                      </>
+                    )}
+                    {event.is_new_since_last_run && (
+                      <>
+                        <span className="text-[#d1d5db]">·</span>
+                        <span className="inline-flex items-center rounded-md bg-[#0052ff] text-white px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.08em] uppercase">
+                          New
+                        </span>
+                      </>
+                    )}
                   </div>
-                )}
-                <div className="mt-2 flex items-center gap-3 text-[11px] font-bold tracking-[0.15em] uppercase text-outline">
-                  {event.source_name && <span>{event.source_name}</span>}
-                  {event.timestamp && (
-                    <span>{formatTimestamp(event.timestamp)}</span>
-                  )}
-                  {typeof event.impact_score === "number" && (
-                    <span
-                      style={{ color: sentimentColor(event.sentiment_label) }}
-                    >
-                      Impact {event.impact_score.toFixed(1)}
-                    </span>
-                  )}
-                  {event.is_new_since_last_run && (
-                    <span className="text-primary">New</span>
-                  )}
                 </div>
-              </div>
-            </Wrapper>
-          );
-        })}
-      </div>
+              </Wrapper>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

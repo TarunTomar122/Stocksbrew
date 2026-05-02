@@ -155,7 +155,7 @@ export default async function SectorPage({ params }: Props) {
 
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-8 py-12 flex flex-col gap-8">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-12 flex flex-col gap-8">
         <nav className="text-[11px] text-on-surface-variant">
           <Link href="/" className="hover:text-on-surface">
             Markets

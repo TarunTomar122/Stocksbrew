@@ -1,16 +1,21 @@
-import { HeroSection } from "@/components/hero-section";
 import { EssentialCards } from "@/components/essential-cards";
-import { SectorHeatmapCard } from "@/components/sector-heatmap-card";
-import { FreePicksRow } from "@/components/free-picks-row";
-import { MarketAndSectors } from "@/components/market-and-sectors";
+import { HeroSection } from "@/components/hero-section";
+import { HomeContent } from "@/components/home-content";
+import { LandingProPreview } from "@/components/landing-pro-preview";
+import { MarketCues } from "@/components/market-cues";
 import { MarketSnapshot } from "@/components/market-snapshot";
-import { MoversTable } from "@/components/movers-table";
+import { SectorSpotlights } from "@/components/sector-spotlights";
+import { WatchlistShowcase } from "@/components/watchlist-showcase";
 import { ThematicScreens } from "@/components/thematic-screens";
+import { WatchlistTeaser } from "@/components/watchlist-teaser";
 import {
   IN_AI_LAUNCH_INSTRUMENTS,
   US_AI_LAUNCH_INSTRUMENTS,
 } from "@/lib/ai-launch-tier";
+import { getSessionUser } from "@/lib/auth-server";
 import { getDashboardView, getMarketSnapshot } from "@/lib/firestore";
+import type { SnapshotRow } from "@/lib/types";
+import { getNewsFeed, type NewsArticle } from "@/lib/news";
 import { getMacroStrip } from "@/lib/macro";
 import { getCurrentMarket } from "@/lib/market";
 import {
@@ -20,37 +25,52 @@ import {
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
 import { buildMarketTiles } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
-import { buildSectorSlugMap } from "@/lib/sector";
 import { getThematicScreens } from "@/lib/screens";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { getWatchlistView } from "@/lib/watchlist-view";
+
+function rowToStock(s: SnapshotRow) {
+  return {
+    ticker: s.symbol,
+    name: s.name ?? s.symbol,
+    price: s.price?.current ?? 0,
+    changePct: s.price?.changePct ?? 0,
+  };
+}
 
 export default async function HomePage() {
   const market = getCurrentMarket();
   let view = null;
-  let snapshotRows: Awaited<ReturnType<typeof getMarketSnapshot>> = [];
+  let snapshotRows: SnapshotRow[] = [];
   let flows = null;
   let breadth = null;
-  let screens: Awaited<ReturnType<typeof getThematicScreens>> = null;
+  let screens = null;
   let macroTicks: Awaited<ReturnType<typeof getMacroStrip>> = [];
-  let sectorSlugMap: Awaited<ReturnType<typeof buildSectorSlugMap>> = {};
+  let news: NewsArticle[] = [];
+  const session = await getSessionUser();
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const isSubscribed = resolveIsSubscribed(userDoc);
+  const userWatchlistView = session
+    ? await getWatchlistView(session.uid).catch(() => null)
+    : null;
   try {
-    [view, snapshotRows, flows, breadth, screens, macroTicks, sectorSlugMap] =
-      await Promise.all([
-        getDashboardView(market),
-        getMarketSnapshot(market),
-        market === "IN" ? getInstitutionalFlows(market) : Promise.resolve(null),
-        getMarketBreadth(market),
-        getThematicScreens(market),
-        getMacroStrip(market),
-        buildSectorSlugMap(market),
-      ]);
+    [view, snapshotRows, flows, breadth, screens, macroTicks, news] = await Promise.all([
+      getDashboardView(market),
+      getMarketSnapshot(market),
+      market === "IN" ? getInstitutionalFlows(market) : Promise.resolve(null),
+      getMarketBreadth(market),
+      getThematicScreens(market),
+      getMacroStrip(market),
+      getNewsFeed(market, 30).catch(() => []),
+    ]);
   } catch (err) {
-    console.error("[home] failed to load Firestore data:", err);
+    console.error("[home] failed to load:", err);
   }
 
-  const tiles = buildMarketTiles(view);
   const sentiment = view?.market_sentiment ?? { label: "Mixed", score: 49 };
-
+  const marketTiles = buildMarketTiles(view);
   const snapshotMovers = buildMoversFromSnapshot(snapshotRows, 5);
+  const isIN = market === "IN";
 
   const gainers = snapshotMovers.gainers.length
     ? snapshotMovers.gainers
@@ -63,20 +83,24 @@ export default async function HomePage() {
       ? view.losers
       : MOCKED_LOSERS;
 
-  const moversMocked =
-    !snapshotMovers.gainers.length &&
-    !snapshotMovers.losers.length &&
-    !view?.gainers?.length &&
-    !view?.losers?.length;
+  const rawTickers = isIN ? IN_AI_LAUNCH_INSTRUMENTS : US_AI_LAUNCH_INSTRUMENTS;
+  const prefix = isIN ? "IN_" : "US_";
+  const launchTickers = rawTickers.map((t: string) =>
+    t.startsWith(prefix) ? t.slice(prefix.length) : t
+  );
 
-  const isIN = market === "IN";
-  const sectorTilesHero = tiles
-    .filter((t) => t.kind === "sector")
-    .filter((t) => !isIN || !t.label.toLowerCase().includes("metal"));
+  const allStocks = snapshotRows.length > 0
+    ? snapshotRows.map(rowToStock)
+    : [...gainers, ...losers].map((s) => ({
+        ticker: s.ticker,
+        name: s.name,
+        price: s.price ?? 0,
+        changePct: s.day_change_pct ?? 0,
+      }));
 
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-12 py-12 flex flex-col gap-10">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-8 md:py-10 flex flex-col gap-10">
         <HeroSection
           score={sentiment.score}
           tone={sentiment.label}
@@ -89,37 +113,35 @@ export default async function HomePage() {
           }))}
         />
 
-        {/* Row 1: sector heatmap · index tape + breadth */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          <SectorHeatmapCard
-            sectorTiles={sectorTilesHero}
-            sectorSlugMap={sectorSlugMap}
-          />
-          <MarketSnapshot ticks={macroTicks} breadth={breadth} />
-        </section>
+        <MarketCues title="Market cues" tiles={marketTiles} />
 
-        {/* Top movers — full width so gainers/losers have room to breathe */}
-        <MoversTable gainers={gainers} losers={losers} mocked={moversMocked} />
-
-        {/* Pre-built screens — tabbed list */}
-        <ThematicScreens doc={screens} market={market} />
-
-        {/* Free AI-brief picks + watchlist CTA — the launch-tier universe as
-            a two-pane card, with a "build your own" rail on the right that
-            replaces the old blurred-sample WatchlistTeaser. */}
-        <FreePicksRow
-          instrumentIds={market === "IN" ? IN_AI_LAUNCH_INSTRUMENTS : US_AI_LAUNCH_INSTRUMENTS}
+        <SectorSpotlights
           snapshotRows={snapshotRows}
-        />
-
-        <MarketAndSectors
-          tiles={tiles}
-          market={market}
-          sectorSlugMap={sectorSlugMap}
-          sectorsInHero
+          trackedIds={
+            Array.isArray(userDoc?.tracked_stocks)
+              ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+              : []
+          }
+          isSubscribed={isSubscribed}
         />
 
         <EssentialCards cards={view?.essential_cards} />
+
+        <HomeContent
+          stocks={allStocks}
+          news={news}
+          launchTickers={launchTickers}
+          market={market}
+        />
+
+        <ThematicScreens doc={screens} market={market} />
+
+        <LandingProPreview
+          isSignedIn={Boolean(session)}
+          isSubscribed={isSubscribed}
+        />
+
+        <MarketSnapshot ticks={macroTicks} breadth={breadth} />
       </div>
     </main>
   );

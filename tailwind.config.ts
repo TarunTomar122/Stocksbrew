@@ -106,13 +106,32 @@ const config: Config = {
         mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        DEFAULT: "0.125rem",
-        lg: "0.25rem",
-        xl: "0.5rem",
-        full: "0.75rem",
+        sm: "0.375rem",   /* 6px */
+        DEFAULT: "0.5rem", /* 8px */
+        md: "0.625rem",    /* 10px */
+        lg: "0.75rem",     /* 12px */
+        xl: "1rem",        /* 16px */
+        "2xl": "1.25rem",  /* 20px */
+        "3xl": "1.5rem",   /* 24px */
+        full: "9999px",
+      },
+      boxShadow: {
+        card: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
+        "card-hover": "0 8px 24px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.04)",
+        dropdown: "0 12px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05)",
+        modal: "0 24px 60px rgba(0,0,0,0.14), 0 8px 20px rgba(0,0,0,0.08)",
+        glow: "0 0 24px rgba(107,56,212,0.12)",
+        inner: "inset 0 2px 4px rgba(0,0,0,0.03)",
       },
       letterSpacing: {
-        editorial: "0.15em",
+        editorial: "0.12em",
+        wide: "0.08em",
+        tighter: "-0.04em",
+        tight: "-0.02em",
+      },
+      transitionTimingFunction: {
+        "apple-ease": "cubic-bezier(0.25, 0.1, 0.25, 1)",
+        "spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
     },
   },

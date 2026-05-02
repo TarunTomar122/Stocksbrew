@@ -10,28 +10,11 @@ Writes one doc per instrument under tm_stock_intel_pro/{market}__{universe}/stoc
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from backend.instrument_universe import get_default_universe_id, list_instruments
 from backend.stock_scoring import score_stock
 from backend.storage import TraceMoneyStore
-
-
-def _pick_previous_snapshot(store: TraceMoneyStore, instrument_id: str, today_date: str) -> dict | None:
-    """Return the most recent snapshot strictly before today, or None."""
-    # Stream a handful of snapshots in descending order; skip today, take the next.
-    query = (
-        store.db.collection("tm_stock_metrics_history").document(instrument_id)
-        .collection("snapshots")
-        .order_by("snapshot_date", direction="DESCENDING")
-        .limit(35)
-        .stream()
-    )
-    for doc in query:
-        data = doc.to_dict()
-        if data.get("snapshot_date") != today_date:
-            return data
-    return None
 
 
 def main() -> None:
@@ -51,16 +34,20 @@ def main() -> None:
 
     today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruments = list_instruments(args.market, universe_id)
+    instrument_ids = [instrument["instrument_id"] for instrument in instruments]
+    today_snaps = store.get_stock_metrics_snapshots_batch(instrument_ids, today_date)
+    if len(today_snaps) < len(instrument_ids):
+        latest_snaps = store.get_stock_metrics_snapshots_batch(instrument_ids)
+        for instrument_id, snapshot in latest_snaps.items():
+            today_snaps.setdefault(instrument_id, snapshot)
     saved = 0
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]
-        today_snap = store.get_stock_metrics_snapshot(instrument_id, today_date) \
-            or store.get_latest_stock_metrics_snapshot(instrument_id)
+        today_snap = today_snaps.get(instrument_id)
         if not today_snap:
             print(f"  [skip] {instrument['ticker']}: no snapshot yet")
             continue
-        previous_snap = _pick_previous_snapshot(store, instrument_id, today_snap["snapshot_date"])
-        scored = score_stock(instrument, today_snap, previous_snap, benchmarks_doc)
+        scored = score_stock(instrument, today_snap, None, benchmarks_doc)
         store.save_stock_intel_pro(args.market, universe_id, instrument_id, scored)
         saved += 1
 

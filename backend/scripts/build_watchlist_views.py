@@ -25,6 +25,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build per-user watchlist views")
     parser.add_argument("--uid", default=None, help="Build for a single user only")
     parser.add_argument("--dry-run", action="store_true", help="Don't write, just log")
+    parser.add_argument("--no-llm", action="store_true", help="Skip personalized LLM synthesis")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -52,10 +53,21 @@ def main() -> None:
             skipped += 1
             continue
         payload = build_watchlist_view(
-            store, uid, [str(t) for t in tracked], active_universes=active_universes
+            store,
+            uid,
+            [str(t) for t in tracked],
+            active_universes=active_universes,
+            include_llm_brief=not args.no_llm,
         )
         if args.dry_run:
-            print(f"  [dry] {uid}: {payload['tracked_count']} rows, pulse='{payload['pulse']['headline']}'")
+            portfolio = payload.get("portfolio") or {}
+            print(
+                f"  [dry] {uid}: {payload['tracked_count']} rows, "
+                f"signals={sum(len(r.get('premium_signals') or []) for r in payload['rows'])}, "
+                f"risks={len(portfolio.get('risk_flags') or [])}, "
+                f"suggestions={len(portfolio.get('suggestions') or [])}, "
+                f"pulse='{payload['pulse']['headline']}'"
+            )
         else:
             store.save_watchlist_view(uid, payload)
             print(f"  [ok] {uid}: {payload['tracked_count']} rows written")

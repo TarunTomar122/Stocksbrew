@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { StockLogo } from "@/components/stock-logo";
 import type { WatchlistRow } from "@/lib/watchlist-view";
 
 type SortKey =
@@ -20,7 +21,10 @@ type SortDir = "asc" | "desc";
 function formatPrice(value: number | null, currency: string): string {
   if (value === null) return "—";
   const symbol = currency === "INR" ? "₹" : "$";
-  return `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${symbol}${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function formatPct(value: number | null): string {
@@ -34,6 +38,14 @@ function formatScore(value: number | null): string {
   return value.toFixed(0);
 }
 
+function scoreTone(value: number | null): string {
+  if (value === null) return "text-[#9ca3af]";
+  if (value >= 80) return "text-[#10b981]";
+  if (value >= 60) return "text-[#111111]";
+  if (value >= 40) return "text-[#6b7280]";
+  return "text-[#ef4444]";
+}
+
 function scoreToValue(row: WatchlistRow, key: SortKey): number {
   if (key === "change") return row.day_change_pct ?? -Infinity;
   if (key === "price") return row.price ?? -Infinity;
@@ -44,6 +56,9 @@ function scoreToValue(row: WatchlistRow, key: SortKey): number {
   if (key === "momentum") return row.scores.momentum ?? -Infinity;
   return 0;
 }
+
+const GRID_COLS =
+  "grid-cols-[minmax(180px,1.6fr)_minmax(80px,0.9fr)_minmax(80px,0.8fr)_minmax(70px,0.7fr)_minmax(70px,0.7fr)_minmax(70px,0.7fr)_minmax(70px,0.7fr)_minmax(70px,0.7fr)_28px]";
 
 function HeaderCell({
   label,
@@ -65,11 +80,11 @@ function HeaderCell({
     <button
       type="button"
       onClick={() => onPick(sortKey)}
-      className={`text-[10px] font-bold tracking-[0.18em] uppercase text-on-surface-variant hover:text-on-surface transition-colors ${
-        align === "right" ? "text-right" : "text-left"
-      } ${active ? "text-on-surface" : ""}`}
+      className={`inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.1em] uppercase transition-colors ${
+        align === "right" ? "justify-end" : "justify-start"
+      } ${active ? "text-[#111111]" : "text-[#9ca3af] hover:text-[#111111]"}`}
     >
-      {label} {arrow && <span className="text-[9px] ml-0.5">{arrow}</span>}
+      {label} {arrow && <span className="text-[8px]">{arrow}</span>}
     </button>
   );
 }
@@ -84,9 +99,12 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
   const sorted = useMemo(() => {
     const copy = [...rows];
     if (sortKey === "ticker") {
-      copy.sort((a, b) => (sortDir === "asc" ? a.ticker.localeCompare(b.ticker) : b.ticker.localeCompare(a.ticker)));
+      copy.sort((a, b) =>
+        sortDir === "asc"
+          ? a.ticker.localeCompare(b.ticker)
+          : b.ticker.localeCompare(a.ticker),
+      );
     } else if (sortKey === "change") {
-      // Default sort is biggest absolute move first.
       copy.sort((a, b) => {
         const av = Math.abs(a.day_change_pct ?? 0);
         const bv = Math.abs(b.day_change_pct ?? 0);
@@ -132,69 +150,232 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
   }
 
   return (
-    <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest overflow-hidden">
-      <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-4 px-6 py-3 border-b border-outline-variant/30">
-        <HeaderCell label="Ticker" sortKey="ticker" active={sortKey === "ticker"} dir={sortDir} onPick={pickSort} />
-        <HeaderCell label="Price" sortKey="price" active={sortKey === "price"} dir={sortDir} onPick={pickSort} align="right" />
-        <HeaderCell label="Day" sortKey="change" active={sortKey === "change"} dir={sortDir} onPick={pickSort} align="right" />
-        <HeaderCell label="Overall" sortKey="overall" active={sortKey === "overall"} dir={sortDir} onPick={pickSort} align="right" />
-        <HeaderCell label="Val" sortKey="valuation" active={sortKey === "valuation"} dir={sortDir} onPick={pickSort} align="right" />
-        <HeaderCell label="Growth" sortKey="growth" active={sortKey === "growth"} dir={sortDir} onPick={pickSort} align="right" />
-        <HeaderCell label="Quality" sortKey="quality" active={sortKey === "quality"} dir={sortDir} onPick={pickSort} align="right" />
-        <HeaderCell label="Momentum" sortKey="momentum" active={sortKey === "momentum"} dir={sortDir} onPick={pickSort} align="right" />
-        <span className="w-6" />
+    <section className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+      <div
+        className={`hidden md:grid ${GRID_COLS} gap-4 px-5 py-3 border-b border-[#e5e7eb] bg-[#f8f9fa]`}
+      >
+        <HeaderCell
+          label="Ticker"
+          sortKey="ticker"
+          active={sortKey === "ticker"}
+          dir={sortDir}
+          onPick={pickSort}
+        />
+        <HeaderCell
+          label="Price"
+          sortKey="price"
+          active={sortKey === "price"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <HeaderCell
+          label="Day"
+          sortKey="change"
+          active={sortKey === "change"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <HeaderCell
+          label="Overall"
+          sortKey="overall"
+          active={sortKey === "overall"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <HeaderCell
+          label="Val"
+          sortKey="valuation"
+          active={sortKey === "valuation"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <HeaderCell
+          label="Growth"
+          sortKey="growth"
+          active={sortKey === "growth"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <HeaderCell
+          label="Quality"
+          sortKey="quality"
+          active={sortKey === "quality"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <HeaderCell
+          label="Momentum"
+          sortKey="momentum"
+          active={sortKey === "momentum"}
+          dir={sortDir}
+          onPick={pickSort}
+          align="right"
+        />
+        <span className="w-7" />
       </div>
 
-      <ul className="divide-y divide-outline-variant/20">
+      <ul>
         {sorted.map((row) => {
-          const changePositive = (row.day_change_pct ?? 0) >= 0;
+          const positive = (row.day_change_pct ?? 0) >= 0;
           const isPending = pendingId === row.instrument_id;
           return (
             <li
               key={row.instrument_id}
-              className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-4 px-6 py-3 items-center hover:bg-surface-container-low/40 transition-colors cursor-pointer"
-              onClick={() => router.push(`/stock/${encodeURIComponent(row.ticker)}`)}
+              role="button"
+              tabIndex={0}
+              onClick={() =>
+                router.push(`/stock/${encodeURIComponent(row.ticker)}`)
+              }
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" || ev.key === " ") {
+                  ev.preventDefault();
+                  router.push(`/stock/${encodeURIComponent(row.ticker)}`);
+                }
+              }}
+              className={`hidden md:grid ${GRID_COLS} gap-4 px-5 py-3.5 items-center border-t border-[#f3f4f6] hover:bg-[#f8f9fa] transition-colors cursor-pointer outline-none focus-visible:bg-[#f8f9fa]`}
             >
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-bold text-on-surface">{row.ticker}</span>
-                <span className="text-[10px] font-semibold tracking-wide uppercase text-on-surface-variant truncate">
-                  {row.sector_label || row.market}
-                </span>
+              <div className="flex items-center gap-3 min-w-0">
+                <StockLogo
+                  ticker={row.ticker}
+                  market={row.market === "IN" ? "IN" : "US"}
+                  size={32}
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[14px] font-semibold text-[#111111]">
+                    {row.ticker}
+                  </span>
+                  <span className="text-[11px] text-[#6b7280] truncate">
+                    {row.sector_label || row.market}
+                  </span>
+                </div>
               </div>
-              <div className="text-sm font-semibold text-on-surface tabular-nums text-right">
+              <span className="text-[14px] font-semibold text-[#111111] tabular-nums text-right">
                 {formatPrice(row.price, row.currency)}
-              </div>
-              <div
-                className={`text-sm font-bold tabular-nums text-right ${
-                  changePositive ? "text-signal-bullish" : "text-signal-bearish"
+              </span>
+              <span
+                className={`text-[14px] font-semibold tabular-nums text-right ${
+                  positive ? "text-[#10b981]" : "text-[#ef4444]"
                 }`}
               >
                 {formatPct(row.day_change_pct)}
-              </div>
-              <div className="text-sm font-bold text-on-surface tabular-nums text-right">
+              </span>
+              <span
+                className={`text-[14px] font-semibold tabular-nums text-right ${scoreTone(row.scores.overall)}`}
+              >
                 {formatScore(row.scores.overall)}
-              </div>
-              <div className="text-sm text-on-surface tabular-nums text-right">
+              </span>
+              <span
+                className={`text-[13px] tabular-nums text-right ${scoreTone(row.scores.valuation)}`}
+              >
                 {formatScore(row.scores.valuation)}
-              </div>
-              <div className="text-sm text-on-surface tabular-nums text-right">
+              </span>
+              <span
+                className={`text-[13px] tabular-nums text-right ${scoreTone(row.scores.growth)}`}
+              >
                 {formatScore(row.scores.growth)}
-              </div>
-              <div className="text-sm text-on-surface tabular-nums text-right">
+              </span>
+              <span
+                className={`text-[13px] tabular-nums text-right ${scoreTone(row.scores.quality)}`}
+              >
                 {formatScore(row.scores.quality)}
-              </div>
-              <div className="text-sm text-on-surface tabular-nums text-right">
+              </span>
+              <span
+                className={`text-[13px] tabular-nums text-right ${scoreTone(row.scores.momentum)}`}
+              >
                 {formatScore(row.scores.momentum)}
-              </div>
+              </span>
               <button
                 type="button"
                 onClick={(ev) => onUntrack(row.instrument_id, ev)}
                 disabled={isPending}
                 aria-label={`Untrack ${row.ticker}`}
-                className="text-outline hover:text-signal-bearish disabled:opacity-40 transition-colors text-sm w-6 h-6 flex items-center justify-center rounded-full hover:bg-signal-bearish/10"
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full text-[#9ca3af] hover:text-[#ef4444] hover:bg-[#fef2f2] disabled:opacity-40 transition-colors"
               >
                 ×
               </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Mobile: stacked cards */}
+      <ul className="md:hidden">
+        {sorted.map((row) => {
+          const positive = (row.day_change_pct ?? 0) >= 0;
+          const isPending = pendingId === row.instrument_id;
+          return (
+            <li
+              key={`${row.instrument_id}-mobile`}
+              role="button"
+              tabIndex={0}
+              onClick={() =>
+                router.push(`/stock/${encodeURIComponent(row.ticker)}`)
+              }
+              className="flex flex-col gap-3 px-5 py-4 border-t border-[#f3f4f6] first:border-t-0"
+            >
+              <div className="flex items-start gap-3">
+                <StockLogo
+                  ticker={row.ticker}
+                  market={row.market === "IN" ? "IN" : "US"}
+                  size={36}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[14px] font-semibold text-[#111111]">
+                      {row.ticker}
+                    </span>
+                    <span
+                      className={`text-[14px] font-semibold tabular-nums ${
+                        positive ? "text-[#10b981]" : "text-[#ef4444]"
+                      }`}
+                    >
+                      {formatPct(row.day_change_pct)}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] text-[#6b7280] truncate">
+                      {row.sector_label || row.market}
+                    </span>
+                    <span className="text-[12px] font-medium text-[#6b7280] tabular-nums">
+                      {formatPrice(row.price, row.currency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[11px]">
+                {[
+                  { label: "Val", v: row.scores.valuation },
+                  { label: "Growth", v: row.scores.growth },
+                  { label: "Qual", v: row.scores.quality },
+                  { label: "Mom", v: row.scores.momentum },
+                ].map((s) => (
+                  <div key={s.label} className="flex flex-col items-center gap-0.5">
+                    <span className="font-semibold tracking-[0.06em] uppercase text-[#9ca3af]">
+                      {s.label}
+                    </span>
+                    <span
+                      className={`text-[14px] font-semibold tabular-nums ${scoreTone(s.v)}`}
+                    >
+                      {formatScore(s.v)}
+                    </span>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={(ev) => onUntrack(row.instrument_id, ev)}
+                  disabled={isPending}
+                  aria-label={`Untrack ${row.ticker}`}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-full text-[#9ca3af] hover:text-[#ef4444] hover:bg-[#fef2f2] disabled:opacity-40 transition-colors"
+                >
+                  ×
+                </button>
+              </div>
             </li>
           );
         })}

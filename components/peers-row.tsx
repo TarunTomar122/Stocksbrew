@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { StockLogo } from "@/components/stock-logo";
 import type { RelatedInstrument, RelatedTicker } from "@/lib/stock";
 
 type Props = {
@@ -14,13 +17,11 @@ type MergedPeer = {
   relation?: string;
 };
 
-const RELATION_ORDER = ["peer", "sector", "supply_chain", "co_mentioned"];
-
-const RELATION_META: Record<string, { label: string; accent: string }> = {
-  peer: { label: "Direct Peers", accent: "var(--primary)" },
-  sector: { label: "Sector Peers", accent: "var(--primary)" },
-  supply_chain: { label: "Supply Chain", accent: "var(--signal-bullish)" },
-  co_mentioned: { label: "Co-Mentioned", accent: "var(--signal-neutral)" },
+const RELATION_LABEL: Record<string, string> = {
+  peer: "Direct peers",
+  sector: "Sector peers",
+  supply_chain: "Supply chain",
+  co_mentioned: "Co-mentioned",
 };
 
 function formatPrice(value: number) {
@@ -30,10 +31,7 @@ function formatPrice(value: number) {
   });
 }
 
-function mergePeers(
-  peers: RelatedTicker[],
-  related: RelatedInstrument[],
-): MergedPeer[] {
+function mergePeers(peers: RelatedTicker[], related: RelatedInstrument[]): MergedPeer[] {
   const byId = new Map<string, MergedPeer>();
   for (const p of peers) {
     byId.set(p.instrument_id, {
@@ -64,33 +62,38 @@ function PeerCard({ peer }: { peer: MergedPeer }) {
   const pct = peer.day_change_pct;
   const hasPct = typeof pct === "number";
   const positive = hasPct && pct! >= 0;
-  const arrow = positive ? "▲" : "▼";
-  const color = positive ? "text-signal-bullish" : "text-signal-bearish";
+  const tone = positive
+    ? "bg-[#ecfdf5] text-[#10b981]"
+    : "bg-[#fef2f2] text-[#ef4444]";
   return (
-    <a
-      key={peer.instrument_id}
+    <Link
       href={`/stock/${encodeURIComponent(peer.ticker)}`}
-      className="group bg-surface-container-low p-4 brutalist-border hover:-translate-y-0.5 transition-transform"
+      className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 min-w-[220px] hover:border-[#111111] transition-colors"
     >
-      <div className="text-[14px] font-bold text-on-surface group-hover:text-primary transition-colors">
-        {peer.ticker}
-      </div>
-      <div className="text-[11px] font-semibold text-on-surface-variant truncate">
-        {peer.name}
+      <div className="flex items-center gap-3">
+        <StockLogo ticker={peer.ticker} size={32} />
+        <div className="flex flex-col min-w-0">
+          <span className="text-[13px] font-semibold text-[#111111] truncate">
+            {peer.ticker}
+          </span>
+          <span className="text-[11px] text-[#6b7280] truncate">{peer.name}</span>
+        </div>
       </div>
       {typeof peer.price === "number" && (
-        <div className="mt-3 flex items-baseline justify-between gap-2">
-          <span className="text-[14px] font-semibold text-on-surface tabular-nums">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
             {formatPrice(peer.price)}
           </span>
           {hasPct && (
-            <span className={`text-[12px] font-bold tabular-nums ${color}`}>
-              {arrow} {Math.abs(pct!).toFixed(2)}%
+            <span
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
+            >
+              {positive ? "▲" : "▼"} {Math.abs(pct!).toFixed(2)}%
             </span>
           )}
         </div>
       )}
-    </a>
+    </Link>
   );
 }
 
@@ -102,11 +105,14 @@ export function PeersRow({ peers, related }: Props) {
 
   if (!hasRelationData) {
     return (
-      <section className="bg-surface-container-lowest brutalist-border p-6">
-        <h2 className="text-[14px] font-semibold text-on-surface mb-4">
-          Peers
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <section className="flex flex-col gap-4 pt-6 border-t border-[#e5e7eb]">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            Peers
+          </h3>
+          <span className="text-[12px] text-[#6b7280]">{merged.length} stocks</span>
+        </div>
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
           {merged.map((peer) => (
             <PeerCard key={peer.instrument_id} peer={peer} />
           ))}
@@ -121,50 +127,32 @@ export function PeersRow({ peers, related }: Props) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(peer);
   }
-
-  const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
-    const ai = RELATION_ORDER.indexOf(a);
-    const bi = RELATION_ORDER.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const sortedKeys = Array.from(groups.keys());
 
   return (
-    <section className="bg-surface-container-lowest brutalist-border p-6">
-      <h2 className="text-[14px] font-semibold text-on-surface mb-4">Peers</h2>
-      <div className="flex flex-col gap-6">
-        {sortedKeys.map((key) => {
-          const meta =
-            RELATION_META[key] ?? {
-              label: key.replace(/_/g, " "),
-              accent: "var(--outline)",
-            };
-          const items = groups.get(key)!;
-          return (
-            <div key={key}>
-              <div className="flex items-center gap-2 mb-3">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: meta.accent }}
-                />
-                <h3 className="text-[11px] font-bold tracking-[0.15em] uppercase text-outline">
-                  {meta.label}
-                </h3>
-                <span className="text-[11px] text-on-surface-variant">
-                  {items.length}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {items.map((peer) => (
-                  <PeerCard key={peer.instrument_id} peer={peer} />
-                ))}
-              </div>
+    <section className="flex flex-col gap-6 pt-6 border-t border-[#e5e7eb]">
+      <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+        Peers
+      </h3>
+      {sortedKeys.map((key) => {
+        const items = groups.get(key)!;
+        const label = RELATION_LABEL[key] ?? key.replace(/_/g, " ");
+        return (
+          <div key={key} className="flex flex-col gap-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+                {label}
+              </span>
+              <span className="text-[11px] text-[#6b7280]">{items.length}</span>
             </div>
-          );
-        })}
-      </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+              {items.map((peer) => (
+                <PeerCard key={peer.instrument_id} peer={peer} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </section>
   );
 }

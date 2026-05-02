@@ -27,7 +27,7 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
 
 
 def _normalize_watchlist(payload: dict[str, Any]) -> list[str]:
-    raw = payload.get("instrument_ids") or payload.get("watchlist") or []
+    raw = payload.get("tracked_stocks") or payload.get("instrument_ids") or payload.get("watchlist") or []
     if not isinstance(raw, list):
         return []
     out = []
@@ -36,6 +36,23 @@ def _normalize_watchlist(payload: dict[str, Any]) -> list[str]:
         if instrument_id:
             out.append(instrument_id)
     return out
+
+
+def _load_user_watchlist_from_user_doc(store: TraceMoneyStore, uid: str) -> dict[str, Any] | None:
+    doc = store.db.collection("users").document(uid).get()
+    if not doc.exists:
+        return None
+    data = doc.to_dict() or {}
+    tracked = data.get("tracked_stocks") or []
+    if not isinstance(tracked, list):
+        tracked = []
+    return {
+        "user_id": uid,
+        "market": "",
+        "tracked_stocks": tracked,
+        "thresholds": data.get("alert_thresholds") or data.get("thresholds") or {},
+        "source": "users.tracked_stocks",
+    }
 
 
 def main() -> None:
@@ -59,10 +76,14 @@ def main() -> None:
     as_of_date = args.as_of_date or datetime.now(timezone.utc).date().isoformat()
 
     if args.user_id:
-        existing = store.get_user_watchlist(args.user_id)
+        existing = _load_user_watchlist_from_user_doc(store, args.user_id)
+        if not existing:
+            existing = store.get_user_watchlist(args.user_id)
         watchlists = [existing] if existing else []
     else:
-        watchlists = store.list_user_watchlists(args.market)
+        watchlists = store.list_subscribed_users()
+        if not watchlists:
+            watchlists = store.list_user_watchlists(args.market)
 
     if not watchlists and args.seed_user_if_missing:
         instruments = list_instruments(args.market, universe_id)[:max(1, args.seed_limit)]
@@ -79,10 +100,14 @@ def main() -> None:
     for watchlist in watchlists:
         if not watchlist:
             continue
-        user_id = str(watchlist.get("user_id", "")).strip()
+        user_id = str(watchlist.get("user_id") or watchlist.get("uid") or "").strip()
         if not user_id:
             continue
-        instrument_ids = _normalize_watchlist(watchlist)
+        instrument_ids = [
+            instrument_id
+            for instrument_id in _normalize_watchlist(watchlist)
+            if instrument_id.startswith(f"{args.market}_")
+        ]
         if not instrument_ids:
             store.save_user_alert_flags(user_id, [])
             results["users"].append({"user_id": user_id, "alert_count": 0, "flags": []})
@@ -91,8 +116,8 @@ def main() -> None:
         latest_prices = store.get_latest_prices(instrument_ids)
         technical_docs: dict[str, dict[str, Any]] = {}
         price_histories: dict[str, list[dict[str, Any]]] = {}
-        stock_intel: dict[str, dict[str, Any]] = {}
         ai_universe = store.get_active_ai_universe(args.market) or universe_id
+        stock_intel = store.get_stock_intelligence_docs_batch(args.market, ai_universe, instrument_ids)
 
         instruments_lookup = {
             item["instrument_id"]: item
@@ -104,7 +129,10 @@ def main() -> None:
             latest = latest_prices.get(instrument_id)
             if not latest:
                 continue
-            history = store.get_price_history(instrument_id, limit=max(30, args.history_limit))
+            history = list(latest.get("history_window") or [])
+            history_limit = max(30, args.history_limit)
+            if history_limit and len(history) > history_limit:
+                history = history[-history_limit:]
             price_histories[instrument_id] = history
             instrument = instruments_lookup.get(instrument_id, {
                 "instrument_id": instrument_id,
@@ -117,9 +145,6 @@ def main() -> None:
                 history_points=history,
                 as_of_date=as_of_date,
             )
-            doc = store.get_stock_intelligence_doc(args.market, ai_universe, instrument_id)
-            stock_intel[instrument_id] = doc or {}
-
         flags = build_user_alert_flags(
             user_id=user_id,
             market=args.market,

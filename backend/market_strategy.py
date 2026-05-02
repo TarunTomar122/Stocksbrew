@@ -65,7 +65,10 @@ def market_strategy_for(market: str) -> dict[str, Any]:
 
 
 def default_llm_model() -> str:
-    return os.getenv("TRACE_MONEY_LLM_MODEL", "").strip() or load_market_strategy().get("default_llm_model", "gpt-5-nano")
+    return (
+        os.getenv("MIMO_MODEL", "").strip()
+        or load_market_strategy().get("default_llm_model", "mimo-v2.5")
+    )
 
 
 def default_llm_concurrency() -> int:

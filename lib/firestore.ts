@@ -1,5 +1,7 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import type {
   DashboardView,
   SnapshotRow,
@@ -7,6 +9,22 @@ import type {
   LatestPrice,
   Instrument,
 } from "@/lib/types";
+
+const FIRESTORE_BATCH_GET_SIZE = 100;
+
+export async function batchGetRefs<T>(
+  refs: Array<DocumentReference<DocumentData>>,
+): Promise<Map<string, T>> {
+  const result = new Map<string, T>();
+  for (let start = 0; start < refs.length; start += FIRESTORE_BATCH_GET_SIZE) {
+    const chunk = refs.slice(start, start + FIRESTORE_BATCH_GET_SIZE);
+    const docs = await adminFirestore.getAll(...chunk);
+    for (const doc of docs) {
+      if (doc.exists) result.set(doc.id, doc.data() as T);
+    }
+  }
+  return result;
+}
 
 // ─── Active universe ──────────────────────────────────────────────────────────
 // Both functions are wrapped in React.cache so the Firestore config doc is read
@@ -36,12 +54,22 @@ export async function getPriceUniverse(market: "US" | "IN" = "US"): Promise<stri
 
 // ─── Materialized dashboard view ─────────────────────────────────────────────
 
-export async function getDashboardView(market: "US" | "IN" = "US"): Promise<DashboardView | null> {
+async function getDashboardViewUncached(market: "US" | "IN" = "US"): Promise<DashboardView | null> {
   const universe = await getActiveUniverse(market);
   const docId = `${market}__${universe}`;
   const doc = await adminFirestore.collection("tm_views_dashboard").doc(docId).get();
   if (!doc.exists) return null;
   return doc.data() as DashboardView;
+}
+
+const getDashboardViewCached = unstable_cache(
+  getDashboardViewUncached,
+  ["dashboard-view"],
+  { revalidate: 120 },
+);
+
+export async function getDashboardView(market: "US" | "IN" = "US"): Promise<DashboardView | null> {
+  return getDashboardViewCached(market);
 }
 
 // ─── Stock intelligence ───────────────────────────────────────────────────────
@@ -84,24 +112,24 @@ export async function getLatestPrice(instrumentId: string): Promise<LatestPrice 
 }
 
 export async function getLatestPrices(instrumentIds: string[]): Promise<Map<string, LatestPrice>> {
-  const docs = await Promise.all(
-    instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id).get()),
+  return batchGetRefs<LatestPrice>(
+    instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
   );
-  const result = new Map<string, LatestPrice>();
-  for (const doc of docs) {
-    if (doc.exists) {
-      const data = doc.data() as LatestPrice;
-      result.set(doc.id, data);
-    }
-  }
-  return result;
 }
 
 // ─── Market price snapshots (full universe, camelCase price) ──────────────────
 
-export const getMarketSnapshot = cache(async (
+const getMarketSnapshotUncached = async (
   market: "US" | "IN" = "US",
 ): Promise<SnapshotRow[]> => {
+  const latest = await adminFirestore
+    .collection("market_price_snapshots")
+    .doc(market)
+    .get();
+  if (latest.exists) {
+    const payload = latest.data() as { rows?: SnapshotRow[] };
+    if (Array.isArray(payload.rows)) return payload.rows;
+  }
   const snap = await adminFirestore
     .collection("market_price_snapshots")
     .doc(market)
@@ -113,7 +141,15 @@ export const getMarketSnapshot = cache(async (
     if (Array.isArray(data.rows)) rows.push(...data.rows);
   }
   return rows;
-});
+};
+
+const getMarketSnapshotCached = unstable_cache(
+  getMarketSnapshotUncached,
+  ["market-snapshot"],
+  { revalidate: 60 },
+);
+
+export const getMarketSnapshot = cache(getMarketSnapshotCached);
 
 // ─── Instruments ─────────────────────────────────────────────────────────────
 
@@ -124,14 +160,7 @@ export async function getInstrument(instrumentId: string): Promise<Instrument | 
 }
 
 export async function getInstruments(instrumentIds: string[]): Promise<Map<string, Instrument>> {
-  const docs = await Promise.all(
-    instrumentIds.map((id) => adminFirestore.collection("tm_instruments").doc(id).get()),
+  return batchGetRefs<Instrument>(
+    instrumentIds.map((id) => adminFirestore.collection("tm_instruments").doc(id)),
   );
-  const result = new Map<string, Instrument>();
-  for (const doc of docs) {
-    if (doc.exists) {
-      result.set(doc.id, doc.data() as Instrument);
-    }
-  }
-  return result;
 }

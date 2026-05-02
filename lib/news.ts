@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getActiveUniverse } from "@/lib/firestore";
 
@@ -12,7 +14,7 @@ import { getActiveUniverse } from "@/lib/firestore";
 // user can realistically scan at once. If we later need deeper archives we
 // can swap this for a paginated or cursor-based loader.
 
-const DEFAULT_LIMIT = 400;
+const DEFAULT_LIMIT = 150;
 
 export type NewsArticle = {
   id: string;
@@ -104,12 +106,29 @@ function normalizeArticle(raw: RawEnrichedArticle, marketFallback: "US" | "IN"):
   };
 }
 
-export async function getNewsFeed(
+async function getNewsFeedUncached(
   market: "US" | "IN",
   limit: number = DEFAULT_LIMIT,
 ): Promise<NewsArticle[]> {
   const universe = await getActiveUniverse(market);
   const ns = `${market}__${universe}`;
+  const namespaceDoc = await adminFirestore.collection("tm_news_runs").doc(ns).get();
+  if (namespaceDoc.exists) {
+    const data = namespaceDoc.data() as {
+      home_feed_enrichments?: RawEnrichedArticle[];
+      home_feed_articles?: RawEnrichedArticle[];
+    };
+    const materialized = data.home_feed_enrichments?.length
+      ? data.home_feed_enrichments
+      : data.home_feed_articles;
+    if (materialized?.length) {
+      return materialized
+        .map((row) => normalizeArticle(row, market))
+        .filter((article): article is NewsArticle => article !== null)
+        .sort((a, b) => (a.published_at < b.published_at ? 1 : -1))
+        .slice(0, limit);
+    }
+  }
   // Enrichments carry sentiment + entity_mentions; articles are raw ingest.
   // We read enrichments first, fall back to raw if the enrichment step hasn't
   // run yet for this universe.
@@ -137,4 +156,17 @@ export async function getNewsFeed(
     return rows.slice(0, limit);
   }
   return [];
+}
+
+const getNewsFeedCached = unstable_cache(
+  getNewsFeedUncached,
+  ["news-feed"],
+  { revalidate: 120 },
+);
+
+export async function getNewsFeed(
+  market: "US" | "IN",
+  limit: number = DEFAULT_LIMIT,
+): Promise<NewsArticle[]> {
+  return getNewsFeedCached(market, limit);
 }

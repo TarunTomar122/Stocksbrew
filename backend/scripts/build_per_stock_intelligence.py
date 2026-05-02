@@ -5,8 +5,10 @@ This is the stock-first successor to `build_news_intelligence.py`. The old
 pipeline pooled all articles into a single 20-article budget, so popular
 tickers drowned out quiet ones and most of the watchlist got zero AI
 coverage on any given run. This script partitions the fetch by ticker so
-every instrument in the AI-tier universe gets a guaranteed slice of news
-articles (plus a small broad bucket kept alive for market/sector briefs).
+every instrument in the AI-tier universe gets a fair slice of news articles
+(plus a small broad bucket kept alive for market/sector briefs). Stocks with
+no qualifying news stay uncovered by default so the frontend can hide AI UI
+instead of showing filler.
 """
 from __future__ import annotations
 
@@ -48,6 +50,7 @@ def main() -> None:
     parser.add_argument("--universe", required=True, help="AI-tier universe id, e.g. us_ai_launch")
     parser.add_argument("--per-stock-cap", type=int, default=5, help="Max articles fetched per ticker (default 5)")
     parser.add_argument("--broad-cap", type=int, default=12, help="Max broad-lane articles kept for market/sector briefs (default 12)")
+    parser.add_argument("--include-no-news", action="store_true", help="Generate fallback briefs for stocks with no qualifying news")
     parser.add_argument("--skip-context", action="store_true", help="Skip market/sector context brief build")
     parser.add_argument("--skip-materialize", action="store_true", help="Skip dashboard/instrument view materialization")
     args = parser.parse_args()
@@ -93,7 +96,10 @@ def main() -> None:
     uncovered = [i for i in instruments if i["instrument_id"] not in covered_ids]
     print(f"[per-stock] built {len(docs)} stock briefs, {len(uncovered)} instruments uncovered")
 
-    if uncovered:
+    if uncovered and not args.include_no_news:
+        print("[per-stock] no-news briefs skipped; UI will hide AI sections for uncovered instruments")
+
+    if uncovered and args.include_no_news:
         uncovered_ids = [i["instrument_id"] for i in uncovered]
         latest_prices = store.get_latest_prices(uncovered_ids)
         intel_pro_by_id: dict[str, dict] = {}
