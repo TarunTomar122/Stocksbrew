@@ -23,6 +23,7 @@ const MONTHS: Record<string, number> = {
 export type WatchlistRow = {
   instrument_id: string;
   ticker: string;
+  position_type: "holding" | "watchlist";
   market: "US" | "IN" | "";
   sector_label: string;
   industry_label: string;
@@ -46,6 +47,11 @@ export type WatchlistRow = {
   premium_signals?: Record<string, unknown>[];
   target_upside_pct?: number | null;
   top_metric_summaries?: string[];
+  attention_score?: number;
+  attention_reason?: string;
+  attention_kind?: "move" | "risk" | "opportunity" | "news" | "calm";
+  suggested_action?: string;
+  action_tone?: "positive" | "negative" | "neutral";
   brief_tile: {
     micro: string;
     vibe: "up" | "down" | "wild";
@@ -107,11 +113,16 @@ export type WatchlistPulse = {
 export type WatchlistView = {
   uid: string;
   tracked_count: number;
+  holdings_count?: number;
+  watchlist_count?: number;
   tracked_ids: string[];
   rows: WatchlistRow[];
   pulse: WatchlistPulse;
   brief: WatchlistBrief;
   portfolio?: Record<string, unknown>;
+  attention_items?: Record<string, unknown>[];
+  suggestions?: Record<string, unknown>[];
+  risk_summary?: Record<string, unknown>;
   event_radar?: Record<string, unknown>[];
   changes?: Record<string, unknown>;
   built_at: string;
@@ -135,6 +146,13 @@ export async function getWatchlistView(uid: string): Promise<WatchlistView | nul
 function marketFromInstrumentId(id: string): "US" | "IN" | "" {
   const prefix = id.split("_", 1)[0];
   return prefix === "US" || prefix === "IN" ? prefix : "";
+}
+
+function positionTypeFor(
+  instrumentId: string,
+  positions?: Record<string, unknown> | null,
+): "holding" | "watchlist" {
+  return positions?.[instrumentId] === "holding" ? "holding" : "watchlist";
 }
 
 function toNumber(v: unknown): number | null {
@@ -420,6 +438,102 @@ function premiumSignals(
   return signals.slice(0, 6);
 }
 
+function rowAttention(
+  positionType: "holding" | "watchlist",
+  ticker: string,
+  dayChangePct: number | null,
+  targetUpside: number | null,
+  facts: Record<string, unknown>,
+  technicals: Record<string, unknown>,
+  mentionStats: Record<string, unknown>,
+  alerts: Record<string, unknown>[],
+): {
+  attention_score: number;
+  attention_reason: string;
+  attention_kind: "move" | "risk" | "opportunity" | "news" | "calm";
+  suggested_action: string;
+  action_tone: "positive" | "negative" | "neutral";
+} {
+  const returns = ((compactFacts(facts).returns as Record<string, unknown>) || {});
+  const oneMonth = toNumber(returns.one_month_pct);
+  const rsi = toNumber(((technicals.rsi_14 as Record<string, unknown>) || {}).value);
+  const mentions1d = toNumber(mentionStats.mentions_1d) ?? 0;
+  const mentions7d = toNumber(mentionStats.mentions_7d) ?? 0;
+  const bigMove = dayChangePct !== null && Math.abs(dayChangePct) >= 3;
+  const hugeMove = dayChangePct !== null && Math.abs(dayChangePct) >= 5;
+  const stretched = rsi !== null && rsi >= 70;
+  const washedOut = rsi !== null && rsi <= 35;
+  const newsy = mentions1d >= 2 || mentions7d >= 4;
+  const alert = alerts[0];
+  const alertMessage = String(alert?.message || alert?.label || "").trim();
+
+  if (alertMessage) {
+    return {
+      attention_score: 92,
+      attention_reason: alertMessage.slice(0, 150),
+      attention_kind: "risk",
+      suggested_action: positionType === "holding" ? "Review holding" : "Keep watching",
+      action_tone: "negative",
+    };
+  }
+  if (hugeMove || bigMove) {
+    const up = (dayChangePct ?? 0) > 0;
+    return {
+      attention_score: hugeMove ? 88 : 74,
+      attention_reason: `${ticker} moved ${formatSigned(dayChangePct)} today${oneMonth !== null ? ` and is ${formatSigned(oneMonth)} over 1M` : ""}.`,
+      attention_kind: "move",
+      suggested_action: positionType === "holding"
+        ? (up ? "Check if move changes trim/add plan" : "Check if thesis is intact")
+        : (up ? "Do not chase blindly" : "Watch for entry setup"),
+      action_tone: up ? "positive" : "negative",
+    };
+  }
+  if (stretched || washedOut) {
+    return {
+      attention_score: stretched ? 78 : 72,
+      attention_reason: `${ticker} RSI is ${rsi?.toFixed(1)}, ${stretched ? "stretched after strength" : "washed out after weakness"}.`,
+      attention_kind: stretched ? "risk" : "opportunity",
+      suggested_action: positionType === "holding"
+        ? (stretched ? "Avoid adding into heat" : "Decide if weakness is buyable")
+        : (stretched ? "Wait for pullback" : "Investigate entry"),
+      action_tone: stretched ? "negative" : "positive",
+    };
+  }
+  if (targetUpside !== null && Math.abs(targetUpside) >= 15) {
+    const positive = targetUpside > 0;
+    return {
+      attention_score: positive ? 68 : 76,
+      attention_reason: `${ticker} has ${formatSigned(targetUpside)} analyst target runway.`,
+      attention_kind: positive ? "opportunity" : "risk",
+      suggested_action: positionType === "holding"
+        ? (positive ? "Let thesis breathe" : "Recheck valuation risk")
+        : (positive ? "Add to shortlist" : "Avoid until reset"),
+      action_tone: positive ? "positive" : "negative",
+    };
+  }
+  if (newsy) {
+    return {
+      attention_score: 64,
+      attention_reason: `${ticker} has elevated news activity: ${mentions1d.toFixed(0)} today, ${mentions7d.toFixed(0)} this week.`,
+      attention_kind: "news",
+      suggested_action: "Read latest context",
+      action_tone: "neutral",
+    };
+  }
+  return {
+    attention_score: 35,
+    attention_reason: `${ticker} is calm. No major price, technical, alert, or news anomaly stood out.`,
+    attention_kind: "calm",
+    suggested_action: positionType === "holding" ? "Hold thesis" : "Keep on watch",
+    action_tone: "neutral",
+  };
+}
+
+function formatSigned(value: number | null): string {
+  if (value === null) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
 function previousRowsById(previousView: WatchlistView | null): Map<string, WatchlistRow> {
   return new Map((previousView?.rows || []).map((row) => [row.instrument_id, row]));
 }
@@ -495,6 +609,7 @@ async function loadAlertsByInstrument(uid: string): Promise<Record<string, Recor
 
 function rowFromDocs(
   instrumentId: string,
+  positionType: "holding" | "watchlist",
   latest: Record<string, unknown>,
   intel: Record<string, unknown>,
   facts: Record<string, unknown>,
@@ -514,10 +629,23 @@ function rowFromDocs(
   const { micro, vibe } = rowMicrocopy(ticker, dayChange, intel, alerts);
   const price = toNumber(quote.current);
   const factsCompact = compactFacts(facts);
+  const mentionCompact = mentionSummary(mentionStats);
+  const targetUpside = targetUpsidePct(price, facts, intel);
+  const attention = rowAttention(
+    positionType,
+    ticker,
+    dayChange,
+    targetUpside,
+    facts,
+    technicals,
+    mentionCompact,
+    alerts,
+  );
 
   return {
     instrument_id: instrumentId,
     ticker,
+    position_type: positionType,
     market,
     sector_label: (intel?.sector_label as string) || "",
     industry_label: (intel?.industry_label as string) || "",
@@ -543,9 +671,9 @@ function rowFromDocs(
       moving_averages: technicals.moving_averages || {},
       distance: technicals.distance || {},
     },
-    news_velocity: mentionSummary(mentionStats),
+    news_velocity: mentionCompact,
     premium_signals: premiumSignals(ticker, price, dayChange, facts, intel, technicals, alerts),
-    target_upside_pct: targetUpsidePct(price, facts, intel),
+    target_upside_pct: targetUpside,
     top_metric_summaries: [
       metricSummary(intel, "valuation", "Analyst target"),
       metricSummary(intel, "growth", "Revenue growth (TTM)"),
@@ -557,6 +685,7 @@ function rowFromDocs(
       vibe,
       source: "rules",
     },
+    ...attention,
     coverage_status: Object.keys(intel).length > 0 ? "ready" : "score_pending",
     has_intel_pro: Object.keys(intel).length > 0,
   };
@@ -564,6 +693,7 @@ function rowFromDocs(
 
 async function buildRows(
   ids: string[],
+  positions: Record<string, unknown>,
   universes: Record<"US" | "IN" | "US_price" | "IN_price", string>,
   alertsByInstrument: Record<string, Record<string, unknown>[]>,
 ): Promise<WatchlistRow[]> {
@@ -601,6 +731,7 @@ async function buildRows(
     if (!latest) continue;
     const row = rowFromDocs(
       id,
+      positionTypeFor(id, positions),
       latest,
       intelById.get(id) || {},
       factsById.get(id) || {},
@@ -745,6 +876,51 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
     risk_flags: riskFlags.slice(0, 6),
     opportunities: opportunities.slice(0, 6),
     suggestions: await screenSuggestions(rows),
+  };
+}
+
+function attentionItems(rows: WatchlistRow[]): Record<string, unknown>[] {
+  return [...rows]
+    .sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0))
+    .slice(0, 8)
+    .map((row) => ({
+      instrument_id: row.instrument_id,
+      ticker: row.ticker,
+      position_type: row.position_type,
+      price: row.price,
+      currency: row.currency,
+      day_change_pct: row.day_change_pct,
+      attention_score: row.attention_score ?? 0,
+      attention_reason: row.attention_reason,
+      attention_kind: row.attention_kind,
+      suggested_action: row.suggested_action,
+      action_tone: row.action_tone,
+      sector_label: row.sector_label,
+    }));
+}
+
+function riskSummary(rows: WatchlistRow[], portfolio: Record<string, unknown>): Record<string, unknown> {
+  const holdings = rows.filter((row) => row.position_type === "holding");
+  const watchlist = rows.filter((row) => row.position_type === "watchlist");
+  const highAttentionHoldings = holdings.filter((row) => (row.attention_score ?? 0) >= 70);
+  const clusters = (portfolio.clusters as Record<string, unknown>[]) || [];
+  const dominant = clusters[0];
+  const headline = highAttentionHoldings[0]
+    ? `${highAttentionHoldings[0].ticker} needs review first`
+    : dominant
+      ? `${dominant.sector} dominates your tracked names`
+      : "No obvious risk cluster yet";
+  const body = highAttentionHoldings[0]
+    ? String(highAttentionHoldings[0].attention_reason || "A holding has a material signal.")
+    : dominant
+      ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of tracked names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
+      : "Add more holdings/watchlist names and Tikrr will detect concentration, technical, and news risk.";
+  return {
+    headline,
+    body,
+    holdings_with_attention: highAttentionHoldings.length,
+    holding_count: holdings.length,
+    watchlist_count: watchlist.length,
   };
 }
 
@@ -1080,6 +1256,7 @@ const WATCHLIST_ROW_CAP = 20;
 export async function buildWatchlistView(
   uid: string,
   trackedStocks: string[],
+  positions: Record<string, unknown> = {},
   previousView?: WatchlistView | null,
 ): Promise<WatchlistView> {
   const universes = await getActiveUniverses();
@@ -1087,19 +1264,27 @@ export async function buildWatchlistView(
   const previous = previousView ?? null;
 
   const ids = (trackedStocks || []).slice(0, WATCHLIST_ROW_CAP);
-  const rows = applyRowDeltas(await buildRows(ids, universes, alertsByInstrument), previous);
-  rows.sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0));
+  const rows = applyRowDeltas(await buildRows(ids, positions, universes, alertsByInstrument), previous);
+  rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
   const pulse = pulseFromRows(rows);
   const portfolio = await portfolioDiagnostics(rows);
+  const suggestions = await screenSuggestions(rows);
+  const holdingsCount = rows.filter((row) => row.position_type === "holding").length;
+  const watchlistCount = rows.length - holdingsCount;
 
   return {
     uid,
     tracked_count: rows.length,
+    holdings_count: holdingsCount,
+    watchlist_count: watchlistCount,
     tracked_ids: rows.map((r) => r.instrument_id),
     rows,
     pulse,
     brief: fallbackBriefFromRows(rows, pulse),
     portfolio,
+    attention_items: attentionItems(rows),
+    suggestions,
+    risk_summary: riskSummary(rows, portfolio),
     event_radar: eventRadar(rows, portfolio),
     changes: changeSummary(rows, previous),
     built_at: new Date().toISOString(),
@@ -1109,11 +1294,12 @@ export async function buildWatchlistView(
 export async function rebuildAndSaveWatchlistView(
   uid: string,
   trackedStocks: string[],
+  positions: Record<string, unknown> = {},
 ): Promise<WatchlistView> {
   const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
   const previous = await ref.get();
   const previousData = previous.exists ? (previous.data() as WatchlistView) : null;
-  const view = await buildWatchlistView(uid, trackedStocks, previousData);
+  const view = await buildWatchlistView(uid, trackedStocks, positions, previousData);
   if (previousData) {
     const historyId = String(previousData.built_at || previousData.updated_at || new Date().toISOString())
       .replaceAll(":", "-")

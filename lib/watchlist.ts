@@ -7,6 +7,7 @@ export type UserDoc = {
   photo_url?: string | null;
   is_subscribed?: boolean;
   tracked_stocks?: string[];
+  watchlist_positions?: Record<string, "holding" | "watchlist">;
   created_at?: string;
   last_sign_in_at?: string;
 };

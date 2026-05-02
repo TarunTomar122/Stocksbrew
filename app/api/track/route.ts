@@ -12,11 +12,18 @@ const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
 const PERSONAL_TIER_LIMIT = 10;
 
-async function parseInstrumentId(req: NextRequest): Promise<string | null> {
+async function parseTrackPayload(req: NextRequest): Promise<{
+  instrumentId: string;
+  positionType: "holding" | "watchlist";
+} | null> {
   try {
     const body = await req.json();
     const raw = typeof body?.instrument_id === "string" ? body.instrument_id : "";
-    return INSTRUMENT_ID_RE.test(raw) ? raw : null;
+    if (!INSTRUMENT_ID_RE.test(raw)) return null;
+    return {
+      instrumentId: raw,
+      positionType: body?.position_type === "holding" ? "holding" : "watchlist",
+    };
   } catch {
     return null;
   }
@@ -28,10 +35,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  const instrumentId = await parseInstrumentId(req);
-  if (!instrumentId) {
+  const payload = await parseTrackPayload(req);
+  if (!payload) {
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
+  const { instrumentId, positionType } = payload;
 
   const existing = await getUserDoc(session.uid);
   if (!existing || !resolveIsSubscribed(existing)) {
@@ -59,6 +67,7 @@ export async function POST(req: NextRequest) {
   await adminFirestore.collection("users").doc(session.uid).set(
     {
       tracked_stocks: FieldValue.arrayUnion(instrumentId),
+      [`watchlist_positions.${instrumentId}`]: positionType,
       last_tracked_at: new Date().toISOString(),
     },
     { merge: true },
@@ -71,7 +80,10 @@ export async function POST(req: NextRequest) {
     ? current
     : [...current, instrumentId];
   try {
-    await rebuildAndSaveWatchlistView(session.uid, nextTracked);
+    await rebuildAndSaveWatchlistView(session.uid, nextTracked, {
+      ...(existing.watchlist_positions || {}),
+      [instrumentId]: positionType,
+    });
   } catch (err) {
     console.error("[api/track] failed to rebuild watchlist view:", err);
   }
@@ -85,20 +97,24 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  const instrumentId = await parseInstrumentId(req);
-  if (!instrumentId) {
+  const payload = await parseTrackPayload(req);
+  if (!payload) {
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
+  const { instrumentId } = payload;
 
   await adminFirestore.collection("users").doc(session.uid).set(
-    { tracked_stocks: FieldValue.arrayRemove(instrumentId) },
+    {
+      tracked_stocks: FieldValue.arrayRemove(instrumentId),
+      [`watchlist_positions.${instrumentId}`]: FieldValue.delete(),
+    },
     { merge: true },
   );
 
   const existing = await getUserDoc(session.uid);
   const current = Array.isArray(existing?.tracked_stocks) ? existing!.tracked_stocks! : [];
   try {
-    await rebuildAndSaveWatchlistView(session.uid, current);
+    await rebuildAndSaveWatchlistView(session.uid, current, existing?.watchlist_positions || {});
   } catch (err) {
     console.error("[api/track] failed to rebuild watchlist view:", err);
   }

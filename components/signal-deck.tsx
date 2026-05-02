@@ -1,6 +1,6 @@
-import type { StockFacts, StockFundamentals, StockIntelPro } from "@/lib/stock";
+import type { StockFacts, StockFundamentals } from "@/lib/stock";
 import type { StockTechnicals } from "@/lib/technicals";
-import type { Market } from "@/lib/types";
+import type { Market, StockIntelPro } from "@/lib/types";
 
 type Signal = {
   emoji: string;

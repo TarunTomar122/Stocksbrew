@@ -38,6 +38,10 @@ def _market_from_instrument_id(instrument_id: str) -> str:
     return prefix if prefix in {"US", "IN"} else ""
 
 
+def _position_type(instrument_id: str, positions: dict[str, Any] | None) -> str:
+    return "holding" if (positions or {}).get(instrument_id) == "holding" else "watchlist"
+
+
 def _active_universe_cache(store: TraceMoneyStore) -> dict[str, str]:
     """Return active universe ids. Cached per build run."""
     return {
@@ -58,6 +62,12 @@ def _safe_float(value: Any) -> float | None:
 
 def _round(value: float | None, digits: int = 2) -> float | None:
     return round(value, digits) if isinstance(value, (int, float)) else None
+
+
+def _signed_pct(value: float | None) -> str:
+    if value is None:
+        return "—"
+    return f"{value:+.1f}%"
 
 
 def _metric_value(intel_pro: dict[str, Any], pillar: str, label: str) -> float | None:
@@ -344,6 +354,94 @@ def _row_premium_signals(
     return signals[:6]
 
 
+def _row_attention(
+    position_type: str,
+    ticker: str,
+    day_change_pct: float | None,
+    target_upside: float | None,
+    facts: dict[str, Any],
+    technical: dict[str, Any],
+    mention_summary: dict[str, Any],
+    alerts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    facts_compact = _facts_summary(facts)
+    one_month = _safe_float((facts_compact.get("returns") or {}).get("one_month_pct"))
+    rsi = _safe_float(((technical.get("rsi_14") or {}).get("value")))
+    mentions_1d = _safe_float(mention_summary.get("mentions_1d")) or 0
+    mentions_7d = _safe_float(mention_summary.get("mentions_7d")) or 0
+    first_alert = alerts[0] if alerts else {}
+    alert_message = str(first_alert.get("message") or first_alert.get("label") or "").strip()
+    if alert_message:
+        return {
+            "attention_score": 92,
+            "attention_reason": alert_message[:150],
+            "attention_kind": "risk",
+            "suggested_action": "Review holding" if position_type == "holding" else "Keep watching",
+            "action_tone": "negative",
+        }
+    if day_change_pct is not None and abs(day_change_pct) >= 3:
+        up = day_change_pct > 0
+        return {
+            "attention_score": 88 if abs(day_change_pct) >= 5 else 74,
+            "attention_reason": (
+                f"{ticker} moved {_signed_pct(day_change_pct)} today"
+                + (f" and is {_signed_pct(one_month)} over 1M" if one_month is not None else "")
+                + "."
+            ),
+            "attention_kind": "move",
+            "suggested_action": (
+                "Check if move changes trim/add plan" if position_type == "holding" and up
+                else "Check if thesis is intact" if position_type == "holding"
+                else "Do not chase blindly" if up
+                else "Watch for entry setup"
+            ),
+            "action_tone": "positive" if up else "negative",
+        }
+    if rsi is not None and (rsi >= 70 or rsi <= 35):
+        stretched = rsi >= 70
+        return {
+            "attention_score": 78 if stretched else 72,
+            "attention_reason": f"{ticker} RSI is {rsi:.1f}, {'stretched after strength' if stretched else 'washed out after weakness'}.",
+            "attention_kind": "risk" if stretched else "opportunity",
+            "suggested_action": (
+                "Avoid adding into heat" if position_type == "holding" and stretched
+                else "Decide if weakness is buyable" if position_type == "holding"
+                else "Wait for pullback" if stretched
+                else "Investigate entry"
+            ),
+            "action_tone": "negative" if stretched else "positive",
+        }
+    if target_upside is not None and abs(target_upside) >= 15:
+        positive = target_upside > 0
+        return {
+            "attention_score": 68 if positive else 76,
+            "attention_reason": f"{ticker} has {_signed_pct(target_upside)} analyst target runway.",
+            "attention_kind": "opportunity" if positive else "risk",
+            "suggested_action": (
+                "Let thesis breathe" if position_type == "holding" and positive
+                else "Recheck valuation risk" if position_type == "holding"
+                else "Add to shortlist" if positive
+                else "Avoid until reset"
+            ),
+            "action_tone": "positive" if positive else "negative",
+        }
+    if mentions_1d >= 2 or mentions_7d >= 4:
+        return {
+            "attention_score": 64,
+            "attention_reason": f"{ticker} has elevated news activity: {mentions_1d:.0f} today, {mentions_7d:.0f} this week.",
+            "attention_kind": "news",
+            "suggested_action": "Read latest context",
+            "action_tone": "neutral",
+        }
+    return {
+        "attention_score": 35,
+        "attention_reason": f"{ticker} is calm. No major price, technical, alert, or news anomaly stood out.",
+        "attention_kind": "calm",
+        "suggested_action": "Hold thesis" if position_type == "holding" else "Keep on watch",
+        "action_tone": "neutral",
+    }
+
+
 def _previous_rows_by_id(previous_view: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     rows = (previous_view or {}).get("rows") or []
     return {
@@ -408,6 +506,7 @@ def _apply_row_deltas(rows: list[dict[str, Any]], previous_view: dict[str, Any] 
 
 def _row_for_instrument(
     instrument_id: str,
+    position_type: str,
     latest: dict[str, Any],
     intel_pro: dict[str, Any],
     facts: dict[str, Any],
@@ -429,6 +528,8 @@ def _row_for_instrument(
     ticker = str(latest.get("ticker") or intel_pro.get("ticker") or instrument_id.split("_", 1)[-1])
     day_change = _safe_float(quote.get("day_change_pct"))
     price = _safe_float(quote.get("current"))
+    mention_summary = _mention_summary(mention_stats)
+    target_upside = _target_upside_pct(price, facts, intel_pro)
     micro, vibe = _row_microcopy(
         ticker,
         day_change,
@@ -439,6 +540,7 @@ def _row_for_instrument(
     return {
         "instrument_id": instrument_id,
         "ticker": ticker,
+        "position_type": position_type,
         "market": market,
         "sector_label": intel_pro.get("sector_label", ""),
         "industry_label": intel_pro.get("industry_label", ""),
@@ -461,7 +563,7 @@ def _row_for_instrument(
         ][:3],
         "facts": _facts_summary(facts),
         "technicals": _technical_summary(technical),
-        "news_velocity": _mention_summary(mention_stats),
+        "news_velocity": mention_summary,
         "premium_signals": _row_premium_signals(
             ticker,
             price,
@@ -471,7 +573,7 @@ def _row_for_instrument(
             technical,
             alert_flags,
         ),
-        "target_upside_pct": _target_upside_pct(price, facts, intel_pro),
+        "target_upside_pct": target_upside,
         "top_metric_summaries": [
             summary for summary in (
                 _metric_summary(intel_pro, "valuation", "Analyst target"),
@@ -485,6 +587,16 @@ def _row_for_instrument(
             "vibe": vibe,
             "source": "rules",
         },
+        **_row_attention(
+            position_type,
+            ticker,
+            day_change,
+            target_upside,
+            facts,
+            technical,
+            mention_summary,
+            alert_flags,
+        ),
         "coverage_status": "ready" if intel_pro else "score_pending",
         "has_intel_pro": bool(intel_pro),
     }
@@ -872,6 +984,50 @@ def _portfolio_diagnostics(
     }
 
 
+def _attention_items(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "instrument_id": row.get("instrument_id"),
+            "ticker": row.get("ticker"),
+            "position_type": row.get("position_type", "watchlist"),
+            "price": row.get("price"),
+            "currency": row.get("currency", "USD"),
+            "day_change_pct": row.get("day_change_pct"),
+            "attention_score": row.get("attention_score", 0),
+            "attention_reason": row.get("attention_reason", ""),
+            "attention_kind": row.get("attention_kind", "calm"),
+            "suggested_action": row.get("suggested_action", "Review"),
+            "action_tone": row.get("action_tone", "neutral"),
+            "sector_label": row.get("sector_label", ""),
+        }
+        for row in sorted(rows, key=lambda item: item.get("attention_score") or 0, reverse=True)[:8]
+    ]
+
+
+def _risk_summary(rows: list[dict[str, Any]], portfolio: dict[str, Any]) -> dict[str, Any]:
+    holdings = [row for row in rows if row.get("position_type") == "holding"]
+    watching = [row for row in rows if row.get("position_type") != "holding"]
+    hot_holdings = [row for row in holdings if (row.get("attention_score") or 0) >= 70]
+    clusters = portfolio.get("clusters") or []
+    dominant = clusters[0] if clusters else {}
+    if hot_holdings:
+        headline = f"{hot_holdings[0].get('ticker')} needs review first"
+        body = str(hot_holdings[0].get("attention_reason") or "A holding has a material signal.")
+    elif dominant:
+        headline = f"{dominant.get('sector')} dominates your tracked names"
+        body = f"{round(float(dominant.get('weight_pct') or 0))}% of tracked names sit in {dominant.get('sector')}. Keep an eye on single-theme risk."
+    else:
+        headline = "No obvious risk cluster yet"
+        body = "Add more holdings/watchlist names and Tikrr will detect concentration, technical, and news risk."
+    return {
+        "headline": headline,
+        "body": body,
+        "holdings_with_attention": len(hot_holdings),
+        "holding_count": len(holdings),
+        "watchlist_count": len(watching),
+    }
+
+
 def _event_radar(rows: list[dict[str, Any]], portfolio: dict[str, Any]) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
 
@@ -1049,6 +1205,7 @@ def build_watchlist_view(
     uid: str,
     tracked_stocks: list[str],
     *,
+    positions: dict[str, Any] | None = None,
     active_universes: dict[str, str] | None = None,
     include_llm_brief: bool = True,
 ) -> dict[str, Any]:
@@ -1084,6 +1241,7 @@ def build_watchlist_view(
     for instrument_id in ids:
         row = _row_for_instrument(
             instrument_id,
+            _position_type(instrument_id, positions),
             latest_by_id.get(instrument_id) or {},
             intel_by_id.get(instrument_id) or {},
             facts_by_id.get(instrument_id) or {},
@@ -1095,20 +1253,26 @@ def build_watchlist_view(
             rows.append(row)
 
     rows = _apply_row_deltas(rows, previous_view)
-    # Deterministic default order: biggest absolute day-change first.
-    rows.sort(key=lambda r: abs(r.get("day_change_pct") or 0), reverse=True)
+    rows.sort(key=lambda r: r.get("attention_score") or 0, reverse=True)
     pulse = _pulse_headline(rows)
     portfolio = _portfolio_diagnostics(rows, store)
+    suggestions = portfolio.get("suggestions") or []
     event_radar = _event_radar(rows, portfolio)
+    holdings_count = len([row for row in rows if row.get("position_type") == "holding"])
 
     return {
         "uid": uid,
         "tracked_count": len(rows),
+        "holdings_count": holdings_count,
+        "watchlist_count": len(rows) - holdings_count,
         "tracked_ids": [r["instrument_id"] for r in rows],
         "rows": rows,
         "pulse": pulse,
         "brief": _build_portfolio_brief(rows, pulse, store, include_llm=include_llm_brief),
         "portfolio": portfolio,
+        "attention_items": _attention_items(rows),
+        "suggestions": suggestions,
+        "risk_summary": _risk_summary(rows, portfolio),
         "event_radar": event_radar,
         "changes": _change_summary(rows, previous_view),
         "built_at": datetime.now(timezone.utc).isoformat(),

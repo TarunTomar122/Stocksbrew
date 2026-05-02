@@ -21,18 +21,20 @@ export default async function WatchlistPage() {
 
   const userDoc = await getUserDoc(session.uid);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
+  const positions = userDoc?.watchlist_positions || {};
   const isSubscribed = resolveIsSubscribed(userDoc);
 
   let view = await getWatchlistView(session.uid);
   if (!view && tracked.length > 0) {
-    view = await rebuildAndSaveWatchlistView(session.uid, tracked);
+    view = await rebuildAndSaveWatchlistView(session.uid, tracked, positions);
   }
 
   const rows = view?.rows ?? [];
-  const pulse = view?.pulse ?? null;
-  const brief = view?.brief ?? null;
-  const portfolio = (view?.portfolio ?? null) as Dict | null;
-  const changes = asDict(view?.changes);
+  const holdings = rows.filter((row) => row.position_type === "holding");
+  const watching = rows.filter((row) => row.position_type !== "holding");
+  const attention = (view?.attention_items || []) as Dict[];
+  const suggestions = (view?.suggestions || []) as Dict[];
+  const riskSummary = asDict(view?.risk_summary);
 
   if (!isSubscribed) {
     return <UnsubscribedState />;
@@ -50,17 +52,18 @@ export default async function WatchlistPage() {
   }
 
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 md:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-10 lg:gap-14">
-          <SideRail rows={rows} pulse={pulse} builtAt={view?.built_at} />
-
-          <div className="flex flex-col gap-10 min-w-0">
-            {brief && <BriefingSection brief={brief} />}
-            <ChangesSection changes={changes} />
-            {portfolio && <PortfolioDiagnosisSection portfolio={portfolio} />}
-            <AlertsSection rows={rows} />
-          </div>
+    <main className="flex-grow bg-[#fafafa]">
+      <div className="mx-auto grid w-full max-w-screen-2xl grid-cols-1 gap-8 px-6 py-6 md:px-10 lg:grid-cols-[300px_minmax(0,1fr)] lg:px-16 lg:py-10">
+        <WatchlistRail
+          rows={rows}
+          holdings={holdings}
+          watching={watching}
+          builtAt={view?.built_at}
+        />
+        <div className="flex min-w-0 flex-col gap-6">
+          <AttentionDesk items={attention} rows={rows} />
+          <HoldingsAndWatchlist holdings={holdings} watching={watching} />
+          <RiskAndSuggestions risk={riskSummary} suggestions={suggestions} />
         </div>
       </div>
     </main>
@@ -91,6 +94,285 @@ function PageTitle({
       </div>
     </header>
   );
+}
+
+function WatchlistRail({
+  rows,
+  holdings,
+  watching,
+  builtAt,
+}: {
+  rows: WatchlistRow[];
+  holdings: WatchlistRow[];
+  watching: WatchlistRow[];
+  builtAt?: string;
+}) {
+  const up = rows.filter((row) => (row.day_change_pct ?? 0) > 0).length;
+  const down = rows.filter((row) => (row.day_change_pct ?? 0) < 0).length;
+  const reviewCount = rows.filter((row) => (row.attention_score ?? 0) >= 70).length;
+  return (
+    <aside className="lg:sticky lg:top-24 flex h-fit flex-col gap-5 rounded-[28px] border border-[#e5e7eb] bg-white p-5 shadow-[0_24px_70px_rgba(17,24,39,0.06)]">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9ca3af]">
+          Personal radar
+        </p>
+        <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.04em] text-[#111111]">
+          Stocks you care about
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-[#6b7280]">
+          {rows.length} tracked · {holdings.length} holdings · {watching.length} watching · refreshed{" "}
+          {builtAt ? formatRelative(builtAt) : "never"}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <RailStat label="Need review" value={reviewCount} tone={reviewCount ? "hot" : "calm"} />
+        <RailStat label="Up today" value={up} tone="up" />
+        <RailStat label="Down today" value={down} tone="down" />
+        <RailStat label="Slots used" value={`${rows.length}/${SLOT_CAP}`} tone="ink" />
+      </div>
+
+      <Link
+        href="/"
+        className="inline-flex items-center justify-center rounded-full bg-[#111111] px-4 py-2.5 text-[13px] font-semibold text-white transition-transform hover:-translate-y-0.5"
+      >
+        Add another stock
+      </Link>
+    </aside>
+  );
+}
+
+function RailStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone: "hot" | "calm" | "up" | "down" | "ink";
+}) {
+  const toneClass =
+    tone === "hot"
+      ? "bg-[#fff7ed] text-[#c2410c]"
+      : tone === "up"
+        ? "bg-[#ecfdf5] text-[#047857]"
+        : tone === "down"
+          ? "bg-[#fef2f2] text-[#dc2626]"
+          : "bg-[#f8f9fa] text-[#111111]";
+  return (
+    <div className={`rounded-2xl px-3 py-3 ${toneClass}`}>
+      <div className="text-[22px] font-semibold leading-none tracking-[-0.03em]">{value}</div>
+      <div className="mt-1 text-[11px] font-medium opacity-70">{label}</div>
+    </div>
+  );
+}
+
+function AttentionDesk({ items, rows }: { items: Dict[]; rows: WatchlistRow[] }) {
+  const visible = items.length ? items : rows.slice(0, 4);
+  const urgent = visible.filter((item) => (num(item.attention_score) ?? 0) >= 70).length;
+  return (
+    <section className="rounded-[32px] border border-[#e5e7eb] bg-white p-5 md:p-7 shadow-[0_24px_70px_rgba(17,24,39,0.06)]">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0052ff]">
+            Needs attention
+          </p>
+          <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.045em] text-[#111111]">
+            {urgent ? `${urgent} thing${urgent === 1 ? "" : "s"} worth checking` : "Nothing urgent today"}
+          </h2>
+          <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#6b7280]">
+            Ranked by abnormal moves, risk signals, technical extremes, news velocity, and analyst runway.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-3 xl:grid-cols-2">
+        {visible.slice(0, 6).map((item) => {
+          const ticker = String(item.ticker || "");
+          const position = String(item.position_type || "watchlist");
+          return (
+            <Link
+              key={`${ticker}-${item.attention_kind || ""}`}
+              href={`/stock/${encodeURIComponent(ticker)}`}
+              className="group rounded-3xl border border-[#e5e7eb] bg-[#fbfbfb] p-4 transition-all hover:-translate-y-0.5 hover:border-[#111111] hover:bg-white"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <StockLogo ticker={ticker} market="US" size={36} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[16px] font-semibold text-[#111111]">{ticker}</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280] ring-1 ring-[#e5e7eb]">
+                        {position === "holding" ? "Holding" : "Watching"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[12px] text-[#6b7280]">
+                      {formatCurrency(num(item.price), String(item.currency || "USD"))} · {formatSignedPct(num(item.day_change_pct))}
+                    </p>
+                  </div>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${actionToneClass(String(item.action_tone || "neutral"))}`}>
+                  {String(item.suggested_action || "Review")}
+                </span>
+              </div>
+              <p className="mt-4 text-[14px] leading-6 text-[#374151]">
+                {String(item.attention_reason || "No major anomaly stood out.")}
+              </p>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function HoldingsAndWatchlist({
+  holdings,
+  watching,
+}: {
+  holdings: WatchlistRow[];
+  watching: WatchlistRow[];
+}) {
+  return (
+    <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <StockBucket
+        title="Holdings"
+        subtitle="Owned names. Risk and thesis changes get priority."
+        rows={holdings}
+        empty="No holdings yet. Mark a tracked stock as holding to make risk alerts sharper."
+      />
+      <StockBucket
+        title="Watchlist"
+        subtitle="Names you are stalking for entries, catalysts, or cleaner setups."
+        rows={watching}
+        empty="No watchlist names yet."
+      />
+    </section>
+  );
+}
+
+function StockBucket({
+  title,
+  subtitle,
+  rows,
+  empty,
+}: {
+  title: string;
+  subtitle: string;
+  rows: WatchlistRow[];
+  empty: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-[#e5e7eb] bg-white p-5 shadow-[0_18px_50px_rgba(17,24,39,0.05)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-[20px] font-semibold tracking-[-0.03em] text-[#111111]">{title}</h3>
+          <p className="mt-1 text-[13px] leading-5 text-[#6b7280]">{subtitle}</p>
+        </div>
+        <span className="rounded-full bg-[#f8f9fa] px-3 py-1 text-[12px] font-semibold text-[#111111]">
+          {rows.length}
+        </span>
+      </div>
+      <div className="mt-5 flex flex-col">
+        {rows.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-[#e5e7eb] p-4 text-[13px] text-[#6b7280]">
+            {empty}
+          </p>
+        ) : (
+          rows.map((row) => <TrackedRow key={row.instrument_id} row={row} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TrackedRow({ row }: { row: WatchlistRow }) {
+  const score = row.attention_score ?? 0;
+  return (
+    <Link
+      href={`/stock/${encodeURIComponent(row.ticker)}`}
+      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-[#f3f4f6] py-3 first:border-t-0"
+    >
+      <StockLogo ticker={row.ticker} market={row.market === "IN" ? "IN" : "US"} size={34} />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-semibold text-[#111111]">{row.ticker}</span>
+          <span className="text-[12px] font-semibold tabular-nums text-[#6b7280]">
+            {formatSignedPct(row.day_change_pct)}
+          </span>
+        </div>
+        <p className="truncate text-[12px] text-[#6b7280]">{row.attention_reason || row.brief_tile.micro}</p>
+      </div>
+      <div className="text-right">
+        <div className="text-[13px] font-semibold tabular-nums text-[#111111]">
+          {formatCurrency(row.price, row.currency)}
+        </div>
+        <div className={`text-[11px] font-semibold ${score >= 70 ? "text-[#c2410c]" : "text-[#9ca3af]"}`}>
+          {score} attention
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function RiskAndSuggestions({
+  risk,
+  suggestions,
+}: {
+  risk: Dict;
+  suggestions: Dict[];
+}) {
+  return (
+    <section className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="rounded-[28px] border border-[#e5e7eb] bg-[#111111] p-5 text-white shadow-[0_18px_50px_rgba(17,24,39,0.12)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9ca3af]">
+          Biggest risk
+        </p>
+        <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.04em]">
+          {String(risk.headline || "No major risk cluster yet")}
+        </h3>
+        <p className="mt-3 text-[14px] leading-6 text-[#d1d5db]">
+          {String(risk.body || "Add more names and Tikrr will watch concentration, technical stress, and news anomalies.")}
+        </p>
+      </div>
+      <div className="rounded-[28px] border border-[#e5e7eb] bg-white p-5 shadow-[0_18px_50px_rgba(17,24,39,0.05)]">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9ca3af]">
+              Suggestions
+            </p>
+            <h3 className="mt-1 text-[20px] font-semibold tracking-[-0.03em] text-[#111111]">
+              Add next
+            </h3>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col">
+          {suggestions.slice(0, 4).map((item) => (
+            <div
+              key={String(item.instrument_id || item.ticker)}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-[#f3f4f6] py-3 first:border-t-0"
+            >
+              <div>
+                <p className="text-[14px] font-semibold text-[#111111]">{String(item.ticker || "")}</p>
+                <p className="mt-0.5 text-[12px] leading-5 text-[#6b7280]">
+                  {String(item.why || item.reason || "Related to your tracked universe.")}
+                </p>
+              </div>
+              <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+                {num(item.score)?.toFixed(0) ?? "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function actionToneClass(tone: string): string {
+  if (tone === "positive") return "bg-[#ecfdf5] text-[#047857]";
+  if (tone === "negative") return "bg-[#fff7ed] text-[#c2410c]";
+  return "bg-[#f8f9fa] text-[#374151]";
 }
 
 // -----------------------------------------------------------------------------
