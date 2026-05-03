@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock, patch
 
+from backend.llm_client import parse_json_content
 from backend.llm_enrichment import OpenAIArticleEnricher, _fallback_payload, apply_enrichment
 from backend.models import Article
 
@@ -422,6 +423,12 @@ class LLMEnrichmentTest(unittest.TestCase):
         self.assertEqual(calls["count"], 1)
         self.assertEqual(first[0].topic_label, "Amazon")
         self.assertEqual(second[0].topic_label, "Amazon")
+
+    def test_parse_json_content_rejects_empty(self) -> None:
+        for raw in ("", "   ", "\n", "```\n```", "```json\n```"):
+            with self.subTest(raw=repr(raw)):
+                with self.assertRaises(ValueError):
+                    parse_json_content(raw)
 
 
 if __name__ == "__main__":

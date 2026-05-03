@@ -8,6 +8,7 @@ refreshed in the current pass.
 from __future__ import annotations
 
 import argparse
+import logging
 import subprocess
 import sys
 import time
@@ -18,7 +19,10 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.pipeline_logging import configure_pipeline_logging
 from backend.storage import TraceMoneyStore
+
+logger = logging.getLogger(__name__)
 
 
 DAILY = timedelta(hours=24)
@@ -545,14 +549,30 @@ def _run_stage(stage: Stage, *, dry_run: bool, store: TraceMoneyStore, cwd: Path
     print(f"\n==> {stage.label}")
     print("    " + " ".join(stage.command))
     if dry_run:
+        logger.info("pipeline stage dry-run key=%s", stage.key)
         return True
     started = time.time()
+    logger.info("pipeline stage start key=%s command=%s", stage.key, " ".join(stage.command))
     result = subprocess.run(stage.command, cwd=str(cwd), check=False)
     elapsed = time.time() - started
     if result.returncode != 0:
+        cmd = " ".join(stage.command)
+        logger.error(
+            "pipeline stage failed key=%s returncode=%s elapsed_s=%.2f command=%s",
+            stage.key,
+            result.returncode,
+            elapsed,
+            cmd,
+        )
         print(f"    failed with exit code {result.returncode}")
         return False
     _save_stage_success(store, stage, elapsed)
+    logger.info(
+        "pipeline stage ok key=%s elapsed_s=%.2f market=%s",
+        stage.key,
+        elapsed,
+        stage.market or "",
+    )
     print(f"    ok in {elapsed:.1f}s")
     return True
 
@@ -574,6 +594,7 @@ def main() -> None:
     parser.add_argument("--in-ai-universe")
     args = parser.parse_args()
 
+    configure_pipeline_logging()
     markets = [market.strip().upper() for market in args.markets.split(",") if market.strip()]
     unsupported = sorted(set(markets) - {"US", "IN"})
     if unsupported:
@@ -585,6 +606,14 @@ def main() -> None:
     now = _now()
     force = set(args.force)
 
+    logger.info(
+        "pipeline start markets=%s session_phase=%s dry_run=%s force=%s",
+        ",".join(markets),
+        args.session_phase,
+        args.dry_run,
+        sorted(force) if force else [],
+    )
+
     stages: list[Stage] = _global_stages()
     market_terminal_keys: list[str] = []
     for market in markets:
@@ -594,6 +623,12 @@ def main() -> None:
         ai_universe = _resolve_universe(store, market, "ai", ai_arg)
         if not price_universe or not ai_universe:
             raise ValueError(f"Could not resolve price/AI universes for {market}")
+        logger.info(
+            "pipeline market universes market=%s price_universe=%s ai_universe=%s",
+            market,
+            price_universe,
+            ai_universe,
+        )
         print(f"{market}: price_universe={price_universe}, ai_universe={ai_universe}")
         stages.extend(_market_stages(
             store,
@@ -619,14 +654,22 @@ def main() -> None:
         print(f"  [{marker}] {stage.key:<38} {reason}")
         if should_run:
             due_count += 1
+            logger.info("pipeline run stage key=%s reason=%s", stage.key, reason)
             ok = _run_stage(stage, dry_run=args.dry_run, store=store, cwd=repo_root)
             if not ok:
+                logger.error("pipeline aborted after failed stage key=%s", stage.key)
                 raise SystemExit(1)
             changed.add(stage.key)
         else:
             skipped_count += 1
 
     mode = "dry run" if args.dry_run else "run"
+    logger.info(
+        "pipeline complete mode=%s due=%s skipped=%s",
+        mode,
+        due_count,
+        skipped_count,
+    )
     print(f"\n{mode} complete: {due_count} due, {skipped_count} skipped.")
 
 

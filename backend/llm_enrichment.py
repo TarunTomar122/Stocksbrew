@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -35,6 +36,8 @@ from backend.topicing import (
     resolve_stock_reference,
     slugify,
 )
+
+logger = logging.getLogger(__name__)
 
 load_backend_env()
 
@@ -462,7 +465,7 @@ class OpenAIArticleEnricher:
         message = payload["choices"][0]["message"]
         if message.get("refusal"):
             raise ValueError("MiMo refused enrichment request")
-        content = message.get("content", "")
+        content = (message.get("content") or "").strip()
         if not content:
             raise ValueError("MiMo returned empty content")
         return parse_json_content(content)
@@ -508,6 +511,14 @@ class OpenAIArticleEnricher:
                 last_error = error
                 if attempt >= self.max_attempts or not self._is_retryable(error):
                     raise
+                logger.warning(
+                    "LLM HTTP retry attempt=%s/%s market=%s source_id=%s err=%s",
+                    attempt,
+                    self.max_attempts,
+                    article.market,
+                    article.source_id,
+                    error,
+                )
                 time.sleep(min(2 ** (attempt - 1), 8))
         if last_error is not None:
             raise last_error
@@ -566,21 +577,47 @@ class OpenAIArticleEnricher:
         })
 
     def _enrich_article(self, article: Article, cache_key: str) -> Article:
-        payload = self._extract(article)
+        """Parse failures and schema mismatches fall back to repair prompt, then heuristics."""
+        recoverable = (ValueError, json.JSONDecodeError)
+
         try:
+            payload = self._extract(article, repair=False)
             enriched = apply_enrichment(article, payload)
-        except ValueError:
+            self._save_cached_payload(cache_key, article, payload)
+            return enriched
+        except recoverable as exc:
+            logger.warning(
+                "LLM enrich primary failed market=%s source_id=%s err=%s url=%s",
+                article.market,
+                article.source_id,
+                exc,
+                article.url,
+            )
+
+        try:
             repaired_payload = self._extract(article, repair=True)
-            try:
-                enriched = apply_enrichment(article, repaired_payload)
-                self._save_cached_payload(cache_key, article, repaired_payload)
-                return enriched
-            except ValueError:
-                fallback_payload = _fallback_payload(article)
-                enriched = apply_enrichment(article, fallback_payload)
-                self._save_cached_payload(cache_key, article, fallback_payload)
-                return enriched
-        self._save_cached_payload(cache_key, article, payload)
+            enriched = apply_enrichment(article, repaired_payload)
+            self._save_cached_payload(cache_key, article, repaired_payload)
+            return enriched
+        except recoverable as exc:
+            logger.warning(
+                "LLM enrich repair failed market=%s source_id=%s err=%s url=%s",
+                article.market,
+                article.source_id,
+                exc,
+                article.url,
+            )
+
+        logger.warning(
+            "LLM enrich heuristic_fallback market=%s source_id=%s title=%.120s url=%s",
+            article.market,
+            article.source_id,
+            article.title or "",
+            article.url,
+        )
+        fallback_payload = _fallback_payload(article)
+        enriched = apply_enrichment(article, fallback_payload)
+        self._save_cached_payload(cache_key, article, fallback_payload)
         return enriched
 
 

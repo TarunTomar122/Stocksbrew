@@ -56,7 +56,9 @@ def schema_system_prompt(
 
 def parse_json_content(content: str) -> dict[str, Any]:
     """Parse model JSON, tolerating markdown fences or stray wrapper text."""
-    raw = content.strip()
+    raw = (content or "").strip()
+    if not raw:
+        raise ValueError("LLM returned empty JSON content")
     if raw.startswith("```"):
         lines = raw.splitlines()
         if lines and lines[0].strip().startswith("```"):
@@ -64,6 +66,8 @@ def parse_json_content(content: str) -> dict[str, Any]:
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         raw = "\n".join(lines).strip()
+    if not raw:
+        raise ValueError("LLM returned empty JSON content")
 
     try:
         parsed = json.loads(raw)

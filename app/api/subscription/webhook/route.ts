@@ -1,10 +1,37 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "standardwebhooks";
 import { adminFirestore } from "@/lib/firebase-admin";
 
+type WebhookLogLevel = "info" | "warn" | "error";
+
+function dodoWebhookLog(
+  deliveryId: string,
+  level: WebhookLogLevel,
+  msg: string,
+  meta?: Record<string, unknown>,
+) {
+  const payload = {
+    svc: "dodo-webhook",
+    delivery_id: deliveryId,
+    msg,
+    ...meta,
+  };
+  const line = JSON.stringify(payload);
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+}
+
 export async function POST(req: NextRequest) {
+  const deliveryId = req.headers.get("webhook-id")?.trim() || randomUUID();
   const rawBody = await req.text();
   const secret = process.env.DODO_WEBHOOK_SECRET ?? "";
+
+  dodoWebhookLog(deliveryId, "info", "request_received", {
+    body_bytes: rawBody.length,
+    verify_mode: secret ? "signed" : "unsigned_dev",
+  });
 
   // Verify signature when secret is configured
   if (secret) {
@@ -13,7 +40,7 @@ export async function POST(req: NextRequest) {
     const webhookSignature = req.headers.get("webhook-signature") ?? "";
 
     if (!webhookId || !webhookTimestamp || !webhookSignature) {
-      console.warn("Dodo webhook: missing signature headers");
+      dodoWebhookLog(deliveryId, "warn", "missing_signature_headers", {});
       return NextResponse.json({ error: "Missing signature headers" }, { status: 400 });
     }
 
@@ -25,44 +52,77 @@ export async function POST(req: NextRequest) {
         "webhook-signature": webhookSignature,
       });
     } catch (err) {
-      console.error("Dodo webhook: signature verification failed", err);
+      dodoWebhookLog(deliveryId, "error", "signature_verification_failed", {
+        error: String(err),
+      });
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   } else {
-    console.warn("Dodo webhook: DODO_WEBHOOK_SECRET not set — skipping verification (dev only)");
+    dodoWebhookLog(deliveryId, "warn", "secret_not_set_skipping_verify", {});
   }
 
   let event: { type: string; data: Record<string, unknown> };
   try {
     event = JSON.parse(rawBody);
-  } catch {
+  } catch (err) {
+    dodoWebhookLog(deliveryId, "error", "invalid_json_body", { error: String(err) });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const { type, data } = event;
-  console.log("Dodo webhook event:", type);
+  dodoWebhookLog(deliveryId, "info", "event_parsed", {
+    type,
+    subscription_id: (data.subscription_id ?? data.id) as string | undefined,
+  });
 
   // Resolve user from metadata
   const metadata = (data.metadata ?? {}) as Record<string, string>;
   const uid: string | null = metadata.user_id ?? null;
 
-  if (!uid) {
-    // Try to find user by subscriptionId
-    const subId = (data.subscription_id ?? data.id) as string | undefined;
-    if (subId) {
-      const snap = await adminFirestore
-        .collection("users")
-        .where("subscriptionId", "==", subId)
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        await handleEvent(snap.docs[0].id, type, data);
+  try {
+    if (!uid) {
+      // Try to find user by subscriptionId
+      const subId = (data.subscription_id ?? data.id) as string | undefined;
+      if (subId) {
+        dodoWebhookLog(deliveryId, "info", "resolve_user_by_subscription_lookup", {
+          subscription_id: subId,
+        });
+        const snap = await adminFirestore
+          .collection("users")
+          .where("subscriptionId", "==", subId)
+          .limit(1)
+          .get();
+        if (!snap.empty) {
+          const resolvedUid = snap.docs[0].id;
+          await handleEvent(resolvedUid, type, data, deliveryId);
+          dodoWebhookLog(deliveryId, "info", "handler_complete_lookup_path", {
+            uid: resolvedUid,
+            type,
+          });
+        } else {
+          dodoWebhookLog(deliveryId, "warn", "no_user_for_subscription", {
+            subscription_id: subId,
+            type,
+          });
+        }
+      } else {
+        dodoWebhookLog(deliveryId, "warn", "no_uid_and_no_subscription_id", { type });
       }
+      return NextResponse.json({ received: true });
     }
-    return NextResponse.json({ received: true });
+
+    await handleEvent(uid, type, data, deliveryId);
+    dodoWebhookLog(deliveryId, "info", "handler_complete", { uid, type });
+  } catch (err) {
+    dodoWebhookLog(deliveryId, "error", "handler_threw", {
+      uid: uid ?? undefined,
+      type,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    return NextResponse.json({ error: "handler_failed" }, { status: 500 });
   }
 
-  await handleEvent(uid, type, data);
   return NextResponse.json({ received: true });
 }
 
@@ -70,6 +130,7 @@ async function handleEvent(
   uid: string,
   type: string,
   data: Record<string, unknown>,
+  deliveryId: string,
 ) {
   const ref = adminFirestore.collection("users").doc(uid);
   const subId = (data.subscription_id ?? data.id) as string | undefined;
@@ -94,6 +155,7 @@ async function handleEvent(
         },
         { merge: true },
       );
+      dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: subId });
       break;
     }
 
@@ -102,7 +164,10 @@ async function handleEvent(
       const paymentSubId =
         (data.subscription_id as string | undefined) ??
         (data.subscriptionId as string | undefined);
-      if (!paymentSubId) break;
+      if (!paymentSubId) {
+        dodoWebhookLog(deliveryId, "info", "payment_succeeded_no_subscription_skipped", { uid });
+        break;
+      }
       await ref.set(
         {
           is_subscribed: true,
@@ -113,6 +178,7 @@ async function handleEvent(
         },
         { merge: true },
       );
+      dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: paymentSubId });
       break;
     }
 
@@ -121,6 +187,7 @@ async function handleEvent(
         { subscriptionStatus: "payment_failed", lastPaymentFailedAt: new Date().toISOString() },
         { merge: true },
       );
+      dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type });
       break;
     }
 
@@ -129,6 +196,7 @@ async function handleEvent(
         { is_subscribed: false, subscriptionStatus: "on_hold" },
         { merge: true },
       );
+      dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type });
       break;
     }
 
@@ -142,18 +210,19 @@ async function handleEvent(
         },
         { merge: true },
       );
+      dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type });
       break;
     }
 
     case "subscription.updated": {
       const cancelAtPeriodEnd = Boolean(data.cancel_at_next_billing_date);
       await ref.set({ cancelAtPeriodEnd }, { merge: true });
+      dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, cancelAtPeriodEnd });
       break;
     }
 
     default:
-      // Unhandled event type — log and move on
-      console.log("Dodo webhook: unhandled event type", type);
+      dodoWebhookLog(deliveryId, "info", "unhandled_event_type", { type, uid });
   }
 }
 

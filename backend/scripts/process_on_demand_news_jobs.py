@@ -8,6 +8,7 @@ into the active AI namespace.
 from __future__ import annotations
 
 import argparse
+import logging
 import traceback
 from datetime import datetime, timezone
 from typing import Any
@@ -15,8 +16,11 @@ from typing import Any
 from backend.instrument_universe import get_instrument
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_pipeline import collect_per_ticker_articles
+from backend.pipeline_logging import configure_pipeline_logging
 from backend.stock_intelligence import build_stock_intelligence_docs
 from backend.storage import TraceMoneyStore
+
+logger = logging.getLogger(__name__)
 
 
 JOB_COLLECTION = "tm_on_demand_news_jobs"
@@ -98,6 +102,15 @@ def process_job(
         "error": "",
     }, merge=True)
 
+    logger.info(
+        "on_demand_job start job_id=%s instrument_id=%s market=%s universe=%s attempt=%s",
+        job_doc.id,
+        instrument_id,
+        market,
+        universe_id,
+        attempts,
+    )
+
     try:
         if market not in {"US", "IN"}:
             raise ValueError(f"Unsupported market {market!r}")
@@ -162,6 +175,13 @@ def process_job(
         }, merge=True)
         return "complete"
     except Exception as exc:
+        logger.exception(
+            "on_demand_job failed job_id=%s instrument_id=%s market=%s universe=%s",
+            job_doc.id,
+            instrument_id,
+            market,
+            universe_id,
+        )
         ref.set({
             "status": "failed",
             "error": str(exc),
@@ -179,12 +199,16 @@ def main() -> None:
     parser.add_argument("--broad-cap", type=int, default=0)
     args = parser.parse_args()
 
+    configure_pipeline_logging()
+
     store = TraceMoneyStore()
     jobs = _queued_jobs(store, args.limit)
     if not jobs:
+        logger.info("on_demand_job queue empty")
         print("No on-demand news jobs queued.")
         return
 
+    logger.info("on_demand_job batch size=%s", len(jobs))
     for job in jobs:
         instrument_id = (job.to_dict() or {}).get("instrument_id") or job.id
         try:
@@ -194,8 +218,20 @@ def main() -> None:
                 per_stock_cap=args.per_stock_cap,
                 broad_cap=args.broad_cap,
             )
+            logger.info(
+                "on_demand_job finished job_id=%s instrument_id=%s status=%s",
+                job.id,
+                instrument_id,
+                status,
+            )
             print(f"  [ok] {instrument_id}: {status}")
         except Exception as exc:
+            logger.exception(
+                "on_demand_job worker error job_id=%s instrument_id=%s err=%s",
+                job.id,
+                instrument_id,
+                exc,
+            )
             print(f"  [fail] {instrument_id}: {exc}")
 
 

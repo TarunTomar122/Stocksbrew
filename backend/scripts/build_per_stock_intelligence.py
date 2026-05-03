@@ -13,17 +13,21 @@ instead of showing filler.
 from __future__ import annotations
 
 import argparse
+import logging
 
 from backend.instrument_universe import list_instruments
 from backend.landing_metrics import build_stock_technical_doc
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_pipeline import collect_per_ticker_articles
+from backend.pipeline_logging import configure_pipeline_logging
 from backend.scripts.build_context_intelligence import main as build_context_intelligence_main
 from backend.scripts.materialize_views import main as materialize_views_main
 from backend.stock_intelligence import build_no_news_intelligence_doc, build_stock_intelligence_docs
 from backend.storage import TraceMoneyStore
 
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 def _avg_volume_from_history(history_points: list[dict]) -> float | None:
@@ -54,6 +58,17 @@ def main() -> None:
     parser.add_argument("--skip-context", action="store_true", help="Skip market/sector context brief build")
     parser.add_argument("--skip-materialize", action="store_true", help="Skip dashboard/instrument view materialization")
     args = parser.parse_args()
+    configure_pipeline_logging()
+    logger.info(
+        "per_stock_intelligence start market=%s universe=%s per_stock_cap=%s broad_cap=%s skip_context=%s skip_materialize=%s include_no_news=%s",
+        args.market,
+        args.universe,
+        args.per_stock_cap,
+        args.broad_cap,
+        args.skip_context,
+        args.skip_materialize,
+        args.include_no_news,
+    )
 
     store = TraceMoneyStore()
     instruments = list_instruments(args.market, args.universe)
@@ -76,6 +91,12 @@ def main() -> None:
 
     if not raw_articles:
         print("[per-stock] no articles after partitioned fetch — skipping enrichment and synthesis")
+        logger.info(
+            "per_stock_intelligence early_exit reason=no_articles market=%s universe=%s instruments=%s",
+            args.market,
+            args.universe,
+            len(instruments),
+        )
         return
 
     enricher = OpenAIArticleEnricher(store=store)
@@ -108,6 +129,7 @@ def main() -> None:
                 if isinstance(doc, dict) and doc.get("instrument_id"):
                     intel_pro_by_id[doc["instrument_id"]] = doc
         except Exception as exc:
+            logger.warning("per_stock_intelligence could not load stock_intel_pro: %s", exc)
             print(f"[per-stock] warn: could not load stock_intel_pro docs: {exc}")
 
         as_of_date = datetime.now(timezone.utc).date().isoformat()
@@ -156,6 +178,18 @@ def main() -> None:
         sys.argv = ["materialize_views", "--market", args.market, "--universe", args.universe]
         materialize_views_main()
 
+    logger.info(
+        "per_stock_intelligence complete market=%s universe=%s briefs=%s instruments=%s",
+        args.market,
+        args.universe,
+        len(docs),
+        len(instruments),
+    )
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logger.exception("per_stock_intelligence failed")
+        raise

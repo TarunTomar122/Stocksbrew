@@ -1,6 +1,9 @@
 import { getMarketSnapshot } from "@/lib/firestore";
 import { listSectorContextDocs } from "@/lib/sector";
-import { getThematicScreens, type ThematicScreensDoc } from "@/lib/screens";
+import { getThematicScreens } from "@/lib/screens";
+import { allLearnPosts } from "@/lib/learn-data";
+
+export const dynamic = "force-dynamic";
 
 const BASE_URL = "https://tikrr.com";
 
@@ -80,11 +83,7 @@ export async function GET() {
     const screenIds = new Set<string>();
     for (const market of ["US", "IN"] as const) {
       try {
-        let doc: ThematicScreensDoc | null = null;
-        try {
-          const { getThematicScreens } = await import("@/lib/screens");
-          doc = await getThematicScreens(market);
-        } catch { /* might not load */ }
+        const doc = await getThematicScreens(market);
         if (!doc) continue;
         for (const s of doc.screens) {
           if (!s.id || screenIds.has(s.id)) continue;
@@ -96,12 +95,9 @@ export async function GET() {
   } catch { /* screens might not load */ }
 
   // Learn/blog pages
-  try {
-    const { allLearnPosts } = await import("@/lib/learn-data");
-    for (const post of allLearnPosts) {
-      entries.push(urlEntry(`/learn/${post.slug}`, "0.6", "monthly"));
-    }
-  } catch { /* learn data might not exist yet */ }
+  for (const post of allLearnPosts) {
+    entries.push(urlEntry(`/learn/${post.slug}`, "0.6", "monthly"));
+  }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
