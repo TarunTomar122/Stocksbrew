@@ -29,7 +29,7 @@ const COLUMNS: Column[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "Pricing", href: "/subscribe" },
-      { label: "Blog", href: "/blog" },
+      { label: "Learn", href: "/learn" },
       { label: "Contact", href: "mailto:hello@tikrr.com", external: true },
     ],
   },

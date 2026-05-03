@@ -163,7 +163,7 @@ From `backend/config/instrument_universe.json` (US):
 - `us_test_12`: 12 symbols
 - `us_price_8`: 8 symbols
 - `us_core_100`: 100 symbols
-- `us_core_155`: 153 symbols (name says 155, actual list length is 153)
+- `us_core_155`: broad US equity universe (see `instrument_universe.json` for the current member list)
 
 ## 7) Quick UI Mockup Shapes (from real docs)
 

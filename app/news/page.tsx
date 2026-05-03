@@ -1,13 +1,24 @@
+import type { Metadata } from "next";
 import { getCurrentMarket } from "@/lib/market";
 import { getNewsFeed } from "@/lib/news";
 import { RadarStyleNewsFeed } from "@/components/radar-style-news-feed";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "News · Tikrr",
+export const metadata: Metadata = {
+  title: "Market News",
   description:
-    "Daily market headlines with tone filters — scan fast and open the stories that matter.",
+    "Daily market headlines with tone filters — scan fast and open the stories that matter. Filter by bullish, bearish, or neutral sentiment.",
+  alternates: { canonical: "/news" },
+  openGraph: {
+    title: "Market News · Tikrr",
+    description: "Daily market headlines with tone filters — scan fast and open the stories that matter.",
+    url: "https://tikrr.com/news",
+  },
+  twitter: {
+    title: "Market News · Tikrr",
+    description: "Daily market headlines with tone filters — scan fast and open the stories that matter.",
+  },
 };
 
 export default async function NewsPage() {

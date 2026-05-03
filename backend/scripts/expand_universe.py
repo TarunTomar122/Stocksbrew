@@ -425,11 +425,9 @@ def main() -> None:
     # Write updated instrument_universe.json
     UNIVERSE_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    us_total = len(all_us_ids)
-    in_total = len(all_in_ids)
     print(f"\n✓ instrument_universe.json updated")
-    print(f"  US: us_core_155 has {us_total} stocks")
-    print(f"  IN: in_core_150 has {in_total} stocks")
+    print(f"  US: us_core_155 member list refreshed")
+    print(f"  IN: in_core_150 member list refreshed")
 
     # --- Update tikrr_eval_universe.json ---
     # Get all US tickers in the new universe
@@ -444,9 +442,7 @@ def main() -> None:
         "IN": in_symbols,
     }
     EVAL_PATH.write_text(json.dumps(eval_data, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\n✓ tikrr_eval_universe.json updated")
-    print(f"  US: {len(us_symbols)} symbols")
-    print(f"  IN: {len(in_symbols)} symbols")
+    print(f"\n✓ tikrr_eval_universe.json updated (US + IN)")
 
 
 if __name__ == "__main__":

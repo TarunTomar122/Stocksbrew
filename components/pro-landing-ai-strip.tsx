@@ -31,21 +31,21 @@ const VALUE_PROPS: ValueProp[] = [
     iconBg: "#eff6ff",
     iconFg: "#0052ff",
     title: "Numbers into pillars",
-    body: "Valuation, growth, quality, and momentum roll into scores you skim on the scorecard — the same four-pillar framing on every ticker Overview.",
+    body: "Tikrr reads the fundamentals and surfaces key insights into four pillars that you can skim on the scorecard.",
   },
   {
     icon: "mark_email_read",
     iconBg: "#ecfdf5",
     iconFg: "#047857",
     title: "Pinged when something moves",
-    body: "Breakouts, RSI extremes, earnings windows, and score shifts can hit your inbox when they trip on your Radar. WhatsApp delivery is on the way.",
+    body: "Breakouts, RSI extremes, earnings windows, and score shifts can hit your inbox when they trip on your Radar.",
   },
   {
     icon: "schedule",
     iconBg: "#fef3c7",
     iconFg: "#92400e",
     title: "AI runs twice daily",
-    body: "Morning and after-close passes re-read news and filings against your list so Overview tiles and AI briefs stay current.",
+    body: "Morning and after-close passes re-read news and filings against your list so Overview tiles and AI briefs stay current. WhatsApp delivery is on the way.",
   },
 ];
 
@@ -56,15 +56,7 @@ const OVERVIEW_DEMO_TILES: SignalTileModel[] = [
     bg: "#eff6ff",
     label: "Analyst target",
     headline: "+14.2%",
-    supporting: "Target $195 · 42 analysts",
-    tone: "up",
-  },
-  {
-    emoji: "📈",
-    bg: "#ecfdf5",
-    label: "Past 3M",
-    headline: "+22.1%",
-    supporting: "1M +8.4% · 6M +31.0%",
+    supporting: "Target $195 ·   42 analysts",
     tone: "up",
   },
   {
@@ -72,7 +64,7 @@ const OVERVIEW_DEMO_TILES: SignalTileModel[] = [
     bg: "#fef3c7",
     label: "RSI stretched",
     headline: "73",
-    supporting: "Overbought — pullback risk",
+    supporting: "Pullback risk",
     tone: "warn",
   },
   {
@@ -80,7 +72,7 @@ const OVERVIEW_DEMO_TILES: SignalTileModel[] = [
     bg: "#eff6ff",
     label: "Strong momentum",
     headline: "82",
-    supporting: "Top pillar on the scorecard",
+    supporting: "Top pillar",
     tone: "up",
   },
   {
@@ -88,7 +80,7 @@ const OVERVIEW_DEMO_TILES: SignalTileModel[] = [
     bg: "#fef3c7",
     label: "Next earnings",
     headline: "May 6",
-    supporting: "Catalyst window — watch for guide",
+    supporting: "Watch for guide",
     tone: "warn",
   },
   {
@@ -123,18 +115,7 @@ export function ProLandingAiStrip() {
   const track = useMemo(() => OVERVIEW_DEMO_TILES, []);
 
   return (
-    <section className="flex flex-col gap-6 rounded-[28px] border border-[#e5e7eb] bg-white p-6 md:p-8 shadow-[0_18px_50px_rgba(17,24,39,0.04)]">
-      <div className="flex flex-col gap-2 text-center max-w-3xl mx-auto">
-        <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
-          Same engine as the stock page
-        </span>
-        <h3 className="text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] text-[#111111] leading-tight">
-          Pro turns filings, prices, and news into decisions you can act on
-        </h3>
-        <p className="text-[14px] md:text-[15px] leading-relaxed text-[#6b7280]">
-          Same layouts as the stock page AI tab and Overview — shown here with fixed sample copy and figures.
-        </p>
-      </div>
+    <section className="flex flex-col gap-6 bg-white p-6 md:p-8 shadow-[0_18px_50px_rgba(17,24,39,0.04)]">
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {VALUE_PROPS.map((v) => (
@@ -165,48 +146,26 @@ export function ProLandingAiStrip() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-[#0052ff]">
-            AI tab · strategic directive
-          </span>
-          <p className="text-[12px] text-[#9ca3af]">Not a live read tied to your account.</p>
-        </div>
-        <StrategicDirectiveDemo ticker="NVDA" directive={LANDING_DEMO_DIRECTIVE} />
+  
+      <p className="text-[12px] text-[#9ca3af] text-center">demo component - not live data 👇</p>
 
+        <StrategicDirectiveDemo ticker="NVDA" directive={LANDING_DEMO_DIRECTIVE} />
         <StockAiDecisionCarousel ticker="NVDA" intelPro={null} />
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl border border-[#e5e7eb] bg-[#fafafa] p-4 md:p-5">
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">Why care today</h3>
+          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">Surfaces key insights from fundamentals</h3>
           <span className="text-[12px] text-[#6b7280]">Overview · sample figures</span>
         </div>
 
-        {reducedMotion ? (
+
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
             {track.map((s, i) => (
               <SignalTileCard key={`${s.label}-${i}`} signal={s} />
             ))}
           </div>
-        ) : (
-          <div
-            className="relative overflow-hidden rounded-xl py-1"
-            style={{
-              maskImage: "linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent)",
-              WebkitMaskImage: "linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent)",
-            }}
-          >
-            <div className="flex w-max animate-stock-ai-marquee">
-              {[0, 1].map((loop) => (
-                <div key={loop} className="flex shrink-0 items-stretch gap-3 pr-3">
-                  {track.map((s, i) => (
-                    <SignalTileCard key={`${loop}-${s.label}-${i}`} signal={s} />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+    
       </div>
     </section>
   );

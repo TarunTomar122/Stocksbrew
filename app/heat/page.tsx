@@ -5,13 +5,24 @@ import { HeatListView } from "@/components/heat-list";
 import { DivergenceListView } from "@/components/divergence-list";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Heat · Tikrr",
+export const metadata: Metadata = {
+  title: "Heat List",
   description:
-    "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe.",
+    "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe. Find stocks showing unusual volume, RSI extremes, and breakout signals.",
+  alternates: { canonical: "/heat" },
+  openGraph: {
+    title: "Heat List — Hot Stocks & Breakouts · Tikrr",
+    description: "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe.",
+    url: "https://tikrr.com/heat",
+  },
+  twitter: {
+    title: "Heat List — Hot Stocks & Breakouts · Tikrr",
+    description: "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe.",
+  },
 };
 
 function formatGeneratedAt(iso: string | undefined): string | null {

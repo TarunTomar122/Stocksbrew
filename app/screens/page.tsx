@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 
 import { StockLogo } from "@/components/stock-logo";
 import { getCurrentMarket } from "@/lib/market";
@@ -7,10 +8,20 @@ import type { ScreenMatchRow } from "@/lib/screens";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Screens · Tikrr",
+export const metadata: Metadata = {
+  title: "Thematic Screens",
   description:
     "Hand-picked thematic filters over Tikrr's four-pillar score — quality compounders, momentum leaders, oversold quality, and more.",
+  alternates: { canonical: "/screens" },
+  openGraph: {
+    title: "Thematic Screens — Curated Stock Filters · Tikrr",
+    description: "Hand-picked thematic filters over Tikrr's four-pillar score — quality compounders, momentum leaders, oversold quality, and more.",
+    url: "https://tikrr.com/screens",
+  },
+  twitter: {
+    title: "Thematic Screens — Curated Stock Filters · Tikrr",
+    description: "Hand-picked thematic filters over Tikrr's four-pillar score — quality compounders, momentum leaders, oversold quality, and more.",
+  },
 };
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
@@ -102,7 +113,7 @@ export default async function ScreensIndexPage() {
             <div className="flex items-center gap-3 mt-2 text-[12px] text-[#6b7280]">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2.5 py-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                {doc.coverage.intel_pro_docs} stocks scored
+                Live four-pillar scores
               </span>
               <span>·</span>
               <span>{screens.length} active screens</span>

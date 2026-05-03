@@ -122,7 +122,7 @@ Repeat with `--market IN` if running the India market. A few stages
 
 | Script | What it powers | Cost |
 |--------|---------------|------|
-| `sync_price_snapshots --market <market> --universe <price_universe> --session-phase {pre_open\|open_check\|mid_check\|close_check}` | Live prices everywhere — header search, dashboard top movers, stock pages, sector pages | ~30s for 155 stocks |
+| `sync_price_snapshots --market <market> --universe <price_universe> --session-phase {pre_open\|open_check\|mid_check\|close_check}` | Live prices everywhere — header search, dashboard top movers, stock pages, sector pages | ~30s for full US price universe |
 | `build_per_stock_intelligence --market <market> --universe <ai_universe> --skip-materialize` | News feed, stock-page AI briefs, sentiment, mention velocity, divergence, sentiment flip | LLM cost per *new* article only |
 
 Session phases for `--session-phase`:
@@ -236,7 +236,7 @@ build_per_stock_intelligence ───────┬─→ build_sentiment_gaug
 ## 7. Cost notes
 
 - **`enrich_articles`** is the only LLM-cost stage. It skips docs that already have an enrichment, so re-runs are cheap.
-- **`build_stock_technicals`** scrapes Finviz (~155 GETs per US run, throttled to 3 concurrent workers with retry-with-backoff). ~60-90 sec. Bypass with `--no-finviz` if Finviz is down — RSI then falls back to `tm_latest_prices.history_window`, which needs ≥15 daily snapshots accumulated.
+- **`build_stock_technicals`** scrapes Finviz (one GET per US ticker in the active price universe, throttled to 3 concurrent workers with retry-with-backoff). ~60-90 sec. Bypass with `--no-finviz` if Finviz is down — RSI then falls back to `tm_latest_prices.history_window`, which needs ≥15 daily snapshots accumulated.
 - **`sync_price_snapshots`** uses yfinance — free but rate-limited. Default 8 parallel workers is safe; lower with `--max-workers` if you see throttling.
 - All `build_*` stages are pure Firestore reads + in-memory compute (except enrichment + technicals scrape). No external API costs.
 - Firestore reads dominate. Each `build_*` stage uses batched `get_all()` calls (≤500 refs per roundtrip) so a 1000-stock universe still costs ≤5 roundtrips per stage.

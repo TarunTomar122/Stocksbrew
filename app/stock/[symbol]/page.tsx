@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { AiSynthesis } from "@/components/ai-synthesis";
 import { AiBriefStatus } from "@/components/ai-brief-status";
@@ -39,6 +40,25 @@ export const revalidate = 60;
 type Props = {
   params: Promise<{ symbol: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { symbol } = await params;
+  const upper = symbol.toUpperCase();
+  return {
+    title: `${upper} — Stock Analysis & AI Brief`,
+    description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your Tikrr Radar.`,
+    alternates: { canonical: `/stock/${upper}` },
+    openGraph: {
+      title: `${upper} — Stock Analysis & AI Brief · Tikrr`,
+      description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
+      url: `https://tikrr.com/stock/${upper}`,
+    },
+    twitter: {
+      title: `${upper} — Stock Analysis & AI Brief · Tikrr`,
+      description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
+    },
+  };
+}
 
 function hasBriefText(intelligence: StockIntelligenceDoc | null): boolean {
   if (!intelligence) return false;

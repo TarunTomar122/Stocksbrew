@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 export const metadata = {
   title: "Blog · Tikrr",
+  description: "Posts on building Tikrr, what we're seeing in markets, and the methodology behind our briefs and screens.",
 };
 
 export default function BlogPage() {
@@ -27,7 +30,7 @@ export default function BlogPage() {
             We're writing the first few pieces.
           </h2>
           <p className="text-[14px] text-[#6b7280] leading-[1.55] max-w-[560px]">
-            Drop your email and we'll let you know when the first post lands. No spam, no other lists.
+            In the meantime, check out our <Link href="/learn" className="text-[#0052ff] font-medium underline">Learn to Invest</Link> section — 50 free guides for beginners and intermediate investors.
           </p>
           <a
             href="mailto:hello@tikrr.com?subject=Blog%20updates"

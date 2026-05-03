@@ -1,10 +1,22 @@
+import type { Metadata } from "next";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { SubscribePricing } from "@/components/subscribe-pricing";
 import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
 
-export const metadata = {
-  title: "Subscribe · Tikrr Pro",
+export const metadata: Metadata = {
+  title: "Pricing & Plans",
+  description: "Unlock Pro access to AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts. Free and Pro plans available.",
+  alternates: { canonical: "/subscribe" },
+  openGraph: {
+    title: "Tikrr Pro — Pricing & Plans",
+    description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
+    url: "https://tikrr.com/subscribe",
+  },
+  twitter: {
+    title: "Tikrr Pro — Pricing & Plans",
+    description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
+  },
 };
 
 type Props = {

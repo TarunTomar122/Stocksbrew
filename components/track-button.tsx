@@ -35,6 +35,7 @@ export function TrackButton({
   const router = useRouter();
   const { user, loading } = useUser();
   const [pending, startTransition] = useTransition();
+  const [pendingOp, setPendingOp] = useState<"add" | "remove" | null>(null);
   const [localTracked, setLocalTracked] = useState(isTracked);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -55,18 +56,23 @@ export function TrackButton({
 
     // Already in radar → toggle off without modal.
     if (localTracked) {
+      setPendingOp("remove");
       startTransition(async () => {
-        const res = await fetch("/api/track", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ instrument_id: instrumentId }),
-        });
-        if (!res.ok) {
-          setError("Could not remove — try again.");
-          return;
+        try {
+          const res = await fetch("/api/track", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ instrument_id: instrumentId }),
+          });
+          if (!res.ok) {
+            setError("Could not remove — try again.");
+            return;
+          }
+          setLocalTracked(false);
+          router.refresh();
+        } finally {
+          setPendingOp(null);
         }
-        setLocalTracked(false);
-        router.refresh();
       });
       return;
     }
@@ -83,32 +89,37 @@ export function TrackButton({
 
   function confirmTrack() {
     setError(null);
+    setPendingOp("add");
     startTransition(async () => {
-      const res = await fetch("/api/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instrument_id: instrumentId,
-          position_type: positionType,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 403) {
-          setOpen(false);
-          router.push("/subscribe");
+      try {
+        const res = await fetch("/api/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instrument_id: instrumentId,
+            position_type: positionType,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 403) {
+            setOpen(false);
+            router.push("/subscribe");
+            return;
+          }
+          if (res.status === 409) {
+            setError("Personal radar is full — remove one first.");
+          } else {
+            setError("Could not add — try again.");
+          }
           return;
         }
-        if (res.status === 409) {
-          setError("Personal radar is full — remove one first.");
-        } else {
-          setError("Could not add — try again.");
-        }
-        return;
+        setLocalTracked(true);
+        setOpen(false);
+        router.refresh();
+      } finally {
+        setPendingOp(null);
       }
-      setLocalTracked(true);
-      setOpen(false);
-      router.refresh();
     });
   }
 
@@ -126,13 +137,13 @@ export function TrackButton({
     ? "Sign in to add"
     : !canTrackOrUntrack
       ? "Subscribe to add"
-      : pending
-        ? localTracked
-          ? "Removing…"
-          : "Adding…"
-        : localTracked
-          ? "In Radar ✓"
-          : `Add ${ticker} to Radar`;
+      : pendingOp === "remove"
+        ? "Removing…"
+        : pendingOp === "add"
+          ? "Adding…"
+          : localTracked
+            ? "In Radar ✓"
+            : `Add ${ticker} to Radar`;
 
   return (
     <>

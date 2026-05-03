@@ -1,7 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata = {
-  title: "About · Tikrr",
+export const metadata: Metadata = {
+  title: "About",
+  description: "Tikrr delivers AI-powered market intelligence for retail investors — twice-daily briefs, stock scores, heat lists, and thematic screens grounded in real news.",
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About Tikrr — AI-Powered Market Intelligence",
+    description: "Twice-daily AI briefs grounded in real news. No more wading through 30 tabs to figure out what mattered.",
+    url: "https://tikrr.com/about",
+  },
+  twitter: {
+    title: "About Tikrr — AI-Powered Market Intelligence",
+    description: "Twice-daily AI briefs grounded in real news. No more wading through 30 tabs to figure out what mattered.",
+  },
 };
 
 const PILLARS = [

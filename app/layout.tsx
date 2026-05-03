@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Analytics } from "@vercel/analytics/react";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
@@ -10,9 +11,89 @@ import { getSearchIndex } from "@/lib/search";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { Providers } from "./providers";
 import "./globals.css";
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://tikrr.com/#organization",
+      name: "Tikrr",
+      url: "https://tikrr.com",
+      description: "Market intelligence platform providing AI-powered stock briefs, market sentiment analysis, heat lists, and thematic screens for US equities.",
+      logo: "https://tikrr.com/hero.png",
+      sameAs: ["https://twitter.com/tikrr"],
+      contactPoint: {
+        "@type": "ContactPoint",
+        email: "hello@tikrr.com",
+        contactType: "customer support",
+      },
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://tikrr.com/#webapp",
+      name: "Tikrr",
+      url: "https://tikrr.com",
+      description: "Real-time precision analytics for your global portfolio.",
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "All",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+    },
+  ],
+};
 export const metadata: Metadata = {
-  title: "tikrr — Market Intelligence",
-  description: "Real-time precision analytics for your global portfolio.",
+  metadataBase: new URL("https://tikrr.com"),
+  title: {
+    default: "tikrr — Market Intelligence",
+    template: "%s · tikrr",
+  },
+  description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens for US equities.",
+  keywords: ["stock market", "market intelligence", "stock analysis", "AI briefs", "market sentiment", "stock screener", "investing", "equities", "technical analysis", "fundamental analysis"],
+  authors: [{ name: "Tikrr" }],
+  creator: "Tikrr",
+  publisher: "Tikrr",
+  formatDetection: { email: false, address: false, telephone: false },
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Tikrr",
+    title: "tikrr — Market Intelligence",
+    description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens.",
+    url: "https://tikrr.com",
+    locale: "en_US",
+    images: [
+      {
+        url: "/hero.png",
+        width: 1200,
+        height: 630,
+        alt: "Tikrr — Market Intelligence",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "tikrr — Market Intelligence",
+    description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens.",
+    images: ["/hero.png"],
+    creator: "@tikrr",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -41,6 +122,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers>
@@ -55,6 +140,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </div>
           <Footer />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );

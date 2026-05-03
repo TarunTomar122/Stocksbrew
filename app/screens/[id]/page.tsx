@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { ScreenMatchesTable } from "@/components/screen-matches-table";
 import { getSessionUser } from "@/lib/auth-server";
@@ -11,6 +12,43 @@ type Props = {
   params: { id: string };
   searchParams: { market?: string };
 };
+
+const SCREEN_META_INFO: Record<string, { title: string; subtitle: string }> = {
+  tikrr_top: { title: "Top Tikrr Score", subtitle: "Our house pick — the names with the best four-pillar composite right now." },
+  quality_compounders: { title: "Quality Compounders", subtitle: "Strong businesses built to grow year after year." },
+  cheap_growth: { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
+  momentum_leaders: { title: "On a Tear", subtitle: "Leading the tape with the long-term trend intact." },
+  oversold_quality: { title: "Quality on Sale", subtitle: "Great businesses that just got marked down." },
+  near_52w_high: { title: "Near New Highs", subtitle: "Stocks within 3% of their 52-week peak." },
+  smart_money: { title: "Where the Pros Are", subtitle: "Heavy institutional ownership, solid overall scores." },
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const id = params.id;
+  const market = (new URLSearchParams(params as unknown as Record<string, string>).get("market") as "US" | "IN") ?? "US";
+  const info = SCREEN_META_INFO[id];
+  if (info) {
+    return {
+      title: info.title,
+      description: info.subtitle,
+      alternates: { canonical: `/screens/${id}` },
+      openGraph: {
+        title: `${info.title} — Thematic Screen · Tikrr`,
+        description: info.subtitle,
+        url: `https://tikrr.com/screens/${id}`,
+      },
+      twitter: {
+        title: `${info.title} — Thematic Screen · Tikrr`,
+        description: info.subtitle,
+      },
+    };
+  }
+  return {
+    title: `${id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} — Screen`,
+    description: "Hand-picked thematic stock screen powered by Tikrr's four-pillar scoring.",
+    alternates: { canonical: `/screens/${id}` },
+  };
+}
 
 const SCREEN_META: Record<
   string,

@@ -6,6 +6,7 @@ import { MarketCues } from "@/components/market-cues";
 import { SectorSpotlights } from "@/components/sector-spotlights";
 import { WatchlistShowcase } from "@/components/watchlist-showcase";
 import { ThematicScreens } from "@/components/thematic-screens";
+import { LearnTeaser } from "@/components/learn-teaser";
 import { WatchlistTeaser } from "@/components/watchlist-teaser";
 import {
   IN_AI_LAUNCH_INSTRUMENTS,
@@ -139,6 +140,8 @@ export default async function HomePage() {
         />
 
         <ThematicScreens doc={screens} market={market} isSubscribed={isSubscribed} />
+
+        <LearnTeaser />
       </div>
     </main>
   );

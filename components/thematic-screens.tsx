@@ -138,9 +138,7 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
             Opinionated filters over the full four-pillar score — hand-picked so you can skip the screener.
           </p>
         </div>
-        <span className="text-[12px] text-[#6b7280]">
-          {doc.coverage.intel_pro_docs} stocks scored
-        </span>
+        <span className="text-[12px] text-[#6b7280]">Live four-pillar scores</span>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-4">

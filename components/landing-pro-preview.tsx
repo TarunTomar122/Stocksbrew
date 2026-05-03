@@ -69,16 +69,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
         </span>
         <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
           Your Radar for the tickers you care about.
-          <br />
-          <span className="text-[#6b7280]">
-            Pillar scorecards, alerts, twice-daily AI.
-          </span>
         </h2>
-        <p className="text-[15px] md:text-[16px] leading-relaxed text-[#374151] max-w-2xl">
-          Follow names on Radar with pillar reads—including the stock scorecard—email
-          alerts when signals move, WhatsApp soon, and twice-daily AI passes on what changed
-          for your list.
-        </p>
       </div>
 
       <ProLandingAiStrip />

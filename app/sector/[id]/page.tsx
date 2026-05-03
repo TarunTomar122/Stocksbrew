@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getMarketSnapshot } from "@/lib/firestore";
@@ -11,6 +12,31 @@ export const revalidate = 60;
 type Props = {
   params: Promise<{ id: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const market = getCurrentMarket();
+  let doc = await getSectorContextDoc(id, market).catch(() => null);
+  if (!doc) {
+    try { doc = await getSectorContextDoc(id, market === "US" ? "IN" : "US").catch(() => null); } catch {}
+  }
+  const label = doc?.sector_label ?? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const brief = doc?.today_brief?.slice(0, 150) ?? `Sector analysis and constituent stock performance for ${label}.`;
+  return {
+    title: `${label} — Sector Brief`,
+    description: brief,
+    alternates: { canonical: `/sector/${id}` },
+    openGraph: {
+      title: `${label} — Sector Brief · Tikrr`,
+      description: brief,
+      url: `https://tikrr.com/sector/${id}`,
+    },
+    twitter: {
+      title: `${label} — Sector Brief · Tikrr`,
+      description: brief,
+    },
+  };
+}
 
 function toneForLabel(label?: string): { color: string; chipBg: string; softBg: string } {
   const l = (label ?? "").toLowerCase();
