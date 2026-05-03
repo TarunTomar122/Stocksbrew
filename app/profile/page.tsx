@@ -71,11 +71,11 @@ export default async function ProfilePage() {
           </div>
         </section>
 
-        {/* ─── Watchlist ───────────────────────────────────── */}
+        {/* ─── Radar ───────────────────────────────────────── */}
         <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
-              Watchlist
+              Radar
             </span>
             <a
               href="/watchlist"
@@ -87,9 +87,9 @@ export default async function ProfilePage() {
 
           {tracked.length === 0 ? (
             <p className="text-sm text-on-surface-variant">
-              No stocks tracked yet.{" "}
+              Nothing in Radar yet.{" "}
               <a href="/watchlist" className="text-primary hover:underline">
-                Start tracking
+                Start your Radar
               </a>
               .
             </p>
@@ -126,13 +126,13 @@ export default async function ProfilePage() {
           <PreferenceRow
             icon="mail"
             label="Email digest"
-            description="Daily AI brief across your watchlist, delivered to your inbox"
+            description="Daily AI brief across your Radar, delivered to your inbox"
             badge="Coming soon"
           />
           <PreferenceRow
             icon="schedule"
             label="Refresh cadence"
-            description="How often your watchlist brief regenerates"
+            description="How often your Radar brief regenerates"
             badge="Coming soon"
           />
         </section>
@@ -146,7 +146,7 @@ export default async function ProfilePage() {
             <div>
               <p className="text-sm font-medium text-on-surface">Sign out</p>
               <p className="text-[12px] text-on-surface-variant">
-                You'll need to sign back in to access your watchlist and AI briefs.
+                You'll need to sign back in to access your Radar and AI briefs.
               </p>
             </div>
             <SignOutButton />

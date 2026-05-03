@@ -6,19 +6,6 @@ type Props = {
   breadth?: MarketBreadthDoc | null;
 };
 
-// ── Index Tape helpers ────────────────────────────────────────────────────────
-
-function fmtPct(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  return `${Math.abs(v).toFixed(2)}%`;
-}
-
-function fmtPrice(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  return v.toFixed(2);
-}
-
 function formatVolume(v: number | undefined): string {
   if (typeof v !== "number" || v <= 0) return "—";
   if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
@@ -27,95 +14,187 @@ function formatVolume(v: number | undefined): string {
   return String(Math.round(v));
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+export function MarketSnapshot({ breadth }: Props) {
+  if (!breadth) return null;
 
-export function MarketSnapshot({ ticks, breadth }: Props) {
-  const hasBreadth = !!breadth;
+  const advancers = breadth.advancers ?? 0;
+  const decliners = breadth.decliners ?? 0;
+  const unchanged = breadth.unchanged ?? 0;
+  const total = advancers + decliners + unchanged;
+  const advPct = total > 0 ? (advancers / total) * 100 : 0;
+  const decPct = total > 0 ? (decliners / total) * 100 : 0;
+  const unchPct = total > 0 ? (unchanged / total) * 100 : 0;
 
-  if (!hasBreadth) return null;
-
-  // Breadth calculations
-  const total = breadth
-    ? (breadth.advancers ?? 0) + (breadth.decliners ?? 0) + (breadth.unchanged ?? 0)
-    : 0;
-  const advPct = breadth && total > 0 ? (breadth.advancers / total) * 100 : 0;
-  const decPct = breadth && total > 0 ? (breadth.decliners / total) * 100 : 0;
-  const unchPct = breadth && total > 0 ? (breadth.unchanged / total) * 100 : 0;
-  const upVol = breadth?.up_volume ?? 0;
-  const downVol = breadth?.down_volume ?? 0;
+  const upVol = breadth.up_volume ?? 0;
+  const downVol = breadth.down_volume ?? 0;
   const volTotal = upVol + downVol;
   const upVolPct = volTotal > 0 ? (upVol / volTotal) * 100 : 0;
-  const volatility = breadth?.volatility_proxy?.median_abs_day_change_pct;
+  const volatility = breadth.volatility_proxy?.median_abs_day_change_pct;
+  const new52High = breadth.new_52w_high ?? 0;
+  const new52Low = breadth.new_52w_low ?? 0;
+
+  const tilt =
+    advPct - decPct >= 10
+      ? { label: "Broad rally", color: "text-[#10b981]" }
+      : decPct - advPct >= 10
+        ? { label: "Broad sell-off", color: "text-[#ef4444]" }
+        : { label: "Mixed tape", color: "text-[#6b7280]" };
 
   return (
-    <div className="bg-surface rounded-2xl p-6 md:p-7 flex flex-col h-full gap-5 shadow-card border border-outline-variant/30">
-
-      {/* ── Market Breadth ───────────────────────────────────────────── */}
-      {hasBreadth && breadth && (
-        <div className="pt-0">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1 h-4 bg-primary rounded-full" />
-            <h3 className="text-[13px] font-bold text-on-surface tracking-tight">Market Breadth</h3>
-          </div>
-          <p className="text-[11px] text-on-surface-variant leading-snug mt-1 mb-4">
-            Are most stocks joining today's move, or is the index being carried by a few?
+    <section className="flex flex-col gap-6">
+      <div className="flex items-baseline justify-between gap-4 flex-wrap">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            Market breadth
+          </h2>
+          <p className="text-[13px] text-[#6b7280] max-w-xl">
+            Are most stocks joining today’s move, or is the index being carried by a few?
           </p>
+        </div>
+        <span className={`text-[12px] font-semibold tracking-[0.04em] uppercase ${tilt.color}`}>
+          {tilt.label}
+        </span>
+      </div>
 
-          <div className="flex flex-col gap-2 mb-5">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-bold text-on-surface">Advancers vs Decliners</span>
-              <span className="text-on-surface-variant tabular-nums font-medium">
-                {breadth.advancers} up · {breadth.decliners} down · {breadth.unchanged} flat
+      {/* Advancers / decliners bar */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+              Advancing
+            </span>
+            <span className="text-[20px] font-semibold tabular-nums text-[#10b981]">
+              {advancers}
+              <span className="ml-1.5 text-[12px] font-medium text-[#6b7280]">
+                {Math.round(advPct)}%
               </span>
-            </div>
-            <div className="relative h-2.5 bg-surface-container-high overflow-hidden flex rounded-full">
-              <div className="h-full bg-signal-bullish" style={{ width: `${advPct}%` }} />
-              <div className="h-full bg-signal-neutral/60" style={{ width: `${unchPct}%` }} />
-              <div className="h-full bg-signal-bearish" style={{ width: `${decPct}%` }} />
-            </div>
+            </span>
           </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
-              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">Up Volume</span>
-              <span className="text-[20px] font-bold text-signal-bullish tabular-nums">
-                {formatVolume(upVol)}
+          {unchanged > 0 && (
+            <div className="hidden sm:flex flex-col items-center">
+              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+                Flat
               </span>
-              <span className="text-[11px] text-on-surface-variant tabular-nums font-medium">
-                {volTotal > 0 ? `${upVolPct.toFixed(0)}% of total` : "—"}
+              <span className="text-[14px] font-semibold tabular-nums text-[#6b7280]">
+                {unchanged}
               </span>
             </div>
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
-              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">Down Volume</span>
-              <span className="text-[20px] font-bold text-signal-bearish tabular-nums">
-                {formatVolume(downVol)}
+          )}
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+              Declining
+            </span>
+            <span className="text-[20px] font-semibold tabular-nums text-[#ef4444]">
+              {decliners}
+              <span className="ml-1.5 text-[12px] font-medium text-[#6b7280]">
+                {Math.round(decPct)}%
               </span>
-              <span className="text-[11px] text-on-surface-variant tabular-nums font-medium">
-                {volTotal > 0 ? `${(100 - upVolPct).toFixed(0)}% of total` : "—"}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
-              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">52W H / L</span>
-              <span className="text-[20px] font-bold tabular-nums">
-                <span className="text-signal-bullish">{breadth.new_52w_high ?? 0}</span>
-                <span className="text-outline mx-1">/</span>
-                <span className="text-signal-bearish">{breadth.new_52w_low ?? 0}</span>
-              </span>
-              <span className="text-[11px] text-on-surface-variant font-medium">New today</span>
-            </div>
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-surface-container-low/60">
-              <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-on-surface-variant">Volatility</span>
-              <span className="text-[20px] font-bold text-on-surface tabular-nums">
-                {typeof volatility === "number" ? `${volatility.toFixed(2)}%` : "—"}
-              </span>
-              <span className="text-[11px] text-on-surface-variant font-medium">Median |Δ|</span>
-            </div>
-          </div>
-
-          <div className="text-[10px] font-bold tracking-[0.1em] uppercase text-outline mt-4">
-            {breadth.instrument_count} instruments · {breadth.as_of_date}
+            </span>
           </div>
         </div>
+
+        <div className="relative h-2 rounded-full overflow-hidden bg-[#f3f4f6] flex">
+          <div
+            className="h-full bg-[#10b981] transition-all"
+            style={{ width: `${advPct}%` }}
+          />
+          <div
+            className="h-full bg-[#d1d5db] transition-all"
+            style={{ width: `${unchPct}%` }}
+          />
+          <div
+            className="h-full bg-[#ef4444] transition-all"
+            style={{ width: `${decPct}%` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between text-[11px] tabular-nums text-[#9ca3af]">
+          <span>{breadth.instrument_count} instruments</span>
+          <span>{breadth.as_of_date}</span>
+        </div>
+      </div>
+
+      {/* Inline supporting stats — flat, no card chrome */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-5 pt-5 border-t border-[#f3f4f6]">
+        <Stat
+          label="Up volume"
+          value={formatVolume(upVol)}
+          tone="up"
+          helper={volTotal > 0 ? `${Math.round(upVolPct)}% of total` : undefined}
+          bar={volTotal > 0 ? upVolPct : undefined}
+          barTone="up"
+        />
+        <Stat
+          label="Down volume"
+          value={formatVolume(downVol)}
+          tone="down"
+          helper={volTotal > 0 ? `${Math.round(100 - upVolPct)}% of total` : undefined}
+          bar={volTotal > 0 ? 100 - upVolPct : undefined}
+          barTone="down"
+        />
+        <Stat
+          label="52W highs / lows"
+          value={
+            <>
+              <span className="text-[#10b981]">{new52High}</span>
+              <span className="text-[#d1d5db] mx-1">/</span>
+              <span className="text-[#ef4444]">{new52Low}</span>
+            </>
+          }
+          helper="New today"
+        />
+        <Stat
+          label="Volatility"
+          value={typeof volatility === "number" ? `${volatility.toFixed(2)}%` : "—"}
+          helper="Median |Δ| day move"
+        />
+      </div>
+    </section>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  helper,
+  tone,
+  bar,
+  barTone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  helper?: string;
+  tone?: "up" | "down" | "ink";
+  bar?: number;
+  barTone?: "up" | "down";
+}) {
+  const valueClass =
+    tone === "up"
+      ? "text-[#10b981]"
+      : tone === "down"
+        ? "text-[#ef4444]"
+        : "text-[#111111]";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+        {label}
+      </span>
+      <span className={`text-[22px] font-semibold tabular-nums leading-none ${valueClass}`}>
+        {value}
+      </span>
+      {typeof bar === "number" && (
+        <div className="relative h-1 rounded-full bg-[#f3f4f6] overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              width: `${Math.max(2, Math.min(100, bar))}%`,
+              background: barTone === "down" ? "#ef4444" : "#10b981",
+            }}
+          />
+        </div>
+      )}
+      {helper && (
+        <span className="text-[11px] text-[#6b7280] leading-tight">{helper}</span>
       )}
     </div>
   );

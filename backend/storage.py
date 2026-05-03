@@ -607,6 +607,20 @@ class TraceMoneyStore:
         }, merge=True)
         self._replace_subcollection(namespace, "articles", articles, "id")
 
+    def upsert_news_articles(self, market: str, universe_id: str, articles: list[dict[str, Any]], source_health: list[dict[str, Any]] | None = None) -> None:
+        namespace = self._news_namespace(market, universe_id)
+        namespace.set({
+            "market": market,
+            "universe_id": universe_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "last_on_demand_article_count": len(articles),
+            "last_on_demand_source_health": source_health or [],
+        }, merge=True)
+        for article in articles:
+            article_id = str(article.get("id") or "")
+            if article_id:
+                namespace.collection("articles").document(article_id).set(article, merge=True)
+
     def list_news_articles(self, market: str, universe_id: str) -> list[dict[str, Any]]:
         docs = self._news_namespace(market, universe_id).collection("articles").stream()
         rows = [_serialize(doc.to_dict()) or {} for doc in docs]
@@ -628,6 +642,19 @@ class TraceMoneyStore:
             )[:30],
         }, merge=True)
 
+    def upsert_article_enrichments(self, market: str, universe_id: str, articles: list[dict[str, Any]]) -> None:
+        namespace = self._news_namespace(market, universe_id)
+        for article in articles:
+            article_id = str(article.get("id") or "")
+            if article_id:
+                namespace.collection("enrichments").document(article_id).set(article, merge=True)
+        namespace.set({
+            "market": market,
+            "universe_id": universe_id,
+            "last_on_demand_enriched_at": datetime.now(timezone.utc).isoformat(),
+            "last_on_demand_enrichment_count": len(articles),
+        }, merge=True)
+
     def list_article_enrichments(self, market: str, universe_id: str) -> list[dict[str, Any]]:
         docs = self._news_namespace(market, universe_id).collection("enrichments").stream()
         rows = [_serialize(doc.to_dict()) or {} for doc in docs]
@@ -642,6 +669,19 @@ class TraceMoneyStore:
             "universe_id": universe_id,
             "last_stock_intelligence_at": datetime.now(timezone.utc).isoformat(),
             "stock_intelligence_count": len(docs_payload),
+        }, merge=True)
+
+    def upsert_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
+        namespace = self._news_namespace(market, universe_id)
+        for payload in docs_payload:
+            instrument_id = str(payload.get("instrument_id") or "")
+            if instrument_id:
+                namespace.collection("stock_intelligence").document(instrument_id).set(payload, merge=True)
+        namespace.set({
+            "market": market,
+            "universe_id": universe_id,
+            "last_on_demand_stock_intelligence_at": datetime.now(timezone.utc).isoformat(),
+            "last_on_demand_stock_intelligence_count": len(docs_payload),
         }, merge=True)
 
     def list_stock_intelligence_docs(self, market: str, universe_id: str) -> list[dict[str, Any]]:

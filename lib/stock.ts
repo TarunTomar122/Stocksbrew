@@ -33,6 +33,10 @@ export type StockIntelligenceDoc = {
   headline?: string;
   thesis?: string;
   body?: string;
+  source?: string;
+  coverage_type?: string;
+  news_count?: number;
+  source_count?: number;
   overall_label?: string;
   overall_score?: number;
   setup_state?: string;
@@ -202,6 +206,8 @@ export type StockSummary = {
   day_change_abs?: number;
   day_change_pct?: number;
   previous_close?: number;
+  day_high?: number;
+  day_low?: number;
   source: "instrument" | "snapshot" | "none";
   // Fundamentals are included here so callers don't need a second
   // tm_latest_prices read via getStockFundamentals.
@@ -240,6 +246,7 @@ export type StockFacts = {
   events?: Array<{
     kind?: string;
     title?: string;
+    date?: string;
     date_label?: string;
     source?: string;
   }>;
@@ -309,6 +316,8 @@ export async function getStockSummary(
         day_change_abs: quote.day_change_abs,
         day_change_pct: quote.day_change_pct,
         previous_close: quote.previous_close,
+        day_high: quote.high,
+        day_low: quote.low,
         source: "instrument",
         fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
       };
@@ -349,6 +358,8 @@ export async function getStockSummary(
         day_change_abs: quote.day_change_abs,
         day_change_pct: quote.day_change_pct,
         previous_close: quote.previous_close,
+        day_high: quote.high,
+        day_low: quote.low,
         source: "instrument",
         fundamentals: (fallbackPrice?.fundamentals ?? null) as StockFundamentals | null,
       };
@@ -372,6 +383,8 @@ export async function getStockSummary(
         day_change_abs: quote.day_change_abs,
         day_change_pct: quote.day_change_pct,
         previous_close: quote.previous_close,
+        day_high: quote.high,
+        day_low: quote.low,
         source: "snapshot",
         fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
       };

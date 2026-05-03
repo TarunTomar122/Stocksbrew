@@ -2,7 +2,6 @@ import type { StockIntelligenceDoc } from "@/lib/stock";
 
 type Props = {
   intelligence: StockIntelligenceDoc | null;
-  mocked?: boolean;
 };
 
 function sentimentMeta(label: string): { dot: string; tone: string; chipBg: string; chipFg: string } {
@@ -46,8 +45,15 @@ function Block({
   );
 }
 
-export function AiSynthesis({ intelligence, mocked }: Props) {
-  const vs = intelligence?.visual_summary ?? {};
+function visualSummaryHasCards(vs: StockIntelligenceDoc["visual_summary"]): boolean {
+  const w = String(vs?.what_changed ?? "").trim();
+  const y = String(vs?.why_it_matters ?? "").trim();
+  const t = String(vs?.what_to_watch ?? "").trim();
+  return Boolean(w || y || t);
+}
+
+export function AiSynthesis({ intelligence }: Props) {
+  const vs = intelligence?.visual_summary;
   const sentimentLabel = intelligence?.overall_label ?? "neutral";
   const sentimentScore =
     typeof intelligence?.overall_score === "number"
@@ -56,17 +62,26 @@ export function AiSynthesis({ intelligence, mocked }: Props) {
   const meta = sentimentMeta(sentimentLabel);
 
   const whatChanged =
-    vs.what_changed ||
+    vs?.what_changed ||
     intelligence?.today_brief ||
     "No significant news events captured in the last run.";
   const whyItMatters =
-    vs.why_it_matters ||
+    vs?.why_it_matters ||
     intelligence?.thesis ||
     "Context will appear once the pipeline synthesizes coverage.";
   const whatToWatch =
-    vs.what_to_watch ||
+    vs?.what_to_watch ||
     intelligence?.catalyst ||
     "No catalysts flagged yet — check back after the next pipeline run.";
+
+  const hasBriefText = Boolean(
+    intelligence &&
+      (String(intelligence.headline ?? "").trim() ||
+        String(intelligence.body ?? "").trim() ||
+        String(intelligence.today_brief ?? "").trim() ||
+        String(intelligence.thesis ?? "").trim()),
+  );
+  const cardsPending = Boolean(intelligence && !visualSummaryHasCards(vs) && hasBriefText);
 
   return (
     <section className="flex flex-col gap-5">
@@ -81,9 +96,12 @@ export function AiSynthesis({ intelligence, mocked }: Props) {
             <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
               News signal
             </h3>
-            {mocked && (
-              <span className="inline-flex items-center rounded-md bg-[#fef3c7] text-[#92400e] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase">
-                Mock
+            {cardsPending && (
+              <span
+                className="inline-flex items-center rounded-md bg-[#f3f4f6] text-[#6b7280] px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase"
+                title="Brief text is live; the three-card layout fills in when the pipeline includes visual_summary."
+              >
+                Cards pending
               </span>
             )}
           </div>

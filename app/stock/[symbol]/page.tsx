@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { AiSynthesis } from "@/components/ai-synthesis";
+import { AiBriefStatus } from "@/components/ai-brief-status";
 import { AnalystConsensus } from "@/components/analyst-consensus";
 import { CatalystsDriversRisks } from "@/components/catalysts-drivers-risks";
 import { ComparativeContextRow } from "@/components/comparative-context";
@@ -10,6 +11,7 @@ import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
 import { StockPageTabs } from "@/components/stock-page-tabs";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
+import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
 import { StockSideRail } from "@/components/stock-side-rail";
@@ -23,6 +25,8 @@ import {
   getStockIntelPro,
   getStockIntelligenceDoc,
   getStockSummary,
+  type SentimentBreakdown,
+  type StockIntelligenceDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
 import { getLatestTechnicals } from "@/lib/technicals";
@@ -34,6 +38,33 @@ export const revalidate = 60;
 type Props = {
   params: Promise<{ symbol: string }>;
 };
+
+function hasBriefText(intelligence: StockIntelligenceDoc | null): boolean {
+  if (!intelligence) return false;
+  const visual = intelligence.visual_summary ?? {};
+  return Boolean(
+    String(visual.what_changed ?? "").trim() ||
+      String(visual.why_it_matters ?? "").trim() ||
+      String(visual.what_to_watch ?? "").trim() ||
+      String(intelligence.today_brief ?? "").trim() ||
+      String(intelligence.body ?? "").trim() ||
+      String(intelligence.thesis ?? "").trim() ||
+      String(intelligence.headline ?? "").trim(),
+  );
+}
+
+function hasVisualCards(intelligence: StockIntelligenceDoc | null): boolean {
+  const cards = intelligence?.visual_cards;
+  return Boolean(
+    (cards?.catalyst_cards?.length ?? 0) > 0 ||
+      (cards?.drivers?.length ?? 0) > 0 ||
+      (cards?.risk_cards?.length ?? 0) > 0,
+  );
+}
+
+function hasSentimentBreakdown(sentiment: SentimentBreakdown | null | undefined): boolean {
+  return Boolean((sentiment?.lanes?.length ?? 0) > 0 || (sentiment?.sources_breakdown?.length ?? 0) > 0);
+}
 
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
@@ -99,6 +130,14 @@ export default async function StockPage({ params }: Props) {
 
   const currency = currencySymbolFor(stock.instrument_id.split("_", 1)[0]);
 
+  const week52High = fundamentals?.week_52_high;
+  const week52Low = fundamentals?.week_52_low;
+  const rsiValue = technicals?.rsi_14?.value;
+  const formatPriceForBar = (v: number): string =>
+    `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const has52W = typeof week52High === "number" && typeof week52Low === "number";
+  const hasRsi = typeof rsiValue === "number";
+
   const overviewContent = (
     <section className="flex flex-col gap-10">
       <SignalDeck
@@ -109,11 +148,35 @@ export default async function StockPage({ params }: Props) {
         currentPrice={stock.price}
         market={market}
       />
+
+      {(has52W || hasRsi) && (
+        <section className="flex flex-col gap-6 rounded-3xl border border-[#e5e7eb] bg-white p-6 md:p-7">
+          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            Where it sits today
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+            {has52W && (
+              <RangeBar
+                label="52-week price range"
+                low={week52Low!}
+                high={week52High!}
+                current={stock.price}
+                format={formatPriceForBar}
+              />
+            )}
+            {hasRsi && (
+              <RsiStrength value={rsiValue!} state={technicals?.rsi_14?.state} />
+            )}
+          </div>
+        </section>
+      )}
+
       <StockFactsPanel
         facts={stockFacts}
         fundamentals={fundamentals}
         currentPrice={stock.price}
         currency={currency}
+        isSubscribed={subscribed}
       />
       <TierCTA
         tier={tier}
@@ -133,7 +196,7 @@ export default async function StockPage({ params }: Props) {
 
   const fundamentalsContent = (
     <section className="flex flex-col gap-6">
-      <StockScorecard intel={intelPro} />
+      <StockScorecard intel={intelPro} isSubscribed={subscribed} />
       {hasAI && (
         <>
           <ComparativeContextRow context={intelligence?.comparative_context} />
@@ -146,16 +209,43 @@ export default async function StockPage({ params }: Props) {
     </section>
   );
 
+  const aiSource = intelligence?.source ?? "";
+  const aiCoverageType = intelligence?.coverage_type ?? "";
+  const isOnDemandFirstPass = aiCoverageType === "on_demand_no_news";
+  const isFallbackBrief =
+    isOnDemandFirstPass ||
+    aiSource === "rules" ||
+    aiCoverageType === "on_demand_fallback" ||
+    intelligence?.data_quality?.freshness_status === "pending";
+  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || isFallbackBrief);
+  const showSynthesis = hasAI && hasBriefText(intelligence) && !isFallbackBrief;
+  const showCards = hasAI && hasVisualCards(intelligence);
+  const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown);
+
   const aiContent = hasAI ? (
     <section className="flex flex-col gap-6">
-      <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} />
-      <AiSynthesis intelligence={intelligence} mocked={!intelligence?.visual_summary} />
-      <CatalystsDriversRisks cards={intelligence?.visual_cards} />
-      <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />
-      <DataQualityStrip quality={intelligence?.data_quality} />
+      {showBriefStatus && (
+        <AiBriefStatus
+          ticker={stock.ticker}
+          generatedAt={intelligence?.generated_at}
+        />
+      )}
+      {!showBriefStatus && (
+        <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} />
+      )}
+      {showSynthesis && <AiSynthesis intelligence={intelligence} />}
+      {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
+      {showSentiment && <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />}
+      {!showBriefStatus && intelligence?.data_quality && (
+        <DataQualityStrip quality={intelligence.data_quality} />
+      )}
     </section>
   ) : (
-    <LockedAiBrief ticker={stock.ticker} isSubscribed={subscribed} />
+    <LockedAiBrief
+      ticker={stock.ticker}
+      instrumentId={stock.instrument_id}
+      isSubscribed={subscribed}
+    />
   );
 
   return (

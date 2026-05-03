@@ -11,11 +11,11 @@ type Props = {
   ai: ReactNode | null;
 };
 
-const TABS: { key: TabKey; label: string }[] = [
+const TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "analyst", label: "Analyst" },
   { key: "fundamentals", label: "Fundamentals" },
-  { key: "ai", label: "AI brief" },
+  { key: "ai", label: "AI brief", narrowLabel: "AI" },
 ];
 
 const SCROLL_OFFSET = 140;
@@ -62,7 +62,7 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai }: Props) {
     <div className="flex flex-col gap-8 min-w-0">
       <div className="sticky top-16 z-30 -mx-1 bg-[var(--background)] border-b border-[#e5e7eb]">
         <nav
-          className="flex items-center gap-1 px-1 overflow-x-auto scrollbar-hide"
+          className="flex flex-nowrap items-stretch gap-0 sm:gap-0.5 px-1 overflow-x-auto overscroll-x-contain scrollbar-hide touch-pan-x"
           role="tablist"
         >
           {visible.map((t) => {
@@ -73,15 +73,18 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai }: Props) {
                 type="button"
                 role="tab"
                 aria-selected={isActive}
+                aria-label={t.label}
+                title={t.label}
                 onClick={() => goTo(t.key)}
-                className={`relative flex items-center px-4 py-3 text-[14px] font-semibold tracking-[-0.01em] transition-colors ${
+                className={`relative flex shrink-0 items-center justify-center whitespace-nowrap px-3 py-2.5 text-[13px] font-semibold tracking-[-0.01em] transition-colors sm:px-4 sm:py-3 sm:text-[14px] min-h-[44px] ${
                   isActive ? "text-[#0052ff]" : "text-[#6b7280] hover:text-[#111111]"
                 }`}
               >
-                {t.label}
+                <span className="inline sm:hidden">{t.narrowLabel ?? t.label}</span>
+                <span className="hidden sm:inline">{t.label}</span>
                 <span
                   aria-hidden
-                  className={`absolute left-3 right-3 -bottom-px h-0.5 rounded-full transition-all ${
+                  className={`absolute left-2 right-2 sm:left-3 sm:right-3 -bottom-px h-0.5 rounded-full transition-all ${
                     isActive ? "bg-[#0052ff] opacity-100" : "bg-transparent opacity-0"
                   }`}
                 />

@@ -180,7 +180,7 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
               Want this screen in your inbox?
             </span>
             <span className="text-[14px] text-[#111111] leading-snug max-w-[520px]">
-              Subscribers get daily updates on new matches, drop-offs, and watchlist alerts when a screen they follow changes.
+              Subscribers get daily updates on new matches, drop-offs, and Radar alerts when a screen they follow changes.
             </span>
           </div>
           <Link

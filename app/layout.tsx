@@ -4,8 +4,10 @@ import { GeistMono } from "geist/font/mono";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getSearchIndex } from "@/lib/search";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { Providers } from "./providers";
 import "./globals.css";
 export const metadata: Metadata = {
@@ -15,7 +17,13 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const market = getCurrentMarket();
+  const session = await getSessionUser();
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const searchIndex = await getSearchIndex(market).catch(() => []);
+  const trackedIds: string[] = Array.isArray(userDoc?.tracked_stocks)
+    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+    : [];
+  const isSubscribed = resolveIsSubscribed(userDoc);
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
@@ -36,7 +44,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers>
-          <Header searchIndex={searchIndex} market={market} />
+          <Header
+            searchIndex={searchIndex}
+            market={market}
+            trackedIds={trackedIds}
+            isSubscribed={isSubscribed}
+          />
           {children}
           <Footer />
         </Providers>

@@ -1,13 +1,88 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
+import { StockLogo } from "@/components/stock-logo";
+import { TrackButton } from "@/components/track-button";
 import type { HeatList, HeatRow } from "@/lib/heat";
 
-function fmtPrice(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
-  if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  return v.toFixed(2);
+type Props = {
+  data: HeatList | null;
+  trackedIds?: string[];
+  isSubscribed?: boolean;
+};
+
+type SetupMeta = {
+  label: string;
+  tagline: string;
+  icon: string;
+  /** Solid background for the round icon tile in the card head — matches the
+   * sector spotlight cards on the home page (dark filled circle, white glyph). */
+  bg: string;
+  fg: string;
+  /** Display order — higher urgency / clearer signal first. */
+  order: number;
+};
+
+const SETUP_META: Record<string, SetupMeta> = {
+  overheated: {
+    label: "Overheated",
+    tagline: "Watch, do not chase",
+    icon: "local_fire_department",
+    bg: "#dc2626",
+    fg: "#ffffff",
+    order: 1,
+  },
+  breakout: {
+    label: "Breakout",
+    tagline: "Check follow-through",
+    icon: "trending_up",
+    bg: "#047857",
+    fg: "#ffffff",
+    order: 2,
+  },
+  news_spike: {
+    label: "News spike",
+    tagline: "Read latest context",
+    icon: "newspaper",
+    bg: "#7c3aed",
+    fg: "#ffffff",
+    order: 3,
+  },
+  catalyst_watch: {
+    label: "Catalyst watch",
+    tagline: "Track catalyst reaction",
+    icon: "event",
+    bg: "#b45309",
+    fg: "#ffffff",
+    order: 4,
+  },
+  dip_setup: {
+    label: "Dip setup",
+    tagline: "Investigate entry",
+    icon: "show_chart",
+    bg: "#0052ff",
+    fg: "#ffffff",
+    order: 5,
+  },
+  momentum_watch: {
+    label: "Momentum watch",
+    tagline: "Review setup",
+    icon: "speed",
+    bg: "#475569",
+    fg: "#ffffff",
+    order: 6,
+  },
+};
+
+function setupMeta(key?: string): SetupMeta {
+  if (key && SETUP_META[key]) return SETUP_META[key];
+  return {
+    label: key ? key.replaceAll("_", " ") : "Watching",
+    tagline: "Review setup",
+    icon: "insights",
+    bg: "#1c1c1e",
+    fg: "#ffffff",
+    order: 99,
+  };
 }
 
 function fmtPct(v: number | null | undefined): { text: string; positive: boolean } | null {
@@ -15,266 +90,352 @@ function fmtPct(v: number | null | undefined): { text: string; positive: boolean
   return { text: `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`, positive: v >= 0 };
 }
 
-function isUsefulTag(tag: string): boolean {
-  const stale = ["strong momentum", "momentum building", "catalyst flagged",
-    "big move today", "notable move today", "strong growth",
-    "bullish coverage", "bearish coverage"];
-  return !stale.includes(tag.toLowerCase());
+// ─── Hero summary ─────────────────────────────────────────────────────────────
+
+function HeroSummary({ data }: { data: HeatList }) {
+  const summary = data.summary;
+  const counts = summary?.counts ?? {};
+  const bullish = summary?.bullish_count ?? 0;
+  const caution = summary?.caution_count ?? 0;
+  const setupEntries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+  return (
+    <section className="rounded-[28px] border border-[#e5e7eb] bg-white p-6 md:p-8 shadow-[0_18px_50px_rgba(17,24,39,0.04)]">
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-2 max-w-2xl">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0052ff]">
+            Today’s heat read
+          </span>
+          <h1 className="text-[26px] md:text-[30px] font-semibold tracking-[-0.025em] text-[#111111]">
+            {summary?.headline ?? "Heat list"}
+          </h1>
+          {summary?.body && (
+            <p className="text-[14px] leading-relaxed text-[#6b7280]">{summary.body}</p>
+          )}
+        </div>
+
+        <div className="flex items-end gap-6">
+          <Stat label="Bullish" value={bullish} tone="up" />
+          <Stat label="Caution" value={caution} tone="down" />
+          <Stat label="On the list" value={data.rows.length} />
+        </div>
+      </div>
+
+      {setupEntries.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-2 pt-5 border-t border-[#f3f4f6]">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af] mr-1">
+            Setups today
+          </span>
+          {setupEntries.map(([setup, count]) => {
+            const meta = setupMeta(setup);
+            return (
+              <span
+                key={setup}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[#111111]"
+              >
+                <span
+                  aria-hidden
+                  className="flex h-4 w-4 items-center justify-center rounded-full"
+                  style={{ background: meta.bg, color: meta.fg }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 11, fontVariationSettings: "'wght' 600" }}
+                  >
+                    {meta.icon}
+                  </span>
+                </span>
+                {meta.label}
+                <span className="font-medium text-[#6b7280]">· {count}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
 }
 
-function TagList({ tags }: { tags: string[] }) {
-  const useful = tags.filter(isUsefulTag).slice(0, 3);
-  if (useful.length === 0) return null;
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "up" | "down";
+}) {
+  const valueClass =
+    tone === "up" ? "text-[#10b981]" : tone === "down" ? "text-[#ef4444]" : "text-[#111111]";
   return (
-    <div className="flex flex-wrap gap-2">
-      {useful.map((tag) => {
-        const t = tag.toLowerCase();
-        const isEvent = t.startsWith("⚡");
-        const isNews = t.startsWith("📰") || t.includes("mention");
-        const isUp = t.includes("↑") || (t.startsWith("+") && !isEvent);
-        const isDown = t.includes("↓") || t.includes("oversold");
-        const cls = isEvent ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
-          : isNews ? "bg-primary/10 text-primary border-primary/30"
-          : isUp ? "bg-signal-bullish/10 text-signal-bullish border-signal-bullish/30"
-          : isDown ? "bg-signal-bearish/10 text-signal-bearish border-signal-bearish/30"
-          : "bg-surface-container text-on-surface-variant border-outline-variant/40";
-        return (
-          <span key={tag} className={`px-2.5 py-1 text-[10px] font-bold border whitespace-nowrap rounded-full ${cls}`}>
-            {tag}
-          </span>
-        );
-      })}
+    <div className="flex flex-col items-start">
+      <span className={`text-[28px] font-semibold leading-none tabular-nums ${valueClass}`}>
+        {value}
+      </span>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af] mt-1">
+        {label}
+      </span>
     </div>
   );
 }
 
-function ScoreMini({ value }: { value: number | null | undefined }) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return <span className="text-sm font-bold tabular-nums text-outline">—</span>;
-  }
-  const rounded = Math.round(value);
-  const tone = rounded >= 70
-    ? "text-signal-bullish bg-signal-bullish/10"
-    : rounded >= 50
-      ? "text-primary bg-primary/10"
-      : "text-signal-bearish bg-signal-bearish/10";
+// ─── Category card ────────────────────────────────────────────────────────────
+
+function CategoryCard({
+  setup,
+  rows,
+  trackedIds,
+  isSubscribed,
+}: {
+  setup: string;
+  rows: HeatRow[];
+  trackedIds: string[];
+  isSubscribed: boolean;
+}) {
+  const meta = setupMeta(setup);
+
   return (
-    <span className={`inline-flex min-w-10 justify-center rounded-full px-2.5 py-1 text-sm font-black tabular-nums ${tone}`}>
-      {rounded}
-    </span>
+    <article className="flex flex-col rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+      {/* Card head — matches sector spotlight cards on the home page. */}
+      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+          style={{ background: meta.bg, color: meta.fg }}
+          aria-hidden
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 20, fontVariationSettings: "'wght' 500" }}
+          >
+            {meta.icon}
+          </span>
+        </div>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+            {meta.label}
+          </span>
+          <span className="text-[12px] text-[#6b7280]">
+            {rows.length} {rows.length === 1 ? "stock" : "stocks"} · {meta.tagline}
+          </span>
+        </div>
+      </div>
+
+      {/* Scrollable stock list — fixed height so all four cards line up. */}
+      <ul className="flex flex-col max-h-[420px] overflow-y-auto scrollbar-hide border-t border-[#f3f4f6]">
+        {rows.map((row) => (
+          <CategoryStockRow
+            key={row.instrument_id}
+            row={row}
+            trackedIds={trackedIds}
+            isSubscribed={isSubscribed}
+          />
+        ))}
+      </ul>
+    </article>
   );
 }
 
-function HeatScore({ value }: { value: number }) {
-  const rounded = Math.round(value);
+function CategoryStockRow({
+  row,
+  trackedIds,
+  isSubscribed,
+}: {
+  row: HeatRow;
+  trackedIds: string[];
+  isSubscribed: boolean;
+}) {
+  const pct = fmtPct(row.day_change_pct);
+  const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
+  const rawReason =
+    row.reason_sentence ||
+    (row.reasons && row.reasons[0]) ||
+    row.primary_driver ||
+    "On the heat list.";
+  // The backend reason_sentence often appends ", RSI X.Y, heat Z." — those
+  // numbers already appear as chips, so trim them from the prose.
+  const reason = rawReason
+    .replace(/,\s*RSI\s+[\d.]+/gi, "")
+    .replace(/,\s*heat\s+[\d.]+/gi, "")
+    .replace(/\s+\.\s*$/g, ".")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  const rsiVal = row.rsi_14;
+  const rsiState = row.rsi_14_state;
+  const rsiTone =
+    rsiState === "overbought" || (typeof rsiVal === "number" && rsiVal >= 70)
+      ? { bg: "#fff7ed", fg: "#c2410c", short: "OB" }
+      : rsiState === "oversold" || (typeof rsiVal === "number" && rsiVal <= 30)
+        ? { bg: "#eff6ff", fg: "#0052ff", short: "OS" }
+        : { bg: "#f3f4f6", fg: "#6b7280", short: "NTR" };
+  const momentum =
+    typeof row.momentum_score === "number" ? Math.round(row.momentum_score) : null;
+  const driver = row.primary_driver;
+  const secondary = (row.secondary_drivers ?? []).filter(Boolean).slice(0, 2);
+
   return (
-    <div className="flex items-center justify-end gap-3">
-      <div className="h-2 w-24 overflow-hidden rounded-full bg-surface-container-high">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-primary to-signal-bullish"
-          style={{ width: `${Math.max(6, Math.min(100, rounded))}%` }}
+    <li className="flex flex-col gap-2.5 px-5 py-4 border-t border-[#f3f4f6] hover:bg-[#fafafa] transition-colors">
+      {/* Header: logo + ticker + price + day chg + bookmark */}
+      <div className="flex items-start gap-3">
+        <a
+          href={`/stock/${encodeURIComponent(row.ticker)}`}
+          className="flex items-center gap-2.5 flex-1 min-w-0"
+        >
+          <StockLogo ticker={row.ticker} market={market} size={32} />
+          <div className="flex flex-col min-w-0">
+            <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+              {row.ticker}
+            </span>
+            {pct && (
+              <span
+                className={`text-[11px] font-semibold tabular-nums ${
+                  pct.positive ? "text-[#10b981]" : "text-[#ef4444]"
+                }`}
+              >
+                {pct.positive ? "▲" : "▼"} {pct.text.replace("+", "").replace("-", "")}
+              </span>
+            )}
+          </div>
+        </a>
+        <TrackButton
+          ticker={row.ticker}
+          instrumentId={row.instrument_id}
+          isTracked={trackedIds.includes(row.instrument_id)}
+          isSubscribed={isSubscribed}
+          variant="icon"
         />
       </div>
-      <span className="min-w-9 text-right text-base font-black tabular-nums text-on-surface">
-        {rounded}
-      </span>
-    </div>
+
+      {/* Reason sentence */}
+      <p className="line-clamp-2 text-[12px] text-[#6b7280] leading-snug">{reason}</p>
+
+      {/* Metrics strip */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {typeof rsiVal === "number" && (
+          <span
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+            style={{ background: rsiTone.bg, color: rsiTone.fg }}
+            title={`RSI ${rsiState ?? "neutral"}`}
+          >
+            <span className="text-[9px] font-semibold uppercase tracking-[0.06em] opacity-70">
+              RSI
+            </span>
+            {rsiVal.toFixed(1)}
+            <span className="text-[9px] font-semibold uppercase tracking-[0.04em] opacity-70">
+              {rsiTone.short}
+            </span>
+          </span>
+        )}
+        {momentum !== null && (
+          <MetricChip label="Mom" value={momentum} tone="ink" />
+        )}
+      </div>
+
+      {/* Drivers — tiny */}
+      {(driver || secondary.length > 0) && (
+        <div className="flex items-center gap-1 flex-wrap text-[10px] text-[#9ca3af] leading-snug">
+          {driver && (
+            <span className="font-semibold text-[#374151]">{driver}</span>
+          )}
+          {secondary.map((d) => (
+            <span key={d} className="before:content-['·'] before:mx-1">
+              {d}
+            </span>
+          ))}
+        </div>
+      )}
+    </li>
   );
 }
 
-function rsiStateLabel(raw?: string | null): { short: string; long: string } | null {
-  const key = String(raw ?? "").trim().toLowerCase();
-  if (!key || key === "insufficient_data") return null;
-  if (key === "overbought") return { short: "OB", long: "Overbought" };
-  if (key === "oversold") return { short: "OS", long: "Oversold" };
-  if (key === "neutral") return { short: "NTR", long: "Neutral" };
-  return { short: key.slice(0, 3).toUpperCase(), long: raw ?? key };
-}
-
-function RsiPill({ value, state }: { value: number | null | undefined; state?: string | null }) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return (
-      <span className="inline-flex flex-col items-center gap-0.5 rounded-xl bg-surface-container px-3 py-2 text-center">
-        <span className="text-sm font-black tabular-nums text-outline">—</span>
-        <span className="text-[9px] font-bold tracking-[0.12em] uppercase text-on-surface-variant">
-          No RSI yet
-        </span>
-      </span>
-    );
-  }
-
-  const display = value.toFixed(1);
-  const rawState = String(state ?? "").trim().toLowerCase();
-  const effectiveState =
-    rawState && rawState !== "insufficient_data"
-      ? rawState
-      : value >= 70
-        ? "overbought"
-        : value <= 30
-          ? "oversold"
-          : "neutral";
-  const inferred = rsiStateLabel(effectiveState);
-
-  const toneKey = effectiveState;
-  const tone = toneKey === "overbought"
-    ? "text-signal-bullish bg-signal-bullish/10 border-signal-bullish/25"
-    : toneKey === "oversold"
-      ? "text-signal-bearish bg-signal-bearish/10 border-signal-bearish/25"
-      : "text-on-surface bg-surface-container border-outline-variant/30";
-
+function MetricChip({
+  label,
+  value,
+  tone,
+  bar,
+}: {
+  label: string;
+  value: number;
+  tone: "warn" | "info" | "ink";
+  bar?: boolean;
+}) {
+  const palette =
+    tone === "warn"
+      ? { bg: "#fff7ed", fg: "#c2410c", barFill: "linear-gradient(90deg, #f59e0b, #ef4444)" }
+      : tone === "info"
+        ? { bg: "#eff6ff", fg: "#0052ff", barFill: "linear-gradient(90deg, #0052ff, #10b981)" }
+        : { bg: "#f3f4f6", fg: "#374151", barFill: "#374151" };
   return (
-    <span className={`inline-flex flex-col items-center gap-0.5 rounded-xl border px-3 py-2 ${tone}`}>
-      <span className="text-base font-black tabular-nums leading-none">{display}</span>
-      {inferred && (
-        <span className="text-[9px] font-black tracking-[0.12em] uppercase opacity-80">
-          {inferred.short} · {inferred.long}
+    <span
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+      style={{ background: palette.bg, color: palette.fg }}
+    >
+      <span className="text-[9px] font-semibold uppercase tracking-[0.06em] opacity-70">
+        {label}
+      </span>
+      {value}
+      {bar && (
+        <span className="relative inline-block h-1 w-8 overflow-hidden rounded-full bg-white/70 ml-0.5">
+          <span
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              width: `${Math.max(6, Math.min(100, value))}%`,
+              background: palette.barFill,
+            }}
+          />
         </span>
       )}
     </span>
   );
 }
 
-function TableRow({ row }: { row: HeatRow }) {
-  const router = useRouter();
-  const href = `/stock/${encodeURIComponent(row.ticker)}`;
-  const pct = fmtPct(row.day_change_pct);
-  const displayName = row.name && row.name !== row.ticker ? row.name : null;
-  const priceMoveClass = pct?.positive ? "text-signal-bullish" : "text-signal-bearish";
+// ─── Empty / list ─────────────────────────────────────────────────────────────
 
-  const openStock = (e: React.MouseEvent<HTMLTableRowElement>) => {
-    if (e.defaultPrevented) return;
-    if (e.metaKey || e.ctrlKey) {
-      window.open(href, "_blank", "noopener,noreferrer");
-      return;
-    }
-    router.push(href);
-  };
-
-  const onRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    e.preventDefault();
-    if (e.metaKey || e.ctrlKey) {
-      window.open(href, "_blank", "noopener,noreferrer");
-      return;
-    }
-    router.push(href);
-  };
-
-  return (
-    <tr
-      className="group cursor-pointer border-b border-outline-variant/10 bg-surface-container-lowest transition-colors hover:bg-surface-container-low focus-visible:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-      role="link"
-      tabIndex={0}
-      aria-label={`Open ${row.ticker}`}
-      onClick={openStock}
-      onKeyDown={onRowKeyDown}
-    >
-      <td className="px-5 py-5 align-middle">
-        <div className="text-xl font-black tracking-tight text-on-surface transition-colors group-hover:text-primary">
-          {row.ticker}
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {displayName && (
-            <span className="max-w-56 truncate text-xs font-semibold text-on-surface-variant">
-              {displayName}
-            </span>
-          )}
-          {row.sector && (
-            <span className="text-[10px] font-black tracking-[0.12em] uppercase text-outline">
-              {row.sector}
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="px-5 py-5 text-right align-middle">
-        <div className="text-base font-black tabular-nums text-on-surface">
-          {fmtPrice(row.price)}
-        </div>
-        {pct && (
-          <div className={`mt-1 text-xs font-black tabular-nums ${priceMoveClass}`}>
-            {pct.text}
-          </div>
-        )}
-      </td>
-      <td className="px-5 py-5 text-center align-middle">
-        <ScoreMini value={row.momentum_score} />
-      </td>
-      <td className="px-5 py-5 text-center align-middle">
-        <RsiPill value={row.rsi_14} state={row.rsi_14_state} />
-      </td>
-      <td className="px-5 py-5 text-right align-middle">
-        <HeatScore value={row.heat_score} />
-      </td>
-      <td className="min-w-[260px] px-5 py-5 align-middle">
-        <TagList tags={row.reasons} />
-      </td>
-    </tr>
-  );
+function groupBySetup(rows: HeatRow[]): { setup: string; rows: HeatRow[] }[] {
+  const buckets = new Map<string, HeatRow[]>();
+  for (const row of rows) {
+    const key = row.setup_type || "momentum_watch";
+    const list = buckets.get(key) ?? [];
+    list.push(row);
+    buckets.set(key, list);
+  }
+  return Array.from(buckets.entries())
+    .map(([setup, rows]) => ({ setup, rows }))
+    .sort((a, b) => setupMeta(a.setup).order - setupMeta(b.setup).order);
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
-
-export function HeatListView({ data }: { data: HeatList | null }) {
+export function HeatListView({ data, trackedIds = [], isSubscribed = false }: Props) {
   if (!data || data.rows.length === 0) {
     return (
-      <div className="bg-surface-container-lowest brutalist-border p-10">
-        <div className="mx-auto max-w-xl text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-[22px]">local_fire_department</span>
-          </div>
-          <p className="mt-4 text-[12px] font-black tracking-[0.16em] uppercase text-on-surface">
-            Heat list is warming up
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-            We have not generated today&apos;s ranked hot-stock signal yet. Check back
-            after the next market refresh.
-          </p>
+      <div className="rounded-[28px] border border-[#e5e7eb] bg-white p-10 text-center shadow-[0_18px_50px_rgba(17,24,39,0.04)]">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#fff7ed] text-[#c2410c]">
+          <span className="material-symbols-outlined text-[22px]">local_fire_department</span>
         </div>
+        <p className="mt-4 text-[12px] font-semibold tracking-[0.16em] uppercase text-[#111111]">
+          Heat list is warming up
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-[#6b7280] max-w-md mx-auto">
+          We have not generated today&apos;s ranked hot-stock signal yet. Check back after the
+          next market refresh.
+        </p>
       </div>
     );
   }
 
-  const rows = data.rows.slice(0, 10);
+  const rows = [...data.rows];
+  const groups = groupBySetup(rows);
 
   return (
-    <div className="overflow-hidden brutalist-border bg-surface-container-lowest">
-      <div className="border-b border-outline-variant/20 bg-surface-container-low px-5 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-black tracking-[0.18em] uppercase text-primary">
-              Today&apos;s shortlist
-            </p>
-            <p className="mt-1 text-sm text-on-surface-variant">
-              Showing the top {rows.length} ranked names by heat score.
-            </p>
-          </div>
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-black tracking-[0.14em] uppercase text-primary">
-            Max 10
-          </span>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1040px] border-collapse">
-          <thead>
-            <tr className="border-b border-outline-variant/20 bg-surface">
-              <th className="px-5 py-3 text-left text-[10px] font-black tracking-[0.16em] uppercase text-on-surface-variant">Stock</th>
-              <th className="px-5 py-3 text-right text-[10px] font-black tracking-[0.16em] uppercase text-on-surface-variant">Price</th>
-              <th className="px-5 py-3 text-center text-[10px] font-black tracking-[0.16em] uppercase text-on-surface-variant">
-                Momentum
-              </th>
-              <th className="px-5 py-3 text-center text-[10px] font-black tracking-[0.16em] uppercase text-on-surface-variant">
-                RSI (14)
-              </th>
-              <th className="px-5 py-3 text-right text-[10px] font-black tracking-[0.16em] uppercase text-on-surface-variant">Heat</th>
-              <th className="px-5 py-3 text-left text-[10px] font-black tracking-[0.16em] uppercase text-on-surface-variant">Why it&apos;s hot</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <TableRow key={row.instrument_id} row={row} />
-            ))}
-          </tbody>
-        </table>
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {groups.map(({ setup, rows }) => (
+          <CategoryCard
+            key={setup}
+            setup={setup}
+            rows={rows}
+            trackedIds={trackedIds}
+            isSubscribed={isSubscribed}
+          />
+        ))}
       </div>
     </div>
   );

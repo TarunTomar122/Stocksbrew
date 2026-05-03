@@ -1,32 +1,74 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { TrackButton } from "@/components/track-button";
 
 type Props = {
   ticker: string;
+  instrumentId: string;
   isSubscribed: boolean;
 };
+
+const PRO_BRIEF_BENEFITS: { icon: string; label: string; text: string }[] = [
+  {
+    icon: "🎯",
+    label: "Clear stance",
+    text: "bullish, mixed, or bearish with conviction",
+  },
+  {
+    icon: "📰",
+    label: "News translated",
+    text: "what changed and why the stock should care",
+  },
+  {
+    icon: "⚡",
+    label: "Catalysts & risks",
+    text: "earnings, guidance, ratings, and pressure points",
+  },
+  {
+    icon: "📊",
+    label: "Sentiment lanes",
+    text: "where news, analysts, and the crowd are leaning",
+  },
+];
+
+function ProBriefBenefits() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[#f3f4f6] pt-3">
+      {PRO_BRIEF_BENEFITS.map((benefit) => (
+        <div key={benefit.label} className="flex gap-2 rounded-xl bg-[#f8f9fa] px-3 py-2">
+          <span className="shrink-0 text-[13px]" aria-hidden>
+            {benefit.icon}
+          </span>
+          <p className="text-[12px] leading-snug text-[#6b7280]">
+            <span className="font-semibold text-[#111111]">{benefit.label}</span>{" "}
+            {benefit.text}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // A blurred mock of the AI brief layout: Strategic Directive, News signal,
 // Catalysts/Drivers/Risks, Sentiment. Sits behind the unlock CTA so free
 // users see exactly what they get on the AI tier.
-export function LockedAiBrief({ ticker, isSubscribed }: Props) {
+export function LockedAiBrief({ ticker, instrumentId, isSubscribed }: Props) {
   const { user, loading } = useUser();
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   if (loading) return null;
 
   const cta = !user
     ? {
-        title: `Unlock the AI brief for ${ticker}`,
-        body: "Sign in to unlock the free AI tier — news-backed briefs on 15 US + 15 IN launch stocks, refreshed twice daily.",
+        title: `See the AI brief for ${ticker}`,
+        body: "Free covers the launch list. Pro brings this same AI layer to any ticker you add to Radar.",
         label: "Sign in with Google",
         onClick: async () => {
           try {
@@ -42,30 +84,16 @@ export function LockedAiBrief({ ticker, isSubscribed }: Props) {
       }
     : !isSubscribed
       ? {
-          title: `${ticker} isn't on the free AI tier`,
-          body: "Subscribe to add this stock to your personal AI tier — we'll fetch its news, enrich it, and run a dedicated brief on every refresh.",
-          label: "Subscribe to unlock",
+          title: `Unlock the ${ticker} Pro brief`,
+          body: "Turn this into a monitored name: Tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
+          label: "Get Pro",
           onClick: () => router.push("/subscribe"),
         }
       : {
-          title: `Track ${ticker} to unlock its AI brief`,
-          body: "Tracking adds this stock to your personal AI tier. The next twice-daily refresh will include its news-backed brief.",
-          label: pending ? "Tracking…" : "Track this stock",
-          onClick: () => {
-            startTransition(async () => {
-              setError(null);
-              const res = await fetch("/api/track", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ticker }),
-              });
-              if (!res.ok) {
-                setError("Could not track — try again.");
-                return;
-              }
-              router.refresh();
-            });
-          },
+          title: `Add ${ticker} to Radar`,
+          body: "Start monitoring it as a Holding or Watching name. The next refresh builds the full AI brief.",
+          label: "Add to Radar",
+          onClick: () => undefined,
         };
 
   return (
@@ -82,21 +110,32 @@ export function LockedAiBrief({ ticker, isSubscribed }: Props) {
       </div>
 
       <div className="absolute inset-0 flex items-start justify-center pt-16 md:pt-24">
-        <div className="w-full max-w-[460px] rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_8px_32px_rgba(17,17,17,0.08)] p-6 flex flex-col gap-3">
+        <div className="w-full max-w-[480px] rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_8px_32px_rgba(17,17,17,0.08)] p-6 flex flex-col gap-4">
           <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
-            <span aria-hidden>🔒</span> AI tier
+            <span aria-hidden>🔒</span> Pro · AI tab
           </span>
           <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
             {cta.title}
           </h3>
           <p className="text-[13px] text-[#6b7280] leading-relaxed">{cta.body}</p>
-          <button
-            type="button"
-            onClick={() => cta.onClick()}
-            className="mt-1 inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-          >
-            {cta.label}
-          </button>
+          {!user || !isSubscribed ? <ProBriefBenefits /> : null}
+          {user && isSubscribed ? (
+            <TrackButton
+              ticker={ticker}
+              instrumentId={instrumentId}
+              tier="free"
+              isSubscribed={isSubscribed}
+              isTracked={false}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => cta.onClick()}
+              className="inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+            >
+              {cta.label}
+            </button>
+          )}
           {error && (
             <p className="text-[12px] font-medium text-[#ef4444]">{error}</p>
           )}

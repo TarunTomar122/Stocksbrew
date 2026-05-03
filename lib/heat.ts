@@ -9,6 +9,18 @@ import { adminFirestore } from "@/lib/firebase-admin";
 // backend `build_heat_list.py` stage writes this doc after every pipeline
 // run (see backend/heat_list.py for the scoring model).
 
+export type HeatSetupType =
+  | "overheated"
+  | "breakout"
+  | "dip_setup"
+  | "news_spike"
+  | "catalyst_watch"
+  | "momentum_watch"
+  | string;
+
+export type HeatDirection = "bullish" | "caution" | "mixed" | string;
+export type HeatRiskLevel = "low" | "medium" | "high" | string;
+
 export type HeatRow = {
   instrument_id: string;
   ticker: string;
@@ -18,6 +30,15 @@ export type HeatRow = {
   logo_url?: string;
   heat_score: number;
   reasons: string[];
+
+  // Product-ready setup framing (added in build_heat_list)
+  setup_type?: HeatSetupType;
+  heat_direction?: HeatDirection;
+  risk_level?: HeatRiskLevel;
+  primary_driver?: string;
+  secondary_drivers?: string[];
+  reason_sentence?: string;
+  suggested_action?: string;
 
   // Fundamentals signals (primary — works from day 1)
   overall_score?: number | null;
@@ -45,6 +66,15 @@ export type HeatRow = {
   previous_close?: number | null;
 };
 
+export type HeatSummary = {
+  headline?: string;
+  body?: string;
+  top_ticker?: string;
+  bullish_count?: number;
+  caution_count?: number;
+  counts?: Record<string, number>;
+};
+
 export type HeatList = {
   market: "US" | "IN";
   generated_at?: string;
@@ -54,6 +84,7 @@ export type HeatList = {
   baseline_window_days: number;
   row_count: number;
   rows: HeatRow[];
+  summary?: HeatSummary;
 };
 
 async function getHeatListUncached(
@@ -65,7 +96,7 @@ async function getHeatListUncached(
   // Defensive: Firestore maps occasionally omit empty arrays — normalise.
   return {
     ...data,
-    rows: Array.isArray(data.rows) ? data.rows.slice(0, 10) : [],
+    rows: Array.isArray(data.rows) ? data.rows : [],
   };
 }
 

@@ -3,7 +3,6 @@ import { HeroSection } from "@/components/hero-section";
 import { HomeContent } from "@/components/home-content";
 import { LandingProPreview } from "@/components/landing-pro-preview";
 import { MarketCues } from "@/components/market-cues";
-import { MarketSnapshot } from "@/components/market-snapshot";
 import { SectorSpotlights } from "@/components/sector-spotlights";
 import { WatchlistShowcase } from "@/components/watchlist-showcase";
 import { ThematicScreens } from "@/components/thematic-screens";
@@ -140,8 +139,6 @@ export default async function HomePage() {
           isSignedIn={Boolean(session)}
           isSubscribed={isSubscribed}
         />
-
-        <MarketSnapshot ticks={macroTicks} breadth={breadth} />
       </div>
     </main>
   );

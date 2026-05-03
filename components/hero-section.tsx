@@ -32,6 +32,12 @@ const FLOATING_CARDS: {
   pos: string;
   rot: string;
   delay: string;
+  /** Material Symbols glyph used as a watermark icon on the tile. */
+  icon: string;
+  /** Day-change pct shown on the floating chip. */
+  changePct: number;
+  /** 0–1 sparkline points; rendered behind the ticker. */
+  spark: number[];
 }[] = [
   {
     ticker: "TSLA",
@@ -40,6 +46,9 @@ const FLOATING_CARDS: {
     pos: "top-[18%] left-[18%]",
     rot: "-8deg",
     delay: "0s",
+    icon: "bolt",
+    changePct: 2.43,
+    spark: [0.4, 0.32, 0.45, 0.38, 0.55, 0.62, 0.58, 0.7, 0.75, 0.82],
   },
   {
     ticker: "NVDA",
@@ -48,6 +57,9 @@ const FLOATING_CARDS: {
     pos: "top-[10%] right-[20%]",
     rot: "6deg",
     delay: "1.5s",
+    icon: "memory",
+    changePct: 4.12,
+    spark: [0.28, 0.34, 0.4, 0.5, 0.48, 0.6, 0.66, 0.78, 0.86, 0.92],
   },
   {
     ticker: "AMZN",
@@ -56,6 +68,9 @@ const FLOATING_CARDS: {
     pos: "top-[46%] right-[14%]",
     rot: "10deg",
     delay: "3s",
+    icon: "local_shipping",
+    changePct: -1.18,
+    spark: [0.7, 0.65, 0.6, 0.62, 0.58, 0.5, 0.45, 0.4, 0.38, 0.32],
   },
   {
     ticker: "AAPL",
@@ -64,8 +79,19 @@ const FLOATING_CARDS: {
     pos: "bottom-[16%] left-[24%]",
     rot: "-4deg",
     delay: "4.5s",
+    icon: "phone_iphone",
+    changePct: 0.84,
+    spark: [0.45, 0.5, 0.46, 0.52, 0.55, 0.58, 0.54, 0.62, 0.65, 0.68],
   },
 ];
+
+function sparklinePath(points: number[], width = 96, height = 28): string {
+  if (points.length < 2) return "";
+  const step = width / (points.length - 1);
+  return points
+    .map((y, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(2)},${(height - y * height).toFixed(2)}`)
+    .join(" ");
+}
 
 export function HeroSection({ score, tone, color, indices }: Props) {
   const router = useRouter();
@@ -115,14 +141,14 @@ export function HeroSection({ score, tone, color, indices }: Props) {
           </span>
 
           <h1 className="text-white text-[44px] md:text-[56px] lg:text-[64px] font-semibold leading-[1.05] tracking-[-0.04em]">
-            Know the market
+          Wall Street's
             <br />
-            before it knows itself.
+            Morning Routine.
           </h1>
 
           <p className="text-[16px] md:text-[17px] text-white/70 leading-[1.55] max-w-[480px]">
             Tikrr surfaces institutional flows, sentiment shifts, and sector
-            rotations across US and Indian markets — so you spot the move before
+            rotations across US markets — so you spot the move before
             the headline.
           </p>
 
@@ -144,74 +170,98 @@ export function HeroSection({ score, tone, color, indices }: Props) {
           </div>
 
           <p className="text-[12px] text-white/50 pt-1">
-            Free during beta · No card required
+            Pro $9/mo · cancel anytime
           </p>
         </div>
 
         {/* Right: floating product artifacts */}
         <div className="relative hidden lg:block min-h-[420px]">
-          {FLOATING_CARDS.map((c) => (
-            <div
-              key={c.ticker}
-              className={`hero-card-float absolute ${c.pos} w-[120px] h-[120px] rounded-[26px] p-[2px] shadow-[0_18px_40px_rgba(0,0,0,0.45)]`}
-              style={
-                {
-                  background:
-                    "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 100%)",
-                  ["--rot" as string]: c.rot,
-                  animationDelay: c.delay,
-                } as React.CSSProperties
-              }
-            >
+          {FLOATING_CARDS.map((c) => {
+            const positive = c.changePct >= 0;
+            const path = sparklinePath(c.spark);
+            const sparkColor = positive ? "#34d399" : "#f87171";
+            return (
               <div
-                className="flex h-full w-full flex-col items-center justify-center rounded-[24px] text-white"
-                style={{ background: c.gradient }}
+                key={c.ticker}
+                className={`hero-card-float absolute ${c.pos} w-[140px] h-[140px] rounded-[28px] p-[1.5px] shadow-[0_22px_50px_rgba(0,0,0,0.45)]`}
+                style={
+                  {
+                    background:
+                      "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.05) 100%)",
+                    ["--rot" as string]: c.rot,
+                    animationDelay: c.delay,
+                  } as React.CSSProperties
+                }
               >
-                <span className="text-[22px] font-semibold tracking-tight">
-                  {c.ticker}
-                </span>
-                <span className="text-[11px] text-white/70 mt-1">{c.name}</span>
-              </div>
-            </div>
-          ))}
+                <div
+                  className="relative flex h-full w-full flex-col rounded-[26px] text-white overflow-hidden"
+                  style={{ background: c.gradient }}
+                >
+                  {/* Watermark icon */}
+                  <span
+                    aria-hidden
+                    className="material-symbols-outlined absolute -right-2 -bottom-2 text-white/10 select-none pointer-events-none"
+                    style={{ fontSize: 96, fontVariationSettings: "'wght' 600" }}
+                  >
+                    {c.icon}
+                  </span>
 
-          {/* Center disc with logo dot to anchor the cluster */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-white/40 shadow-[0_0_60px_20px_rgba(255,255,255,0.25)]" />
+                  {/* Day-change chip */}
+                  <span
+                    className="absolute top-2.5 right-2.5 inline-flex items-center gap-0.5 rounded-full bg-black/40 backdrop-blur-sm px-2 py-0.5 text-[10px] font-semibold tabular-nums ring-1 ring-white/10"
+                    style={{ color: positive ? "#34d399" : "#f87171" }}
+                  >
+                    {positive ? "▲" : "▼"} {Math.abs(c.changePct).toFixed(2)}%
+                  </span>
+
+                  {/* Ticker + name */}
+                  <div className="flex flex-col items-start gap-0.5 px-3.5 pt-3.5">
+                    <span className="text-[24px] font-semibold tracking-tight leading-none">
+                      {c.ticker}
+                    </span>
+                    <span className="text-[10px] text-white/70">{c.name}</span>
+                  </div>
+
+                  {/* Sparkline */}
+                  <svg
+                    viewBox="0 0 96 28"
+                    width="96"
+                    height="28"
+                    aria-hidden
+                    className="absolute bottom-3 left-3 right-3"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={sparkColor}
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity="0.95"
+                    />
+                  </svg>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Centre anchor with pulsing rings */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <span
+              aria-hidden
+              className="hero-pulse absolute inset-0 -m-2 rounded-full border border-white/20"
+            />
+            <span
+              aria-hidden
+              className="hero-pulse absolute inset-0 -m-2 rounded-full border border-white/15"
+              style={{ animationDelay: "1.6s" }}
+            />
+            <div className="relative h-3 w-3 rounded-full bg-white/40 shadow-[0_0_60px_20px_rgba(59,130,246,0.35)]" />
+          </div>
         </div>
       </div>
 
-      {/* Glass index strip docked into the hero */}
-      {indices.length > 0 && (
-        <div className="relative z-10 mt-10 md:mt-14 px-4 md:px-6 pb-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md">
-            {indices.slice(0, 4).map((idx) => {
-              const up = idx.changePct > 0;
-              const down = idx.changePct < 0;
-              const tone = up
-                ? "text-[#34d399]"
-                : down
-                  ? "text-[#f87171]"
-                  : "text-white/60";
-              return (
-                <div
-                  key={idx.ticker}
-                  className="bg-[#0b1228]/60 px-5 py-5 flex flex-col gap-1"
-                >
-                  <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-white/50">
-                    {idx.name || idx.ticker}
-                  </span>
-                  <span className="text-[22px] md:text-[24px] font-semibold text-white tabular-nums tracking-tight">
-                    {fmtPrice(idx.price)}
-                  </span>
-                  <span className={`text-[12px] font-semibold tabular-nums ${tone}`}>
-                    {up ? "▲" : down ? "▼" : "•"} {fmtPct(idx.changePct)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </section>
   );
 }

@@ -68,7 +68,7 @@ export default function TermsPage() {
         <p>
           Pro features may require a paid subscription. Pricing, billing cycles,
           and refund eligibility are described on the pricing page. While Tikrr is
-          in beta, the watchlist tier is free of charge — we'll notify you well
+          in beta, the Radar tier is free of charge — we'll notify you well
           before that changes.
         </p>
       </section>

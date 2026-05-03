@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from html import unescape
 from typing import Any
 
@@ -91,6 +91,43 @@ def _parse_number(value: str | None) -> float | None:
     return round(-parsed if is_negative else parsed, 4)
 
 
+def _parse_forward_event_date(value: str | None) -> str | None:
+    """Parse source event labels and keep only plausible forward dates.
+
+    Finviz commonly emits values like "Mar 18 AMC" without a year. If that
+    month/day is already months behind us, it is a stale event and should not
+    be presented as "Next earnings". Near year-end, a Jan date can legitimately
+    mean next year, so we allow a small rollover window.
+    """
+    if not value:
+        return None
+    text = str(value).strip().split("/")[0].strip()
+    if not text or text.upper() in {"-", "N/A", "NA", "NONE"}:
+        return None
+
+    text = re.sub(r"\s+(AMC|BMO|TAS|DMH)$", "", text, flags=re.I).strip()
+    today = datetime.now(timezone.utc).date()
+
+    for fmt in ("%Y-%m-%d", "%b %d %Y", "%b %d"):
+        try:
+            parsed = datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+
+        if fmt == "%b %d":
+            parsed = parsed.replace(year=today.year)
+            if parsed < today:
+                rolled = parsed.replace(year=today.year + 1)
+                if rolled - today > timedelta(days=180):
+                    return None
+                parsed = rolled
+
+        if parsed < today or parsed - today > timedelta(days=180):
+            return None
+        return parsed.isoformat()
+    return None
+
+
 def _parse_millions(value: str | None) -> float | None:
     parsed = _parse_number(value)
     return round(parsed * 1_000_000.0, 4) if parsed is not None else None
@@ -111,6 +148,9 @@ def _parse_finviz_snapshot(ticker: str) -> dict[str, Any]:
         if key:
             raw[key] = value
 
+    earnings_label = raw.get("Earnings")
+    earnings_date = _parse_forward_event_date(earnings_label)
+
     return {
         "returns": {
             "one_month_pct": _parse_percent(raw.get("Perf Month")),
@@ -129,10 +169,11 @@ def _parse_finviz_snapshot(ticker: str) -> dict[str, Any]:
             {
                 "kind": "earnings",
                 "title": "Earnings",
-                "date_label": raw.get("Earnings"),
+                "date": earnings_date,
+                "date_label": earnings_label,
                 "source": "finviz",
             }
-        ] if raw.get("Earnings") else [],
+        ] if earnings_date and earnings_label else [],
         "analyst_hint": {
             "target_price": _parse_number(raw.get("Target Price")),
         },

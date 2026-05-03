@@ -201,14 +201,28 @@
 
 /* ── Hero card slow float (preserves per-card rotation via CSS var) ─────── */
 @keyframes tikrr-card-float {
-  0%   { transform: rotate(var(--rot, 0deg)) translateY(0); }
-  50%  { transform: rotate(var(--rot, 0deg)) translateY(-6px); }
-  100% { transform: rotate(var(--rot, 0deg)) translateY(0); }
+  0%   { transform: rotate(var(--rot, 0deg)) translate3d(0, 0, 0); }
+  25%  { transform: rotate(calc(var(--rot, 0deg) + 1deg)) translate3d(2px, -8px, 0); }
+  50%  { transform: rotate(var(--rot, 0deg)) translate3d(0, -14px, 0); }
+  75%  { transform: rotate(calc(var(--rot, 0deg) - 1deg)) translate3d(-2px, -8px, 0); }
+  100% { transform: rotate(var(--rot, 0deg)) translate3d(0, 0, 0); }
 }
 
 .hero-card-float {
   animation: tikrr-card-float 9s ease-in-out infinite;
   will-change: transform;
+}
+
+/* ── Centre pulse ring under hero cluster ───────────────────────────────── */
+@keyframes tikrr-hero-pulse {
+  0%   { transform: scale(0.6); opacity: 0.6; }
+  70%  { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.hero-pulse {
+  animation: tikrr-hero-pulse 4s ease-out infinite;
+  will-change: transform, opacity;
 }
 
 /* ── Premium card border ─────────────────────────────────────────────────── */

@@ -306,6 +306,45 @@ function mentionSummary(mentionStats: Record<string, unknown>): Record<string, u
   };
 }
 
+function microcopyFromStockBrief(
+  ticker: string,
+  dayChangePct: number | null,
+  stockBrief: Record<string, unknown>,
+): { micro: string; vibe: "up" | "down" | "wild" } | null {
+  if (!Object.keys(stockBrief).length) return null;
+  const visual = (stockBrief.visual_summary as Record<string, unknown>) || {};
+  const raw =
+    visual.what_changed ||
+    stockBrief.today_brief ||
+    stockBrief.body ||
+    stockBrief.thesis ||
+    stockBrief.headline;
+  const micro = String(raw || "").replace(/\s+/g, " ").trim();
+  if (!micro) return null;
+
+  const label = String(stockBrief.overall_label || "").toLowerCase();
+  const vibe =
+    label === "bullish"
+      ? "up"
+      : label === "bearish"
+        ? "down"
+        : dayChangePct !== null
+          ? dayChangePct >= 0
+            ? "up"
+            : "down"
+          : "wild";
+  return {
+    micro: `${ticker}: ${micro}`.slice(0, 150),
+    vibe,
+  };
+}
+
+function isFullAiBrief(stockBrief: Record<string, unknown>): boolean {
+  const source = String(stockBrief.source || "").toLowerCase();
+  const coverageType = String(stockBrief.coverage_type || "").toLowerCase();
+  return source === "mimo" && coverageType !== "on_demand_no_news";
+}
+
 function targetUpsidePct(
   price: number | null,
   facts: Record<string, unknown>,
@@ -612,6 +651,7 @@ function rowFromDocs(
   positionType: "holding" | "watchlist",
   latest: Record<string, unknown>,
   intel: Record<string, unknown>,
+  stockBrief: Record<string, unknown>,
   facts: Record<string, unknown>,
   technicals: Record<string, unknown>,
   mentionStats: Record<string, unknown>,
@@ -626,7 +666,8 @@ function rowFromDocs(
   const ticker = (latest?.ticker as string) || (intel?.ticker as string) || instrumentId.split("_").slice(1).join("_");
   const dayChange = toNumber(quote.day_change_pct);
   const alerts = alertsByInstrument[instrumentId] || [];
-  const { micro, vibe } = rowMicrocopy(ticker, dayChange, intel, alerts);
+  const briefMicrocopy = microcopyFromStockBrief(ticker, dayChange, stockBrief);
+  const { micro, vibe } = briefMicrocopy || rowMicrocopy(ticker, dayChange, intel, alerts);
   const price = toNumber(quote.current);
   const factsCompact = compactFacts(facts);
   const mentionCompact = mentionSummary(mentionStats);
@@ -683,7 +724,7 @@ function rowFromDocs(
     brief_tile: {
       micro,
       vibe,
-      source: "rules",
+      source: briefMicrocopy && isFullAiBrief(stockBrief) ? "mimo" : "rules",
     },
     ...attention,
     coverage_status: Object.keys(intel).length > 0 ? "ready" : "score_pending",
@@ -705,23 +746,40 @@ async function buildRows(
   ]);
 
   const intelById = new Map<string, Record<string, unknown>>();
+  const stockBriefById = new Map<string, Record<string, unknown>>();
   for (const market of ["US", "IN"] as const) {
     const marketIds = ids.filter((id) => marketFromInstrumentId(id) === market);
     if (marketIds.length === 0) continue;
     let missing = marketIds;
+    let missingBriefs = marketIds;
     for (const universe of candidateUniverses(market, universes)) {
-      if (missing.length === 0) break;
-      const docs = await getDocsById<Record<string, unknown>>(
-        adminFirestore
-          .collection("tm_stock_intel_pro")
-          .doc(`${market}__${universe}`)
-          .collection("stocks"),
-        missing,
-      );
-      for (const [instrumentId, doc] of docs.entries()) {
-        intelById.set(instrumentId, doc);
+      if (missing.length > 0) {
+        const docs = await getDocsById<Record<string, unknown>>(
+          adminFirestore
+            .collection("tm_stock_intel_pro")
+            .doc(`${market}__${universe}`)
+            .collection("stocks"),
+          missing,
+        );
+        for (const [instrumentId, doc] of docs.entries()) {
+          intelById.set(instrumentId, doc);
+        }
+        missing = missing.filter((instrumentId) => !intelById.has(instrumentId));
       }
-      missing = missing.filter((instrumentId) => !intelById.has(instrumentId));
+      if (missingBriefs.length > 0) {
+        const docs = await getDocsById<Record<string, unknown>>(
+          adminFirestore
+            .collection("tm_news_runs")
+            .doc(`${market}__${universe}`)
+            .collection("stock_intelligence"),
+          missingBriefs,
+        );
+        for (const [instrumentId, doc] of docs.entries()) {
+          stockBriefById.set(instrumentId, doc);
+        }
+        missingBriefs = missingBriefs.filter((instrumentId) => !stockBriefById.has(instrumentId));
+      }
+      if (missing.length === 0 && missingBriefs.length === 0) break;
     }
   }
 
@@ -734,6 +792,7 @@ async function buildRows(
       positionTypeFor(id, positions),
       latest,
       intelById.get(id) || {},
+      stockBriefById.get(id) || {},
       factsById.get(id) || {},
       technicalsById.get(id) || {},
       mentionsById.get(id) || {},
@@ -808,7 +867,7 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
 
 async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string, unknown>> {
   if (!rows.length) {
-    return { summary: "No tracked stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
+    return { summary: "No Radar stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
   }
   const clusters = sectorClusters(rows);
   const dominant = clusters[0];
@@ -818,7 +877,7 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
       kind: "sector_concentration",
       severity: Number(dominant.weight_pct) >= 70 ? "high" : "medium",
       headline: `${Math.round(Number(dominant.weight_pct))}% clustered in ${dominant.sector}`,
-      body: "A single-sector watchlist can look great until one macro factor hits every name together.",
+      body: "A single-sector Radar can look great until one macro factor hits every name together.",
     });
   }
   for (const row of rows
@@ -864,7 +923,7 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
   if (opportunities.length) summaryParts.push(`${opportunities.length} upside candidates stand out.`);
 
   return {
-    summary: summaryParts.join(" ") || "Watchlist diagnosis is ready.",
+    summary: summaryParts.join(" ") || "Radar diagnosis is ready.",
     clusters,
     factor_tilt: {
       overall: averageScore(rows, "overall"),
@@ -896,6 +955,7 @@ function attentionItems(rows: WatchlistRow[]): Record<string, unknown>[] {
       suggested_action: row.suggested_action,
       action_tone: row.action_tone,
       sector_label: row.sector_label,
+      brief_source: row.brief_tile.source,
     }));
 }
 
@@ -908,13 +968,13 @@ function riskSummary(rows: WatchlistRow[], portfolio: Record<string, unknown>): 
   const headline = highAttentionHoldings[0]
     ? `${highAttentionHoldings[0].ticker} needs review first`
     : dominant
-      ? `${dominant.sector} dominates your tracked names`
+      ? `${dominant.sector} dominates your Radar`
       : "No obvious risk cluster yet";
   const body = highAttentionHoldings[0]
     ? String(highAttentionHoldings[0].attention_reason || "A holding has a material signal.")
     : dominant
-      ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of tracked names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
-      : "Add more holdings/watchlist names and Tikrr will detect concentration, technical, and news risk.";
+      ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of Radar names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
+      : "Add more holdings/watching names and Tikrr will detect concentration, technical, and news risk.";
   return {
     headline,
     body,
@@ -941,8 +1001,8 @@ function eventRadar(rows: WatchlistRow[], portfolio: Record<string, unknown>): R
       add({
         ticker: row.ticker,
         kind: "new_tracking",
-        title: `${row.ticker} is new to the watchlist`,
-        body: "Baseline facts, score, technicals, and alerts are now being tracked for changes.",
+        title: `${row.ticker} is new to Radar`,
+        body: "Baseline facts, score, technicals, and alerts are now being monitored for changes.",
         urgency: 60,
         evidence: ["new baseline"],
       });
@@ -954,7 +1014,7 @@ function eventRadar(rows: WatchlistRow[], portfolio: Record<string, unknown>): R
           ticker: row.ticker,
           kind: "conviction_delta",
           title: `${row.ticker} conviction ${overallDelta > 0 ? "improved" : "weakened"}`,
-          body: `Overall score changed ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)} since the last watchlist build.`,
+          body: `Overall score changed ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)} since the last Radar build.`,
           urgency: Math.abs(overallDelta) >= 5 ? 72 : 58,
           tone: overallDelta > 0 ? "positive" : "negative",
           evidence: [`score ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)}`],
@@ -1090,7 +1150,7 @@ function changeSummary(rows: WatchlistRow[], previousView: WatchlistView | null)
     score_changes: scoreChanges.slice(0, 6),
     new_tickers: newRows.map((row) => row.ticker),
     summary: previousView
-      ? `${changed.length} tracked stock(s) changed materially since the last build.`
+      ? `${changed.length} Radar stock(s) changed materially since the last build.`
       : "No previous snapshot yet; this build sets the baseline.",
   };
 }
@@ -1147,8 +1207,8 @@ function rowMicrocopy(
 function pulseFromRows(rows: WatchlistRow[]): WatchlistPulse {
   if (rows.length === 0) {
     return {
-      headline: "Your watchlist is empty",
-      subtitle: "Track a stock from any detail page to start getting daily briefs.",
+      headline: "Your Radar is empty",
+      subtitle: "Add a stock from any detail page to start getting daily briefs.",
       stats: {},
     };
   }
@@ -1195,7 +1255,7 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
   const concentrated = dominant && dominant[1] >= Math.max(2, Math.ceil(rows.length / 2));
   const alertEvents = rows.flatMap((row) =>
     row.alerts.slice(0, 1).map((flag) => ({
-      sentence: String(flag.message || flag.type || "Watchlist alert triggered.").slice(0, 120),
+      sentence: String(flag.message || flag.type || "Radar alert triggered.").slice(0, 120),
       event_type: "technical",
       scope: "stock" as const,
       direction: (String(flag.direction || "mixed") as "up" | "down" | "mixed"),
@@ -1230,7 +1290,7 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
     ],
     blind_spot_title: "Exposure check",
     blind_spot_body: concentrated
-      ? `Most of this watchlist clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
+      ? `Most of this Radar clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
       : "No obvious concentration yet. Add more stocks and Tikrr will flag sector, style, and event blind spots.",
     essential_events: alertEvents.length
       ? alertEvents.slice(0, 5)

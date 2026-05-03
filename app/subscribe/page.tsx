@@ -1,62 +1,63 @@
-import Link from "next/link";
+import { getSessionUser } from "@/lib/auth-server";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { SubscribePricing } from "@/components/subscribe-pricing";
 
 export const metadata = {
-  title: "Subscribe — Tikrr",
+  title: "Subscribe · Tikrr Pro",
 };
 
-export default function SubscribePage() {
+type Props = {
+  searchParams: { success?: string };
+};
+
+export default async function SubscribePage({ searchParams }: Props) {
+  const session = await getSessionUser();
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const isSubscribed = resolveIsSubscribed(userDoc);
+  const justSubscribed = searchParams.success === "1" || isSubscribed;
+
   return (
     <main className="flex-grow">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 md:px-10 py-12 md:py-20">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-primary font-bold">Subscription</p>
-          <h1 className="mt-3 text-3xl md:text-4xl font-black tracking-tight text-on-surface">Coming soon</h1>
-          <p className="mt-3 text-sm md:text-[15px] text-on-surface-variant leading-relaxed">
-            Paid tier isn&apos;t live yet. When it launches, subscribing will let you add any
-            stock outside the free AI-tier list to your personal AI tier — Tikrr will run
-            news fetch, enrichment, and LLM briefs on it twice daily alongside your
-            watchlist synthesis.
-          </p>
-        </div>
+      <div className="mx-auto flex w-full max-w-screen-xl flex-col items-center gap-12 px-6 md:px-10 lg:px-16 py-16 md:py-24">
 
-        <section className="rounded-2xl border border-outline-variant/40 bg-surface p-6 md:p-8 shadow-card">
-          <h2 className="text-sm font-bold text-on-surface tracking-tight">What you get</h2>
-          <ul className="mt-4 flex flex-col gap-3 text-sm text-on-surface-variant">
-            {[
-              "Track up to 10 stocks in your personal AI tier",
-              "Daily news-backed brief per tracked stock",
-              "No-news LLM read-through when coverage is quiet",
-              "Watchlist synthesis — cross-stock themes, blind spots, risk rollups",
-              "Twice-daily refresh before each market's open",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                <span className="leading-relaxed">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {justSubscribed && !isSubscribed && (
+          /* Webhook hasn't fired yet — show a pending state */
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#eff6ff]">
+              <span
+                className="material-symbols-outlined text-[#0052ff]"
+                style={{ fontSize: 24, fontVariationSettings: "'wght' 600" }}
+              >
+                hourglass_top
+              </span>
+            </span>
+            <p className="text-[16px] font-semibold text-[#111111]">Payment received — activating your Pro…</p>
+            <p className="text-[14px] text-[#6b7280] max-w-sm">
+              This usually takes a few seconds. Refresh the page if it doesn&apos;t update automatically.
+            </p>
+          </div>
+        )}
 
-        <section className="rounded-2xl border border-outline-variant/40 bg-surface p-6 md:p-8 shadow-card">
-          <h2 className="text-sm font-bold text-on-surface tracking-tight">Why it&apos;s paid</h2>
-          <p className="mt-3 text-sm text-on-surface-variant leading-relaxed">
-            Every tracked stock means real LLM spend per refresh — news fetching, article
-            enrichment, per-stock brief synthesis, and the watchlist-wide rollup. The free
-            tier covers 15 US + 15 IN stocks for everyone; paying users extend that list
-            with stocks they actually hold.
-          </p>
-        </section>
+        <SubscribePricing isSubscribed={isSubscribed} />
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="rounded-xl border border-outline-variant px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
-          >
-            Back to dashboard
-          </Link>
-          <span className="text-xs text-on-surface-variant">
-            Want early access? Ping Tanay.
-          </span>
+        {/* Trust row */}
+        <div className="flex flex-wrap items-center justify-center gap-6 text-[12px] text-[#9ca3af]">
+          {[
+            { icon: "lock", text: "Secure checkout via Dodo Payments" },
+            { icon: "cancel", text: "Cancel anytime" },
+            { icon: "support_agent", text: "hello@tikrr.com" },
+          ].map(({ icon, text }) => (
+            <span key={text} className="inline-flex items-center gap-1.5">
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 15, fontVariationSettings: "'wght' 500" }}
+                aria-hidden
+              >
+                {icon}
+              </span>
+              {text}
+            </span>
+          ))}
         </div>
       </div>
     </main>

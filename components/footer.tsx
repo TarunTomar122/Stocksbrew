@@ -12,7 +12,7 @@ const COLUMNS: Column[] = [
       { label: "Markets", href: "/" },
       { label: "Heat", href: "/heat" },
       { label: "News", href: "/news" },
-      { label: "Watchlist", href: "/watchlist" },
+      { label: "Radar", href: "/watchlist" },
       { label: "Screens", href: "/screens" },
     ],
   },
@@ -20,7 +20,6 @@ const COLUMNS: Column[] = [
     title: "Coverage",
     links: [
       { label: "US stocks", href: "/" },
-      { label: "Indian stocks", href: "/" },
       { label: "Sectors", href: "/" },
       { label: "Indices & macro", href: "/" },
     ],
@@ -60,7 +59,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-[14px] leading-[1.55] text-white/65 max-w-[280px]">
-              Market intelligence for the stocks you actually care about — across US and India.
+              Market intelligence for the stocks you actually care about — US markets today, more coming soon.
             </p>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/85">
@@ -68,7 +67,7 @@ export function Footer() {
                   <span className="absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75 animate-ping" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#10b981]" />
                 </span>
-                Free during beta
+                Live now
               </span>
             </div>
           </div>

@@ -28,6 +28,20 @@ from backend.storage import TraceMoneyStore
 
 BASELINE_DAYS = 30
 RECENT_DAYS = 7
+MONTHS = {
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
 
 # Minimum overall heat score for a row to appear in the output.
 MIN_HEAT_SCORE = 20.0
@@ -216,6 +230,36 @@ def _resolve_rsi(
     return rsi_value, mapped
 
 
+def _event_is_current(date_label: str) -> bool:
+    parts = date_label.lower().replace(",", " ").split()
+    if len(parts) < 2:
+        return True
+    month = MONTHS.get(parts[0][:3])
+    if not month:
+        return True
+    try:
+        day = int(parts[1])
+    except (TypeError, ValueError):
+        return True
+    today = datetime.now(timezone.utc).date()
+    try:
+        event_date = today.replace(month=month, day=day)
+    except ValueError:
+        return True
+    delta = (event_date - today).days
+    return -1 <= delta <= 45
+
+
+def _catalyst_is_current(catalyst: dict[str, Any]) -> bool:
+    if str(catalyst.get("kind") or "").lower() != "earnings":
+        return True
+    title = str(catalyst.get("title") or "")
+    parts = title.split()
+    if len(parts) >= 3:
+        return _event_is_current(" ".join(parts[1:3]))
+    return True
+
+
 def _quote_field(price_doc: dict[str, Any] | None, field: str) -> float | None:
     if not price_doc:
         return None
@@ -250,7 +294,10 @@ def _score_and_reasons(
     momentum = _pillar(intel, "momentum") if intel else None
     overall = _overall_score(intel) if intel else None
     growth = _pillar(intel, "growth") if intel else None
-    catalysts = (intel or {}).get("catalysts") or []
+    catalysts = [
+        catalyst for catalyst in (intel or {}).get("catalysts") or []
+        if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
+    ]
 
     # ── Tier 1: momentum pillar (0-40 pts) ───────────────────────────────────
     # The score drives ranking; the label appears in the metric bar on the card,
@@ -341,6 +388,147 @@ def _score_and_reasons(
     return max(0.0, min(100.0, score)), tags
 
 
+def _row_meta(
+    ticker: str,
+    intel: dict[str, Any] | None,
+    heat_score: float,
+    rsi_14: float | None,
+    day_change_pct: float | None,
+    velocity: dict[str, float] | None,
+    reasons: list[str],
+) -> dict[str, Any]:
+    momentum = _pillar(intel or {}, "momentum")
+    overall = _overall_score(intel or {})
+    catalysts = [
+        catalyst for catalyst in (intel or {}).get("catalysts") or []
+        if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
+    ]
+    abs_move = abs(day_change_pct or 0.0)
+    news_count = (velocity or {}).get("recent_count", 0.0)
+    multiplier = (velocity or {}).get("multiplier", 0.0)
+    first_seen = bool((velocity or {}).get("first_appearance"))
+
+    setup_type = "momentum_watch"
+    primary_driver = "Momentum score"
+    if catalysts:
+        setup_type = "catalyst_watch"
+        primary_driver = "Upcoming catalyst"
+    if first_seen or multiplier >= 3:
+        setup_type = "news_spike"
+        primary_driver = "News velocity"
+    if rsi_14 is not None and rsi_14 >= 70:
+        setup_type = "overheated"
+        primary_driver = "Stretched RSI"
+    elif rsi_14 is not None and rsi_14 <= 35 and (overall or 0) >= 60:
+        setup_type = "dip_setup"
+        primary_driver = "Washed-out quality"
+    elif abs_move >= 3 and (momentum or 0) >= 65:
+        setup_type = "breakout"
+        primary_driver = "Price breakout"
+
+    heat_direction = "mixed"
+    if setup_type in {"overheated"} or (rsi_14 is not None and rsi_14 >= 78):
+        heat_direction = "caution"
+    elif setup_type in {"breakout", "dip_setup", "news_spike", "catalyst_watch"}:
+        heat_direction = "bullish" if (overall or 0) >= 50 else "mixed"
+
+    risk_level = "low"
+    if rsi_14 is not None and rsi_14 >= 78:
+        risk_level = "high"
+    elif rsi_14 is not None and rsi_14 >= 70:
+        risk_level = "medium"
+    elif abs_move >= 5 and heat_direction != "bullish":
+        risk_level = "medium"
+
+    suggested_action = "Review setup"
+    if setup_type == "overheated":
+        suggested_action = "Watch, do not chase"
+    elif setup_type == "dip_setup":
+        suggested_action = "Investigate entry"
+    elif setup_type == "breakout":
+        suggested_action = "Check follow-through"
+    elif setup_type == "news_spike":
+        suggested_action = "Read latest context"
+    elif setup_type == "catalyst_watch":
+        suggested_action = "Track catalyst reaction"
+
+    setup_label = setup_type.replace("_", " ")
+    article = "an" if setup_label[0].lower() in {"a", "e", "i", "o", "u"} else "a"
+    rsi_text = f"RSI {rsi_14:.1f}" if rsi_14 is not None else "RSI unavailable"
+    move_text = (
+        f"{day_change_pct:+.1f}% today"
+        if day_change_pct is not None
+        else "price move unavailable"
+    )
+    score_text = f"heat {heat_score:.0f}"
+    reason_sentence = (
+        f"{ticker} is {article} {setup_label} setup: "
+        f"{move_text}, {rsi_text}, {score_text}."
+    )
+    if setup_type == "news_spike" and news_count:
+        reason_sentence = (
+            f"{ticker} news activity is elevated with {news_count:.0f} "
+            f"mentions in 7 days; {move_text}, {score_text}."
+        )
+    elif setup_type == "catalyst_watch" and catalysts:
+        title = str(catalysts[0].get("title") or "catalyst").strip()
+        reason_sentence = f"{ticker} has {title}; {move_text}, {score_text}."
+
+    def is_duplicate_driver(reason: str) -> bool:
+        lower = reason.lower()
+        if primary_driver == "Stretched RSI" and lower.startswith("rsi"):
+            return True
+        if primary_driver == "Price breakout" and "today" in lower:
+            return True
+        if primary_driver == "News velocity" and "mention" in lower:
+            return True
+        if primary_driver == "Upcoming catalyst" and lower.startswith("⚡"):
+            return True
+        return primary_driver.lower() in lower
+
+    secondary_drivers = [reason for reason in reasons if not is_duplicate_driver(reason)][:3]
+
+    return {
+        "setup_type": setup_type,
+        "heat_direction": heat_direction,
+        "risk_level": risk_level,
+        "primary_driver": primary_driver,
+        "secondary_drivers": secondary_drivers,
+        "reason_sentence": reason_sentence,
+        "suggested_action": suggested_action,
+    }
+
+
+def _summary_from_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if not rows:
+        return {
+            "headline": "No hot setups yet",
+            "body": "The scorer did not find enough momentum, news, catalyst, or technical heat.",
+            "counts": {},
+        }
+    counts: dict[str, int] = {}
+    for row in rows:
+        setup = str(row.get("setup_type") or "unknown")
+        counts[setup] = counts.get(setup, 0) + 1
+    caution = len([row for row in rows if row.get("heat_direction") == "caution"])
+    bullish = len([row for row in rows if row.get("heat_direction") == "bullish"])
+    top = rows[0]
+    dominant = max(counts.items(), key=lambda item: item[1])[0].replace("_", " ")
+    body_parts = [
+        f"{bullish} bullish setup(s)",
+        f"{caution} caution setup(s)",
+        f"dominant theme: {dominant}",
+    ]
+    return {
+        "headline": f"{top.get('ticker')} leads today's heat list",
+        "body": "; ".join(body_parts) + ".",
+        "counts": counts,
+        "bullish_count": bullish,
+        "caution_count": caution,
+        "top_ticker": top.get("ticker"),
+    }
+
+
 # ─── Main builder ─────────────────────────────────────────────────────────────
 
 def build_heat_list(
@@ -349,10 +537,12 @@ def build_heat_list(
     *,
     ai_universe_id: str | None = None,
     price_universe_id: str | None = None,
-    limit: int = 10,
+    limit: int = 0,
 ) -> dict[str, Any]:
-    """Score every stock in the price universe and return the top `limit` rows
-    sorted by heat score.
+    """Score every stock in the price universe and return qualifying rows.
+
+    `limit=0` means no row cap; rows are still threshold-gated by
+    MIN_HEAT_SCORE to avoid dumping weak/noisy names.
 
     Steps:
       1. Update mention_stats from today's enrichment run (velocity bonus).
@@ -457,15 +647,26 @@ def build_heat_list(
             continue
 
         vel = velocity or {}
+        ticker = str(intel.get("ticker") or instrument_id.split("_", 1)[-1])
+        meta = _row_meta(
+            ticker,
+            intel,
+            score,
+            rsi_14,
+            day_change_pct,
+            velocity,
+            reasons,
+        )
         rows.append({
             "instrument_id": instrument_id,
-            "ticker": intel.get("ticker"),
+            "ticker": ticker,
             "name": intel.get("name") or intel.get("ticker"),
             "sector": intel.get("sector_label"),
             "industry": intel.get("industry_label"),
             "logo_url": intel.get("logo_url"),
             "heat_score": round(score, 1),
             "reasons": reasons,
+            **meta,
             # Scores for UI context
             "overall_score": _overall_score(intel),
             "momentum_score": _pillar(intel, "momentum"),
@@ -488,8 +689,13 @@ def build_heat_list(
         })
 
     rows.sort(key=lambda r: r["heat_score"], reverse=True)
-    rows = rows[:limit]
-    print(f"        {len(rows)} rows above threshold (min {MIN_HEAT_SCORE}), {skipped_low} below")
+    qualified_count = len(rows)
+    if limit and limit > 0:
+        rows = rows[:limit]
+    print(
+        f"        {qualified_count} rows above threshold "
+        f"(min {MIN_HEAT_SCORE}), {skipped_low} below"
+    )
 
     return {
         "universe_id": universe_id,
@@ -498,4 +704,5 @@ def build_heat_list(
         "baseline_window_days": BASELINE_DAYS,
         "rows": rows,
         "row_count": len(rows),
+        "summary": _summary_from_rows(rows),
     }

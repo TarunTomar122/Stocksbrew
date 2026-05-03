@@ -1,10 +1,12 @@
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
+import { ProLockOverlay } from "@/components/pro-lock-overlay";
 
 type Props = {
   facts: StockFacts | null;
   fundamentals?: StockFundamentals | null;
   currentPrice?: number;
   currency?: string;
+  isSubscribed?: boolean;
 };
 
 function pickNumber(...values: Array<number | null | undefined>): number | null {
@@ -37,6 +39,41 @@ function formatNumber(value?: number | null): string {
 function pctTone(value?: number | null): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "text-[#111111]";
   return value >= 0 ? "text-[#10b981]" : "text-[#ef4444]";
+}
+
+function parseEventDateLabel(label?: string): Date | null {
+  if (!label) return null;
+  const cleaned = label
+    .split("/")[0]
+    .replace(/\s+(AMC|BMO|TAS|DMH)$/i, "")
+    .trim();
+  if (!cleaned) return null;
+
+  const hasYear = /\b\d{4}\b/.test(cleaned);
+  const dateText = hasYear ? cleaned : `${cleaned} ${new Date().getFullYear()}`;
+  const withYear = new Date(dateText);
+  if (Number.isNaN(withYear.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (withYear >= today) return withYear;
+
+  const rolled = new Date(withYear);
+  rolled.setFullYear(rolled.getFullYear() + 1);
+  const daysAway = (rolled.getTime() - today.getTime()) / 86_400_000;
+  return daysAway <= 180 ? rolled : null;
+}
+
+function isForwardEvent(event?: NonNullable<StockFacts["events"]>[number]): boolean {
+  if (!event?.date_label) return false;
+  if (event.date) {
+    const eventDate = new Date(`${event.date}T00:00:00Z`);
+    if (Number.isNaN(eventDate.getTime())) return false;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    return eventDate >= today;
+  }
+  return parseEventDateLabel(event.date_label) !== null;
 }
 
 function Stat({
@@ -110,12 +147,13 @@ export function StockFactsPanel({
   fundamentals,
   currentPrice,
   currency = "$",
+  isSubscribed = false,
 }: Props) {
   const returns = facts?.returns ?? {};
   const stats = facts?.quick_stats ?? {};
   const fin = facts?.financials ?? {};
   const inst = facts?.institutions;
-  const event = facts?.events?.[0];
+  const event = facts?.events?.find(isForwardEvent);
   const target = facts?.analyst?.target_price;
   const analystCount = facts?.analyst?.analyst_count ?? 0;
   const upside =
@@ -298,7 +336,13 @@ export function StockFactsPanel({
             </div>
 
             {topHolders.length > 0 && (
-              <div className="flex flex-col gap-2 min-w-0">
+              <div className="relative flex flex-col gap-2 min-w-0 overflow-hidden rounded-xl">
+                {!isSubscribed && (
+                  <ProLockOverlay
+                    title="Top holders · Pro"
+                    description="Largest holders and recent position changes."
+                  />
+                )}
                 <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[#9ca3af]">
                   Top holders
                 </span>

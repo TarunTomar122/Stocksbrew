@@ -156,7 +156,7 @@ export function MarketCues({ title = "Market cues", tiles }: Props) {
   if (cues.length === 0) return null;
 
   return (
-    <section className="rounded-[24px] border border-[#e5e7eb] bg-[var(--background)] p-5 md:p-7">
+    <section>
       <div className="flex items-baseline justify-between gap-4 mb-5">
         <h2 className="text-[16px] md:text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
           {title}
@@ -191,7 +191,7 @@ export function MarketCues({ title = "Market cues", tiles }: Props) {
           return (
             <div
               key={t.id}
-              className="group flex items-center gap-4 rounded-2xl border border-[#e5e7eb] bg-white px-5 py-4 hover:border-[#111111] transition-colors"
+              className="group flex items-center gap-4 rounded-2xl border border-[#e5e7eb] bg-white px-5 py-4"
             >
               <div
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl"

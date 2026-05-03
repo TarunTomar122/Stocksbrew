@@ -8,6 +8,7 @@
     "backend:build-divergence": "python3 -m backend.scripts.build_divergence --market US",
     "backend:build-per-stock:us": "python3 -m backend.scripts.build_per_stock_intelligence --market US --universe us_ai_launch",
     "backend:build-per-stock:in": "python3 -m backend.scripts.build_per_stock_intelligence --market IN --universe in_ai_launch",
+    "backend:on-demand-news": "python3 -m backend.scripts.process_on_demand_news_jobs",
     "backend:build-news-intel:in": "python3 -m backend.scripts.build_news_intelligence --market IN --universe in_ai_launch --max-articles 36 --skip-materialize",
     "backend:build-stock-intel": "python3 -m backend.scripts.build_stock_intelligence --market US --universe us_test_5",
     "backend:build-thematic-screens:us": "python3 -m backend.scripts.build_thematic_screens --market US --universe us_core_100",
@@ -53,7 +54,8 @@
     "next-themes": "^0.4.6",
     "nextjs-toploader": "^3.9.17",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "standardwebhooks": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "24.12.2",

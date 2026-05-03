@@ -21,7 +21,7 @@ export default function PrivacyPage() {
             this.
           </li>
           <li>
-            <strong>Watchlist &amp; preferences</strong> — the tickers you track
+            <strong>Radar &amp; preferences</strong> — the tickers you add
             and the market you've selected (US or IN), stored against your
             account.
           </li>
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Why we collect it</h2>
         <p>
-          To run the service. We use account info to identify you, watchlist data
+          To run the service. We use account info to identify you, Radar data
           to generate your personal AI briefs, and usage signals to find what's
           working and what's broken. We don't sell or rent your personal data.
         </p>
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
         <h2>Third parties</h2>
         <ul>
           <li>Google (Firebase Auth) — sign-in.</li>
-          <li>Firestore (Google Cloud) — your account and watchlist storage.</li>
+          <li>Firestore (Google Cloud) — your account and Radar storage.</li>
           <li>OpenAI — generates the natural-language AI briefs and alerts.</li>
           <li>News and pricing vendors — provide the underlying market data.</li>
         </ul>
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Your controls</h2>
         <p>
-          You can update your watchlist any time in the app. To delete your
+          You can update your Radar any time in the app. To delete your
           account or request a copy of your data, email{" "}
           <a href="mailto:privacy@tikrr.com">privacy@tikrr.com</a> and we'll
           action the request within 30 days.

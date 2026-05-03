@@ -502,6 +502,8 @@ def collect_per_ticker_articles(
     per_stock_cap: int = 5,
     broad_cap: int = 12,
     fetcher: Callable[[str], str] | None = None,
+    instrument_ids: list[str] | None = None,
+    instruments_override: list[dict] | None = None,
 ) -> tuple[list[Article], list[dict[str, object]]]:
     """Fetch articles partitioned per-ticker plus a small broad-lane bucket.
 
@@ -513,7 +515,10 @@ def collect_per_ticker_articles(
     (`broad_cap`) so market- and sector-level briefs have material to work
     with.
     """
-    instruments = list_instruments(market, universe_id)
+    instruments = instruments_override or list_instruments(market, universe_id)
+    if instrument_ids is not None:
+        allowed = set(instrument_ids)
+        instruments = [instrument for instrument in instruments if instrument.get("instrument_id") in allowed]
 
     tracked_terms: list[str] = []
     focus_terms_by_ticker: dict[str, list[str]] = {}
@@ -560,13 +565,16 @@ def collect_per_ticker_articles(
     # curated Google News broad/sector queries. Kept small intentionally: this
     # bucket only needs to feed the market brief and sector gates.
     all_market_sources = list_sources_for_market(market)
-    broad_sources = [
-        source
-        for source in all_market_sources
-        if source.lane == "broad" and source.kind in {"publisher", "regulator"}
-    ]
-    curated_sources = [source for source in all_market_sources if source.kind == "curated"]
-    broad_bucket_sources = broad_sources + curated_sources + _build_google_broad_sources(market)
+    if broad_cap > 0:
+        broad_sources = [
+            source
+            for source in all_market_sources
+            if source.lane == "broad" and source.kind in {"publisher", "regulator"}
+        ]
+        curated_sources = [source for source in all_market_sources if source.kind == "curated"]
+        broad_bucket_sources = broad_sources + curated_sources + _build_google_broad_sources(market)
+    else:
+        broad_bucket_sources = []
 
     all_sources = broad_bucket_sources + core_sources
     source_health: list[dict[str, object]] = []

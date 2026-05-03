@@ -15,7 +15,7 @@ const PILLARS = [
   },
   {
     title: "Track without limits.",
-    body: "Pin every stock you actually care about across US and Indian markets. We watch the rest.",
+    body: "Pin every US stock you actually care about. We watch it — more markets coming soon.",
   },
 ];
 
@@ -32,7 +32,7 @@ export default function AboutPage() {
             We're building the read on the market we wished existed.
           </h1>
           <p className="text-[17px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Tikrr surfaces institutional flows, sentiment shifts, and sector rotations across US and Indian markets — written in plain English, grounded in real data, refreshed twice a day.
+            Tikrr surfaces institutional flows, sentiment shifts, and sector rotations across US markets — written in plain English, grounded in real data, refreshed twice a day. More markets coming soon.
           </p>
         </section>
 
@@ -60,7 +60,7 @@ export default function AboutPage() {
             Most retail investors are drowning in feeds. Twitter is fast but noisy, Bloomberg is rigorous but expensive, Yahoo Finance is free but doesn't tell you what to look at. We built Tikrr to bridge that gap — institutional-quality reads in retail-friendly language, on the stocks you actually care about.
           </p>
           <p className="text-[15px] text-[#374151] leading-[1.7]">
-            We're a small team. The product is in beta and free during this period. Feedback is gold — write to us anytime.
+            We're a small team. The product is live and improving daily. Feedback is gold — write to us anytime.
           </p>
         </section>
 

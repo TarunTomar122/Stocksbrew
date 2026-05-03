@@ -47,7 +47,7 @@ function StocksGridVisual() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-[#6b7280] tracking-[0.08em] uppercase">
-          Tracking 28 stocks
+          Radar tracking 28 stocks
         </span>
         <span className="inline-flex items-center gap-1.5 text-[11px] text-[#6b7280]">
           <PulseDot />
@@ -276,37 +276,37 @@ function PulseVisual() {
 const SLIDES: Slide[] = [
   {
     id: "track",
-    eyebrow: "Track everything",
-    title: "Your conviction list, in one place.",
-    body: "Pin every stock you actually care about — no cap. Tikrr keeps watch across earnings, breakouts, news, and price action so you don't have to refresh five tabs.",
+    eyebrow: "Track",
+    title: "Your list, one place.",
+    body: "Stocks you care about — earnings, price, news — without juggling tabs.",
     visual: StocksGridVisual,
   },
   {
     id: "blindspots",
-    eyebrow: "Your blindspots",
-    title: "We catch what you'd miss.",
-    body: "Insider sells, downgrades buried in obscure feeds, options flow flipping bearish, technical setups forming silently — the stuff that moves price before the headline catches up.",
+    eyebrow: "Blindspots",
+    title: "Stuff that moves before the headline.",
+    body: "Insiders, downgrades, flow, quiet technical setups.",
     visual: BlindspotsVisual,
   },
   {
     id: "alerts",
-    eyebrow: "Red-flag alerts",
-    title: "Catch the move before the headline hits.",
-    body: "Overbought, 52-week breakdowns, earnings tomorrow, technical exhaustion — flagged the moment they trigger, ranked by urgency.",
+    eyebrow: "Alerts",
+    title: "Pinged when it matters.",
+    body: "Overbought, 52-week breaks, earnings tomorrow — ranked by urgency.",
     visual: AlertsVisual,
   },
   {
     id: "brief",
-    eyebrow: "Twice-daily brief",
-    title: "Wake up to a read on every stock you track.",
-    body: "Pre-market at 7:30 AM and post-close at 4:30 PM. A short narrative across your watchlist, written by AI grounded in the day's news.",
+    eyebrow: "Brief",
+    title: "Twice a day, every name.",
+    body: "AM + close: short AI read across your Radar from that day’s news.",
     visual: BriefVisual,
   },
   {
     id: "pulse",
-    eyebrow: "Watchlist pulse",
-    title: "One glance, the whole list.",
-    body: "A single AI-written summary of how your watchlist is moving today, what's driving it, and what to watch next.",
+    eyebrow: "Pulse",
+    title: "How your Radar moved today.",
+    body: "One AI paragraph: drivers, laggards, what to watch next.",
     visual: PulseVisual,
   },
 ];
@@ -378,7 +378,7 @@ export function WatchlistShowcase() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm">
               <PulseDot color="#a5b4fc" />
-              Watchlist · Pro feature
+              Radar · Pro
             </span>
           </div>
 
@@ -430,10 +430,10 @@ export function WatchlistShowcase() {
               disabled={signingIn}
               className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform disabled:opacity-60"
             >
-              {user ? "Unlock watchlist" : signingIn ? "Signing in…" : "Sign in to start"}
+              {user ? "Get Pro" : signingIn ? "Signing in…" : "Sign in"}
             </button>
             <span className="text-[12px] text-white/65">
-              Free during beta · No card required
+              Pro $9/mo · cancel anytime
             </span>
           </div>
         </div>

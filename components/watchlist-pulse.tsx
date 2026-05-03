@@ -28,7 +28,7 @@ export function WatchlistPulse({ pulse }: { pulse: PulseShape }) {
           )}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-          <StatTile label="Tracked" value={stats.count ?? 0} />
+          <StatTile label="In Radar" value={stats.count ?? 0} />
           <StatTile label="Up today" value={stats.movers_up ?? 0} />
           <StatTile label="Down today" value={stats.movers_down ?? 0} />
           <StatTile label="Avg score" value={stats.avg_overall_score ?? null} />

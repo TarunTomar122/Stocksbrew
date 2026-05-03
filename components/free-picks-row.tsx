@@ -9,7 +9,7 @@ type Props = {
 
 // The launch-tier stocks — always-free AI briefs, surfaced on the home page
 // as the "here's what you can read today without signing in" table. The right
-// rail is the watchlist CTA; subscribers get a personal AI tier on top of this
+// rail is the Radar CTA; subscribers get a personal AI tier on top of this
 // baseline, which is how we fund the per-ticker enrichment.
 export function FreePicksRow({ instrumentIds, snapshotRows }: Props) {
   if (!instrumentIds.length) return null;
@@ -105,11 +105,11 @@ function WatchlistCTA() {
           Go Personal
         </span>
         <h3 className="text-[16px] font-semibold text-on-surface leading-snug">
-          Build your own watchlist
+          Build your own Radar
         </h3>
         <p className="text-[12px] text-on-surface-variant leading-relaxed">
-          Track up to 10 stocks and we&apos;ll run the same news-backed AI read
-          on each — plus a cross-stock pulse that spots themes, overlaps, and
+          Add up to 10 stocks and we&apos;ll run the same news-backed AI read
+          on each — plus a radar pulse that spots themes, overlaps, and
           blind spots across your picks.
         </p>
       </div>
@@ -117,11 +117,11 @@ function WatchlistCTA() {
       <ul className="flex flex-col gap-1.5 text-[12px] text-on-surface">
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
-          <span>Full AI brief on every tracked stock, twice a day</span>
+          <span>Full AI brief on every radar stock, twice a day</span>
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
-          <span>Watchlist pulse — what moved, what to act on</span>
+          <span>Radar pulse — what moved, what to act on</span>
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
@@ -133,7 +133,7 @@ function WatchlistCTA() {
         href="/watchlist"
         className="inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-[12px] font-bold tracking-[0.08em] uppercase rounded-full px-4 py-2.5 hover:bg-primary-container transition-colors"
       >
-        Start your watchlist
+        Start your Radar
         <span aria-hidden="true">→</span>
       </Link>
     </div>

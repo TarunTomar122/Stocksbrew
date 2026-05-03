@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
 
 import { useUser } from "@/lib/auth-context";
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import { signInWithGoogle } from "@/lib/sign-in";
 
 export function AuthButton() {
   const { user, loading } = useUser();
@@ -14,10 +13,7 @@ export function AuthButton() {
   async function handleSignIn() {
     setBusy(true);
     try {
-      const auth = getFirebaseAuth();
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
     } catch (err) {
       console.error("sign-in failed", err);
     } finally {

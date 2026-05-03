@@ -10,6 +10,7 @@ export type UserDoc = {
   watchlist_positions?: Record<string, "holding" | "watchlist">;
   created_at?: string;
   last_sign_in_at?: string;
+  lastCheckoutCreatedAt?: number;
 };
 
 export async function getUserDoc(uid: string): Promise<UserDoc | null> {
@@ -18,12 +19,13 @@ export async function getUserDoc(uid: string): Promise<UserDoc | null> {
   return { uid, ...(snap.data() as Omit<UserDoc, "uid">) };
 }
 
-// Dev convenience: in non-production, treat every signed-in user as
-// subscribed so we can exercise Pro surfaces without toggling Firestore.
-// Flip off by setting NEXT_PUBLIC_DEV_UNLOCK_PRO=0 or running in production.
+// Optional dev-only bypass: set NEXT_PUBLIC_DEV_UNLOCK_PRO=1 to treat any
+// signed-in user with a user doc as Pro without Dodo/Firestore subscription
+// fields. Default is off so local/staging matches production (Pro only when
+// `is_subscribed` is set by the Dodo webhook).
 const DEV_UNLOCK_PRO =
   process.env.NODE_ENV !== "production" &&
-  process.env.NEXT_PUBLIC_DEV_UNLOCK_PRO !== "0";
+  process.env.NEXT_PUBLIC_DEV_UNLOCK_PRO === "1";
 
 export function resolveIsSubscribed(doc: UserDoc | null | undefined): boolean {
   if (DEV_UNLOCK_PRO && doc) return true;

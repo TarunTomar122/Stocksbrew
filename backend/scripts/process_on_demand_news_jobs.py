@@ -1,0 +1,203 @@
+"""Process queued per-stock news coverage jobs.
+
+`/api/track` writes one job per newly tracked instrument. This worker does the
+expensive part outside the user request: fetch ticker-specific articles,
+enrich them, synthesize a source-backed stock intelligence doc, and upsert it
+into the active AI namespace.
+"""
+from __future__ import annotations
+
+import argparse
+import traceback
+from datetime import datetime, timezone
+from typing import Any
+
+from backend.instrument_universe import get_instrument
+from backend.llm_enrichment import OpenAIArticleEnricher
+from backend.news_pipeline import collect_per_ticker_articles
+from backend.stock_intelligence import build_stock_intelligence_docs
+from backend.storage import TraceMoneyStore
+
+
+JOB_COLLECTION = "tm_on_demand_news_jobs"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _normalize_doc(doc: dict[str, Any]) -> dict[str, Any]:
+    """Make stock_intelligence docs match the app's current AI-tab contract."""
+    out = dict(doc)
+    out["source"] = "mimo"
+    out["coverage_type"] = "on_demand_news"
+
+    body = " ".join(str(out.get("body") or "").split()).strip()
+    thesis = " ".join(str(out.get("thesis") or "").split()).strip()
+    catalyst = " ".join(str(out.get("catalyst") or "").split()).strip()
+    headline = " ".join(str(out.get("headline") or "").split()).strip()
+
+    out.setdefault("today_brief", body or headline)
+
+    visual = out.get("visual_summary") if isinstance(out.get("visual_summary"), dict) else {}
+    catalyst_cards = visual.get("catalyst_cards") if isinstance(visual, dict) else None
+    drivers = visual.get("drivers") if isinstance(visual, dict) else None
+    risk_cards = visual.get("risk_cards") if isinstance(visual, dict) else None
+    if catalyst_cards or drivers or risk_cards:
+        out["visual_cards"] = {
+            "catalyst_cards": catalyst_cards or [],
+            "drivers": drivers or [],
+            "risk_cards": risk_cards or [],
+        }
+
+    out["visual_summary"] = {
+        "what_changed": body or headline,
+        "why_it_matters": thesis or body or headline,
+        "what_to_watch": catalyst or "Watch whether fresh coverage confirms the move.",
+    }
+    return out
+
+
+def _load_instrument(store: TraceMoneyStore, market: str, instrument_id: str) -> dict[str, Any] | None:
+    rows = store.list_instruments(market, [instrument_id])
+    if rows:
+        return rows[0]
+    return get_instrument(instrument_id)
+
+
+def _queued_jobs(store: TraceMoneyStore, limit: int) -> list[Any]:
+    docs = list(store.db.collection(JOB_COLLECTION).stream())
+    runnable = []
+    for doc in docs:
+        data = doc.to_dict() or {}
+        if str(data.get("status") or "") in {"queued", "retry"}:
+            runnable.append(doc)
+    runnable.sort(key=lambda doc: str((doc.to_dict() or {}).get("requested_at") or ""))
+    return runnable[:limit]
+
+
+def process_job(
+    store: TraceMoneyStore,
+    job_doc: Any,
+    *,
+    per_stock_cap: int,
+    broad_cap: int,
+) -> str:
+    ref = job_doc.reference
+    job = job_doc.to_dict() or {}
+    instrument_id = str(job.get("instrument_id") or job_doc.id).strip()
+    market = str(job.get("market") or instrument_id.split("_", 1)[0] or "US").upper()
+    universe_id = str(job.get("universe_id") or store.get_active_universe(market) or "").strip()
+    attempts = int(job.get("attempts") or 0) + 1
+
+    ref.set({
+        "status": "running",
+        "attempts": attempts,
+        "started_at": _now(),
+        "updated_at": _now(),
+        "error": "",
+    }, merge=True)
+
+    try:
+        if market not in {"US", "IN"}:
+            raise ValueError(f"Unsupported market {market!r}")
+        if not universe_id:
+            raise ValueError(f"No active AI universe for {market}")
+
+        instrument = _load_instrument(store, market, instrument_id)
+        if not instrument:
+            raise ValueError(f"No instrument found for {instrument_id}")
+
+        raw_articles, source_health = collect_per_ticker_articles(
+            market=market,
+            universe_id=universe_id,
+            per_stock_cap=per_stock_cap,
+            broad_cap=broad_cap,
+            instruments_override=[instrument],
+        )
+        raw_payload = [article.to_dict() for article in raw_articles]
+        store.upsert_news_articles(market, universe_id, raw_payload, source_health=source_health)
+
+        if not raw_articles:
+            ref.set({
+                "status": "no_articles",
+                "article_count": 0,
+                "source_health": source_health,
+                "finished_at": _now(),
+                "updated_at": _now(),
+            }, merge=True)
+            return "no_articles"
+
+        enriched_articles = OpenAIArticleEnricher(store=store).enrich_articles(raw_articles)
+        enriched_payload = [article.to_dict() for article in enriched_articles]
+        store.upsert_article_enrichments(market, universe_id, enriched_payload)
+
+        docs = build_stock_intelligence_docs(
+            market,
+            universe_id,
+            [instrument],
+            enriched_articles,
+            store=store,
+        )
+        docs = [_normalize_doc(doc) for doc in docs if doc.get("instrument_id") == instrument_id]
+
+        if not docs:
+            ref.set({
+                "status": "no_brief",
+                "article_count": len(raw_articles),
+                "enrichment_count": len(enriched_articles),
+                "finished_at": _now(),
+                "updated_at": _now(),
+            }, merge=True)
+            return "no_brief"
+
+        store.upsert_stock_intelligence_docs(market, universe_id, docs)
+        ref.set({
+            "status": "complete",
+            "article_count": len(raw_articles),
+            "enrichment_count": len(enriched_articles),
+            "brief_count": len(docs),
+            "finished_at": _now(),
+            "updated_at": _now(),
+        }, merge=True)
+        return "complete"
+    except Exception as exc:
+        ref.set({
+            "status": "failed",
+            "error": str(exc),
+            "traceback": traceback.format_exc()[-4000:],
+            "finished_at": _now(),
+            "updated_at": _now(),
+        }, merge=True)
+        raise
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Process on-demand news coverage jobs")
+    parser.add_argument("--limit", type=int, default=5)
+    parser.add_argument("--per-stock-cap", type=int, default=6)
+    parser.add_argument("--broad-cap", type=int, default=0)
+    args = parser.parse_args()
+
+    store = TraceMoneyStore()
+    jobs = _queued_jobs(store, args.limit)
+    if not jobs:
+        print("No on-demand news jobs queued.")
+        return
+
+    for job in jobs:
+        instrument_id = (job.to_dict() or {}).get("instrument_id") or job.id
+        try:
+            status = process_job(
+                store,
+                job,
+                per_stock_cap=args.per_stock_cap,
+                broad_cap=args.broad_cap,
+            )
+            print(f"  [ok] {instrument_id}: {status}")
+        except Exception as exc:
+            print(f"  [fail] {instrument_id}: {exc}")
+
+
+if __name__ == "__main__":
+    main()

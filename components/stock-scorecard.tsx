@@ -110,7 +110,13 @@ function PillarCard({
   );
 }
 
-export function StockScorecard({ intel }: { intel: StockIntelPro | null }) {
+export function StockScorecard({
+  intel,
+  isSubscribed = false,
+}: {
+  intel: StockIntelPro | null;
+  isSubscribed?: boolean;
+}) {
   if (!intel) return null;
 
   return (
@@ -168,7 +174,7 @@ export function StockScorecard({ intel }: { intel: StockIntelPro | null }) {
         </div>
       </section>
 
-      <PillarBreakdown pillars={intel.pillars} />
+      <PillarBreakdown pillars={intel.pillars} isSubscribed={isSubscribed} />
     </div>
   );
 }

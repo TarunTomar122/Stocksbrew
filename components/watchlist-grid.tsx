@@ -140,7 +140,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
         body: JSON.stringify({ instrument_id: instrumentId }),
       });
       if (!res.ok) {
-        console.error("Untrack failed", await res.text());
+        console.error("Remove from Radar failed", await res.text());
         return;
       }
       startTransition(() => router.refresh());
@@ -294,7 +294,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
                 type="button"
                 onClick={(ev) => onUntrack(row.instrument_id, ev)}
                 disabled={isPending}
-                aria-label={`Untrack ${row.ticker}`}
+                aria-label={`Remove ${row.ticker} from Radar`}
                 className="h-7 w-7 inline-flex items-center justify-center rounded-full text-[#9ca3af] hover:text-[#ef4444] hover:bg-[#fef2f2] disabled:opacity-40 transition-colors"
               >
                 ×
@@ -370,7 +370,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
                   type="button"
                   onClick={(ev) => onUntrack(row.instrument_id, ev)}
                   disabled={isPending}
-                  aria-label={`Untrack ${row.ticker}`}
+                  aria-label={`Remove ${row.ticker} from Radar`}
                   className="h-7 w-7 inline-flex items-center justify-center rounded-full text-[#9ca3af] hover:text-[#ef4444] hover:bg-[#fef2f2] disabled:opacity-40 transition-colors"
                 >
                   ×

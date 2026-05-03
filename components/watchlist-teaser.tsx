@@ -299,7 +299,7 @@ function TeaserOverlay({
     <div className="absolute inset-0 flex items-center justify-center p-6">
       <div className="max-w-md w-full rounded-2xl border border-indigo-500/30 bg-surface-container-lowest p-6 text-center shadow-2xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[10px] font-bold tracking-[0.18em] uppercase text-indigo-700">
-          Pro feature
+          Pro
         </div>
         <h3 className="mt-3 text-lg font-semibold text-on-surface">{title}</h3>
         <p className="mt-1.5 text-sm text-on-surface-variant">{body}</p>
@@ -373,14 +373,14 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
   const isTeaser = !signedIn || !isSubscribed;
   const hasRows = rows.length > 0;
 
-  // --- Case: signed-in subscriber with tracked stocks → real mini preview ---
+  // --- Case: signed-in subscriber with radar stocks → real mini preview ---
   if (signedIn && isSubscribed && hasRows) {
     return (
       <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest overflow-hidden">
         <header className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
           <div>
             <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface-variant">
-              Your watchlist
+              Your Radar
             </div>
             {headline && (
               <h3 className="mt-1 text-base font-semibold text-on-surface">{headline}</h3>
@@ -398,8 +398,8 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
     );
   }
 
-  // --- Case: signed-in subscriber with empty watchlist → show a real sample
-  //     preview of what the watchlist looks like, plus the three feature
+  // --- Case: signed-in subscriber with empty Radar → show a real sample
+  //     preview of what Radar looks like, plus the three feature
   //     callouts, plus a clear "how to add" nudge. No blur — subscribers have
   //     already paid the ticket, they should see the full shape. ---
   if (signedIn && isSubscribed && !hasRows) {
@@ -408,10 +408,10 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
         <header className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
           <div>
             <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface-variant">
-              Your watchlist · empty
+              Your Radar · empty
             </div>
             <h3 className="mt-1 text-base font-semibold text-on-surface">
-              Nothing tracked yet — here&apos;s what you&apos;ll get
+              Nothing in Radar yet — here&apos;s what you&apos;ll get
             </h3>
           </div>
           <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
@@ -419,23 +419,23 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
           </span>
         </header>
 
-        {/* Feature callouts — what the watchlist actually delivers */}
+        {/* Feature callouts — what Radar actually delivers */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 border-b border-outline-variant/20">
           <FeatureCallout
             icon="schedule"
-            title="Twice-daily AI brief"
-            body="Wake up to a pre-market read and a post-close recap on every stock you track."
+            title="Twice-daily brief"
+            body="AM + close read on every stock you track."
           />
           <FeatureCallout
             icon="warning"
-            title="Red-flag alerts"
-            body="Overbought, 52-week breakdowns, earnings misses — flagged the moment they trigger."
+            title="Alerts"
+            body="RSI, 52-week levels, earnings — when they fire."
             divider
           />
           <FeatureCallout
             icon="trending_up"
-            title="Growth signals"
-            body="Breakouts, 52-week highs, momentum crossovers surfaced across your list."
+            title="Momentum"
+            body="Breakouts and crossovers across your list."
             divider
           />
         </div>
@@ -470,7 +470,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
         <div className="flex items-center justify-between px-5 py-4 bg-indigo-500/5 border-t border-indigo-500/20">
           <p className="text-sm text-on-surface-variant">
             Open any stock and hit{" "}
-            <span className="font-semibold text-on-surface">Track this stock</span> to start yours.
+            <span className="font-semibold text-on-surface">Add to Radar</span> to start yours.
           </p>
           <Link
             href="/"
@@ -484,16 +484,16 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
   }
 
   // --- Case: anon or non-subscribed → blurred sample + CTA overlay ---
-  const teaserTitle = "Track your own watchlist";
-  const teaserBody = "Find red flags and growth opportunities across the stocks you care about.";
-  const ctaLabel = signedIn ? "Unlock watchlist" : "Sign in to start";
+  const teaserTitle = "Your Radar";
+  const teaserBody = "Twice-daily AI on the tickers you track.";
+  const ctaLabel = signedIn ? "Unlock Radar" : "Sign in to start";
   const onClick = signedIn ? () => router.push("/subscribe") : handleSignIn;
 
   return (
     <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest overflow-hidden relative">
       <header className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface-variant">
-          Watchlist
+          Radar
         </div>
       </header>
       <div className="relative min-h-[260px]">
