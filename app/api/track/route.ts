@@ -12,25 +12,107 @@ import { FieldValue } from "firebase-admin/firestore";
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
 const PERSONAL_TIER_LIMIT = 10;
+const ON_DEMAND_DISPATCH_EVENT = "process_on_demand_news";
+const ON_DEMAND_DISPATCH_DEDUPE_MS = 90 * 1000;
 
 function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
   return instrumentId.startsWith("IN_") ? "IN" : "US";
 }
 
-async function enqueueOnDemandNewsJob(uid: string, instrumentId: string) {
+type EnqueueResult = {
+  market: "US" | "IN";
+  universe: string;
+  shouldDispatch: boolean;
+};
+
+function parseRepoConfig(raw?: string): { owner: string; repo: string } | null {
+  if (!raw) return null;
+  const [owner, repo] = raw.split("/");
+  if (!owner || !repo) return null;
+  return { owner, repo };
+}
+
+async function triggerOnDemandNewsDispatch(payload: {
+  instrumentId: string;
+  market: "US" | "IN";
+  universe: string;
+  requestedBy: string;
+}) {
+  const token = process.env.GITHUB_ACTIONS_DISPATCH_TOKEN;
+  const parsed =
+    parseRepoConfig(process.env.GITHUB_DISPATCH_REPO) ??
+    parseRepoConfig(process.env.GITHUB_REPOSITORY);
+  if (!token || !parsed) {
+    console.warn(
+      "[api/track] missing GitHub dispatch config; skipping on-demand workflow trigger",
+    );
+    return;
+  }
+
+  const res = await fetch(
+    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        event_type: ON_DEMAND_DISPATCH_EVENT,
+        client_payload: {
+          instrument_id: payload.instrumentId,
+          market: payload.market,
+          universe_id: payload.universe,
+          requested_by: payload.requestedBy,
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `dispatch failed (${res.status}) ${body.slice(0, 200)}`,
+    );
+  }
+}
+
+async function enqueueOnDemandNewsJob(
+  uid: string,
+  instrumentId: string,
+): Promise<EnqueueResult> {
   const market = marketFromInstrumentId(instrumentId);
   const universe = await getActiveUniverse(market);
   const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
+  let shouldDispatch = true;
   await adminFirestore.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const existing = snap.exists ? snap.data() : null;
     const status = String(existing?.status || "");
+    const updatedAtRaw = String(existing?.updated_at || "");
+    const updatedAt = Date.parse(updatedAtRaw);
+    const queueRecentlyTouched =
+      status === "queued" &&
+      Number.isFinite(updatedAt) &&
+      Date.now() - updatedAt < ON_DEMAND_DISPATCH_DEDUPE_MS;
     if (status === "running") {
       tx.set(ref, {
         requested_by: FieldValue.arrayUnion(uid),
         requested_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { merge: true });
+      shouldDispatch = false;
+      return;
+    }
+    if (queueRecentlyTouched) {
+      tx.set(ref, {
+        requested_by: FieldValue.arrayUnion(uid),
+        requested_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+      shouldDispatch = false;
       return;
     }
     tx.set(ref, {
@@ -43,6 +125,7 @@ async function enqueueOnDemandNewsJob(uid: string, instrumentId: string) {
       updated_at: new Date().toISOString(),
     }, { merge: true });
   });
+  return { market, universe, shouldDispatch };
 }
 
 async function parseTrackPayload(req: NextRequest): Promise<{
@@ -76,7 +159,15 @@ function kickRebuild(
 ) {
   (async () => {
     if (newlyTrackedInstrumentId) {
-      await enqueueOnDemandNewsJob(uid, newlyTrackedInstrumentId);
+      const queued = await enqueueOnDemandNewsJob(uid, newlyTrackedInstrumentId);
+      if (queued.shouldDispatch) {
+        await triggerOnDemandNewsDispatch({
+          instrumentId: newlyTrackedInstrumentId,
+          market: queued.market,
+          universe: queued.universe,
+          requestedBy: uid,
+        });
+      }
     }
     await rebuildAndSaveWatchlistView(uid, trackedStocks, positions);
   })().catch((err) => {

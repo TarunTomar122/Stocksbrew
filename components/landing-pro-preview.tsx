@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { LandingProPricingCta } from "@/components/landing-pro-pricing-cta";
+import { ProLandingAiStrip } from "@/components/pro-landing-ai-strip";
 
 type Props = {
   isSignedIn: boolean;
@@ -49,7 +50,7 @@ const FEATURES: Feature[] = [
     iconFg: "#dc2626",
     label: "Live alerts",
     title: "Email pings the second a signal fires",
-    body: "Breakouts, RSI extremes, targets, earnings windows — email when they trip.",
+    body: "Breakouts, RSI extremes, targets, earnings windows — email when they trip. WhatsApp delivery soon.",
     example: "“AMD broke out — email sent at 09:42 ET.”",
   },
 ];
@@ -57,7 +58,6 @@ const FEATURES: Feature[] = [
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaHref = isSignedIn ? "/subscribe" : "/watchlist";
   const ctaLabel = isSignedIn ? "Subscribe — $9/mo" : "Sign in & start free";
 
   return (
@@ -68,15 +68,20 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           Pro · what you unlock
         </span>
         <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
-          The free dashboard shows the market.
+          Your Radar for the tickers you care about.
           <br />
-          <span className="text-[#6b7280]">Pro explains your market.</span>
+          <span className="text-[#6b7280]">
+            Pillar scorecards, alerts, twice-daily AI.
+          </span>
         </h2>
         <p className="text-[15px] md:text-[16px] leading-relaxed text-[#374151] max-w-2xl">
-          Free: market view + launch-list AI. Pro: your Radar — same AI depth on your
-          tickers, twice daily.
+          Follow names on Radar with pillar reads—including the stock scorecard—email
+          alerts when signals move, WhatsApp soon, and twice-daily AI passes on what changed
+          for your list.
         </p>
       </div>
+
+      <ProLandingAiStrip />
 
       {/* Feature grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -103,7 +108,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           period="/ month"
           strike="$12"
           save="Save 25%"
-          ctaHref={ctaHref}
+          isSignedIn={isSignedIn}
           ctaLabel={ctaLabel}
         />
         <PricingCard
@@ -113,7 +118,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           strike="$144"
           save="Save 31%"
           highlight
-          ctaHref={ctaHref}
+          isSignedIn={isSignedIn}
           ctaLabel={ctaLabel}
         />
       </div>
@@ -128,7 +133,7 @@ const PRO_BULLETS = [
   "Radar concentration & blind-spot alerts",
   "Full heat list, divergences, and screens",
   "Refresh deltas — only the new signal",
-  "Email digest of attention items (soon)",
+  "Email + (soon) WhatsApp pings on your Radar",
 ];
 
 function PricingCard({
@@ -138,7 +143,7 @@ function PricingCard({
   strike,
   save,
   highlight,
-  ctaHref,
+  isSignedIn,
   ctaLabel,
 }: {
   tag: string;
@@ -147,7 +152,7 @@ function PricingCard({
   strike: string;
   save: string;
   highlight?: boolean;
-  ctaHref: string;
+  isSignedIn: boolean;
   ctaLabel: string;
 }) {
   return (
@@ -196,17 +201,7 @@ function PricingCard({
         ))}
       </ul>
       <div className="flex flex-col gap-2 pt-2 border-t border-[#f3f4f6] mt-auto">
-        <Link
-          href={ctaHref}
-          className={`inline-flex w-full items-center justify-center h-[48px] px-6 rounded-full text-[14px] font-semibold tracking-tight transition-transform hover:-translate-y-0.5 active:translate-y-0 ${
-            highlight
-              ? "bg-[#111111] text-white"
-              : "bg-white text-[#111111] border border-[#111111]"
-          }`}
-        >
-          {ctaLabel}
-          <span aria-hidden className="ml-1">→</span>
-        </Link>
+        <LandingProPricingCta isSignedIn={isSignedIn} highlight={highlight} ctaLabel={ctaLabel} />
         <span className="text-[11px] font-medium text-[#9ca3af] text-center">
           Cancel anytime · one click
         </span>

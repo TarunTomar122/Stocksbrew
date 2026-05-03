@@ -41,3 +41,4 @@ coverage/
 backend/*firebase-adminsdk*.json
 trace-money-*.json
 backend/Untitled
+.vercel

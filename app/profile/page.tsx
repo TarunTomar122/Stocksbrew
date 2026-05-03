@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { ProfileSubscription } from "@/components/profile-subscription";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export const revalidate = 0;
@@ -11,23 +12,26 @@ export default async function ProfilePage() {
   if (!session) redirect("/");
 
   const userDoc = await getUserDoc(session.uid).catch(() => null);
-  const tracked = Array.isArray(userDoc?.tracked_stocks)
-    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
-    : [];
 
   const subscribed = resolveIsSubscribed(userDoc);
+  const subscriptionId = userDoc?.subscriptionId;
+  const hasBillableSubscription = Boolean(
+    typeof subscriptionId === "string" && subscriptionId.length > 0,
+  );
   const displayName = session.displayName || userDoc?.display_name || null;
   const email = session.email || userDoc?.email || null;
   const photoURL = session.photoURL || userDoc?.photo_url || null;
   const initial = (displayName || email || "?").trim().charAt(0).toUpperCase();
 
-  const joinedAt = userDoc?.created_at
-    ? new Date(userDoc.created_at).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
+  const created = userDoc?.created_at ? new Date(userDoc.created_at) : null;
+  const joinedAt =
+    created && Number.isFinite(created.getTime())
+      ? created.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : null;
 
   return (
     <main className="flex-grow">
@@ -61,54 +65,13 @@ export default async function ProfilePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-outline-variant/20 pt-4">
-            <InfoRow label="User ID" value={session.uid} mono />
-            <InfoRow
-              label="Plan"
-              value={subscribed ? "Pro" : "Free"}
-              highlight={subscribed}
-            />
-          </div>
-        </section>
-
-        {/* ─── Radar ───────────────────────────────────────── */}
-        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
-              Radar
-            </span>
-            <a
-              href="/watchlist"
-              className="text-[11px] font-bold text-primary hover:underline"
-            >
-              Manage →
-            </a>
-          </div>
-
-          {tracked.length === 0 ? (
-            <p className="text-sm text-on-surface-variant">
-              Nothing in Radar yet.{" "}
-              <a href="/watchlist" className="text-primary hover:underline">
-                Start your Radar
-              </a>
-              .
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tracked.map((id) => (
-                <span
-                  key={id}
-                  className="inline-flex items-center px-2.5 py-1 bg-surface-container-low text-[12px] font-bold text-on-surface rounded-full"
-                >
-                  {id}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <p className="text-[11px] text-on-surface-variant">
-            {tracked.length} of 10 slots used
-          </p>
+          <ProfileSubscription
+            isSubscribed={subscribed}
+            hasBillableSubscription={hasBillableSubscription}
+            subscriptionStatus={userDoc?.subscriptionStatus ?? null}
+            subscriptionPlan={userDoc?.subscriptionPlan ?? null}
+            cancelAtPeriodEnd={userDoc?.cancelAtPeriodEnd ?? false}
+          />
         </section>
 
         {/* ─── Preferences ─────────────────────────────────── */}
@@ -146,7 +109,7 @@ export default async function ProfilePage() {
             <div>
               <p className="text-sm font-medium text-on-surface">Sign out</p>
               <p className="text-[12px] text-on-surface-variant">
-                You'll need to sign back in to access your Radar and AI briefs.
+                You'll need to sign back in to access your account and Pro features.
               </p>
             </div>
             <SignOutButton />
@@ -155,31 +118,6 @@ export default async function ProfilePage() {
 
       </div>
     </main>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  mono,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
-        {label}
-      </span>
-      <span
-        className={`text-[13px] truncate ${mono ? "font-mono text-on-surface-variant" : "font-semibold"} ${highlight ? "text-primary" : "text-on-surface"}`}
-      >
-        {value}
-      </span>
-    </div>
   );
 }
 

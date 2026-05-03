@@ -133,6 +133,15 @@ const config: Config = {
         "apple-ease": "cubic-bezier(0.25, 0.1, 0.25, 1)",
         "spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
+      keyframes: {
+        "stock-ai-marquee": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+      },
+      animation: {
+        "stock-ai-marquee": "stock-ai-marquee 42s linear infinite",
+      },
     },
   },
   plugins: [],

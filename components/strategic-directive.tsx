@@ -13,8 +13,7 @@ const STANCE_META: Record<string, { label: string; bg: string; fg: string; chipB
   hold:       { label: "Hold",       bg: "#f3f4f6", fg: "#374151", chipBg: "#374151", chipFg: "#ffffff" },
 };
 
-export function StrategicDirective({ ticker, directive }: Props) {
-  if (!directive?.text) return null;
+function StrategicDirectiveCard({ ticker, directive }: { ticker: string; directive: Directive }) {
   const stance = (directive.stance ?? "watch").toLowerCase();
   const meta = STANCE_META[stance] ?? STANCE_META.watch;
 
@@ -31,7 +30,7 @@ export function StrategicDirective({ ticker, directive }: Props) {
       </span>
 
       <div className="relative z-10 flex flex-col gap-3 max-w-[640px]">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span
             className="inline-flex items-center rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.12em] uppercase"
             style={{ background: meta.chipBg, color: meta.chipFg }}
@@ -58,4 +57,20 @@ export function StrategicDirective({ ticker, directive }: Props) {
       </div>
     </section>
   );
+}
+
+export function StrategicDirective({ ticker, directive }: Props) {
+  if (!directive?.text) return null;
+  return <StrategicDirectiveCard ticker={ticker} directive={directive} />;
+}
+
+/** Same UI as the AI tab strategic directive — pass static copy for marketing / previews. */
+export function StrategicDirectiveDemo({
+  ticker,
+  directive,
+}: {
+  ticker: string;
+  directive: Directive;
+}) {
+  return <StrategicDirectiveCard ticker={ticker} directive={directive} />;
 }

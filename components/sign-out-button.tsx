@@ -10,10 +10,12 @@ export function SignOutButton() {
   async function handleSignOut() {
     setBusy(true);
     try {
+      const res = await fetch("/api/auth/session", { method: "DELETE" });
+      if (!res.ok) console.warn("sign-out: session cookie clear failed", res.status);
       await signOut(getFirebaseAuth());
+      window.location.assign("/");
     } catch (err) {
       console.error("sign-out failed", err);
-    } finally {
       setBusy(false);
     }
   }

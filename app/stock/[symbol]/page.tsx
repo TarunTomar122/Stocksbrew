@@ -11,6 +11,7 @@ import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
 import { StockPageTabs } from "@/components/stock-page-tabs";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
+import { ProLockOverlay } from "@/components/pro-lock-overlay";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
@@ -87,7 +88,9 @@ export default async function StockPage({ params }: Props) {
     : [];
   const subscribed = resolveIsSubscribed(userDoc);
   const tier = resolveStockTier(stock.instrument_id, tracked);
-  const hasAI = tier === "ai_launch" || tier === "ai_personal";
+  const isLaunchBrief = tier === "ai_launch";
+  const isTracked = tracked.includes(stock.instrument_id);
+  const shouldLoadAI = subscribed;
 
   // fundamentals come free from getStockSummary (same tm_latest_prices doc) —
   // no extra Firestore read needed.
@@ -100,16 +103,17 @@ export default async function StockPage({ params }: Props) {
     intelPro,
     stockFacts,
   ] = await Promise.all([
-    hasAI
+    shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
-    hasAI
+    shouldLoadAI
       ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
     getLatestTechnicals(stock.instrument_id).catch(() => null),
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getStockFacts(stock.instrument_id).catch(() => null),
   ]);
+  const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
@@ -183,18 +187,23 @@ export default async function StockPage({ params }: Props) {
         ticker={stock.ticker}
         instrumentId={stock.instrument_id}
         isSubscribed={subscribed}
-        isTracked={tracked.includes(stock.instrument_id)}
+        isTracked={isTracked}
       />
     </section>
   );
 
-  const analystContent = (
+  const analystContent = subscribed ? (
     <section className="flex flex-col gap-6">
       <AnalystConsensus consensus={analystConsensus} currentPrice={stock.price} />
     </section>
+  ) : (
+    <PremiumTabLock
+      title="Analyst insights are Pro-only"
+      description="Unlock consensus trends, target dispersion, and analyst stance changes."
+    />
   );
 
-  const fundamentalsContent = (
+  const fundamentalsContent = subscribed ? (
     <section className="flex flex-col gap-6">
       <StockScorecard intel={intelPro} isSubscribed={subscribed} />
       {hasAI && (
@@ -207,6 +216,11 @@ export default async function StockPage({ params }: Props) {
         </>
       )}
     </section>
+  ) : (
+    <PremiumTabLock
+      title="Fundamentals are Pro-only"
+      description="Unlock full scorecard depth, valuation context, and peer comparisons."
+    />
   );
 
   const aiSource = intelligence?.source ?? "";
@@ -222,29 +236,37 @@ export default async function StockPage({ params }: Props) {
   const showCards = hasAI && hasVisualCards(intelligence);
   const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown);
 
-  const aiContent = hasAI ? (
-    <section className="flex flex-col gap-6">
-      {showBriefStatus && (
-        <AiBriefStatus
-          ticker={stock.ticker}
-          generatedAt={intelligence?.generated_at}
-        />
-      )}
-      {!showBriefStatus && (
-        <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} />
-      )}
-      {showSynthesis && <AiSynthesis intelligence={intelligence} />}
-      {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
-      {showSentiment && <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />}
-      {!showBriefStatus && intelligence?.data_quality && (
-        <DataQualityStrip quality={intelligence.data_quality} />
-      )}
-    </section>
+  const aiContent = subscribed ? (
+    hasAI ? (
+      <section className="flex flex-col gap-6">
+        {showBriefStatus && (
+          <AiBriefStatus
+            ticker={stock.ticker}
+            generatedAt={intelligence?.generated_at}
+          />
+        )}
+        {!showBriefStatus && (
+          <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} />
+        )}
+        {showSynthesis && <AiSynthesis intelligence={intelligence} />}
+        {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
+        {showSentiment && <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />}
+        {!showBriefStatus && intelligence?.data_quality && (
+          <DataQualityStrip quality={intelligence.data_quality} />
+        )}
+      </section>
+    ) : (
+      <LockedAiBrief
+        ticker={stock.ticker}
+        instrumentId={stock.instrument_id}
+        isSubscribed={subscribed}
+        isTracked={isTracked}
+      />
+    )
   ) : (
-    <LockedAiBrief
-      ticker={stock.ticker}
-      instrumentId={stock.instrument_id}
-      isSubscribed={subscribed}
+    <PremiumTabLock
+      title="AI brief is Pro-only"
+      description="Unlock AI stance, catalysts, risks, and sentiment for stocks in your Radar."
     />
   );
 
@@ -259,17 +281,30 @@ export default async function StockPage({ params }: Props) {
             timeline={hasAI ? instrumentView?.timeline : null}
             tier={tier}
             isSubscribed={subscribed}
-            isTracked={tracked.includes(stock.instrument_id)}
+            isTracked={isTracked}
           />
           <StockPageTabs
             overview={overviewContent}
             analyst={analystContent}
             fundamentals={fundamentalsContent}
             ai={aiContent}
+            isSubscribed={subscribed}
           />
         </div>
       </div>
     </main>
+  );
+}
+
+function PremiumTabLock({ title, description }: { title: string; description: string }) {
+  return (
+    <section className="relative overflow-hidden rounded-3xl border border-[#e5e7eb] bg-white p-6 min-h-[260px]">
+      <div
+        aria-hidden
+        className="pointer-events-none select-none h-full rounded-2xl bg-gradient-to-b from-[#f8fafc] via-[#f3f4f6] to-[#eef2ff]"
+      />
+      <ProLockOverlay title={title} description={description} />
+    </section>
   );
 }
 

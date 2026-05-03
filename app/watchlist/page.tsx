@@ -14,8 +14,6 @@ import { WatchlistNewsPanel } from "@/components/watchlist-news-panel";
 
 export const dynamic = "force-dynamic";
 
-const SLOT_CAP = 10;
-
 type Dict = Record<string, unknown>;
 
 export default async function WatchlistPage() {
@@ -79,7 +77,7 @@ export default async function WatchlistPage() {
               Radar
             </h1>
             <p className="text-[13px] text-[#6b7280]">
-              {rows.length} of {SLOT_CAP} slots · refreshed{" "}
+              {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
               {view?.built_at ? formatRelative(view.built_at) : "never"}
             </p>
           </div>
@@ -132,7 +130,7 @@ function PageTitle({
           Radar
         </h1>
         <span className="text-[13px] text-[#6b7280]">
-          {rowsCount} of {SLOT_CAP} radar slots used · refreshed{" "}
+          {rowsCount} {rowsCount === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
           {builtAt ? formatRelative(builtAt) : "never"}
         </span>
       </div>
@@ -410,7 +408,7 @@ function SideRail({
           Radar
         </h1>
         <span className="text-[12px] text-[#6b7280]">
-          {rows.length} of {SLOT_CAP} stocks · refreshed{" "}
+          {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
           {builtAt ? formatRelative(builtAt) : "never"}
         </span>
         {pulse?.subtitle && (
@@ -1169,7 +1167,7 @@ function UnsubscribedState() {
             Radar
           </h1>
           <p className="text-[13px] text-[#6b7280]">
-            Up to {SLOT_CAP} names — twice-daily AI read on holdings &amp; watchlist.
+            Add as many tickers as you like — twice-daily AI read on holdings &amp; watchlist.
           </p>
         </header>
 

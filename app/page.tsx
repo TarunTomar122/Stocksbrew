@@ -124,6 +124,11 @@ export default async function HomePage() {
           isSubscribed={isSubscribed}
         />
 
+        <LandingProPreview
+          isSignedIn={Boolean(session)}
+          isSubscribed={isSubscribed}
+        />
+
         <EssentialCards cards={view?.essential_cards} />
 
         <HomeContent
@@ -133,12 +138,7 @@ export default async function HomePage() {
           market={market}
         />
 
-        <ThematicScreens doc={screens} market={market} />
-
-        <LandingProPreview
-          isSignedIn={Boolean(session)}
-          isSubscribed={isSubscribed}
-        />
+        <ThematicScreens doc={screens} market={market} isSubscribed={isSubscribed} />
       </div>
     </main>
   );

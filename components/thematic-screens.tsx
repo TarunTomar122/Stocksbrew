@@ -8,7 +8,12 @@ import { StockLogo } from "@/components/stock-logo";
 type Props = {
   doc?: ThematicScreensDoc | null;
   market: "US" | "IN";
+  isSubscribed: boolean;
 };
+
+/** Home widget row limits — free users see a short preview + lock. */
+const HOME_SCREEN_ROWS_FREE = 3;
+const HOME_SCREEN_ROWS_PRO = 8;
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top: {
@@ -103,7 +108,7 @@ function MatchRow({ row, market }: { row: ScreenMatchRow; market: "US" | "IN" })
   );
 }
 
-export function ThematicScreens({ doc, market }: Props) {
+export function ThematicScreens({ doc, market, isSubscribed }: Props) {
   const nonEmpty = (doc?.screens ?? []).filter((s) => s.match_count > 0);
   const [activeId, setActiveId] = useState<string | null>(
     nonEmpty[0]?.id ?? null,
@@ -116,6 +121,11 @@ export function ThematicScreens({ doc, market }: Props) {
     title: active.title,
     subtitle: active.tagline,
   };
+
+  const rowLimit = isSubscribed ? HOME_SCREEN_ROWS_PRO : HOME_SCREEN_ROWS_FREE;
+  const visibleMatches = active.matches.slice(0, rowLimit);
+  const showLock = !isSubscribed && active.matches.length > HOME_SCREEN_ROWS_FREE;
+  const lockedCount = showLock ? Math.max(0, active.matches.length - HOME_SCREEN_ROWS_FREE) : 0;
 
   return (
     <section>
@@ -197,17 +207,42 @@ export function ThematicScreens({ doc, market }: Props) {
         </div>
 
         <div className="flex flex-col">
-          {active.matches.slice(0, 8).map((row) => (
+          {visibleMatches.map((row) => (
             <MatchRow key={row.instrument_id} row={row} market={market} />
           ))}
         </div>
 
-        {active.match_count > 8 && (
+        {showLock && (
+          <div className="border-t border-[#e5e7eb] bg-gradient-to-b from-white to-[#f9fafb] px-5 py-7 text-center">
+            <p className="text-[14px] font-semibold text-[#111111]">
+              {lockedCount} more {lockedCount === 1 ? "match" : "matches"} on this screen
+            </p>
+            <p className="mt-1 text-[13px] text-[#6b7280] max-w-[420px] mx-auto leading-relaxed">
+              Subscribe to unlock the full list, updated daily.
+            </p>
+            <Link
+              href="/subscribe"
+              className="mt-4 inline-flex items-center justify-center h-[40px] px-6 rounded-full bg-[#111111] text-white text-[13px] font-semibold hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+            >
+              Subscribe
+            </Link>
+          </div>
+        )}
+
+        {isSubscribed && active.match_count > HOME_SCREEN_ROWS_PRO && (
           <Link
             href={`/screens/${active.id}?market=${market}`}
             className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"
           >
             See all {active.match_count} matches →
+          </Link>
+        )}
+        {!isSubscribed && active.match_count <= HOME_SCREEN_ROWS_FREE && active.match_count > 0 && (
+          <Link
+            href={`/screens/${active.id}?market=${market}`}
+            className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"
+          >
+            Open screen →
           </Link>
         )}
       </div>

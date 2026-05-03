@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-25",
+  "version": "2026-05-03",
   "markets": {
     "US": {
       "universes": {
@@ -301,7 +301,154 @@
           "US_EQIX",
           "US_FCX",
           "US_NEM",
-          "US_LIN"
+          "US_LIN",
+          "US_MMM",
+          "US_AOS",
+          "US_ACN",
+          "US_AES",
+          "US_AFL",
+          "US_A",
+          "US_APD",
+          "US_AKAM",
+          "US_ALB",
+          "US_ARE",
+          "US_ALGN",
+          "US_ALLE",
+          "US_LNT",
+          "US_ALL",
+          "US_AMCR",
+          "US_AEE",
+          "US_AEP",
+          "US_AIG",
+          "US_AWK",
+          "US_AMP",
+          "US_AME",
+          "US_APH",
+          "US_ADI",
+          "US_APA",
+          "US_APO",
+          "US_APP",
+          "US_APTV",
+          "US_ACGL",
+          "US_ADM",
+          "US_ARES",
+          "US_ANET",
+          "US_AJG",
+          "US_AIZ",
+          "US_ATO",
+          "US_ADSK",
+          "US_AZO",
+          "US_AVB",
+          "US_AVY",
+          "US_AXON",
+          "US_BALL",
+          "US_BAX",
+          "US_BRK_B",
+          "US_BBY",
+          "US_TECH",
+          "US_BX",
+          "US_XYZ",
+          "US_BK",
+          "US_BR",
+          "US_BRO",
+          "US_BF_B",
+          "US_BLDR",
+          "US_BG",
+          "US_BXP",
+          "US_CHRW",
+          "US_CPT",
+          "US_CPB",
+          "US_CAH",
+          "US_CCL",
+          "US_CARR",
+          "US_CVNA",
+          "US_CASY",
+          "US_CBOE",
+          "US_CBRE",
+          "US_CDW",
+          "US_COR",
+          "US_CNC",
+          "US_CNP",
+          "US_CF",
+          "US_CRL",
+          "US_CHTR",
+          "US_CMG",
+          "US_CB",
+          "US_CHD",
+          "US_CIEN",
+          "US_CINF",
+          "US_CTAS",
+          "US_CSCO",
+          "US_CFG",
+          "US_CLX",
+          "US_CMS",
+          "US_CTSH",
+          "US_COHR",
+          "US_CL",
+          "US_FIX",
+          "US_CAG",
+          "US_ED",
+          "US_STZ",
+          "US_CEG",
+          "US_COO",
+          "US_CPRT",
+          "US_GLW",
+          "US_CPAY",
+          "US_CTVA",
+          "US_CSGP",
+          "US_CTRA",
+          "US_CRH",
+          "US_CCI",
+          "US_CSX",
+          "US_DRI",
+          "US_DVA",
+          "US_DELL",
+          "US_DAL",
+          "US_DVN",
+          "US_DXCM",
+          "US_FANG",
+          "US_DLR",
+          "US_DG",
+          "US_DLTR",
+          "US_D",
+          "US_DPZ",
+          "US_DOV",
+          "US_DOW",
+          "US_DHI",
+          "US_DTE",
+          "US_DD",
+          "US_EBAY",
+          "US_SATS",
+          "US_ECL",
+          "US_EIX",
+          "US_EW",
+          "US_EA",
+          "US_EME",
+          "US_ETR",
+          "US_EPAM",
+          "US_EQT",
+          "US_EFX",
+          "US_EQR",
+          "US_ERIE",
+          "US_ESS",
+          "US_EL",
+          "US_EG",
+          "US_EVRG",
+          "US_ES",
+          "US_EXC",
+          "US_EXE",
+          "US_EXPD",
+          "US_EXR",
+          "US_FFIV",
+          "US_FDS",
+          "US_FICO",
+          "US_FAST",
+          "US_FRT",
+          "US_FDX",
+          "US_FITB",
+          "US_FSLR",
+          "US_FE",
+          "US_FISV"
         ],
         "us_macro_cues": [
           "US_IDX_SPX",
@@ -5283,6 +5430,3828 @@
           "updated_at": "2026-04-20T00:00:00Z",
           "type": "macro",
           "quote_symbol_yahoo": "^VIX"
+        },
+        {
+          "instrument_id": "US_MMM",
+          "market": "US",
+          "ticker": "MMM",
+          "name": "3M",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Industrial Conglomerates",
+          "description": "3M \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "MMM"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AOS",
+          "market": "US",
+          "ticker": "AOS",
+          "name": "A. O. Smith",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products",
+          "description": "A. O. Smith \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AOS"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ACN",
+          "market": "US",
+          "ticker": "ACN",
+          "name": "Accenture",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "IT Consulting & Other Services",
+          "description": "Accenture \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ACN"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AES",
+          "market": "US",
+          "ticker": "AES",
+          "name": "AES Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Independent Power Producers & Energy Traders",
+          "description": "AES Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AES"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AFL",
+          "market": "US",
+          "ticker": "AFL",
+          "name": "Aflac",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Life & Health Insurance",
+          "description": "Aflac \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AFL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_A",
+          "market": "US",
+          "ticker": "A",
+          "name": "Agilent Technologies",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Life Sciences Tools & Services",
+          "description": "Agilent Technologies \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "A"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_APD",
+          "market": "US",
+          "ticker": "APD",
+          "name": "Air Products",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Industrial Gases",
+          "description": "Air Products \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "APD"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AKAM",
+          "market": "US",
+          "ticker": "AKAM",
+          "name": "Akamai Technologies",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Internet Services & Infrastructure",
+          "description": "Akamai Technologies \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AKAM"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ALB",
+          "market": "US",
+          "ticker": "ALB",
+          "name": "Albemarle Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Specialty Chemicals",
+          "description": "Albemarle Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ALB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ARE",
+          "market": "US",
+          "ticker": "ARE",
+          "name": "Alexandria Real Estate Equities",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Office REITs",
+          "description": "Alexandria Real Estate Equities \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ARE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ALGN",
+          "market": "US",
+          "ticker": "ALGN",
+          "name": "Align Technology",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Supplies",
+          "description": "Align Technology \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ALGN"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ALLE",
+          "market": "US",
+          "ticker": "ALLE",
+          "name": "Allegion",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products",
+          "description": "Allegion \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ALLE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_LNT",
+          "market": "US",
+          "ticker": "LNT",
+          "name": "Alliant Energy",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Alliant Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "LNT"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ALL",
+          "market": "US",
+          "ticker": "ALL",
+          "name": "Allstate",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Property & Casualty Insurance",
+          "description": "Allstate \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ALL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AMCR",
+          "market": "US",
+          "ticker": "AMCR",
+          "name": "Amcor",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Paper & Plastic Packaging Products & Materials",
+          "description": "Amcor \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AMCR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AEE",
+          "market": "US",
+          "ticker": "AEE",
+          "name": "Ameren",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Multi-Utilities",
+          "description": "Ameren \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AEE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AEP",
+          "market": "US",
+          "ticker": "AEP",
+          "name": "American Electric Power",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "American Electric Power \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AEP"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AIG",
+          "market": "US",
+          "ticker": "AIG",
+          "name": "American International Group",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Multi-line Insurance",
+          "description": "American International Group \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AIG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AWK",
+          "market": "US",
+          "ticker": "AWK",
+          "name": "American Water Works",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Water Utilities",
+          "description": "American Water Works \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AWK"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AMP",
+          "market": "US",
+          "ticker": "AMP",
+          "name": "Ameriprise Financial",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management & Custody Banks",
+          "description": "Ameriprise Financial \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AMP"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AME",
+          "market": "US",
+          "ticker": "AME",
+          "name": "Ametek",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Electrical Components & Equipment",
+          "description": "Ametek \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AME"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_APH",
+          "market": "US",
+          "ticker": "APH",
+          "name": "Amphenol",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Electronic Components",
+          "description": "Amphenol \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "APH"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ADI",
+          "market": "US",
+          "ticker": "ADI",
+          "name": "Analog Devices",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductors",
+          "description": "Analog Devices \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ADI"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_APA",
+          "market": "US",
+          "ticker": "APA",
+          "name": "APA Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Exploration & Production",
+          "description": "APA Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "APA"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_APO",
+          "market": "US",
+          "ticker": "APO",
+          "name": "Apollo Global Management",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management & Custody Banks",
+          "description": "Apollo Global Management \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "APO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_APP",
+          "market": "US",
+          "ticker": "APP",
+          "name": "AppLovin",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Application Software",
+          "description": "AppLovin \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "APP"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_APTV",
+          "market": "US",
+          "ticker": "APTV",
+          "name": "Aptiv",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Automotive Parts & Equipment",
+          "description": "Aptiv \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "APTV"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ACGL",
+          "market": "US",
+          "ticker": "ACGL",
+          "name": "Arch Capital Group",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Property & Casualty Insurance",
+          "description": "Arch Capital Group \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ACGL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ADM",
+          "market": "US",
+          "ticker": "ADM",
+          "name": "Archer Daniels Midland",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Agricultural Products & Services",
+          "description": "Archer Daniels Midland \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ADM"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ARES",
+          "market": "US",
+          "ticker": "ARES",
+          "name": "Ares Management",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management & Custody Banks",
+          "description": "Ares Management \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ARES"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ANET",
+          "market": "US",
+          "ticker": "ANET",
+          "name": "Arista Networks",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communications Equipment",
+          "description": "Arista Networks \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ANET"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AJG",
+          "market": "US",
+          "ticker": "AJG",
+          "name": "Arthur J. Gallagher & Co.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance Brokers",
+          "description": "Arthur J. Gallagher & Co. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AJG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AIZ",
+          "market": "US",
+          "ticker": "AIZ",
+          "name": "Assurant",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Multi-line Insurance",
+          "description": "Assurant \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AIZ"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ATO",
+          "market": "US",
+          "ticker": "ATO",
+          "name": "Atmos Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Gas Utilities",
+          "description": "Atmos Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ATO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ADSK",
+          "market": "US",
+          "ticker": "ADSK",
+          "name": "Autodesk",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Application Software",
+          "description": "Autodesk \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ADSK"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AZO",
+          "market": "US",
+          "ticker": "AZO",
+          "name": "AutoZone",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Automotive Retail",
+          "description": "AutoZone \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AZO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AVB",
+          "market": "US",
+          "ticker": "AVB",
+          "name": "AvalonBay Communities",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Multi-Family Residential REITs",
+          "description": "AvalonBay Communities \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AVB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AVY",
+          "market": "US",
+          "ticker": "AVY",
+          "name": "Avery Dennison",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Paper & Plastic Packaging Products & Materials",
+          "description": "Avery Dennison \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AVY"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_AXON",
+          "market": "US",
+          "ticker": "AXON",
+          "name": "Axon Enterprise",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Axon Enterprise \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "AXON"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BALL",
+          "market": "US",
+          "ticker": "BALL",
+          "name": "Ball Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Metal, Glass & Plastic Containers",
+          "description": "Ball Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BALL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BAX",
+          "market": "US",
+          "ticker": "BAX",
+          "name": "Baxter International",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Equipment",
+          "description": "Baxter International \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BAX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BRK_B",
+          "market": "US",
+          "ticker": "BRK.B",
+          "name": "Berkshire Hathaway",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Multi-Sector Holdings",
+          "description": "Berkshire Hathaway \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BRKB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BBY",
+          "market": "US",
+          "ticker": "BBY",
+          "name": "Best Buy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Computer & Electronics Retail",
+          "description": "Best Buy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BBY"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_TECH",
+          "market": "US",
+          "ticker": "TECH",
+          "name": "Bio-Techne",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Life Sciences Tools & Services",
+          "description": "Bio-Techne \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "TECH"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BX",
+          "market": "US",
+          "ticker": "BX",
+          "name": "Blackstone Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management & Custody Banks",
+          "description": "Blackstone Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_XYZ",
+          "market": "US",
+          "ticker": "XYZ",
+          "name": "Block, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Transaction & Payment Processing Services",
+          "description": "Block, Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "XYZ"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BK",
+          "market": "US",
+          "ticker": "BK",
+          "name": "BNY Mellon",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management & Custody Banks",
+          "description": "BNY Mellon \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BK"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BR",
+          "market": "US",
+          "ticker": "BR",
+          "name": "Broadridge Financial Solutions",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Data Processing & Outsourced Services",
+          "description": "Broadridge Financial Solutions \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BRO",
+          "market": "US",
+          "ticker": "BRO",
+          "name": "Brown & Brown",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance Brokers",
+          "description": "Brown & Brown \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BRO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BF_B",
+          "market": "US",
+          "ticker": "BF.B",
+          "name": "Brown\u2013Forman",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Distillers & Vintners",
+          "description": "Brown\u2013Forman \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BFB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BLDR",
+          "market": "US",
+          "ticker": "BLDR",
+          "name": "Builders FirstSource",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products",
+          "description": "Builders FirstSource \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BLDR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BG",
+          "market": "US",
+          "ticker": "BG",
+          "name": "Bunge Global",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Agricultural Products & Services",
+          "description": "Bunge Global \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_BXP",
+          "market": "US",
+          "ticker": "BXP",
+          "name": "BXP, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Office REITs",
+          "description": "BXP, Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "BXP"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CHRW",
+          "market": "US",
+          "ticker": "CHRW",
+          "name": "C.H. Robinson",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Air Freight & Logistics",
+          "description": "C.H. Robinson \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CHRW"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CPT",
+          "market": "US",
+          "ticker": "CPT",
+          "name": "Camden Property Trust",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Multi-Family Residential REITs",
+          "description": "Camden Property Trust \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CPT"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CPB",
+          "market": "US",
+          "ticker": "CPB",
+          "name": "Campbell's Company (The)",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods & Meats",
+          "description": "Campbell's Company (The) \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CPB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CAH",
+          "market": "US",
+          "ticker": "CAH",
+          "name": "Cardinal Health",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Distributors",
+          "description": "Cardinal Health \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CAH"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CCL",
+          "market": "US",
+          "ticker": "CCL",
+          "name": "Carnival",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Hotels, Resorts & Cruise Lines",
+          "description": "Carnival \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CCL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CARR",
+          "market": "US",
+          "ticker": "CARR",
+          "name": "Carrier Global",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products",
+          "description": "Carrier Global \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CARR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CVNA",
+          "market": "US",
+          "ticker": "CVNA",
+          "name": "Carvana",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Automotive Retail",
+          "description": "Carvana \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CVNA"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CASY",
+          "market": "US",
+          "ticker": "CASY",
+          "name": "Casey's",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Food Retail",
+          "description": "Casey's \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CASY"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CBOE",
+          "market": "US",
+          "ticker": "CBOE",
+          "name": "Cboe Global Markets",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Financial Exchanges & Data",
+          "description": "Cboe Global Markets \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CBOE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CBRE",
+          "market": "US",
+          "ticker": "CBRE",
+          "name": "CBRE Group",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Real Estate Services",
+          "description": "CBRE Group \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CBRE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CDW",
+          "market": "US",
+          "ticker": "CDW",
+          "name": "CDW Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Technology Distributors",
+          "description": "CDW Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CDW"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_COR",
+          "market": "US",
+          "ticker": "COR",
+          "name": "Cencora",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Distributors",
+          "description": "Cencora \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "COR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CNC",
+          "market": "US",
+          "ticker": "CNC",
+          "name": "Centene Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Managed Health Care",
+          "description": "Centene Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CNC"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CNP",
+          "market": "US",
+          "ticker": "CNP",
+          "name": "CenterPoint Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Multi-Utilities",
+          "description": "CenterPoint Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CNP"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CF",
+          "market": "US",
+          "ticker": "CF",
+          "name": "CF Industries",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Fertilizers & Agricultural Chemicals",
+          "description": "CF Industries \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CF"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CRL",
+          "market": "US",
+          "ticker": "CRL",
+          "name": "Charles River Laboratories",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Life Sciences Tools & Services",
+          "description": "Charles River Laboratories \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CRL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CHTR",
+          "market": "US",
+          "ticker": "CHTR",
+          "name": "Charter Communications",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Cable & Satellite",
+          "description": "Charter Communications \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CHTR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CMG",
+          "market": "US",
+          "ticker": "CMG",
+          "name": "Chipotle Mexican Grill",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Restaurants",
+          "description": "Chipotle Mexican Grill \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CMG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CB",
+          "market": "US",
+          "ticker": "CB",
+          "name": "Chubb Limited",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Property & Casualty Insurance",
+          "description": "Chubb Limited \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CHD",
+          "market": "US",
+          "ticker": "CHD",
+          "name": "Church & Dwight",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Household Products",
+          "description": "Church & Dwight \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CHD"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CIEN",
+          "market": "US",
+          "ticker": "CIEN",
+          "name": "Ciena",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communications Equipment",
+          "description": "Ciena \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CIEN"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CINF",
+          "market": "US",
+          "ticker": "CINF",
+          "name": "Cincinnati Financial",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Property & Casualty Insurance",
+          "description": "Cincinnati Financial \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CINF"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CTAS",
+          "market": "US",
+          "ticker": "CTAS",
+          "name": "Cintas",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Diversified Support Services",
+          "description": "Cintas \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CTAS"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CSCO",
+          "market": "US",
+          "ticker": "CSCO",
+          "name": "Cisco",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communications Equipment",
+          "description": "Cisco \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CSCO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CFG",
+          "market": "US",
+          "ticker": "CFG",
+          "name": "Citizens Financial Group",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Regional Banks",
+          "description": "Citizens Financial Group \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CFG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CLX",
+          "market": "US",
+          "ticker": "CLX",
+          "name": "Clorox",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Household Products",
+          "description": "Clorox \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CLX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CMS",
+          "market": "US",
+          "ticker": "CMS",
+          "name": "CMS Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Multi-Utilities",
+          "description": "CMS Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CMS"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CTSH",
+          "market": "US",
+          "ticker": "CTSH",
+          "name": "Cognizant",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "IT Consulting & Other Services",
+          "description": "Cognizant \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CTSH"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_COHR",
+          "market": "US",
+          "ticker": "COHR",
+          "name": "Coherent Corp.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Electronic Components",
+          "description": "Coherent Corp. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "COHR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CL",
+          "market": "US",
+          "ticker": "CL",
+          "name": "Colgate-Palmolive",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Household Products",
+          "description": "Colgate-Palmolive \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FIX",
+          "market": "US",
+          "ticker": "FIX",
+          "name": "Comfort Systems USA",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Construction & Engineering",
+          "description": "Comfort Systems USA \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FIX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CAG",
+          "market": "US",
+          "ticker": "CAG",
+          "name": "Conagra Brands",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods & Meats",
+          "description": "Conagra Brands \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CAG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ED",
+          "market": "US",
+          "ticker": "ED",
+          "name": "Consolidated Edison",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Multi-Utilities",
+          "description": "Consolidated Edison \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ED"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_STZ",
+          "market": "US",
+          "ticker": "STZ",
+          "name": "Constellation Brands",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Distillers & Vintners",
+          "description": "Constellation Brands \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "STZ"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CEG",
+          "market": "US",
+          "ticker": "CEG",
+          "name": "Constellation Energy",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Constellation Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CEG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_COO",
+          "market": "US",
+          "ticker": "COO",
+          "name": "Cooper Companies (The)",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Supplies",
+          "description": "Cooper Companies (The) \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "COO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CPRT",
+          "market": "US",
+          "ticker": "CPRT",
+          "name": "Copart",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Diversified Support Services",
+          "description": "Copart \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CPRT"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_GLW",
+          "market": "US",
+          "ticker": "GLW",
+          "name": "Corning Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Electronic Components",
+          "description": "Corning Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "GLW"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CPAY",
+          "market": "US",
+          "ticker": "CPAY",
+          "name": "Corpay",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Transaction & Payment Processing Services",
+          "description": "Corpay \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CPAY"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CTVA",
+          "market": "US",
+          "ticker": "CTVA",
+          "name": "Corteva",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Fertilizers & Agricultural Chemicals",
+          "description": "Corteva \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CTVA"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CSGP",
+          "market": "US",
+          "ticker": "CSGP",
+          "name": "CoStar Group",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Real Estate Services",
+          "description": "CoStar Group \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CSGP"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CTRA",
+          "market": "US",
+          "ticker": "CTRA",
+          "name": "Coterra",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Exploration & Production",
+          "description": "Coterra \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CTRA"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CRH",
+          "market": "US",
+          "ticker": "CRH",
+          "name": "CRH plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Construction Materials",
+          "description": "CRH plc \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CRH"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CCI",
+          "market": "US",
+          "ticker": "CCI",
+          "name": "Crown Castle",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Telecom Tower REITs",
+          "description": "Crown Castle \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CCI"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_CSX",
+          "market": "US",
+          "ticker": "CSX",
+          "name": "CSX Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Rail Transportation",
+          "description": "CSX Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "CSX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DRI",
+          "market": "US",
+          "ticker": "DRI",
+          "name": "Darden Restaurants",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Restaurants",
+          "description": "Darden Restaurants \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DRI"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DVA",
+          "market": "US",
+          "ticker": "DVA",
+          "name": "DaVita",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Services",
+          "description": "DaVita \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DVA"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DELL",
+          "market": "US",
+          "ticker": "DELL",
+          "name": "Dell Technologies",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Technology Hardware, Storage & Peripherals",
+          "description": "Dell Technologies \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DELL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DAL",
+          "market": "US",
+          "ticker": "DAL",
+          "name": "Delta Air Lines",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Passenger Airlines",
+          "description": "Delta Air Lines \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DAL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DVN",
+          "market": "US",
+          "ticker": "DVN",
+          "name": "Devon Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Exploration & Production",
+          "description": "Devon Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DVN"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DXCM",
+          "market": "US",
+          "ticker": "DXCM",
+          "name": "Dexcom",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Equipment",
+          "description": "Dexcom \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DXCM"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FANG",
+          "market": "US",
+          "ticker": "FANG",
+          "name": "Diamondback Energy",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Exploration & Production",
+          "description": "Diamondback Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FANG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DLR",
+          "market": "US",
+          "ticker": "DLR",
+          "name": "Digital Realty",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Data Center REITs",
+          "description": "Digital Realty \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DLR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DG",
+          "market": "US",
+          "ticker": "DG",
+          "name": "Dollar General",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Consumer Staples Merchandise Retail",
+          "description": "Dollar General \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DLTR",
+          "market": "US",
+          "ticker": "DLTR",
+          "name": "Dollar Tree",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Consumer Staples Merchandise Retail",
+          "description": "Dollar Tree \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DLTR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_D",
+          "market": "US",
+          "ticker": "D",
+          "name": "Dominion Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Multi-Utilities",
+          "description": "Dominion Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "D"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DPZ",
+          "market": "US",
+          "ticker": "DPZ",
+          "name": "Domino's",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Restaurants",
+          "description": "Domino's \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DPZ"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DOV",
+          "market": "US",
+          "ticker": "DOV",
+          "name": "Dover Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Industrial Machinery & Supplies & Components",
+          "description": "Dover Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DOV"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DOW",
+          "market": "US",
+          "ticker": "DOW",
+          "name": "Dow Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Commodity Chemicals",
+          "description": "Dow Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DOW"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DHI",
+          "market": "US",
+          "ticker": "DHI",
+          "name": "D. R. Horton",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Homebuilding",
+          "description": "D. R. Horton \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DHI"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DTE",
+          "market": "US",
+          "ticker": "DTE",
+          "name": "DTE Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Multi-Utilities",
+          "description": "DTE Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DTE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_DD",
+          "market": "US",
+          "ticker": "DD",
+          "name": "DuPont",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Specialty Chemicals",
+          "description": "DuPont \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "DD"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EBAY",
+          "market": "US",
+          "ticker": "EBAY",
+          "name": "eBay Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Broadline Retail",
+          "description": "eBay Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EBAY"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_SATS",
+          "market": "US",
+          "ticker": "SATS",
+          "name": "EchoStar",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Wireless Telecommunication Services",
+          "description": "EchoStar \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "SATS"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ECL",
+          "market": "US",
+          "ticker": "ECL",
+          "name": "Ecolab",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Specialty Chemicals",
+          "description": "Ecolab \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ECL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EIX",
+          "market": "US",
+          "ticker": "EIX",
+          "name": "Edison International",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Edison International \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EIX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EW",
+          "market": "US",
+          "ticker": "EW",
+          "name": "Edwards Lifesciences",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Health Care Equipment",
+          "description": "Edwards Lifesciences \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EW"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EA",
+          "market": "US",
+          "ticker": "EA",
+          "name": "Electronic Arts",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Interactive Home Entertainment",
+          "description": "Electronic Arts \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EA"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EME",
+          "market": "US",
+          "ticker": "EME",
+          "name": "Emcor",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Construction & Engineering",
+          "description": "Emcor \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EME"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ETR",
+          "market": "US",
+          "ticker": "ETR",
+          "name": "Entergy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Entergy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ETR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EPAM",
+          "market": "US",
+          "ticker": "EPAM",
+          "name": "EPAM Systems",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "IT Consulting & Other Services",
+          "description": "EPAM Systems \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EPAM"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EQT",
+          "market": "US",
+          "ticker": "EQT",
+          "name": "EQT Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Exploration & Production",
+          "description": "EQT Corporation \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EQT"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EFX",
+          "market": "US",
+          "ticker": "EFX",
+          "name": "Equifax",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Research & Consulting Services",
+          "description": "Equifax \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EFX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EQR",
+          "market": "US",
+          "ticker": "EQR",
+          "name": "Equity Residential",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Multi-Family Residential REITs",
+          "description": "Equity Residential \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EQR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ERIE",
+          "market": "US",
+          "ticker": "ERIE",
+          "name": "Erie Indemnity",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance Brokers",
+          "description": "Erie Indemnity \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ERIE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ESS",
+          "market": "US",
+          "ticker": "ESS",
+          "name": "Essex Property Trust",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Multi-Family Residential REITs",
+          "description": "Essex Property Trust \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ESS"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EL",
+          "market": "US",
+          "ticker": "EL",
+          "name": "Est\u00e9e Lauder Companies (The)",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Personal Care Products",
+          "description": "Est\u00e9e Lauder Companies (The) \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EL"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EG",
+          "market": "US",
+          "ticker": "EG",
+          "name": "Everest Group",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Reinsurance",
+          "description": "Everest Group \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EVRG",
+          "market": "US",
+          "ticker": "EVRG",
+          "name": "Evergy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Evergy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EVRG"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_ES",
+          "market": "US",
+          "ticker": "ES",
+          "name": "Eversource Energy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Eversource Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ES"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EXC",
+          "market": "US",
+          "ticker": "EXC",
+          "name": "Exelon",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "Exelon \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EXC"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EXE",
+          "market": "US",
+          "ticker": "EXE",
+          "name": "Expand Energy",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Exploration & Production",
+          "description": "Expand Energy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EXE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EXPD",
+          "market": "US",
+          "ticker": "EXPD",
+          "name": "Expeditors International",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Air Freight & Logistics",
+          "description": "Expeditors International \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EXPD"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_EXR",
+          "market": "US",
+          "ticker": "EXR",
+          "name": "Extra Space Storage",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Self-Storage REITs",
+          "description": "Extra Space Storage \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "EXR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FFIV",
+          "market": "US",
+          "ticker": "FFIV",
+          "name": "F5, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communications Equipment",
+          "description": "F5, Inc. \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FFIV"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FDS",
+          "market": "US",
+          "ticker": "FDS",
+          "name": "FactSet",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Financial Exchanges & Data",
+          "description": "FactSet \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FDS"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FICO",
+          "market": "US",
+          "ticker": "FICO",
+          "name": "Fair Isaac",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Application Software",
+          "description": "Fair Isaac \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FICO"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FAST",
+          "market": "US",
+          "ticker": "FAST",
+          "name": "Fastenal",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Trading Companies & Distributors",
+          "description": "Fastenal \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FAST"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FRT",
+          "market": "US",
+          "ticker": "FRT",
+          "name": "Federal Realty Investment Trust",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "Retail REITs",
+          "description": "Federal Realty Investment Trust \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FRT"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FDX",
+          "market": "US",
+          "ticker": "FDX",
+          "name": "FedEx",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Air Freight & Logistics",
+          "description": "FedEx \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FDX"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FITB",
+          "market": "US",
+          "ticker": "FITB",
+          "name": "Fifth Third Bancorp",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Regional Banks",
+          "description": "Fifth Third Bancorp \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FITB"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FSLR",
+          "market": "US",
+          "ticker": "FSLR",
+          "name": "First Solar",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductors",
+          "description": "First Solar \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FSLR"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FE",
+          "market": "US",
+          "ticker": "FE",
+          "name": "FirstEnergy",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Electric Utilities",
+          "description": "FirstEnergy \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FE"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
+        },
+        {
+          "instrument_id": "US_FISV",
+          "market": "US",
+          "ticker": "FISV",
+          "name": "Fiserv",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Transaction & Payment Processing Services",
+          "description": "Fiserv \u2014 US core universe (S&P 500 sourced).",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "FISV"
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-05-03T12:00:00Z"
         }
       ]
     },

@@ -1,3 +1,4 @@
+import { StockAiDecisionCarousel } from "@/components/stock-ai-decision-carousel";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { StockIntelPro } from "@/lib/types";
@@ -133,6 +134,8 @@ export function StockSideRail({
             variant="icon"
           />
         </div>
+
+        <StockAiDecisionCarousel ticker={stock.ticker} intelPro={intelPro} />
 
         {/* Price */}
         <div className="flex flex-col gap-1.5">

@@ -50,7 +50,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             trackedIds={trackedIds}
             isSubscribed={isSubscribed}
           />
-          {children}
+          <div className="flex min-h-0 w-full flex-1 flex-col px-0 md:px-8 lg:px-12 xl:px-32">
+            {children}
+          </div>
           <Footer />
         </Providers>
       </body>

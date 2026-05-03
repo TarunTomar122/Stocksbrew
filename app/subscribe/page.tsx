@@ -1,23 +1,34 @@
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { SubscribePricing } from "@/components/subscribe-pricing";
+import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
 
 export const metadata = {
   title: "Subscribe · Tikrr Pro",
 };
 
 type Props = {
-  searchParams: { success?: string };
+  searchParams: {
+    success?: string;
+    status?: string;
+    subscription_id?: string;
+    email?: string;
+  };
 };
 
 export default async function SubscribePage({ searchParams }: Props) {
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const justSubscribed = searchParams.success === "1" || isSubscribed;
+  const callbackSuccess = searchParams.success === "1" || searchParams.status === "active";
+  const justSubscribed = callbackSuccess || isSubscribed;
 
   return (
     <main className="flex-grow">
+      <SubscriptionSuccessModal
+        open={callbackSuccess}
+        subscriptionId={searchParams.subscription_id}
+      />
       <div className="mx-auto flex w-full max-w-screen-xl flex-col items-center gap-12 px-6 md:px-10 lg:px-16 py-16 md:py-24">
 
         {justSubscribed && !isSubscribed && (

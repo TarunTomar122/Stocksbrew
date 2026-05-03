@@ -11,6 +11,11 @@ export type UserDoc = {
   created_at?: string;
   last_sign_in_at?: string;
   lastCheckoutCreatedAt?: number;
+  /** Dodo subscription fields (see app/api/subscription/webhook). */
+  subscriptionId?: string | null;
+  subscriptionStatus?: string | null;
+  subscriptionPlan?: string | null;
+  cancelAtPeriodEnd?: boolean;
 };
 
 export async function getUserDoc(uid: string): Promise<UserDoc | null> {

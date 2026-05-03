@@ -12,6 +12,7 @@ type Props = {
   ticker: string;
   instrumentId: string;
   isSubscribed: boolean;
+  isTracked?: boolean;
 };
 
 const PRO_BRIEF_BENEFITS: { icon: string; label: string; text: string }[] = [
@@ -58,12 +59,22 @@ function ProBriefBenefits() {
 // A blurred mock of the AI brief layout: Strategic Directive, News signal,
 // Catalysts/Drivers/Risks, Sentiment. Sits behind the unlock CTA so free
 // users see exactly what they get on the AI tier.
-export function LockedAiBrief({ ticker, instrumentId, isSubscribed }: Props) {
+export function LockedAiBrief({ ticker, instrumentId, isSubscribed, isTracked = false }: Props) {
   const { user, loading } = useUser();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   if (loading) return null;
+  if (user && isSubscribed) {
+    return (
+      <ProBriefPreparingState
+        ticker={ticker}
+        instrumentId={instrumentId}
+        isSubscribed={isSubscribed}
+        isTracked={isTracked}
+      />
+    );
+  }
 
   const cta = !user
     ? {
@@ -82,19 +93,12 @@ export function LockedAiBrief({ ticker, instrumentId, isSubscribed }: Props) {
           }
         },
       }
-    : !isSubscribed
-      ? {
-          title: `Unlock the ${ticker} Pro brief`,
-          body: "Turn this into a monitored name: Tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
-          label: "Get Pro",
-          onClick: () => router.push("/subscribe"),
-        }
-      : {
-          title: `Add ${ticker} to Radar`,
-          body: "Start monitoring it as a Holding or Watching name. The next refresh builds the full AI brief.",
-          label: "Add to Radar",
-          onClick: () => undefined,
-        };
+    : {
+        title: `Unlock the ${ticker} Pro brief`,
+        body: "Turn this into a monitored name: Tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
+        label: "Get Pro",
+        onClick: () => router.push("/subscribe"),
+      };
 
   return (
     <div className="relative">
@@ -118,30 +122,103 @@ export function LockedAiBrief({ ticker, instrumentId, isSubscribed }: Props) {
             {cta.title}
           </h3>
           <p className="text-[13px] text-[#6b7280] leading-relaxed">{cta.body}</p>
-          {!user || !isSubscribed ? <ProBriefBenefits /> : null}
-          {user && isSubscribed ? (
-            <TrackButton
-              ticker={ticker}
-              instrumentId={instrumentId}
-              tier="free"
-              isSubscribed={isSubscribed}
-              isTracked={false}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => cta.onClick()}
-              className="inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-            >
-              {cta.label}
-            </button>
-          )}
+          <ProBriefBenefits />
+          <button
+            type="button"
+            onClick={() => cta.onClick()}
+            className="inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+          >
+            {cta.label}
+          </button>
           {error && (
             <p className="text-[12px] font-medium text-[#ef4444]">{error}</p>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function ProBriefPreparingState({
+  ticker,
+  instrumentId,
+  isSubscribed,
+  isTracked,
+}: {
+  ticker: string;
+  instrumentId: string;
+  isSubscribed: boolean;
+  isTracked: boolean;
+}) {
+  if (!isTracked) {
+    return (
+      <section className="rounded-2xl border border-[#e5e7eb] bg-white p-6 flex flex-col gap-4">
+        <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
+          <span aria-hidden>✨</span> Pro · AI tab
+        </span>
+        <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
+          Start AI coverage for {ticker}
+        </h3>
+        <p className="text-[14px] text-[#6b7280] leading-relaxed">
+          Add this stock to Radar and our AI agent will start researching it immediately.
+          First brief appears here as soon as synthesis is ready.
+        </p>
+        <div className="pt-1">
+          <TrackButton
+            ticker={ticker}
+            instrumentId={instrumentId}
+            tier="free"
+            isSubscribed={isSubscribed}
+            isTracked={false}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-[#dbeafe] bg-[#f8fbff] p-6 flex flex-col gap-5">
+      <div className="flex items-start gap-3">
+        <span
+          className="material-symbols-outlined text-[#0052ff] animate-pulse"
+          style={{ fontSize: 22, fontVariationSettings: "'wght' 650" }}
+          aria-hidden
+        >
+          auto_awesome
+        </span>
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#2563eb]">
+            Pro AI agent is working
+          </span>
+          <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
+            Researching {ticker} right now
+          </h3>
+          <p className="text-[14px] text-[#6b7280] leading-relaxed">
+            We are collecting fresh sources, scoring the setup, and generating your first brief.
+            This tab auto-updates once it is ready.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="h-2 rounded-full bg-[#e5e7eb] overflow-hidden">
+          <div className="h-full w-[42%] rounded-full bg-[#93c5fd] animate-pulse" />
+        </div>
+        <p className="text-[12px] text-[#64748b]">
+          Status: queued for on-demand synthesis.
+        </p>
+      </div>
+
+      <div className="pt-1">
+        <TrackButton
+          ticker={ticker}
+          instrumentId={instrumentId}
+          tier="free"
+          isSubscribed={isSubscribed}
+          isTracked={true}
+        />
+      </div>
+    </section>
   );
 }
 

@@ -1,8 +1,13 @@
 "use client";
 
+import Link from "next/link";
+
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { HeatList, HeatRow } from "@/lib/heat";
+
+/** Free / signed-out users see this many rows per setup bucket; Pro sees the full list. */
+const FREE_HEAT_ROWS_PER_CATEGORY = 3;
 
 type Props = {
   data: HeatList | null;
@@ -193,6 +198,12 @@ function CategoryCard({
   isSubscribed: boolean;
 }) {
   const meta = setupMeta(setup);
+  const displayRows = isSubscribed
+    ? rows
+    : rows.slice(0, FREE_HEAT_ROWS_PER_CATEGORY);
+  const lockedCount = !isSubscribed
+    ? Math.max(0, rows.length - FREE_HEAT_ROWS_PER_CATEGORY)
+    : 0;
 
   return (
     <article className="flex flex-col rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
@@ -216,13 +227,20 @@ function CategoryCard({
           </span>
           <span className="text-[12px] text-[#6b7280]">
             {rows.length} {rows.length === 1 ? "stock" : "stocks"} · {meta.tagline}
+            {!isSubscribed && lockedCount > 0 ? (
+              <span className="text-[#9ca3af]"> · Pro unlocks full list</span>
+            ) : null}
           </span>
         </div>
       </div>
 
-      {/* Scrollable stock list — fixed height so all four cards line up. */}
-      <ul className="flex flex-col max-h-[420px] overflow-y-auto scrollbar-hide border-t border-[#f3f4f6]">
-        {rows.map((row) => (
+      {/* Scrollable stock list — fixed height so all four cards line up (Pro). */}
+      <ul
+        className={`flex flex-col overflow-y-auto scrollbar-hide border-t border-[#f3f4f6] ${
+          isSubscribed ? "max-h-[420px]" : "max-h-none"
+        }`}
+      >
+        {displayRows.map((row) => (
           <CategoryStockRow
             key={row.instrument_id}
             row={row}
@@ -231,6 +249,20 @@ function CategoryCard({
           />
         ))}
       </ul>
+
+      {lockedCount > 0 && (
+        <div className="border-t border-[#f3f4f6] bg-gradient-to-b from-[#fafafa] to-white px-4 py-3">
+          <Link
+            href="/subscribe"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#111111] shadow-sm transition-colors hover:border-[#111111] hover:bg-[#fafafa]"
+          >
+            <span className="text-[15px]" aria-hidden>
+              🔒
+            </span>
+            Unlock {lockedCount} more on Pro
+          </Link>
+        </div>
+      )}
     </article>
   );
 }

@@ -369,7 +369,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       : "No stories match this tone — try All or another tone.";
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-[#e5e7eb] bg-white p-3 md:p-5">
+    <section className="flex flex-col gap-4 bg-white p-3 md:p-5">
       <div className="flex shrink-0 flex-col gap-4 border-b border-[#ebebeb] pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
           <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-[#0a0a0a] md:text-[20px]">

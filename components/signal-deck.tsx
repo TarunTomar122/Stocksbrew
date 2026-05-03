@@ -1,16 +1,9 @@
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
+import { SignalTileCard, type SignalTileModel } from "@/components/signal-tile";
 import type { StockTechnicals } from "@/lib/technicals";
 import type { Market, StockIntelPro } from "@/lib/types";
 
-type Signal = {
-  emoji: string;
-  bg: string;
-  label: string;
-  headline: string;
-  supporting?: string;
-  tone?: "up" | "down" | "warn" | "ink";
-  importance: number;
-};
+type ScoredSignal = SignalTileModel & { importance: number };
 
 type Props = {
   facts: StockFacts | null;
@@ -20,6 +13,41 @@ type Props = {
   currentPrice?: number;
   market: Market;
 };
+
+function parseEventDateLabel(label?: string): Date | null {
+  if (!label) return null;
+  const cleaned = label
+    .split("/")[0]
+    .replace(/\s+(AMC|BMO|TAS|DMH)$/i, "")
+    .trim();
+  if (!cleaned) return null;
+
+  const hasYear = /\b\d{4}\b/.test(cleaned);
+  const dateText = hasYear ? cleaned : `${cleaned} ${new Date().getFullYear()}`;
+  const withYear = new Date(dateText);
+  if (Number.isNaN(withYear.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (withYear >= today) return withYear;
+
+  const rolled = new Date(withYear);
+  rolled.setFullYear(rolled.getFullYear() + 1);
+  const daysAway = (rolled.getTime() - today.getTime()) / 86_400_000;
+  return daysAway <= 180 ? rolled : null;
+}
+
+function isForwardEvent(event?: NonNullable<StockFacts["events"]>[number]): boolean {
+  if (!event?.date_label) return false;
+  if (event.date) {
+    const eventDate = new Date(`${event.date}T00:00:00Z`);
+    if (Number.isNaN(eventDate.getTime())) return false;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    return eventDate >= today;
+  }
+  return parseEventDateLabel(event.date_label) !== null;
+}
 
 // Surface the top "why care?" reasons for this stock right now. Pulls from
 // every free-tier data source we already have (facts, intel pro, technicals,
@@ -68,46 +96,10 @@ export function SignalDeck({
       </div>
       <div className={`grid grid-cols-2 md:grid-cols-3 ${cols} gap-3`}>
         {top.map((s, i) => (
-          <SignalTile key={`${s.label}-${i}`} signal={s} />
+          <SignalTileCard key={`${s.label}-${i}`} signal={s} />
         ))}
       </div>
     </section>
-  );
-}
-
-function SignalTile({ signal }: { signal: Signal }) {
-  const headlineClass =
-    signal.tone === "up"
-      ? "text-[#10b981]"
-      : signal.tone === "down"
-        ? "text-[#ef4444]"
-        : signal.tone === "warn"
-          ? "text-[#b45309]"
-          : "text-[#111111]";
-
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
-      <span
-        aria-hidden
-        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
-        style={{ background: signal.bg }}
-      >
-        {signal.emoji}
-      </span>
-      <div className="flex flex-col gap-1">
-        <span className="text-[11px] font-semibold tracking-[0.06em] uppercase text-[#9ca3af]">
-          {signal.label}
-        </span>
-        <span className={`text-[18px] font-semibold tabular-nums leading-tight ${headlineClass}`}>
-          {signal.headline}
-        </span>
-        {signal.supporting && (
-          <span className="text-[12px] text-[#6b7280] leading-snug">
-            {signal.supporting}
-          </span>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -122,8 +114,8 @@ function collectSignals({
   fundamentals,
   currentPrice,
   market,
-}: Props): Signal[] {
-  const out: Signal[] = [];
+}: Props): ScoredSignal[] {
+  const out: ScoredSignal[] = [];
 
   // 1. Analyst upside (US-friendly; India where Tickertape/Yahoo provides target)
   const target = facts?.analyst?.target_price;
@@ -313,7 +305,7 @@ function collectSignals({
   }
 
   // 8. Earnings event hint — bumps to top when imminent
-  const event = facts?.events?.[0];
+  const event = facts?.events?.find(isForwardEvent);
   if (event?.date_label) {
     out.push({
       emoji: "📅",

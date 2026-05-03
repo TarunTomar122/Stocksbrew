@@ -9,6 +9,7 @@ type Props = {
   analyst: ReactNode;
   fundamentals: ReactNode;
   ai: ReactNode | null;
+  isSubscribed: boolean;
 };
 
 const TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
@@ -20,7 +21,7 @@ const TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
 
 const SCROLL_OFFSET = 140;
 
-export function StockPageTabs({ overview, analyst, fundamentals, ai }: Props) {
+export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribed }: Props) {
   const [active, setActive] = useState<TabKey>("overview");
   const clickLockUntil = useRef(0);
   const visible = ai ? TABS : TABS.filter((t) => t.key !== "ai");
@@ -67,21 +68,24 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai }: Props) {
         >
           {visible.map((t) => {
             const isActive = active === t.key;
+            const locked = !isSubscribed && t.key !== "overview";
+            const label = locked ? `${t.label} 🔒` : t.label;
+            const narrowLabel = locked ? `${t.narrowLabel ?? t.label} 🔒` : t.narrowLabel ?? t.label;
             return (
               <button
                 key={t.key}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                aria-label={t.label}
-                title={t.label}
+                aria-label={label}
+                title={label}
                 onClick={() => goTo(t.key)}
                 className={`relative flex shrink-0 items-center justify-center whitespace-nowrap px-3 py-2.5 text-[13px] font-semibold tracking-[-0.01em] transition-colors sm:px-4 sm:py-3 sm:text-[14px] min-h-[44px] ${
                   isActive ? "text-[#0052ff]" : "text-[#6b7280] hover:text-[#111111]"
                 }`}
               >
-                <span className="inline sm:hidden">{t.narrowLabel ?? t.label}</span>
-                <span className="hidden sm:inline">{t.label}</span>
+                <span className="inline sm:hidden">{narrowLabel}</span>
+                <span className="hidden sm:inline">{label}</span>
                 <span
                   aria-hidden
                   className={`absolute left-2 right-2 sm:left-3 sm:right-3 -bottom-px h-0.5 rounded-full transition-all ${

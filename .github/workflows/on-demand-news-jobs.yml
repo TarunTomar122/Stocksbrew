@@ -1,0 +1,53 @@
+name: On-demand news jobs
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max queued jobs to process"
+        required: false
+        default: "12"
+  repository_dispatch:
+    types: [process_on_demand_news]
+
+concurrency:
+  group: on-demand-news-jobs
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+      SEARXNG_BASE_URL: ${{ secrets.SEARXNG_BASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Validate required secrets
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON secret" && exit 1)
+          test -n "$MIMO_API_KEY" || (echo "Missing MIMO_API_KEY secret" && exit 1)
+
+      - name: Process queued jobs
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '12' }}"
+          echo "Dispatch payload instrument: ${{ github.event.client_payload.instrument_id }}"
+          python -m backend.scripts.process_on_demand_news_jobs --limit "$LIMIT"
+

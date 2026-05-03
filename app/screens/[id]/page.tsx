@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ScreenMatchesTable } from "@/components/screen-matches-table";
+import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getScreenById } from "@/lib/screens";
 
 type Props = {
@@ -64,7 +66,11 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
 
   const result = await getScreenById(market, params.id);
   if (!result) notFound();
-  const { doc, screen } = result;
+  const { screen } = result;
+
+  const session = await getSessionUser();
+  const userDoc = session ? await getUserDoc(session.uid) : null;
+  const isSubscribed = resolveIsSubscribed(userDoc);
 
   const meta = SCREEN_META[screen.id] ?? {
     icon: "S",
@@ -171,7 +177,12 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
           </div>
         </section>
 
-        <ScreenMatchesTable matches={screen.matches} screenId={screen.id} market={market} />
+        <ScreenMatchesTable
+          matches={screen.matches}
+          screenId={screen.id}
+          market={market}
+          isSubscribed={isSubscribed}
+        />
 
         {/* CTA */}
         <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-5">

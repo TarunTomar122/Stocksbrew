@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
@@ -63,11 +62,13 @@ function tickerColor(ticker: string): string {
   return palette[hash % palette.length];
 }
 
+/** Non‑Pro: this many movers per theme card; Pro sees the full sorted list (scroll). */
+const FREE_SECTOR_SPOTLIGHT_ROWS = 3;
+
 type Props = {
   snapshotRows: SnapshotRow[];
   title?: string;
   themes?: Theme[];
-  perCard?: number;
   trackedIds?: string[];
   isSubscribed?: boolean;
 };
@@ -76,7 +77,6 @@ export function SectorSpotlights({
   snapshotRows,
   title = "Sector spotlights",
   themes = DEFAULT_THEMES,
-  perCard = 5,
   trackedIds = [],
   isSubscribed = false,
 }: Props) {
@@ -132,7 +132,6 @@ export function SectorSpotlights({
             theme={theme}
             stocks={stocks}
             avg={avg}
-            perCard={perCard}
             trackedSet={trackedSet}
             isSubscribed={isSubscribed}
           />
@@ -154,21 +153,20 @@ function SectorCard({
   theme,
   stocks,
   avg,
-  perCard,
   trackedSet,
   isSubscribed,
 }: {
   theme: Theme;
   stocks: SectorStock[];
   avg: number;
-  perCard: number;
   trackedSet: Set<string>;
   isSubscribed: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const positive = avg >= 0;
-  const visible = expanded ? stocks : stocks.slice(0, perCard);
-  const remaining = stocks.length - Math.min(perCard, stocks.length);
+  const visible = isSubscribed ? stocks : stocks.slice(0, FREE_SECTOR_SPOTLIGHT_ROWS);
+  const lockedCount = !isSubscribed
+    ? Math.max(0, stocks.length - FREE_SECTOR_SPOTLIGHT_ROWS)
+    : 0;
 
   return (
     <div className="flex flex-col rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
@@ -199,7 +197,13 @@ function SectorCard({
         </div>
       </div>
 
-      <div className="flex flex-col">
+      <div
+        className={`flex flex-col ${
+          isSubscribed && stocks.length > FREE_SECTOR_SPOTLIGHT_ROWS
+            ? "max-h-[420px] overflow-y-auto scrollbar-hide"
+            : ""
+        }`}
+      >
         {visible.map((s) => {
           const up = s.changePct > 0;
           const down = s.changePct < 0;
@@ -248,24 +252,18 @@ function SectorCard({
         })}
       </div>
 
-      {remaining > 0 && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center justify-center gap-1.5 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#6b7280] hover:text-[#111111] hover:bg-[#fafafa] transition-colors"
-        >
-          {expanded ? (
-            <>
-              <span>Show less</span>
-              <span aria-hidden>↑</span>
-            </>
-          ) : (
-            <>
-              <span>+{remaining} more</span>
-              <span aria-hidden>↓</span>
-            </>
-          )}
-        </button>
+      {lockedCount > 0 && (
+        <div className="border-t border-[#f3f4f6] bg-gradient-to-b from-[#fafafa] to-white px-4 py-3">
+          <Link
+            href="/subscribe"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#111111] shadow-sm transition-colors hover:border-[#111111] hover:bg-[#fafafa]"
+          >
+            <span className="text-[15px]" aria-hidden>
+              🔒
+            </span>
+            Unlock {lockedCount} more on Pro
+          </Link>
+        </div>
       )}
     </div>
   );
