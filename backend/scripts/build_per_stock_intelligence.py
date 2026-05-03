@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from typing import Any
 
 from backend.instrument_universe import list_instruments
 from backend.landing_metrics import build_stock_technical_doc
@@ -28,6 +29,66 @@ from backend.storage import TraceMoneyStore
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+
+def _subscribed_tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
+    """Collect paid-user tracked instrument ids for a market (deduped, stable order)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    prefix = f"{market.upper()}_"
+    for user in store.list_subscribed_users():
+        if not bool(user.get("is_subscribed")):
+            continue
+        tracked = user.get("tracked_stocks") or []
+        if not isinstance(tracked, list):
+            continue
+        for raw_id in tracked:
+            instrument_id = str(raw_id or "").strip().upper()
+            if not instrument_id or not instrument_id.startswith(prefix):
+                continue
+            if instrument_id in seen:
+                continue
+            seen.add(instrument_id)
+            out.append(instrument_id)
+    return out
+
+
+def _merge_with_paid_tracked(
+    store: TraceMoneyStore,
+    market: str,
+    base_instruments: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Union(base universe, paid tracked) while preserving deterministic order."""
+    tracked_ids = _subscribed_tracked_ids(store, market)
+    base_ids = {
+        str(instrument.get("instrument_id") or "").strip().upper()
+        for instrument in base_instruments
+    }
+    extra_ids = [instrument_id for instrument_id in tracked_ids if instrument_id and instrument_id not in base_ids]
+    if not extra_ids:
+        return base_instruments, len(tracked_ids), 0
+
+    extra_rows = store.list_instruments(market, extra_ids)
+    extra_by_id = {
+        str(row.get("instrument_id") or "").strip().upper(): row
+        for row in extra_rows
+        if isinstance(row, dict)
+    }
+    ordered_extra: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for instrument_id in extra_ids:
+        row = extra_by_id.get(instrument_id)
+        if row:
+            ordered_extra.append(row)
+        else:
+            missing.append(instrument_id)
+    if missing:
+        logger.warning(
+            "per_stock_intelligence missing instrument metadata for paid tracked ids market=%s missing=%s",
+            market,
+            ",".join(missing),
+        )
+    return base_instruments + ordered_extra, len(tracked_ids), len(ordered_extra)
 
 
 def _avg_volume_from_history(history_points: list[dict]) -> float | None:
@@ -71,9 +132,23 @@ def main() -> None:
     )
 
     store = TraceMoneyStore()
-    instruments = list_instruments(args.market, args.universe)
+    base_instruments = list_instruments(args.market, args.universe)
+    instruments, paid_tracked_count, paid_extra_count = _merge_with_paid_tracked(
+        store,
+        args.market,
+        base_instruments,
+    )
     if not instruments:
         raise ValueError(f"No instruments found for {args.market} / {args.universe}")
+    logger.info(
+        "per_stock_intelligence instrument_union market=%s universe=%s base_count=%s paid_tracked_count=%s paid_extra_count=%s total_count=%s",
+        args.market,
+        args.universe,
+        len(base_instruments),
+        paid_tracked_count,
+        paid_extra_count,
+        len(instruments),
+    )
 
     print(f"[per-stock] fetching per-ticker articles for {len(instruments)} instruments "
           f"(cap {args.per_stock_cap}/ticker, broad cap {args.broad_cap})")
@@ -82,6 +157,7 @@ def main() -> None:
         universe_id=args.universe,
         per_stock_cap=args.per_stock_cap,
         broad_cap=args.broad_cap,
+        instruments_override=instruments,
     )
     print(f"[per-stock] fetched {len(raw_articles)} articles across "
           f"{sum(1 for s in source_health if s['ok'])} healthy sources")
