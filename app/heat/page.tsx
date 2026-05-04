@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Heat List — Hot Stocks & Breakouts · Tikrr",
     description: "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe.",
-    url: "https://tikrr.com/heat",
+    url: "https://www.tikrr.online/heat",
   },
   twitter: {
     title: "Heat List — Hot Stocks & Breakouts · Tikrr",

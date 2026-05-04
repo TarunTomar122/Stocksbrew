@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Market News · Tikrr",
     description: "Daily market headlines with tone filters — scan fast and open the stories that matter.",
-    url: "https://tikrr.com/news",
+    url: "https://www.tikrr.online/news",
   },
   twitter: {
     title: "Market News · Tikrr",

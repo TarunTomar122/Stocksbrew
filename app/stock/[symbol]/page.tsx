@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${upper} — Stock Analysis & AI Brief · Tikrr`,
       description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
-      url: `https://tikrr.com/stock/${upper}`,
+      url: `https://www.tikrr.online/stock/${upper}`,
     },
     twitter: {
       title: `${upper} — Stock Analysis & AI Brief · Tikrr`,

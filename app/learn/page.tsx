@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Learn to Invest — Free Guides & Tutorials · Tikrr",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
-    url: "https://tikrr.com/learn",
+    url: "https://www.tikrr.online/learn",
   },
   twitter: {
     title: "Learn to Invest — Free Guides & Tutorials · Tikrr",

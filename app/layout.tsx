@@ -17,11 +17,11 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://tikrr.com/#organization",
+      "@id": "https://www.tikrr.online/#organization",
       name: "Tikrr",
-      url: "https://tikrr.com",
+      url: "https://www.tikrr.online",
       description: "Market intelligence platform providing AI-powered stock briefs, market sentiment analysis, heat lists, and thematic screens for US equities.",
-      logo: "https://tikrr.com/hero.png",
+      logo: "https://www.tikrr.online/hero.png",
       sameAs: ["https://twitter.com/tikrr"],
       contactPoint: {
         "@type": "ContactPoint",
@@ -31,9 +31,9 @@ const jsonLd = {
     },
     {
       "@type": "WebApplication",
-      "@id": "https://tikrr.com/#webapp",
+      "@id": "https://www.tikrr.online/#webapp",
       name: "Tikrr",
-      url: "https://tikrr.com",
+      url: "https://www.tikrr.online",
       description: "Real-time precision analytics for your global portfolio.",
       applicationCategory: "FinanceApplication",
       operatingSystem: "All",
@@ -46,7 +46,7 @@ const jsonLd = {
   ],
 };
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tikrr.com"),
+  metadataBase: new URL("https://www.tikrr.online"),
   title: {
     default: "tikrr — Market Intelligence",
     template: "%s · tikrr",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     siteName: "Tikrr",
     title: "tikrr — Market Intelligence",
     description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens.",
-    url: "https://tikrr.com",
+    url: "https://www.tikrr.online",
     locale: "en_US",
     images: [
       {

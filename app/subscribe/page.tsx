@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Tikrr Pro — Pricing & Plans",
     description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
-    url: "https://tikrr.com/subscribe",
+    url: "https://www.tikrr.online/subscribe",
   },
   twitter: {
     title: "Tikrr Pro — Pricing & Plans",

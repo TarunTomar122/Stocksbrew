@@ -6,7 +6,7 @@ Disallow: /profile
 Disallow: /watchlist
 Disallow: /_next/
 
-Sitemap: https://tikrr.com/sitemap.xml
+Sitemap: https://www.tikrr.online/sitemap.xml
 `;
 
   return new Response(body, {

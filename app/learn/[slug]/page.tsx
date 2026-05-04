@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${post.title} · Tikrr Learn`,
       description: post.description,
-      url: `https://tikrr.com/learn/${slug}`,
+      url: `https://www.tikrr.online/learn/${slug}`,
       images: [{ url: post.image, width: 800, height: 600, alt: post.imageAlt }],
       type: "article",
       publishedTime: post.date,

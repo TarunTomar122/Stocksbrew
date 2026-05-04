@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Thematic Screens — Curated Stock Filters · Tikrr",
     description: "Hand-picked thematic filters over Tikrr's four-pillar score — quality compounders, momentum leaders, oversold quality, and more.",
-    url: "https://tikrr.com/screens",
+    url: "https://www.tikrr.online/screens",
   },
   twitter: {
     title: "Thematic Screens — Curated Stock Filters · Tikrr",

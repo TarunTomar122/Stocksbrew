@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${label} — Sector Brief · Tikrr`,
       description: brief,
-      url: `https://tikrr.com/sector/${id}`,
+      url: `https://www.tikrr.online/sector/${id}`,
     },
     twitter: {
       title: `${label} — Sector Brief · Tikrr`,

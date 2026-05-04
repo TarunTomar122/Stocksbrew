@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "About Tikrr — AI-Powered Market Intelligence",
     description: "Twice-daily AI briefs grounded in real news. No more wading through 30 tabs to figure out what mattered.",
-    url: "https://tikrr.com/about",
+    url: "https://www.tikrr.online/about",
   },
   twitter: {
     title: "About Tikrr — AI-Powered Market Intelligence",
