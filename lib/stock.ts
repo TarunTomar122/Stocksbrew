@@ -1,5 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getActiveUniverse, getPriceUniverse } from "@/lib/firestore";
+import { getAiUniverse, getPriceUniverse } from "@/lib/firestore";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
 
 export type DataQuality = {
@@ -398,7 +398,7 @@ export async function getInstrumentViewDoc(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<InstrumentViewDoc | null> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getPriceUniverse(market);
   const docId = `${instrumentId}__${universe}`;
   const doc = await adminFirestore
     .collection("tm_views_instrument")
@@ -412,7 +412,7 @@ export async function getStockIntelligenceDoc(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<StockIntelligenceDoc | null> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
   const doc = await adminFirestore
     .collection("tm_news_runs")
@@ -432,22 +432,17 @@ export async function getStockIntelPro(
   // first lookup for stock pages. Fall back to the AI universe only for older
   // data before the broad scorecard job has run.
   const [aiUniverse, priceUniverse] = await Promise.all([
-    getActiveUniverse(market),
+    getAiUniverse(market),
     getPriceUniverse(market),
   ]);
-  const universes = aiUniverse === priceUniverse
-    ? [priceUniverse]
-    : [priceUniverse, aiUniverse];
-  for (const universe of universes) {
-    const doc = await adminFirestore
-      .collection("tm_stock_intel_pro")
-      .doc(`${market}__${universe}`)
-      .collection("stocks")
-      .doc(instrumentId)
-      .get();
-    if (doc.exists) return doc.data() as StockIntelPro;
-  }
-  return null;
+  const preferredUniverse = priceUniverse || aiUniverse;
+  const doc = await adminFirestore
+    .collection("tm_stock_intel_pro")
+    .doc(`${market}__${preferredUniverse}`)
+    .collection("stocks")
+    .doc(instrumentId)
+    .get();
+  return doc.exists ? (doc.data() as StockIntelPro) : null;
 }
 
 export async function getStockFundamentals(

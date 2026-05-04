@@ -5,7 +5,6 @@ import argparse
 import json
 
 from backend.instrument_universe import (
-    get_default_universe_id,
     list_instruments,
     list_universes_for_market,
     load_instrument_catalog,
@@ -21,14 +20,17 @@ def main() -> None:
     parser.add_argument("--activate", action="store_true", help="Set this universe as the active price universe")
     args = parser.parse_args()
 
-    universe_id = args.universe or get_default_universe_id(args.market)
+    store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Pass --universe when bootstrapping a new market."
+        )
 
     instruments = list_instruments(args.market, universe_id)
     manifest = load_instrument_catalog()
 
-    store = TraceMoneyStore()
     store.save_instrument_universe_manifest({
         "version": manifest.get("version"),
         "markets": {

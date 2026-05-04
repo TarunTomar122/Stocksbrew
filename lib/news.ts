@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getActiveUniverse } from "@/lib/firestore";
+import { getAiUniverse } from "@/lib/firestore";
 
 // ─── Public news feed ────────────────────────────────────────────────────────
 //
@@ -110,7 +110,7 @@ async function getNewsFeedUncached(
   market: "US" | "IN",
   limit: number = DEFAULT_LIMIT,
 ): Promise<NewsArticle[]> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
   const namespaceDoc = await adminFirestore.collection("tm_news_runs").doc(ns).get();
   if (namespaceDoc.exists) {

@@ -328,7 +328,6 @@ class TraceMoneyStore:
         market_key = str(market).upper()
         self.db.collection("tm_config").document("active_universes").set({
             f"{market_key}_ai_universe": universe_id,
-            market_key: universe_id,  # legacy fallback
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
@@ -344,10 +343,7 @@ class TraceMoneyStore:
             return None
         data = _serialize(doc.to_dict()) or {}
         value = data.get(f"{market_key}_price_universe")
-        if value:
-            return str(value)
-        fallback = data.get(market_key)
-        return str(fallback) if fallback else None
+        return str(value) if value else None
 
     def get_active_ai_universe(self, market: str) -> str | None:
         market_key = str(market).upper()
@@ -356,13 +352,11 @@ class TraceMoneyStore:
             return None
         data = _serialize(doc.to_dict()) or {}
         value = data.get(f"{market_key}_ai_universe")
-        if value:
-            return str(value)
-        fallback = data.get(market_key)
-        return str(fallback) if fallback else None
+        return str(value) if value else None
 
     def get_active_universe(self, market: str) -> str | None:
-        # Legacy getter points to AI universe for downstream view/context readers.
+        # Compatibility shim: callers should migrate to explicit
+        # get_active_ai_universe / get_active_price_universe.
         return self.get_active_ai_universe(market)
 
     def save_dashboard_view(self, market: str, universe_id: str, payload: dict[str, Any]) -> None:

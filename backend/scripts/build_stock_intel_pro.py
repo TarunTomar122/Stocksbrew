@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.stock_scoring import score_stock
 from backend.storage import TraceMoneyStore
 
@@ -23,11 +23,13 @@ def main() -> None:
     parser.add_argument("--universe", default=None)
     args = parser.parse_args()
 
-    universe_id = args.universe or get_default_universe_id(args.market)
-    if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
-
     store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
+    if not universe_id:
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+        )
     benchmarks_doc = store.get_sector_benchmarks(args.market) or {}
     if not benchmarks_doc:
         print(f"[warn] no sector benchmarks found — valuation pillar will lack sector comps")

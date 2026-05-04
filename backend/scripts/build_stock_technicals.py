@@ -12,7 +12,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.landing_metrics import build_stock_technical_doc
 from backend.providers.finviz_provider import fetch_finviz_technicals_batch
 from backend.storage import TraceMoneyStore
@@ -33,10 +33,10 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
     active = store.get_active_price_universe(market)
     if active:
         return active
-    fallback = get_default_universe_id(market)
-    if fallback:
-        return fallback
-    raise ValueError(f"No universe configured for {market}")
+    raise ValueError(
+        f"No active price universe configured for {market}. "
+        "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+    )
 
 
 def _apply_finviz_rsi(

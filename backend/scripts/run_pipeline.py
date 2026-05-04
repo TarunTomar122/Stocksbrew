@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.pipeline_logging import configure_pipeline_logging
 from backend.storage import TraceMoneyStore
 
@@ -267,7 +267,7 @@ def _resolve_universe(store: TraceMoneyStore, market: str, kind: str, explicit: 
         active = store.get_active_price_universe(market)
     else:
         active = store.get_active_ai_universe(market)
-    return active or get_default_universe_id(market) or ""
+    return active or ""
 
 
 def _market_stages(
@@ -443,11 +443,11 @@ def _market_stages(
         Stage(
             key=f"{market}:materialize_views",
             label=f"{market} materialized views",
-            command=script("materialize_views", "--market", market, "--universe", ai_universe, "--activate"),
+            command=script("materialize_views", "--market", market, "--universe", price_universe, "--activate"),
             ttl=DAILY,
             deps=[f"{market}:sync_price_snapshots", f"{market}:build_per_stock_intelligence", f"{market}:build_sentiment_gauge"],
             market=market,
-            freshness=lambda s, m=market, u=ai_universe: _doc_time(s.get_dashboard_view(m, u), "generated_at"),
+            freshness=lambda s, m=market, u=price_universe: _doc_time(s.get_dashboard_view(m, u), "generated_at"),
         ),
         Stage(
             key=f"{market}:build_snapshot",

@@ -1,5 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getActiveUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
+import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
 import type { Instrument } from "@/lib/types";
 
 type Market = "US" | "IN";
@@ -199,7 +199,7 @@ function normalizeBrief(raw: Dict, fallback: Dict): Dict {
 
 async function loadIntelPro(instrumentId: string, market: Market): Promise<Dict | null> {
   const [aiUniverse, priceUniverse] = await Promise.all([
-    getActiveUniverse(market),
+    getAiUniverse(market),
     getPriceUniverse(market),
   ]);
   const universes = aiUniverse === priceUniverse ? [priceUniverse] : [priceUniverse, aiUniverse];
@@ -261,7 +261,7 @@ export async function ensureOnDemandStockBrief(
   const market = marketFromInstrumentId(instrumentId);
   if (!market) return "skipped";
 
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ref = adminFirestore
     .collection("tm_news_runs")
     .doc(`${market}__${universe}`)

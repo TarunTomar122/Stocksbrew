@@ -7,7 +7,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from backend.instrument_universe import (
-    get_default_universe_id,
     list_instruments,
 )
 from backend.providers.stock_facts_provider import fetch_stock_facts
@@ -24,15 +23,17 @@ def main() -> None:
     parser.add_argument("--print-json", action="store_true")
     args = parser.parse_args()
 
-    universe_id = args.universe or get_default_universe_id(args.market)
+    store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+        )
 
     instruments = list_instruments(args.market, universe_id)
     if args.limit > 0:
         instruments = instruments[:args.limit]
-
-    store = TraceMoneyStore()
     docs: list[dict] = []
 
     def fetch_one(instrument: dict) -> tuple[dict, dict | None, Exception | None]:

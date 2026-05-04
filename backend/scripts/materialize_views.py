@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.sector_scraper import sector_tiles_for_market
 from backend.storage import TraceMoneyStore
 from backend.view_materializer import build_dashboard_view, build_instrument_view
@@ -37,7 +37,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Materialize low-fi dashboard and instrument views")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None, help="Universe id such as us_test_5")
-    parser.add_argument("--activate", action="store_true", help="Set this universe as the active AI/view universe")
+    parser.add_argument("--activate", action="store_true", help="Set this universe as the active price/display universe")
     parser.add_argument(
         "--allow-missing-context",
         action="store_true",
@@ -45,14 +45,17 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    universe_id = args.universe or get_default_universe_id(args.market)
+    store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+        )
 
     instruments = list_instruments(args.market, universe_id)
     instrument_ids = [instrument["instrument_id"] for instrument in instruments]
 
-    store = TraceMoneyStore()
     latest_prices = store.get_latest_prices(instrument_ids)
     if not latest_prices:
         raise ValueError(f"No latest prices found for {args.market} / {universe_id}")
@@ -150,7 +153,7 @@ def main() -> None:
         saved_count += 1
 
     if args.activate:
-        store.save_active_ai_universe(args.market, universe_id)
+        store.save_active_price_universe(args.market, universe_id)
 
     print(
         f"Materialized dashboard view {args.market} / {universe_id} and "

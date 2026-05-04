@@ -44,11 +44,30 @@ def _position_type(instrument_id: str, positions: dict[str, Any] | None) -> str:
 
 def _active_universe_cache(store: TraceMoneyStore) -> dict[str, str]:
     """Return active universe ids. Cached per build run."""
+    us_ai = store.get_active_ai_universe("US")
+    in_ai = store.get_active_ai_universe("IN")
+    us_price = store.get_active_price_universe("US")
+    in_price = store.get_active_price_universe("IN")
+    missing = [
+        key
+        for key, value in {
+            "US_ai_universe": us_ai,
+            "IN_ai_universe": in_ai,
+            "US_price_universe": us_price,
+            "IN_price_universe": in_price,
+        }.items()
+        if not value
+    ]
+    if missing:
+        raise ValueError(
+            "Missing active universe config keys: "
+            + ", ".join(missing)
+        )
     return {
-        "US": store.get_active_ai_universe("US") or "",
-        "IN": store.get_active_ai_universe("IN") or "",
-        "US_price": store.get_active_price_universe("US") or "",
-        "IN_price": store.get_active_price_universe("IN") or "",
+        "US_ai": str(us_ai),
+        "IN_ai": str(in_ai),
+        "US_price": str(us_price),
+        "IN_price": str(in_price),
     }
 
 
@@ -86,14 +105,12 @@ def _metric_summary(intel_pro: dict[str, Any], pillar: str, label: str) -> str:
     return ""
 
 
-def _candidate_universes(market: str, active_universes: dict[str, str]) -> list[str]:
-    seen: set[str] = set()
-    out: list[str] = []
-    for value in [active_universes.get(market, ""), active_universes.get(f"{market}_price", "")]:
-        if value and value not in seen:
-            out.append(value)
-            seen.add(value)
-    return out
+def _price_universe(market: str, active_universes: dict[str, str]) -> str:
+    key = f"{market}_price"
+    value = str(active_universes.get(key) or "").strip()
+    if not value:
+        raise ValueError(f"Missing active universe key: {key}")
+    return value
 
 
 def _first_metric_summary(intel_pro: dict[str, Any], pillar: str) -> str:
@@ -1229,13 +1246,9 @@ def build_watchlist_view(
         market_ids = [instrument_id for instrument_id in ids if _market_from_instrument_id(instrument_id) == market]
         if not market_ids:
             continue
-        missing = list(market_ids)
-        for universe in _candidate_universes(market, active_universes):
-            if not missing:
-                break
-            docs = store.get_stock_intel_pro_batch(market, universe, missing)
-            intel_by_id.update(docs)
-            missing = [instrument_id for instrument_id in missing if instrument_id not in intel_by_id]
+        universe = _price_universe(market, active_universes)
+        docs = store.get_stock_intel_pro_batch(market, universe, market_ids)
+        intel_by_id.update(docs)
 
     rows: list[dict[str, Any]] = []
     for instrument_id in ids:

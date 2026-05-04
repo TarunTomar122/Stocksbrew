@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.fundamentals_scraper import fetch_finviz_quotes, fetch_zacks_quote
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.providers.yfinance_provider import fetch_yfinance_scorecard_metrics
 from backend.screener_scraper import fetch_screener_quote
 from backend.storage import TraceMoneyStore
@@ -23,9 +23,13 @@ from backend.tickertape_scraper import fetch_tickertape_quote
 
 
 def _sync_us(args: argparse.Namespace) -> None:
-    universe_id = args.universe or get_default_universe_id(args.market)
+    store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+        )
 
     instruments = list_instruments(args.market, universe_id)
     tickers = [inst["ticker"] for inst in instruments]
@@ -82,7 +86,6 @@ def _sync_us(args: argparse.Namespace) -> None:
             "source": "finviz+zacks",
         }
 
-    store = TraceMoneyStore()
     saved = 0
     max_workers = max(1, args.max_workers)
     if max_workers == 1:
@@ -110,9 +113,13 @@ def _sync_us(args: argparse.Namespace) -> None:
 
 
 def _sync_in(args: argparse.Namespace) -> None:
-    universe_id = args.universe or get_default_universe_id(args.market)
+    store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+        )
 
     instruments = list_instruments(args.market, universe_id)
     snapshot_date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -216,7 +223,6 @@ def _sync_in(args: argparse.Namespace) -> None:
             "source": "screener+tickertape",
         }
 
-    store = TraceMoneyStore()
     saved = 0
     max_workers = max(1, args.max_workers)
     if max_workers == 1:

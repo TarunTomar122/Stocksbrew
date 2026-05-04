@@ -5,7 +5,6 @@ import argparse
 import time
 
 from backend.sentiment_flip import build_sentiment_flip_list
-from backend.instrument_universe import get_default_universe_id
 from backend.storage import TraceMoneyStore
 
 
@@ -22,18 +21,13 @@ def main() -> None:
     t0 = time.time()
     store = TraceMoneyStore()
 
-    ai_universe = (
-        args.ai_universe
-        or store.get_active_ai_universe(args.market)
-        or get_default_universe_id(args.market)
-    )
-    price_universe = (
-        args.price_universe
-        or store.get_active_price_universe(args.market)
-        or ai_universe
-    )
+    ai_universe = args.ai_universe or store.get_active_ai_universe(args.market)
+    price_universe = args.price_universe or store.get_active_price_universe(args.market)
     if not ai_universe or not price_universe:
-        raise ValueError(f"No active universe configured for {args.market}")
+        raise ValueError(
+            f"Missing active universe config for {args.market}. "
+            "Set both <MARKET>_ai_universe and <MARKET>_price_universe, or pass --ai-universe and --price-universe."
+        )
 
     print(f"\n{'='*55}")
     print(f"  build_sentiment_flip  market={args.market}")

@@ -5,7 +5,6 @@ import argparse
 import json
 from datetime import datetime, timezone
 
-from backend.instrument_universe import get_default_universe_id
 from backend.landing_metrics import build_sentiment_gauge_doc
 from backend.storage import TraceMoneyStore
 
@@ -16,10 +15,10 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
     active = store.get_active_price_universe(market)
     if active:
         return active
-    fallback = get_default_universe_id(market)
-    if fallback:
-        return fallback
-    raise ValueError(f"No universe configured for {market}")
+    raise ValueError(
+        f"No active price universe configured for {market}. "
+        "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+    )
 
 
 def main() -> None:

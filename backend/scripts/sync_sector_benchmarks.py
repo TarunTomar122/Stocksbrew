@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from statistics import median
 
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.sector_scraper import fetch_us_sector_benchmarks
 from backend.storage import TraceMoneyStore
 from backend.tickertape_scraper import fetch_tickertape_quote
@@ -83,16 +83,21 @@ def main() -> None:
     if args.market == "US":
         benchmarks = fetch_us_sector_benchmarks()
     else:
-        universe_id = args.universe or get_default_universe_id(args.market)
+        store = TraceMoneyStore()
+        universe_id = args.universe or store.get_active_price_universe(args.market)
         if not universe_id:
-            raise ValueError(f"No universe configured for {args.market}")
+            raise ValueError(
+                f"No active price universe configured for {args.market}. "
+                "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+            )
         benchmarks = _fetch_in_benchmarks(universe_id, pause=args.pause)
 
     if not benchmarks:
         raise RuntimeError(f"No sector benchmarks scraped for {args.market}.")
 
     snapshot_date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    store = TraceMoneyStore()
+    if args.market == "US":
+        store = TraceMoneyStore()
     store.save_sector_benchmarks(args.market, snapshot_date, benchmarks)
 
     print(

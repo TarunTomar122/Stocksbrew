@@ -1,5 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getActiveUniverse } from "@/lib/firestore";
+import { getAiUniverse } from "@/lib/firestore";
 import type { Market } from "@/lib/types";
 
 export type SectorContextDoc = {
@@ -102,7 +102,7 @@ export async function getSectorContextDoc(
   sectorId: string,
   market: Market = "US",
 ): Promise<SectorContextDoc | null> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
   const doc = await adminFirestore
     .collection("tm_news_runs")
@@ -117,7 +117,7 @@ export async function getSectorContextDoc(
 export async function listSectorContextDocs(
   market: Market = "US",
 ): Promise<SectorContextDoc[]> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
   const snap = await adminFirestore
     .collection("tm_news_runs")

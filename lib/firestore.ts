@@ -38,24 +38,28 @@ const _getUniverseConfig = cache(async (): Promise<Record<string, string>> => {
   return doc.exists ? (doc.data() as Record<string, string>) : {};
 });
 
-export async function getActiveUniverse(market: "US" | "IN" = "US"): Promise<string> {
-  const data = await _getUniverseConfig();
-  return data[market] ?? (market === "US" ? "us_test_12" : "in_test_5");
+function requireUniverse(config: Record<string, string>, key: string): string {
+  const value = String(config[key] || "").trim();
+  if (!value) {
+    throw new Error(`Missing tm_config/active_universes key: ${key}`);
+  }
+  return value;
 }
 
-// Returns the price universe id — the broader universe used for price scraping,
-// technicals, and intel-pro scoring (e.g. us_core_155 for US). Falls back to
-// the active AI universe so callers always get a usable value.
+export async function getAiUniverse(market: "US" | "IN" = "US"): Promise<string> {
+  const data = await _getUniverseConfig();
+  return requireUniverse(data, `${market}_ai_universe`);
+}
+
 export async function getPriceUniverse(market: "US" | "IN" = "US"): Promise<string> {
   const data = await _getUniverseConfig();
-  const priceKey = `${market}_price_universe`;
-  return data[priceKey] ?? data[market] ?? (market === "US" ? "us_core_155" : "in_core_150");
+  return requireUniverse(data, `${market}_price_universe`);
 }
 
 // ─── Materialized dashboard view ─────────────────────────────────────────────
 
 async function getDashboardViewUncached(market: "US" | "IN" = "US"): Promise<DashboardView | null> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getPriceUniverse(market);
   const docId = `${market}__${universe}`;
   const doc = await adminFirestore.collection("tm_views_dashboard").doc(docId).get();
   if (!doc.exists) return null;
@@ -78,7 +82,7 @@ export async function getStockIntelligence(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<StockIntelligence | null> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
   const doc = await adminFirestore
     .collection("tm_news_runs")
@@ -93,7 +97,7 @@ export async function getStockIntelligence(
 export async function getAllStockIntelligence(
   market: "US" | "IN" = "US",
 ): Promise<StockIntelligence[]> {
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
   const snap = await adminFirestore
     .collection("tm_news_runs")

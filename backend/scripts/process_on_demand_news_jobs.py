@@ -91,7 +91,7 @@ def process_job(
     job = job_doc.to_dict() or {}
     instrument_id = str(job.get("instrument_id") or job_doc.id).strip()
     market = str(job.get("market") or instrument_id.split("_", 1)[0] or "US").upper()
-    universe_id = str(job.get("universe_id") or store.get_active_universe(market) or "").strip()
+    universe_id = str(job.get("universe_id") or store.get_active_ai_universe(market) or "").strip()
     attempts = int(job.get("attempts") or 0) + 1
 
     ref.set({

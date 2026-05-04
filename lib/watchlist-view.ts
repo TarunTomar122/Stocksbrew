@@ -167,29 +167,25 @@ function roundNumber(v: number | null, digits = 2): number | null {
   return Math.round(v * factor) / factor;
 }
 
-async function getActiveUniverses(): Promise<Record<"US" | "IN" | "US_price" | "IN_price", string>> {
+type ActiveUniverses = Record<"US_ai" | "IN_ai" | "US_price" | "IN_price", string>;
+
+function requireUniverse(config: Record<string, unknown>, key: string): string {
+  const value = String(config[key] || "").trim();
+  if (!value) {
+    throw new Error(`Missing tm_config/active_universes key: ${key}`);
+  }
+  return value;
+}
+
+async function getActiveUniverses(): Promise<ActiveUniverses> {
   const snap = await adminFirestore.collection("tm_config").doc("active_universes").get();
   const data = (snap.exists ? snap.data() : {}) as Record<string, unknown>;
   return {
-    US: (data?.US_ai_universe as string) || (data?.US as string) || "",
-    IN: (data?.IN_ai_universe as string) || (data?.IN as string) || "",
-    US_price: (data?.US_price_universe as string) || (data?.US as string) || "",
-    IN_price: (data?.IN_price_universe as string) || (data?.IN as string) || "",
+    US_ai: requireUniverse(data, "US_ai_universe"),
+    IN_ai: requireUniverse(data, "IN_ai_universe"),
+    US_price: requireUniverse(data, "US_price_universe"),
+    IN_price: requireUniverse(data, "IN_price_universe"),
   };
-}
-
-function candidateUniverses(
-  market: "US" | "IN",
-  universes: Record<"US" | "IN" | "US_price" | "IN_price", string>,
-): string[] {
-  const seen = new Set<string>();
-  return [universes[market], universes[`${market}_price`]]
-    .filter((v): v is string => typeof v === "string" && v.length > 0)
-    .filter((v) => {
-      if (seen.has(v)) return false;
-      seen.add(v);
-      return true;
-    });
 }
 
 async function getDocsById<T>(
@@ -735,7 +731,7 @@ function rowFromDocs(
 async function buildRows(
   ids: string[],
   positions: Record<string, unknown>,
-  universes: Record<"US" | "IN" | "US_price" | "IN_price", string>,
+  universes: ActiveUniverses,
   alertsByInstrument: Record<string, Record<string, unknown>[]>,
 ): Promise<WatchlistRow[]> {
   const [latestById, factsById, technicalsById, mentionsById] = await Promise.all([
@@ -750,36 +746,29 @@ async function buildRows(
   for (const market of ["US", "IN"] as const) {
     const marketIds = ids.filter((id) => marketFromInstrumentId(id) === market);
     if (marketIds.length === 0) continue;
-    let missing = marketIds;
-    let missingBriefs = marketIds;
-    for (const universe of candidateUniverses(market, universes)) {
-      if (missing.length > 0) {
-        const docs = await getDocsById<Record<string, unknown>>(
-          adminFirestore
-            .collection("tm_stock_intel_pro")
-            .doc(`${market}__${universe}`)
-            .collection("stocks"),
-          missing,
-        );
-        for (const [instrumentId, doc] of docs.entries()) {
-          intelById.set(instrumentId, doc);
-        }
-        missing = missing.filter((instrumentId) => !intelById.has(instrumentId));
-      }
-      if (missingBriefs.length > 0) {
-        const docs = await getDocsById<Record<string, unknown>>(
-          adminFirestore
-            .collection("tm_news_runs")
-            .doc(`${market}__${universe}`)
-            .collection("stock_intelligence"),
-          missingBriefs,
-        );
-        for (const [instrumentId, doc] of docs.entries()) {
-          stockBriefById.set(instrumentId, doc);
-        }
-        missingBriefs = missingBriefs.filter((instrumentId) => !stockBriefById.has(instrumentId));
-      }
-      if (missing.length === 0 && missingBriefs.length === 0) break;
+    const priceUniverse = universes[`${market}_price` as "US_price" | "IN_price"];
+    const aiUniverse = universes[`${market}_ai` as "US_ai" | "IN_ai"];
+
+    const intelDocs = await getDocsById<Record<string, unknown>>(
+      adminFirestore
+        .collection("tm_stock_intel_pro")
+        .doc(`${market}__${priceUniverse}`)
+        .collection("stocks"),
+      marketIds,
+    );
+    for (const [instrumentId, doc] of intelDocs.entries()) {
+      intelById.set(instrumentId, doc);
+    }
+
+    const briefDocs = await getDocsById<Record<string, unknown>>(
+      adminFirestore
+        .collection("tm_news_runs")
+        .doc(`${market}__${aiUniverse}`)
+        .collection("stock_intelligence"),
+      marketIds,
+    );
+    for (const [instrumentId, doc] of briefDocs.entries()) {
+      stockBriefById.set(instrumentId, doc);
     }
   }
 

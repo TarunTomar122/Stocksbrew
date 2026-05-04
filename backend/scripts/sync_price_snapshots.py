@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from backend.instrument_universe import get_default_universe_id, list_instruments
+from backend.instrument_universe import list_instruments
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.storage import TraceMoneyStore
 
@@ -23,9 +23,13 @@ def main() -> None:
     parser.add_argument("--max-workers", type=int, default=8, help="Parallel yfinance workers")
     args = parser.parse_args()
 
-    universe_id = args.universe or get_default_universe_id(args.market)
+    store = TraceMoneyStore()
+    universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
-        raise ValueError(f"No universe configured for {args.market}")
+        raise ValueError(
+            f"No active price universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+        )
 
     instruments = list_instruments(args.market, universe_id)
     client = YFinanceClient(max_workers=args.max_workers)
@@ -35,7 +39,6 @@ def main() -> None:
     # instrument definition without a second loop.
     instrument_by_id: dict[str, dict] = {i["instrument_id"]: i for i in instruments}
 
-    store = TraceMoneyStore()
     saved_rows = []
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]

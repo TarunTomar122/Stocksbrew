@@ -10,7 +10,6 @@ import argparse
 import time
 
 from backend.heat_list import build_heat_list
-from backend.instrument_universe import get_default_universe_id
 from backend.storage import TraceMoneyStore
 
 
@@ -49,12 +48,13 @@ def main() -> None:
     print(f"{'='*55}")
 
     store = TraceMoneyStore()
-    ai_universe = args.ai_universe or get_default_universe_id(args.market)
-    price_universe = (
-        args.price_universe
-        or store.get_active_price_universe(args.market)
-        or ai_universe
-    )
+    ai_universe = args.ai_universe or store.get_active_ai_universe(args.market)
+    price_universe = args.price_universe or store.get_active_price_universe(args.market)
+    if not ai_universe or not price_universe:
+        raise ValueError(
+            f"Missing active universe config for {args.market}. "
+            "Set both <MARKET>_ai_universe and <MARKET>_price_universe, or pass --ai-universe and --price-universe."
+        )
     print(f"  ai universe   : {ai_universe}")
     print(f"  price universe: {price_universe}")
     print(f"  limit         : {args.limit or 'all qualifying'} rows")

@@ -6,7 +6,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { isLaunchAITier } from "@/lib/ai-launch-tier";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
-import { getActiveUniverse } from "@/lib/firestore";
+import { getAiUniverse } from "@/lib/firestore";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -121,7 +121,7 @@ async function enqueueOnDemandNewsJob(
   instrumentId: string,
 ): Promise<EnqueueResult> {
   const market = marketFromInstrumentId(instrumentId);
-  const universe = await getActiveUniverse(market);
+  const universe = await getAiUniverse(market);
   const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
   let shouldDispatch = true;
   await adminFirestore.runTransaction(async (tx) => {
