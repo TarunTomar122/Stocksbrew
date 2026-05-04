@@ -11,7 +11,7 @@ type Testimonial = {
 
 const TESTIMONIALS: Testimonial[] = [
   {
-    name: "Marcus Chen",
+    name: "Mohit Kumar",
     role: "Independent trader, 6 years",
     avatar: "MC",
     text: "I used to spend way too much time going through news every morning. This just gives me what actually matters before the open. Easily saves me an hour.",
@@ -23,13 +23,13 @@ const TESTIMONIALS: Testimonial[] = [
     text: "The sector flow and positioning data is really solid. I used to pull this from multiple places and it was a pain. Now it is just there in one view.",
   },
   {
-    name: "David Okonkwo",
+    name: "Abhay Pandey",
     role: "Part-time investor, tech lead",
     avatar: "DO",
     text: "I barely get 20 minutes a day to look at markets. This makes it easy to catch up fast without feeling lost. It cuts through a lot of noise.",
   },
   {
-    name: "Lauren Walsh",
+    name: "Harsh",
     role: "Portfolio manager, small fund",
     avatar: "LW",
     text: "The watchlist and alerts have been surprisingly useful. I have caught a few moves early that I probably would have missed otherwise.",
@@ -41,7 +41,7 @@ const TESTIMONIALS: Testimonial[] = [
     text: "I have tried a lot of tools over the years and most of them feel gimmicky. This one actually feels reliable. The scoring system is simple and makes sense.",
   },
   {
-    name: "Emma Johansson",
+    name: "Rajesh Singh",
     role: "Day trader turned swing trader",
     avatar: "EJ",
     text: "Found a setup through the heat list that I would not have seen elsewhere. That trade alone made this worth it for me. I check it every morning now.",
@@ -67,7 +67,7 @@ export function Testimonials() {
 
   useEffect(() => {
     if (paused) return;
-    const t = setInterval(advance, 2000);
+    const t = setInterval(advance, 4000);
     return () => clearInterval(t);
   }, [advance, paused]);
 
@@ -102,10 +102,6 @@ export function Testimonials() {
               <blockquote className="text-[16px] md:text-[18px] text-[#374151] leading-[1.65] max-w-[600px]">
                 &ldquo;{item.text}&rdquo;
               </blockquote>
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[14px] font-semibold text-[#111111]">{item.name}</span>
-                <span className="text-[12px] text-[#6b7280]">{item.role}</span>
-              </div>
             </div>
           ))}
         </div>
