@@ -5,9 +5,14 @@ import NextTopLoader from "nextjs-toploader";
 
 import { AuthProvider } from "@/lib/auth-context";
 
-export function Providers({ children }: { children: ReactNode }) {
+type ProvidersProps = {
+  children: ReactNode;
+  initialAuthed: boolean;
+};
+
+export function Providers({ children, initialAuthed }: ProvidersProps) {
   return (
-    <AuthProvider>
+    <AuthProvider initialAuthed={initialAuthed}>
       <NextTopLoader
         color="var(--primary)"
         initialPosition={0.12}

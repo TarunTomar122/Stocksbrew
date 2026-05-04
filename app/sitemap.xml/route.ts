@@ -1,13 +1,8 @@
-import { getMarketSnapshot } from "@/lib/firestore";
-import { listSectorContextDocs } from "@/lib/sector";
-import { getThematicScreens } from "@/lib/screens";
 import { allLearnPosts } from "@/lib/learn-data";
-
-export const dynamic = "force-dynamic";
 
 const BASE_URL = "https://tikrr.com";
 
-const STATIC_ROUTES = [
+const PAGES = [
   { path: "/", priority: "1.0", changefreq: "hourly" },
   { path: "/heat", priority: "0.9", changefreq: "hourly" },
   { path: "/news", priority: "0.9", changefreq: "hourly" },
@@ -22,82 +17,36 @@ const STATIC_ROUTES = [
   { path: "/legal/disclaimer", priority: "0.3", changefreq: "yearly" },
 ];
 
-function urlEntry(path: string, priority: string, changefreq: string, lastmod?: string) {
-  const lm = lastmod ?? new Date().toISOString().split("T")[0];
+function url(path: string, priority: string, changefreq: string) {
+  const lastmod = new Date().toISOString().split("T")[0];
   return `  <url>
     <loc>${BASE_URL}${path}</loc>
-    <lastmod>${lm}</lastmod>
+    <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`;
 }
 
+export const revalidate = 3600; // ISR once per hour — Firestore calls happen server-side
+
 export async function GET() {
   const entries: string[] = [];
 
-  // Static routes
-  for (const r of STATIC_ROUTES) {
-    entries.push(urlEntry(r.path, r.priority, r.changefreq));
+  // Core pages
+  for (const p of PAGES) {
+    entries.push(url(p.path, p.priority, p.changefreq));
   }
 
-  // Dynamic stock pages
-  try {
-    const usRows = await getMarketSnapshot("US");
-    const seenIds = new Set<string>();
-    for (const row of usRows) {
-      const sym = String(row.symbol ?? "").toUpperCase();
-      if (!sym || seenIds.has(sym)) continue;
-      seenIds.add(sym);
-      entries.push(urlEntry(`/stock/${encodeURIComponent(sym)}`, "0.8", "daily"));
-    }
-    // Also try IN market
-    try {
-      const inRows = await getMarketSnapshot("IN");
-      for (const row of inRows) {
-        const sym = String(row.symbol ?? "").toUpperCase();
-        if (!sym || seenIds.has(sym)) continue;
-        seenIds.add(sym);
-        entries.push(urlEntry(`/stock/${encodeURIComponent(sym)}`, "0.8", "daily"));
-      }
-    } catch { /* IN market might not be active */ }
-  } catch { /* stocks might not load */ }
-
-  // Dynamic sector pages
-  try {
-    const sectorIds = new Set<string>();
-    for (const market of ["US", "IN"] as const) {
-      try {
-        const docs = await listSectorContextDocs(market);
-        for (const d of docs) {
-          const id = String(d.sector_id ?? "").trim();
-          if (!id || sectorIds.has(id)) continue;
-          sectorIds.add(id);
-          entries.push(urlEntry(`/sector/${encodeURIComponent(id)}`, "0.7", "daily"));
-        }
-      } catch { /* market might not exist */ }
-    }
-  } catch { /* sectors might not load */ }
-
-  // Dynamic screen pages
-  try {
-    const screenIds = new Set<string>();
-    for (const market of ["US", "IN"] as const) {
-      try {
-        const doc = await getThematicScreens(market);
-        if (!doc) continue;
-        for (const s of doc.screens) {
-          if (!s.id || screenIds.has(s.id)) continue;
-          screenIds.add(s.id);
-          entries.push(urlEntry(`/screens/${encodeURIComponent(s.id)}`, "0.7", "daily"));
-        }
-      } catch { /* market might not exist */ }
-    }
-  } catch { /* screens might not load */ }
-
-  // Learn/blog pages
+  // Learn posts
   for (const post of allLearnPosts) {
-    entries.push(urlEntry(`/learn/${post.slug}`, "0.6", "monthly"));
+    entries.push(url(`/learn/${post.slug}`, "0.6", "monthly"));
   }
+
+  // Dynamic pages: we skip Firestore calls in the sitemap to keep it fast.
+  // Google discovers stock/sector/screen pages via internal links and the
+  // <urlset> sitemap index pattern. The sitemap must respond in under ~30s
+  // for GSC to accept it, and Firestore calls on Vercel can be slow on cold
+  // starts. The tradeoff is worth it — faster sitemap > exhaustive sitemap.
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

@@ -7,7 +7,7 @@ import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 
 export function AuthButton() {
-  const { user, loading } = useUser();
+  const { user, loading, initialAuthed } = useUser();
   const [busy, setBusy] = useState(false);
 
   async function handleSignIn() {
@@ -21,12 +21,24 @@ export function AuthButton() {
     }
   }
 
-  if (loading) {
+  // Server already validated the session — show avatar placeholder while
+  // Firebase client resolves on the client side. No flash of "Sign in".
+  if (loading && !initialAuthed) {
     return (
       <div
         aria-hidden="true"
         className="h-9 w-24 animate-pulse bg-surface-container-high rounded-lg"
       />
+    );
+  }
+
+  // initialAuthed is true but user hasn't resolved yet — show a stable avatar
+  // placeholder instead of the "Sign in" button.
+  if (!user && initialAuthed) {
+    return (
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
+        ?
+      </div>
     );
   }
 

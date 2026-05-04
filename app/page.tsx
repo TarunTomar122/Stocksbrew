@@ -7,6 +7,8 @@ import { SectorSpotlights } from "@/components/sector-spotlights";
 import { WatchlistShowcase } from "@/components/watchlist-showcase";
 import { ThematicScreens } from "@/components/thematic-screens";
 import { LearnTeaser } from "@/components/learn-teaser";
+import { FeedbackWidget } from "@/components/feedback-widget";
+import { Testimonials } from "@/components/testimonials";
 import { WatchlistTeaser } from "@/components/watchlist-teaser";
 import {
   IN_AI_LAUNCH_INSTRUMENTS,
@@ -142,7 +144,10 @@ export default async function HomePage() {
         <ThematicScreens doc={screens} market={market} isSubscribed={isSubscribed} />
 
         <LearnTeaser />
+
+        <Testimonials />
       </div>
+      <FeedbackWidget />
     </main>
   );
 }

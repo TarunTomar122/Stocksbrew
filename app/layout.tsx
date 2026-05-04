@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
@@ -128,7 +128,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
-        <Providers>
+        <Providers initialAuthed={Boolean(session)}>
           <Header
             searchIndex={searchIndex}
             market={market}

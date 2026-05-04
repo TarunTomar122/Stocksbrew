@@ -126,7 +126,7 @@ function MarketPicker({ market }: { market: Market }) {
 
 export function Header({ searchIndex, market, trackedIds = [], isSubscribed = false }: Props) {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, initialAuthed } = useUser();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -199,7 +199,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   const showDropdown = open && query.trim().length > 0;
   const pathname = usePathname();
 
-  const navItems = NAV_ITEMS.filter((item) => !item.authOnly || user);
+  const navItems = NAV_ITEMS.filter((item) => !item.authOnly || user || initialAuthed);
 
   const mobileHeaderItems = MOBILE_HEADER_ORDER.map((href) =>
     navItems.find((n) => n.href === href),
