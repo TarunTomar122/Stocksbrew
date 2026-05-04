@@ -266,7 +266,7 @@ export default async function StockPage({ params }: Props) {
           />
         )}
         {!showBriefStatus && (
-          <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} />
+          <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} instrumentId={stock.instrument_id} />
         )}
         {showSynthesis && <AiSynthesis intelligence={intelligence} />}
         {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
