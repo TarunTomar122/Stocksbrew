@@ -259,11 +259,20 @@ def fetch_finviz_quotes(
 ) -> dict[str, FinvizQuote]:
     """Fetch many tickers sequentially with a polite pause between requests."""
     results: dict[str, FinvizQuote] = {}
+    total = len(tickers)
+    started = time.time()
     for idx, ticker in enumerate(tickers):
         try:
             results[ticker] = fetch_finviz_quote(ticker)
         except Exception as exc:
             print(f"[finviz] {ticker} failed: {exc}")
+        done = idx + 1
+        if done == 1 or done % 25 == 0 or done == total:
+            elapsed = time.time() - started
+            print(
+                f"[finviz] progress {done}/{total} "
+                f"(ok={len(results)}) elapsed={elapsed:.1f}s"
+            )
         if idx < len(tickers) - 1 and pause_seconds > 0:
             time.sleep(pause_seconds)
     return results

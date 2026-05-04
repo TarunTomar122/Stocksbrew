@@ -334,25 +334,7 @@ def _market_stages(
             market=market,
             freshness=lambda s, m=market: _doc_time(s.get_sector_benchmarks(m), "captured_at", "snapshot_date"),
         ),
-        Stage(
-            key=f"{market}:sync_market_mood",
-            label=f"{market} market mood",
-            command=script("sync_market_mood", "--market", market),
-            ttl=FIVE_DAYS,
-            market=market,
-            freshness=lambda s, m=market: _doc_time(s.get_latest_market_mood(m), "captured_at", "snapshot_date"),
-        ),
     ]
-
-    if market == "IN":
-        stages.append(Stage(
-            key="IN:sync_institutional_flows",
-            label="IN institutional flows",
-            command=script("sync_institutional_flows", "--market", "IN"),
-            ttl=FIVE_DAYS,
-            market=market,
-            freshness=lambda s: _doc_time(s.get_latest_institutional_flows("IN"), "captured_at", "snapshot_date"),
-        ))
 
     stages.append(Stage(
         key=f"{market}:sync_stock_facts",
@@ -415,15 +397,6 @@ def _market_stages(
             ),
         ),
         Stage(
-            key=f"{market}:build_sentiment_gauge",
-            label=f"{market} sentiment gauge",
-            command=script("build_sentiment_gauge", "--market", market, "--universe", ai_universe),
-            ttl=DAILY,
-            deps=[f"{market}:sync_price_snapshots", f"{market}:build_market_breadth", f"{market}:build_per_stock_intelligence"],
-            market=market,
-            freshness=lambda s, m=market: _dated_doc_time(s, "tm_sentiment_gauge", m.upper()),
-        ),
-        Stage(
             key=f"{market}:build_thematic_screens",
             label=f"{market} thematic screens",
             command=script("build_thematic_screens", "--market", market, "--universe", price_universe),
@@ -445,7 +418,7 @@ def _market_stages(
             label=f"{market} materialized views",
             command=script("materialize_views", "--market", market, "--universe", price_universe, "--activate"),
             ttl=DAILY,
-            deps=[f"{market}:sync_price_snapshots", f"{market}:build_per_stock_intelligence", f"{market}:build_sentiment_gauge"],
+            deps=[f"{market}:sync_price_snapshots", f"{market}:build_per_stock_intelligence"],
             market=market,
             freshness=lambda s, m=market, u=price_universe: _doc_time(s.get_dashboard_view(m, u), "generated_at"),
         ),
@@ -490,16 +463,7 @@ def _market_stages(
 
 
 def _global_stages() -> list[Stage]:
-    py = sys.executable
-    return [
-        Stage(
-            key="GLOBAL:sync_economic_calendar",
-            label="economic calendar",
-            command=[py, "-m", "backend.scripts.sync_economic_calendar"],
-            ttl=FIVE_DAYS,
-            freshness=lambda s: _doc_time(s.get_latest_economic_calendar(), "captured_at"),
-        )
-    ]
+    return []
 
 
 def _watchlist_stage(changed_market_keys: list[str]) -> Stage:

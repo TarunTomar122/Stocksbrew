@@ -273,69 +273,6 @@ def build_market_breadth_doc(
     }
 
 
-def build_sentiment_gauge_doc(
-    market: str,
-    universe_id: str,
-    as_of_date: str,
-    breadth_doc: dict[str, Any],
-) -> dict[str, Any]:
-    adv = int(breadth_doc.get("advancers", 0))
-    dec = int(breadth_doc.get("decliners", 0))
-    high = int(breadth_doc.get("new_52w_high", 0))
-    low = int(breadth_doc.get("new_52w_low", 0))
-    up_vol = _to_float(breadth_doc.get("up_volume")) or 0.0
-    down_vol = _to_float(breadth_doc.get("down_volume")) or 0.0
-    pct_above_50 = _to_float(breadth_doc.get("pct_above_50dma"))
-    median_abs = _to_float((breadth_doc.get("volatility_proxy") or {}).get("median_abs_day_change_pct"))
-
-    adv_dec_score = 50.0
-    if adv + dec > 0:
-        adv_dec_score = _clamp(50.0 + 50.0 * ((adv - dec) / (adv + dec)))
-
-    high_low_score = 50.0
-    if high + low > 0:
-        high_low_score = _clamp(50.0 + 50.0 * ((high - low) / (high + low)))
-
-    volume_balance_score = 50.0
-    if up_vol + down_vol > 0:
-        volume_balance_score = _clamp((up_vol / (up_vol + down_vol)) * 100.0)
-
-    trend_score = pct_above_50 if pct_above_50 is not None else 50.0
-    volatility_score = 50.0
-    if median_abs is not None:
-        volatility_score = _clamp(100.0 - ((median_abs / 4.0) * 100.0))
-
-    components = [
-        {"name": "advance_decline", "value": adv - dec, "score": round(adv_dec_score, 2), "weight": 0.30},
-        {"name": "new_high_low", "value": high - low, "score": round(high_low_score, 2), "weight": 0.20},
-        {"name": "trend_above_50dma", "value": pct_above_50, "score": round(trend_score, 2), "weight": 0.20},
-        {"name": "volume_balance", "value": round(volume_balance_score, 2), "score": round(volume_balance_score, 2), "weight": 0.15},
-        {"name": "volatility_stability", "value": median_abs, "score": round(volatility_score, 2), "weight": 0.15},
-    ]
-
-    final_score = sum(float(part["score"]) * float(part["weight"]) for part in components)
-    rounded_score = int(round(_clamp(final_score)))
-    if rounded_score < 40:
-        label = "fear"
-    elif rounded_score < 60:
-        label = "neutral"
-    else:
-        label = "greed"
-
-    return {
-        "market": market.upper(),
-        "universe_id": universe_id,
-        "as_of_date": as_of_date,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "score": rounded_score,
-        "label": label,
-        "components": components,
-        "explanation": (
-            f"Gauge={rounded_score} from breadth, trend participation, volume balance, and volatility stability."
-        ),
-    }
-
-
 def build_user_alert_flags(
     user_id: str,
     market: str,

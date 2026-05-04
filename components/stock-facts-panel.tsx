@@ -336,7 +336,7 @@ export function StockFactsPanel({
             </div>
 
             {topHolders.length > 0 && (
-              <div className="relative flex flex-col gap-2 min-w-0 overflow-hidden rounded-xl">
+              <div className="relative flex flex-col gap-2 min-w-0 overflow-hidden">
                 {!isSubscribed && (
                   <ProLockOverlay
                     title="Top holders · Pro"

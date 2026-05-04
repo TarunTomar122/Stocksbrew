@@ -1727,7 +1727,33 @@ def build_stock_intelligence_docs(
         instrument_id = instrument["instrument_id"]
         matched_articles = sorted(articles_by_instrument.get(instrument_id, []), key=lambda item: item.published_at, reverse=True)
         if not matched_articles:
-            continue
+            # Per-ticker articles (on-demand jobs) may not map cleanly
+            # through the LLM entity-mention matching logic, especially for
+            # stocks outside the current AI universe. Use all available
+            # articles for this instrument so the tracked stock still gets
+            # a news-backed brief — not just a fundamentals fallback.
+            if articles:
+                logger.info(
+                    "stock_intel no entity matches for %s — falling back to all %s articles",
+                    instrument_id,
+                    len(articles),
+                )
+                matched_articles = sorted(articles, key=lambda item: item.published_at, reverse=True)
+            else:
+                no_news_doc = build_no_news_intelligence_doc(
+                    instrument=instrument,
+                    market=market,
+                    universe_id=universe_id,
+                    latest_price_doc=latest_prices_by_id.get(instrument_id),
+                    technical_doc=None,
+                    intel_pro_doc=intel_pro_by_id.get(instrument_id),
+                    store=store,
+                )
+                if no_news_doc:
+                    no_news_doc["coverage_type"] = "on_demand_no_news"
+                    no_news_doc["source"] = "mimo"
+                    docs.append(no_news_doc)
+                continue
         primary_articles = [
             article
             for article in matched_articles

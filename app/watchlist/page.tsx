@@ -69,7 +69,7 @@ export default async function WatchlistPage() {
   });
 
   return (
-    <main className="flex-grow bg-[#fafafa]">
+    <main className="flex-grow">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-8 px-3 sm:px-6 md:px-20 lg:px-32 py-6 lg:py-10">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1.5">

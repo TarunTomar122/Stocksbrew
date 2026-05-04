@@ -4,7 +4,6 @@ import unittest
 
 from backend.landing_metrics import (
     build_market_breadth_doc,
-    build_sentiment_gauge_doc,
     build_stock_technical_doc,
     build_user_alert_flags,
 )
@@ -32,7 +31,7 @@ class LandingMetricsTest(unittest.TestCase):
         self.assertIsNotNone(doc["moving_averages"]["sma_50"])
         self.assertIsNone(doc["moving_averages"]["sma_200"])
 
-    def test_build_market_breadth_and_gauge(self) -> None:
+    def test_build_market_breadth(self) -> None:
         latest_prices = {
             "US_A": {"quote": {"day_change_pct": 2.2, "volume": 1000, "current": 105}, "fundamentals": {"week_52_high": 104, "week_52_low": 80}},
             "US_B": {"quote": {"day_change_pct": -1.1, "volume": 2000, "current": 90}, "fundamentals": {"week_52_high": 120, "week_52_low": 90}},
@@ -48,10 +47,6 @@ class LandingMetricsTest(unittest.TestCase):
         self.assertEqual(breadth["decliners"], 1)
         self.assertEqual(breadth["unchanged"], 1)
         self.assertIsNotNone(breadth["pct_above_20dma"])
-
-        gauge = build_sentiment_gauge_doc("US", "us_test_5", "2026-04-19", breadth)
-        self.assertTrue(0 <= gauge["score"] <= 100)
-        self.assertIn(gauge["label"], {"fear", "neutral", "greed"})
 
     def test_build_user_alert_flags(self) -> None:
         latest = {

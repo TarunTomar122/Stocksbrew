@@ -15,16 +15,7 @@ This doc tracks the data capabilities we need to build next for the landing expe
   - `new_52w_high`, `new_52w_low`
   - `pct_above_20dma`, `pct_above_50dma`, `pct_above_200dma`
 
-2. Fear/Greed-style sentiment gauge
-- Build a daily composite sentiment score from breadth + volatility-related components.
-- Target collection: `tm_sentiment_gauge/{market}_{date}`
-- Initial fields:
-  - `score` (`0-100`)
-  - `label` (`fear`, `neutral`, `greed`)
-  - `components[]` (name, value, normalized score, weight)
-  - `explanation`
-
-3. Portfolio/watchlist red-flag layer
+2. Portfolio/watchlist red-flag layer
 - Build user-level watchlist + red-flag outputs for high-signal monitoring.
 - Target collections:
   - `tm_user_watchlists/{userId}`
@@ -35,7 +26,7 @@ This doc tracks the data capabilities we need to build next for the landing expe
   - news-risk spike
   - volume anomaly
 
-4. Lightweight technical summary layer (stock-level)
+3. Lightweight technical summary layer (stock-level)
 - Build a small, explainable technicals pack (not full TA suite).
 - Target collection: `tm_stock_technicals/{instrumentId}_{date}`
 - Initial indicators:

@@ -477,48 +477,6 @@ class TraceMoneyStore:
         self.db.collection("tm_sector_benchmarks").document(doc_id).set(payload)
         self.db.collection("tm_sector_benchmarks").document(f"latest__{market}").set(payload)
 
-    # ──────────────────────────── market mood ─────────────────────────────
-
-    def save_market_mood(self, market: str, payload: dict[str, Any]) -> None:
-        """One doc per market per day at tm_market_mood/{market}__{date}."""
-        snapshot_date = payload.get("snapshot_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        doc_id = f"{market}__{snapshot_date}"
-        self.db.collection("tm_market_mood").document(doc_id).set(payload)
-        # Also mirror to `latest/{market}` so the dashboard read is a single doc.
-        self.db.collection("tm_market_mood").document(f"latest__{market}").set(payload)
-
-    def get_latest_market_mood(self, market: str) -> dict[str, Any] | None:
-        doc = self.db.collection("tm_market_mood").document(f"latest__{market}").get()
-        return _serialize(doc.to_dict()) if doc.exists else None
-
-    # ──────────────────────── institutional flows ─────────────────────────
-
-    def save_institutional_flows(self, market: str, payload: dict[str, Any]) -> None:
-        """Per-day FII/DII / fund-flow doc plus a `latest__{market}` mirror."""
-        snapshot_date = payload.get("snapshot_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        doc_id = f"{market}__{snapshot_date}"
-        self.db.collection("tm_institutional_flows").document(doc_id).set(payload)
-        self.db.collection("tm_institutional_flows").document(f"latest__{market}").set(payload)
-
-    def get_latest_institutional_flows(self, market: str) -> dict[str, Any] | None:
-        doc = self.db.collection("tm_institutional_flows").document(f"latest__{market}").get()
-        return _serialize(doc.to_dict()) if doc.exists else None
-
-    # ─────────────────────────── economic calendar ────────────────────────
-
-    def save_economic_calendar(self, payload: dict[str, Any]) -> None:
-        """Single rolling doc at tm_economic_calendar/latest.
-
-        The calendar is a forward-looking window, so versioning per day adds
-        no value — we overwrite on each sync and the document always answers
-        "what's coming up in the next ~7 days".
-        """
-        self.db.collection("tm_economic_calendar").document("latest").set(payload)
-
-    def get_latest_economic_calendar(self) -> dict[str, Any] | None:
-        doc = self.db.collection("tm_economic_calendar").document("latest").get()
-        return _serialize(doc.to_dict()) if doc.exists else None
-
     def get_sector_benchmarks(
         self, market: str, snapshot_date: str | None = None
     ) -> dict[str, Any] | None:
@@ -746,16 +704,6 @@ class TraceMoneyStore:
     def get_market_breadth_doc(self, market: str, date_str: str) -> dict[str, Any] | None:
         doc_id = f"{market.upper()}_{date_str}"
         doc = self.db.collection("tm_market_breadth").document(doc_id).get()
-        return _serialize(doc.to_dict()) if doc.exists else None
-
-    def save_sentiment_gauge_doc(self, market: str, date_str: str, payload: dict[str, Any]) -> None:
-        doc_id = f"{market.upper()}_{date_str}"
-        self.db.collection("tm_sentiment_gauge").document(doc_id).set(payload, merge=True)
-        self.db.collection("tm_sentiment_gauge").document(f"latest__{market.upper()}").set(payload, merge=True)
-
-    def get_sentiment_gauge_doc(self, market: str, date_str: str) -> dict[str, Any] | None:
-        doc_id = f"{market.upper()}_{date_str}"
-        doc = self.db.collection("tm_sentiment_gauge").document(doc_id).get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
     def save_stock_technical_docs(self, docs_payload: list[dict[str, Any]]) -> None:

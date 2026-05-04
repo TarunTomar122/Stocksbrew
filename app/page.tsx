@@ -20,10 +20,6 @@ import type { SnapshotRow } from "@/lib/types";
 import { getNewsFeed, type NewsArticle } from "@/lib/news";
 import { getMacroStrip } from "@/lib/macro";
 import { getCurrentMarket } from "@/lib/market";
-import {
-  getInstitutionalFlows,
-  getMarketBreadth,
-} from "@/lib/market-signals";
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
 import { buildMarketTiles } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
@@ -44,8 +40,6 @@ export default async function HomePage() {
   const market = getCurrentMarket();
   let view = null;
   let snapshotRows: SnapshotRow[] = [];
-  let flows = null;
-  let breadth = null;
   let screens = null;
   let macroTicks: Awaited<ReturnType<typeof getMacroStrip>> = [];
   let news: NewsArticle[] = [];
@@ -56,11 +50,9 @@ export default async function HomePage() {
     ? await getWatchlistView(session.uid).catch(() => null)
     : null;
   try {
-    [view, snapshotRows, flows, breadth, screens, macroTicks, news] = await Promise.all([
+    [view, snapshotRows, screens, macroTicks, news] = await Promise.all([
       getDashboardView(market),
       getMarketSnapshot(market),
-      market === "IN" ? getInstitutionalFlows(market) : Promise.resolve(null),
-      getMarketBreadth(market),
       getThematicScreens(market),
       getMacroStrip(market),
       getNewsFeed(market, 30).catch(() => []),

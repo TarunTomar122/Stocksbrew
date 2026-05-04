@@ -24,5 +24,5 @@ No legacy fallback to `US` / `IN`.
 ## Pipeline shape
 
 - Price/scoring chain: `sync_price_snapshots` → `sync_stock_metrics` → `build_stock_intel_pro` → `build_stock_technicals` → `build_market_breadth`.
-- AI chain: `build_per_stock_intelligence` → `build_sentiment_gauge` → `build_heat_list` / `build_divergence` / `build_sentiment_flip`.
+- AI chain: `build_per_stock_intelligence` → `build_heat_list` / `build_divergence` / `build_sentiment_flip`.
 - View chain: `materialize_views` (price universe) → `build_snapshot` + `build_watchlist_views`.

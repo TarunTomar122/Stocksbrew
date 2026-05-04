@@ -61,7 +61,7 @@ export default async function HeatPage() {
   const divergenceGeneratedAt = formatGeneratedAt(divergence?.generated_at);
 
   return (
-    <main className="flex-grow bg-[#fafafa]">
+    <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-10 flex flex-col gap-10">
         <header className="flex items-end justify-between gap-6 flex-wrap">
           <div className="flex flex-col gap-3 max-w-2xl">

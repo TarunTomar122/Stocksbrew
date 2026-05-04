@@ -47,9 +47,8 @@ The conservative default policy is (US-first operations):
   snapshot instead of refetching stale weekend prices
 - AI intelligence, views, heat/divergence/flip refresh if older than 24h, or
   if an upstream dependency ran
-- fundamentals, sector benchmarks, market mood, economic calendar, IN flows:
+- fundamentals and sector benchmarks:
   refresh if older than 5 days
-- `sync_institutional_flows` runs for IN only
 - `build_watchlist_views` runs once globally after market views/alerts change
 
 Universe contract (canonical, no fallbacks):
@@ -76,10 +75,6 @@ AI_UNIVERSE=us_ai_launch
 python3 -m backend.scripts.sync_price_snapshots         --market "$MARKET" --universe "$PRICE_UNIVERSE" --session-phase manual
 python3 -m backend.scripts.sync_stock_metrics           --market "$MARKET" --universe "$PRICE_UNIVERSE"
 python3 -m backend.scripts.sync_sector_benchmarks       --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.sync_market_mood             --market "$MARKET"
-python3 -m backend.scripts.sync_economic_calendar
-# IN only:
-# python3 -m backend.scripts.sync_institutional_flows   --market IN
 
 # 2 — refresh news
 python3 -m backend.scripts.build_per_stock_intelligence --market "$MARKET" --universe "$AI_UNIVERSE" --skip-materialize
@@ -88,7 +83,6 @@ python3 -m backend.scripts.build_per_stock_intelligence --market "$MARKET" --uni
 python3 -m backend.scripts.build_stock_intel_pro        --market "$MARKET" --universe "$PRICE_UNIVERSE"
 python3 -m backend.scripts.build_stock_technicals       --market "$MARKET" --universe "$PRICE_UNIVERSE"      # scrapes RSI from Finviz
 python3 -m backend.scripts.build_market_breadth         --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.build_sentiment_gauge        --market "$MARKET" --universe "$AI_UNIVERSE"
 
 # 4 — pre-computed views the frontend reads
 python3 -m backend.scripts.build_thematic_screens       --market "$MARKET" --universe "$PRICE_UNIVERSE"
@@ -151,24 +145,20 @@ prefix can run in parallel.
 | # | Script | Reads | Writes | Powers |
 |---|--------|-------|--------|--------|
 | 1 | `sync_price_snapshots --session-phase post_close` | yfinance | `tm_latest_prices`, `market_price_snapshots` | Every price on the site |
-| 2a | `sync_market_mood` | mood_scraper | `tm_market_mood/{market}` | Market dashboard mood gauge |
-| 2b | `sync_institutional_flows` | flows_scraper | `tm_institutional_flows/{market}__{date}` | Market dashboard FII/DII row (IN) |
-| 2c | `sync_economic_calendar` | external API | `tm_economic_calendar/latest` | Calendar widget on dashboard + stock pages |
-| 2d | `sync_sector_benchmarks` | yfinance | `tm_sector_benchmarks/{market}__{date}` | Sector heatmap + sector pages + intel_pro inputs |
-| 2e | `sync_stock_metrics` | yfinance + Finviz | `tm_stock_metrics_history/{id}/snapshots/{date}` | Stock scorecards + intel_pro inputs |
+| 2a | `sync_sector_benchmarks` | yfinance | `tm_sector_benchmarks/{market}__{date}` | Sector heatmap + sector pages + intel_pro inputs |
+| 2b | `sync_stock_metrics` | yfinance + Finviz | `tm_stock_metrics_history/{id}/snapshots/{date}` | Stock scorecards + intel_pro inputs |
 | 3 | `build_per_stock_intelligence` | per-ticker news + LLM + prices/intel | `tm_news_runs/{ns}/articles`, `enrichments`, `stock_intelligence`, `sector_context` | AI brief on every stock detail page, market/sector context, sentiment inputs |
 | 4 | `build_stock_intel_pro` | `tm_stock_metrics_history`, `tm_sector_benchmarks` | `tm_stock_intel_pro/{market}__{universe}/stocks` | Pillar scores on stock pages, screens, heat list |
 | 5 | `build_stock_technicals` | finviz.com (RSI), `tm_latest_prices` (SMAs) | `tm_stock_technicals/{id}_{date}` | Technicals card, RSI badges, oversold/overbought screens, heat list RSI |
 | 6 | `build_market_breadth` | `tm_latest_prices`, `tm_stock_technicals` | `tm_market_breadth/{market}__{date}` | Market dashboard breadth strip |
-| 7 | `build_sentiment_gauge` | enrichments | `tm_sentiment_gauge/{market}__{date}` | Market dashboard sentiment gauge |
-| 8 | `materialize_views` | prices + stock intelligence + context | `tm_views_dashboard/*`, `tm_views_instrument/*` | Frontend dashboard and stock/sector pages |
-| 9 | `build_thematic_screens` | `tm_stock_intel_pro`, `tm_stock_technicals` | `tm_thematic_screens/{market}` | Screener page (momentum_leaders, oversold_bounce, etc.) |
-| 10 | `build_user_alert_flags` | technicals + prices | `tm_user_alert_flags` | Alert dots on stock pages + watchlist |
-| 11 | `build_watchlist_views` | user prefs + intel | `tm_watchlist_views/{user}` | Personal watchlist view |
-| 12 | `build_snapshot` | many | `tm_snapshots/{snapshot_id}` | Snapshot archive (rollback / audit) |
-| 13 | `build_heat_list` | intel_pro + technicals + prices + mention_stats | `tm_heat_list/{market}` | `/heat` → "Hot Stocks" tab |
-| 14 | `build_divergence` | enrichments + prices | `tm_divergence/{market}` | `/heat` → "Divergences" tab |
-| 15 | `build_sentiment_flip` | enrichments | `tm_sentiment_flip/{market}` | `/heat` → "Sentiment Flip" tab |
+| 7 | `materialize_views` | prices + stock intelligence + context | `tm_views_dashboard/*`, `tm_views_instrument/*` | Frontend dashboard and stock/sector pages |
+| 8 | `build_thematic_screens` | `tm_stock_intel_pro`, `tm_stock_technicals` | `tm_thematic_screens/{market}` | Screener page (momentum_leaders, oversold_bounce, etc.) |
+| 9 | `build_user_alert_flags` | technicals + prices | `tm_user_alert_flags` | Alert dots on stock pages + watchlist |
+| 10 | `build_watchlist_views` | user prefs + intel | `tm_watchlist_views/{user}` | Personal watchlist view |
+| 11 | `build_snapshot` | many | `tm_snapshots/{snapshot_id}` | Snapshot archive (rollback / audit) |
+| 12 | `build_heat_list` | intel_pro + technicals + prices + mention_stats | `tm_heat_list/{market}` | `/heat` → "Hot Stocks" tab |
+| 13 | `build_divergence` | enrichments + prices | `tm_divergence/{market}` | `/heat` → "Divergences" tab |
+| 14 | `build_sentiment_flip` | enrichments | `tm_sentiment_flip/{market}` | `/heat` → "Sentiment Flip" tab |
 
 ---
 
@@ -207,8 +197,8 @@ sync_sector_benchmarks ─┴─→ build_stock_intel_pro ───────�
                                             build_user_alert_flags
                                             build_heat_list
 
-build_per_stock_intelligence ───────┬─→ build_sentiment_gauge
-  (fetches + enriches news)          ├─→ materialize_views
+build_per_stock_intelligence ───────┬─→ materialize_views
+  (fetches + enriches news)          ├─→ build_heat_list
                                     ├─→ build_divergence
                                     ├─→ build_sentiment_flip
                                     └─→ (heat list mention-velocity bonus)
@@ -229,7 +219,6 @@ build_per_stock_intelligence ───────┬─→ build_sentiment_gaug
 | Sector page has no context | `build_context_intelligence` failed | Re-run after confirming `build_per_stock_intelligence` succeeded |
 | Screener shows empty buckets | `build_thematic_screens` ran before `build_stock_technicals` finished | Re-run in order |
 | Market dashboard breadth strip blank | `build_market_breadth` missing | Re-run after `build_stock_technicals` |
-| Sentiment gauge stale | `build_sentiment_gauge` missing | Re-run after `enrich_articles` |
 | Watchlist page empty per user | `build_watchlist_views` skipped | Re-run after the rest of the chain |
 | `/heat` "Hot Stocks" empty | `tm_heat_list/{market}` missing or rows empty | Re-run `build_heat_list` (depends on intel_pro + technicals being current) |
 | `/heat` RSI column shows "—" | Finviz scrape was rate-limited or skipped | Re-run `build_stock_technicals` — console prints `RSI resolved: N/M`. Lower `--finviz-workers` to 2 if 429s persist |

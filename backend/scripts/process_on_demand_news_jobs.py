@@ -34,7 +34,8 @@ def _normalize_doc(doc: dict[str, Any]) -> dict[str, Any]:
     """Make stock_intelligence docs match the app's current AI-tab contract."""
     out = dict(doc)
     out["source"] = "mimo"
-    out["coverage_type"] = "on_demand_news"
+    if not out.get("coverage_type"):
+        out["coverage_type"] = "on_demand_news"
 
     body = " ".join(str(out.get("body") or "").split()).strip()
     thesis = " ".join(str(out.get("thesis") or "").split()).strip()

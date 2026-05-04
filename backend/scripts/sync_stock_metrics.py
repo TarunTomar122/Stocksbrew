@@ -23,6 +23,7 @@ from backend.tickertape_scraper import fetch_tickertape_quote
 
 
 def _sync_us(args: argparse.Namespace) -> None:
+    run_started = time.time()
     store = TraceMoneyStore()
     universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
@@ -38,8 +39,16 @@ def _sync_us(args: argparse.Namespace) -> None:
     snapshot_date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     captured_at = datetime.now(timezone.utc).isoformat()
 
-    print(f"Fetching Finviz fundamentals for {len(tickers)} tickers (pause={args.pause}s)...")
+    print(
+        f"Fetching Finviz fundamentals for {len(tickers)} tickers "
+        f"(pause={args.pause}s)..."
+    )
+    finviz_started = time.time()
     quotes = fetch_finviz_quotes(tickers, pause_seconds=args.pause)
+    print(
+        f"Finviz fetch complete: {len(quotes)}/{len(tickers)} tickers "
+        f"in {time.time() - finviz_started:.1f}s"
+    )
 
     def build_payload(ticker: str, quote: Any) -> dict[str, Any] | None:
         instrument = ticker_to_instrument.get(ticker)
@@ -92,27 +101,48 @@ def _sync_us(args: argparse.Namespace) -> None:
         payloads = [build_payload(ticker, quote) for ticker, quote in quotes.items()]
     else:
         payloads = []
+        completed = 0
+        total = len(quotes)
+        zacks_started = time.time()
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {
                 pool.submit(build_payload, ticker, quote): ticker
                 for ticker, quote in quotes.items()
             }
             for future in as_completed(futures):
+                completed += 1
                 try:
                     payloads.append(future.result())
                 except Exception as exc:
                     print(f"  [worker fail] {futures[future]}: {exc}")
+                if completed == 1 or completed % 25 == 0 or completed == total:
+                    elapsed = time.time() - zacks_started
+                    print(
+                        f"  [zacks workers] progress {completed}/{total} "
+                        f"(payloads={len(payloads)}) elapsed={elapsed:.1f}s"
+                    )
 
+    save_started = time.time()
     for payload in payloads:
         if not payload:
             continue
         store.save_stock_metrics_snapshot(payload["instrument_id"], snapshot_date, payload)
         saved += 1
+        if saved == 1 or saved % 50 == 0:
+            print(
+                f"  [save] progress {saved}/{len(tickers)} "
+                f"elapsed={time.time() - save_started:.1f}s"
+            )
 
-    print(f"Saved {saved}/{len(tickers)} snapshots for {args.market} / {universe_id} / {snapshot_date}")
+    print(
+        f"Saved {saved}/{len(tickers)} snapshots for {args.market} / "
+        f"{universe_id} / {snapshot_date} "
+        f"(total_elapsed={time.time() - run_started:.1f}s)"
+    )
 
 
 def _sync_in(args: argparse.Namespace) -> None:
+    run_started = time.time()
     store = TraceMoneyStore()
     universe_id = args.universe or store.get_active_price_universe(args.market)
     if not universe_id:
@@ -229,16 +259,26 @@ def _sync_in(args: argparse.Namespace) -> None:
         payloads = [build_payload(instrument) for instrument in instruments]
     else:
         payloads = []
+        completed = 0
+        total = len(instruments)
+        workers_started = time.time()
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {
                 pool.submit(build_payload, instrument): instrument.get("ticker", "")
                 for instrument in instruments
             }
             for future in as_completed(futures):
+                completed += 1
                 try:
                     payloads.append(future.result())
                 except Exception as exc:
                     print(f"  [worker fail] {futures[future]}: {exc}")
+                if completed == 1 or completed % 25 == 0 or completed == total:
+                    elapsed = time.time() - workers_started
+                    print(
+                        f"  [workers] progress {completed}/{total} "
+                        f"(payloads={len(payloads)}) elapsed={elapsed:.1f}s"
+                    )
 
     for payload in payloads:
         if not payload:
@@ -247,7 +287,11 @@ def _sync_in(args: argparse.Namespace) -> None:
         saved += 1
         print(f"  [ok] {payload['ticker']} — {len(payload.get('metrics') or {})} metrics, sector={payload.get('sector_label', '')}")
 
-    print(f"Saved {saved}/{len(instruments)} snapshots for {args.market} / {universe_id} / {snapshot_date}")
+    print(
+        f"Saved {saved}/{len(instruments)} snapshots for {args.market} / "
+        f"{universe_id} / {snapshot_date} "
+        f"(total_elapsed={time.time() - run_started:.1f}s)"
+    )
 
 
 def _slug(text: str) -> str:

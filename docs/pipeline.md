@@ -35,7 +35,6 @@ Rules:
 
 2. **AI/news (AI universe):**
    - `build_per_stock_intelligence`
-   - `build_sentiment_gauge`
    - `build_heat_list`
    - `build_divergence`
    - `build_sentiment_flip`

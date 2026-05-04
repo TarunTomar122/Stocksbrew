@@ -246,13 +246,14 @@ export default async function StockPage({ params }: Props) {
   const aiSource = intelligence?.source ?? "";
   const aiCoverageType = intelligence?.coverage_type ?? "";
   const isOnDemandFirstPass = aiCoverageType === "on_demand_no_news";
+  const isNoMajorNewsFallback = isOnDemandFirstPass;
   const isFallbackBrief =
     isOnDemandFirstPass ||
     aiSource === "rules" ||
     aiCoverageType === "on_demand_fallback" ||
     intelligence?.data_quality?.freshness_status === "pending";
-  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || isFallbackBrief);
-  const showSynthesis = hasAI && hasBriefText(intelligence) && !isFallbackBrief;
+  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsFallback));
+  const showSynthesis = hasAI && hasBriefText(intelligence) && (!isFallbackBrief || isNoMajorNewsFallback);
   const showCards = hasAI && hasVisualCards(intelligence);
   const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown);
 
@@ -263,6 +264,14 @@ export default async function StockPage({ params }: Props) {
           <AiBriefStatus
             ticker={stock.ticker}
             generatedAt={intelligence?.generated_at}
+          />
+        )}
+        {isNoMajorNewsFallback && (
+          <AiBriefStatus
+            ticker={stock.ticker}
+            generatedAt={intelligence?.generated_at}
+            mode="no_major_news"
+            brief={intelligence?.today_brief ?? intelligence?.body}
           />
         )}
         {!showBriefStatus && (
