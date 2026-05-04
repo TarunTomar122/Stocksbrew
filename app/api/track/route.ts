@@ -193,34 +193,8 @@ function kickRebuild(
   trackedStocks: string[],
   positions: Record<string, "watchlist" | "holding">,
   traceId: string,
-  newlyTrackedInstrumentId?: string,
 ) {
   (async () => {
-    if (newlyTrackedInstrumentId) {
-      const queued = await enqueueOnDemandNewsJob(uid, newlyTrackedInstrumentId);
-      if (queued.shouldDispatch) {
-        trackApiLog(traceId, "info", "on_demand_dispatch_triggering", {
-          instrument_id: newlyTrackedInstrumentId,
-          market: queued.market,
-          universe: queued.universe,
-        });
-        await triggerOnDemandNewsDispatch(
-          {
-            instrumentId: newlyTrackedInstrumentId,
-            market: queued.market,
-            universe: queued.universe,
-            requestedBy: uid,
-          },
-          traceId,
-        );
-      } else {
-        trackApiLog(traceId, "info", "on_demand_dispatch_skipped_dedupe_or_running", {
-          instrument_id: newlyTrackedInstrumentId,
-          market: queued.market,
-          universe: queued.universe,
-        });
-      }
-    }
     await rebuildAndSaveWatchlistView(uid, trackedStocks, positions);
     trackApiLog(traceId, "info", "watchlist_view_rebuild_complete", {
       tracked_count: trackedStocks.length,
@@ -232,6 +206,36 @@ function kickRebuild(
     });
     console.error("[api/track] background coverage/rebuild failed:", err);
   });
+}
+
+async function ensureOnDemandCoverage(
+  uid: string,
+  instrumentId: string,
+  traceId: string,
+) {
+  const queued = await enqueueOnDemandNewsJob(uid, instrumentId);
+  if (queued.shouldDispatch) {
+    trackApiLog(traceId, "info", "on_demand_dispatch_triggering", {
+      instrument_id: instrumentId,
+      market: queued.market,
+      universe: queued.universe,
+    });
+    await triggerOnDemandNewsDispatch(
+      {
+        instrumentId,
+        market: queued.market,
+        universe: queued.universe,
+        requestedBy: uid,
+      },
+      traceId,
+    );
+  } else {
+    trackApiLog(traceId, "info", "on_demand_dispatch_skipped_dedupe_or_running", {
+      instrument_id: instrumentId,
+      market: queued.market,
+      universe: queued.universe,
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -296,10 +300,19 @@ export async function POST(req: NextRequest) {
   const nextTracked = current.includes(instrumentId)
     ? current
     : [...current, instrumentId];
+  const wasAlreadyTracked = current.includes(instrumentId);
+  if (!wasAlreadyTracked) {
+    await ensureOnDemandCoverage(session.uid, instrumentId, traceId);
+  } else {
+    trackApiLog(traceId, "info", "on_demand_dispatch_skipped_already_tracked", {
+      uid: session.uid,
+      instrument_id: instrumentId,
+    });
+  }
   kickRebuild(session.uid, nextTracked, {
     ...(existing.watchlist_positions || {}),
     [instrumentId]: positionType,
-  }, traceId, current.includes(instrumentId) ? undefined : instrumentId);
+  }, traceId);
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
   return NextResponse.json({ ok: true });
