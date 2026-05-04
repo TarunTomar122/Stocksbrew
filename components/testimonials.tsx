@@ -14,37 +14,37 @@ const TESTIMONIALS: Testimonial[] = [
     name: "Marcus Chen",
     role: "Independent trader, 6 years",
     avatar: "MC",
-    text: "Finally a tool that doesn't drown me in noise. The AI briefs give me the 3 things I actually need to know before the open — saves me an hour every morning.",
+    text: "I used to spend way too much time going through news every morning. This just gives me what actually matters before the open. Easily saves me an hour.",
   },
   {
     name: "Priya Sharma",
     role: "Equity research associate",
     avatar: "PS",
-    text: "The sector flow and institutional positioning data alone is worth it. I used to stitch this together from 5 different sources. Now it's one screen.",
+    text: "The sector flow and positioning data is really solid. I used to pull this from multiple places and it was a pain. Now it is just there in one view.",
   },
   {
     name: "David Okonkwo",
     role: "Part-time investor, tech lead",
     avatar: "DO",
-    text: "I have maybe 20 minutes a day to check the market. Tikrr condenses what would take me 2 hours of reading into a 5-minute scan. The signal-to-noise ratio is unmatched.",
+    text: "I barely get 20 minutes a day to look at markets. This makes it easy to catch up fast without feeling lost. It cuts through a lot of noise.",
   },
   {
     name: "Lauren Walsh",
     role: "Portfolio manager, small fund",
     avatar: "LW",
-    text: "The Radar watchlist with personalized AI briefs changed how I manage my book. Catalyst alerts and divergence signals have caught things I would've missed on my own.",
+    text: "The watchlist and alerts have been surprisingly useful. I have caught a few moves early that I probably would have missed otherwise.",
   },
   {
     name: "Raj Mehta",
     role: "Retail investor, 12 years",
     avatar: "RM",
-    text: "I've tried every screener and dashboard out there. Tikrr is the first one where I actually trust the scores. The four-pillar framework makes sense and the briefs are genuinely useful.",
+    text: "I have tried a lot of tools over the years and most of them feel gimmicky. This one actually feels reliable. The scoring system is simple and makes sense.",
   },
   {
     name: "Emma Johansson",
     role: "Day trader turned swing trader",
     avatar: "EJ",
-    text: "The heat list found me a breakout before it showed up anywhere else. That one trade paid for my subscription for the year. The essentials cards are my new morning ritual.",
+    text: "Found a setup through the heat list that I would not have seen elsewhere. That trade alone made this worth it for me. I check it every morning now.",
   },
 ];
 
@@ -67,7 +67,7 @@ export function Testimonials() {
 
   useEffect(() => {
     if (paused) return;
-    const t = setInterval(advance, 5000);
+    const t = setInterval(advance, 2000);
     return () => clearInterval(t);
   }, [advance, paused]);
 
@@ -80,7 +80,7 @@ export function Testimonials() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 text-center pt-8">
         <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">
           Testimonials
         </span>
@@ -89,7 +89,7 @@ export function Testimonials() {
         </h2>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
+      <div className="relative overflow-hidden bg-white">
         <div
           className="flex transition-transform duration-500 ease-apple-ease"
           style={{ transform: `translateX(-${active * 100}%)` }}
@@ -99,11 +99,6 @@ export function Testimonials() {
               key={idx}
               className="w-full shrink-0 px-8 py-10 md:px-12 md:py-12 flex flex-col items-center text-center gap-5"
             >
-              <div
-                className={`flex h-12 w-12 items-center justify-center rounded-full text-[16px] font-bold ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
-              >
-                {item.avatar}
-              </div>
               <blockquote className="text-[16px] md:text-[18px] text-[#374151] leading-[1.65] max-w-[600px]">
                 &ldquo;{item.text}&rdquo;
               </blockquote>
