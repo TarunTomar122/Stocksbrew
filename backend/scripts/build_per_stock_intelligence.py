@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from backend.instrument_universe import list_instruments
@@ -109,12 +111,63 @@ def _avg_volume_from_history(history_points: list[dict]) -> float | None:
     return sum(volumes) / len(volumes)
 
 
+def _chunked(values: list[dict[str, Any]], size: int) -> list[list[dict[str, Any]]]:
+    if size <= 0:
+        return [values]
+    return [values[index:index + size] for index in range(0, len(values), size)]
+
+
+def _dedupe_articles(raw_articles: list[Any]) -> list[Any]:
+    by_key: dict[str, Any] = {}
+    ordered: list[Any] = []
+    for article in raw_articles:
+        article_id = str(getattr(article, "id", "") or "").strip()
+        article_url = str(getattr(article, "url", "") or "").strip()
+        key = article_id or article_url
+        if not key or key in by_key:
+            continue
+        by_key[key] = article
+        ordered.append(article)
+    return ordered
+
+
+def _fetch_chunk(
+    market: str,
+    universe_id: str,
+    *,
+    chunk_index: int,
+    instruments: list[dict[str, Any]],
+    per_stock_cap: int,
+) -> tuple[int, list[Any], list[dict[str, object]], float]:
+    started = time.time()
+    articles, source_health = collect_per_ticker_articles(
+        market=market,
+        universe_id=universe_id,
+        per_stock_cap=per_stock_cap,
+        broad_cap=0,
+        instruments_override=instruments,
+    )
+    return chunk_index, articles, source_health, time.time() - started
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build per-stock AI intelligence for an AI-tier universe")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", required=True, help="AI-tier universe id, e.g. us_ai_launch")
     parser.add_argument("--per-stock-cap", type=int, default=5, help="Max articles fetched per ticker (default 5)")
     parser.add_argument("--broad-cap", type=int, default=12, help="Max broad-lane articles kept for market/sector briefs (default 12)")
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=10,
+        help="Stocks per fetch chunk (default 10). Set 0 to disable chunking.",
+    )
+    parser.add_argument(
+        "--chunk-workers",
+        type=int,
+        default=4,
+        help="Parallel chunk workers for article fetch (default 4).",
+    )
     parser.add_argument("--include-no-news", action="store_true", help="Generate fallback briefs for stocks with no qualifying news")
     parser.add_argument("--skip-context", action="store_true", help="Skip market/sector context brief build")
     parser.add_argument("--skip-materialize", action="store_true", help="Skip dashboard/instrument view materialization")
@@ -150,17 +203,81 @@ def main() -> None:
         len(instruments),
     )
 
-    print(f"[per-stock] fetching per-ticker articles for {len(instruments)} instruments "
-          f"(cap {args.per_stock_cap}/ticker, broad cap {args.broad_cap})")
-    raw_articles, source_health = collect_per_ticker_articles(
-        market=args.market,
-        universe_id=args.universe,
-        per_stock_cap=args.per_stock_cap,
-        broad_cap=args.broad_cap,
-        instruments_override=instruments,
+    print(
+        f"[per-stock] fetching per-ticker articles for {len(instruments)} instruments "
+        f"(cap {args.per_stock_cap}/ticker, broad cap {args.broad_cap})"
     )
-    print(f"[per-stock] fetched {len(raw_articles)} articles across "
-          f"{sum(1 for s in source_health if s['ok'])} healthy sources")
+    chunk_size = max(0, int(args.chunk_size))
+    chunk_workers = max(1, int(args.chunk_workers))
+    if chunk_size > 0 and len(instruments) > chunk_size:
+        chunks = _chunked(instruments, chunk_size)
+        logger.info(
+            "per_stock_intelligence chunk_fetch enabled chunks=%s chunk_size=%s workers=%s",
+            len(chunks),
+            chunk_size,
+            chunk_workers,
+        )
+        broad_articles: list[Any] = []
+        broad_health: list[dict[str, object]] = []
+        if args.broad_cap > 0:
+            broad_started = time.time()
+            broad_articles, broad_health = collect_per_ticker_articles(
+                market=args.market,
+                universe_id=args.universe,
+                per_stock_cap=0,
+                broad_cap=args.broad_cap,
+                instruments_override=[],
+            )
+            logger.info(
+                "per_stock_intelligence broad_bucket fetched articles=%s elapsed_s=%.2f",
+                len(broad_articles),
+                time.time() - broad_started,
+            )
+
+        chunk_results: list[tuple[int, list[Any], list[dict[str, object]], float]] = []
+        with ThreadPoolExecutor(max_workers=min(chunk_workers, len(chunks))) as executor:
+            futures = [
+                executor.submit(
+                    _fetch_chunk,
+                    args.market,
+                    args.universe,
+                    chunk_index=index,
+                    instruments=chunk,
+                    per_stock_cap=args.per_stock_cap,
+                )
+                for index, chunk in enumerate(chunks)
+            ]
+            for future in as_completed(futures):
+                chunk_results.append(future.result())
+        chunk_results.sort(key=lambda item: item[0])
+        for chunk_index, chunk_articles, _chunk_health, elapsed_s in chunk_results:
+            logger.info(
+                "per_stock_intelligence chunk fetched idx=%s articles=%s elapsed_s=%.2f",
+                chunk_index,
+                len(chunk_articles),
+                elapsed_s,
+            )
+
+        raw_articles = _dedupe_articles(
+            broad_articles + [article for _idx, articles, _health, _elapsed in chunk_results for article in articles]
+        )
+        source_health = broad_health + [
+            row
+            for _idx, _articles, health_rows, _elapsed in chunk_results
+            for row in health_rows
+        ]
+    else:
+        raw_articles, source_health = collect_per_ticker_articles(
+            market=args.market,
+            universe_id=args.universe,
+            per_stock_cap=args.per_stock_cap,
+            broad_cap=args.broad_cap,
+            instruments_override=instruments,
+        )
+    print(
+        f"[per-stock] fetched {len(raw_articles)} articles across "
+        f"{sum(1 for s in source_health if s['ok'])} healthy sources"
+    )
 
     raw_payload = [article.to_dict() for article in raw_articles]
     store.save_news_articles(args.market, args.universe, raw_payload, source_health=source_health)

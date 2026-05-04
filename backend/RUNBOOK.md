@@ -23,7 +23,7 @@ downstream stages when their inputs were refreshed in the same pass.
 # See what would run without changing Firestore.
 python3 -m backend.scripts.run_pipeline --dry-run
 
-# Actually run only stale/due stages for both US and IN.
+# Actually run only stale/due stages for US (current focus).
 python3 -m backend.scripts.run_pipeline
 
 # Optional: override universes or force one stale-looking stage.
@@ -33,7 +33,7 @@ python3 -m backend.scripts.run_pipeline \
   --force US:build_heat_list
 ```
 
-The conservative default policy is:
+The conservative default policy is (US-first operations):
 - prices use `--session-phase auto` by default. The runner maps the current
   local market time to `pre_open`, `open_check`, `mid_check`, `close_check`,
   or `post_close`; each phase runs at most once per market day
@@ -52,6 +52,11 @@ The conservative default policy is:
 - `sync_institutional_flows` runs for IN only
 - `build_watchlist_views` runs once globally after market views/alerts change
 
+Universe contract (canonical, no fallbacks):
+- `*_price_universe` = broad, user-visible universe used for price/scores/views
+- `*_ai_universe` = AI/news universe used for stock intelligence generation
+- frontend display namespace is always `*_price_universe`
+
 To intentionally run a price phase outside its normal window:
 
 ```bash
@@ -69,8 +74,8 @@ AI_UNIVERSE=us_ai_launch
 
 # 1 — refresh raw market data
 python3 -m backend.scripts.sync_price_snapshots         --market "$MARKET" --universe "$PRICE_UNIVERSE" --session-phase manual
-python3 -m backend.scripts.sync_stock_metrics           --market "$MARKET" --universe "$AI_UNIVERSE"
-python3 -m backend.scripts.sync_sector_benchmarks       --market "$MARKET" --universe "$AI_UNIVERSE"
+python3 -m backend.scripts.sync_stock_metrics           --market "$MARKET" --universe "$PRICE_UNIVERSE"
+python3 -m backend.scripts.sync_sector_benchmarks       --market "$MARKET" --universe "$PRICE_UNIVERSE"
 python3 -m backend.scripts.sync_market_mood             --market "$MARKET"
 python3 -m backend.scripts.sync_economic_calendar
 # IN only:
@@ -80,15 +85,15 @@ python3 -m backend.scripts.sync_economic_calendar
 python3 -m backend.scripts.build_per_stock_intelligence --market "$MARKET" --universe "$AI_UNIVERSE" --skip-materialize
 
 # 3 — derived intelligence
-python3 -m backend.scripts.build_stock_intel_pro        --market "$MARKET" --universe "$AI_UNIVERSE"
+python3 -m backend.scripts.build_stock_intel_pro        --market "$MARKET" --universe "$PRICE_UNIVERSE"
 python3 -m backend.scripts.build_stock_technicals       --market "$MARKET" --universe "$PRICE_UNIVERSE"      # scrapes RSI from Finviz
 python3 -m backend.scripts.build_market_breadth         --market "$MARKET" --universe "$PRICE_UNIVERSE"
 python3 -m backend.scripts.build_sentiment_gauge        --market "$MARKET" --universe "$AI_UNIVERSE"
 
 # 4 — pre-computed views the frontend reads
-python3 -m backend.scripts.build_thematic_screens       --market "$MARKET" --universe "$AI_UNIVERSE"
+python3 -m backend.scripts.build_thematic_screens       --market "$MARKET" --universe "$PRICE_UNIVERSE"
 python3 -m backend.scripts.build_user_alert_flags       --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.materialize_views            --market "$MARKET" --universe "$AI_UNIVERSE" --activate
+python3 -m backend.scripts.materialize_views            --market "$MARKET" --universe "$PRICE_UNIVERSE" --activate
 python3 -m backend.scripts.build_watchlist_views
 python3 -m backend.scripts.build_snapshot               --market "$MARKET"
 

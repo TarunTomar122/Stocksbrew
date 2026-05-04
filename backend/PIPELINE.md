@@ -1,21 +1,28 @@
-# Backend Pipeline (TM Only)
+# Backend Pipeline (Current)
 
-Active backend writes only to `tm_*` Firestore collections.
+Primary entrypoint:
 
-Stages:
+```bash
+python3 -m backend.scripts.run_pipeline --markets US --session-phase auto
+```
 
-1. `backend/scripts/sync_instrument_universe.py`
-2. `backend/scripts/sync_price_snapshots.py`
-3. `backend/scripts/ingest_news.py`
-4. `backend/scripts/enrich_articles.py`
-5. `backend/scripts/build_stock_intelligence.py`
-6. `backend/scripts/build_news_intelligence.py`
-7. `backend/scripts/materialize_views.py`
-8. `backend/scripts/build_stock_technicals.py`
-9. `backend/scripts/build_market_breadth.py`
-10. `backend/scripts/build_sentiment_gauge.py`
-11. `backend/scripts/build_user_alert_flags.py`
-12. `backend/scripts/build_heat_list.py`
-13. `backend/scripts/build_divergence.py`
+## Active universe keys (required)
 
-Legacy stock/market/sector pipeline scripts were removed to avoid dual-write confusion.
+`tm_config/active_universes` must include:
+
+- `US_price_universe`, `US_ai_universe`
+- `IN_price_universe`, `IN_ai_universe`
+
+No legacy fallback to `US` / `IN`.
+
+## Operational model
+
+- `price_universe`: broad coverage for prices, technicals, scores, screens, materialized views.
+- `ai_universe`: scheduled AI/news generation scope.
+- Paid tracked stocks are added to per-stock AI generation in addition to the base AI universe.
+
+## Pipeline shape
+
+- Price/scoring chain: `sync_price_snapshots` → `sync_stock_metrics` → `build_stock_intel_pro` → `build_stock_technicals` → `build_market_breadth`.
+- AI chain: `build_per_stock_intelligence` → `build_sentiment_gauge` → `build_heat_list` / `build_divergence` / `build_sentiment_flip`.
+- View chain: `materialize_views` (price universe) → `build_snapshot` + `build_watchlist_views`.
