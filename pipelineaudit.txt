@@ -1,0 +1,83 @@
+Per stage: search/web calls + DB calls
+1) sync_price_snapshots
+Web/search calls: about 1,000 minimum (500 history + 500 info from Yahoo).
+Can be higher with retries/failures.
+DB reads: about 500 (tm_latest_prices/{id} read before merge) + shard metadata stream (~8 docs).
+DB writes:
+tm_latest_prices: 500
+tm_fundamental_snapshots: up to 500
+market_price_snapshots: 1 root + about 8 shard docs
+Total writes: ~1,009 to ~1,509
+2) sync_stock_metrics (US)
+Web/search calls: about 1,000 (~500 Finviz + ~500 Zacks).
+DB reads: negligible.
+DB writes: save_stock_metrics_snapshot does 2 writes/ticker
+tm_stock_metrics_history + tm_stock_metrics_latest
+500 * 2 = 1,000 writes
+3) sync_sector_benchmarks
+Web/search calls: small (US sector scraper; not per-stock, typically low single-digit requests).
+DB writes: 2 ({market}__{date} and latest__{market}).
+DB reads: ~0.
+4) sync_stock_facts
+Web/search calls: 2,000 exactly by code shape (4 calls per stock × 500):
+Finviz snapshot
+Nasdaq analyst endpoint
+Nasdaq institutions endpoint
+StockAnalysis financials page
+DB writes: 500 (tm_stock_facts/{instrument})
+DB reads: ~0
+5) build_stock_intel_pro
+Web/search calls: 0
+DB reads: ~1 + 500 (benchmarks + today snapshots), plus fallback latest snapshot reads for missing tickers.
+DB writes: 500 (tm_stock_intel_pro/.../stocks/{instrument})
+6) build_stock_technicals
+Web/search calls: US Finviz RSI fetch (roughly ticker-scale, up to ~500)
+DB reads: ~500 (tm_latest_prices)
+DB writes: 1,000 (tm_stock_technicals + tm_stock_technicals_latest)
+7) build_market_breadth
+Web/search calls: 0
+DB reads: ~500
+DB writes: 2 (date doc + latest doc)
+8) build_per_stock_intelligence (big one)
+With current runtime instrument count M=18:
+
+Web/search feed calls: 97 (computed above)
+Article-body fetch calls: up to about 102 max by caps (18*5 + 12) before dedupe (usually lower in reality)
+LLM calls:
+Article enrichment: up to article_count uncached (1 call each, with repair/retry possible)
+Stock brief synthesis: up to number of generated briefs (<=18)
+DB reads/writes: high and variable:
+Reads/writes tm_news_runs/{ns}/articles, enrichments, stock_intelligence
+Cache reads/writes tm_llm_cache per enrichment/brief
+Reads subscribed users + extra instrument docs
+9) build_thematic_screens
+Web/search calls: 0
+DB reads: roughly 1,500 scale (intel_pro + technicals + latest_prices across 500)
+DB writes: 1 (tm_thematic_screens/{market})
+10) build_user_alert_flags
+Web/search calls: 0
+DB reads/writes: depends on subscribed users + tracked stocks.
+Reads users + per-user tracked docs
+Writes one alert-flag doc per user+instrument combo
+11) materialize_views
+Web/search calls: usually 0
+DB reads: large (price docs + intelligence/context docs for joins)
+DB writes: about 501 (1 dashboard + 500 instrument views)
+12) build_snapshot
+From your latest saved snapshot (US_2026-05-03):
+
+Web/search source fetch calls: about 50 tracked sources (46 live, 1 failed in last run)
+LLM enrichment calls: tied to selected article count (last run article_count = 40)
+DB writes: snapshot root + bucket docs + latest pointer (bucket_count was 41)
+13) build_heat_list
+Web/search calls: 0
+DB: reads mention/intel/price/technical docs; writes tm_heat_list/{market} (+ mention stat updates)
+14) build_divergence
+Web/search calls: 0
+DB writes: 1 (tm_divergence/{market})
+15) build_sentiment_flip
+Web/search calls: 0
+DB writes: 1 (tm_sentiment_flip/{market})
+16) GLOBAL:build_watchlist_views
+Web/search calls: optional LLM for portfolio brief (depends on users)
+DB writes: one tm_watchlist_views/{uid} per built user
