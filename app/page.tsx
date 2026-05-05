@@ -22,6 +22,7 @@ import { getMacroStrip } from "@/lib/macro";
 import { getCurrentMarket } from "@/lib/market";
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
 import { buildMarketTiles } from "@/lib/market-tiles";
+import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
 import { getThematicScreens } from "@/lib/screens";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -63,6 +64,21 @@ export default async function HomePage() {
 
   const sentiment = view?.market_sentiment ?? { label: "Mixed", score: 49 };
   const marketTiles = buildMarketTiles(view);
+  const marketCueTilesFromMacro: MarketTile[] = macroTicks.map((t) => ({
+    id: t.instrument_id,
+    label: t.ticker,
+    sublabel: t.name,
+    price: t.price ?? 0,
+    changePct: t.day_change_pct ?? 0,
+    series: [100, 100 + (t.day_change_pct ?? 0)],
+    kind: "index",
+    currency:
+      t.instrument_id === "US_MAC_GOLD" ||
+      t.instrument_id === "US_MAC_SILVER" ||
+      t.instrument_id === "US_MAC_OIL"
+        ? "$"
+        : "",
+  }));
   const snapshotMovers = buildMoversFromSnapshot(snapshotRows, 5);
   const isIN = market === "IN";
 
@@ -107,7 +123,7 @@ export default async function HomePage() {
           }))}
         />
 
-        <MarketCues title="Market cues" tiles={marketTiles} />
+        <MarketCues title="Market cues" tiles={marketCueTilesFromMacro.length ? marketCueTilesFromMacro : marketTiles} />
 
         <SectorSpotlights
           snapshotRows={snapshotRows}

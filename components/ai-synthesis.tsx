@@ -84,7 +84,7 @@ export function AiSynthesis({ intelligence, timeline }: Props) {
       if (title.includes("price snapshot captured")) return false;
       return Boolean(String(event.title ?? "").trim());
     })
-    .sort((a, b) => Date.parse(String(b.published_at ?? "")) - Date.parse(String(a.published_at ?? "")))[0]?.title;
+    .sort((a, b) => Date.parse(String(b.timestamp ?? "")) - Date.parse(String(a.timestamp ?? "")))[0]?.title;
 
   const whatChanged =
     vs?.what_changed ||
