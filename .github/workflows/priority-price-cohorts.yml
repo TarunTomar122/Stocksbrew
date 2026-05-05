@@ -145,4 +145,5 @@ jobs:
           python -m backend.scripts.run_pipeline \
             --markets "$MARKET" \
             --session-phase manual \
-            --force "$MARKET:build_user_alert_flags,GLOBAL:build_watchlist_views"
+            --force "$MARKET:build_user_alert_flags" \
+            --force "GLOBAL:build_watchlist_views"
