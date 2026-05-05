@@ -32,6 +32,7 @@ type AuthProviderProps = {
 export function AuthProvider({ children, initialAuthed = false }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(!initialAuthed);
+  const [showWaitlistCongrats, setShowWaitlistCongrats] = useState(false);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -41,11 +42,17 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
       if (nextUser) {
         try {
           const idToken = await nextUser.getIdToken();
-          await fetch("/api/auth/session", {
+          const res = await fetch("/api/auth/session", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ idToken }),
           });
+          if (res.ok) {
+            const payload = (await res.json()) as { waitlistPromoted?: boolean };
+            if (payload.waitlistPromoted) {
+              setShowWaitlistCongrats(true);
+            }
+          }
         } catch {
           // server-side session sync is best-effort
         }
@@ -62,7 +69,30 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
 
   const value = useMemo(() => ({ user, loading, initialAuthed }), [user, loading, initialAuthed]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {showWaitlistCongrats && (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/45 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-xl">
+            <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
+              You’re in. Pro is unlocked.
+            </h3>
+            <p className="mt-2 text-[14px] text-[#4b5563] leading-relaxed">
+              Thanks for joining the waitlist. Your account is now subscribed.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowWaitlistCongrats(false)}
+              className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-[#111111] px-4 text-[13px] font-semibold text-white hover:bg-[#000000]"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 export function useUser(): AuthState {

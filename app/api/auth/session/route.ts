@@ -8,6 +8,31 @@ export const runtime = "nodejs";
 const SESSION_COOKIE_NAME = "tikrr_session";
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 
+async function isWaitlistedEmail(email: string | null | undefined): Promise<boolean> {
+  const value = String(email || "").trim().toLowerCase();
+  if (!value) return false;
+  const candidates = ["waitlist", "tm_waitlist"];
+  for (const collectionName of candidates) {
+    try {
+      const byLower = await adminFirestore
+        .collection(collectionName)
+        .where("email_lower", "==", value)
+        .limit(1)
+        .get();
+      if (!byLower.empty) return true;
+      const byEmail = await adminFirestore
+        .collection(collectionName)
+        .where("email", "==", value)
+        .limit(1)
+        .get();
+      if (!byEmail.empty) return true;
+    } catch {
+      // ignore unknown/missing collections
+    }
+  }
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   let body: { idToken?: string };
   try {
@@ -37,11 +62,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "session_failed" }, { status: 500 });
   }
 
+  let waitlistPromoted = false;
   try {
     const userRef = adminFirestore.collection("users").doc(decoded.uid);
     const existing = await userRef.get();
+    const waitlisted = await isWaitlistedEmail(decoded.email ?? null);
     const profile = {
       email: decoded.email ?? null,
+      email_lower: decoded.email ? String(decoded.email).toLowerCase() : null,
       display_name: decoded.name ?? null,
       photo_url: decoded.picture ?? null,
       last_sign_in_at: FieldValue.serverTimestamp(),
@@ -50,17 +78,26 @@ export async function POST(request: NextRequest) {
       await userRef.set({
         ...profile,
         created_at: FieldValue.serverTimestamp(),
-        is_subscribed: false,
+        is_subscribed: waitlisted ? true : false,
+        waitlist_promoted_at: waitlisted ? FieldValue.serverTimestamp() : null,
       });
+      waitlistPromoted = waitlisted;
     } else {
-      await userRef.set(profile, { merge: true });
+      const data = existing.data() || {};
+      const updates: Record<string, unknown> = { ...profile };
+      if (waitlisted && data.is_subscribed !== true) {
+        updates.is_subscribed = true;
+        updates.waitlist_promoted_at = FieldValue.serverTimestamp();
+        waitlistPromoted = true;
+      }
+      await userRef.set(updates, { merge: true });
     }
   } catch (err) {
     console.error("user doc upsert failed", err);
     // do not fail the session — user can still sign in; doc will sync on next login
   }
 
-  const response = NextResponse.json({ ok: true, uid: decoded.uid });
+  const response = NextResponse.json({ ok: true, uid: decoded.uid, waitlistPromoted });
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
     value: sessionCookie,
