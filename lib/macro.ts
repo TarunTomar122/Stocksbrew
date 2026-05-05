@@ -19,6 +19,10 @@ const MACRO_TICKERS: Record<
   US: [
     { id: "US_IDX_SPX", display: "S&P 500", name: "Broad market" },
     { id: "US_IDX_NDX", display: "Nasdaq 100", name: "Big tech" },
+    { id: "US_MAC_GOLD", display: "Gold", name: "Gold futures" },
+    { id: "US_MAC_SILVER", display: "Silver", name: "Silver futures" },
+    { id: "US_MAC_OIL", display: "Crude Oil", name: "WTI crude futures" },
+    { id: "US_MAC_VIX", display: "VIX", name: "Volatility index" },
   ],
   IN: [
     { id: "IN_IDX_NIFTY50", display: "Nifty 50", name: "Broad market" },
