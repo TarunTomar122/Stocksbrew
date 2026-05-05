@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+import time
 from typing import Any
 
 import yfinance as yf
@@ -74,8 +75,24 @@ def _consensus_label(info: dict[str, Any]) -> str:
 
 
 class YFinanceClient:
-    def __init__(self, max_workers: int = 6) -> None:
+    def __init__(self, max_workers: int = 6, max_retries: int = 2, retry_backoff_s: float = 0.5) -> None:
         self.max_workers = max(1, max_workers)
+        self.max_retries = max(0, max_retries)
+        self.retry_backoff_s = max(0.0, retry_backoff_s)
+
+    def _fetch_one_with_retry(self, instrument: dict[str, Any]) -> dict[str, Any]:
+        last_exc: Exception | None = None
+        attempts = self.max_retries + 1
+        for attempt in range(1, attempts + 1):
+            try:
+                return self._fetch_one(instrument)
+            except Exception as exc:
+                last_exc = exc
+                if attempt < attempts:
+                    time.sleep(self.retry_backoff_s * attempt)
+        if last_exc is None:
+            raise RuntimeError("unknown yfinance fetch failure")
+        raise last_exc
 
     def _fetch_one(self, instrument: dict[str, Any]) -> dict[str, Any]:
         yahoo_symbol = yahoo_symbol_for(instrument)
@@ -159,13 +176,16 @@ class YFinanceClient:
             return {}
         rows: dict[str, dict[str, Any]] = {}
         with ThreadPoolExecutor(max_workers=min(self.max_workers, len(instruments))) as executor:
-            futures = {executor.submit(self._fetch_one, instrument): instrument for instrument in instruments}
+            futures = {executor.submit(self._fetch_one_with_retry, instrument): instrument for instrument in instruments}
             for future in as_completed(futures):
                 instrument = futures[future]
                 try:
                     rows[instrument["instrument_id"]] = future.result()
                 except Exception as exc:
-                    print(f"yfinance fetch failed for {instrument.get('instrument_id')}: {exc}")
+                    print(
+                        f"yfinance fetch failed for {instrument.get('instrument_id')} "
+                        f"after {self.max_retries + 1} attempts: {exc}"
+                    )
         return rows
 
 
@@ -234,5 +254,4 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
             pass
 
     return out
-
 
