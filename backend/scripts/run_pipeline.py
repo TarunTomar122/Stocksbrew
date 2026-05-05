@@ -411,7 +411,16 @@ def _market_stages(
         Stage(
             key=f"{market}:materialize_views",
             label=f"{market} materialized views",
-            command=script("materialize_views", "--market", market, "--universe", price_universe, "--activate"),
+            command=script(
+                "materialize_views",
+                "--market",
+                market,
+                "--universe",
+                price_universe,
+                "--activate",
+                "--allow-missing-context",
+                "--skip-sector-scrape",
+            ),
             ttl=DAILY,
             deps=[f"{market}:sync_price_snapshots", f"{market}:build_stock_intel_pro"],
             market=market,
