@@ -18,6 +18,13 @@ from backend.providers.finviz_provider import fetch_finviz_technicals_batch
 from backend.storage import TraceMoneyStore
 
 
+def _parse_instrument_ids(value: str | None) -> set[str] | None:
+    if not value:
+        return None
+    ids = {item.strip().upper() for item in value.split(",") if item.strip()}
+    return ids or None
+
+
 def _history_from_latest(latest_price: dict | None, limit: int) -> list[dict]:
     if not latest_price:
         return []
@@ -77,11 +84,18 @@ def main() -> None:
         help="Concurrent HTTP workers for Finviz scrape (Finviz 429s aggressive bursts; 3 is the sweet spot)",
     )
     parser.add_argument("--print-json", action="store_true")
+    parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids for subset technical build")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
     universe_id = _resolve_universe(store, args.market, args.universe)
     instruments = list_instruments(args.market, universe_id)
+    allowed_ids = _parse_instrument_ids(args.instrument_ids)
+    if allowed_ids is not None:
+        instruments = [
+            instrument for instrument in instruments
+            if str(instrument.get("instrument_id", "")).upper() in allowed_ids
+        ]
     instrument_ids = [instrument["instrument_id"] for instrument in instruments]
     latest_prices = store.get_latest_prices(instrument_ids)
 

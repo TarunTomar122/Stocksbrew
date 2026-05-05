@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -199,6 +200,62 @@ def run_priority_price_pipeline(
     return summary
 
 
+def run_priority_followup_builders(
+    *,
+    market: str,
+    universe_id: str,
+    limit: int = 100,
+    skip_materialize: bool = False,
+) -> dict[str, Any]:
+    store = TraceMoneyStore()
+    ranked = _rank_instruments(store, market, universe_id, limit)
+    ids = [instrument["instrument_id"] for instrument in ranked]
+    ids_csv = ",".join(ids)
+    py = "python3"
+
+    subprocess.run([
+        py, "-m", "backend.scripts.build_stock_intel_pro",
+        "--market", market,
+        "--universe", universe_id,
+        "--instrument-ids", ids_csv,
+    ], check=True)
+    subprocess.run([
+        py, "-m", "backend.scripts.build_stock_technicals",
+        "--market", market,
+        "--universe", universe_id,
+        "--instrument-ids", ids_csv,
+    ], check=True)
+    subprocess.run([
+        py, "-m", "backend.scripts.build_market_breadth",
+        "--market", market,
+        "--universe", universe_id,
+    ], check=True)
+    subprocess.run([
+        py, "-m", "backend.scripts.build_thematic_screens",
+        "--market", market,
+        "--universe", universe_id,
+    ], check=True)
+    materialize_result = None
+    if not skip_materialize:
+        materialize_result = materialize_views(
+            market=market,
+            universe_id=universe_id,
+            instrument_ids=ids,
+            activate=False,
+            allow_missing_context=True,
+            skip_sector_scrape=True,
+            skip_dashboard=False,
+            store=store,
+        )
+    return {
+        "market": market,
+        "universe_id": universe_id,
+        "limit": limit,
+        "selected_count": len(ids),
+        "materialize": materialize_result,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run priority cohort price/materialization pipeline")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -214,6 +271,7 @@ def main() -> None:
     parser.add_argument("--require-context", action="store_true", help="Fail if intelligence/context docs are missing")
     parser.add_argument("--include-sector-scrape", action="store_true", help="Scrape live sector tiles during each cohort")
     parser.add_argument("--dry-run", action="store_true", help="Plan cohorts without writing/fetching")
+    parser.add_argument("--run-followup-builders", action="store_true", help="Run subset builders on same ranked priority IDs")
     parser.add_argument("--print-json", action="store_true")
     args = parser.parse_args()
 
@@ -236,6 +294,12 @@ def main() -> None:
         skip_sector_scrape=not args.include_sector_scrape,
         dry_run=args.dry_run,
     )
+    if args.run_followup_builders and not args.dry_run:
+        summary["followup"] = run_priority_followup_builders(
+            market=args.market,
+            universe_id=universe_id,
+            limit=args.limit,
+        )
     if args.print_json:
         print(json.dumps(summary, indent=2))
     else:

@@ -17,10 +17,18 @@ from backend.stock_scoring import score_stock
 from backend.storage import TraceMoneyStore
 
 
+def _parse_instrument_ids(value: str | None) -> set[str] | None:
+    if not value:
+        return None
+    ids = {item.strip().upper() for item in value.split(",") if item.strip()}
+    return ids or None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score stocks on four pillars")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None)
+    parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids for subset scoring")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -36,6 +44,12 @@ def main() -> None:
 
     today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruments = list_instruments(args.market, universe_id)
+    allowed_ids = _parse_instrument_ids(args.instrument_ids)
+    if allowed_ids is not None:
+        instruments = [
+            instrument for instrument in instruments
+            if str(instrument.get("instrument_id", "")).upper() in allowed_ids
+        ]
     instrument_ids = [instrument["instrument_id"] for instrument in instruments]
     today_snaps = store.get_stock_metrics_snapshots_batch(instrument_ids, today_date)
     if len(today_snaps) < len(instrument_ids):
