@@ -66,6 +66,8 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      WEB_REVALIDATE_BASE_URL: ${{ secrets.WEB_REVALIDATE_BASE_URL }}
+      WEB_REVALIDATE_TOKEN: ${{ secrets.WEB_REVALIDATE_TOKEN }}
 
     steps:
       - name: Guard scheduled ET windows
@@ -166,3 +168,7 @@ jobs:
             --session-phase manual \
             --force "$MARKET:build_user_alert_flags" \
             --force "GLOBAL:build_watchlist_views"
+
+      - name: Revalidate web cache
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        run: python -m backend.scripts.trigger_web_revalidate
