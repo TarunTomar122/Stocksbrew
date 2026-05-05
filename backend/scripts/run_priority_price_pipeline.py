@@ -31,8 +31,10 @@ def _chunked(values: list[dict[str, Any]], size: int) -> list[list[dict[str, Any
 
 def _rank_instruments(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[dict[str, Any]]:
     instruments = list_instruments(market, universe_id)
+    market_instruments = list_instruments(market, None)
     by_ticker = {str(row.get("ticker", "")).upper(): row for row in instruments}
     by_id = {str(row.get("instrument_id", "")).upper(): row for row in instruments}
+    market_by_id = {str(row.get("instrument_id", "")).upper(): row for row in market_instruments}
     universe_map = list_universes_for_market(market)
     promoted = store.get_promoted_tickers(market)
 
@@ -71,7 +73,7 @@ def _rank_instruments(store: TraceMoneyStore, market: str, universe_id: str, lim
     for macro_id in macro_ids:
         if macro_id in selected_ids:
             continue
-        instrument = by_id.get(macro_id)
+        instrument = by_id.get(macro_id) or market_by_id.get(macro_id)
         if instrument:
             selected.append(instrument)
             selected_ids.add(macro_id)
