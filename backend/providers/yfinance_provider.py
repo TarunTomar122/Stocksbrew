@@ -35,6 +35,10 @@ def yahoo_symbol_for(instrument: dict[str, Any]) -> str:
     if explicit:
         return explicit
     symbol = str(instrument.get("quote_symbol", instrument.get("ticker", ""))).strip().upper()
+    # Block Inc. migrated ticker from SQ -> XYZ. Keep backward compatibility
+    # for legacy instrument IDs/tickers until the universe is fully renamed.
+    if instrument.get("market") == "US" and symbol == "SQ":
+        return "XYZ"
     exchange = str(instrument.get("quote_exchange", instrument.get("exchange", ""))).strip().upper()
     if instrument.get("market") == "IN":
         if exchange == "BSE":
@@ -254,4 +258,3 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
             pass
 
     return out
-

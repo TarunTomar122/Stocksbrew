@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.instrument_universe import list_instruments
+from backend.instrument_universe import list_instruments, list_universes_for_market
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.sync_price_snapshots import sync_price_snapshots
 from backend.storage import TraceMoneyStore
@@ -33,6 +33,7 @@ def _rank_instruments(store: TraceMoneyStore, market: str, universe_id: str, lim
     instruments = list_instruments(market, universe_id)
     by_ticker = {str(row.get("ticker", "")).upper(): row for row in instruments}
     by_id = {str(row.get("instrument_id", "")).upper(): row for row in instruments}
+    universe_map = list_universes_for_market(market)
     promoted = store.get_promoted_tickers(market)
 
     promoted_ids: list[str] = []
@@ -61,7 +62,21 @@ def _rank_instruments(store: TraceMoneyStore, market: str, universe_id: str, lim
         ordered.append(instrument)
         seen.add(instrument_id)
 
-    return ordered[: max(1, limit)]
+    selected = ordered[: max(1, limit)]
+
+    # Always include macro/index cue instruments so "Market cues" tiles stay fresh
+    # even when stock cohorts are limited to top-N.
+    macro_ids = [iid.upper() for iid in universe_map.get("us_macro_cues", [])]
+    selected_ids = {row["instrument_id"] for row in selected}
+    for macro_id in macro_ids:
+        if macro_id in selected_ids:
+            continue
+        instrument = by_id.get(macro_id)
+        if instrument:
+            selected.append(instrument)
+            selected_ids.add(macro_id)
+
+    return selected
 
 
 def run_priority_price_pipeline(
