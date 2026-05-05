@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthButton } from "@/components/auth-button";
 import { TrackButton } from "@/components/track-button";
+import { StockRequestModal } from "@/components/stock-request-modal";
 import { useUser } from "@/lib/auth-context";
 import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
@@ -197,6 +198,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   }
 
   const showDropdown = open && query.trim().length > 0;
+  const [requestQuery, setRequestQuery] = useState<string | null>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
@@ -310,12 +312,26 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
               {showDropdown && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-[#e5e7eb] shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
                   {results.length === 0 ? (
-                    <div className="px-4 py-3 text-[14px] text-[#6b7280]">
-                      No matches. Press Enter to try{" "}
-                      <span className="font-semibold text-[#111111]">
-                        {query.trim().toUpperCase()}
-                      </span>
-                      .
+                    <div className="px-4 py-4 flex flex-col gap-2">
+                      <p className="text-[14px] text-[#6b7280]">
+                        No matches for{" "}
+                        <span className="font-semibold text-[#111111]">
+                          {query.trim().toUpperCase()}
+                        </span>
+                        .
+                      </p>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setOpen(false);
+                          setRequestQuery(query.trim().toUpperCase());
+                        }}
+                        className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#111111] px-3 py-1.5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'wght' 600" }}>add</span>
+                        Request {query.trim().toUpperCase()}
+                      </button>
                     </div>
                   ) : (
                     <ul className="max-h-[380px] overflow-y-auto py-1.5">
@@ -431,6 +447,14 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
         </div>
       </div>
 
+      {/* Stock request modal */}
+      {requestQuery && (
+        <StockRequestModal
+          query={requestQuery}
+          onClose={() => setRequestQuery(null)}
+        />
+      )}
+
       {/* Mobile full-screen search overlay */}
       {mobileSearchOpen && (
         <div className="sm:hidden fixed inset-0 z-[60] flex flex-col bg-white">
@@ -472,8 +496,22 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
             {query.trim().length === 0 ? (
               <p className="px-5 pt-8 text-[14px] text-[#9ca3af]">Type a ticker or company name</p>
             ) : results.length === 0 ? (
-              <div className="px-5 pt-8 text-[14px] text-[#6b7280]">
-                No matches — press Enter to try <span className="font-semibold text-[#111111]">{query.trim().toUpperCase()}</span>
+              <div className="px-5 pt-8 flex flex-col gap-4">
+                <p className="text-[14px] text-[#6b7280]">
+                  No matches for{" "}
+                  <span className="font-semibold text-[#111111]">{query.trim().toUpperCase()}</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileSearchOpen(false);
+                    setRequestQuery(query.trim().toUpperCase());
+                  }}
+                  className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#111111] px-4 py-2 text-[14px] font-semibold text-white"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}>add</span>
+                  Request {query.trim().toUpperCase()}
+                </button>
               </div>
             ) : (
               <ul>
