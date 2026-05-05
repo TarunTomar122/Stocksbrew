@@ -1154,6 +1154,43 @@ def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
     trigger_type = str(directive.get("trigger_type", "none"))
     trigger_value = str(directive.get("trigger_value", "")).strip()
 
+    def _has_past_date_hint(value: str) -> bool:
+        # Handles inline month-day hints like "Apr 29 earnings" and explicit
+        # ISO date mentions. If a date is in the past, the directive text
+        # should not keep implying it's upcoming.
+        today = datetime.now(timezone.utc).date()
+        iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", value)
+        if iso_match:
+            try:
+                return datetime.fromisoformat(iso_match.group(1)).date() < today
+            except Exception:
+                pass
+        month_day = re.search(
+            r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\s\-]+(\d{1,2})\b",
+            value.upper(),
+        )
+        if month_day:
+            month_map = {
+                "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+                "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+            }
+            try:
+                parsed = datetime(today.year, month_map[month_day.group(1)], int(month_day.group(2)), tzinfo=timezone.utc).date()
+                return parsed < today
+            except Exception:
+                return False
+        return False
+
+    if _has_past_date_hint(text):
+        lower = text.lower()
+        if "earnings" in lower:
+            text = "Re-evaluate on next earnings guidance"
+        else:
+            text = re.sub(r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\s\-]+\d{1,2}\b", "", text, flags=re.IGNORECASE).strip(" ,.-")
+            if not text:
+                text = "Re-evaluate on next catalyst"
+        directive["text"] = text
+
     price_match = re.search(r"\$(\d{1,7}(?:\.\d+)?)", text)
     if price_match:
         price_str = price_match.group(1)
