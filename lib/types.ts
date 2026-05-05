@@ -159,6 +159,7 @@ export type LatestPrice = {
   market: Market;
   currency?: string;
   captured_at: string;
+  updated_at?: string;
   session_phase?: string;
   quote: {
     current: number;

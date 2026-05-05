@@ -1,7 +1,9 @@
 import type { StockIntelligenceDoc } from "@/lib/stock";
+import type { TimelineEvent } from "@/lib/stock";
 
 type Props = {
   intelligence: StockIntelligenceDoc | null;
+  timeline?: TimelineEvent[] | null;
 };
 
 function sentimentMeta(label: string): { dot: string; tone: string; chipBg: string; chipFg: string } {
@@ -65,7 +67,7 @@ function formatRelative(iso?: string): string {
   return `${days}d ago`;
 }
 
-export function AiSynthesis({ intelligence }: Props) {
+export function AiSynthesis({ intelligence, timeline }: Props) {
   const vs = intelligence?.visual_summary;
   const sentimentLabel = intelligence?.overall_label ?? "neutral";
   const sentimentScore =
@@ -74,8 +76,19 @@ export function AiSynthesis({ intelligence }: Props) {
       : null;
   const meta = sentimentMeta(sentimentLabel);
 
+  const newestNewsTitle = (timeline ?? [])
+    .filter((event) => {
+      const source = String(event.source_name ?? "").toLowerCase();
+      const title = String(event.title ?? "").toLowerCase();
+      if (source.includes("scheduled market snapshot")) return false;
+      if (title.includes("price snapshot captured")) return false;
+      return Boolean(String(event.title ?? "").trim());
+    })
+    .sort((a, b) => Date.parse(String(b.published_at ?? "")) - Date.parse(String(a.published_at ?? "")))[0]?.title;
+
   const whatChanged =
     vs?.what_changed ||
+    newestNewsTitle ||
     intelligence?.today_brief ||
     "No significant news events captured in the last run.";
   const whyItMatters =

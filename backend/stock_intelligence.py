@@ -822,6 +822,7 @@ def generate_portfolio_brief(
     model = llm_model()
 
     watchlist_data = []
+    today_utc = datetime.now(timezone.utc).date()
     for doc in stock_payloads:
         price = doc.get("price", {})
         technicals = doc.get("technicals", {})
@@ -833,6 +834,10 @@ def generate_portfolio_brief(
             volume_vs_avg = round(float(volume) / max(float(avg_volume), 1.0), 2)
         except (TypeError, ValueError):
             volume_vs_avg = 0.0
+        raw_events = (facts.get("events") or [])[:3]
+        filtered_events = _filter_current_events(raw_events, today=today_utc)
+        earnings_date_raw = (doc.get("earnings") or {}).get("date")
+        earnings_date = earnings_date_raw if _is_future_or_today(earnings_date_raw, today=today_utc) else None
         watchlist_data.append({
             "ticker": doc.get("symbol", ""),
             "name": doc.get("name", ""),
@@ -855,12 +860,12 @@ def generate_portfolio_brief(
             "ownership": doc.get("ownership") or {},
             "financials": doc.get("financials") or {},
             "premium_signals": (doc.get("premiumSignals") or [])[:6],
-            "current_events": (facts.get("events") or [])[:3],
+            "current_events": filtered_events,
             "news_velocity": doc.get("newsVelocity") or {},
             "key_metric_summaries": doc.get("keyMetricSummaries") or [],
             "article_count": len(doc.get("news", [])),
             "top_news": [n.get("title", "") for n in (doc.get("news") or [])[:3]],
-            "earnings_date": (doc.get("earnings") or {}).get("date"),
+            "earnings_date": earnings_date,
             "earnings_eps_estimate": (doc.get("earnings") or {}).get("epsEstimate"),
             "streak_days": (doc.get("streak") or {}).get("days", 0),
             "streak_direction": (doc.get("streak") or {}).get("direction", "flat"),
@@ -1526,6 +1531,47 @@ def _article_quality_score(article: Article, ticker: str) -> int:
 
 def _parse_iso(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _parse_iso_date(value: str | None) -> date | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        if len(raw) >= 10:
+            return datetime.fromisoformat(raw[:10]).date()
+    except Exception:
+        return None
+    return None
+
+
+def _is_future_or_today(value: str | None, *, today: date | None = None) -> bool:
+    parsed = _parse_iso_date(value)
+    if parsed is None:
+        return False
+    baseline = today or datetime.now(timezone.utc).date()
+    return parsed >= baseline
+
+
+def _filter_current_events(events: list[dict[str, Any]] | None, *, today: date | None = None) -> list[dict[str, Any]]:
+    if not events:
+        return []
+    out: list[dict[str, Any]] = []
+    baseline = today or datetime.now(timezone.utc).date()
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        kind = str(event.get("kind", "")).strip().lower()
+        if kind != "earnings":
+            out.append(event)
+            continue
+        iso_date = str(event.get("date", "")).strip()
+        if iso_date and _is_future_or_today(iso_date, today=baseline):
+            out.append(event)
+            continue
+        # If no parseable ISO date exists, drop earnings events to avoid
+        # leaking stale date labels into the AI prompt path.
+    return out
 
 
 def _mention_series(articles: list[Article], buckets: int = 6) -> list[int]:
