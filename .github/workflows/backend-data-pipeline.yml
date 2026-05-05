@@ -12,7 +12,7 @@ on:
         required: false
         default: "auto"
       force:
-        description: "Optional stage key to force, or 'all'"
+        description: "Optional stage key(s) to force, comma-separated or repeated manually"
         required: false
         default: ""
   schedule:
@@ -65,7 +65,13 @@ jobs:
 
           CMD=(python -m backend.scripts.run_pipeline --markets "$MARKETS" --session-phase "$SESSION_PHASE")
           if [ -n "$FORCE" ]; then
-            CMD+=(--force "$FORCE")
+            IFS=',' read -r -a FORCE_KEYS <<< "$FORCE"
+            for force_key in "${FORCE_KEYS[@]}"; do
+              key="$(echo "$force_key" | xargs)"
+              if [ -n "$key" ]; then
+                CMD+=(--force "$key")
+              fi
+            done
           fi
 
           echo "Running: ${CMD[*]}"
