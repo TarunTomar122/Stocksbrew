@@ -134,3 +134,15 @@ jobs:
 
           echo "Running: ${CMD[*]}"
           "${CMD[@]}"
+
+      - name: Refresh user alerts and watchlist views
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        env:
+          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+          SEARXNG_BASE_URL: ${{ secrets.SEARXNG_BASE_URL }}
+        run: |
+          MARKET="${{ github.event.inputs.market || 'US' }}"
+          python -m backend.scripts.run_pipeline \
+            --markets "$MARKET" \
+            --session-phase manual \
+            --force "$MARKET:build_user_alert_flags,GLOBAL:build_watchlist_views"
