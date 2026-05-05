@@ -64,13 +64,23 @@ def sync_price_snapshots(
     store: TraceMoneyStore | None = None,
 ) -> dict:
     store = store or TraceMoneyStore()
-    instruments = list_instruments(market, universe_id)
     if instrument_ids is not None:
         allowed = {instrument_id.strip().upper() for instrument_id in instrument_ids if instrument_id.strip()}
+        # Resolve subset IDs against the full market catalog so callers can
+        # pass IDs outside the selected universe (e.g., macro cue instruments
+        # while running a core-stock cohort pipeline).
+        market_catalog = list_instruments(market, None)
+        market_by_id = {
+            str(instrument.get("instrument_id", "")).upper(): instrument
+            for instrument in market_catalog
+        }
         instruments = [
-            instrument for instrument in instruments
-            if str(instrument.get("instrument_id", "")).upper() in allowed
+            market_by_id[instrument_id]
+            for instrument_id in instrument_ids
+            if instrument_id.strip().upper() in market_by_id and instrument_id.strip().upper() in allowed
         ]
+    else:
+        instruments = list_instruments(market, universe_id)
     client = YFinanceClient(max_workers=max_workers)
     raw_quotes = client.fetch_quotes(instruments)
 
