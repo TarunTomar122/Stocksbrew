@@ -41,6 +41,19 @@ type Props = {
   params: Promise<{ symbol: string }>;
 };
 
+function formatRelative(iso?: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const mins = Math.round((Date.now() - then) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
   const upper = symbol.toUpperCase();
@@ -201,6 +214,7 @@ export default async function StockPage({ params }: Props) {
         currentPrice={stock.price}
         currency={currency}
         isSubscribed={subscribed}
+        fundamentalsUpdatedAt={stockFacts?.captured_at}
       />
       <TierCTA
         tier={tier}
@@ -275,7 +289,12 @@ export default async function StockPage({ params }: Props) {
           />
         )}
         {!showBriefStatus && (
-          <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} instrumentId={stock.instrument_id} />
+          <>
+            <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+              Updated {formatRelative(intelligence?.generated_at) || "—"}
+            </p>
+            <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} instrumentId={stock.instrument_id} />
+          </>
         )}
         {showSynthesis && <AiSynthesis intelligence={intelligence} />}
         {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
@@ -311,6 +330,7 @@ export default async function StockPage({ params }: Props) {
             tier={tier}
             isSubscribed={subscribed}
             isTracked={isTracked}
+            priceUpdatedAt={stock.captured_at}
           />
           <StockPageTabs
             overview={overviewContent}
@@ -336,4 +356,3 @@ function PremiumTabLock({ title, description }: { title: string; description: st
     </section>
   );
 }
-

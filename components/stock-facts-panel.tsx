@@ -7,6 +7,7 @@ type Props = {
   currentPrice?: number;
   currency?: string;
   isSubscribed?: boolean;
+  fundamentalsUpdatedAt?: string;
 };
 
 function pickNumber(...values: Array<number | null | undefined>): number | null {
@@ -39,6 +40,19 @@ function formatNumber(value?: number | null): string {
 function pctTone(value?: number | null): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "text-[#111111]";
   return value >= 0 ? "text-[#10b981]" : "text-[#ef4444]";
+}
+
+function formatRelative(iso?: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const mins = Math.round((Date.now() - then) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
 }
 
 function parseEventDateLabel(label?: string): Date | null {
@@ -148,6 +162,7 @@ export function StockFactsPanel({
   currentPrice,
   currency = "$",
   isSubscribed = false,
+  fundamentalsUpdatedAt,
 }: Props) {
   const returns = facts?.returns ?? {};
   const stats = facts?.quick_stats ?? {};
@@ -270,9 +285,14 @@ export function StockFactsPanel({
       {/* Key stats */}
       {keyStats.length > 0 && (
         <section className="flex flex-col gap-4">
-          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
-            Key stats
-          </h3>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+              Key stats
+            </h3>
+            <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+              Updated {formatRelative(fundamentalsUpdatedAt) || "—"}
+            </span>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-5">
             {keyStats.map((s) => (
               <Stat

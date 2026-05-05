@@ -208,6 +208,7 @@ export type StockSummary = {
   previous_close?: number;
   day_high?: number;
   day_low?: number;
+  captured_at?: string;
   source: "instrument" | "snapshot" | "none";
   // Fundamentals are included here so callers don't need a second
   // tm_latest_prices read via getStockFundamentals.
@@ -318,6 +319,7 @@ export async function getStockSummary(
         previous_close: quote.previous_close,
         day_high: quote.high,
         day_low: quote.low,
+        captured_at: priceData?.captured_at,
         source: "instrument",
         fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
       };
@@ -360,6 +362,7 @@ export async function getStockSummary(
         previous_close: quote.previous_close,
         day_high: quote.high,
         day_low: quote.low,
+        captured_at: fallbackPrice?.captured_at,
         source: "instrument",
         fundamentals: (fallbackPrice?.fundamentals ?? null) as StockFundamentals | null,
       };
@@ -385,6 +388,7 @@ export async function getStockSummary(
         previous_close: quote.previous_close,
         day_high: quote.high,
         day_low: quote.low,
+        captured_at: priceData?.captured_at,
         source: "snapshot",
         fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
       };

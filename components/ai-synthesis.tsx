@@ -122,9 +122,6 @@ export function AiSynthesis({ intelligence }: Props) {
             Synthesised from recent articles &amp; analyst reports — not a buy/sell
             recommendation.
           </p>
-          <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-            AI refreshed {formatRelative(intelligence?.generated_at)}
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {sentimentScore !== null && (

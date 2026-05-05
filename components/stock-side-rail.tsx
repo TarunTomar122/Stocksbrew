@@ -11,6 +11,7 @@ type Props = {
   tier: "ai_launch" | "ai_personal" | "free";
   isSubscribed: boolean;
   isTracked: boolean;
+  priceUpdatedAt?: string;
 };
 
 function sentimentDot(label?: string): string {
@@ -33,6 +34,20 @@ function relativeTime(iso?: string): string {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d ago`;
   return `${Math.floor(d / 7)}w ago`;
+}
+
+function absoluteTime(iso?: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(date);
 }
 
 const PILLARS: { key: "valuation" | "growth" | "quality" | "momentum"; label: string }[] = [
@@ -92,6 +107,7 @@ export function StockSideRail({
   tier,
   isSubscribed,
   isTracked,
+  priceUpdatedAt,
 }: Props) {
   const pct = stock.day_change_pct ?? 0;
   const abs = stock.day_change_abs ?? 0;
@@ -151,6 +167,9 @@ export function StockSideRail({
               {fmtAbs(abs, currencySymbol)} today
             </span>
           )}
+          <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#9ca3af]" title={absoluteTime(priceUpdatedAt) || "Not available"}>
+            Updated {relativeTime(priceUpdatedAt) || "—"}
+          </span>
         </div>
 
         <TrackButton
