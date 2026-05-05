@@ -19,6 +19,10 @@ on:
         description: "Pause between per-stock fetches (seconds)"
         required: false
         default: "0.25"
+      limit:
+        description: "How many priority instruments to refresh"
+        required: false
+        default: "100"
   schedule:
     # Weekly run: Sunday 03:30 UTC (Sunday night US, Monday morning IST)
     - cron: "30 3 * * 0"
@@ -61,12 +65,14 @@ jobs:
           UNIVERSE="${{ github.event.inputs.universe || '' }}"
           MAX_WORKERS="${{ github.event.inputs.max_workers || '4' }}"
           PAUSE="${{ github.event.inputs.pause || '0.25' }}"
+          LIMIT="${{ github.event.inputs.limit || '100' }}"
 
           CMD=(
             python -m backend.scripts.sync_stock_facts
             --market "$MARKET"
             --max-workers "$MAX_WORKERS"
             --pause "$PAUSE"
+            --limit "$LIMIT"
           )
 
           if [ -n "$UNIVERSE" ]; then
