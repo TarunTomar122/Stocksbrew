@@ -197,7 +197,27 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   }
 
   const showDropdown = open && query.trim().length > 0;
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+
+  // Focus mobile input when overlay opens
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      setTimeout(() => mobileInputRef.current?.focus(), 50);
+    } else {
+      setQuery("");
+    }
+  }, [mobileSearchOpen]);
+
+  // Close mobile search on ESC
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileSearchOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const navItems = NAV_ITEMS.filter((item) => !item.authOnly || user || initialAuthed);
 
@@ -255,8 +275,18 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
             </nav>
           </div>
 
-          {/* Right: search (sm+) + market + auth */}
+          {/* Right: search icon (mobile) + search input (sm+) + market + auth */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {/* Mobile search trigger */}
+            <button
+              type="button"
+              aria-label="Search"
+              onClick={() => setMobileSearchOpen(true)}
+              className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#6b7280]"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>search</span>
+            </button>
+
             <div ref={containerRef} className="relative hidden sm:block">
               <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#6b7280]">
                 search
@@ -400,6 +430,93 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
           </nav>
         </div>
       </div>
+
+      {/* Mobile full-screen search overlay */}
+      {mobileSearchOpen && (
+        <div className="sm:hidden fixed inset-0 z-[60] flex flex-col bg-white">
+          {/* Top bar */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#e5e7eb]">
+            <span className="material-symbols-outlined text-[#6b7280]" style={{ fontSize: 20 }}>search</span>
+            <input
+              ref={mobileInputRef}
+              type="text"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const picked = results[activeIndex];
+                  if (picked) { navigateTo(picked); setMobileSearchOpen(false); }
+                  else if (query.trim()) {
+                    router.push(`/stock/${encodeURIComponent(query.trim().toUpperCase())}`);
+                    setMobileSearchOpen(false);
+                    setQuery("");
+                  }
+                }
+              }}
+              placeholder="Search ticker or company…"
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 text-[16px] text-[#111111] placeholder:text-[#9ca3af] outline-none bg-transparent"
+            />
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen(false)}
+              className="text-[14px] font-semibold text-[#6b7280]"
+            >
+              Cancel
+            </button>
+          </div>
+
+          {/* Results */}
+          <div className="flex-1 overflow-y-auto">
+            {query.trim().length === 0 ? (
+              <p className="px-5 pt-8 text-[14px] text-[#9ca3af]">Type a ticker or company name</p>
+            ) : results.length === 0 ? (
+              <div className="px-5 pt-8 text-[14px] text-[#6b7280]">
+                No matches — press Enter to try <span className="font-semibold text-[#111111]">{query.trim().toUpperCase()}</span>
+              </div>
+            ) : (
+              <ul>
+                {results.map((r, i) => {
+                  const pct = formatPct(r.day_change_pct);
+                  const isTracked = trackedIds.includes(r.instrument_id);
+                  return (
+                    <li key={r.instrument_id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#f3f4f6]">
+                      <button
+                        type="button"
+                        className="flex-1 min-w-0 text-left"
+                        onClick={() => { navigateTo(r); setMobileSearchOpen(false); }}
+                      >
+                        <div className="text-[15px] font-semibold text-[#111111]">{r.ticker}</div>
+                        <div className="text-[13px] text-[#6b7280] truncate">{r.name}</div>
+                      </button>
+                      <div className="flex flex-col items-end shrink-0">
+                        {typeof r.price === "number" && (
+                          <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
+                            {r.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                        {pct && (
+                          <span className={`text-[12px] font-semibold tabular-nums ${pct.positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+                            {pct.text}
+                          </span>
+                        )}
+                      </div>
+                      <TrackButton
+                        ticker={r.ticker}
+                        instrumentId={r.instrument_id}
+                        isTracked={isTracked}
+                        isSubscribed={isSubscribed}
+                        variant="icon"
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

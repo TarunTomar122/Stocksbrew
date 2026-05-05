@@ -41,7 +41,7 @@ function StrategicDirectiveCard({ ticker, directive, instrumentId }: { ticker: s
         {ticker}
       </span>
 
-      <div className="relative z-10 flex items-start justify-between gap-4">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex flex-col gap-3 max-w-[580px] min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span
