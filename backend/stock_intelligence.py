@@ -1176,6 +1176,44 @@ def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
     return directive
 
 
+def _parse_window_date_iso(raw_window: str) -> str | None:
+    text = " ".join(str(raw_window or "").strip().split())
+    if not text:
+        return None
+    iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", text)
+    if iso_match:
+        return iso_match.group(1)
+    month_day = re.search(
+        r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\s\-]+(\d{1,2})\b",
+        text.upper(),
+    )
+    if not month_day:
+        return None
+    month_map = {
+        "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+        "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+    }
+    try:
+        month = month_map[month_day.group(1)]
+        day = int(month_day.group(2))
+        year = datetime.now(timezone.utc).year
+        parsed = datetime(year, month, day, tzinfo=timezone.utc).date()
+        return parsed.isoformat()
+    except Exception:
+        return None
+
+
+def _drop_stale_catalysts(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    kept: list[dict[str, Any]] = []
+    for card in cards:
+        window_iso = _parse_window_date_iso(str(card.get("window", "")))
+        if window_iso and window_iso < today_iso:
+            continue
+        kept.append(card)
+    return kept
+
+
 def _score_from_sentiment(value: float) -> int:
     score = 50 + (value * 50)
     return max(5, min(95, int(round(score))))
@@ -1920,6 +1958,7 @@ def build_stock_intelligence_docs(
                 and str(item.get("detail", "")).strip()
                 and "nothing concrete" not in str(item.get("event", "")).lower()
             ][:3]
+            catalyst_cards = _drop_stale_catalysts(catalyst_cards)
             risk_cards = [
                 item for item in raw_risk_cards
                 if isinstance(item, dict)
@@ -1981,6 +2020,7 @@ def build_stock_intelligence_docs(
                 "expected_impact": 1 if label in ("bullish", "constructive") else -1 if label in ("bearish", "cautious") else 0,
                 "priced_in": "med",
             }]
+        catalyst_cards = _drop_stale_catalysts(catalyst_cards)
 
         # If the plain catalyst string is a generic fallback but we have a
         # real structured catalyst card, surface the card's event instead so

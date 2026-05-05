@@ -47,8 +47,38 @@ function ColumnHeader({
   );
 }
 
+function parseWindowDate(windowLabel?: string): Date | null {
+  if (!windowLabel) return null;
+  const text = windowLabel.trim();
+  const iso = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso) {
+    const d = new Date(`${iso[1]}T00:00:00Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const short = text.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})\b/i);
+  if (!short) return null;
+  const monthMap: Record<string, number> = {
+    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+  };
+  const month = monthMap[short[1].toUpperCase()];
+  const day = Number(short[2]);
+  if (!Number.isFinite(day)) return null;
+  const year = new Date().getUTCFullYear();
+  const d = new Date(Date.UTC(year, month, day));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isPastCatalyst(windowLabel?: string): boolean {
+  const dt = parseWindowDate(windowLabel);
+  if (!dt) return false;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return dt < today;
+}
+
 export function CatalystsDriversRisks({ cards }: Props) {
-  const catalysts = cards?.catalyst_cards ?? [];
+  const catalysts = (cards?.catalyst_cards ?? []).filter((c) => !isPastCatalyst(c.window));
   const drivers = cards?.drivers ?? [];
   const risks = cards?.risk_cards ?? [];
 

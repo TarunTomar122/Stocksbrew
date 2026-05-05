@@ -99,6 +99,14 @@ function scoreTone(v?: number | null): string {
   return "text-[#9ca3af]";
 }
 
+function isSystemTimelineEvent(event: TimelineEvent): boolean {
+  const source = String(event.source_name ?? "").trim().toLowerCase();
+  const title = String(event.title ?? "").trim().toLowerCase();
+  if (source.includes("scheduled market snapshot")) return true;
+  if (title.includes("price snapshot captured")) return true;
+  return false;
+}
+
 export function StockSideRail({
   stock,
   intelPro,
@@ -115,6 +123,7 @@ export function StockSideRail({
   const arrow = positive ? "▲" : "▼";
   const changeBg = positive ? "bg-[#ecfdf5]" : "bg-[#fef2f2]";
   const changeFg = positive ? "text-[#10b981]" : "text-[#ef4444]";
+  const visibleTimeline = (timeline ?? []).filter((event) => !isSystemTimelineEvent(event));
 
   return (
     <aside className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2 lg:-mr-2 flex flex-col gap-4 w-full lg:max-w-[340px] scrollbar-hide">
@@ -235,13 +244,16 @@ export function StockSideRail({
         </div>
       )}
 
-      {timeline && timeline.length > 0 && (
+      {timeline && (
         <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-3">
           <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
             Latest news
           </h3>
-          <div className="flex flex-col">
-            {timeline.slice(0, 5).map((event, i) => {
+          {visibleTimeline.length === 0 ? (
+            <p className="text-[12px] text-[#6b7280]">No recent news yet.</p>
+          ) : (
+            <div className="flex flex-col">
+              {visibleTimeline.slice(0, 5).map((event, i) => {
               const dot = sentimentDot(event.sentiment_label);
               const hasLink = !!event.article_url;
               const Wrapper: "a" | "div" = hasLink ? "a" : "div";
@@ -285,8 +297,9 @@ export function StockSideRail({
                   </div>
                 </Wrapper>
               );
-            })}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       )}
     </aside>

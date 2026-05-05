@@ -18,7 +18,7 @@ export function SignalTileCard({ signal }: { signal: SignalTileModel }) {
           : "text-[#111111]";
 
   return (
-    <div className="flex h-full min-h-[148px] w-[168px] shrink-0 flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+    <div className="flex h-full min-h-[148px] w-[158px] shrink-0 flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
       <span
         aria-hidden
         className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"

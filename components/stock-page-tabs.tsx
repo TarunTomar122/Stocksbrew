@@ -60,7 +60,7 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
   };
 
   return (
-    <div className="flex flex-col gap-8 min-w-0">
+    <div className="flex flex-col gap-0 min-w-0">
       <div className="sticky top-16 z-30 -mx-1 bg-[var(--background)] border-b border-[#e5e7eb]">
         <nav
           className="flex flex-nowrap items-stretch gap-0 sm:gap-0.5 px-1 overflow-x-auto overscroll-x-contain scrollbar-hide touch-pan-x"
@@ -81,15 +81,15 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
                 title={label}
                 onClick={() => goTo(t.key)}
                 className={`relative flex shrink-0 items-center justify-center whitespace-nowrap px-3 py-2.5 text-[13px] font-semibold tracking-[-0.01em] transition-colors sm:px-4 sm:py-3 sm:text-[14px] min-h-[44px] ${
-                  isActive ? "text-[#0052ff]" : "text-[#6b7280] hover:text-[#111111]"
+                  isActive ? "text-[#111111]" : "text-[#6b7280] hover:text-[#111111]"
                 }`}
               >
                 <span className="inline sm:hidden">{narrowLabel}</span>
                 <span className="hidden sm:inline">{label}</span>
                 <span
                   aria-hidden
-                  className={`absolute left-2 right-2 sm:left-3 sm:right-3 -bottom-px h-0.5 rounded-full transition-all ${
-                    isActive ? "bg-[#0052ff] opacity-100" : "bg-transparent opacity-0"
+                  className={`absolute left-2 right-2 sm:left-3 sm:right-3 -bottom-px h-[3px] rounded-full transition-all ${
+                    isActive ? "bg-[#111111] opacity-100" : "bg-transparent opacity-0"
                   }`}
                 />
               </button>
@@ -98,18 +98,23 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
         </nav>
       </div>
 
-      {visible.map((t) => (
+      <div className="flex flex-col gap-20 mt-6">
+      {visible.map((t, i) => (
         <section
           key={t.key}
           id={`stock-section-${t.key}`}
-          className="scroll-mt-32 flex flex-col gap-4"
+          className="scroll-mt-32 flex flex-col gap-6"
         >
-          <h2 className="text-[20px] md:text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">
-            {t.label}
-          </h2>
+          {/* Section heading with divider — skip top border on first section */}
+          <div className={`flex flex-col gap-4 ${i > 0 ? "pt-8 border-t-2 border-[#e5e7eb]" : ""}`}>
+            <h2 className="text-[26px] md:text-[30px] font-semibold text-[#111111] tracking-[-0.03em] leading-none">
+              {t.label}
+            </h2>
+          </div>
           {content[t.key]}
         </section>
       ))}
+      </div>
     </div>
   );
 }

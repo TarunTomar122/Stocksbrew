@@ -72,17 +72,6 @@ export function SignalDeck({
   if (signals.length === 0) return null;
 
   const top = [...signals].sort((a, b) => b.importance - a.importance).slice(0, 5);
-  // Tailwind needs literal class names, so map count → class explicitly.
-  const cols =
-    top.length >= 5
-      ? "lg:grid-cols-5"
-      : top.length === 4
-        ? "lg:grid-cols-4"
-        : top.length === 3
-          ? "lg:grid-cols-3"
-          : top.length === 2
-            ? "lg:grid-cols-2"
-            : "lg:grid-cols-1";
 
   return (
     <section className="flex flex-col gap-4">
@@ -94,7 +83,15 @@ export function SignalDeck({
           {top.length} signal{top.length === 1 ? "" : "s"} from free data
         </span>
       </div>
-      <div className={`grid grid-cols-2 md:grid-cols-3 ${cols} gap-3`}>
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3 justify-start overflow-x-scroll scrollbar-hide"
+        style={{
+          gridTemplateColumns:
+            top.length >= 3
+              ? `repeat(${Math.min(top.length, 5)}, 170px)`
+              : undefined,
+        }}
+      >
         {top.map((s, i) => (
           <SignalTileCard key={`${s.label}-${i}`} signal={s} />
         ))}

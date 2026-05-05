@@ -38,6 +38,8 @@
     "backend:tm:us": "python3 -m backend.scripts.sync_price_snapshots --market US --universe us_core_155 --session-phase manual --activate && python3 -m backend.scripts.ingest_news --market US --universe us_core_155 --max-articles 36 && python3 -m backend.scripts.enrich_articles --market US --universe us_core_155 && python3 -m backend.scripts.build_stock_intelligence --market US --universe us_core_155 && python3 -m backend.scripts.build_news_intelligence --market US --universe us_core_155 --max-articles 36 && python3 -m backend.scripts.materialize_views --market US --universe us_core_155 --activate",
     "build": "next build",
     "dev": "next dev",
+    "remotion": "remotion studio",
+    "remotion:render": "remotion render TikrrLaunch out/tikrr-launch.mp4",
     "lint": "eslint .",
     "start": "next start",
     "test": "vitest run",
@@ -58,6 +60,8 @@
     "standardwebhooks": "^1.0.0"
   },
   "devDependencies": {
+    "@remotion/cli": "^4.0.457",
+    "@remotion/google-fonts": "^4.0.457",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "24.12.2",
     "@types/react": "^18.3.26",
@@ -66,6 +70,7 @@
     "eslint": "^8.57.1",
     "eslint-config-next": "13.5.11",
     "postcss": "^8.5.8",
+    "remotion": "^4.0.457",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
