@@ -114,8 +114,7 @@ def sync_price_snapshots(
             }))
 
     store.save_price_snapshots_bulk(saved_rows)
-    for instrument_id, payload in fundamental_rows:
-        store.save_fundamental_snapshot(instrument_id, payload)
+    store.save_fundamental_snapshots_bulk(fundamental_rows)
 
     if activate:
         store.save_active_price_universe(market, universe_id)
@@ -126,6 +125,20 @@ def sync_price_snapshots(
             store.merge_market_price_snapshot(market, shard_rows)
         else:
             store.save_market_price_snapshot(market, shard_rows)
+
+    store.save_stage_watermark(
+        market=market,
+        stage_key="sync_price_snapshots",
+        universe_id=universe_id,
+        expected_count=len(instruments),
+        success_count=len(saved_rows),
+        error_count=max(0, len(instruments) - len(saved_rows)),
+        metadata={
+            "session_phase": session_phase,
+            "market_rows": len(shard_rows),
+            "merge_market_snapshot": bool(merge_market_snapshot),
+        },
+    )
 
     return {
         "market": market,
@@ -140,7 +153,7 @@ def sync_price_snapshots(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync Trace Money price snapshots")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
-    parser.add_argument("--universe", default=None, help="Universe id such as us_test_5")
+    parser.add_argument("--universe", default=None, help="Universe id such as us_core_155")
     parser.add_argument(
         "--session-phase",
         choices=["pre_open", "open_check", "mid_check", "close_check", "post_close", "manual"],
@@ -158,7 +171,7 @@ def main() -> None:
     if not universe_id:
         raise ValueError(
             f"No active price universe configured for {args.market}. "
-            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+            "Set tm_config/active_universes.US_universe (US) or pass --universe."
         )
 
     result = sync_price_snapshots(

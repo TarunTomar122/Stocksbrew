@@ -56,11 +56,12 @@ type ActiveUsUniverses = {
 async function getActiveUsUniverses(): Promise<ActiveUsUniverses> {
   const doc = await adminFirestore.collection("tm_config").doc("active_universes").get();
   const data = doc.exists ? (doc.data() as JsonRecord) : {};
-  const activePriceUniverse = String(data.US_price_universe || "");
-  const activeAiUniverse = String(data.US_ai_universe || "");
+  const activeUnifiedUniverse = String(data.US_universe || "").trim();
+  const activePriceUniverse = activeUnifiedUniverse;
+  const activeAiUniverse = activeUnifiedUniverse;
   if (!activePriceUniverse || !activeAiUniverse) {
     throw new Error(
-      "Missing active universes: expected US_price_universe and US_ai_universe in tm_config/active_universes",
+      "Missing active universe: expected US_universe in tm_config/active_universes",
     );
   }
   return {

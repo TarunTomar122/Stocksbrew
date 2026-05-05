@@ -10,16 +10,15 @@ python3 -m backend.scripts.run_pipeline --markets US --session-phase auto
 
 `tm_config/active_universes` must include:
 
-- `US_price_universe`, `US_ai_universe`
-- `IN_price_universe`, `IN_ai_universe`
+- `US_universe` (single canonical US universe)
+- `IN_price_universe`, `IN_ai_universe` (legacy IN split, unchanged)
 
 No legacy fallback to `US` / `IN`.
 
 ## Operational model
 
-- `price_universe`: broad coverage for prices, technicals, scores, screens, materialized views.
-- `ai_universe`: scheduled AI/news generation scope.
-- Paid tracked stocks are added to per-stock AI generation in addition to the base AI universe.
+- `US_universe`: broad US coverage for prices, technicals, scores, views, and base AI namespaces.
+- Paid tracked stocks are added to per-stock AI generation in addition to the base US universe.
 
 ## Pipeline shape
 

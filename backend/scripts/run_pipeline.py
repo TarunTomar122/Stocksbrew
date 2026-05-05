@@ -209,6 +209,11 @@ def _price_snapshot_time(store: TraceMoneyStore, market: str, universe_id: str) 
     return _doc_time(price, "captured_at", "updated_at")
 
 
+def _stage_watermark_time(store: TraceMoneyStore, market: str, stage_key: str) -> datetime | None:
+    payload = store.get_stage_watermark(market, stage_key) or {}
+    return _doc_time(payload, "completed_at", "updated_at")
+
+
 def _local_dt(market: str, now: datetime) -> datetime:
     clock = MARKET_CLOCKS[market]
     return now.astimezone(ZoneInfo(str(clock["tz"])))
@@ -263,6 +268,9 @@ class Stage:
 def _resolve_universe(store: TraceMoneyStore, market: str, kind: str, explicit: str | None) -> str:
     if explicit:
         return explicit
+    if market == "US":
+        active = store.get_active_universe(market)
+        return active or ""
     if kind == "price":
         active = store.get_active_price_universe(market)
     else:
@@ -303,7 +311,7 @@ def _market_stages(
             command=script("sync_price_snapshots", "--market", market, "--universe", price_universe, "--session-phase", command_phase),
             ttl=DAILY,
             market=market,
-            freshness=lambda s, m=market, u=price_universe: _price_snapshot_time(s, m, u),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "sync_price_snapshots"),
             price_phase=price_phase,
             price_phase_date=phase_date,
             phase_note=phase_note,
@@ -324,7 +332,7 @@ def _market_stages(
             ),
             ttl=FIVE_DAYS,
             market=market,
-            freshness=lambda s, m=market, u=price_universe: _stock_metrics_time(s, m, u),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "sync_stock_metrics"),
         ),
         Stage(
             key=f"{market}:sync_sector_benchmarks",
@@ -363,7 +371,7 @@ def _market_stages(
             ttl=FIVE_DAYS,
             deps=[f"{market}:sync_stock_metrics", f"{market}:sync_sector_benchmarks"],
             market=market,
-            freshness=lambda s, m=market, u=price_universe: _stock_intel_pro_time(s, m, u),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "build_stock_intel_pro"),
         ),
         Stage(
             key=f"{market}:build_stock_technicals",
@@ -372,7 +380,7 @@ def _market_stages(
             ttl=DAILY,
             deps=[f"{market}:sync_price_snapshots"],
             market=market,
-            freshness=lambda s, m=market, u=price_universe: _technicals_time(s, m, u),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "build_stock_technicals"),
         ),
         Stage(
             key=f"{market}:build_market_breadth",
@@ -382,31 +390,6 @@ def _market_stages(
             deps=[f"{market}:sync_price_snapshots", f"{market}:build_stock_technicals"],
             market=market,
             freshness=lambda s, m=market: _dated_doc_time(s, "tm_market_breadth", m.upper()),
-        ),
-        Stage(
-            key=f"{market}:build_per_stock_intelligence",
-            label=f"{market} per-stock AI intelligence",
-            command=script(
-                "build_per_stock_intelligence",
-                "--market",
-                market,
-                "--universe",
-                ai_universe,
-                "--paid-only",
-                "--upsert",
-                "--broad-cap",
-                "0",
-                "--skip-context",
-                "--skip-materialize",
-            ),
-            ttl=DAILY,
-            deps=[f"{market}:build_stock_intel_pro"],
-            market=market,
-            freshness=lambda s, m=market, u=ai_universe: _doc_time(
-                (s.db.collection("tm_news_runs").document(f"{m}__{u}").get().to_dict() or {}),
-                "last_stock_intelligence_at",
-                "last_enriched_at",
-            ),
         ),
         Stage(
             key=f"{market}:build_thematic_screens",
@@ -430,7 +413,7 @@ def _market_stages(
             label=f"{market} materialized views",
             command=script("materialize_views", "--market", market, "--universe", price_universe, "--activate"),
             ttl=DAILY,
-            deps=[f"{market}:sync_price_snapshots", f"{market}:build_per_stock_intelligence"],
+            deps=[f"{market}:sync_price_snapshots", f"{market}:build_stock_intel_pro"],
             market=market,
             freshness=lambda s, m=market, u=price_universe: _doc_time(s.get_dashboard_view(m, u), "generated_at"),
         ),
@@ -448,27 +431,27 @@ def _market_stages(
             label=f"{market} heat list",
             command=script("build_heat_list", "--market", market, "--ai-universe", ai_universe, "--price-universe", price_universe),
             ttl=DAILY,
-            deps=[f"{market}:sync_price_snapshots", f"{market}:build_stock_intel_pro", f"{market}:build_stock_technicals", f"{market}:build_per_stock_intelligence"],
+            deps=[f"{market}:sync_price_snapshots", f"{market}:build_stock_intel_pro", f"{market}:build_stock_technicals"],
             market=market,
-            freshness=lambda s, m=market: _doc_time(s.get_heat_list(m), "generated_at"),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "build_heat_list"),
         ),
         Stage(
             key=f"{market}:build_divergence",
             label=f"{market} divergence",
             command=script("build_divergence", "--market", market, "--ai-universe", ai_universe, "--price-universe", price_universe),
             ttl=DAILY,
-            deps=[f"{market}:sync_price_snapshots", f"{market}:build_per_stock_intelligence"],
+            deps=[f"{market}:sync_price_snapshots", f"{market}:build_heat_list"],
             market=market,
-            freshness=lambda s, m=market: _doc_time(s.get_divergence_list(m), "generated_at"),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "build_divergence"),
         ),
         Stage(
             key=f"{market}:build_sentiment_flip",
             label=f"{market} sentiment flip",
             command=script("build_sentiment_flip", "--market", market, "--ai-universe", ai_universe, "--price-universe", price_universe),
             ttl=DAILY,
-            deps=[f"{market}:build_per_stock_intelligence"],
+            deps=[f"{market}:build_heat_list"],
             market=market,
-            freshness=lambda s, m=market: _doc_time(s.get_sentiment_flip_list(m), "generated_at"),
+            freshness=lambda s, m=market: _stage_watermark_time(s, m, "build_sentiment_flip"),
         ),
     ])
     return stages
@@ -566,6 +549,7 @@ def main() -> None:
     )
     parser.add_argument("--us-price-universe")
     parser.add_argument("--us-ai-universe")
+    parser.add_argument("--us-universe")
     parser.add_argument("--in-price-universe")
     parser.add_argument("--in-ai-universe")
     args = parser.parse_args()
@@ -593,19 +577,29 @@ def main() -> None:
     stages: list[Stage] = _global_stages()
     market_terminal_keys: list[str] = []
     for market in markets:
-        price_arg = getattr(args, f"{market.lower()}_price_universe")
-        ai_arg = getattr(args, f"{market.lower()}_ai_universe")
+        if market == "US":
+            shared_arg = getattr(args, "us_universe")
+            price_arg = shared_arg or getattr(args, "us_price_universe")
+            ai_arg = shared_arg or getattr(args, "us_ai_universe")
+        else:
+            price_arg = getattr(args, f"{market.lower()}_price_universe")
+            ai_arg = getattr(args, f"{market.lower()}_ai_universe")
         price_universe = _resolve_universe(store, market, "price", price_arg)
         ai_universe = _resolve_universe(store, market, "ai", ai_arg)
         if not price_universe or not ai_universe:
             raise ValueError(f"Could not resolve price/AI universes for {market}")
+        if market == "US":
+            ai_universe = price_universe
         logger.info(
             "pipeline market universes market=%s price_universe=%s ai_universe=%s",
             market,
             price_universe,
             ai_universe,
         )
-        print(f"{market}: price_universe={price_universe}, ai_universe={ai_universe}")
+        if market == "US":
+            print(f"{market}: universe={price_universe}")
+        else:
+            print(f"{market}: price_universe={price_universe}, ai_universe={ai_universe}")
         stages.extend(_market_stages(
             store,
             market,

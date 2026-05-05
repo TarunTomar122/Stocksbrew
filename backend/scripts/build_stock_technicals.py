@@ -120,6 +120,20 @@ def main() -> None:
         docs_payload.append(doc)
 
     store.save_stock_technical_docs(docs_payload)
+    store.save_stage_watermark(
+        market=args.market,
+        stage_key="build_stock_technicals",
+        universe_id=universe_id,
+        expected_count=len(instruments),
+        success_count=len(docs_payload),
+        error_count=max(0, len(instruments) - len(docs_payload)),
+        metadata={
+            "as_of_date": as_of_date,
+            "history_limit": int(args.history_limit),
+            "finviz_enabled": bool(not args.no_finviz and args.market == "US"),
+            "rsi_resolved": rsi_ok,
+        },
+    )
 
     if args.print_json:
         print(json.dumps({

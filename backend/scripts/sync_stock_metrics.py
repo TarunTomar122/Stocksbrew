@@ -139,6 +139,19 @@ def _sync_us(args: argparse.Namespace) -> None:
         f"{universe_id} / {snapshot_date} "
         f"(total_elapsed={time.time() - run_started:.1f}s)"
     )
+    store.save_stage_watermark(
+        market=args.market,
+        stage_key="sync_stock_metrics",
+        universe_id=universe_id,
+        expected_count=len(tickers),
+        success_count=saved,
+        error_count=max(0, len(tickers) - saved),
+        metadata={
+            "snapshot_date": snapshot_date,
+            "max_workers": int(max_workers),
+            "source": "finviz+zacks",
+        },
+    )
 
 
 def _sync_in(args: argparse.Namespace) -> None:
@@ -291,6 +304,19 @@ def _sync_in(args: argparse.Namespace) -> None:
         f"Saved {saved}/{len(instruments)} snapshots for {args.market} / "
         f"{universe_id} / {snapshot_date} "
         f"(total_elapsed={time.time() - run_started:.1f}s)"
+    )
+    store.save_stage_watermark(
+        market=args.market,
+        stage_key="sync_stock_metrics",
+        universe_id=universe_id,
+        expected_count=len(instruments),
+        success_count=saved,
+        error_count=max(0, len(instruments) - saved),
+        metadata={
+            "snapshot_date": snapshot_date,
+            "max_workers": int(max_workers),
+            "source": "screener+tickertape",
+        },
     )
 
 

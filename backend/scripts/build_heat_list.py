@@ -23,7 +23,7 @@ def main() -> None:
         default=None,
         help=(
             "AI universe id whose enrichments feed mention velocity "
-            "(e.g. us_test_10)"
+            "(e.g. us_core_155)"
         ),
     )
     parser.add_argument(
@@ -71,6 +71,19 @@ def main() -> None:
     print()
     print(f"  Saving tm_heat_list/{args.market} ...")
     store.save_heat_list(args.market, payload)
+    store.save_stage_watermark(
+        market=args.market,
+        stage_key="build_heat_list",
+        universe_id=price_universe,
+        expected_count=int(payload.get("total_instruments", 0)),
+        success_count=int(payload.get("row_count", 0)),
+        error_count=max(0, int(payload.get("total_instruments", 0)) - int(payload.get("row_count", 0))),
+        metadata={
+            "ai_universe": ai_universe,
+            "price_universe": price_universe,
+            "limit": int(args.limit),
+        },
+    )
 
     elapsed = time.time() - t0
     row_count = payload["row_count"]

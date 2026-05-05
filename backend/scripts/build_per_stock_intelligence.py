@@ -145,6 +145,18 @@ def _coerce_article(payload: dict[str, Any]) -> Article:
     return Article(**row)
 
 
+def _article_timestamp(payload: dict[str, Any]) -> datetime | None:
+    for key in ("published_at", "enriched_at", "updated_at"):
+        raw = str(payload.get(key) or "").strip()
+        if not raw:
+            continue
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
 def _fetch_chunk(
     market: str,
     universe_id: str,
@@ -190,6 +202,12 @@ def main() -> None:
     parser.add_argument("--upsert", action="store_true", help="Upsert articles/enrichments/briefs instead of replacing subcollections")
     parser.add_argument("--enrich-only", action="store_true", help="Fetch + enrich news only, skip brief synthesis")
     parser.add_argument("--synthesis-only", action="store_true", help="Build briefs from existing enrichments only")
+    parser.add_argument(
+        "--synthesis-lookback-hours",
+        type=int,
+        default=24,
+        help="When --synthesis-only, include only enrichments newer than this many hours (default 24). Set 0 to disable.",
+    )
     args = parser.parse_args()
     if args.enrich_only and args.synthesis_only:
         raise ValueError("--enrich-only and --synthesis-only cannot be combined")
@@ -199,7 +217,7 @@ def main() -> None:
     if not universe_id:
         raise ValueError(
             f"No active AI universe configured for {args.market}. "
-            "Set tm_config/active_universes.<MARKET>_ai_universe or pass --universe."
+            "Set tm_config/active_universes.US_universe (US) or pass --universe."
         )
     logger.info(
         "per_stock_intelligence start market=%s universe=%s per_stock_cap=%s broad_cap=%s skip_context=%s skip_materialize=%s include_no_news=%s",
@@ -239,7 +257,27 @@ def main() -> None:
 
     enriched_articles: list[Article]
     if args.synthesis_only:
-        enriched_payloads = store.list_article_enrichments(args.market, universe_id)
+        max_docs = max(200, len(instruments) * max(1, args.per_stock_cap) * 4)
+        enriched_payloads = store.list_article_enrichments(args.market, universe_id, limit=max_docs)
+        selected_ids = {
+            str(instrument.get("instrument_id") or "").strip().upper()
+            for instrument in instruments
+        }
+        lookback_hours = max(0, int(args.synthesis_lookback_hours))
+        cutoff = None
+        if lookback_hours > 0:
+            cutoff = datetime.now(timezone.utc).timestamp() - (lookback_hours * 3600)
+        filtered_payloads: list[dict[str, Any]] = []
+        for payload in enriched_payloads:
+            instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+            if instrument_id and instrument_id not in selected_ids:
+                continue
+            if cutoff is not None:
+                ts = _article_timestamp(payload)
+                if ts is None or ts.timestamp() < cutoff:
+                    continue
+            filtered_payloads.append(payload)
+        enriched_payloads = filtered_payloads
         enriched_articles = [_coerce_article(payload) for payload in enriched_payloads]
         print(f"[per-stock] synthesis-only loaded {len(enriched_articles)} enriched articles from {universe_id}")
     else:

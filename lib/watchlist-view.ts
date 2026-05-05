@@ -180,10 +180,11 @@ function requireUniverse(config: Record<string, unknown>, key: string): string {
 async function getActiveUniverses(): Promise<ActiveUniverses> {
   const snap = await adminFirestore.collection("tm_config").doc("active_universes").get();
   const data = (snap.exists ? snap.data() : {}) as Record<string, unknown>;
+  const usUniverse = requireUniverse(data, "US_universe");
   return {
-    US_ai: requireUniverse(data, "US_ai_universe"),
+    US_ai: usUniverse,
+    US_price: usUniverse,
     IN_ai: requireUniverse(data, "IN_ai_universe"),
-    US_price: requireUniverse(data, "US_price_universe"),
     IN_price: requireUniverse(data, "IN_price_universe"),
   };
 }
@@ -748,6 +749,9 @@ async function buildRows(
     if (marketIds.length === 0) continue;
     const priceUniverse = universes[`${market}_price` as "US_price" | "IN_price"];
     const aiUniverse = universes[`${market}_ai` as "US_ai" | "IN_ai"];
+    if (!priceUniverse || !aiUniverse) {
+      throw new Error(`Missing active universe for market ${market}`);
+    }
 
     const intelDocs = await getDocsById<Record<string, unknown>>(
       adminFirestore

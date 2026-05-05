@@ -28,8 +28,7 @@ python3 -m backend.scripts.run_pipeline
 
 # Optional: override universes or force one stale-looking stage.
 python3 -m backend.scripts.run_pipeline \
-  --us-price-universe us_core_155 \
-  --us-ai-universe us_ai_launch \
+  --us-universe us_core_155 \
   --force US:build_heat_list
 ```
 
@@ -37,10 +36,8 @@ The conservative default policy is (US-first operations):
 - prices use `--session-phase auto` by default. The runner maps the current
   local market time to `pre_open`, `open_check`, `mid_check`, `close_check`,
   or `post_close`; each phase runs at most once per market day
-- price universes should stay broad (`us_core_155`, `in_core_150`) so market,
-  sector, heat, and search surfaces have full coverage
-- AI universes should stay curated at launch (`us_test_10` / launch subset,
-  `in_ai_launch`) so LLM enrichment stays cheap and fast
+- US should use one broad universe (`us_core_155`) so market,
+  sector, heat, search, and AI all read the same namespace
 - weekends are skipped automatically for price snapshots unless you force a
   stage or pass an explicit `--session-phase`
 - technicals, breadth, screens, alerts, heat/divergence wait for a fresh price
@@ -51,10 +48,9 @@ The conservative default policy is (US-first operations):
   refresh if older than 5 days
 - `build_watchlist_views` runs once globally after market views/alerts change
 
-Universe contract (canonical, no fallbacks):
-- `*_price_universe` = broad, user-visible universe used for price/scores/views
-- `*_ai_universe` = AI/news universe used for stock intelligence generation
-- frontend display namespace is always `*_price_universe`
+Universe contract (canonical, US):
+- `US_universe` = single broad US namespace used for price/scores/views/AI
+- paid tracked stocks are unioned into AI generation at runtime
 
 To intentionally run a price phase outside its normal window:
 
@@ -68,33 +64,32 @@ Set universes to whatever is active for the environment first:
 
 ```bash
 MARKET=US
-PRICE_UNIVERSE=us_core_155
-AI_UNIVERSE=us_ai_launch
+UNIVERSE=us_core_155
 
 # 1 — refresh raw market data
-python3 -m backend.scripts.sync_price_snapshots         --market "$MARKET" --universe "$PRICE_UNIVERSE" --session-phase manual
-python3 -m backend.scripts.sync_stock_metrics           --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.sync_sector_benchmarks       --market "$MARKET" --universe "$PRICE_UNIVERSE"
+python3 -m backend.scripts.sync_price_snapshots         --market "$MARKET" --universe "$UNIVERSE" --session-phase manual
+python3 -m backend.scripts.sync_stock_metrics           --market "$MARKET" --universe "$UNIVERSE"
+python3 -m backend.scripts.sync_sector_benchmarks       --market "$MARKET" --universe "$UNIVERSE"
 
 # 2 — refresh news
-python3 -m backend.scripts.build_per_stock_intelligence --market "$MARKET" --universe "$AI_UNIVERSE" --skip-materialize
+python3 -m backend.scripts.build_per_stock_intelligence --market "$MARKET" --universe "$UNIVERSE" --skip-materialize
 
 # 3 — derived intelligence
-python3 -m backend.scripts.build_stock_intel_pro        --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.build_stock_technicals       --market "$MARKET" --universe "$PRICE_UNIVERSE"      # scrapes RSI from Finviz
-python3 -m backend.scripts.build_market_breadth         --market "$MARKET" --universe "$PRICE_UNIVERSE"
+python3 -m backend.scripts.build_stock_intel_pro        --market "$MARKET" --universe "$UNIVERSE"
+python3 -m backend.scripts.build_stock_technicals       --market "$MARKET" --universe "$UNIVERSE"      # scrapes RSI from Finviz
+python3 -m backend.scripts.build_market_breadth         --market "$MARKET" --universe "$UNIVERSE"
 
 # 4 — pre-computed views the frontend reads
-python3 -m backend.scripts.build_thematic_screens       --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.build_user_alert_flags       --market "$MARKET" --universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.materialize_views            --market "$MARKET" --universe "$PRICE_UNIVERSE" --activate
+python3 -m backend.scripts.build_thematic_screens       --market "$MARKET" --universe "$UNIVERSE"
+python3 -m backend.scripts.build_user_alert_flags       --market "$MARKET" --universe "$UNIVERSE"
+python3 -m backend.scripts.materialize_views            --market "$MARKET" --universe "$UNIVERSE" --activate
 python3 -m backend.scripts.build_watchlist_views
 python3 -m backend.scripts.build_snapshot               --market "$MARKET"
 
 # 5 — discovery / anomaly signals
-python3 -m backend.scripts.build_heat_list              --market "$MARKET" --ai-universe "$AI_UNIVERSE" --price-universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.build_divergence             --market "$MARKET" --ai-universe "$AI_UNIVERSE" --price-universe "$PRICE_UNIVERSE"
-python3 -m backend.scripts.build_sentiment_flip         --market "$MARKET" --ai-universe "$AI_UNIVERSE" --price-universe "$PRICE_UNIVERSE"
+python3 -m backend.scripts.build_heat_list              --market "$MARKET" --ai-universe "$UNIVERSE" --price-universe "$UNIVERSE"
+python3 -m backend.scripts.build_divergence             --market "$MARKET" --ai-universe "$UNIVERSE" --price-universe "$UNIVERSE"
+python3 -m backend.scripts.build_sentiment_flip         --market "$MARKET" --ai-universe "$UNIVERSE" --price-universe "$UNIVERSE"
 ```
 
 Repeat with `--market IN` if running the India market. A few stages

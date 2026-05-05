@@ -46,14 +46,21 @@ function requireUniverse(config: Record<string, string>, key: string): string {
   return value;
 }
 
+function resolveUniverse(config: Record<string, string>, market: "US" | "IN", type: "ai" | "price"): string {
+  if (market === "US") {
+    return requireUniverse(config, "US_universe");
+  }
+  return requireUniverse(config, `${market}_${type}_universe`);
+}
+
 export async function getAiUniverse(market: "US" | "IN" = "US"): Promise<string> {
   const data = await _getUniverseConfig();
-  return requireUniverse(data, `${market}_ai_universe`);
+  return resolveUniverse(data, market, "ai");
 }
 
 export async function getPriceUniverse(market: "US" | "IN" = "US"): Promise<string> {
   const data = await _getUniverseConfig();
-  return requireUniverse(data, `${market}_price_universe`);
+  return resolveUniverse(data, market, "price");
 }
 
 // ─── Materialized dashboard view ─────────────────────────────────────────────

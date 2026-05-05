@@ -15,7 +15,7 @@ from backend.storage import TraceMoneyStore
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync Trace Money instrument universe into Firestore")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
-    parser.add_argument("--universe", default=None, help="Universe id such as us_test_5")
+    parser.add_argument("--universe", default=None, help="Universe id such as us_core_155")
     parser.add_argument("--print-json", action="store_true")
     parser.add_argument("--activate", action="store_true", help="Set this universe as the active price universe")
     args = parser.parse_args()

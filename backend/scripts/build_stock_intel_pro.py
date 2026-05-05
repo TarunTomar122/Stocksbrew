@@ -53,6 +53,20 @@ def main() -> None:
         store.save_stock_intel_pro(args.market, universe_id, instrument_id, scored)
         saved += 1
 
+    store.save_stage_watermark(
+        market=args.market,
+        stage_key="build_stock_intel_pro",
+        universe_id=universe_id,
+        expected_count=len(instruments),
+        success_count=saved,
+        error_count=max(0, len(instruments) - saved),
+        metadata={
+            "as_of_date": today_date,
+            "today_snapshot_count": len(today_snaps),
+            "benchmarks_present": bool(benchmarks_doc),
+        },
+    )
+
     print(f"Scored {saved}/{len(instruments)} stocks for {args.market} / {universe_id}")
 
 

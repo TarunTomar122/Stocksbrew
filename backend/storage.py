@@ -329,6 +329,22 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
+    def save_fundamental_snapshots_bulk(self, rows: list[tuple[str, dict[str, Any]]]) -> int:
+        if not rows:
+            return 0
+        collection = self.db.collection("tm_fundamental_snapshots")
+        saved = 0
+        for start in range(0, len(rows), 450):
+            batch = self.db.batch()
+            for instrument_id, payload in rows[start:start + 450]:
+                batch.set(collection.document(instrument_id), {
+                    **payload,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }, merge=True)
+                saved += 1
+            batch.commit()
+        return saved
+
     def save_stock_facts(self, payload: dict[str, Any]) -> None:
         instrument_id = payload["instrument_id"]
         self.db.collection("tm_stock_facts").document(instrument_id).set({
@@ -389,6 +405,9 @@ class TraceMoneyStore:
 
     def save_active_price_universe(self, market: str, universe_id: str) -> None:
         market_key = str(market).upper()
+        if market_key == "US":
+            self.save_active_universe(market_key, universe_id)
+            return
         self.db.collection("tm_config").document("active_universes").set({
             f"{market_key}_price_universe": universe_id,
             "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -396,18 +415,25 @@ class TraceMoneyStore:
 
     def save_active_ai_universe(self, market: str, universe_id: str) -> None:
         market_key = str(market).upper()
+        if market_key == "US":
+            self.save_active_universe(market_key, universe_id)
+            return
         self.db.collection("tm_config").document("active_universes").set({
             f"{market_key}_ai_universe": universe_id,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
     def save_active_universe(self, market: str, universe_id: str) -> None:
-        # Legacy behavior kept for compatibility: set both price + ai universes.
-        self.save_active_price_universe(market, universe_id)
-        self.save_active_ai_universe(market, universe_id)
+        market_key = str(market).upper()
+        self.db.collection("tm_config").document("active_universes").set({
+            f"{market_key}_universe": universe_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
 
     def get_active_price_universe(self, market: str) -> str | None:
         market_key = str(market).upper()
+        if market_key == "US":
+            return self.get_active_universe(market_key)
         doc = self.db.collection("tm_config").document("active_universes").get()
         if not doc.exists:
             return None
@@ -417,6 +443,8 @@ class TraceMoneyStore:
 
     def get_active_ai_universe(self, market: str) -> str | None:
         market_key = str(market).upper()
+        if market_key == "US":
+            return self.get_active_universe(market_key)
         doc = self.db.collection("tm_config").document("active_universes").get()
         if not doc.exists:
             return None
@@ -425,9 +453,47 @@ class TraceMoneyStore:
         return str(value) if value else None
 
     def get_active_universe(self, market: str) -> str | None:
-        # Compatibility shim: callers should migrate to explicit
-        # get_active_ai_universe / get_active_price_universe.
-        return self.get_active_ai_universe(market)
+        market_key = str(market).upper()
+        doc = self.db.collection("tm_config").document("active_universes").get()
+        if not doc.exists:
+            return None
+        data = _serialize(doc.to_dict()) or {}
+        if market_key == "US":
+            value = data.get("US_universe")
+        else:
+            value = data.get(f"{market_key}_universe")
+        return str(value) if value else None
+
+    def save_stage_watermark(
+        self,
+        *,
+        market: str,
+        stage_key: str,
+        universe_id: str,
+        expected_count: int,
+        success_count: int,
+        error_count: int = 0,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        payload: dict[str, Any] = {
+            "market": str(market).upper(),
+            "stage_key": stage_key,
+            "universe_id": universe_id,
+            "expected_count": int(expected_count),
+            "success_count": int(success_count),
+            "error_count": int(error_count),
+            "coverage_ratio": (float(success_count) / float(expected_count)) if expected_count > 0 else 0.0,
+            "updated_at": now_iso,
+            "completed_at": now_iso,
+        }
+        if metadata:
+            payload["metadata"] = _serialize(metadata) or {}
+        self.db.collection("tm_stage_watermarks").document(f"{str(market).upper()}__{stage_key}").set(payload, merge=True)
+
+    def get_stage_watermark(self, market: str, stage_key: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_stage_watermarks").document(f"{str(market).upper()}__{stage_key}").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
 
     def save_dashboard_view(self, market: str, universe_id: str, payload: dict[str, Any]) -> None:
         doc_id = f"{market}__{universe_id}"
@@ -693,8 +759,12 @@ class TraceMoneyStore:
             "last_on_demand_enrichment_count": len(articles),
         }, merge=True)
 
-    def list_article_enrichments(self, market: str, universe_id: str) -> list[dict[str, Any]]:
-        docs = self._news_namespace(market, universe_id).collection("enrichments").stream()
+    def list_article_enrichments(self, market: str, universe_id: str, limit: int | None = None) -> list[dict[str, Any]]:
+        query = self._news_namespace(market, universe_id).collection("enrichments")
+        if limit and limit > 0:
+            docs = query.order_by("published_at", direction="DESCENDING").limit(limit).stream()
+        else:
+            docs = query.stream()
         rows = [_serialize(doc.to_dict()) or {} for doc in docs]
         rows.sort(key=lambda row: row.get("published_at", ""), reverse=True)
         return rows
@@ -846,7 +916,7 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_user_watchlists").document(user_id).get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
-    def save_watchlist_view(self, uid: str, payload: dict[str, Any]) -> None:
+    def save_watchlist_view(self, uid: str, payload: dict[str, Any], *, archive_previous: bool = False) -> None:
         """Write a materialized watchlist view for a user.
 
         One doc per user under `tm_watchlist_views/{uid}`. Holds the fully
@@ -854,8 +924,8 @@ class TraceMoneyStore:
         `/watchlist` page, so a page load is a single Firestore read instead
         of N per-entity lookups."""
         ref = self.db.collection("tm_watchlist_views").document(uid)
-        previous = ref.get()
-        if previous.exists:
+        previous = ref.get() if archive_previous else None
+        if previous and previous.exists:
             previous_payload = _serialize(previous.to_dict()) or {}
             history_id = str(
                 previous_payload.get("built_at")

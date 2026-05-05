@@ -136,6 +136,7 @@ def run_priority_price_pipeline(
                     activate=index == 1,
                     allow_missing_context=allow_missing_context,
                     skip_sector_scrape=skip_sector_scrape,
+                    skip_dashboard=True,
                     store=store,
                 )
             cohort_status.update({
@@ -165,6 +166,18 @@ def run_priority_price_pipeline(
     summary["status"] = "complete"
     summary["completed_at"] = _utc_now()
     if not dry_run:
+        dashboard_result = materialize_views(
+            market=market,
+            universe_id=universe_id,
+            instrument_ids=None,
+            activate=False,
+            allow_missing_context=allow_missing_context,
+            skip_sector_scrape=skip_sector_scrape,
+            skip_dashboard=False,
+            store=store,
+        )
+        summary["dashboard_refresh"] = dashboard_result
+    if not dry_run:
         store.save_price_refresh_status(market, summary)
     return summary
 
@@ -192,7 +205,7 @@ def main() -> None:
     if not universe_id:
         raise ValueError(
             f"No active price universe configured for {args.market}. "
-            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+            "Set tm_config/active_universes.US_universe (US) or pass --universe."
         )
 
     summary = run_priority_price_pipeline(

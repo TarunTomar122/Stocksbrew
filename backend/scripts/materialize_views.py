@@ -40,6 +40,25 @@ def _assert_namespace_ready(store: TraceMoneyStore, market: str, universe_id: st
         )
 
 
+def _paid_tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
+    prefix = f"{market.upper()}_"
+    seen: set[str] = set()
+    out: list[str] = []
+    for user in store.list_subscribed_users():
+        if not bool(user.get("is_subscribed")):
+            continue
+        tracked = user.get("tracked_stocks") or []
+        if not isinstance(tracked, list):
+            continue
+        for raw in tracked:
+            instrument_id = str(raw or "").strip().upper()
+            if not instrument_id or not instrument_id.startswith(prefix) or instrument_id in seen:
+                continue
+            seen.add(instrument_id)
+            out.append(instrument_id)
+    return out
+
+
 def materialize_views(
     *,
     market: str,
@@ -48,6 +67,7 @@ def materialize_views(
     activate: bool = False,
     allow_missing_context: bool = False,
     skip_sector_scrape: bool = False,
+    skip_dashboard: bool = False,
     store: TraceMoneyStore | None = None,
 ) -> dict:
     store = store or TraceMoneyStore()
@@ -60,7 +80,8 @@ def materialize_views(
         if str(instrument.get("instrument_id", "")).upper() in selected_ids
     ]
 
-    latest_prices = store.get_latest_prices(all_instrument_ids)
+    data_ids = all_instrument_ids if not skip_dashboard else [instrument["instrument_id"] for instrument in selected_instruments]
+    latest_prices = store.get_latest_prices(data_ids)
     if not latest_prices:
         raise ValueError(f"No latest prices found for {market} / {universe_id}")
 
@@ -97,32 +118,31 @@ def materialize_views(
     if not allow_missing_context:
         _assert_namespace_ready(store, market, universe_id)
 
-    stock_intelligence_docs = store.get_stock_intelligence_docs_batch(market, universe_id, all_instrument_ids)
+    stock_intelligence_docs = store.get_stock_intelligence_docs_batch(market, universe_id, data_ids)
     market_context: dict = {}
     sector_context_docs = store.list_sector_context_docs(market, universe_id)
     sector_context_by_id = {doc.get("sector_id"): doc for doc in sector_context_docs if doc.get("sector_id")}
-    price_history = {
-        instrument_id: _history_from_latest(latest_prices.get(instrument_id))
-        for instrument_id in all_instrument_ids
-    }
-
-    dashboard_view = build_dashboard_view(
-        market,
-        universe_id,
-        instruments,
-        latest_prices,
-        price_history,
-        stock_intelligence_docs,
-        market_context,
-        sector_context_docs,
-        macro_instruments=macro_instruments,
-        macro_prices=macro_prices,
-        macro_history=macro_history,
-        sector_tiles_input=sector_tiles_input,
-    )
-    store.save_dashboard_view(market, universe_id, dashboard_view)
-
-    rows_by_id = {row["instrument_id"]: row for row in dashboard_view["watchlist_rows"]}
+    price_history = {instrument_id: _history_from_latest(latest_prices.get(instrument_id)) for instrument_id in data_ids}
+    rows_by_id: dict[str, dict] = {}
+    dashboard_rows = 0
+    if not skip_dashboard:
+        dashboard_view = build_dashboard_view(
+            market,
+            universe_id,
+            instruments,
+            latest_prices,
+            price_history,
+            stock_intelligence_docs,
+            market_context,
+            sector_context_docs,
+            macro_instruments=macro_instruments,
+            macro_prices=macro_prices,
+            macro_history=macro_history,
+            sector_tiles_input=sector_tiles_input,
+        )
+        store.save_dashboard_view(market, universe_id, dashboard_view)
+        rows_by_id = {row["instrument_id"]: row for row in dashboard_view["watchlist_rows"]}
+        dashboard_rows = len(dashboard_view.get("watchlist_rows", []))
     instruments_by_id = {instrument["instrument_id"]: instrument for instrument in instruments}
     instrument_views = []
     for instrument in selected_instruments:
@@ -130,11 +150,13 @@ def materialize_views(
         latest_price = latest_prices.get(instrument_id)
         if latest_price is None:
             continue
-        related_rows = [
-            rows_by_id[peer_id]
-            for peer_id in instrument.get("peer_ids", [])
-            if peer_id in rows_by_id and peer_id in instruments_by_id
-        ]
+        related_rows = []
+        if rows_by_id:
+            related_rows = [
+                rows_by_id[peer_id]
+                for peer_id in instrument.get("peer_ids", [])
+                if peer_id in rows_by_id and peer_id in instruments_by_id
+            ]
         stock_doc = stock_intelligence_docs.get(instrument_id) or {}
         sector_id = str((stock_doc.get("sector_context") or {}).get("sector_id", "")).strip()
         instrument_views.append(build_instrument_view(
@@ -154,7 +176,7 @@ def materialize_views(
     return {
         "market": market,
         "universe_id": universe_id,
-        "dashboard_rows": len(dashboard_view.get("watchlist_rows", [])),
+        "dashboard_rows": dashboard_rows,
         "selected_count": len(selected_instruments),
         "saved_instrument_views": saved_count,
     }
@@ -163,7 +185,7 @@ def materialize_views(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Materialize low-fi dashboard and instrument views")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
-    parser.add_argument("--universe", default=None, help="Universe id such as us_test_5")
+    parser.add_argument("--universe", default=None, help="Universe id such as us_core_155")
     parser.add_argument("--activate", action="store_true", help="Set this universe as the active price/display universe")
     parser.add_argument(
         "--allow-missing-context",
@@ -171,7 +193,9 @@ def main() -> None:
         help="Allow materialization even if stock/market/sector context docs are missing.",
     )
     parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids for subset view materialization")
+    parser.add_argument("--paid-only", action="store_true", help="Materialize views only for paid users' tracked stocks")
     parser.add_argument("--skip-sector-scrape", action="store_true", help="Skip live sector scrape for fast cohort materialization")
+    parser.add_argument("--skip-dashboard", action="store_true", help="Skip dashboard rebuild (materialize selected instrument views only)")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -179,16 +203,21 @@ def main() -> None:
     if not universe_id:
         raise ValueError(
             f"No active price universe configured for {args.market}. "
-            "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
+            "Set tm_config/active_universes.US_universe (US) or pass --universe."
         )
+
+    explicit_ids = _parse_instrument_ids(args.instrument_ids)
+    paid_ids = _paid_tracked_ids(store, args.market) if args.paid_only else None
+    selected_ids = explicit_ids if explicit_ids is not None else paid_ids
 
     result = materialize_views(
         market=args.market,
         universe_id=universe_id,
-        instrument_ids=_parse_instrument_ids(args.instrument_ids),
+        instrument_ids=selected_ids,
         activate=args.activate,
         allow_missing_context=args.allow_missing_context,
         skip_sector_scrape=args.skip_sector_scrape,
+        skip_dashboard=args.skip_dashboard,
         store=store,
     )
 

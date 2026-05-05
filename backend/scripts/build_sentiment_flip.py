@@ -50,6 +50,21 @@ def main() -> None:
 
     print(f"  Saving tm_sentiment_flip/{args.market} ...")
     store.save_sentiment_flip_list(args.market, payload)
+    store.save_stage_watermark(
+        market=args.market,
+        stage_key="build_sentiment_flip",
+        universe_id=price_universe,
+        expected_count=int(payload.get("input_count", 0) or payload.get("row_count", 0)),
+        success_count=int(payload.get("row_count", 0)),
+        error_count=0,
+        metadata={
+            "ai_universe": ai_universe,
+            "price_universe": price_universe,
+            "window_days": int(args.window_days),
+            "recent_days": int(args.recent_days),
+            "limit": int(args.limit),
+        },
+    )
 
     elapsed = time.time() - t0
     row_count = payload["row_count"]

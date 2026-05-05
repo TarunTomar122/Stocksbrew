@@ -44,30 +44,16 @@ def _position_type(instrument_id: str, positions: dict[str, Any] | None) -> str:
 
 def _active_universe_cache(store: TraceMoneyStore) -> dict[str, str]:
     """Return active universe ids. Cached per build run."""
-    us_ai = store.get_active_ai_universe("US")
+    us_universe = store.get_active_universe("US")
+    if not us_universe:
+        raise ValueError("Missing active universe config key: US_universe")
     in_ai = store.get_active_ai_universe("IN")
-    us_price = store.get_active_price_universe("US")
     in_price = store.get_active_price_universe("IN")
-    missing = [
-        key
-        for key, value in {
-            "US_ai_universe": us_ai,
-            "IN_ai_universe": in_ai,
-            "US_price_universe": us_price,
-            "IN_price_universe": in_price,
-        }.items()
-        if not value
-    ]
-    if missing:
-        raise ValueError(
-            "Missing active universe config keys: "
-            + ", ".join(missing)
-        )
     return {
-        "US_ai": str(us_ai),
-        "IN_ai": str(in_ai),
-        "US_price": str(us_price),
-        "IN_price": str(in_price),
+        "US_ai": str(us_universe),
+        "IN_ai": str(in_ai or ""),
+        "US_price": str(us_universe),
+        "IN_price": str(in_price or ""),
     }
 
 

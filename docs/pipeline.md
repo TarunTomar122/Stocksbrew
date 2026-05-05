@@ -6,19 +6,18 @@ Canonical runner:
 python3 -m backend.scripts.run_pipeline --markets US --session-phase auto
 ```
 
-## Universe model (2 keys only)
+## Universe model (US single key)
 
 From `tm_config/active_universes`:
 
-- `<MARKET>_price_universe` (required)
-- `<MARKET>_ai_universe` (required)
+- `US_universe` (required)
+- `IN_price_universe`, `IN_ai_universe` (legacy IN split, unchanged)
 
 Rules:
 
-- Display + materialized dashboard/instrument views are built from `price_universe`.
-- AI briefs/news intelligence are built from `ai_universe`.
-- Paid tracked stocks are unioned into per-stock AI generation at runtime.
-- No legacy `US`/`IN` fallback keys are used.
+- US display + materialized views use `US_universe`.
+- US AI briefs/news intelligence use `US_universe`, plus paid tracked stocks unioned at runtime.
+- No legacy `US`/`IN` flat fallback keys are used.
 
 ## Stage groups (high level)
 
