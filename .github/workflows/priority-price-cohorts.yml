@@ -72,10 +72,13 @@ jobs:
 
           now_et = datetime.now(ZoneInfo("America/New_York"))
           hm = now_et.strftime("%H:%M")
-          allowed = {"09:35", "17:30"}
+          minute_of_day = now_et.hour * 60 + now_et.minute
+          in_open_window = (9 * 60 + 30) <= minute_of_day <= (9 * 60 + 45)
+          in_close_window = (17 * 60 + 25) <= minute_of_day <= (17 * 60 + 45)
           output_path = Path(os.environ["GITHUB_OUTPUT"])
-          if hm not in allowed:
-            print(f"Skipping duplicate cron trigger at ET {hm}; allowed windows: {sorted(allowed)}")
+          if not (in_open_window or in_close_window):
+            print("Skipping duplicate cron trigger at ET "
+                  f"{hm}; allowed windows: 09:30-09:45, 17:25-17:45")
             output_path.write_text("run=false\n", encoding="utf-8")
             raise SystemExit(0)
           print(f"Proceeding at ET {hm}")
