@@ -1,0 +1,109 @@
+name: Paid AI briefs
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to refresh"
+        required: false
+        default: "US"
+      universe:
+        description: "Optional AI universe id (defaults to active Firestore config)"
+        required: false
+        default: ""
+      per_stock_cap:
+        description: "Max articles per stock"
+        required: false
+        default: "5"
+      chunk_workers:
+        description: "Parallel news chunk workers"
+        required: false
+        default: "4"
+  schedule:
+    # 30-50 minutes before US open, DST and standard-time windows.
+    - cron: "45 12 * * 1-5"
+    - cron: "45 13 * * 1-5"
+  workflow_run:
+    workflows: ["Priority price cohorts"]
+    types:
+      - completed
+
+concurrency:
+  group: paid-ai-briefs-${{ github.event.inputs.market || 'US' }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Refresh paid tracked AI briefs
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+      SEARXNG_BASE_URL: ${{ secrets.SEARXNG_BASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Validate required secrets
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON secret" && exit 1)
+          test -n "$MIMO_API_KEY" || (echo "Missing MIMO_API_KEY secret" && exit 1)
+
+      - name: Refresh paid AI briefs
+        run: |
+          MARKET="${{ github.event.inputs.market || 'US' }}"
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          PER_STOCK_CAP="${{ github.event.inputs.per_stock_cap || '5' }}"
+          CHUNK_WORKERS="${{ github.event.inputs.chunk_workers || '4' }}"
+          EVENT_NAME="${{ github.event_name }}"
+
+          CMD=(
+            python -m backend.scripts.build_per_stock_intelligence
+            --market "$MARKET"
+            --paid-only
+            --upsert
+            --per-stock-cap "$PER_STOCK_CAP"
+            --broad-cap 0
+            --chunk-size 10
+            --chunk-workers "$CHUNK_WORKERS"
+            --skip-context
+            --skip-materialize
+          )
+
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            CMD+=(--enrich-only)
+          else
+            CMD+=(--synthesis-only)
+          fi
+
+          if [ -n "$UNIVERSE" ]; then
+            CMD+=(--universe "$UNIVERSE")
+          fi
+
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Materialize post-AI views
+        if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          MARKET="${{ github.event.inputs.market || 'US' }}"
+          python -m backend.scripts.materialize_views \
+            --market "$MARKET" \
+            --allow-missing-context \
+            --skip-sector-scrape

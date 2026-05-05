@@ -1,0 +1,106 @@
+name: Priority price cohorts
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to refresh"
+        required: false
+        default: "US"
+      universe:
+        description: "Optional price universe id (defaults to active Firestore config)"
+        required: false
+        default: ""
+      limit:
+        description: "Total priority instruments"
+        required: false
+        default: "100"
+      cohort_size:
+        description: "Instruments per cohort"
+        required: false
+        default: "30"
+      max_workers:
+        description: "Yfinance workers per cohort"
+        required: false
+        default: "6"
+      session_phase:
+        description: "Price phase"
+        required: false
+        default: "post_close"
+      dry_run:
+        description: "Plan cohorts without writing"
+        required: false
+        default: "false"
+  schedule:
+    # US market open refresh during daylight saving time.
+    - cron: "35 13 * * 1-5"
+    # US market open refresh during standard time.
+    - cron: "35 14 * * 1-5"
+    # US post-close during daylight saving time.
+    - cron: "30 21 * * 1-5"
+    # US post-close during standard time. The duplicate schedule is acceptable;
+    # the job is cheap and keeps the setup simple until we move scheduling into
+    # a market-calendar aware runner.
+    - cron: "30 22 * * 1-5"
+
+concurrency:
+  group: priority-price-cohorts-${{ github.event.inputs.market || 'US' }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Refresh priority cohorts
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Validate required secrets
+        run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON secret" && exit 1)
+
+      - name: Run priority cohort refresh
+        run: |
+          MARKET="${{ github.event.inputs.market || 'US' }}"
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          LIMIT="${{ github.event.inputs.limit || '100' }}"
+          COHORT_SIZE="${{ github.event.inputs.cohort_size || '30' }}"
+          MAX_WORKERS="${{ github.event.inputs.max_workers || '6' }}"
+          SESSION_PHASE="${{ github.event.inputs.session_phase || 'post_close' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+
+          CMD=(
+            python -m backend.scripts.run_priority_price_pipeline
+            --market "$MARKET"
+            --limit "$LIMIT"
+            --cohort-size "$COHORT_SIZE"
+            --max-workers "$MAX_WORKERS"
+            --session-phase "$SESSION_PHASE"
+          )
+
+          if [ -n "$UNIVERSE" ]; then
+            CMD+=(--universe "$UNIVERSE")
+          fi
+
+          if [ "$DRY_RUN" = "true" ]; then
+            CMD+=(--dry-run)
+          fi
+
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"

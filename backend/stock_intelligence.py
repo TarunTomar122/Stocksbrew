@@ -1730,9 +1730,9 @@ def build_stock_intelligence_docs(
             # Per-ticker articles (on-demand jobs) may not map cleanly
             # through the LLM entity-mention matching logic, especially for
             # stocks outside the current AI universe. Use all available
-            # articles for this instrument so the tracked stock still gets
-            # a news-backed brief — not just a fundamentals fallback.
-            if articles:
+            # articles only for true single-stock jobs so multi-stock paid
+            # refreshes do not cross-contaminate one ticker with another's news.
+            if articles and len(instruments) == 1:
                 logger.info(
                     "stock_intel no entity matches for %s — falling back to all %s articles",
                     instrument_id,

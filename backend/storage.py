@@ -165,6 +165,56 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
+    def save_price_snapshots_bulk(self, payloads: list[dict[str, Any]]) -> int:
+        """Bulk variant of save_price_snapshot.
+
+        Firestore batches cannot compute the rolling history window server-side,
+        so this method still reads existing docs first. It saves the resulting
+        latest docs in batch commits instead of one write RPC per instrument.
+        """
+        if not payloads:
+            return 0
+        latest_collection = self.db.collection("tm_latest_prices")
+        refs = [latest_collection.document(payload["instrument_id"]) for payload in payloads]
+        existing_by_id: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(refs), 500):
+            for doc in self.db.get_all(refs[start:start + 500]):
+                if doc.exists:
+                    existing_by_id[doc.id] = _serialize(doc.to_dict()) or {}
+
+        pending: list[tuple[Any, dict[str, Any]]] = []
+        updated_at = datetime.now(timezone.utc).isoformat()
+        for payload in payloads:
+            instrument_id = payload["instrument_id"]
+            existing_data = existing_by_id.get(instrument_id, {})
+            window = list(existing_data.get("history_window") or [])
+            new_point = _serialize(payload) or {}
+            new_day = _day_key(new_point.get("captured_at"))
+            if window and new_day and _day_key(window[-1].get("captured_at")) == new_day:
+                window[-1] = new_point
+            else:
+                window.append(new_point)
+                if len(window) > self.PRICE_HISTORY_WINDOW_MAX:
+                    window = window[-self.PRICE_HISTORY_WINDOW_MAX:]
+            pending.append((
+                latest_collection.document(instrument_id),
+                {
+                    **new_point,
+                    "history_window": window,
+                    "history_window_size": len(window),
+                    "updated_at": updated_at,
+                },
+            ))
+
+        saved = 0
+        for start in range(0, len(pending), 450):
+            batch = self.db.batch()
+            for ref, payload in pending[start:start + 450]:
+                batch.set(ref, payload, merge=True)
+                saved += 1
+            batch.commit()
+        return saved
+
     def save_price_history_bulk(
         self,
         instrument_id: str,
@@ -230,6 +280,26 @@ class TraceMoneyStore:
                     "rows": shard_rows,
                 })
             batch.commit()
+
+    def merge_market_price_snapshot(self, market: str, rows: list[dict[str, Any]], shard_size: int = 64) -> None:
+        """Merge refreshed rows into the current market snapshot.
+
+        Cohort refreshes only touch a subset of instruments. This preserves
+        long-tail rows from earlier runs while replacing the refreshed cohort.
+        """
+        existing = self.get_market_price_snapshot(market)
+        by_id = {
+            str(row.get("instrumentId") or row.get("instrument_id") or ""): row
+            for row in existing
+            if isinstance(row, dict) and (row.get("instrumentId") or row.get("instrument_id"))
+        }
+        for row in rows:
+            instrument_id = str(row.get("instrumentId") or row.get("instrument_id") or "")
+            if instrument_id:
+                by_id[instrument_id] = row
+        merged_rows = list(by_id.values())
+        merged_rows.sort(key=lambda row: str(row.get("symbol") or row.get("ticker") or row.get("instrumentId") or ""))
+        self.save_market_price_snapshot(market, merged_rows, shard_size=shard_size)
 
     def get_market_price_snapshot(self, market: str) -> list[dict[str, Any]]:
         market_key = str(market).upper()
@@ -500,6 +570,22 @@ class TraceMoneyStore:
     def save_instrument_view(self, instrument_id: str, universe_id: str, payload: dict[str, Any]) -> None:
         doc_id = f"{instrument_id}__{universe_id}"
         self.db.collection("tm_views_instrument").document(doc_id).set(payload)
+
+    def save_instrument_views_bulk(self, universe_id: str, payloads: list[dict[str, Any]]) -> int:
+        if not payloads:
+            return 0
+        collection = self.db.collection("tm_views_instrument")
+        saved = 0
+        for start in range(0, len(payloads), 450):
+            batch = self.db.batch()
+            for payload in payloads[start:start + 450]:
+                instrument_id = str(payload.get("instrument_id") or "").strip()
+                if not instrument_id:
+                    continue
+                batch.set(collection.document(f"{instrument_id}__{universe_id}"), payload)
+                saved += 1
+            batch.commit()
+        return saved
 
     def get_dashboard_view(self, market: str, universe_id: str) -> dict[str, Any] | None:
         doc = self.db.collection("tm_views_dashboard").document(f"{market}__{universe_id}").get()
@@ -1031,6 +1117,14 @@ class TraceMoneyStore:
     def save_promoted_tickers(self, market: str, tickers: list[dict[str, Any]]) -> None:
         self.db.collection("tm_config").document("promoted_tickers").set({
             market: tickers,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def save_price_refresh_status(self, market: str, payload: dict[str, Any]) -> None:
+        market_key = str(market).upper()
+        self.db.collection("tm_price_refresh_status").document(market_key).set({
+            **_serialize(payload),
+            "market": market_key,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 

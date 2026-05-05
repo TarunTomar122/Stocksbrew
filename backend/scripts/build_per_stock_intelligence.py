@@ -24,7 +24,8 @@ from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_pipeline import collect_per_ticker_articles
 from backend.pipeline_logging import configure_pipeline_logging
 from backend.scripts.build_context_intelligence import main as build_context_intelligence_main
-from backend.scripts.materialize_views import main as materialize_views_main
+from backend.scripts.materialize_views import materialize_views
+from backend.models import Article
 from backend.stock_intelligence import build_no_news_intelligence_doc, build_stock_intelligence_docs
 from backend.storage import TraceMoneyStore
 
@@ -131,6 +132,19 @@ def _dedupe_articles(raw_articles: list[Any]) -> list[Any]:
     return ordered
 
 
+def _parse_instrument_ids(value: str | None) -> list[str] | None:
+    if not value:
+        return None
+    ids = [item.strip().upper() for item in value.split(",") if item.strip()]
+    return ids or None
+
+
+def _coerce_article(payload: dict[str, Any]) -> Article:
+    row = dict(payload)
+    row.setdefault("body_text", "")
+    return Article(**row)
+
+
 def _fetch_chunk(
     market: str,
     universe_id: str,
@@ -153,7 +167,7 @@ def _fetch_chunk(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build per-stock AI intelligence for an AI-tier universe")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
-    parser.add_argument("--universe", required=True, help="AI-tier universe id, e.g. us_ai_launch")
+    parser.add_argument("--universe", default=None, help="AI-tier universe id, e.g. us_ai_launch")
     parser.add_argument("--per-stock-cap", type=int, default=5, help="Max articles fetched per ticker (default 5)")
     parser.add_argument("--broad-cap", type=int, default=12, help="Max broad-lane articles kept for market/sector briefs (default 12)")
     parser.add_argument(
@@ -171,136 +185,178 @@ def main() -> None:
     parser.add_argument("--include-no-news", action="store_true", help="Generate fallback briefs for stocks with no qualifying news")
     parser.add_argument("--skip-context", action="store_true", help="Skip market/sector context brief build")
     parser.add_argument("--skip-materialize", action="store_true", help="Skip dashboard/instrument view materialization")
+    parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids to refresh")
+    parser.add_argument("--paid-only", action="store_true", help="Refresh only subscribed users' tracked stocks")
+    parser.add_argument("--upsert", action="store_true", help="Upsert articles/enrichments/briefs instead of replacing subcollections")
+    parser.add_argument("--enrich-only", action="store_true", help="Fetch + enrich news only, skip brief synthesis")
+    parser.add_argument("--synthesis-only", action="store_true", help="Build briefs from existing enrichments only")
     args = parser.parse_args()
+    if args.enrich_only and args.synthesis_only:
+        raise ValueError("--enrich-only and --synthesis-only cannot be combined")
     configure_pipeline_logging()
+    store = TraceMoneyStore()
+    universe_id = str(args.universe or store.get_active_ai_universe(args.market) or "").strip()
+    if not universe_id:
+        raise ValueError(
+            f"No active AI universe configured for {args.market}. "
+            "Set tm_config/active_universes.<MARKET>_ai_universe or pass --universe."
+        )
     logger.info(
         "per_stock_intelligence start market=%s universe=%s per_stock_cap=%s broad_cap=%s skip_context=%s skip_materialize=%s include_no_news=%s",
         args.market,
-        args.universe,
+        universe_id,
         args.per_stock_cap,
         args.broad_cap,
         args.skip_context,
         args.skip_materialize,
         args.include_no_news,
     )
-
-    store = TraceMoneyStore()
-    base_instruments = list_instruments(args.market, args.universe)
-    instruments, paid_tracked_count, paid_extra_count = _merge_with_paid_tracked(
-        store,
-        args.market,
-        base_instruments,
-    )
+    requested_ids = _parse_instrument_ids(args.instrument_ids)
+    base_instruments = [] if args.paid_only else list_instruments(args.market, universe_id)
+    instruments, paid_tracked_count, paid_extra_count = _merge_with_paid_tracked(store, args.market, base_instruments)
+    if args.paid_only:
+        paid_ids = _subscribed_tracked_ids(store, args.market)
+        instruments = store.list_instruments(args.market, paid_ids) if paid_ids else []
+        paid_extra_count = len(instruments)
+    if requested_ids is not None:
+        allowed = set(requested_ids)
+        instruments = [
+            instrument for instrument in instruments
+            if str(instrument.get("instrument_id") or "").strip().upper() in allowed
+        ]
     if not instruments:
-        raise ValueError(f"No instruments found for {args.market} / {args.universe}")
+        print(f"[per-stock] no instruments selected for {args.market} / {universe_id}; exiting")
+        return
     logger.info(
         "per_stock_intelligence instrument_union market=%s universe=%s base_count=%s paid_tracked_count=%s paid_extra_count=%s total_count=%s",
         args.market,
-        args.universe,
+        universe_id,
         len(base_instruments),
         paid_tracked_count,
         paid_extra_count,
         len(instruments),
     )
 
-    print(
-        f"[per-stock] fetching per-ticker articles for {len(instruments)} instruments "
-        f"(cap {args.per_stock_cap}/ticker, broad cap {args.broad_cap})"
-    )
-    chunk_size = max(0, int(args.chunk_size))
-    chunk_workers = max(1, int(args.chunk_workers))
-    if chunk_size > 0 and len(instruments) > chunk_size:
-        chunks = _chunked(instruments, chunk_size)
-        logger.info(
-            "per_stock_intelligence chunk_fetch enabled chunks=%s chunk_size=%s workers=%s",
-            len(chunks),
-            chunk_size,
-            chunk_workers,
-        )
-        broad_articles: list[Any] = []
-        broad_health: list[dict[str, object]] = []
-        if args.broad_cap > 0:
-            broad_started = time.time()
-            broad_articles, broad_health = collect_per_ticker_articles(
-                market=args.market,
-                universe_id=args.universe,
-                per_stock_cap=0,
-                broad_cap=args.broad_cap,
-                instruments_override=[],
-            )
-            logger.info(
-                "per_stock_intelligence broad_bucket fetched articles=%s elapsed_s=%.2f",
-                len(broad_articles),
-                time.time() - broad_started,
-            )
-
-        chunk_results: list[tuple[int, list[Any], list[dict[str, object]], float]] = []
-        with ThreadPoolExecutor(max_workers=min(chunk_workers, len(chunks))) as executor:
-            futures = [
-                executor.submit(
-                    _fetch_chunk,
-                    args.market,
-                    args.universe,
-                    chunk_index=index,
-                    instruments=chunk,
-                    per_stock_cap=args.per_stock_cap,
-                )
-                for index, chunk in enumerate(chunks)
-            ]
-            for future in as_completed(futures):
-                chunk_results.append(future.result())
-        chunk_results.sort(key=lambda item: item[0])
-        for chunk_index, chunk_articles, _chunk_health, elapsed_s in chunk_results:
-            logger.info(
-                "per_stock_intelligence chunk fetched idx=%s articles=%s elapsed_s=%.2f",
-                chunk_index,
-                len(chunk_articles),
-                elapsed_s,
-            )
-
-        raw_articles = _dedupe_articles(
-            broad_articles + [article for _idx, articles, _health, _elapsed in chunk_results for article in articles]
-        )
-        source_health = broad_health + [
-            row
-            for _idx, _articles, health_rows, _elapsed in chunk_results
-            for row in health_rows
-        ]
+    enriched_articles: list[Article]
+    if args.synthesis_only:
+        enriched_payloads = store.list_article_enrichments(args.market, universe_id)
+        enriched_articles = [_coerce_article(payload) for payload in enriched_payloads]
+        print(f"[per-stock] synthesis-only loaded {len(enriched_articles)} enriched articles from {universe_id}")
     else:
-        raw_articles, source_health = collect_per_ticker_articles(
-            market=args.market,
-            universe_id=args.universe,
-            per_stock_cap=args.per_stock_cap,
-            broad_cap=args.broad_cap,
-            instruments_override=instruments,
+        print(
+            f"[per-stock] fetching per-ticker articles for {len(instruments)} instruments "
+            f"(cap {args.per_stock_cap}/ticker, broad cap {args.broad_cap})"
         )
-    print(
-        f"[per-stock] fetched {len(raw_articles)} articles across "
-        f"{sum(1 for s in source_health if s['ok'])} healthy sources"
-    )
+        chunk_size = max(0, int(args.chunk_size))
+        chunk_workers = max(1, int(args.chunk_workers))
+        if chunk_size > 0 and len(instruments) > chunk_size:
+            chunks = _chunked(instruments, chunk_size)
+            logger.info(
+                "per_stock_intelligence chunk_fetch enabled chunks=%s chunk_size=%s workers=%s",
+                len(chunks),
+                chunk_size,
+                chunk_workers,
+            )
+            broad_articles: list[Any] = []
+            broad_health: list[dict[str, object]] = []
+            if args.broad_cap > 0:
+                broad_started = time.time()
+                broad_articles, broad_health = collect_per_ticker_articles(
+                    market=args.market,
+                    universe_id=universe_id,
+                    per_stock_cap=0,
+                    broad_cap=args.broad_cap,
+                    instruments_override=[],
+                )
+                logger.info(
+                    "per_stock_intelligence broad_bucket fetched articles=%s elapsed_s=%.2f",
+                    len(broad_articles),
+                    time.time() - broad_started,
+                )
 
-    raw_payload = [article.to_dict() for article in raw_articles]
-    store.save_news_articles(args.market, args.universe, raw_payload, source_health=source_health)
+            chunk_results: list[tuple[int, list[Any], list[dict[str, object]], float]] = []
+            with ThreadPoolExecutor(max_workers=min(chunk_workers, len(chunks))) as executor:
+                futures = [
+                    executor.submit(
+                        _fetch_chunk,
+                        args.market,
+                        universe_id,
+                        chunk_index=index,
+                        instruments=chunk,
+                        per_stock_cap=args.per_stock_cap,
+                    )
+                    for index, chunk in enumerate(chunks)
+                ]
+                for future in as_completed(futures):
+                    chunk_results.append(future.result())
+            chunk_results.sort(key=lambda item: item[0])
+            for chunk_index, chunk_articles, _chunk_health, elapsed_s in chunk_results:
+                logger.info(
+                    "per_stock_intelligence chunk fetched idx=%s articles=%s elapsed_s=%.2f",
+                    chunk_index,
+                    len(chunk_articles),
+                    elapsed_s,
+                )
 
-    if not raw_articles:
-        print("[per-stock] no articles after partitioned fetch — skipping enrichment and synthesis")
-        logger.info(
-            "per_stock_intelligence early_exit reason=no_articles market=%s universe=%s instruments=%s",
-            args.market,
-            args.universe,
-            len(instruments),
+            raw_articles = _dedupe_articles(
+                broad_articles + [article for _idx, articles, _health, _elapsed in chunk_results for article in articles]
+            )
+            source_health = broad_health + [
+                row
+                for _idx, _articles, health_rows, _elapsed in chunk_results
+                for row in health_rows
+            ]
+        else:
+            raw_articles, source_health = collect_per_ticker_articles(
+                market=args.market,
+                universe_id=universe_id,
+                per_stock_cap=args.per_stock_cap,
+                broad_cap=args.broad_cap,
+                instruments_override=instruments,
+            )
+        print(
+            f"[per-stock] fetched {len(raw_articles)} articles across "
+            f"{sum(1 for s in source_health if s['ok'])} healthy sources"
         )
-        return
 
-    enricher = OpenAIArticleEnricher(store=store)
-    enriched_articles = enricher.enrich_articles(raw_articles)
-    enriched_payload = [article.to_dict() for article in enriched_articles]
-    store.save_article_enrichments(args.market, args.universe, enriched_payload)
-    print(f"[per-stock] enriched {len(enriched_articles)} articles")
+        raw_payload = [article.to_dict() for article in raw_articles]
+        if args.upsert or args.paid_only or requested_ids is not None:
+            store.upsert_news_articles(args.market, universe_id, raw_payload, source_health=source_health)
+        else:
+            store.save_news_articles(args.market, universe_id, raw_payload, source_health=source_health)
+
+        if not raw_articles:
+            print("[per-stock] no articles after partitioned fetch — skipping enrichment and synthesis")
+            logger.info(
+                "per_stock_intelligence early_exit reason=no_articles market=%s universe=%s instruments=%s",
+                args.market,
+                universe_id,
+                len(instruments),
+            )
+            return
+
+        enricher = OpenAIArticleEnricher(store=store)
+        enriched_articles = enricher.enrich_articles(raw_articles)
+        enriched_payload = [article.to_dict() for article in enriched_articles]
+        if args.upsert or args.paid_only or requested_ids is not None:
+            store.upsert_article_enrichments(args.market, universe_id, enriched_payload)
+        else:
+            store.save_article_enrichments(args.market, universe_id, enriched_payload)
+        print(f"[per-stock] enriched {len(enriched_articles)} articles")
+
+        if args.enrich_only:
+            logger.info(
+                "per_stock_intelligence enrich_only complete market=%s universe=%s enriched=%s",
+                args.market,
+                universe_id,
+                len(enriched_articles),
+            )
+            print("[per-stock] enrich-only mode complete (brief synthesis skipped)")
+            return
 
     docs = build_stock_intelligence_docs(
         args.market,
-        args.universe,
+        universe_id,
         instruments,
         enriched_articles,
         store=store,
@@ -318,7 +374,7 @@ def main() -> None:
         latest_prices = store.get_latest_prices(uncovered_ids)
         intel_pro_by_id: dict[str, dict] = {}
         try:
-            for doc in store.list_stock_intel_pro(args.market, args.universe):
+            for doc in store.list_stock_intel_pro(args.market, universe_id):
                 if isinstance(doc, dict) and doc.get("instrument_id"):
                     intel_pro_by_id[doc["instrument_id"]] = doc
         except Exception as exc:
@@ -345,7 +401,7 @@ def main() -> None:
             doc = build_no_news_intelligence_doc(
                 instrument=instrument,
                 market=args.market,
-                universe_id=args.universe,
+                universe_id=universe_id,
                 latest_price_doc=latest_price,
                 technical_doc=technical_doc,
                 intel_pro_doc=intel_pro_by_id.get(instrument_id),
@@ -359,22 +415,30 @@ def main() -> None:
             no_news_docs += 1
         print(f"[per-stock] no-news briefs: {no_news_docs} built, {skipped} skipped (missing price/LLM)")
 
-    store.save_stock_intelligence_docs(args.market, args.universe, docs)
+    if args.upsert or args.paid_only or requested_ids is not None:
+        store.upsert_stock_intelligence_docs(args.market, universe_id, docs)
+    else:
+        store.save_stock_intelligence_docs(args.market, universe_id, docs)
 
     if not args.skip_context:
         import sys
-        sys.argv = ["build_context_intelligence", "--market", args.market, "--universe", args.universe]
+        sys.argv = ["build_context_intelligence", "--market", args.market, "--universe", universe_id]
         build_context_intelligence_main()
 
     if not args.skip_materialize:
-        import sys
-        sys.argv = ["materialize_views", "--market", args.market, "--universe", args.universe]
-        materialize_views_main()
+        materialize_views(
+            market=args.market,
+            universe_id=universe_id,
+            instrument_ids=[instrument["instrument_id"] for instrument in instruments],
+            allow_missing_context=True,
+            skip_sector_scrape=True,
+            store=store,
+        )
 
     logger.info(
         "per_stock_intelligence complete market=%s universe=%s briefs=%s instruments=%s",
         args.market,
-        args.universe,
+        universe_id,
         len(docs),
         len(instruments),
     )

@@ -52,6 +52,19 @@ function visualSummaryHasCards(vs: StockIntelligenceDoc["visual_summary"]): bool
   return Boolean(w || y || t);
 }
 
+function formatRelative(iso?: string): string {
+  if (!iso) return "not refreshed yet";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "recently";
+  const mins = Math.round((Date.now() - then) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
 export function AiSynthesis({ intelligence }: Props) {
   const vs = intelligence?.visual_summary;
   const sentimentLabel = intelligence?.overall_label ?? "neutral";
@@ -108,6 +121,9 @@ export function AiSynthesis({ intelligence }: Props) {
           <p className="text-[12px] text-[#6b7280] max-w-[520px]">
             Synthesised from recent articles &amp; analyst reports — not a buy/sell
             recommendation.
+          </p>
+          <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+            AI refreshed {formatRelative(intelligence?.generated_at)}
           </p>
         </div>
         <div className="flex items-center gap-2">
