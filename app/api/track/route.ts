@@ -5,7 +5,11 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { isLaunchAITier } from "@/lib/ai-launch-tier";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
+import {
+  rebuildAndSaveWatchlistView,
+  removeWatchlistRowAndSaveView,
+  upsertWatchlistRowAndSaveView,
+} from "@/lib/watchlist-view";
 import { getAiUniverse } from "@/lib/firestore";
 
 import { FieldValue } from "firebase-admin/firestore";
@@ -195,9 +199,19 @@ function kickRebuild(
   traceId: string,
 ) {
   (async () => {
-    await rebuildAndSaveWatchlistView(uid, trackedStocks, positions);
+    // Avoid stale position races (remove/add or rapid reclassify): always
+    // rebuild from the latest persisted user doc, not request-local snapshots.
+    const latestUser = await getUserDoc(uid);
+    const latestTracked = Array.isArray(latestUser?.tracked_stocks)
+      ? latestUser!.tracked_stocks!
+      : trackedStocks;
+    const latestPositions = (latestUser?.watchlist_positions || positions) as Record<
+      string,
+      "watchlist" | "holding"
+    >;
+    await rebuildAndSaveWatchlistView(uid, latestTracked, latestPositions);
     trackApiLog(traceId, "info", "watchlist_view_rebuild_complete", {
-      tracked_count: trackedStocks.length,
+      tracked_count: latestTracked.length,
     });
   })().catch((err) => {
     trackApiLog(traceId, "error", "background_coverage_or_rebuild_failed", {
@@ -329,6 +343,22 @@ export async function POST(req: NextRequest) {
       instrument_id: instrumentId,
     });
   }
+  await upsertWatchlistRowAndSaveView(
+    session.uid,
+    instrumentId,
+    positionType,
+    nextTracked,
+    {
+      ...(existing.watchlist_positions || {}),
+      [instrumentId]: positionType,
+    },
+  ).catch((err) => {
+    trackApiLog(traceId, "warn", "watchlist_incremental_upsert_failed", {
+      uid: session.uid,
+      instrument_id: instrumentId,
+      error: String(err),
+    });
+  });
   kickRebuild(session.uid, nextTracked, {
     ...(existing.watchlist_positions || {}),
     [instrumentId]: positionType,
@@ -376,6 +406,19 @@ export async function DELETE(req: NextRequest) {
     },
     { merge: true },
   );
+
+  await removeWatchlistRowAndSaveView(
+    session.uid,
+    instrumentId,
+    nextTracked,
+    nextPositions,
+  ).catch((err) => {
+    trackApiLog(traceId, "warn", "watchlist_incremental_remove_failed", {
+      uid: session.uid,
+      instrument_id: instrumentId,
+      error: String(err),
+    });
+  });
 
   kickRebuild(session.uid, nextTracked, nextPositions, traceId);
 
