@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import NextTopLoader from "nextjs-toploader";
 
 import { AuthProvider } from "@/lib/auth-context";
+import { PostHogPageview } from "@/components/posthog-pageview";
 
 type ProvidersProps = {
   children: ReactNode;
@@ -13,6 +14,7 @@ type ProvidersProps = {
 export function Providers({ children, initialAuthed }: ProvidersProps) {
   return (
     <AuthProvider initialAuthed={initialAuthed}>
+      <PostHogPageview />
       <NextTopLoader
         color="var(--primary)"
         initialPosition={0.12}

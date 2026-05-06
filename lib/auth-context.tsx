@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import { initPostHog, posthog } from "@/lib/posthog";
 
 type AuthState = {
   user: User | null;
@@ -35,11 +36,16 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
   const [showWaitlistCongrats, setShowWaitlistCongrats] = useState(false);
 
   useEffect(() => {
+    initPostHog();
     const auth = getFirebaseAuth();
     const unsub = onIdTokenChanged(auth, async (nextUser) => {
       setUser(nextUser);
       if (loading) setLoading(false);
       if (nextUser) {
+        posthog.identify(nextUser.uid, {
+          email: nextUser.email ?? undefined,
+          name: nextUser.displayName ?? undefined,
+        });
         try {
           const idToken = await nextUser.getIdToken();
           const res = await fetch("/api/auth/session", {
@@ -57,6 +63,7 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
           // server-side session sync is best-effort
         }
       } else {
+        posthog.reset();
         try {
           await fetch("/api/auth/session", { method: "DELETE" });
         } catch {

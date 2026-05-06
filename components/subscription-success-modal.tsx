@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { posthog } from "@/lib/posthog";
 
 type Props = {
   open: boolean;
@@ -29,6 +30,9 @@ export function SubscriptionSuccessModal({ open, subscriptionId }: Props) {
     } catch {
       // Session storage may be unavailable; still show the modal once.
     }
+    posthog.capture("subscription_converted", {
+      subscription_id: subscriptionId ?? null,
+    });
     setVisible(true);
   }, [open, storageKey]);
 
@@ -93,4 +97,3 @@ export function SubscriptionSuccessModal({ open, subscriptionId }: Props) {
     </div>
   );
 }
-

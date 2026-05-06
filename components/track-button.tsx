@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { posthog } from "@/lib/posthog";
 
 type Variant = "pill" | "icon";
 type PositionType = "watchlist" | "holding";
@@ -69,6 +70,7 @@ export function TrackButton({
             return;
           }
           setLocalTracked(false);
+          posthog.capture("radar_remove_clicked", { instrument_id: instrumentId, ticker });
           router.refresh();
         } finally {
           setPendingOp(null);
@@ -115,6 +117,11 @@ export function TrackButton({
           return;
         }
         setLocalTracked(true);
+        posthog.capture("radar_add_clicked", {
+          instrument_id: instrumentId,
+          ticker,
+          position_type: positionType,
+        });
         setOpen(false);
         router.refresh();
       } finally {

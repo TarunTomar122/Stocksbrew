@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
+import { posthog } from "@/lib/posthog";
 
 type Props = {
   ticker: string;
@@ -38,6 +39,12 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       setDone(true);
+      posthog.capture("alert_set_clicked", {
+        instrument_id: instrumentId,
+        ticker,
+        condition,
+        target_price: targetPrice,
+      });
     } catch {
       setDone(false);
     } finally {

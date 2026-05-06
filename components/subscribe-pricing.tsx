@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import { posthog } from "@/lib/posthog";
 
 const PRO_BULLETS = [
   "Unlimited personal AI-tier stocks",
@@ -87,8 +88,10 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
       setLoadingPlan(period);
       try {
         await signInWithGoogle();
+        posthog.capture("subscribe_signin_started", { period });
         // Auth state is now updated; Firebase currentUser is available
         const checkoutUrl = await startCheckout(period);
+        posthog.capture("checkout_started", { period });
         window.location.href = checkoutUrl;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -102,6 +105,7 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
     setLoadingPlan(period);
     try {
       const checkoutUrl = await startCheckout(period);
+      posthog.capture("checkout_started", { period });
       window.location.href = checkoutUrl;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
