@@ -8,6 +8,16 @@ export type UserDoc = {
   is_subscribed?: boolean;
   tracked_stocks?: string[];
   watchlist_positions?: Record<string, "holding" | "watchlist">;
+  watchlist_updated_at?: string;
+  watchlist_version?: number;
+  radar_v1?: {
+    built_at?: string;
+    rows?: Array<Record<string, unknown>>;
+    suggestions?: Array<Record<string, unknown>>;
+    holdings_count?: number;
+    watchlist_count?: number;
+    tracked_count?: number;
+  };
   created_at?: string;
   last_sign_in_at?: string;
   lastCheckoutCreatedAt?: number;

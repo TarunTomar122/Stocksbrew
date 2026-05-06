@@ -5,7 +5,6 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getNewsFeed } from "@/lib/news";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { getWatchlistView, rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import { StockLogo } from "@/components/stock-logo";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
@@ -23,23 +22,20 @@ export default async function WatchlistPage() {
 
   const userDoc = await getUserDoc(session.uid);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
-  const positions = userDoc?.watchlist_positions || {};
   const isSubscribed = resolveIsSubscribed(userDoc);
   const market = getCurrentMarket();
 
-  let view = await getWatchlistView(session.uid);
-  if (!view && tracked.length > 0) {
-    view = await rebuildAndSaveWatchlistView(session.uid, tracked, positions);
-  }
+  const radar = userDoc?.radar_v1 || {};
+  const rows = (radar.rows || []) as WatchlistRow[];
+  const suggestions = (radar.suggestions || []) as Dict[];
+  const builtAt = typeof radar.built_at === "string" ? radar.built_at : undefined;
 
-  const rows = view?.rows ?? [];
   const holdings = rows
     .filter((row) => row.position_type === "holding")
     .sort(compareRadarRowsBySignals);
   const watching = rows
     .filter((row) => row.position_type !== "holding")
     .sort(compareRadarRowsBySignals);
-  const suggestions = (view?.suggestions || []) as Dict[];
   if (!isSubscribed) {
     return <UnsubscribedState />;
   }
@@ -48,7 +44,7 @@ export default async function WatchlistPage() {
     return (
       <main className="flex-grow">
         <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
-          <PageTitle rowsCount={0} builtAt={view?.built_at} />
+          <PageTitle rowsCount={tracked.length} builtAt={builtAt} />
           <EmptyState />
         </div>
       </main>
@@ -75,7 +71,7 @@ export default async function WatchlistPage() {
           </h1>
           <p className="text-[13px] text-[#6b7280]">
             {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
-            {view?.built_at ? formatRelative(view.built_at) : "never"}
+            {builtAt ? formatRelative(builtAt) : "never"}
           </p>
         </header>
 

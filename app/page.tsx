@@ -15,18 +15,15 @@ import {
   US_AI_LAUNCH_INSTRUMENTS,
 } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
-import { getDashboardView, getMarketSnapshot } from "@/lib/firestore";
 import type { SnapshotRow } from "@/lib/types";
-import { getNewsFeed, type NewsArticle } from "@/lib/news";
-import { getMacroStrip } from "@/lib/macro";
+import type { NewsArticle } from "@/lib/news";
+import { getHomeView } from "@/lib/home-view";
 import { getCurrentMarket } from "@/lib/market";
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
 import { buildMarketTiles } from "@/lib/market-tiles";
 import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
-import { getThematicScreens } from "@/lib/screens";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { getWatchlistView } from "@/lib/watchlist-view";
 
 function rowToStock(s: SnapshotRow) {
   return {
@@ -42,22 +39,36 @@ export default async function HomePage() {
   let view = null;
   let snapshotRows: SnapshotRow[] = [];
   let screens = null;
-  let macroTicks: Awaited<ReturnType<typeof getMacroStrip>> = [];
+  let macroTicks: Array<{
+    instrument_id: string;
+    ticker: string;
+    name: string;
+    price: number | null;
+    day_change_pct: number | null;
+    from_52w_high_pct: number | null;
+  }> = [];
   let news: NewsArticle[] = [];
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const userWatchlistView = session
-    ? await getWatchlistView(session.uid).catch(() => null)
-    : null;
   try {
-    [view, snapshotRows, screens, macroTicks, news] = await Promise.all([
-      getDashboardView(market),
-      getMarketSnapshot(market),
-      getThematicScreens(market),
-      getMacroStrip(market),
-      getNewsFeed(market, 30).catch(() => []),
-    ]);
+    const homeView = await getHomeView(market).catch(() => null);
+    if (homeView) {
+      view = homeView.dashboard ?? null;
+      snapshotRows = homeView.market_snapshot_rows ?? [];
+      screens = homeView.thematic_screens ?? null;
+      news = homeView.news ?? [];
+      macroTicks = (view?.market_tiles ?? [])
+        .filter((tile) => tile.type === "index" || tile.type === "macro")
+        .map((tile) => ({
+          instrument_id: tile.id,
+          ticker: tile.label,
+          name: tile.sublabel || tile.label,
+          price: tile.value,
+          day_change_pct: tile.change_pct,
+          from_52w_high_pct: null,
+        }));
+    }
   } catch (err) {
     console.error("[home] failed to load:", err);
   }

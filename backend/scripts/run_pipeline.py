@@ -473,9 +473,9 @@ def _global_stages() -> list[Stage]:
 def _watchlist_stage(changed_market_keys: list[str]) -> Stage:
     py = sys.executable
     return Stage(
-        key="GLOBAL:build_watchlist_views",
-        label="watchlist views",
-        command=[py, "-m", "backend.scripts.build_watchlist_views"],
+        key="GLOBAL:refresh_user_radar_profiles",
+        label="refresh user radar profiles",
+        command=[py, "-m", "backend.scripts.refresh_user_radar_profiles", "--no-llm"],
         ttl=DAILY,
         deps=changed_market_keys,
     )
