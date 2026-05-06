@@ -156,13 +156,21 @@ export async function POST(req: NextRequest) {
     }
     const tracked = Array.isArray(userData?.tracked_stocks) ? (userData!.tracked_stocks as string[]) : [];
     const alreadyTracked = tracked.includes(instrumentId);
+    const positions = (
+      userData?.watchlist_positions &&
+      typeof userData.watchlist_positions === "object" &&
+      !Array.isArray(userData.watchlist_positions)
+    )
+      ? { ...(userData.watchlist_positions as Record<string, "holding" | "watchlist">) }
+      : {};
+    positions[instrumentId] = positionType;
     wasAlreadyTrackedInTxn = alreadyTracked;
     sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
     tx.set(
       userRef,
       {
         tracked_stocks: alreadyTracked ? tracked : [...tracked, instrumentId],
-        [`watchlist_positions.${instrumentId}`]: positionType,
+        watchlist_positions: positions,
         watchlist_updated_at: mutationToken,
         watchlist_version: sourceVersion,
         last_tracked_at: new Date().toISOString(),
@@ -230,12 +238,20 @@ export async function DELETE(req: NextRequest) {
       return;
     }
     const tracked = Array.isArray(userData?.tracked_stocks) ? (userData!.tracked_stocks as string[]) : [];
+    const positions = (
+      userData?.watchlist_positions &&
+      typeof userData.watchlist_positions === "object" &&
+      !Array.isArray(userData.watchlist_positions)
+    )
+      ? { ...(userData.watchlist_positions as Record<string, "holding" | "watchlist">) }
+      : {};
+    delete positions[instrumentId];
     sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
     tx.set(
       userRef,
       {
         tracked_stocks: FieldValue.arrayRemove(instrumentId),
-        [`watchlist_positions.${instrumentId}`]: FieldValue.delete(),
+        watchlist_positions: positions,
         watchlist_updated_at: mutationToken,
         watchlist_version: sourceVersion,
       },
