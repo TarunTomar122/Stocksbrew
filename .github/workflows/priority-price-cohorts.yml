@@ -36,6 +36,10 @@ on:
         required: false
         default: "true"
   schedule:
+    # US pre-open refresh during daylight saving time.
+    - cron: "25 13 * * 1-5"
+    # US pre-open refresh during standard time.
+    - cron: "25 14 * * 1-5"
     # US market open refresh during daylight saving time.
     - cron: "35 13 * * 1-5"
     # US market open refresh during standard time.
@@ -83,16 +87,21 @@ jobs:
           now_et = datetime.now(ZoneInfo("America/New_York"))
           hm = now_et.strftime("%H:%M")
           minute_of_day = now_et.hour * 60 + now_et.minute
-          in_open_window = (9 * 60 + 30) <= minute_of_day <= (9 * 60 + 45)
-          in_mid_window = (10 * 60 + 30) <= minute_of_day <= (16 * 60 + 5)
-          in_close_window = (17 * 60 + 25) <= minute_of_day <= (17 * 60 + 45)
+          # Keep windows broad enough to tolerate delayed GitHub cron starts.
+          in_preopen_window = (9 * 60 + 20) <= minute_of_day <= (9 * 60 + 40)
+          in_open_window = (9 * 60 + 30) <= minute_of_day <= (9 * 60 + 55)
+          in_mid_window = (10 * 60 + 20) <= minute_of_day <= (16 * 60 + 20)
+          in_close_window = (17 * 60 + 20) <= minute_of_day <= (17 * 60 + 55)
           output_path = Path(os.environ["GITHUB_OUTPUT"])
-          if not (in_open_window or in_mid_window or in_close_window):
+          if not (in_preopen_window or in_open_window or in_mid_window or in_close_window):
             print("Skipping duplicate cron trigger at ET "
-                  f"{hm}; allowed windows: 09:30-09:45, 10:30-16:05, 17:25-17:45")
+                  f"{hm}; allowed windows: 09:20-09:40(pre), 09:30-09:55(open), "
+                  "10:20-16:20(mid), 17:20-17:55(close)")
             output_path.write_text("run=false\nsession_phase=manual\n", encoding="utf-8")
             raise SystemExit(0)
-          if in_open_window:
+          if in_preopen_window:
+            phase = "pre_open"
+          elif in_open_window:
             phase = "open_check"
           elif in_close_window:
             phase = "post_close"
@@ -156,19 +165,18 @@ jobs:
           echo "Running: ${CMD[*]}"
           "${CMD[@]}"
 
-      - name: Refresh user alerts and watchlist views
-        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
-        env:
-          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
-          SEARXNG_BASE_URL: ${{ secrets.SEARXNG_BASE_URL }}
+      - name: Refresh user alerts
+        if: ${{ (github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true') && (github.event_name != 'schedule' || steps.schedule_guard.outputs.session_phase != 'mid_check') }}
         run: |
           MARKET="${{ github.event.inputs.market || 'US' }}"
-          python -m backend.scripts.run_pipeline \
-            --markets "$MARKET" \
-            --session-phase manual \
-            --force "$MARKET:build_user_alert_flags" \
-            --force "GLOBAL:build_watchlist_views"
+          python -m backend.scripts.build_user_alert_flags --market "$MARKET"
+
+      - name: Refresh watchlist views (shallow)
+        if: ${{ (github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true') && (github.event_name != 'schedule' || steps.schedule_guard.outputs.session_phase != 'mid_check') }}
+        run: python -m backend.scripts.build_watchlist_views --no-llm
 
       - name: Revalidate web cache
         if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        env:
+          WEB_REVALIDATE_PATHS: "/"
         run: python -m backend.scripts.trigger_web_revalidate
