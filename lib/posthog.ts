@@ -6,6 +6,13 @@ let inited = false;
 
 export function initPostHog() {
   if (inited) return posthog;
+  if (typeof window === "undefined") return posthog;
+  const host = window.location.hostname;
+  const isLocal =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".local");
+  if (isLocal || process.env.NODE_ENV !== "production") return posthog;
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return posthog;
 
@@ -20,4 +27,3 @@ export function initPostHog() {
 }
 
 export { posthog };
-
