@@ -1,0 +1,36 @@
+"use client";
+
+import { useEffect } from "react";
+
+type Props = {
+  ticker: string;
+  instrumentId: string;
+  market: "US" | "IN";
+};
+
+export function StockViewTracker({ ticker, instrumentId, market }: Props) {
+  useEffect(() => {
+    const storageKey = `tikrr_stock_view:${instrumentId}`;
+    const throttleMs = 6 * 60 * 60 * 1000;
+    try {
+      const last = Number(window.localStorage.getItem(storageKey) || "0");
+      if (Number.isFinite(last) && Date.now() - last < throttleMs) return;
+      window.localStorage.setItem(storageKey, String(Date.now()));
+    } catch {
+      // If storage is unavailable, still record the view; the server buckets writes.
+    }
+    const payload = {
+      ticker,
+      instrument_id: instrumentId,
+      market,
+    };
+    fetch("/api/stock-view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, [ticker, instrumentId, market]);
+
+  return null;
+}
