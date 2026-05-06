@@ -7,6 +7,7 @@ import { getNewsFeed } from "@/lib/news";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getWatchlistView, rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
+import { StockLogo } from "@/components/stock-logo";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { WatchlistNewsPanel } from "@/components/watchlist-news-panel";
 

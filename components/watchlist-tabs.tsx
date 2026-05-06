@@ -52,7 +52,7 @@ function formatSignedAbs(v: unknown, currency: unknown): string {
   }
 }
 
-function groupSummary(rows: WatchlistRow[]): { avgPct: number | null; totalAbs: number | null; currency: string; up: number; down: number } {
+function groupSummary(rows: WatchlistRow[]): { avgPct: number | null; totalAbs: number | null; currency: string } {
   const pcts = rows.map((r) => num(r.day_change_pct)).filter((n): n is number => n !== null);
   const absPairs = rows.filter((r) => num(r.day_change_abs) !== null);
   const avgPct = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
@@ -103,9 +103,6 @@ function StockRow({ row }: { row: WatchlistRow }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="text-[15px] font-semibold text-[#111111]">{row.ticker}</span>
-            {row.name && (
-              <span className="truncate text-[12px] text-[#9ca3af]">{row.name}</span>
-            )}
           </div>
           {hasChips && (
             <div className="mt-1 flex flex-wrap gap-1">
