@@ -4,12 +4,10 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getNewsFeed } from "@/lib/news";
-import { getSearchIndex } from "@/lib/search";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getWatchlistView, rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
-import { StockLogo } from "@/components/stock-logo";
-import { WatchlistAddStock } from "@/components/watchlist-add-stock";
+import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { WatchlistNewsPanel } from "@/components/watchlist-news-panel";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +25,6 @@ export default async function WatchlistPage() {
   const positions = userDoc?.watchlist_positions || {};
   const isSubscribed = resolveIsSubscribed(userDoc);
   const market = getCurrentMarket();
-  const searchIndex = await getSearchIndex(market).catch(() => []);
 
   let view = await getWatchlistView(session.uid);
   if (!view && tracked.length > 0) {
@@ -71,38 +68,17 @@ export default async function WatchlistPage() {
   return (
     <main className="flex-grow">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-8 px-3 sm:px-6 md:px-20 lg:px-32 py-6 lg:py-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1.5">
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[34px]">
-              Radar
-            </h1>
-            <p className="text-[13px] text-[#6b7280]">
-              {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
-              {view?.built_at ? formatRelative(view.built_at) : "never"}
-            </p>
-          </div>
-          <WatchlistAddStock
-            searchIndex={searchIndex}
-            trackedIds={tracked}
-            isSubscribed={isSubscribed}
-          />
+        <header className="flex flex-col gap-1.5">
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[34px]">
+            Radar
+          </h1>
+          <p className="text-[13px] text-[#6b7280]">
+            {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
+            {view?.built_at ? formatRelative(view.built_at) : "never"}
+          </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-6 xl:gap-8">
-          <RadarColumn
-            title="Holdings"
-            countLabel={`${holdings.length} ${holdings.length === 1 ? "stock" : "stocks"}`}
-            rows={holdings}
-            empty="No holdings yet — open a stock you own and mark it as a holding."
-          />
-          <RadarColumn
-            title="Watching"
-            countLabel={`${watching.length} ${watching.length === 1 ? "stock" : "stocks"}`}
-            rows={watching}
-            empty="Nothing in Watching — add tickers from any stock page."
-          />
-          <SuggestionsBlock suggestions={suggestions} />
-        </div>
+        <WatchlistTabs holdings={holdings} watching={watching} suggestions={suggestions} />
 
         <div className="border-t border-[#e5e7eb] pt-10">
           <WatchlistNewsPanel articles={radarArticles} radarTickers={radarTickers} />

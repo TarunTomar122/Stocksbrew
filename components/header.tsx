@@ -228,7 +228,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   ).filter((item): item is (typeof NAV_ITEMS)[number] => item != null);
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white border-b border-[#e5e7eb]">
+    <header className="sticky top-0 z-[65] w-full bg-white border-b border-[#e5e7eb]">
       <div className="mx-auto w-full max-w-screen-2xl">
         <div className="flex h-16 items-center justify-between gap-2 px-6 md:gap-0 md:px-10 lg:px-16">
           {/* Left: wordmark (+ desktop nav md+) */}
@@ -457,7 +457,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
 
       {/* Mobile full-screen search overlay */}
       {mobileSearchOpen && (
-        <div className="sm:hidden fixed inset-0 z-[60] flex flex-col bg-white">
+        <div className="sm:hidden fixed inset-0 z-[80] flex flex-col bg-white">
           {/* Top bar */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[#e5e7eb]">
             <span className="material-symbols-outlined text-[#6b7280]" style={{ fontSize: 20 }}>search</span>
