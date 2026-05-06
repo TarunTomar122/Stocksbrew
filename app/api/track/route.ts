@@ -238,6 +238,18 @@ async function ensureOnDemandCoverage(
   }
 }
 
+async function isTrackedByAnotherUser(
+  uid: string,
+  instrumentId: string,
+): Promise<boolean> {
+  const snap = await adminFirestore
+    .collection("users")
+    .where("tracked_stocks", "array-contains", instrumentId)
+    .limit(10)
+    .get();
+  return snap.docs.some((doc) => doc.id !== uid);
+}
+
 export async function POST(req: NextRequest) {
   const traceId = randomUUID();
   const session = await getSessionUser();
@@ -302,7 +314,15 @@ export async function POST(req: NextRequest) {
     : [...current, instrumentId];
   const wasAlreadyTracked = current.includes(instrumentId);
   if (!wasAlreadyTracked) {
-    await ensureOnDemandCoverage(session.uid, instrumentId, traceId);
+    const alreadyTrackedElsewhere = await isTrackedByAnotherUser(session.uid, instrumentId);
+    if (!alreadyTrackedElsewhere) {
+      await ensureOnDemandCoverage(session.uid, instrumentId, traceId);
+    } else {
+      trackApiLog(traceId, "info", "on_demand_dispatch_skipped_already_tracked_globally", {
+        uid: session.uid,
+        instrument_id: instrumentId,
+      });
+    }
   } else {
     trackApiLog(traceId, "info", "on_demand_dispatch_skipped_already_tracked", {
       uid: session.uid,

@@ -151,6 +151,10 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-track-modal-root='true']")) {
+        return;
+      }
       if (!containerRef.current?.contains(e.target as Node)) {
         setOpen(false);
       }

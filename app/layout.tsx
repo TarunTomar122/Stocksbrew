@@ -130,7 +130,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers initialAuthed={Boolean(session)}>
-          <LaunchBanner />
+          {!isSubscribed && <LaunchBanner />}
           <Header
             searchIndex={searchIndex}
             market={market}

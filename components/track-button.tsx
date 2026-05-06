@@ -157,6 +157,16 @@ export function TrackButton({
       {variant === "icon" ? (
         <button
           type="button"
+          onMouseDown={(e) => {
+            // Search dropdown listens on document mousedown and can unmount this
+            // row before the modal interaction completes.
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onClick={onPrimaryClick}
           disabled={pending}
           aria-label={localTracked ? `Remove ${ticker} from Radar` : `Add ${ticker} to Radar`}
@@ -272,6 +282,7 @@ function TrackModal({
 
   const modal = (
     <div
+      data-track-modal-root="true"
       className="fixed inset-0 z-[200] flex items-center justify-center px-4"
       role="dialog"
       aria-modal="true"
