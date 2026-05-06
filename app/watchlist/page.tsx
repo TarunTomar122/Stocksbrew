@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getNewsFeed } from "@/lib/news";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { getWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import { StockLogo } from "@/components/stock-logo";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
@@ -25,10 +26,16 @@ export default async function WatchlistPage() {
   const isSubscribed = resolveIsSubscribed(userDoc);
   const market = getCurrentMarket();
 
+  const watchlistView = await getWatchlistView(session.uid).catch(() => null);
   const radar = userDoc?.radar_v1 || {};
-  const rows = (radar.rows || []) as WatchlistRow[];
-  const suggestions = (radar.suggestions || []) as Dict[];
-  const builtAt = typeof radar.built_at === "string" ? radar.built_at : undefined;
+  const rows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
+  const suggestions = (watchlistView?.suggestions || radar.suggestions || []) as Dict[];
+  const builtAt =
+    typeof watchlistView?.built_at === "string"
+      ? watchlistView.built_at
+      : typeof radar.built_at === "string"
+        ? radar.built_at
+        : undefined;
 
   const holdings = rows
     .filter((row) => row.position_type === "holding")
