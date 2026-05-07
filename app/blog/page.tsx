@@ -1,8 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { allBlogPosts } from "@/lib/blog-data";
 
-export const metadata = {
-  title: "Blog · Tikrr",
-  description: "Posts on building Tikrr, what we're seeing in markets, and the methodology behind our briefs and screens.",
+export const metadata: Metadata = {
+  title: "Blog",
+  description: "Insights on market intelligence, AI-powered analysis, and smarter investing. From the makers of tikrr.online.",
+  alternates: { canonical: "/blog" },
+  openGraph: {
+    title: "Blog — Market Intelligence Insights · Tikrr",
+    description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
+    url: "https://www.tikrr.online/blog",
+  },
+  twitter: {
+    title: "Blog — Market Intelligence Insights · Tikrr",
+    description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
+  },
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  intelligence: "bg-[#ecfdf5] text-[#10b981]",
+  tools: "bg-[#eef2ff] text-[#6366f1]",
+  comparison: "bg-[#fef3c7] text-[#d97706]",
 };
 
 export default function BlogPage() {
@@ -17,27 +35,35 @@ export default function BlogPage() {
             Notes from the desk.
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Posts on building Tikrr, what we're seeing in markets, and the methodology behind our briefs and screens. First post coming soon.
+            Insights on market intelligence, AI-powered analysis, and smarter investing. No jargon, no hype, just what works.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-dashed border-[#e5e7eb] bg-[#f8f9fa] px-6 py-10 flex flex-col items-start gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[11px] font-semibold tracking-[0.1em] uppercase text-[#6b7280]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#0052ff]" />
-            Coming soon
-          </span>
-          <h2 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
-            We're writing the first few pieces.
-          </h2>
-          <p className="text-[14px] text-[#6b7280] leading-[1.55] max-w-[560px]">
-            In the meantime, check out our <Link href="/learn" className="text-[#0052ff] font-medium underline">Learn to Invest</Link> section — 50 free guides for beginners and intermediate investors.
-          </p>
-          <a
-            href="mailto:hello@tikrr.com?subject=Blog%20updates"
-            className="mt-2 inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-          >
-            Notify me
-          </a>
+        <section className="flex flex-col gap-5">
+          {allBlogPosts.map((post) => (
+            <Link
+              key={post.slug}
+              href={`/blog/${post.slug}`}
+              className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-6 hover:border-[#111111] hover:shadow-card-hover transition-all duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase ${CATEGORY_COLORS[post.category] || "bg-[#f3f4f6] text-[#6b7280]"}`}
+                >
+                  {post.category}
+                </span>
+                <span className="text-[12px] text-[#9ca3af]">{post.date}</span>
+                <span className="text-[12px] text-[#9ca3af]">·</span>
+                <span className="text-[12px] text-[#9ca3af]">{post.readTime}</span>
+              </div>
+              <h2 className="text-[18px] md:text-[20px] font-semibold text-[#111111] tracking-[-0.01em] leading-snug group-hover:text-[#0052ff] transition-colors">
+                {post.title}
+              </h2>
+              <p className="text-[14px] text-[#6b7280] leading-relaxed line-clamp-2">
+                {post.description}
+              </p>
+            </Link>
+          ))}
         </section>
       </div>
     </main>
