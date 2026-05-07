@@ -1342,9 +1342,17 @@ export const blogContent: Record<string, string> = {
     <p>The reality is most investors need more than one tool. The combination we see working best: <strong>tikrr for daily intelligence</strong>, <strong>Finviz for screening</strong>, and <strong>TradingView for charting</strong>. That covers your daily awareness, stock discovery, and technical analysis needs for a fraction of what a Bloomberg terminal costs.</p>
 `,
   "tikrr-vs-finviz": `
-<p>Finviz has been the go-to stock screener for retail investors since 2007. tikrr is a newer market intelligence platform built around AI briefs and watchlist radar. They solve different problems. Here's how to pick the right one.</p>
+<p>If you're comparing Finviz and tikrr, you're already thinking about market tools the right way. Both help you make better investment decisions, but they approach the problem from completely different angles. Finviz is a screener that helps you find stocks. tikrr is an intelligence platform that helps you understand the market. Here's a detailed breakdown of how they compare and which one fits your workflow.</p>
+
+<p>We'll cover features, pricing, who each tool is best for, and the scenarios where using both makes more sense than choosing one.</p>
 
       <h2 id="overview">Overview</h2>
+
+      <p>Finviz launched in 2007 and quickly became the default stock screener for retail investors. Its heatmaps are iconic, the screener is powerful, and the free tier is genuinely useful. It's one of those tools that every investor has bookmarked.</p>
+
+      <p>tikrr launched in 2026 with a different thesis: most investors don't need more data, they need better intelligence. Instead of giving you 60 filters to screen 8,000 stocks, tikrr gives you twice-daily AI briefs that tell you what's happening and what it means for your specific watchlist.</p>
+
+      <p>They're not really competitors in the traditional sense. They solve different problems. But if you're choosing where to spend your $9-40/month, the comparison matters.</p>
 
       <div class="grid grid-2">
         <div class="card">
@@ -1452,6 +1460,8 @@ export const blogContent: Record<string, string> = {
 
       <h2 id="pricing">Pricing Breakdown</h2>
 
+      <p>Pricing is where the comparison gets interesting. Finviz has one paid tier (Elite) at $39.50/mo. tikrr has a free tier and Pro at $9/mo. That's a significant difference for individual investors.</p>
+
       <table>
         <thead>
           <tr>
@@ -1479,9 +1489,13 @@ export const blogContent: Record<string, string> = {
         </tbody>
       </table>
 
-      <p><strong>The math:</strong> Finviz Elite costs 4.4x more than tikrr Pro. For the price of one year of Finviz Elite ($300), you could get 33 months of tikrr Pro.</p>
+      <p><strong>The math:</strong> Finviz Elite costs 4.4x more than tikrr Pro. For the price of one year of Finviz Elite ($300), you could get 33 months of tikrr Pro. That's nearly three years of AI-powered market intelligence for the cost of one year of a stock screener.</p>
+
+      <p>Finviz does offer a free tier, which is generous. But it comes with significant limitations: delayed data (15-20 minutes), ads everywhere, and no real-time alerts. tikrr's free tier includes a daily market brief and basic sector data without the ad clutter.</p>
 
       <h2 id="who">Who Each Tool Is For</h2>
+
+      <p>This is the most important section for making your decision. The right tool depends entirely on what kind of investor you are and how you spend your market research time.</p>
 
       <div class="grid grid-2">
         <div class="card">
@@ -1507,6 +1521,14 @@ export const blogContent: Record<string, string> = {
       </div>
 
       <h2 id="verdict">The Verdict</h2>
+
+      <p>The honest answer is that most investors will benefit from having both tools in their toolkit. Finviz for the moments when you need to screen for specific setups, and tikrr for the daily habit of understanding what's happening in the market.</p>
+
+      <p>If you can only pick one, the decision comes down to how you spend your time. If you're an active trader who spends hours scanning for setups, Finviz is non-negotiable. The screener is too good to pass up, and the heatmaps are genuinely useful for spotting momentum.</p>
+
+      <p>But if you're like most investors, you don't have time to screen 8,000 stocks every morning. You want to know what moved, why it moved, and what it means for the 15 stocks you actually own. That's where tikrr shines. The AI brief gives you that context in 5 minutes, and the watchlist radar monitors your positions while you do other things.</p>
+
+      <p>The price difference reinforces this. At $9/mo, tikrr costs less than a quarter of Finviz Elite. For investors who want intelligence without the time commitment, it's the better value play.</p>
 
       <div class="card" style="border-color:var(--green);">
         <h3>They Solve Different Problems</h3>
