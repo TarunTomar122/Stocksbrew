@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useUser } from "@/lib/auth-context";
 
 type IndexData = {
   ticker: string;
@@ -14,6 +15,7 @@ type Props = {
   tone: string;
   color: string;
   indices: IndexData[];
+  isSubscribed?: boolean;
 };
 
 function fmtPrice(v: number): string {
@@ -93,8 +95,9 @@ function sparklinePath(points: number[], width = 96, height = 28): string {
     .join(" ");
 }
 
-export function HeroSection({ score, tone, color, indices }: Props) {
+export function HeroSection({ score, tone, color, indices, isSubscribed = false }: Props) {
   const router = useRouter();
+  const { user } = useUser();
 
   const moodLabel =
     score < 25 ? "Very Cautious" :
@@ -155,10 +158,10 @@ export function HeroSection({ score, tone, color, indices }: Props) {
           <div className="flex items-center gap-3 flex-wrap pt-1">
             <button
               type="button"
-              onClick={() => router.push("/heat")}
+              onClick={() => router.push(user ? "/watchlist" : "/heat")}
               className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-white text-[#111111] text-[14px] font-semibold tracking-tight transition-transform hover:-translate-y-[1px] active:translate-y-0"
             >
-              Get Started
+              {user ? "Check your Radar" : "Get Started"}
             </button>
             <button
               type="button"
@@ -169,9 +172,11 @@ export function HeroSection({ score, tone, color, indices }: Props) {
             </button>
           </div>
 
-          <p className="text-[12px] text-white/50 pt-1">
-            Pro $9/mo · cancel anytime
-          </p>
+          {!isSubscribed && (
+            <p className="text-[12px] text-white/50 pt-1">
+              Pro $9/mo · cancel anytime
+            </p>
+          )}
         </div>
 
         {/* Right: floating product artifacts */}

@@ -92,30 +92,6 @@ export type HeroBrief = {
   updated_at: string;
 };
 
-export type EssentialCard = {
-  id: string;
-  sentence: string;
-  event_type:
-    | "macro"
-    | "earnings"
-    | "guidance"
-    | "policy"
-    | "flow"
-    | "technical"
-    | "sentiment"
-    | string;
-  scope?: "market" | "sector" | "stock" | string;
-  direction?: "up" | "down" | "mixed" | string;
-  confidence?: "low" | "med" | "high" | string;
-  impact_score?: number;
-  evidence?: string[];
-  symbol?: string;
-  sector_id?: string;
-  href?: string;
-  series?: number[];
-  generated_at?: string;
-};
-
 export type MarketContextBlock = {
   today_score?: number;
   today_label?: string;
@@ -149,7 +125,6 @@ export type DashboardView = {
   watchlist_rows: DashboardRow[];
   gainers: DashboardRow[];
   losers: DashboardRow[];
-  essential_cards?: EssentialCard[];
   market_context?: MarketContextBlock;
 };
 

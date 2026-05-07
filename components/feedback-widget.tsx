@@ -2,8 +2,6 @@
 
 import { useState, useRef } from "react";
 
-const SHOW_DELAY = 6000;
-
 export function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -11,13 +9,6 @@ export function FeedbackWidget() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const autoTimer = useRef<ReturnType<typeof setTimeout>>();
-
-  // Auto-open after delay on first visit per session
-  useState(() => {
-    autoTimer.current = setTimeout(() => setOpen(true), SHOW_DELAY);
-    return () => clearTimeout(autoTimer.current);
-  });
 
   const dismiss = () => {
     setOpen(false);

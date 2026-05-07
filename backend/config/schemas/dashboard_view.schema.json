@@ -10,7 +10,6 @@
     "universe_id",
     "macro_cards",
     "top_strip_items",
-    "essential_cards",
     "market_sentiment",
     "hero_brief",
     "sector_flows",
@@ -84,29 +83,6 @@
           "change_pct": { "type": "number" },
           "series": { "type": "array", "items": { "type": "number" } },
           "href": { "type": "string" }
-        }
-      }
-    },
-    "essential_cards": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "sentence", "event_type", "scope", "direction", "confidence", "impact_score", "evidence", "generated_at"],
-        "properties": {
-          "id": { "type": "string" },
-          "sentence": { "type": "string" },
-          "event_type": { "type": "string", "enum": ["macro", "earnings", "guidance", "policy", "flow", "technical", "sentiment"] },
-          "scope": { "type": "string", "enum": ["market", "sector", "stock"] },
-          "direction": { "type": "string", "enum": ["up", "down", "mixed"] },
-          "confidence": { "type": "string", "enum": ["low", "med", "high"] },
-          "impact_score": { "type": "number" },
-          "evidence": { "type": "array", "items": { "type": "string" } },
-          "symbol": { "type": "string" },
-          "sector_id": { "type": "string" },
-          "href": { "type": "string" },
-          "series": { "type": "array", "items": { "type": "number" } },
-          "generated_at": { "type": "string", "format": "date-time" }
         }
       }
     },

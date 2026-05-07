@@ -1,4 +1,3 @@
-import { EssentialCards } from "@/components/essential-cards";
 import { HeroSection } from "@/components/hero-section";
 import { HomeContent } from "@/components/home-content";
 import { LandingProPreview } from "@/components/landing-pro-preview";
@@ -18,11 +17,14 @@ import { getSessionUser } from "@/lib/auth-server";
 import type { SnapshotRow } from "@/lib/types";
 import type { NewsArticle } from "@/lib/news";
 import { getHomeView } from "@/lib/home-view";
+import { getNewsFeed } from "@/lib/news";
 import { getCurrentMarket } from "@/lib/market";
+import { getMarketSnapshot } from "@/lib/firestore";
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
 import { buildMarketTiles } from "@/lib/market-tiles";
 import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
+import { getThematicScreens } from "@/lib/screens";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 function rowToStock(s: SnapshotRow) {
@@ -32,6 +34,54 @@ function rowToStock(s: SnapshotRow) {
     price: s.price?.current ?? 0,
     changePct: s.price?.changePct ?? 0,
   };
+}
+
+const MARKET_CUE_ORDER: Record<"US" | "IN", string[]> = {
+  US: [
+    "US_IDX_SPX",
+    "US_IDX_NDX",
+    "US_MAC_GOLD",
+    "US_MAC_SILVER",
+    "US_MAC_OIL",
+    "US_MAC_VIX",
+  ],
+  IN: [
+    "IN_IDX_NIFTY50",
+    "IN_IDX_BANKNIFTY",
+    "IN_MAC_GOLD",
+    "IN_MAC_SILVER",
+    "IN_MAC_OIL",
+    "IN_IDX_VIX",
+  ],
+};
+
+type MacroTick = {
+  instrument_id: string;
+  ticker: string;
+  name: string;
+  price: number | null;
+  day_change_pct: number | null;
+  from_52w_high_pct: number | null;
+};
+
+function buildMacroTicksFromSnapshot(
+  rows: SnapshotRow[],
+  market: "US" | "IN",
+): MacroTick[] {
+  const byId = new Map(rows.map((row) => [row.instrumentId, row]));
+  return MARKET_CUE_ORDER[market].reduce<MacroTick[]>((acc, instrumentId) => {
+    const row = byId.get(instrumentId);
+    if (!row) return acc;
+    acc.push({
+        instrument_id: instrumentId,
+        ticker: row.symbol || instrumentId,
+        name: row.name || row.symbol || instrumentId,
+        price: row.price?.current ?? null,
+        day_change_pct: row.price?.changePct ?? null,
+        from_52w_high_pct: null,
+      });
+    return acc;
+  }, []);
 }
 
 export default async function HomePage() {
@@ -52,12 +102,22 @@ export default async function HomePage() {
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
   try {
-    const homeView = await getHomeView(market).catch(() => null);
+    const [homeView, liveSnapshotRows, thematicScreens, feed] = await Promise.all([
+      getHomeView(market).catch(() => null),
+      getMarketSnapshot(market).catch(() => []),
+      getThematicScreens(market).catch(() => null),
+      getNewsFeed(market, 30).catch(() => []),
+    ]);
     if (homeView) {
       view = homeView.dashboard ?? null;
-      snapshotRows = homeView.market_snapshot_rows ?? [];
-      screens = homeView.thematic_screens ?? null;
-      news = homeView.news ?? [];
+    }
+    snapshotRows = liveSnapshotRows.length > 0
+      ? liveSnapshotRows
+      : homeView?.market_snapshot_rows ?? [];
+    screens = thematicScreens ?? homeView?.thematic_screens ?? null;
+    news = feed.length > 0 ? feed : homeView?.news ?? [];
+    macroTicks = buildMacroTicksFromSnapshot(snapshotRows, market);
+    if (macroTicks.length === 0) {
       macroTicks = (view?.market_tiles ?? [])
         .filter((tile) => tile.type === "index" || tile.type === "macro")
         .map((tile) => ({
@@ -132,6 +192,7 @@ export default async function HomePage() {
             price: t.price ?? 0,
             changePct: t.day_change_pct ?? 0,
           }))}
+          isSubscribed={isSubscribed}
         />
 
         <MarketCues title="Market cues" tiles={marketCueTilesFromMacro.length ? marketCueTilesFromMacro : marketTiles} />
@@ -150,8 +211,6 @@ export default async function HomePage() {
           isSignedIn={Boolean(session)}
           isSubscribed={isSubscribed}
         />
-
-        <EssentialCards cards={view?.essential_cards} />
 
         <HomeContent
           stocks={allStocks}

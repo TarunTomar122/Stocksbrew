@@ -112,7 +112,8 @@ export async function POST(req: NextRequest) {
   });
 
   const existing = await getUserDoc(session.uid);
-  if (!existing || !resolveIsSubscribed(existing)) {
+  const isSubscribed = existing ? resolveIsSubscribed(existing) : false;
+  if (!existing || !isSubscribed) {
     await recordLifecycleEvent({
       uid: session.uid,
       email: session.email ?? null,
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
   // to a watchlist costs zero extra LLM, so they don't consume a slot in the
   // personal-tier limit. Only count non-launch stocks against the cap.
   const isLaunch = isLaunchAITier(instrumentId);
-  if (!isLaunch && !current.includes(instrumentId)) {
+  if (!isLaunch && !current.includes(instrumentId) && !isSubscribed) {
     const personalCount = current.filter((id) => !isLaunchAITier(id)).length;
     if (personalCount >= PERSONAL_TIER_LIMIT) {
       trackApiLog(traceId, "warn", "post_tier_limit", {
