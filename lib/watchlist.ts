@@ -26,6 +26,9 @@ export type UserDoc = {
   subscriptionStatus?: string | null;
   subscriptionPlan?: string | null;
   cancelAtPeriodEnd?: boolean;
+  /** Email opt-out flags — treated as true when absent (opt-in by default). */
+  email_alerts_enabled?: boolean;
+  email_digest_enabled?: boolean;
 };
 
 export async function getUserDoc(uid: string): Promise<UserDoc | null> {

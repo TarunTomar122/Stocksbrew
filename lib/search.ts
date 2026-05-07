@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getMarketSnapshot } from "@/lib/firestore";
+import { getHomeView } from "@/lib/home-view";
 
 export type SearchEntry = {
   instrument_id: string;
@@ -12,7 +12,8 @@ export type SearchEntry = {
 export const getSearchIndex = cache(async (
   market: "US" | "IN" = "US",
 ): Promise<SearchEntry[]> => {
-  const rows = await getMarketSnapshot(market);
+  const homeView = await getHomeView(market);
+  const rows = homeView?.market_snapshot_rows ?? [];
   return rows.map((r) => ({
     instrument_id: r.instrumentId,
     ticker: r.symbol,

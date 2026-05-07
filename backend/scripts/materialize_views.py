@@ -141,6 +141,19 @@ def materialize_views(
             sector_tiles_input=sector_tiles_input,
         )
         store.save_dashboard_view(market, universe_id, dashboard_view)
+        try:
+            ai_universe = store.get_active_ai_universe(market) or universe_id
+            store.save_home_view(market, {
+                "market": market,
+                "universe_id": universe_id,
+                "ai_universe_id": ai_universe,
+                "dashboard": dashboard_view,
+                "market_snapshot_rows": store.get_market_price_snapshot(market),
+                "thematic_screens": store.get_thematic_screens(market),
+                "news": store.get_news_home_feed(market, ai_universe, limit=30),
+            })
+        except Exception as exc:
+            print(f"[materialize_views] home view save skipped: {exc}")
         rows_by_id = {row["instrument_id"]: row for row in dashboard_view["watchlist_rows"]}
         dashboard_rows = len(dashboard_view.get("watchlist_rows", []))
     instruments_by_id = {instrument["instrument_id"]: instrument for instrument in instruments}

@@ -112,6 +112,7 @@ export type WatchlistPulse = {
 
 export type WatchlistView = {
   uid: string;
+  source_version?: number;
   tracked_count: number;
   holdings_count?: number;
   watchlist_count?: number;
@@ -1348,6 +1349,7 @@ export async function rebuildAndSaveWatchlistView(
   uid: string,
   trackedStocks: string[],
   positions: Record<string, unknown> = {},
+  sourceVersion?: number,
 ): Promise<WatchlistView> {
   const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
   const previous = await ref.get();
@@ -1370,106 +1372,23 @@ export async function rebuildAndSaveWatchlistView(
       await batch.commit();
     }
   }
-  await ref.set(
-    {
-      ...view,
-      updated_at: FieldValue.serverTimestamp(),
-    },
-    { merge: false },
-  );
+  await adminFirestore.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const current = snap.exists ? (snap.data() as WatchlistView) : null;
+    const currentVersion = Number(current?.source_version ?? 0);
+    const incomingVersion = Number(sourceVersion ?? 0);
+    if (incomingVersion > 0 && currentVersion > incomingVersion) {
+      return;
+    }
+    tx.set(
+      ref,
+      {
+        ...view,
+        source_version: incomingVersion > 0 ? incomingVersion : currentVersion,
+        updated_at: FieldValue.serverTimestamp(),
+      },
+      { merge: false },
+    );
+  });
   return view;
-}
-
-export async function upsertWatchlistRowAndSaveView(
-  uid: string,
-  instrumentId: string,
-  positionType: "holding" | "watchlist",
-  trackedStocks: string[],
-  positions: Record<string, unknown> = {},
-): Promise<void> {
-  const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
-  const currentSnap = await ref.get();
-  if (!currentSnap.exists) return;
-  const current = currentSnap.data() as WatchlistView;
-
-  const universes = await getActiveUniverses();
-  const alertsByInstrument = await loadAlertsByInstrument(uid);
-  const built = await buildRows([instrumentId], { [instrumentId]: positionType }, universes, alertsByInstrument);
-  const row = built[0];
-  if (!row) return;
-
-  const rowMap = new Map(current.rows.map((r) => [r.instrument_id, r] as const));
-  rowMap.set(instrumentId, row);
-  const trackedSet = new Set((trackedStocks || []).slice(0, WATCHLIST_ROW_CAP));
-  trackedSet.add(instrumentId);
-  const rows = Array.from(rowMap.values())
-    .filter((r) => trackedSet.has(r.instrument_id))
-    .map((r) => ({
-      ...r,
-      position_type: positionTypeFor(r.instrument_id, positions),
-    }));
-  rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
-
-  const pulse = pulseFromRows(rows);
-  const brief = fallbackBriefFromRows(rows, pulse);
-  const holdingsCount = rows.filter((r) => r.position_type === "holding").length;
-  const watchlistCount = rows.length - holdingsCount;
-
-  await ref.set(
-    {
-      ...current,
-      rows,
-      tracked_ids: rows.map((r) => r.instrument_id),
-      tracked_count: rows.length,
-      holdings_count: holdingsCount,
-      watchlist_count: watchlistCount,
-      pulse,
-      brief,
-      built_at: new Date().toISOString(),
-      updated_at: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
-}
-
-export async function removeWatchlistRowAndSaveView(
-  uid: string,
-  instrumentId: string,
-  trackedStocks: string[],
-  positions: Record<string, unknown> = {},
-): Promise<void> {
-  const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
-  const currentSnap = await ref.get();
-  if (!currentSnap.exists) return;
-  const current = currentSnap.data() as WatchlistView;
-
-  const trackedSet = new Set((trackedStocks || []).slice(0, WATCHLIST_ROW_CAP));
-  const rows = (current.rows || [])
-    .filter((r) => r.instrument_id !== instrumentId && trackedSet.has(r.instrument_id))
-    .map((r) => ({
-      ...r,
-      position_type: positionTypeFor(r.instrument_id, positions),
-    }));
-  rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
-
-  const pulse = pulseFromRows(rows);
-  const brief = fallbackBriefFromRows(rows, pulse);
-  const holdingsCount = rows.filter((r) => r.position_type === "holding").length;
-  const watchlistCount = rows.length - holdingsCount;
-
-  await ref.set(
-    {
-      ...current,
-      rows,
-      tracked_ids: rows.map((r) => r.instrument_id),
-      tracked_count: rows.length,
-      holdings_count: holdingsCount,
-      watchlist_count: watchlistCount,
-      pulse,
-      brief,
-      built_at: new Date().toISOString(),
-      updated_at: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
 }

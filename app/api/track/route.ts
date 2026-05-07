@@ -5,6 +5,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { isLaunchAITier } from "@/lib/ai-launch-tier";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -112,6 +113,15 @@ export async function POST(req: NextRequest) {
 
   const existing = await getUserDoc(session.uid);
   if (!existing || !resolveIsSubscribed(existing)) {
+    await recordLifecycleEvent({
+      uid: session.uid,
+      email: session.email ?? null,
+      type: "track_blocked_subscription_required",
+      payload: {
+        instrument_id: instrumentId,
+        position_type: positionType,
+      },
+    }).catch(() => undefined);
     trackApiLog(traceId, "warn", "post_subscription_required", { uid: session.uid, instrument_id: instrumentId });
     return NextResponse.json(
       { error: "subscription_required", reason: "Tracking a stock adds it to your personal AI tier, which runs real LLM briefs twice daily." },

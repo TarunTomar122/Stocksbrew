@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1270">
+<title>Tikrr – Fundamentals</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; }
+  .page { width: 1100px; display: flex; flex-direction: column; gap: 28px; }
+
+  .page-title {
+    text-align: center;
+    font-size: 22px; font-weight: 500; color: var(--muted); letter-spacing: -0.01em;
+  }
+  .page-title strong { color: var(--text); font-weight: 700; }
+
+  /* ── Main fundamentals card ───────────────────── */
+  .fund-card { padding: 40px 44px; }
+  .fund-inner { display: flex; gap: 52px; align-items: flex-start; }
+
+  /* Overall score column */
+  .overall-col { flex-shrink: 0; min-width: 200px; }
+  .overall-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-muted); margin-bottom: 10px; }
+  .overall-score-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .overall-score { font-size: 80px; font-weight: 800; color: var(--bullish); letter-spacing: -0.04em; line-height: 1; }
+  .overall-denom { font-size: 26px; font-weight: 500; color: var(--light-muted); }
+  .overall-verdict { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .overall-desc { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 190px; }
+
+  /* Pillar cards */
+  .pillars-row { display: flex; gap: 16px; flex: 1; }
+  .pillar {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px 22px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .pillar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .pillar-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .pillar-score { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .pillar-score.green  { color: var(--bullish); }
+  .pillar-score.ink    { color: var(--text); }
+  .pillar-score.amber  { color: var(--neutral); }
+
+  .pillar-name { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); margin-bottom: 10px; }
+
+  .score-bar { position: relative; height: 6px; border-radius: 99px; background: #f3f4f6; overflow: hidden; margin-bottom: 8px; }
+  .score-fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; height: 100%; }
+
+  .pillar-verdict { font-size: 12px; color: var(--muted); }
+
+  /* ── Catalysts row ────────────────────────────── */
+  .catalysts-row { display: flex; gap: 16px; }
+  .catalyst-card {
+    flex: 1; padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .catalyst-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+  .catalyst-info { display: flex; flex-direction: column; gap: 3px; }
+  .catalyst-kind { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--light-muted); }
+  .catalyst-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .catalyst-date { font-size: 12px; color: var(--muted); }
+  .catalyst-urgency { margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-title">Is it growing? Is it overpriced? <strong>Tikrr breaks down the fundamentals for you.</strong></div>
+
+  <!-- Main fundamentals card -->
+  <div class="card fund-card">
+    <div class="fund-inner">
+
+      <!-- Overall score -->
+      <div class="overall-col">
+        <div class="overall-label">Fundamentals Score</div>
+        <div class="overall-score-row">
+          <span class="overall-score">78</span>
+          <span class="overall-denom">/ 100</span>
+        </div>
+        <div class="overall-verdict">Strong · Bullish-tilted</div>
+        <div class="overall-desc">Composite of valuation, growth, quality &amp; momentum.</div>
+      </div>
+
+      <!-- Pillar cards -->
+      <div class="pillars-row">
+
+        <div class="pillar">
+          <div class="pillar-top">
+            <div class="pillar-icon" style="background:#f0fdf4;">🌱</div>
+            <span class="pillar-score green">87</span>
+          </div>
+          <div class="pillar-name">Growth</div>
+          <div class="score-bar"><div class="score-fill" style="width:87%;background:#10b981;"></div></div>
+          <div class="pillar-verdict">Strong</div>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-top">
+            <div class="pillar-icon" style="background:#eff6ff;">🚀</div>
+            <span class="pillar-score ink">72</span>
+          </div>
+          <div class="pillar-name">Momentum</div>
+          <div class="score-bar"><div class="score-fill" style="width:72%;background:#6b38d4;"></div></div>
+          <div class="pillar-verdict">Solid</div>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-top">
+            <div class="pillar-icon" style="background:#fef3c7;">🏷️</div>
+            <span class="pillar-score amber">51</span>
+          </div>
+          <div class="pillar-name">Valuation</div>
+          <div class="score-bar"><div class="score-fill" style="width:51%;background:#f59e0b;"></div></div>
+          <div class="pillar-verdict">Mixed</div>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-top">
+            <div class="pillar-icon" style="background:#f3f4f6;">🏛️</div>
+            <span class="pillar-score green">83</span>
+          </div>
+          <div class="pillar-name">Quality</div>
+          <div class="score-bar"><div class="score-fill" style="width:83%;background:#10b981;"></div></div>
+          <div class="pillar-verdict">Strong</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming catalyst -->
+  <div class="catalysts-row">
+    <div class="card catalyst-card">
+      <div class="catalyst-dot"></div>
+      <div class="catalyst-info">
+        <span class="catalyst-kind">Earnings</span>
+        <span class="catalyst-title">Q2 Earnings Report</span>
+        <span class="catalyst-date">May 28, 2025 · 3 weeks away</span>
+      </div>
+      <div class="catalyst-urgency">
+        <span class="chip" style="background:#fef2f2;color:#dc2626;">High Impact</span>
+      </div>
+    </div>
+    <div class="card catalyst-card" style="opacity:0.4;">
+      <div class="catalyst-dot" style="background:#6b7280;"></div>
+      <div class="catalyst-info">
+        <span class="catalyst-kind">Analyst Day</span>
+        <span class="catalyst-title">GTC Developer Conference</span>
+        <span class="catalyst-date">June 2025</span>
+      </div>
+      <div class="catalyst-urgency">
+        <span class="chip" style="background:#f3f4f6;color:#6b7280;">Moderate</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

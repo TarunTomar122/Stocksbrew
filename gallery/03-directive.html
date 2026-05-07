@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1270">
+<title>Tikrr – AI Directive</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; }
+  .page { width: 920px; display: flex; flex-direction: column; gap: 28px; }
+
+  .page-title {
+    text-align: center;
+    font-size: 22px; font-weight: 500; color: var(--muted); letter-spacing: -0.01em;
+  }
+  .page-title strong { color: var(--text); font-weight: 700; }
+
+  /* ── Directive card ──────────────────────────── */
+  .directive-card { padding: 36px 40px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* Header row */
+  .directive-header { display: flex; align-items: center; gap: 16px; }
+  .directive-icon {
+    width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+    background: #f0fdf4;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .directive-header-text { flex: 1; }
+  .directive-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-muted); margin-bottom: 4px; }
+  .directive-stance-row { display: flex; align-items: center; gap: 12px; }
+  .stance-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f0fdf4; color: #065f46;
+    border-radius: 8px; padding: 5px 14px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .stance-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
+  .directive-text { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+
+  .confidence-badge {
+    margin-left: auto;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  }
+  .confidence-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--light-muted); }
+  .confidence-value { font-size: 13px; font-weight: 700; color: var(--bullish); }
+  .confidence-dots { display: flex; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bullish); }
+  .dot.empty { background: var(--border); }
+
+  /* Rationale */
+  .rationale-block { display: flex; flex-direction: column; gap: 8px; }
+  .rationale-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-muted); }
+  .rationale-text { font-size: 15px; color: var(--muted); line-height: 1.7; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+  /* Alert button */
+  .alert-row { display: flex; align-items: center; justify-content: space-between; }
+  .alert-desc { display: flex; flex-direction: column; gap: 4px; }
+  .alert-desc-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-muted); }
+  .alert-desc-text { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  .alert-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--text); color: #fff;
+    border-radius: 12px; padding: 12px 24px;
+    font-size: 14px; font-weight: 700; letter-spacing: 0.01em;
+    border: none; cursor: pointer;
+  }
+  .alert-btn .bell { font-size: 16px; }
+
+  /* ── Ticker watermark ────────────────────────── */
+  .watermark {
+    position: fixed; bottom: 32px; right: 40px;
+    font-size: 120px; font-weight: 900; color: var(--text);
+    opacity: 0.04; letter-spacing: -0.05em; line-height: 1;
+    pointer-events: none; user-select: none;
+  }
+</style>
+</head>
+<body>
+<div class="watermark">NVDA</div>
+
+<div class="page">
+
+  <div class="page-title">Your AI makes a call. <strong>You decide when to act on it.</strong></div>
+
+  <div class="card directive-card">
+
+    <!-- Header -->
+    <div class="directive-header">
+      <div class="directive-icon">🎯</div>
+      <div class="directive-header-text">
+        <div class="directive-label">AI Strategic Directive</div>
+        <div class="directive-stance-row">
+          <div class="stance-chip">
+            <div class="stance-dot"></div>
+            Accumulate
+          </div>
+          <div class="directive-text">Accumulate on any dip below $850</div>
+        </div>
+      </div>
+      <div class="confidence-badge">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-value">High</span>
+        <div class="confidence-dots">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Rationale -->
+    <div class="rationale-block">
+      <div class="rationale-label">Reasoning</div>
+      <div class="rationale-text">
+        Blackwell GPU ramp is ahead of schedule and Q2 earnings in 3 weeks could be a significant catalyst.
+        Institutional flow remains bullish with volume 40% above average. Data center demand stays structurally
+        strong through 2025.
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Alert -->
+    <div class="alert-row">
+      <div class="alert-desc">
+        <div class="alert-desc-label">Trigger</div>
+        <div class="alert-desc-text">Price drops below $850 — notify me</div>
+      </div>
+      <button class="alert-btn">
+        <span class="bell">🔔</span>
+        Set alert below $850
+      </button>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

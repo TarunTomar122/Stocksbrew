@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { ProfileSubscription } from "@/components/profile-subscription";
 import { SignOutButton } from "@/components/sign-out-button";
+import { PreferenceToggle } from "@/components/preference-toggle";
 
 export const revalidate = 0;
 
@@ -80,17 +81,19 @@ export default async function ProfilePage() {
             Preferences
           </span>
 
-          <PreferenceRow
+          <PreferenceToggle
+            field="email_alerts_enabled"
             icon="notifications"
             label="Alerts"
             description="Red-flag alerts for overbought RSI, 52-week lows, earnings next day"
-            badge="Coming soon"
+            initialValue={userDoc?.email_alerts_enabled ?? true}
           />
-          <PreferenceRow
+          <PreferenceToggle
+            field="email_digest_enabled"
             icon="mail"
             label="Email digest"
             description="Daily AI brief across your Radar, delivered to your inbox"
-            badge="Coming soon"
+            initialValue={userDoc?.email_digest_enabled ?? true}
           />
           <PreferenceRow
             icon="schedule"

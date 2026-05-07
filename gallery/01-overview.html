@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1270">
+<title>Tikrr – Stock Overview</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; }
+
+  .page { width: 1190px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* ── Stock header ─────────────────────────────── */
+  .stock-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 36px;
+  }
+  .stock-header-left { display: flex; align-items: center; gap: 20px; }
+  .stock-logo {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 900; color: #76b900; letter-spacing: -1px;
+  }
+  .stock-name-block { display: flex; flex-direction: column; gap: 4px; }
+  .stock-ticker { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }
+  .stock-full-name { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .stock-badges { display: flex; gap: 8px; margin-top: 4px; }
+  .badge {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    background: var(--surface-container); border-radius: 6px;
+    padding: 2px 8px; letter-spacing: 0.04em;
+  }
+
+  .stock-price-block { text-align: right; }
+  .stock-price { font-size: 36px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; line-height: 1; }
+  .stock-change { font-size: 15px; font-weight: 700; color: var(--bullish); margin-top: 4px; }
+
+  /* ── Signal tiles ─────────────────────────────── */
+  .tiles-section { display: flex; flex-direction: column; gap: 14px; }
+  .tiles-label { font-size: 11px; font-weight: 700; color: var(--light-muted); letter-spacing: 0.1em; text-transform: uppercase; padding: 0 4px; }
+  .tiles-row { display: flex; gap: 14px; }
+
+  .tile {
+    flex: 1;
+    border-radius: 16px;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .tile-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 19px;
+  }
+  .tile-content { display: flex; flex-direction: column; gap: 4px; }
+  .tile-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--light-muted); }
+  .tile-headline { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .tile-headline.up    { color: var(--bullish); }
+  .tile-headline.warn  { color: #b45309; }
+  .tile-headline.neutral { color: var(--text); }
+  .tile-supporting { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+  /* ── Range / RSI row ──────────────────────────── */
+  .metrics-row { display: flex; gap: 20px; }
+  .metric-card { flex: 1; padding: 28px 32px; }
+
+  .metric-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-muted); margin-bottom: 14px; }
+
+  .range-ends { display: flex; justify-content: space-between; margin-bottom: 10px; }
+  .range-end { display: flex; flex-direction: column; gap: 2px; }
+  .range-end-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--light-muted); }
+  .range-end-value { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  .range-track { position: relative; height: 10px; border-radius: 99px;
+    background: linear-gradient(90deg, #f97316 0%, #f59e0b 22%, #84cc16 55%, #10b981 100%);
+    margin-bottom: 10px;
+  }
+  .range-marker {
+    position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 2.5px #111;
+    transform: translate(-50%, -50%);
+    left: 96%; /* (576.45-78.54)/(592.80-78.54) ≈ 96.9% */
+  }
+  .range-today { font-size: 12px; color: var(--muted); }
+  .range-today strong { color: var(--text); }
+
+  .rsi-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .rsi-value { font-size: 28px; font-weight: 700; color: var(--text); }
+  .rsi-verdict { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #dc2626; }
+
+  .rsi-track { position: relative; height: 10px; border-radius: 99px; overflow: hidden; background: #f3f4f6; margin-bottom: 10px; }
+  .rsi-zone-left  { position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: rgba(239,68,68,0.18); }
+  .rsi-zone-mid   { position: absolute; top: 0; bottom: 0; left: 30%; width: 40%; background: linear-gradient(90deg, #84cc16, #10b981); opacity: 0.85; }
+  .rsi-zone-right { position: absolute; top: 0; bottom: 0; right: 0; width: 30%; background: rgba(239,68,68,0.18); }
+  .rsi-marker-wrap { position: absolute; inset: 0 7px; }
+  .rsi-marker {
+    position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 2.5px #111;
+    transform: translate(-50%, -50%);
+    left: 76.2%; /* RSI 76.2 */
+  }
+  .rsi-zones { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--light-muted); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Stock header -->
+  <div class="card stock-header">
+    <div class="stock-header-left">
+      <div class="stock-logo">N</div>
+      <div class="stock-name-block">
+        <div class="stock-ticker">NVDA</div>
+        <div class="stock-full-name">NVIDIA Corporation · NASDAQ</div>
+        <div class="stock-badges">
+          <span class="badge">Technology</span>
+          <span class="badge">Semiconductors</span>
+          <span class="badge">S&amp;P 500</span>
+          <span class="badge">NASDAQ 100</span>
+        </div>
+      </div>
+    </div>
+    <div class="stock-price-block">
+      <div class="stock-price">$875.40</div>
+      <div class="stock-change">↑ +2.86% today</div>
+    </div>
+  </div>
+
+  <!-- Signal tiles -->
+  <div class="tiles-section">
+    <div class="tiles-label">Today's signals</div>
+    <div class="tiles-row">
+
+      <div class="tile">
+        <div class="tile-icon" style="background:#ecfdf5;">📈</div>
+        <div class="tile-content">
+          <div class="tile-label">Past 1Y</div>
+          <div class="tile-headline up">+614.1%</div>
+          <div class="tile-supporting">1M +57.4% · 3M +31.7%</div>
+        </div>
+      </div>
+
+      <div class="tile">
+        <div class="tile-icon" style="background:#fef3c7;">🔥</div>
+        <div class="tile-content">
+          <div class="tile-label">RSI Stretched</div>
+          <div class="tile-headline warn">76</div>
+          <div class="tile-supporting">Overbought — pullback risk</div>
+        </div>
+      </div>
+
+      <div class="tile">
+        <div class="tile-icon" style="background:#ecfdf5;">🚀</div>
+        <div class="tile-content">
+          <div class="tile-label">52W High</div>
+          <div class="tile-headline up">-2.8%</div>
+          <div class="tile-supporting">Riding the top of the range</div>
+        </div>
+      </div>
+
+      <div class="tile">
+        <div class="tile-icon" style="background:#ecfdf5;">🌱</div>
+        <div class="tile-content">
+          <div class="tile-label">Strong Growth</div>
+          <div class="tile-headline up">100</div>
+          <div class="tile-supporting">Top pillar on the scorecard</div>
+        </div>
+      </div>
+
+      <div class="tile">
+        <div class="tile-icon" style="background:#ecfdf5;">💰</div>
+        <div class="tile-content">
+          <div class="tile-label">Revenue YoY</div>
+          <div class="tile-headline up">+85.5%</div>
+          <div class="tile-supporting">High-growth top line</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Range + RSI -->
+  <div class="metrics-row">
+    <div class="card metric-card">
+      <div class="metric-title">52-Week Price Range</div>
+      <div class="range-ends">
+        <div class="range-end">
+          <span class="range-end-label">Low</span>
+          <span class="range-end-value">$78.54</span>
+        </div>
+        <div class="range-end" style="align-items:flex-end;">
+          <span class="range-end-label">High</span>
+          <span class="range-end-value">$592.80</span>
+        </div>
+      </div>
+      <div class="range-track"><div class="range-marker"></div></div>
+      <div class="range-today">Today <strong>$576.45</strong></div>
+    </div>
+
+    <div class="card metric-card">
+      <div class="metric-title">RSI (14)</div>
+      <div class="rsi-header">
+        <span class="rsi-value">76.2</span>
+        <span class="rsi-verdict">Overbought</span>
+      </div>
+      <div class="rsi-track">
+        <div class="rsi-zone-left"></div>
+        <div class="rsi-zone-mid"></div>
+        <div class="rsi-zone-right"></div>
+        <div class="rsi-marker-wrap"><div class="rsi-marker"></div></div>
+      </div>
+      <div class="rsi-zones">
+        <span>Oversold</span><span>Healthy</span><span>Overbought</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

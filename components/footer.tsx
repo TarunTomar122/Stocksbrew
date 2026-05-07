@@ -53,7 +53,6 @@ export function Footer() {
           {/* Wordmark + tagline */}
           <div className="col-span-2 flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-1.5 w-fit">
-              <span className="inline-block h-2 w-2 rounded-full bg-white" aria-hidden />
               <span className="text-[20px] font-semibold tracking-[-0.04em] text-white leading-none">
                 tikrr
               </span>

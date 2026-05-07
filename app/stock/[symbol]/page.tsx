@@ -19,6 +19,7 @@ import { StockScorecard } from "@/components/stock-scorecard";
 import { StockSideRail } from "@/components/stock-side-rail";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
+import { StockViewTracker } from "@/components/stock-view-tracker";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
 import {
@@ -320,6 +321,7 @@ export default async function StockPage({ params }: Props) {
 
   return (
     <main className="flex-grow">
+      {session && <StockViewTracker ticker={stock.ticker} instrumentId={stock.instrument_id} market={market} />}
       <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-10 lg:gap-14">
           <StockSideRail

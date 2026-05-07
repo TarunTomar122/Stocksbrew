@@ -282,17 +282,15 @@ def _process_pro_daily_digest(store: TraceMoneyStore, cache: RunCache) -> int:
             continue
         if not _email_opted_in(user, "email_digest_enabled"):
             continue
-        tracked = user.get("tracked_stocks") or []
-        if not isinstance(tracked, list) or len(tracked) == 0:
-            continue
         if _sent_recent(cache, uid, "pro_daily_digest", 20):
             continue
-        radar = user.get("radar_v1") or {}
-        rows = radar.get("rows") if isinstance(radar, dict) else []
+        view = store.get_watchlist_view(uid) or {}
+        rows = view.get("rows") if isinstance(view, dict) else []
         rows = rows if isinstance(rows, list) else []
         if len(rows) == 0:
             continue
-        subject, body = email_pro_daily_digest(rows)
+        market_rows = store.get_market_price_snapshot("US")
+        subject, body = email_pro_daily_digest(rows, market_rows)
         ok = send_email(email, subject, body)
         if ok:
             _log_send(cache, uid, email, "pro_daily_digest", {"rows": len(rows)})

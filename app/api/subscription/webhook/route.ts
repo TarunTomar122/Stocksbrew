@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "standardwebhooks";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 
 type WebhookLogLevel = "info" | "warn" | "error";
 
@@ -155,6 +156,11 @@ async function handleEvent(
         },
         { merge: true },
       );
+      await recordLifecycleEvent({
+        uid,
+        type: "subscription_converted",
+        payload: { source_event: type, plan },
+      }).catch(() => undefined);
       dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: subId });
       break;
     }
@@ -178,6 +184,11 @@ async function handleEvent(
         },
         { merge: true },
       );
+      await recordLifecycleEvent({
+        uid,
+        type: "subscription_converted",
+        payload: { source_event: type, plan },
+      }).catch(() => undefined);
       dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: paymentSubId });
       break;
     }

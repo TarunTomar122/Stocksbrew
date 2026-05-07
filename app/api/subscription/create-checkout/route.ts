@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { getUserDoc } from "@/lib/watchlist";
 import { isDodoConfigured, DODO_BASE, dodoHeaders, productIdFor } from "@/lib/dodo";
+import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 
 export async function POST(req: NextRequest) {
   // 1. Verify Firebase ID token from Authorization header
@@ -113,6 +114,16 @@ export async function POST(req: NextRequest) {
       },
       { merge: true },
     );
+
+  await recordLifecycleEvent({
+    uid,
+    email: email ?? null,
+    type: "checkout_started",
+    payload: {
+      plan: period,
+      checkout_session_id: session.id ?? null,
+    },
+  }).catch(() => undefined);
 
   return NextResponse.json({ checkoutUrl });
 }
