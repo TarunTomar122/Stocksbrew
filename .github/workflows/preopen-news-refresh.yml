@@ -1,0 +1,123 @@
+name: Pre-open news refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to refresh"
+        required: false
+        default: "US"
+      universe:
+        description: "Optional AI universe id (defaults to active Firestore config)"
+        required: false
+        default: ""
+      per_stock_cap:
+        description: "Max articles per stock"
+        required: false
+        default: "5"
+      chunk_workers:
+        description: "Parallel news chunk workers"
+        required: false
+        default: "4"
+  schedule:
+    # 08:55 ET pre-open (DST + standard-time UTC windows).
+    - cron: "55 12 * * 1-5"
+    - cron: "55 13 * * 1-5"
+
+concurrency:
+  group: preopen-news-refresh-${{ github.event.inputs.market || 'US' }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Refresh pre-open news
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+      SEARXNG_BASE_URL: ${{ secrets.SEARXNG_BASE_URL }}
+      WEB_REVALIDATE_BASE_URL: ${{ secrets.WEB_REVALIDATE_BASE_URL }}
+      WEB_REVALIDATE_TOKEN: ${{ secrets.WEB_REVALIDATE_TOKEN }}
+
+    steps:
+      - name: Guard scheduled ET window
+        if: ${{ github.event_name == 'schedule' }}
+        id: schedule_guard
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+          import os
+
+          now_et = datetime.now(ZoneInfo("America/New_York"))
+          hm = now_et.strftime("%H:%M")
+          minute_of_day = now_et.hour * 60 + now_et.minute
+          in_preopen_window = (8 * 60 + 50) <= minute_of_day <= (9 * 60 + 5)
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          if not in_preopen_window:
+            print("Skipping duplicate cron trigger at ET "
+                  f"{hm}; allowed window: 08:50-09:05")
+            output_path.write_text("run=false\n", encoding="utf-8")
+            raise SystemExit(0)
+          print(f"Proceeding at ET {hm}")
+          output_path.write_text("run=true\n", encoding="utf-8")
+          PY
+
+      - name: Check out repository
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Validate required secrets
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON secret" && exit 1)
+          test -n "$MIMO_API_KEY" || (echo "Missing MIMO_API_KEY secret" && exit 1)
+
+      - name: Refresh pre-open news intelligence
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        run: |
+          MARKET="${{ github.event.inputs.market || 'US' }}"
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          PER_STOCK_CAP="${{ github.event.inputs.per_stock_cap || '5' }}"
+          CHUNK_WORKERS="${{ github.event.inputs.chunk_workers || '4' }}"
+
+          CMD=(
+            python -m backend.scripts.build_per_stock_intelligence
+            --market "$MARKET"
+            --paid-only
+            --upsert
+            --per-stock-cap "$PER_STOCK_CAP"
+            --broad-cap 0
+            --chunk-size 10
+            --chunk-workers "$CHUNK_WORKERS"
+            --skip-context
+            --skip-materialize
+          )
+
+          if [ -n "$UNIVERSE" ]; then
+            CMD+=(--universe "$UNIVERSE")
+          fi
+
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Revalidate web cache
+        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
+        run: python -m backend.scripts.trigger_web_revalidate
