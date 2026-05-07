@@ -31,25 +31,10 @@ on:
         description: "Plan cohorts without writing"
         required: false
         default: "false"
-      run_followup_builders:
-        description: "Run technicals/intel/materialize on the same ranked priority IDs"
-        required: false
-        default: "true"
   schedule:
-    # US market open refresh during daylight saving time.
-    - cron: "35 13 * * 1-5"
-    # US market open refresh during standard time.
-    - cron: "35 14 * * 1-5"
-    # US intraday hourly refresh during daylight saving time (10:35-15:35 ET).
-    - cron: "35 14-19 * * 1-5"
-    # US intraday hourly refresh during standard time (10:35-15:35 ET).
-    - cron: "35 15-20 * * 1-5"
-    # US post-close during daylight saving time.
-    - cron: "30 21 * * 1-5"
-    # US post-close during standard time. The duplicate schedule is acceptable;
-    # the job is cheap and keeps the setup simple until we move scheduling into
-    # a market-calendar aware runner.
-    - cron: "30 22 * * 1-5"
+    # Every 30 minutes on weekdays (UTC). ET window guard below ensures only
+    # US market-hours runs proceed.
+    - cron: "*/30 * * * 1-5"
 
 concurrency:
   group: priority-price-cohorts-${{ github.event.inputs.market || 'US' }}
@@ -66,8 +51,6 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-      WEB_REVALIDATE_BASE_URL: ${{ secrets.WEB_REVALIDATE_BASE_URL }}
-      WEB_REVALIDATE_TOKEN: ${{ secrets.WEB_REVALIDATE_TOKEN }}
 
     steps:
       - name: Guard scheduled ET windows
@@ -83,19 +66,18 @@ jobs:
           now_et = datetime.now(ZoneInfo("America/New_York"))
           hm = now_et.strftime("%H:%M")
           minute_of_day = now_et.hour * 60 + now_et.minute
-          in_open_window = (9 * 60 + 30) <= minute_of_day <= (9 * 60 + 45)
-          in_mid_window = (10 * 60 + 30) <= minute_of_day <= (16 * 60 + 5)
-          in_close_window = (17 * 60 + 25) <= minute_of_day <= (17 * 60 + 45)
+          # Allow a little buffer around market hours to tolerate delayed cron starts.
+          in_market_window = (9 * 60 + 20) <= minute_of_day <= (16 * 60 + 20)
           output_path = Path(os.environ["GITHUB_OUTPUT"])
-          if not (in_open_window or in_mid_window or in_close_window):
-            print("Skipping duplicate cron trigger at ET "
-                  f"{hm}; allowed windows: 09:30-09:45, 10:30-16:05, 17:25-17:45")
+          if not in_market_window:
+            print("Skipping trigger at ET "
+                  f"{hm}; allowed market window: 09:20-16:20")
             output_path.write_text("run=false\nsession_phase=manual\n", encoding="utf-8")
             raise SystemExit(0)
-          if in_open_window:
+          if minute_of_day < (9 * 60 + 30):
+            phase = "pre_open"
+          elif minute_of_day < (9 * 60 + 55):
             phase = "open_check"
-          elif in_close_window:
-            phase = "post_close"
           else:
             phase = "mid_check"
           print(f"Proceeding at ET {hm}")
@@ -131,7 +113,6 @@ jobs:
           MAX_WORKERS="${{ github.event.inputs.max_workers || '6' }}"
           SESSION_PHASE="${{ github.event_name == 'schedule' && steps.schedule_guard.outputs.session_phase || github.event.inputs.session_phase || 'post_close' }}"
           DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
-          RUN_FOLLOWUP_BUILDERS="${{ github.event.inputs.run_followup_builders || 'true' }}"
 
           CMD=(
             python -m backend.scripts.run_priority_price_pipeline
@@ -149,26 +130,6 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then
             CMD+=(--dry-run)
           fi
-          if [ "$RUN_FOLLOWUP_BUILDERS" = "true" ]; then
-            CMD+=(--run-followup-builders)
-          fi
 
           echo "Running: ${CMD[*]}"
           "${CMD[@]}"
-
-      - name: Refresh user alerts and watchlist views
-        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
-        env:
-          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
-          SEARXNG_BASE_URL: ${{ secrets.SEARXNG_BASE_URL }}
-        run: |
-          MARKET="${{ github.event.inputs.market || 'US' }}"
-          python -m backend.scripts.run_pipeline \
-            --markets "$MARKET" \
-            --session-phase manual \
-            --force "$MARKET:build_user_alert_flags" \
-            --force "GLOBAL:build_watchlist_views"
-
-      - name: Revalidate web cache
-        if: ${{ github.event_name != 'schedule' || steps.schedule_guard.outputs.run == 'true' }}
-        run: python -m backend.scripts.trigger_web_revalidate

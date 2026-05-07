@@ -73,7 +73,13 @@ def main() -> None:
 
     store = TraceMoneyStore()
     universe_id = _resolve_universe(store, args.market, args.universe)
+    ai_universe = store.get_active_ai_universe(args.market) or universe_id
     as_of_date = args.as_of_date or datetime.now(timezone.utc).date().isoformat()
+    instruments_lookup = {
+        item["instrument_id"]: item
+        for item in list_instruments(args.market, universe_id)
+        if item.get("instrument_id")
+    }
 
     if args.user_id:
         existing = _load_user_watchlist_from_user_doc(store, args.user_id)
@@ -86,7 +92,7 @@ def main() -> None:
             watchlists = store.list_user_watchlists(args.market)
 
     if not watchlists and args.seed_user_if_missing:
-        instruments = list_instruments(args.market, universe_id)[:max(1, args.seed_limit)]
+        instruments = list(instruments_lookup.values())[:max(1, args.seed_limit)]
         seeded_ids = [instrument["instrument_id"] for instrument in instruments]
         seed_payload = {
             "market": args.market,
@@ -116,14 +122,7 @@ def main() -> None:
         latest_prices = store.get_latest_prices(instrument_ids)
         technical_docs: dict[str, dict[str, Any]] = {}
         price_histories: dict[str, list[dict[str, Any]]] = {}
-        ai_universe = store.get_active_ai_universe(args.market) or universe_id
         stock_intel = store.get_stock_intelligence_docs_batch(args.market, ai_universe, instrument_ids)
-
-        instruments_lookup = {
-            item["instrument_id"]: item
-            for item in list_instruments(args.market, universe_id)
-            if item.get("instrument_id")
-        }
 
         for instrument_id in instrument_ids:
             latest = latest_prices.get(instrument_id)

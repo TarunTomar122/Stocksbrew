@@ -5,12 +5,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { isLaunchAITier } from "@/lib/ai-launch-tier";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import {
-  rebuildAndSaveWatchlistView,
-  removeWatchlistRowAndSaveView,
-  upsertWatchlistRowAndSaveView,
-} from "@/lib/watchlist-view";
-import { getAiUniverse } from "@/lib/firestore";
+import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -36,138 +31,7 @@ function trackApiLog(
 }
 
 const PERSONAL_TIER_LIMIT = 10;
-const ON_DEMAND_DISPATCH_EVENT = "process_on_demand_news";
-const ON_DEMAND_DISPATCH_DEDUPE_MS = 90 * 1000;
-
-function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
-  return instrumentId.startsWith("IN_") ? "IN" : "US";
-}
-
-type EnqueueResult = {
-  market: "US" | "IN";
-  universe: string;
-  shouldDispatch: boolean;
-};
-
-function parseRepoConfig(raw?: string): { owner: string; repo: string } | null {
-  if (!raw) return null;
-  const [owner, repo] = raw.split("/");
-  if (!owner || !repo) return null;
-  return { owner, repo };
-}
-
-async function triggerOnDemandNewsDispatch(
-  payload: {
-    instrumentId: string;
-    market: "US" | "IN";
-    universe: string;
-    requestedBy: string;
-  },
-  traceId: string,
-) {
-  const token = process.env.GITHUB_ACTIONS_DISPATCH_TOKEN;
-  const parsed =
-    parseRepoConfig(process.env.GITHUB_DISPATCH_REPO) ??
-    parseRepoConfig(process.env.GITHUB_REPOSITORY);
-  if (!token || !parsed) {
-    trackApiLog(traceId, "warn", "github_dispatch_skipped_missing_config", {
-      has_token: Boolean(token),
-      has_repo: Boolean(parsed),
-    });
-    console.warn(
-      "[api/track] missing GitHub dispatch config; skipping on-demand workflow trigger",
-    );
-    return;
-  }
-
-  const res = await fetch(
-    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/dispatches`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: JSON.stringify({
-        event_type: ON_DEMAND_DISPATCH_EVENT,
-        client_payload: {
-          instrument_id: payload.instrumentId,
-          market: payload.market,
-          universe_id: payload.universe,
-          requested_by: payload.requestedBy,
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    trackApiLog(traceId, "error", "github_dispatch_http_error", {
-      status: res.status,
-      body_snippet: body.slice(0, 300),
-    });
-    throw new Error(
-      `dispatch failed (${res.status}) ${body.slice(0, 200)}`,
-    );
-  }
-  trackApiLog(traceId, "info", "github_dispatch_ok", {
-    status: res.status,
-    instrument_id: payload.instrumentId,
-    market: payload.market,
-    universe: payload.universe,
-  });
-}
-
-async function enqueueOnDemandNewsJob(
-  uid: string,
-  instrumentId: string,
-): Promise<EnqueueResult> {
-  const market = marketFromInstrumentId(instrumentId);
-  const universe = await getAiUniverse(market);
-  const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
-  let shouldDispatch = true;
-  await adminFirestore.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const existing = snap.exists ? snap.data() : null;
-    const status = String(existing?.status || "");
-    const updatedAtRaw = String(existing?.updated_at || "");
-    const updatedAt = Date.parse(updatedAtRaw);
-    const queueRecentlyTouched =
-      status === "queued" &&
-      Number.isFinite(updatedAt) &&
-      Date.now() - updatedAt < ON_DEMAND_DISPATCH_DEDUPE_MS;
-    if (status === "running") {
-      tx.set(ref, {
-        requested_by: FieldValue.arrayUnion(uid),
-        requested_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
-      shouldDispatch = false;
-      return;
-    }
-    if (queueRecentlyTouched) {
-      tx.set(ref, {
-        requested_by: FieldValue.arrayUnion(uid),
-        requested_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
-      shouldDispatch = false;
-      return;
-    }
-    tx.set(ref, {
-      instrument_id: instrumentId,
-      market,
-      universe_id: universe,
-      status: "queued",
-      requested_by: FieldValue.arrayUnion(uid),
-      requested_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { merge: true });
-  });
-  return { market, universe, shouldDispatch };
-}
+const ON_DEMAND_QUEUE_DEDUPE_MS = 90 * 1000;
 
 async function parseTrackPayload(req: NextRequest): Promise<{
   instrumentId: string;
@@ -186,82 +50,42 @@ async function parseTrackPayload(req: NextRequest): Promise<{
   }
 }
 
-// rebuildAndSaveWatchlistView fans out into 20+ Firestore reads (per-stock
-// prices, intel, technicals, mentions, alerts, portfolio diagnostics,
-// thematic suggestions). Awaiting it inline made every track/untrack feel
-// like 1.5–3s of UI freeze. We now fire-and-forget — the next /watchlist
-// visit will show the rebuilt view or, in the worst case, lazily rebuild on
-// page load (the page has a fallback path for that).
-function kickRebuild(
-  uid: string,
-  trackedStocks: string[],
-  positions: Record<string, "watchlist" | "holding">,
-  traceId: string,
-) {
-  (async () => {
-    // Avoid stale position races (remove/add or rapid reclassify): always
-    // rebuild from the latest persisted user doc, not request-local snapshots.
-    const latestUser = await getUserDoc(uid);
-    const latestTracked = Array.isArray(latestUser?.tracked_stocks)
-      ? latestUser!.tracked_stocks!
-      : trackedStocks;
-    const latestPositions = (latestUser?.watchlist_positions || positions) as Record<
-      string,
-      "watchlist" | "holding"
-    >;
-    await rebuildAndSaveWatchlistView(uid, latestTracked, latestPositions);
-    trackApiLog(traceId, "info", "watchlist_view_rebuild_complete", {
-      tracked_count: latestTracked.length,
-    });
-  })().catch((err) => {
-    trackApiLog(traceId, "error", "background_coverage_or_rebuild_failed", {
-      error: String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
-    console.error("[api/track] background coverage/rebuild failed:", err);
+async function maybeQueueOnDemandNews(uid: string, instrumentId: string): Promise<boolean> {
+  const coveredSnap = await adminFirestore.collection("tm_tracked_instruments").doc(instrumentId).get();
+  const coveredCount = coveredSnap.exists ? Number(coveredSnap.data()?.tracked_count ?? 0) : 0;
+  if (Number.isFinite(coveredCount) && coveredCount > 0) return false;
+
+  const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
+  let queued = false;
+  await adminFirestore.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists ? snap.data() : null;
+    const status = String(existing?.status || "");
+    const updatedAtRaw = String(existing?.updated_at || "");
+    const updatedAt = Date.parse(updatedAtRaw);
+    const recentlyQueued =
+      status === "queued" &&
+      Number.isFinite(updatedAt) &&
+      Date.now() - updatedAt < ON_DEMAND_QUEUE_DEDUPE_MS;
+    if (status === "running" || recentlyQueued) {
+      tx.set(ref, {
+        requested_by: FieldValue.arrayUnion(uid),
+        requested_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+      return;
+    }
+    tx.set(ref, {
+      instrument_id: instrumentId,
+      market: instrumentId.startsWith("IN_") ? "IN" : "US",
+      status: "queued",
+      requested_by: FieldValue.arrayUnion(uid),
+      requested_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
+    queued = true;
   });
-}
-
-async function ensureOnDemandCoverage(
-  uid: string,
-  instrumentId: string,
-  traceId: string,
-) {
-  const queued = await enqueueOnDemandNewsJob(uid, instrumentId);
-  if (queued.shouldDispatch) {
-    trackApiLog(traceId, "info", "on_demand_dispatch_triggering", {
-      instrument_id: instrumentId,
-      market: queued.market,
-      universe: queued.universe,
-    });
-    await triggerOnDemandNewsDispatch(
-      {
-        instrumentId,
-        market: queued.market,
-        universe: queued.universe,
-        requestedBy: uid,
-      },
-      traceId,
-    );
-  } else {
-    trackApiLog(traceId, "info", "on_demand_dispatch_skipped_dedupe_or_running", {
-      instrument_id: instrumentId,
-      market: queued.market,
-      universe: queued.universe,
-    });
-  }
-}
-
-async function isTrackedByAnotherUser(
-  uid: string,
-  instrumentId: string,
-): Promise<boolean> {
-  const snap = await adminFirestore
-    .collection("users")
-    .where("tracked_stocks", "array-contains", instrumentId)
-    .limit(10)
-    .get();
-  return snap.docs.some((doc) => doc.id !== uid);
+  return queued;
 }
 
 export async function POST(req: NextRequest) {
@@ -278,6 +102,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
   const { instrumentId, positionType } = payload;
+  const mutationToken = new Date().toISOString();
+  const clientMutationId = req.headers.get("x-client-mutation-id") || randomUUID();
 
   trackApiLog(traceId, "info", "post_track_request", {
     uid: session.uid,
@@ -287,6 +113,15 @@ export async function POST(req: NextRequest) {
 
   const existing = await getUserDoc(session.uid);
   if (!existing || !resolveIsSubscribed(existing)) {
+    await recordLifecycleEvent({
+      uid: session.uid,
+      email: session.email ?? null,
+      type: "track_blocked_subscription_required",
+      payload: {
+        instrument_id: instrumentId,
+        position_type: positionType,
+      },
+    }).catch(() => undefined);
     trackApiLog(traceId, "warn", "post_subscription_required", { uid: session.uid, instrument_id: instrumentId });
     return NextResponse.json(
       { error: "subscription_required", reason: "Tracking a stock adds it to your personal AI tier, which runs real LLM briefs twice daily." },
@@ -314,55 +149,64 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await adminFirestore.collection("users").doc(session.uid).set(
-    {
-      tracked_stocks: FieldValue.arrayUnion(instrumentId),
-      [`watchlist_positions.${instrumentId}`]: positionType,
-      last_tracked_at: new Date().toISOString(),
-    },
-    { merge: true },
-  );
-
-  const nextTracked = current.includes(instrumentId)
-    ? current
-    : [...current, instrumentId];
-  const wasAlreadyTracked = current.includes(instrumentId);
-  if (!wasAlreadyTracked) {
-    const alreadyTrackedElsewhere = await isTrackedByAnotherUser(session.uid, instrumentId);
-    if (!alreadyTrackedElsewhere) {
-      await ensureOnDemandCoverage(session.uid, instrumentId, traceId);
-    } else {
-      trackApiLog(traceId, "info", "on_demand_dispatch_skipped_already_tracked_globally", {
-        uid: session.uid,
-        instrument_id: instrumentId,
-      });
+  const userRef = adminFirestore.collection("users").doc(session.uid);
+  const eventRef = userRef.collection("watchlist_events").doc(clientMutationId);
+  let sourceVersion = Number(existing.watchlist_version ?? 0);
+  let wasAlreadyTrackedInTxn = current.includes(instrumentId);
+  await adminFirestore.runTransaction(async (tx) => {
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const dedupeSnap = await tx.get(eventRef);
+    if (dedupeSnap.exists) {
+      const v = Number(dedupeSnap.data()?.version ?? userData?.watchlist_version ?? 0);
+      sourceVersion = Number.isFinite(v) ? v : 0;
+      const tracked = Array.isArray(userData?.tracked_stocks) ? (userData!.tracked_stocks as string[]) : [];
+      wasAlreadyTrackedInTxn = tracked.includes(instrumentId);
+      return;
     }
-  } else {
-    trackApiLog(traceId, "info", "on_demand_dispatch_skipped_already_tracked", {
+    const tracked = Array.isArray(userData?.tracked_stocks) ? (userData!.tracked_stocks as string[]) : [];
+    const alreadyTracked = tracked.includes(instrumentId);
+    const positions = (
+      userData?.watchlist_positions &&
+      typeof userData.watchlist_positions === "object" &&
+      !Array.isArray(userData.watchlist_positions)
+    )
+      ? { ...(userData.watchlist_positions as Record<string, "holding" | "watchlist">) }
+      : {};
+    positions[instrumentId] = positionType;
+    wasAlreadyTrackedInTxn = alreadyTracked;
+    sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
+    tx.set(
+      userRef,
+      {
+        tracked_stocks: alreadyTracked ? tracked : [...tracked, instrumentId],
+        watchlist_positions: positions,
+        watchlist_updated_at: mutationToken,
+        watchlist_version: sourceVersion,
+        last_tracked_at: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+    tx.set(eventRef, {
+      kind: "SET_POSITION",
+      instrument_id: instrumentId,
+      position_type: positionType,
+      version: sourceVersion,
+      created_at: mutationToken,
+    });
+  });
+  trackApiLog(traceId, "info", "post_track_state_written", {
+    uid: session.uid,
+    instrument_id: instrumentId,
+    watchlist_version: sourceVersion,
+  });
+  if (!wasAlreadyTrackedInTxn) {
+    const queued = await maybeQueueOnDemandNews(session.uid, instrumentId).catch(() => false);
+    trackApiLog(traceId, "info", queued ? "on_demand_news_queued" : "on_demand_news_not_queued", {
       uid: session.uid,
       instrument_id: instrumentId,
     });
   }
-  await upsertWatchlistRowAndSaveView(
-    session.uid,
-    instrumentId,
-    positionType,
-    nextTracked,
-    {
-      ...(existing.watchlist_positions || {}),
-      [instrumentId]: positionType,
-    },
-  ).catch((err) => {
-    trackApiLog(traceId, "warn", "watchlist_incremental_upsert_failed", {
-      uid: session.uid,
-      instrument_id: instrumentId,
-      error: String(err),
-    });
-  });
-  kickRebuild(session.uid, nextTracked, {
-    ...(existing.watchlist_positions || {}),
-    [instrumentId]: positionType,
-  }, traceId);
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
   return NextResponse.json({ ok: true });
@@ -382,45 +226,59 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
   const { instrumentId } = payload;
+  const mutationToken = new Date().toISOString();
+  const clientMutationId = req.headers.get("x-client-mutation-id") || randomUUID();
 
   trackApiLog(traceId, "info", "delete_untrack_request", {
     uid: session.uid,
     instrument_id: instrumentId,
   });
 
-  // Read once, compute the next state locally, then issue a single write.
-  // The previous version did a write then re-read just to feed the rebuild,
-  // which doubled the round trips against Firestore.
   const existing = await getUserDoc(session.uid);
-  const currentTracked = Array.isArray(existing?.tracked_stocks)
-    ? existing!.tracked_stocks!
-    : [];
-  const nextTracked = currentTracked.filter((id) => id !== instrumentId);
-  const nextPositions = { ...(existing?.watchlist_positions || {}) };
-  delete nextPositions[instrumentId];
-
-  await adminFirestore.collection("users").doc(session.uid).set(
-    {
-      tracked_stocks: FieldValue.arrayRemove(instrumentId),
-      [`watchlist_positions.${instrumentId}`]: FieldValue.delete(),
-    },
-    { merge: true },
-  );
-
-  await removeWatchlistRowAndSaveView(
-    session.uid,
-    instrumentId,
-    nextTracked,
-    nextPositions,
-  ).catch((err) => {
-    trackApiLog(traceId, "warn", "watchlist_incremental_remove_failed", {
-      uid: session.uid,
+  const userRef = adminFirestore.collection("users").doc(session.uid);
+  const eventRef = userRef.collection("watchlist_events").doc(clientMutationId);
+  let sourceVersion = Number(existing?.watchlist_version ?? 0);
+  await adminFirestore.runTransaction(async (tx) => {
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const dedupeSnap = await tx.get(eventRef);
+    if (dedupeSnap.exists) {
+      const v = Number(dedupeSnap.data()?.version ?? userData?.watchlist_version ?? 0);
+      sourceVersion = Number.isFinite(v) ? v : 0;
+      return;
+    }
+    const tracked = Array.isArray(userData?.tracked_stocks) ? (userData!.tracked_stocks as string[]) : [];
+    const positions = (
+      userData?.watchlist_positions &&
+      typeof userData.watchlist_positions === "object" &&
+      !Array.isArray(userData.watchlist_positions)
+    )
+      ? { ...(userData.watchlist_positions as Record<string, "holding" | "watchlist">) }
+      : {};
+    delete positions[instrumentId];
+    sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
+    tx.set(
+      userRef,
+      {
+        tracked_stocks: FieldValue.arrayRemove(instrumentId),
+        watchlist_positions: positions,
+        watchlist_updated_at: mutationToken,
+        watchlist_version: sourceVersion,
+      },
+      { merge: true },
+    );
+    tx.set(eventRef, {
+      kind: "REMOVE_POSITION",
       instrument_id: instrumentId,
-      error: String(err),
+      version: sourceVersion,
+      created_at: mutationToken,
     });
   });
-
-  kickRebuild(session.uid, nextTracked, nextPositions, traceId);
+  trackApiLog(traceId, "info", "delete_track_state_written", {
+    uid: session.uid,
+    instrument_id: instrumentId,
+    watchlist_version: sourceVersion,
+  });
 
   trackApiLog(traceId, "info", "delete_untrack_ok", { uid: session.uid, instrument_id: instrumentId });
   return NextResponse.json({ ok: true });

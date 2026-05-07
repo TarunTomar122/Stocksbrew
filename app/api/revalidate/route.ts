@@ -1,6 +1,22 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+const DEFAULT_PATHS = ["/"];
+const ALLOWED_PATHS = new Set(["/", "/watchlist", "/heat", "/news", "/screens"]);
+const DEDUPE_MS = 60_000;
+
+const revalidateState = globalThis as typeof globalThis & {
+  __tikrrRevalidateLast?: Map<string, number>;
+};
+
+function parsePaths(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return DEFAULT_PATHS;
+  const paths = raw
+    .map((item) => String(item || "").trim())
+    .filter((path) => ALLOWED_PATHS.has(path));
+  return paths.length ? Array.from(new Set(paths)) : DEFAULT_PATHS;
+}
+
 export async function POST(req: NextRequest) {
   const token = req.headers.get("x-revalidate-token") || "";
   const expected = process.env.REVALIDATE_TOKEN || "";
@@ -8,10 +24,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  revalidatePath("/", "layout");
-  revalidatePath("/stock/[symbol]", "page");
-  revalidatePath("/watchlist", "page");
+  const body = await req.json().catch(() => ({}));
+  const paths = parsePaths((body as { paths?: unknown }).paths);
+  const now = Date.now();
+  const lastByPath = revalidateState.__tikrrRevalidateLast ?? new Map<string, number>();
+  revalidateState.__tikrrRevalidateLast = lastByPath;
 
-  return NextResponse.json({ ok: true });
+  const revalidated: string[] = [];
+  const skipped: string[] = [];
+  for (const path of paths) {
+    const last = lastByPath.get(path) || 0;
+    if (now - last < DEDUPE_MS) {
+      skipped.push(path);
+      continue;
+    }
+    revalidatePath(path, "page");
+    lastByPath.set(path, now);
+    revalidated.push(path);
+  }
+
+  return NextResponse.json({ ok: true, revalidated, skipped });
 }
-

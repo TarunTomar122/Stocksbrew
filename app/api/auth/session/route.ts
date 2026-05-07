@@ -11,26 +11,16 @@ const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 async function isWaitlistedEmail(email: string | null | undefined): Promise<boolean> {
   const value = String(email || "").trim().toLowerCase();
   if (!value) return false;
-  const candidates = ["waitlist", "tm_waitlist"];
-  for (const collectionName of candidates) {
-    try {
-      const byLower = await adminFirestore
-        .collection(collectionName)
-        .where("email_lower", "==", value)
-        .limit(1)
-        .get();
-      if (!byLower.empty) return true;
-      const byEmail = await adminFirestore
-        .collection(collectionName)
-        .where("email", "==", value)
-        .limit(1)
-        .get();
-      if (!byEmail.empty) return true;
-    } catch {
-      // ignore unknown/missing collections
-    }
+  try {
+    const snap = await adminFirestore
+      .collection("tm_waitlist")
+      .where("email_lower", "==", value)
+      .limit(1)
+      .get();
+    return !snap.empty;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 export async function POST(request: NextRequest) {

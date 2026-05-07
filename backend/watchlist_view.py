@@ -512,6 +512,7 @@ def _row_for_instrument(
     position_type: str,
     latest: dict[str, Any],
     intel_pro: dict[str, Any],
+    stock_intel: dict[str, Any],
     facts: dict[str, Any],
     technical: dict[str, Any],
     mention_stats: dict[str, Any],
@@ -539,6 +540,10 @@ def _row_for_instrument(
         intel_pro,
         alert_flags,
     )
+    raw_directive = stock_intel.get("directive") if isinstance(stock_intel, dict) else None
+    directive = raw_directive if isinstance(raw_directive, dict) else {}
+    directive_text = str(directive.get("text") or "").strip()
+    directive_rationale = str(directive.get("rationale") or "").strip()
 
     return {
         "instrument_id": instrument_id,
@@ -590,6 +595,9 @@ def _row_for_instrument(
             "vibe": vibe,
             "source": "rules",
         },
+        "ai_directive": directive,
+        "ai_directive_text": directive_text,
+        "ai_directive_rationale": directive_rationale,
         **_row_attention(
             position_type,
             ticker,
@@ -1228,6 +1236,7 @@ def build_watchlist_view(
     mention_by_id = store.get_mention_stats_batch(ids)
 
     intel_by_id: dict[str, dict[str, Any]] = {}
+    stock_intel_by_id: dict[str, dict[str, Any]] = {}
     for market in ["US", "IN"]:
         market_ids = [instrument_id for instrument_id in ids if _market_from_instrument_id(instrument_id) == market]
         if not market_ids:
@@ -1235,6 +1244,8 @@ def build_watchlist_view(
         universe = _price_universe(market, active_universes)
         docs = store.get_stock_intel_pro_batch(market, universe, market_ids)
         intel_by_id.update(docs)
+        stock_docs = store.get_stock_intelligence_docs_batch(market, universe, market_ids)
+        stock_intel_by_id.update(stock_docs)
 
     rows: list[dict[str, Any]] = []
     for instrument_id in ids:
@@ -1243,6 +1254,7 @@ def build_watchlist_view(
             _position_type(instrument_id, positions),
             latest_by_id.get(instrument_id) or {},
             intel_by_id.get(instrument_id) or {},
+            stock_intel_by_id.get(instrument_id) or {},
             facts_by_id.get(instrument_id) or {},
             technical_by_id.get(instrument_id) or {},
             mention_by_id.get(instrument_id) or {},

@@ -499,6 +499,22 @@ class TraceMoneyStore:
         doc_id = f"{market}__{universe_id}"
         self.db.collection("tm_views_dashboard").document(doc_id).set(payload)
 
+    def save_home_view(self, market: str, payload: dict[str, Any]) -> None:
+        self.db.collection("tm_home_view").document(str(market).upper()).set({
+            **(_serialize(payload) or {}),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def get_news_home_feed(self, market: str, universe_id: str, limit: int = 30) -> list[dict[str, Any]]:
+        namespace = self._news_namespace(market, universe_id).get()
+        if not namespace.exists:
+            return []
+        data = _serialize(namespace.to_dict()) or {}
+        rows = data.get("home_feed_enrichments") or data.get("home_feed_articles") or []
+        if not isinstance(rows, list):
+            return []
+        return [row for row in rows if isinstance(row, dict)][:limit]
+
     def save_stock_intel_pro(
         self, market: str, universe_id: str, instrument_id: str, payload: dict[str, Any]
     ) -> None:
@@ -945,7 +961,22 @@ class TraceMoneyStore:
 
     def list_subscribed_users(self) -> list[dict[str, Any]]:
         """Return all user docs with tracked_stocks set (for batched view-build jobs)."""
-        docs = self.db.collection("users").where("tracked_stocks", "!=", []).stream()
+        docs = (
+            self.db.collection("users")
+            .where("tracked_stocks", "!=", [])
+            .select([
+                "tracked_stocks",
+                "watchlist_positions",
+                "alert_thresholds",
+                "thresholds",
+                "email",
+                "email_lower",
+                "email_alerts_enabled",
+                "email_digest_enabled",
+                "is_subscribed",
+            ])
+            .stream()
+        )
         rows = []
         for doc in docs:
             data = _serialize(doc.to_dict()) or {}
@@ -967,22 +998,36 @@ class TraceMoneyStore:
             .where("user_id", "==", user_id)
             .stream()
         )
-        existing_docs = list(existing)
-        if existing_docs:
-            delete_batch = self.db.batch()
-            for doc in existing_docs:
-                delete_batch.delete(doc.reference)
-            delete_batch.commit()
-        if not flags:
-            return
-        batch = self.db.batch()
+        collection = self.db.collection("tm_user_alert_flags")
+        existing_by_id = {
+            doc.id: (_serialize(doc.to_dict()) or {})
+            for doc in existing
+        }
+        next_by_id: dict[str, dict[str, Any]] = {}
         for payload in flags:
             instrument_id = str(payload.get("instrument_id", "")).strip()
             if not instrument_id:
                 continue
             doc_id = f"{user_id}_{instrument_id}"
-            batch.set(self.db.collection("tm_user_alert_flags").document(doc_id), payload, merge=True)
-        batch.commit()
+            next_by_id[doc_id] = payload
+
+        pending: list[tuple[str, str, dict[str, Any] | None]] = []
+        for doc_id, payload in next_by_id.items():
+            if existing_by_id.get(doc_id) != payload:
+                pending.append(("set", doc_id, payload))
+        for doc_id in existing_by_id:
+            if doc_id not in next_by_id:
+                pending.append(("delete", doc_id, None))
+
+        for start in range(0, len(pending), 450):
+            batch = self.db.batch()
+            for op, doc_id, payload in pending[start:start + 450]:
+                ref = collection.document(doc_id)
+                if op == "delete":
+                    batch.delete(ref)
+                elif payload is not None:
+                    batch.set(ref, payload, merge=False)
+            batch.commit()
 
     # ─── Mention stats / heat list ────────────────────────────────────────
     # `tm_mention_stats/{instrument_id}` holds a rolling 30-day map of daily

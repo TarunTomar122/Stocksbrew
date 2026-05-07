@@ -8,6 +8,16 @@ export type UserDoc = {
   is_subscribed?: boolean;
   tracked_stocks?: string[];
   watchlist_positions?: Record<string, "holding" | "watchlist">;
+  watchlist_updated_at?: string;
+  watchlist_version?: number;
+  radar_v1?: {
+    built_at?: string;
+    rows?: Array<Record<string, unknown>>;
+    suggestions?: Array<Record<string, unknown>>;
+    holdings_count?: number;
+    watchlist_count?: number;
+    tracked_count?: number;
+  };
   created_at?: string;
   last_sign_in_at?: string;
   lastCheckoutCreatedAt?: number;
@@ -16,6 +26,9 @@ export type UserDoc = {
   subscriptionStatus?: string | null;
   subscriptionPlan?: string | null;
   cancelAtPeriodEnd?: boolean;
+  /** Email opt-out flags — treated as true when absent (opt-in by default). */
+  email_alerts_enabled?: boolean;
+  email_digest_enabled?: boolean;
 };
 
 export async function getUserDoc(uid: string): Promise<UserDoc | null> {

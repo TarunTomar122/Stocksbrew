@@ -156,6 +156,7 @@ export function HomeContent({ stocks, news, market = "US" }: Props) {
   const displayNews = news.slice(0, 8);
 
   return (
+    <>
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left: Today's stocks */}
       <div className="lg:col-span-2 flex flex-col rounded-[24px] border border-[#e5e7eb] bg-white overflow-hidden">
@@ -251,5 +252,6 @@ export function HomeContent({ stocks, news, market = "US" }: Props) {
         </div>
       </div>
     </section>
+    </>
   );
 }
