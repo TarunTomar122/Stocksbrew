@@ -84,7 +84,7 @@ function PillarCard({
 }) {
   const icon = PILLAR_ICON[name];
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+    <div className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-4.5">
       <div className="flex items-center justify-between gap-2">
         <span
           className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
@@ -122,13 +122,13 @@ export function StockScorecard({
   return (
     <div className="flex flex-col gap-10">
       {/* Header: overall + 4 pillar columns */}
-      <section className="grid grid-cols-1 lg:grid-cols-[minmax(220px,_280px)_1fr] gap-8 items-start">
+      <section className="grid grid-cols-1 xl:grid-cols-[minmax(220px,_280px)_1fr] gap-6 md:gap-8 items-start">
         <div className="flex flex-col gap-2">
           <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
             Fundamentals score
           </span>
           <div className="flex items-baseline gap-2">
-            <span className={`text-[64px] font-semibold leading-none tabular-nums ${scoreTone(intel.overall.score)}`}>
+            <span className={`text-[52px] md:text-[64px] font-semibold leading-none tabular-nums ${scoreTone(intel.overall.score)}`}>
               {Math.round(intel.overall.score)}
             </span>
             <span className="text-[20px] font-medium text-[#9ca3af]">/ 100</span>
@@ -167,7 +167,7 @@ export function StockScorecard({
           )}
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           {PILLAR_ORDER.map((name) => (
             <PillarCard key={name} name={name} pillar={intel.pillars[name]} />
           ))}

@@ -323,6 +323,21 @@ class TraceMoneyStore:
                 rows.extend(item for item in shard_rows if isinstance(item, dict))
         return rows
 
+    def save_market_movers(self, market: str, payload: dict[str, Any]) -> None:
+        market_key = str(market).upper()
+        self.db.collection("tm_market_movers").document(market_key).set({
+            **(_serialize(payload) or {}),
+            "market": market_key,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, merge=True)
+
+    def get_market_movers(self, market: str) -> dict[str, Any] | None:
+        market_key = str(market).upper()
+        doc = self.db.collection("tm_market_movers").document(market_key).get()
+        if not doc.exists:
+            return None
+        return _serialize(doc.to_dict()) or None
+
     def save_fundamental_snapshot(self, instrument_id: str, payload: dict[str, Any]) -> None:
         self.db.collection("tm_fundamental_snapshots").document(instrument_id).set({
             **payload,

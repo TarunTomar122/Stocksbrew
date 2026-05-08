@@ -184,6 +184,18 @@ export type SnapshotRow = {
   };
 };
 
+export type MarketMoversDoc = {
+  market: Market;
+  generated_at?: string;
+  updated_at?: string;
+  universe_id?: string;
+  scope?: string;
+  row_count?: number;
+  priority_instrument_ids?: string[];
+  gainers: DashboardRow[];
+  losers: DashboardRow[];
+};
+
 export type Instrument = {
   instrument_id: string;
   market: Market;

@@ -8,16 +8,25 @@ Slow facts/news/AI stages are left to the normal daily pipeline.
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
 import json
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.instrument_universe import list_instruments, list_universes_for_market
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.sync_price_snapshots import sync_price_snapshots
 from backend.storage import TraceMoneyStore
+
+
+VISIT_WEIGHT_SUBSCRIBED = 4.0
+VISIT_WEIGHT_LOGGED_UNSUB = 2.0
+VISIT_WEIGHT_ANON = 1.0
+TRACKED_WEIGHT_SUBSCRIBED = 40.0
+TRACKED_WEIGHT_LOGGED_UNSUB = 20.0
+PROMOTED_BONUS = 2000.0
 
 
 def _utc_now() -> str:
@@ -28,6 +37,145 @@ def _chunked(values: list[dict[str, Any]], size: int) -> list[list[dict[str, Any
     if size <= 0:
         return [values]
     return [values[index:index + size] for index in range(0, len(values), size)]
+
+
+def _build_movers_rows(
+    snapshot_rows: list[dict[str, Any]],
+    *,
+    allowed_ids: set[str],
+    limit: int = 5,
+) -> dict[str, list[dict[str, Any]]]:
+    rows: list[dict[str, Any]] = []
+    for row in snapshot_rows:
+        if not isinstance(row, dict):
+            continue
+        instrument_id = str(row.get("instrumentId") or row.get("instrument_id") or "").upper()
+        if not instrument_id or instrument_id not in allowed_ids:
+            continue
+        # Keep movers stock-only; skip macro/index tiles.
+        if "_MAC_" in instrument_id or "_IDX_" in instrument_id:
+            continue
+        symbol = str(row.get("symbol") or row.get("ticker") or "").strip()
+        if not symbol:
+            continue
+        price = row.get("price") or {}
+        current = price.get("current")
+        day_change_pct = price.get("changePct", price.get("day_change_pct"))
+        if not isinstance(current, (int, float)) or not isinstance(day_change_pct, (int, float)):
+            continue
+        rows.append({
+            "instrument_id": instrument_id,
+            "ticker": symbol,
+            "name": str(row.get("name") or symbol),
+            "price": float(current),
+            "day_change_pct": float(day_change_pct),
+            "ai_sentiment_score": 0,
+            "news_count": 0,
+            "source_count": 0,
+            "volume": (
+                float(price["volume"])
+                if isinstance(price.get("volume"), (int, float))
+                else None
+            ),
+        })
+
+    ranked = sorted(rows, key=lambda item: (item["day_change_pct"], item["ticker"]), reverse=True)
+    gainers = [item for item in ranked if item["day_change_pct"] > 0][:limit]
+    losers = [
+        item for item in sorted(rows, key=lambda item: (item["day_change_pct"], item["ticker"]))
+        if item["day_change_pct"] < 0
+    ][:limit]
+    return {"gainers": gainers, "losers": losers}
+
+
+def _is_macro_or_index_id(instrument_id: str) -> bool:
+    upper = str(instrument_id or "").upper()
+    return "_MAC_" in upper or "_IDX_" in upper
+
+
+def _load_tracked_scores(
+    store: TraceMoneyStore,
+    market: str,
+    allowed_ids: set[str],
+) -> dict[str, float]:
+    scores: dict[str, float] = defaultdict(float)
+    market_prefix = f"{market.upper()}_"
+    users = store.list_subscribed_users()
+    for user in users:
+        tracked = user.get("tracked_stocks") or []
+        if not isinstance(tracked, list):
+            continue
+        is_subscribed = bool(user.get("is_subscribed"))
+        weight = (
+            TRACKED_WEIGHT_SUBSCRIBED if is_subscribed
+            else TRACKED_WEIGHT_LOGGED_UNSUB
+        )
+        for raw in tracked:
+            instrument_id = str(raw or "").strip().upper()
+            if (
+                not instrument_id
+                or not instrument_id.startswith(market_prefix)
+                or instrument_id not in allowed_ids
+            ):
+                continue
+            scores[instrument_id] += weight
+    return dict(scores)
+
+
+def _load_recent_visit_scores(
+    store: TraceMoneyStore,
+    market: str,
+    allowed_ids: set[str],
+    *,
+    lookback_days: int = 7,
+) -> dict[str, float]:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, lookback_days))
+    docs = (
+        store.db.collection("tm_stock_views")
+        .where("created_at", ">=", cutoff.isoformat())
+        .stream()
+    )
+    raw_rows: list[dict[str, Any]] = []
+    user_ids: set[str] = set()
+    for doc in docs:
+        row = doc.to_dict() or {}
+        row_market = str(row.get("market") or "").strip().upper()
+        if row_market != market.upper():
+            continue
+        instrument_id = str(row.get("instrument_id") or "").strip().upper()
+        if not instrument_id or instrument_id not in allowed_ids:
+            continue
+        uid = str(row.get("uid") or "").strip()
+        if uid:
+            user_ids.add(uid)
+        raw_rows.append(row)
+
+    user_subscribed: dict[str, bool] = {}
+    if user_ids:
+        user_refs = [store.db.collection("users").document(uid) for uid in user_ids]
+        for start in range(0, len(user_refs), 500):
+            for doc in store.db.get_all(user_refs[start:start + 500]):
+                if doc.exists:
+                    payload = doc.to_dict() or {}
+                    user_subscribed[doc.id] = bool(payload.get("is_subscribed"))
+
+    scores: dict[str, float] = defaultdict(float)
+    for row in raw_rows:
+        instrument_id = str(row.get("instrument_id") or "").strip().upper()
+        if not instrument_id:
+            continue
+        view_count = row.get("view_count")
+        views = float(view_count) if isinstance(view_count, (int, float)) else 1.0
+        uid = str(row.get("uid") or "").strip()
+        if uid:
+            weight = (
+                VISIT_WEIGHT_SUBSCRIBED if user_subscribed.get(uid, False)
+                else VISIT_WEIGHT_LOGGED_UNSUB
+            )
+        else:
+            weight = VISIT_WEIGHT_ANON
+        scores[instrument_id] += (views * weight)
+    return dict(scores)
 
 
 def _rank_instruments(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[dict[str, Any]]:
@@ -48,22 +196,41 @@ def _rank_instruments(store: TraceMoneyStore, market: str, universe_id: str, lim
         if instrument:
             promoted_ids.append(instrument["instrument_id"])
 
-    ordered: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for instrument_id in promoted_ids:
-        if instrument_id in seen:
-            continue
-        instrument = by_id.get(instrument_id)
-        if instrument:
-            ordered.append(instrument)
-            seen.add(instrument_id)
+    allowed_ids = {
+        str(instrument.get("instrument_id") or "").strip().upper()
+        for instrument in instruments
+        if str(instrument.get("instrument_id") or "").strip()
+    }
+    tracked_scores = _load_tracked_scores(store, market, allowed_ids)
+    visit_scores = _load_recent_visit_scores(store, market, allowed_ids)
 
+    base_rank: dict[str, int] = {
+        str(instrument.get("instrument_id") or "").upper(): index
+        for index, instrument in enumerate(instruments)
+    }
+    promoted_set = {instrument_id.upper() for instrument_id in promoted_ids}
+
+    scored: list[tuple[float, dict[str, Any]]] = []
     for instrument in instruments:
-        instrument_id = instrument["instrument_id"]
-        if instrument_id in seen:
+        instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+        if not instrument_id:
             continue
-        ordered.append(instrument)
-        seen.add(instrument_id)
+        score = 0.0
+        score += tracked_scores.get(instrument_id, 0.0)
+        score += visit_scores.get(instrument_id, 0.0)
+        if instrument_id in promoted_set:
+            score += PROMOTED_BONUS
+        score += max(0.0, float(len(instruments) - base_rank.get(instrument_id, 0)))
+        scored.append((score, instrument))
+
+    scored.sort(
+        key=lambda item: (
+            item[0],
+            str(item[1].get("ticker") or ""),
+        ),
+        reverse=True,
+    )
+    ordered = [instrument for _score, instrument in scored]
 
     selected = ordered[: max(1, limit)]
 
@@ -96,6 +263,19 @@ def run_priority_price_pipeline(
 ) -> dict[str, Any]:
     store = TraceMoneyStore()
     ranked = _rank_instruments(store, market, universe_id, limit)
+    priority_stock_ids = [
+        str(instrument.get("instrument_id") or "").upper()
+        for instrument in ranked
+        if (
+            str(instrument.get("instrument_id") or "").strip()
+            and not _is_macro_or_index_id(str(instrument.get("instrument_id") or ""))
+        )
+    ][: max(1, limit)]
+    ranked_ids = {
+        str(instrument.get("instrument_id") or "").upper()
+        for instrument in ranked
+        if str(instrument.get("instrument_id") or "").strip()
+    }
     cohorts = _chunked(ranked, cohort_size)
     run_id = f"{market.upper()}_{universe_id}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     started_at = _utc_now()
@@ -195,6 +375,23 @@ def run_priority_price_pipeline(
             store=store,
         )
         summary["dashboard_refresh"] = dashboard_result
+        snapshot_rows = store.get_market_price_snapshot(market)
+        movers = _build_movers_rows(snapshot_rows, allowed_ids=ranked_ids, limit=5)
+        store.save_market_movers(market, {
+            "market": market.upper(),
+            "generated_at": _utc_now(),
+            "universe_id": universe_id,
+            "scope": "priority_100",
+            "row_count": len(snapshot_rows),
+            "priority_instrument_ids": priority_stock_ids,
+            "gainers": movers["gainers"],
+            "losers": movers["losers"],
+        })
+        summary["market_movers"] = {
+            "scope": "priority_100",
+            "gainers": len(movers["gainers"]),
+            "losers": len(movers["losers"]),
+        }
     if not dry_run:
         store.save_price_refresh_status(market, summary)
     return summary

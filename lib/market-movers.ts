@@ -17,6 +17,10 @@ const SECTOR_LABELS: Record<string, string> = {
 const MIN_SECTOR_SAMPLES = 3;
 
 function snapshotToRow(row: SnapshotRow): DashboardRow | null {
+  const instrumentId = row.instrumentId || "";
+  if (instrumentId.includes("_MAC_") || instrumentId.includes("_IDX_")) {
+    return null;
+  }
   const pct = row.price?.changePct;
   const current = row.price?.current;
   if (typeof pct !== "number" || typeof current !== "number") return null;

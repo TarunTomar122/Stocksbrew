@@ -4,6 +4,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import type {
   DashboardView,
+  MarketMoversDoc,
   SnapshotRow,
   StockIntelligence,
   LatestPrice,
@@ -161,6 +162,22 @@ const getMarketSnapshotCached = unstable_cache(
 );
 
 export const getMarketSnapshot = cache(getMarketSnapshotCached);
+
+const getMarketMoversUncached = async (
+  market: "US" | "IN" = "US",
+): Promise<MarketMoversDoc | null> => {
+  const doc = await adminFirestore.collection("tm_market_movers").doc(market).get();
+  if (!doc.exists) return null;
+  return doc.data() as MarketMoversDoc;
+};
+
+const getMarketMoversCached = unstable_cache(
+  getMarketMoversUncached,
+  ["market-movers"],
+  { revalidate: 60 },
+);
+
+export const getMarketMovers = cache(getMarketMoversCached);
 
 // ─── Instruments ─────────────────────────────────────────────────────────────
 

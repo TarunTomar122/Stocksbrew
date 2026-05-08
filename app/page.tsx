@@ -14,12 +14,12 @@ import {
   US_AI_LAUNCH_INSTRUMENTS,
 } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
-import type { SnapshotRow } from "@/lib/types";
+import type { MarketMoversDoc, SnapshotRow } from "@/lib/types";
 import type { NewsArticle } from "@/lib/news";
 import { getHomeView } from "@/lib/home-view";
 import { getNewsFeed } from "@/lib/news";
 import { getCurrentMarket } from "@/lib/market";
-import { getMarketSnapshot } from "@/lib/firestore";
+import { getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
 import { buildMarketTiles } from "@/lib/market-tiles";
 import type { MarketTile } from "@/lib/market-tiles";
@@ -98,15 +98,17 @@ export default async function HomePage() {
     from_52w_high_pct: number | null;
   }> = [];
   let news: NewsArticle[] = [];
+  let moversDoc: MarketMoversDoc | null = null;
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
   try {
-    const [homeView, liveSnapshotRows, thematicScreens, feed] = await Promise.all([
+    const [homeView, liveSnapshotRows, thematicScreens, feed, liveMovers] = await Promise.all([
       getHomeView(market).catch(() => null),
       getMarketSnapshot(market).catch(() => []),
       getThematicScreens(market).catch(() => null),
       getNewsFeed(market, 30).catch(() => []),
+      getMarketMovers(market).catch(() => null),
     ]);
     if (homeView) {
       view = homeView.dashboard ?? null;
@@ -114,6 +116,7 @@ export default async function HomePage() {
     snapshotRows = liveSnapshotRows.length > 0
       ? liveSnapshotRows
       : homeView?.market_snapshot_rows ?? [];
+    moversDoc = liveMovers;
     screens = thematicScreens ?? homeView?.thematic_screens ?? null;
     news = feed.length > 0 ? feed : homeView?.news ?? [];
     macroTicks = buildMacroTicksFromSnapshot(snapshotRows, market);
@@ -153,12 +156,16 @@ export default async function HomePage() {
   const snapshotMovers = buildMoversFromSnapshot(snapshotRows, 5);
   const isIN = market === "IN";
 
-  const gainers = snapshotMovers.gainers.length
+  const gainers = moversDoc?.gainers?.length
+    ? moversDoc.gainers
+    : snapshotMovers.gainers.length
     ? snapshotMovers.gainers
     : view?.gainers?.length
       ? view.gainers
       : MOCKED_GAINERS;
-  const losers = snapshotMovers.losers.length
+  const losers = moversDoc?.losers?.length
+    ? moversDoc.losers
+    : snapshotMovers.losers.length
     ? snapshotMovers.losers
     : view?.losers?.length
       ? view.losers

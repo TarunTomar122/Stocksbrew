@@ -20,8 +20,10 @@ import { StockSideRail } from "@/components/stock-side-rail";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
 import { StockViewTracker } from "@/components/stock-view-tracker";
+import { PriorityStockModal } from "@/components/priority-stock-modal";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
+import { getMarketMovers } from "@/lib/firestore";
 import {
   getInstrumentViewDoc,
   getStockFacts,
@@ -136,6 +138,7 @@ export default async function StockPage({ params }: Props) {
     technicals,
     intelPro,
     stockFacts,
+    marketMovers,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -146,7 +149,11 @@ export default async function StockPage({ params }: Props) {
     getLatestTechnicals(stock.instrument_id).catch(() => null),
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getStockFacts(stock.instrument_id).catch(() => null),
+    getMarketMovers(market).catch(() => null),
   ]);
+  const priorityIds = marketMovers?.priority_instrument_ids ?? [];
+  const isPriorityStock = priorityIds.includes(stock.instrument_id);
+  const showPriorityNotice = priorityIds.length > 0 && !isPriorityStock;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
   const rsi =
@@ -321,7 +328,12 @@ export default async function StockPage({ params }: Props) {
 
   return (
     <main className="flex-grow">
-      {session && <StockViewTracker ticker={stock.ticker} instrumentId={stock.instrument_id} market={market} />}
+      <StockViewTracker ticker={stock.ticker} instrumentId={stock.instrument_id} market={market} />
+      <PriorityStockModal
+        open={showPriorityNotice}
+        instrumentId={stock.instrument_id}
+        ticker={stock.ticker}
+      />
       <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-10 lg:gap-14">
           <StockSideRail
