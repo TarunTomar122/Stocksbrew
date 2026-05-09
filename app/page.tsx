@@ -1,3 +1,4 @@
+import { Suspense, cache } from "react";
 import { DailyAnomalies } from "@/components/daily-anomalies";
 import { HeroSection } from "@/components/hero-section";
 import { HomeContent } from "@/components/home-content";
@@ -86,11 +87,10 @@ function buildMacroTicksFromSnapshot(
   }, []);
 }
 
-export default async function HomePage() {
+const loadHomeCore = cache(async () => {
   const market = getCurrentMarket();
   let view = null;
   let snapshotRows: SnapshotRow[] = [];
-  let screens = null;
   let macroTicks: Array<{
     instrument_id: string;
     ticker: string;
@@ -99,9 +99,7 @@ export default async function HomePage() {
     day_change_pct: number | null;
     from_52w_high_pct: number | null;
   }> = [];
-  let news: NewsArticle[] = [];
   let moversDoc: MarketMoversDoc | null = null;
-  let anomaliesData = null;
   const sessionPromise = getSessionUser();
   const homeViewPromise = getHomeView(market).catch(() => null);
   const liveSnapshotPromise = getMarketSnapshot(market).catch(() => []);
@@ -109,14 +107,12 @@ export default async function HomePage() {
 
   const session = await sessionPromise;
   const userDocPromise = session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null);
-  const [homeView, liveSnapshotRows, liveMovers, userDoc, anomaliesResult] = await Promise.all([
+  const [homeView, liveSnapshotRows, liveMovers, userDoc] = await Promise.all([
     homeViewPromise,
     liveSnapshotPromise,
     liveMoversPromise,
     userDocPromise,
-    getDailyAnomalies(market).catch(() => null),
   ]);
-  anomaliesData = anomaliesResult;
   const isSubscribed = resolveIsSubscribed(userDoc);
   try {
     if (homeView) {
@@ -126,14 +122,6 @@ export default async function HomePage() {
       ? liveSnapshotRows
       : homeView?.market_snapshot_rows ?? [];
     moversDoc = liveMovers;
-    screens = homeView?.thematic_screens ?? null;
-    news = homeView?.news ?? [];
-    if (news.length === 0) {
-      news = await getNewsFeed(market, 30).catch(() => []);
-    }
-    if (!screens) {
-      screens = await getThematicScreens(market).catch(() => null);
-    }
     macroTicks = buildMacroTicksFromSnapshot(snapshotRows, market);
     if (macroTicks.length === 0) {
       macroTicks = (view?.market_tiles ?? [])
@@ -208,56 +196,226 @@ export default async function HomePage() {
       return allStocks.find((stock) => stock.ticker.toUpperCase() === ticker) ?? null;
     }, null) ?? allStocks[0];
 
+  return {
+    market,
+    session,
+    userDoc,
+    isSubscribed,
+    sentiment,
+    macroTicks,
+    marketCueTiles: marketCueTilesFromMacro.length ? marketCueTilesFromMacro : marketTiles,
+    snapshotRows,
+    allStocks,
+    launchTickers,
+    heroStock,
+  };
+});
+
+const loadHomeSupplemental = cache(async () => {
+  const market = getCurrentMarket();
+  const homeView = await getHomeView(market).catch(() => null);
+  let screens = homeView?.thematic_screens ?? null;
+  let news: NewsArticle[] = homeView?.news ?? [];
+  if (news.length === 0) {
+    news = await getNewsFeed(market, 30).catch(() => []);
+  }
+  if (!screens) {
+    screens = await getThematicScreens(market).catch(() => null);
+  }
+  return { news, screens };
+});
+
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-[#f3f4f6] ${className}`}
+    />
+  );
+}
+
+function HomeMarketFallback() {
+  return (
+    <>
+      <section className="flex flex-col gap-4 animate-pulse">
+        <div className="flex items-center justify-between gap-4">
+          <SkeletonBlock className="h-6 w-32" />
+          <SkeletonBlock className="h-4 w-24" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-[18px] border border-[#e5e7eb] bg-white p-4">
+              <SkeletonBlock className="h-3 w-14" />
+              <SkeletonBlock className="mt-4 h-6 w-20" />
+              <SkeletonBlock className="mt-3 h-4 w-16" />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 animate-pulse lg:grid-cols-3">
+        <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5 lg:col-span-2">
+          <SkeletonBlock className="h-5 w-40" />
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-[#f3f4f6] p-4">
+                <SkeletonBlock className="h-4 w-24" />
+                <SkeletonBlock className="mt-3 h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5">
+          <SkeletonBlock className="h-5 w-28" />
+          <SkeletonBlock className="mt-5 h-40 w-full rounded-xl" />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function HomeContentFallback() {
+  return (
+    <>
+      <section className="grid grid-cols-1 gap-6 animate-pulse lg:grid-cols-3">
+        <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5 lg:col-span-2">
+          <SkeletonBlock className="h-5 w-36" />
+          <div className="mt-4 flex gap-2">
+            <SkeletonBlock className="h-8 w-24 rounded-full" />
+            <SkeletonBlock className="h-8 w-24 rounded-full" />
+          </div>
+          <div className="mt-5 flex flex-col gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 border-t border-[#f3f4f6] pt-3">
+                <SkeletonBlock className="h-8 w-8 rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <SkeletonBlock className="h-4 w-44 max-w-full" />
+                  <SkeletonBlock className="mt-2 h-3 w-16" />
+                </div>
+                <SkeletonBlock className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5">
+          <SkeletonBlock className="h-5 w-28" />
+          <div className="mt-5 flex flex-col gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="border-t border-[#f3f4f6] pt-4">
+                <SkeletonBlock className="h-4 w-full" />
+                <SkeletonBlock className="mt-2 h-3 w-32" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[24px] border border-[#e5e7eb] bg-white p-5 animate-pulse">
+        <SkeletonBlock className="h-5 w-40" />
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#f3f4f6] p-4">
+              <SkeletonBlock className="h-4 w-28" />
+              <SkeletonBlock className="mt-3 h-10 w-full" />
+              <SkeletonBlock className="mt-4 h-3 w-20" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function HomeHero() {
+  return (
+    <HeroSection
+      score={51}
+      tone="Balanced"
+      color="#FACC15"
+      indices={[]}
+      featuredStock={{
+        ticker: "NVDA",
+        name: "NVIDIA",
+        price: 0,
+        changePct: 1.75,
+      }}
+    />
+  );
+}
+
+async function HomeMarketStream() {
+  const core = await loadHomeCore();
+  return (
+    <>
+      <MarketCues title="Market cues" tiles={core.marketCueTiles} />
+
+      <SectorSpotlights
+        snapshotRows={core.snapshotRows}
+        trackedIds={
+          Array.isArray(core.userDoc?.tracked_stocks)
+            ? core.userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+            : []
+        }
+        isSubscribed={core.isSubscribed}
+      />
+
+      <LandingProPreview
+        isSignedIn={Boolean(core.session)}
+        isSubscribed={core.isSubscribed}
+      />
+    </>
+  );
+}
+
+async function HomeAnomaliesStream() {
+  const market = getCurrentMarket();
+  const anomaliesData = await getDailyAnomalies(market).catch(() => null);
+  if (!anomaliesData || anomaliesData.anomalies.length === 0) return null;
+  return (
+    <DailyAnomalies
+      anomalies={anomaliesData.anomalies}
+      summary={anomaliesData.summary}
+      generatedAt={anomaliesData.enriched_at || anomaliesData.generated_at}
+    />
+  );
+}
+
+async function HomeContentStream() {
+  const [core, supplemental] = await Promise.all([loadHomeCore(), loadHomeSupplemental()]);
+  return (
+    <>
+      <HomeContent
+        stocks={core.allStocks}
+        news={supplemental.news}
+        launchTickers={core.launchTickers}
+        market={core.market}
+      />
+
+      <ThematicScreens
+        doc={supplemental.screens}
+        market={core.market}
+        isSubscribed={core.isSubscribed}
+      />
+    </>
+  );
+}
+
+export default function HomePage() {
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-8 md:py-10 flex flex-col gap-10">
-        <HeroSection
-          score={sentiment.score}
-          tone={sentiment.label}
-          color={sentiment.score >= 55 ? "#8B5CF6" : sentiment.score >= 45 ? "#FACC15" : "#F97316"}
-          indices={macroTicks.map((t) => ({
-            ticker: t.ticker,
-            name: t.name,
-            price: t.price ?? 0,
-            changePct: t.day_change_pct ?? 0,
-          }))}
-          featuredStock={heroStock}
-          isSubscribed={isSubscribed}
-        />
+        <HomeHero />
 
-        {anomaliesData && anomaliesData.anomalies.length > 0 && (
-          <DailyAnomalies
-            anomalies={anomaliesData.anomalies}
-            summary={anomaliesData.summary}
-            generatedAt={anomaliesData.enriched_at || anomaliesData.generated_at}
-          />
-        )}
+        <Suspense fallback={null}>
+          <HomeAnomaliesStream />
+        </Suspense>
 
-        <MarketCues title="Market cues" tiles={marketCueTilesFromMacro.length ? marketCueTilesFromMacro : marketTiles} />
+        <Suspense fallback={<HomeMarketFallback />}>
+          <HomeMarketStream />
+        </Suspense>
 
-        <SectorSpotlights
-          snapshotRows={snapshotRows}
-          trackedIds={
-            Array.isArray(userDoc?.tracked_stocks)
-              ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
-              : []
-          }
-          isSubscribed={isSubscribed}
-        />
-
-        <LandingProPreview
-          isSignedIn={Boolean(session)}
-          isSubscribed={isSubscribed}
-        />
-
-        <HomeContent
-          stocks={allStocks}
-          news={news}
-          launchTickers={launchTickers}
-          market={market}
-        />
-
-        <ThematicScreens doc={screens} market={market} isSubscribed={isSubscribed} />
+        <Suspense fallback={<HomeContentFallback />}>
+          <HomeContentStream />
+        </Suspense>
 
         <LearnTeaser />
 

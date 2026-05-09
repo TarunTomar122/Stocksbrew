@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { getCurrentMarket } from "@/lib/market";
 import { getThematicScreens } from "@/lib/screens";
@@ -25,13 +26,44 @@ export const metadata: Metadata = {
 };
 
 
-export default async function ScreensIndexPage() {
+function ScreensFallback() {
+  return (
+    <div className="animate-pulse rounded-[24px] border border-[#e5e7eb] bg-white p-4">
+      <div className="mb-4 h-8 w-64 rounded bg-[#f3f4f6]" />
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-16 rounded-xl bg-[#f3f4f6]" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function ScreensContentStream() {
   const market = getCurrentMarket();
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
   const doc = await getThematicScreens(market);
   const screens = (doc?.screens ?? []).filter((s) => s.match_count > 0);
+
+  if (screens.length === 0) {
+    return (
+      <div className="rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-16 text-center">
+        <h2 className="text-[18px] font-semibold text-[#111111]">
+          No screens are populated yet.
+        </h2>
+        <p className="text-[14px] text-[#6b7280] mt-2 max-w-[480px] mx-auto">
+          We&apos;re computing the latest scores. Check back in a few minutes.
+        </p>
+      </div>
+    );
+  }
+
+  return <ScreensTableView screens={screens} market={market} isSubscribed={isSubscribed} />;
+}
+
+export default function ScreensIndexPage() {
 
   return (
     <main className="flex-grow">
@@ -46,30 +78,17 @@ export default async function ScreensIndexPage() {
           <p className="text-[16px] text-[#374151] leading-[1.55]">
             Hand-picked themes layered over our four-pillar composite — valuation, growth, quality, momentum. Skip the screener; jump to the names that already match.
           </p>
-          {doc && (
-            <div className="flex items-center gap-3 mt-2 text-[12px] text-[#6b7280]">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2.5 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                Live four-pillar scores
-              </span>
-              <span>·</span>
-              <span>{screens.length} active screens</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 mt-2 text-[12px] text-[#6b7280]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2.5 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+              Live four-pillar scores
+            </span>
+          </div>
         </header>
 
-        {screens.length === 0 ? (
-          <div className="rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-16 text-center">
-            <h2 className="text-[18px] font-semibold text-[#111111]">
-              No screens are populated yet.
-            </h2>
-            <p className="text-[14px] text-[#6b7280] mt-2 max-w-[480px] mx-auto">
-              We&apos;re computing the latest scores. Check back in a few minutes.
-            </p>
-          </div>
-        ) : (
-          <ScreensTableView screens={screens} market={market} isSubscribed={isSubscribed} />
-        )}
+        <Suspense fallback={<ScreensFallback />}>
+          <ScreensContentStream />
+        </Suspense>
       </div>
     </main>
   );

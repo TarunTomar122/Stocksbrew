@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
@@ -13,6 +15,8 @@ import { getSearchIndex } from "@/lib/search";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { Providers } from "./providers";
 import "./globals.css";
+
+const SESSION_COOKIE_NAME = "tikrr_session";
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -98,7 +102,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+async function SubscriptionBannerGate() {
+  const session = await getSessionUser();
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const isSubscribed = resolveIsSubscribed(userDoc);
+  return isSubscribed ? null : <LaunchBanner />;
+}
+
+async function HeaderData() {
   const market = getCurrentMarket();
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
@@ -107,6 +118,42 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
     : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
+  return (
+    <Header
+      searchIndex={searchIndex}
+      market={market}
+      trackedIds={trackedIds}
+      isSubscribed={isSubscribed}
+    />
+  );
+}
+
+function HeaderFallback() {
+  return (
+    <header className="sticky top-0 z-[65] w-full border-b border-[#e5e7eb] bg-white">
+      <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between gap-2 px-6 md:px-10 lg:px-16">
+        <a
+          href="/"
+          className="flex shrink-0 items-center gap-2 text-[20px] font-semibold leading-none tracking-[-0.04em] text-[#111111]"
+        >
+          tikrr
+        </a>
+        <div className="hidden items-center gap-1 md:flex" aria-hidden="true">
+          <div className="h-9 w-24 rounded-full bg-[#f3f4f6]" />
+          <div className="h-9 w-20 rounded-full bg-[#f3f4f6]" />
+          <div className="h-9 w-16 rounded-full bg-[#f3f4f6]" />
+        </div>
+        <div className="flex items-center gap-3" aria-hidden="true">
+          <div className="hidden h-10 w-56 rounded-lg bg-[#f3f4f6] sm:block" />
+          <div className="h-9 w-24 rounded-full bg-[#f3f4f6]" />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const hasSessionCookie = Boolean(cookies().get(SESSION_COOKIE_NAME)?.value);
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
@@ -130,15 +177,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
-        <Providers initialAuthed={Boolean(session)}>
+        <Providers initialAuthed={hasSessionCookie}>
           <OnboardingTrigger />
-          {!isSubscribed && <LaunchBanner />}
-          <Header
-            searchIndex={searchIndex}
-            market={market}
-            trackedIds={trackedIds}
-            isSubscribed={isSubscribed}
-          />
+          <Suspense fallback={null}>
+            <SubscriptionBannerGate />
+          </Suspense>
+          <Suspense fallback={<HeaderFallback />}>
+            <HeaderData />
+          </Suspense>
           <div className="flex min-h-0 w-full flex-1 flex-col px-0 md:px-8 lg:px-12 xl:px-32">
             {children}
           </div>
