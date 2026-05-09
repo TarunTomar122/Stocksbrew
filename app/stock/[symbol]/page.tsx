@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+import { AnomalyBanner } from "@/components/anomaly-banner";
 import { AiSynthesis } from "@/components/ai-synthesis";
 import { AiBriefStatus } from "@/components/ai-brief-status";
 import { AnalystConsensus } from "@/components/analyst-consensus";
@@ -36,6 +37,7 @@ import {
 import { getCurrentMarket } from "@/lib/market";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
+import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 60;
@@ -139,6 +141,7 @@ export default async function StockPage({ params }: Props) {
     intelPro,
     stockFacts,
     marketMovers,
+    anomaliesDoc,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -150,10 +153,14 @@ export default async function StockPage({ params }: Props) {
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
+    getDailyAnomalies(market).catch(() => null),
   ]);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const isPriorityStock = priorityIds.includes(stock.instrument_id);
   const showPriorityNotice = priorityIds.length > 0 && !isPriorityStock;
+  const anomaly = anomaliesDoc?.anomalies.find(
+    (a) => a.ticker?.toUpperCase() === stock.ticker.toUpperCase(),
+  ) ?? null;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
   const rsi =
@@ -335,6 +342,7 @@ export default async function StockPage({ params }: Props) {
         ticker={stock.ticker}
       />
       <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 md:py-10">
+        {anomaly && <AnomalyBanner anomaly={anomaly} />}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-10 lg:gap-14">
           <StockSideRail
             stock={stock}

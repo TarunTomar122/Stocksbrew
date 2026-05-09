@@ -1,3 +1,4 @@
+import { DailyAnomalies } from "@/components/daily-anomalies";
 import { HeroSection } from "@/components/hero-section";
 import { HomeContent } from "@/components/home-content";
 import { LandingProPreview } from "@/components/landing-pro-preview";
@@ -25,6 +26,7 @@ import { buildMarketTiles } from "@/lib/market-tiles";
 import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
 import { getThematicScreens } from "@/lib/screens";
+import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 function rowToStock(s: SnapshotRow) {
@@ -99,6 +101,7 @@ export default async function HomePage() {
   }> = [];
   let news: NewsArticle[] = [];
   let moversDoc: MarketMoversDoc | null = null;
+  let anomaliesData = null;
   const sessionPromise = getSessionUser();
   const homeViewPromise = getHomeView(market).catch(() => null);
   const liveSnapshotPromise = getMarketSnapshot(market).catch(() => []);
@@ -106,12 +109,14 @@ export default async function HomePage() {
 
   const session = await sessionPromise;
   const userDocPromise = session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null);
-  const [homeView, liveSnapshotRows, liveMovers, userDoc] = await Promise.all([
+  const [homeView, liveSnapshotRows, liveMovers, userDoc, anomaliesResult] = await Promise.all([
     homeViewPromise,
     liveSnapshotPromise,
     liveMoversPromise,
     userDocPromise,
+    getDailyAnomalies(market).catch(() => null),
   ]);
+  anomaliesData = anomaliesResult;
   const isSubscribed = resolveIsSubscribed(userDoc);
   try {
     if (homeView) {
@@ -219,6 +224,14 @@ export default async function HomePage() {
           featuredStock={heroStock}
           isSubscribed={isSubscribed}
         />
+
+        {anomaliesData && anomaliesData.anomalies.length > 0 && (
+          <DailyAnomalies
+            anomalies={anomaliesData.anomalies}
+            summary={anomaliesData.summary}
+            generatedAt={anomaliesData.enriched_at || anomaliesData.generated_at}
+          />
+        )}
 
         <MarketCues title="Market cues" tiles={marketCueTilesFromMacro.length ? marketCueTilesFromMacro : marketTiles} />
 
