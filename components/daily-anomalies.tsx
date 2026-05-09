@@ -34,7 +34,7 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
   return (
     <Link
       href={`/stock/${encodeURIComponent(item.ticker)}`}
-      className="group flex flex-col gap-3 p-4 rounded-2xl border border-[#e5e7eb] bg-white hover:border-[#111111] hover:shadow-sm transition-all"
+      className="group flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
       {/* Top: logo + ticker + name + change % */}
       <div className="flex items-start justify-between gap-2">
@@ -74,17 +74,19 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
 
       {/* Headline */}
       {item.headline && (
-        <p className="text-[13px] text-[#374151] leading-snug">
+        <p className="min-h-[36px] line-clamp-2 text-[13px] leading-snug text-[#374151]">
           {item.headline}
         </p>
       )}
 
       {/* Catalyst — only short labels, not full sentences */}
-      {item.catalyst && item.catalyst.length <= 48 && (
-        <span className="inline-flex items-center self-start rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280]">
-          {item.catalyst}
-        </span>
-      )}
+      <div className="mt-auto min-h-[20px]">
+        {item.catalyst && item.catalyst.length <= 48 && (
+          <span className="inline-flex items-center self-start rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280]">
+            {item.catalyst}
+          </span>
+        )}
+      </div>
     </Link>
   );
 }

@@ -222,6 +222,43 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
                 )
         return ""
 
+    def _market_wildcards(
+        market_rows: list[dict[str, Any]] | None,
+        used_tickers: set[str],
+        max_items: int = 3,
+    ) -> list[dict[str, Any]]:
+        if not market_rows:
+            return []
+        candidates: list[dict[str, Any]] = []
+        for row in market_rows:
+            ticker = str(row.get("ticker") or row.get("symbol") or "").strip().upper()
+            if not ticker or ticker in used_tickers:
+                continue
+            day_change_pct = _num(row.get("day_change_pct"))
+            if day_change_pct == 0:
+                day_change_pct = _num(row.get("change_pct"))
+            if day_change_pct == 0:
+                continue
+            price_value = row.get("price")
+            if price_value in (None, ""):
+                price_value = row.get("current")
+            day_change_abs = row.get("day_change_abs")
+            if day_change_abs in (None, ""):
+                day_change_abs = row.get("change_abs")
+            candidates.append(
+                {
+                    "ticker": ticker,
+                    "price": price_value,
+                    "day_change_pct": day_change_pct,
+                    "day_change_abs": day_change_abs,
+                    "ai_directive_text": "Market momentum check",
+                    "ai_directive_rationale": "Added from broad market movers so your digest still highlights fresh action.",
+                    "catalysts": row.get("catalysts") or [],
+                }
+            )
+        candidates.sort(key=lambda r: abs(_num(r.get("day_change_pct"))), reverse=True)
+        return candidates[:max_items]
+
     holdings = [r for r in rows if str(r.get("position_type") or "").lower() == "holding"]
     watchlist = [r for r in rows if str(r.get("position_type") or "").lower() != "holding"]
     holdings_sorted = sorted(holdings, key=lambda r: abs(_num(r.get("day_change_pct"))), reverse=True)
@@ -238,13 +275,7 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
     rest = [r for r in rows if str(r.get("ticker") or "").strip().upper() not in used]
     wild_top = sorted(rest, key=lambda r: abs(_num(r.get("day_change_pct"))), reverse=True)[:3]
 
-    def _rows_block(items: list[dict[str, Any]], section_title: str, empty_copy: str) -> str:
-        if not items:
-            return (
-                f"<tr><td style='padding:0 32px 10px 32px'><div style='font-size:12px;font-weight:700;color:#9ca3af;"
-                f"letter-spacing:0.12em;text-transform:uppercase'>{section_title}</div>"
-                f"<div style='font-size:13px;color:#6b7280;padding-top:8px'>{empty_copy}</div></td></tr>"
-            )
+    def _rows_block(items: list[dict[str, Any]], section_title: str) -> str:
         blocks: list[str] = [
             f"<tr><td style='padding:14px 32px 8px 32px'><div style='font-size:12px;font-weight:700;color:#9ca3af;"
             f"letter-spacing:0.12em;text-transform:uppercase'>{section_title}</div></td></tr>"
@@ -269,10 +300,66 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
                 blocks.append("<tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>")
         return "".join(blocks)
 
-    holdings_html = _rows_block(hold_top, "Holdings · Movers & AI take", "No holdings on Radar yet.")
-    watchlist_html = _rows_block(watch_top, "Watchlist · Movers & AI take", "No watchlist names on Radar yet.")
-    wild_html = _rows_block(wild_top, "Wild cards · Big movers", "No additional movers yet.")
-    date_label = datetime.now(timezone.utc).strftime("%b %-d, %Y")
+    def _empty_state_block(section_title: str, title: str, body: str) -> str:
+        return (
+            f"<tr><td style='padding:14px 32px 8px 32px'><div style='font-size:12px;font-weight:700;color:#9ca3af;"
+            f"letter-spacing:0.12em;text-transform:uppercase'>{section_title}</div></td></tr>"
+            f"<tr><td style='padding:0 32px 12px 32px'>"
+            f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px'>"
+            f"<div style='font-size:13px;font-weight:700;color:#111827;margin-bottom:4px'>{title}</div>"
+            f"<div style='font-size:13px;color:#6b7280;line-height:1.5'>{body}</div>"
+            f"</div></td></tr>"
+        )
+
+    wild_items = wild_top
+    if not wild_items:
+        wild_items = _market_wildcards(market_snapshot_rows, used, max_items=3)
+
+    sections: list[str] = []
+    if hold_top:
+        sections.append(_rows_block(hold_top, "Holdings · Movers & AI take"))
+    elif watch_top:
+        sections.append(
+            _empty_state_block(
+                "Holdings · Movers & AI take",
+                "No holdings added yet",
+                "Add core holdings in Radar to get stronger position-first guidance here.",
+            )
+        )
+
+    if watch_top:
+        sections.append(_rows_block(watch_top, "Watchlist · Movers & AI take"))
+    elif hold_top:
+        sections.append(
+            _empty_state_block(
+                "Watchlist · Movers & AI take",
+                "Watchlist is empty",
+                "Add a few stalking names so tomorrow's digest includes idea flow beyond holdings.",
+            )
+        )
+
+    if wild_items:
+        sections.append(_rows_block(wild_items, "Wild cards · Big movers"))
+    else:
+        sections.append(
+            _empty_state_block(
+                "Wild cards · Big movers",
+                "No additional movers yet",
+                "We'll fill this section when broader market names show unusual momentum.",
+            )
+        )
+
+    sections_html = "<tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>".join(sections)
+
+    if hold_top and watch_top:
+        intro = "Here's what moved across your holdings and watchlist, plus three wildcard movers from your Radar."
+    elif watch_top:
+        intro = "You have watchlist movement today. Add holdings to make this digest even more personalized."
+    elif hold_top:
+        intro = "Holdings are moving today. Add watchlist names to broaden idea flow in this digest."
+    else:
+        intro = "Radar is quiet right now. We still surface useful movers so tomorrow's setup is easier."
+
     subject = "Your daily Radar pulse"
     html = f"""<!doctype html><html lang='en'><head><meta charset='UTF-8' /><meta name='viewport' content='width=device-width, initial-scale=1.0' />
   <title>Your daily Radar pulse — Tikrr</title></head>
@@ -282,15 +369,10 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
       <span style='font-size:24px;font-weight:800;color:#111111;letter-spacing:-0.05em'>tikrr</span></td></tr></table>
     <table width='580' cellpadding='0' cellspacing='0' style='background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden'>
       <tr><td style='padding:28px 32px 20px 32px'>
-        <div style='font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px'>📊 Daily digest · {date_label}</div>
         <div style='font-size:30px;font-weight:800;color:#111111;line-height:1.15;letter-spacing:-0.03em;margin-bottom:8px'>Your Radar today</div>
-        <div style='font-size:15px;color:#6b7280;line-height:1.6'>Here's what moved across your holdings and watchlist, plus three wildcard movers from your Radar.</div></td></tr>
+        <div style='font-size:15px;color:#6b7280;line-height:1.6'>{intro}</div></td></tr>
       <tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>
-      {holdings_html}
-      <tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>
-      {watchlist_html}
-      <tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>
-      {wild_html}
+      {sections_html}
       <tr><td style='padding:24px 32px 32px 32px'><a href='{APP_URL}/watchlist' style='display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:13px 28px;border-radius:999px;letter-spacing:-0.01em'>Open Radar &rarr;</a>
       <div style='margin-top:10px;font-size:12px;color:#9ca3af'>Next digest tomorrow morning. AI briefs refresh twice daily.</div></td></tr>
     </table>
