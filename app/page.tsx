@@ -10,11 +10,13 @@ import { LearnTeaser } from "@/components/learn-teaser";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { Testimonials } from "@/components/testimonials";
 import { WatchlistTeaser } from "@/components/watchlist-teaser";
+import { DailyAnomalies } from "@/components/daily-anomalies";
 import {
   IN_AI_LAUNCH_INSTRUMENTS,
   US_AI_LAUNCH_INSTRUMENTS,
 } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
+import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getDashboardView, getMarketSnapshot } from "@/lib/firestore";
 import type { SnapshotRow } from "@/lib/types";
 import { getNewsFeed, type NewsArticle } from "@/lib/news";
@@ -50,13 +52,15 @@ export default async function HomePage() {
   const userWatchlistView = session
     ? await getWatchlistView(session.uid).catch(() => null)
     : null;
+  let anomaliesData = null;
   try {
-    [view, snapshotRows, screens, macroTicks, news] = await Promise.all([
+    [view, snapshotRows, screens, macroTicks, news, anomaliesData] = await Promise.all([
       getDashboardView(market),
       getMarketSnapshot(market),
       getThematicScreens(market),
       getMacroStrip(market),
       getNewsFeed(market, 30).catch(() => []),
+      getDailyAnomalies(market).catch(() => null),
     ]);
   } catch (err) {
     console.error("[home] failed to load:", err);
@@ -122,6 +126,14 @@ export default async function HomePage() {
             changePct: t.day_change_pct ?? 0,
           }))}
         />
+
+        {anomaliesData && anomaliesData.anomalies.length > 0 && (
+          <DailyAnomalies
+            anomalies={anomaliesData.anomalies}
+            summary={anomaliesData.summary}
+            generatedAt={anomaliesData.enriched_at || anomaliesData.generated_at}
+          />
+        )}
 
         <MarketCues title="Market cues" tiles={marketCueTilesFromMacro.length ? marketCueTilesFromMacro : marketTiles} />
 

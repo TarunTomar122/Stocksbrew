@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+import { AnomalyBanner } from "@/components/anomaly-banner";
 import { AiSynthesis } from "@/components/ai-synthesis";
 import { AiBriefStatus } from "@/components/ai-brief-status";
 import { AnalystConsensus } from "@/components/analyst-consensus";
@@ -21,6 +22,7 @@ import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
+import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import {
   getInstrumentViewDoc,
   getStockFacts,
@@ -135,6 +137,7 @@ export default async function StockPage({ params }: Props) {
     technicals,
     intelPro,
     stockFacts,
+    anomaliesDoc,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -145,7 +148,14 @@ export default async function StockPage({ params }: Props) {
     getLatestTechnicals(stock.instrument_id).catch(() => null),
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getStockFacts(stock.instrument_id).catch(() => null),
+    getDailyAnomalies(market).catch(() => null),
   ]);
+
+  // Check if this stock is in today's anomaly list
+  const anomaly = anomaliesDoc?.anomalies.find(
+    (a) => a.ticker.toUpperCase() === stock.ticker.toUpperCase()
+  ) ?? null;
+
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
   const rsi =
@@ -321,6 +331,12 @@ export default async function StockPage({ params }: Props) {
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 md:py-10">
+        {anomaly && (
+          <div className="mb-6">
+            <AnomalyBanner anomaly={anomaly} />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-10 lg:gap-14">
           <StockSideRail
             stock={stock}
