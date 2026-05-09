@@ -120,7 +120,9 @@ async function main() {
   // 5. Write to Firestore
   const weekId = `US__${report.week_ending}`;
   await db.collection("tm_weekly_reports").doc(weekId).set(report);
+  await db.collection("tm_weekly_reports").doc("US__latest").set({ ...report, _docId: weekId });
   console.log(`\n✅ Wrote tm_weekly_reports/${weekId}`);
+  console.log(`✅ Also wrote tm_weekly_reports/US__latest`);
   console.log(`\nData summary:`);
   console.log(`  Days covered: ${report.days_covered}`);
   console.log(`  Total anomaly events: ${report.summary_stats.total_anomaly_events}`);
