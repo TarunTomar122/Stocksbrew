@@ -29,19 +29,45 @@ LOGOS = {
     "EXPE": "https://logo.clearbit.com/expedia.com",
 }
 
+# Company domains for logo URLs
+DOMAINS = {
+    "DOCN": "digitalocean.com",
+    "MU": "micron.com",
+    "INTC": "intel.com",
+    "AMD": "amd.com",
+    "NET": "cloudflare.com",
+    "APTV": "aptiv.com",
+    "EXPE": "expedia.com",
+}
+
+# Colors for letter fallback
+TICKER_COLORS = {
+    "DOCN": "#0080ff",
+    "MU": "#7c3aed",
+    "INTC": "#0068b5",
+    "AMD": "#000000",
+    "NET": "#f48120",
+    "APTV": "#6366f1",
+    "EXPE": "#1e40af",
+}
+
 def stock_row(ticker, name, change_pct, change_color, bg_color, description):
-    logo = LOGOS.get(ticker, "")
+    domain = DOMAINS.get(ticker, "")
+    letter = ticker[0]
+    color = TICKER_COLORS.get(ticker, "#374151")
     arrow = "+" if change_pct > 0 else ""
     sign_color = "#10b981" if change_pct > 0 else "#ef4444"
+    # Use Google favicon as img, with a styled letter fallback onerror
+    logo_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=80" if domain else ""
     return f"""
     <tr>
       <td style="padding: 16px; border-bottom: 1px solid #f0f0f0;">
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
           <tr>
             <td style="width: 48px; vertical-align: top;">
-              <img src="{logo}" width="40" height="40" alt="{ticker}" style="border-radius: 8px; display: block; background: #f4f5f6;" onerror="this.style.display='none'">
+              <div style="width: 42px; height: 42px; border-radius: 10px; background: {color}; text-align: center; line-height: 42px; font-size: 18px; font-weight: 700; color: #ffffff; font-family: -apple-system, sans-serif;">{letter}</div>
             </td>
-            <td style="padding-left: 12px; vertical-align: top;">
+            <td style="padding-left: 14px; vertical-align: top;">
               <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td>
