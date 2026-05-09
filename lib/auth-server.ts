@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { cookies } from "next/headers";
 
 import { adminAuth } from "@/lib/firebase-admin";
@@ -11,7 +13,7 @@ export type SessionUser = {
   photoURL: string | null;
 };
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const cookieStore = cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionCookie) return null;
@@ -26,7 +28,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   } catch {
     return null;
   }
-}
+});
 
 export async function requireSessionUser(): Promise<SessionUser> {
   const user = await getSessionUser();

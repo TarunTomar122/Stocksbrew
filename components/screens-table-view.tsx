@@ -121,7 +121,7 @@ function ScreenTableRow({
 
       {/* Company */}
       <div className="flex-1 min-w-0 flex items-center gap-2.5">
-        <StockLogo ticker={row.ticker} market={market} size={36} />
+        <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="flex flex-col min-w-0">
           <span className="text-[14px] font-semibold text-[#111111] group-hover:text-[#0052ff] transition-colors">
             {row.ticker}

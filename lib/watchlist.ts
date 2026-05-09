@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export type UserDoc = {
@@ -31,11 +33,11 @@ export type UserDoc = {
   email_digest_enabled?: boolean;
 };
 
-export async function getUserDoc(uid: string): Promise<UserDoc | null> {
+export const getUserDoc = cache(async (uid: string): Promise<UserDoc | null> => {
   const snap = await adminFirestore.collection("users").doc(uid).get();
   if (!snap.exists) return null;
   return { uid, ...(snap.data() as Omit<UserDoc, "uid">) };
-}
+});
 
 // Optional dev-only bypass: set NEXT_PUBLIC_DEV_UNLOCK_PRO=1 to treat any
 // signed-in user with a user doc as Pro without Dodo/Firestore subscription

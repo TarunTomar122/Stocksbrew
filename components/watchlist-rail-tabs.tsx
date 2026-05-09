@@ -86,6 +86,7 @@ function RailRow({ row }: { row: WatchlistRow }) {
       >
         <StockLogo
           ticker={row.ticker}
+          logoUrl={row.logo_url}
           market={row.market === "IN" ? "IN" : "US"}
           size={28}
         />

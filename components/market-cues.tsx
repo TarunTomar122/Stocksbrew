@@ -5,18 +5,29 @@ type Props = {
   tiles: MarketTile[];
 };
 
-type TileMeta = { initial: string; icon?: string; bg: string; fg: string };
+type CueIcon =
+  | "spx"
+  | "ndx"
+  | "gold"
+  | "silver"
+  | "oil"
+  | "vix"
+  | "nifty"
+  | "bank"
+  | "chart";
+
+type TileMeta = { initial: string; icon: CueIcon; bg: string; fg: string };
 
 const TILE_META: Record<string, TileMeta> = {
-  US_IDX_SPX:        { initial: "S",  icon: "show_chart",        bg: "#0052ff", fg: "#ffffff" },
-  US_IDX_NDX:        { initial: "N",  icon: "memory",            bg: "#7c3aed", fg: "#ffffff" },
-  US_MAC_GOLD:       { initial: "Au", bg: "#f59e0b", fg: "#111111" },
-  US_MAC_SILVER:     { initial: "Ag", bg: "#94a3b8", fg: "#111111" },
-  US_MAC_OIL:        { initial: "O",  icon: "oil_barrel",        bg: "#1c1c1e", fg: "#ffffff" },
-  US_MAC_VIX:        { initial: "V",  icon: "bolt",              bg: "#ef4444", fg: "#ffffff" },
-  IN_IDX_NIFTY50:    { initial: "N",  icon: "show_chart",        bg: "#f97316", fg: "#ffffff" },
-  IN_IDX_BANKNIFTY:  { initial: "B",  icon: "account_balance",   bg: "#10b981", fg: "#ffffff" },
-  IN_IDX_VIX:        { initial: "V",  icon: "bolt",              bg: "#ef4444", fg: "#ffffff" },
+  US_IDX_SPX:        { initial: "S",  icon: "spx",    bg: "#0052ff", fg: "#ffffff" },
+  US_IDX_NDX:        { initial: "N",  icon: "ndx",    bg: "#7c3aed", fg: "#ffffff" },
+  US_MAC_GOLD:       { initial: "Au", icon: "gold",   bg: "#f59e0b", fg: "#111111" },
+  US_MAC_SILVER:     { initial: "Ag", icon: "silver", bg: "#94a3b8", fg: "#111111" },
+  US_MAC_OIL:        { initial: "O",  icon: "oil",    bg: "#1c1c1e", fg: "#ffffff" },
+  US_MAC_VIX:        { initial: "V",  icon: "vix",    bg: "#ef4444", fg: "#ffffff" },
+  IN_IDX_NIFTY50:    { initial: "N",  icon: "nifty",  bg: "#f97316", fg: "#ffffff" },
+  IN_IDX_BANKNIFTY:  { initial: "B",  icon: "bank",   bg: "#10b981", fg: "#ffffff" },
+  IN_IDX_VIX:        { initial: "V",  icon: "vix",    bg: "#ef4444", fg: "#ffffff" },
 };
 
 const PALETTE = ["#1c1c1e", "#0052ff", "#7c3aed", "#0ea5e9", "#10b981", "#f59e0b"];
@@ -27,7 +38,7 @@ function metaFor(id: string, label: string): TileMeta {
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return {
     initial: (label || id).charAt(0).toUpperCase(),
-    icon: "show_chart",
+    icon: "chart",
     bg: PALETTE[hash % PALETTE.length],
     fg: "#ffffff",
   };
@@ -95,17 +106,19 @@ function syntheticSeries(seed: string, changePct: number, points = 36): number[]
 function Sparkline({
   data,
   positive,
+  id,
   width = 88,
   height = 36,
 }: {
   data: number[];
   positive: boolean;
+  id: string;
   width?: number;
   height?: number;
 }) {
   if (!data || data.length < 2) return null;
   const stroke = positive ? "#10b981" : "#ef4444";
-  const fillId = `mc-spark-${positive ? "up" : "dn"}-${Math.round(Math.random() * 1e6)}`;
+  const fillId = `mc-spark-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}-${positive ? "up" : "dn"}`;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
@@ -147,6 +160,120 @@ function Sparkline({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function CueSymbol({ type, label }: { type: CueIcon; label: string }) {
+  const common = {
+    width: 32,
+    height: 32,
+    viewBox: "0 0 32 32",
+    fill: "none",
+    className: "h-8 w-8",
+    "aria-hidden": true,
+  } as const;
+
+  if (type === "spx" || type === "nifty" || type === "chart") {
+    return (
+      <svg {...common}>
+        <path
+          d="M6 22.5h20"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.45"
+        />
+        <path
+          d="M7 21l5.2-5.6 4.3 3.2L25 9"
+          stroke="currentColor"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="25" cy="9" r="2" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  if (type === "ndx") {
+    return (
+      <svg {...common}>
+        <rect x="8" y="8" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="2.4" />
+        <rect x="12" y="12" width="8" height="8" rx="2" fill="currentColor" opacity="0.32" />
+        {[8, 13, 18].map((x) => (
+          <path key={`t-${x}`} d={`M${x} 4.5v3M${x} 24.5v3`} stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        ))}
+        {[8, 13, 18].map((y) => (
+          <path key={`s-${y}`} d={`M4.5 ${y}h3M24.5 ${y}h3`} stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        ))}
+      </svg>
+    );
+  }
+
+  if (type === "gold" || type === "silver") {
+    return (
+      <div className="flex flex-col items-center justify-center leading-none">
+        <span className="text-[15px] font-black tracking-[-0.04em]">{label}</span>
+        <svg width="30" height="12" viewBox="0 0 30 12" fill="none" aria-hidden>
+          <path
+            d="M4 9.5h22L22.5 3h-15L4 9.5Z"
+            fill="currentColor"
+            opacity={type === "gold" ? "0.28" : "0.22"}
+          />
+          <path
+            d="M4 9.5h22L22.5 3h-15L4 9.5Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "oil") {
+    return (
+      <svg {...common}>
+        <path
+          d="M16 5.5c4.4 5 7 8.7 7 13.1 0 4.2-3 7.4-7 7.4s-7-3.2-7-7.4c0-4.4 2.6-8.1 7-13.1Z"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M13.2 20.6c1.4 1.5 3.9 1.7 5.5-.1"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.72"
+        />
+      </svg>
+    );
+  }
+
+  if (type === "vix") {
+    return (
+      <svg {...common}>
+        <path
+          d="M17.5 4 7.5 18h7L13 28l11-16h-7l.5-8Z"
+          fill="currentColor"
+          opacity="0.2"
+        />
+        <path
+          d="M17.5 4 7.5 18h7L13 28l11-16h-7l.5-8Z"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M8 25V11l8-5 8 5v14" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
+      <path d="M6 25h20M12 25V15M16 25V15M20 25V15" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -198,16 +325,7 @@ export function MarketCues({ title = "Market cues", tiles }: Props) {
                 style={{ background: meta.bg, color: meta.fg }}
                 aria-hidden
               >
-                {meta.icon ? (
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 26, fontVariationSettings: "'wght' 500" }}
-                  >
-                    {meta.icon}
-                  </span>
-                ) : (
-                  <span className="text-[18px] font-semibold">{meta.initial}</span>
-                )}
+                <CueSymbol type={meta.icon} label={meta.initial} />
               </div>
               <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                 <span className="text-[15px] font-semibold text-[#111111] truncate tracking-[-0.01em]">
@@ -226,7 +344,7 @@ export function MarketCues({ title = "Market cues", tiles }: Props) {
                   </span>
                 </div>
               </div>
-              <Sparkline data={series} positive={positive} />
+              <Sparkline data={series} positive={positive} id={t.id} />
             </div>
           );
         })}

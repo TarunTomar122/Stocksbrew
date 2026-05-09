@@ -74,7 +74,7 @@ function MatchRow({ row, market }: { row: ScreenMatchRow; market: "US" | "IN" })
       className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] items-center gap-4 px-5 py-3.5 border-t border-[#f3f4f6] hover:bg-[#f8f9fa] transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
-        <StockLogo ticker={row.ticker} market={market} size={36} />
+        <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="flex flex-col min-w-0">
           <span className="text-[14px] font-semibold text-[#111111] truncate">
             {row.ticker}

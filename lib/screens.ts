@@ -5,6 +5,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 export type ScreenMatchRow = {
   instrument_id: string;
   ticker: string;
+  logo_url?: string | null;
   name?: string;
   sector?: string | null;
   price?: number | null;

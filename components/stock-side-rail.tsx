@@ -132,6 +132,7 @@ export function StockSideRail({
         <div className="flex items-start gap-3">
           <StockLogo
             ticker={stock.ticker}
+            logoUrl={stock.logo_url}
             market={stock.instrument_id.startsWith("IN_") ? "IN" : "US"}
             size={48}
           />

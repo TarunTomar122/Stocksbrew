@@ -226,7 +226,7 @@ export function ScreenMatchesTable({
               className="grid grid-cols-[2fr_auto] md:grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] gap-4 px-6 py-4 items-center border-b border-[#f3f4f6] last:border-b-0 hover:bg-[#f8f9fa] transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <StockLogo ticker={row.ticker} market={market} size={40} />
+                <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={40} />
                 <div className="flex flex-col min-w-0">
                   <span className="text-[14px] font-semibold text-[#111111] truncate">
                     {row.ticker}

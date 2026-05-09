@@ -19,10 +19,10 @@ type Props = {
 };
 
 const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean }[] = [
-  { href: "/heat",     label: "Hot Stocks", icon: "local_fire_department" },
-  { href: "/screens",  label: "Screens",    icon: "tune" },
-  { href: "/news",     label: "News",       icon: "newspaper" },
-  { href: "/watchlist",label: "Radar",      icon: "radar", authOnly: true, beta: true },
+  { href: "/heat",      label: "Hot Stocks", icon: "local_fire_department" },
+  { href: "/screens",   label: "Screens",    icon: "tune" },
+  { href: "/news",      label: "News",       icon: "newspaper" },
+  { href: "/watchlist", label: "Radar",      icon: "radar", authOnly: true, beta: true },
 ];
 
 /** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */

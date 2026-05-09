@@ -203,7 +203,7 @@ function HeatTableRow({
           href={`/stock/${encodeURIComponent(row.ticker)}`}
           className="flex items-center gap-2.5 group"
         >
-          <StockLogo ticker={row.ticker} market={market} size={36} />
+          <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
           <div className="flex flex-col min-w-0">
             <span className="text-[14px] font-semibold text-[#111111] group-hover:text-[#0052ff] transition-colors">
               {row.ticker}

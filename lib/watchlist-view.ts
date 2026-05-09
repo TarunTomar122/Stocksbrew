@@ -23,6 +23,7 @@ const MONTHS: Record<string, number> = {
 export type WatchlistRow = {
   instrument_id: string;
   ticker: string;
+  logo_url?: string | null;
   position_type: "holding" | "watchlist";
   market: "US" | "IN" | "";
   sector_label: string;
@@ -648,6 +649,7 @@ function rowFromDocs(
   instrumentId: string,
   positionType: "holding" | "watchlist",
   latest: Record<string, unknown>,
+  instrument: Record<string, unknown>,
   intel: Record<string, unknown>,
   stockBrief: Record<string, unknown>,
   facts: Record<string, unknown>,
@@ -684,6 +686,7 @@ function rowFromDocs(
   return {
     instrument_id: instrumentId,
     ticker,
+    logo_url: typeof instrument.logo_url === "string" ? instrument.logo_url : null,
     position_type: positionType,
     market,
     sector_label: (intel?.sector_label as string) || "",
@@ -736,8 +739,9 @@ async function buildRows(
   universes: ActiveUniverses,
   alertsByInstrument: Record<string, Record<string, unknown>[]>,
 ): Promise<WatchlistRow[]> {
-  const [latestById, factsById, technicalsById, mentionsById] = await Promise.all([
+  const [latestById, instrumentsById, factsById, technicalsById, mentionsById] = await Promise.all([
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_latest_prices"), ids),
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_instruments"), ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_technicals_latest"), ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_mention_stats"), ids),
@@ -785,6 +789,7 @@ async function buildRows(
       id,
       positionTypeFor(id, positions),
       latest,
+      instrumentsById.get(id) || {},
       intelById.get(id) || {},
       stockBriefById.get(id) || {},
       factsById.get(id) || {},

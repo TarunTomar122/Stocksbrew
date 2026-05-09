@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 type Props = {
   ticker: string;
+  logoUrl?: string | null;
   size?: number;
   className?: string;
   /** "IN" tickers need an `.NS` suffix on FMP and a domain-keyed Clearbit
@@ -15,8 +16,8 @@ type Props = {
   fallbackFg?: string;
 };
 
-// Domain map for the NSE names we care about. Used to chain a Clearbit lookup
-// when FMP doesn't have the logo.
+// Domain map for the NSE names we care about. Used to prefer a domain logo
+// before FMP, because FMP sometimes returns a valid-but-blank placeholder.
 const IN_DOMAIN: Record<string, string> = {
   RELIANCE: "ril.com",
   TCS: "tcs.com",
@@ -153,8 +154,18 @@ function fmpUrl(ticker: string, market: "US" | "IN"): string {
   return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(t)}.png`;
 }
 
+function finnhubUrl(ticker: string): string {
+  return `https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${encodeURIComponent(
+    ticker.replace(/\./g, "-").toUpperCase(),
+  )}.png`;
+}
+
 function clearbitUrl(domain: string): string {
   return `https://logo.clearbit.com/${domain}`;
+}
+
+function faviconUrl(domain: string): string {
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 }
 
 function domainForTicker(ticker: string, market: "US" | "IN"): string | undefined {
@@ -173,6 +184,7 @@ function fallbackColor(ticker: string): string {
 
 export function StockLogo({
   ticker,
+  logoUrl,
   size = 32,
   className = "",
   market = "US",
@@ -182,54 +194,90 @@ export function StockLogo({
   const upper = ticker.toUpperCase();
   const domain = domainForTicker(upper, market);
 
-  // Source chain: FMP → Clearbit (when we know the domain) → monogram.
-  const sources: string[] = [fmpUrl(ticker, market)];
-  if (domain) sources.push(clearbitUrl(domain));
+  // Source chain: ticker CDN/domain providers → FMP → monogram. FMP sometimes
+  // returns a 200 response with a mostly empty placeholder, so keep it last.
+  const trimmedLogoUrl = String(logoUrl ?? "").trim();
+  const sources: string[] =
+    market === "US"
+      ? [
+          ...(trimmedLogoUrl ? [trimmedLogoUrl] : []),
+          finnhubUrl(ticker),
+          ...(domain ? [faviconUrl(domain), clearbitUrl(domain)] : []),
+          fmpUrl(ticker, market),
+        ]
+      : [
+          ...(trimmedLogoUrl ? [trimmedLogoUrl] : []),
+          ...(domain ? [faviconUrl(domain), clearbitUrl(domain)] : []),
+          fmpUrl(ticker, market),
+        ];
 
   const [sourceIndex, setSourceIndex] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     setSourceIndex(0);
+    setLoaded(false);
   }, [upper, market]);
 
   const initials = upper.replace(/[^A-Z0-9]/g, "").slice(0, 2) || "?";
   const dim = `${size}px`;
   const bg = fallbackBg === "#1c1c1e" ? fallbackColor(upper) : fallbackBg;
 
+  const fallback = (
+    <div
+      className="absolute inset-0 flex items-center justify-center rounded-md font-semibold"
+      style={{
+        background: bg,
+        color: fallbackFg,
+        fontSize: Math.round(size * (initials.length > 1 ? 0.34 : 0.45)),
+      }}
+      aria-hidden
+    >
+      {initials}
+    </div>
+  );
+
   if (sourceIndex >= sources.length) {
     return (
       <div
-        className={`flex shrink-0 items-center justify-center rounded-md font-semibold ${className}`}
-        style={{
-          width: dim,
-          height: dim,
-          background: bg,
-          color: fallbackFg,
-          fontSize: Math.round(size * (initials.length > 1 ? 0.34 : 0.45)),
-        }}
+        className={`relative shrink-0 overflow-hidden rounded-md ${className}`}
+        style={{ width: dim, height: dim }}
         aria-hidden
       >
-        {initials}
+        {fallback}
       </div>
     );
   }
 
   return (
-    <img
-      key={sourceIndex}
-      src={sources[sourceIndex]}
-      alt=""
-      width={size}
-      height={size}
-      loading="lazy"
-      onError={() => setSourceIndex((i) => i + 1)}
-      onLoad={(event) => {
-        const img = event.currentTarget;
-        if (img.naturalWidth <= 4 || img.naturalHeight <= 4) {
+    <div
+      className={`relative shrink-0 overflow-hidden rounded-md ring-1 ring-[#e5e7eb] ${className}`}
+      style={{ width: dim, height: dim }}
+      aria-hidden
+    >
+      {fallback}
+      <img
+        key={sourceIndex}
+        src={sources[sourceIndex]}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        onError={() => {
+          setLoaded(false);
           setSourceIndex((i) => i + 1);
-        }
-      }}
-      className={`shrink-0 rounded-md bg-white object-contain ring-1 ring-[#e5e7eb] ${className}`}
-      style={{ width: dim, height: dim, padding: 2 }}
-    />
+        }}
+        onLoad={(event) => {
+          const img = event.currentTarget;
+          if (img.naturalWidth <= 4 || img.naturalHeight <= 4) {
+            setLoaded(false);
+            setSourceIndex((i) => i + 1);
+            return;
+          }
+          setLoaded(true);
+        }}
+        className="relative h-full w-full rounded-md bg-white object-contain transition-opacity"
+        style={{ padding: 2, opacity: loaded ? 1 : 0 }}
+      />
+    </div>
   );
 }

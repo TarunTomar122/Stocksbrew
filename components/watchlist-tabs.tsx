@@ -99,7 +99,7 @@ function StockRow({ row }: { row: WatchlistRow }) {
         href={`/stock/${encodeURIComponent(row.ticker)}`}
         className="flex w-full items-center gap-3 px-4 py-3.5 transition-colors active:bg-[#f5f5f5] sm:hover:bg-[#f5f5f5]"
       >
-        <StockLogo ticker={row.ticker} market={market} size={36} />
+        <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="text-[15px] font-semibold text-[#111111]">{row.ticker}</span>

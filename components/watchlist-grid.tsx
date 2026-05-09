@@ -243,6 +243,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
               <div className="flex items-center gap-3 min-w-0">
                 <StockLogo
                   ticker={row.ticker}
+                  logoUrl={row.logo_url}
                   market={row.market === "IN" ? "IN" : "US"}
                   size={32}
                 />
@@ -322,6 +323,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
               <div className="flex items-start gap-3">
                 <StockLogo
                   ticker={row.ticker}
+                  logoUrl={row.logo_url}
                   market={row.market === "IN" ? "IN" : "US"}
                   size={36}
                 />

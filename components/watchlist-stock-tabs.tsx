@@ -41,6 +41,7 @@ export function WatchlistStockTabs({ rows }: { rows: WatchlistRow[] }) {
               >
                 <StockLogo
                   ticker={row.ticker}
+                  logoUrl={row.logo_url}
                   market={row.market === "IN" ? "IN" : "US"}
                   size={22}
                 />
@@ -97,6 +98,7 @@ function StockBlock({ row }: { row: WatchlistRow }) {
         >
           <StockLogo
             ticker={row.ticker}
+            logoUrl={row.logo_url}
             market={row.market === "IN" ? "IN" : "US"}
             size={40}
           />

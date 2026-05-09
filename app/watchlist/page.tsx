@@ -234,7 +234,7 @@ function RadarStockRow({ row }: { row: WatchlistRow }) {
         href={`/stock/${encodeURIComponent(row.ticker)}`}
         className="flex w-full min-w-0 items-start gap-3 py-2.5 px-2 transition-colors hover:bg-[#f5f5f5]"
       >
-        <StockLogo ticker={row.ticker} market={market} size={36} />
+        <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="min-w-0 flex-1">
           <span className="block text-[15px] font-semibold text-[#111111]">{row.ticker}</span>
           {(velocityHint || rsiChip || (row.catalysts?.length ?? 0) > 0) && (
@@ -464,6 +464,7 @@ function SideRail({
                 >
                   <StockLogo
                     ticker={row.ticker}
+                    logoUrl={row.logo_url}
                     market={row.market === "IN" ? "IN" : "US"}
                     size={28}
                   />
