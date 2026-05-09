@@ -1,5 +1,4 @@
 import { LandingProPricingCta } from "@/components/landing-pro-pricing-cta";
-import { ProLandingAiStrip } from "@/components/pro-landing-ai-strip";
 
 type Props = {
   isSignedIn: boolean;
@@ -21,44 +20,44 @@ const FEATURES: Feature[] = [
     icon: "visibility_off",
     iconBg: "#fef3c7",
     iconFg: "#92400e",
-    label: "Blind spot",
-    title: "Spot what you’re over-exposed to",
-    body: "Sector and theme clusters so concentration doesn’t sneak up on you.",
-    example: "“67% in Technology — add a defensive.”",
+    label: "Know your risk",
+    title: "See when you're too heavy in one area",
+    body: "You find out you were over-concentrated after a drop. Tikrr shows it before.",
+    example: "67% in Technology. Consider adding a defensive position.",
   },
   {
     icon: "event",
     iconBg: "#eff6ff",
     iconFg: "#0052ff",
-    label: "Tomorrow",
-    title: "Earnings + rating moves in one lane",
-    body: "Earnings dates, ratings, RSI, volume — rescored on every run.",
-    example: "“PLTR earnings May 4 · NVDA RSI 78.”",
+    label: "Stay ahead",
+    title: "Never miss an earnings date on your list",
+    body: "Earnings, ratings changes, and RSI extremes all in one place, rescored every run.",
+    example: "PLTR earnings May 4. NVDA RSI at 78.",
   },
   {
     icon: "compare_arrows",
     iconBg: "#ecfdf5",
     iconFg: "#047857",
-    label: "Refresh delta",
-    title: "Only what changed since last refresh",
-    body: "Scores, alerts, and news velocity vs the last refresh — movement only.",
-    example: "“GOOGL score +3.2 · target +37% this week.”",
+    label: "Cut the noise",
+    title: "Only see what actually changed",
+    body: "Not a wall of data every time. Just the scores, news, and signals that moved since your last check.",
+    example: "GOOGL score up 3.2. Analyst target raised 37% this week.",
   },
   {
     icon: "notifications_active",
     iconBg: "#fef2f2",
     iconFg: "#dc2626",
-    label: "Live alerts",
-    title: "Email pings the second a signal fires",
-    body: "Breakouts, RSI extremes, targets, earnings windows — email when they trip. WhatsApp delivery soon.",
-    example: "“AMD broke out — email sent at 09:42 ET.”",
+    label: "Get pinged",
+    title: "Your inbox tells you when to look",
+    body: "Breakouts, RSI extremes, earnings windows. You get an email the moment it matters for a stock you track.",
+    example: "AMD broke out. Email sent at 09:42 ET.",
   },
 ];
 
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Subscribe — $9/mo" : "Sign in & start free";
+  const ctaLabel = isSignedIn ? "Subscribe - $9/mo" : "Sign in & start free";
 
   return (
     <section className="flex flex-col gap-10">
@@ -71,8 +70,6 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           Your Radar for the tickers you care about.
         </h2>
       </div>
-
-      <ProLandingAiStrip />
 
       {/* Feature grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -91,7 +88,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
         </span>
       </div>
 
-      {/* Pricing — monthly + yearly side by side */}
+      {/* Pricing - monthly + yearly side by side */}
       <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 md:grid-cols-2 gap-5">
         <PricingCard
           tag="Monthly"
@@ -99,6 +96,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           period="/ month"
           strike="$12"
           save="Save 25%"
+          trial="3 days free, then $9/mo"
           isSignedIn={isSignedIn}
           ctaLabel={ctaLabel}
         />
@@ -108,6 +106,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           period="/ year"
           strike="$144"
           save="Save 31%"
+          trial="3 days free, then $99/yr"
           highlight
           isSignedIn={isSignedIn}
           ctaLabel={ctaLabel}
@@ -123,7 +122,7 @@ const PRO_BULLETS = [
   "Twice-daily news-backed briefs",
   "Radar concentration & blind-spot alerts",
   "Full heat list, divergences, and screens",
-  "Refresh deltas — only the new signal",
+  "Refresh deltas - only the new signal",
   "Email + (soon) WhatsApp pings on your Radar",
 ];
 
@@ -133,6 +132,7 @@ function PricingCard({
   period,
   strike,
   save,
+  trial,
   highlight,
   isSignedIn,
   ctaLabel,
@@ -142,6 +142,7 @@ function PricingCard({
   period: string;
   strike: string;
   save: string;
+  trial: string;
   highlight?: boolean;
   isSignedIn: boolean;
   ctaLabel: string;
@@ -192,9 +193,16 @@ function PricingCard({
         ))}
       </ul>
       <div className="flex flex-col gap-2 pt-2 border-t border-[#f3f4f6] mt-auto">
+        <span className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#d1fae5] py-2 text-[12px] font-semibold text-[#065f46]">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <circle cx="6.5" cy="6.5" r="6.5" fill="#10b981" fillOpacity="0.2"/>
+            <path d="M3.5 6.5l2 2 4-4" stroke="#10b981" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {trial}
+        </span>
         <LandingProPricingCta isSignedIn={isSignedIn} highlight={highlight} ctaLabel={ctaLabel} />
         <span className="text-[11px] font-medium text-[#9ca3af] text-center">
-          Cancel anytime · one click
+          Cancel anytime · no questions asked
         </span>
       </div>
     </article>

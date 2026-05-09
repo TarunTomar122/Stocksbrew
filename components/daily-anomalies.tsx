@@ -73,15 +73,15 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
       </div>
 
       {/* Headline */}
-      {(item.headline || item.today_brief) && (
-        <p className="text-[12px] text-[#374151] leading-relaxed line-clamp-2">
-          {item.headline || item.today_brief}
+      {item.headline && (
+        <p className="text-[13px] text-[#374151] leading-snug">
+          {item.headline}
         </p>
       )}
 
-      {/* Catalyst */}
-      {item.catalyst && (
-        <span className="inline-flex items-center self-start rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280] leading-snug">
+      {/* Catalyst — only short labels, not full sentences */}
+      {item.catalyst && item.catalyst.length <= 48 && (
+        <span className="inline-flex items-center self-start rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280]">
           {item.catalyst}
         </span>
       )}

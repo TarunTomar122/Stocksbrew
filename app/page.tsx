@@ -9,6 +9,8 @@ import { WatchlistShowcase } from "@/components/watchlist-showcase";
 import { ThematicScreens } from "@/components/thematic-screens";
 import { LearnTeaser } from "@/components/learn-teaser";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { NewsletterSignup } from "@/components/newsletter-signup";
+import { NewsletterModal } from "@/components/newsletter-modal";
 import { Testimonials } from "@/components/testimonials";
 import { WatchlistTeaser } from "@/components/watchlist-teaser";
 import {
@@ -325,19 +327,24 @@ function HomeContentFallback() {
   );
 }
 
-function HomeHero() {
+async function HomeHero() {
+  const core = await loadHomeCore();
+  const { sentiment, macroTicks, isSubscribed } = core;
+  const moodColor =
+    sentiment.score >= 55 ? "#8B5CF6" : sentiment.score >= 45 ? "#FACC15" : "#F97316";
+  const indices = macroTicks.slice(0, 5).map((t) => ({
+    ticker: t.ticker,
+    name: t.name,
+    price: t.price ?? 0,
+    changePct: t.day_change_pct ?? 0,
+  }));
   return (
     <HeroSection
-      score={51}
-      tone="Balanced"
-      color="#FACC15"
-      indices={[]}
-      featuredStock={{
-        ticker: "NVDA",
-        name: "NVIDIA",
-        price: 0,
-        changePct: 1.75,
-      }}
+      score={sentiment.score}
+      tone={sentiment.label}
+      color={moodColor}
+      indices={indices}
+      isSubscribed={isSubscribed}
     />
   );
 }
@@ -346,8 +353,6 @@ async function HomeMarketStream() {
   const core = await loadHomeCore();
   return (
     <>
-      <MarketCues title="Market cues" tiles={core.marketCueTiles} />
-
       <SectorSpotlights
         snapshotRows={core.snapshotRows}
         trackedIds={
@@ -362,7 +367,7 @@ async function HomeMarketStream() {
         isSignedIn={Boolean(core.session)}
         isSubscribed={core.isSubscribed}
       />
-    </>
+</>
   );
 }
 
@@ -402,7 +407,7 @@ async function HomeContentStream() {
 export default function HomePage() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-8 md:py-10 flex flex-col gap-10">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-8 md:py-10 flex flex-col gap-16 md:gap-20">
         <HomeHero />
 
         <Suspense fallback={null}>
@@ -420,8 +425,11 @@ export default function HomePage() {
         <LearnTeaser />
 
         <Testimonials />
+
+        <NewsletterSignup />
       </div>
       <FeedbackWidget />
+      <NewsletterModal />
     </main>
   );
 }
