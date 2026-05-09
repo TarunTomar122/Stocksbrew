@@ -7,8 +7,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { initPostHog, posthog } from "@/lib/posthog";
@@ -31,9 +33,11 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children, initialAuthed = false }: AuthProviderProps) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(!initialAuthed);
   const [showWaitlistCongrats, setShowWaitlistCongrats] = useState(false);
+  const refreshedAfterSignInRef = useRef(initialAuthed);
 
   useEffect(() => {
     initPostHog();
@@ -58,12 +62,19 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
             if (payload.waitlistPromoted) {
               setShowWaitlistCongrats(true);
             }
+            // First client-side sign-in often changes server-rendered gated UI
+            // (e.g. subscribed/unsubscribed locks). Refresh once after cookie sync.
+            if (!refreshedAfterSignInRef.current) {
+              refreshedAfterSignInRef.current = true;
+              router.refresh();
+            }
           }
         } catch {
           // server-side session sync is best-effort
         }
       } else {
         posthog.reset();
+        refreshedAfterSignInRef.current = false;
         try {
           await fetch("/api/auth/session", { method: "DELETE" });
         } catch {

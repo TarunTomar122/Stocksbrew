@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { StockLogo } from "@/components/stock-logo";
 import type { NewsArticle } from "@/lib/news";
+
+const MAX_TICKER_PILLS = 24;
 
 type SentimentFilter = "all" | "bullish" | "bearish" | "neutral";
 
@@ -42,13 +45,12 @@ function displaySentiment(raw: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
 
-/** Muted tag — readable but not loud */
 function sentimentTagStyles(label: string): string {
   const s = label.toLowerCase();
-  if (s === "bullish") return "text-[#4a6356] bg-[#f1f5f3]";
-  if (s === "bearish") return "text-[#8b5349] bg-[#f7f2f1]";
-  if (s === "mixed") return "text-[#736848] bg-[#f7f5ef]";
-  return "text-[#737373] bg-[#f3f3f3]";
+  if (s === "bullish") return "text-[#047857] bg-[#ecfdf5]";
+  if (s === "bearish") return "text-[#b91c1c] bg-[#fef2f2]";
+  if (s === "mixed") return "text-[#b45309] bg-[#fffbeb]";
+  return "text-[#6b7280] bg-[#f3f4f6]";
 }
 
 function ChevronDown({ className }: { className?: string }) {
@@ -273,8 +275,25 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
   );
 
   const showSymbolPicker = variant === "radar";
+  const showTickerPills = variant === "market";
   const tickerMetaMode: ArticleCardProps["tickerMetaMode"] =
     variant === "radar" ? "radar_overlap" : "article_tickers";
+
+  // Top tickers by article-mention count — only computed for market variant.
+  const topTickers = useMemo(() => {
+    if (!showTickerPills) return [];
+    const counts = new Map<string, number>();
+    for (const a of articles) {
+      for (const t of a.tickers) {
+        const key = String(t).toUpperCase();
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, MAX_TICKER_PILLS)
+      .map(([ticker]) => ticker);
+  }, [articles, showTickerPills]);
 
   const articlesForToneCounts = useMemo(() => {
     if (!showSymbolPicker || !tickerFilter.trim()) return articles;
@@ -308,13 +327,13 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
 
   const filtered = useMemo(() => {
     return articles.filter((a) => {
-      if (showSymbolPicker && tickerFilter) {
+      if (tickerFilter) {
         const want = tickerFilter.toUpperCase();
         if (!a.tickers.some((t) => String(t).toUpperCase() === want)) return false;
       }
       return sentimentMatches(a.sentiment_label, sentiment);
     });
-  }, [articles, tickerFilter, sentiment, showSymbolPicker]);
+  }, [articles, tickerFilter, sentiment]);
 
   const columnCount =
     filtered.length <= 4 ? 1 : filtered.length <= 14 ? 2 : 3;
@@ -438,7 +457,48 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
             </div>
           </div>
         )}
+
       </div>
+
+      {/* Ticker pills — market variant, own row */}
+      {showTickerPills && topTickers.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+          <button
+            type="button"
+            onClick={() => setTickerFilter("")}
+            className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+              tickerFilter === ""
+                ? "bg-[#111111] text-white"
+                : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+            }`}
+          >
+            All stocks
+          </button>
+          {topTickers.map((ticker) => {
+            const active = tickerFilter.toUpperCase() === ticker;
+            return (
+              <button
+                key={ticker}
+                type="button"
+                onClick={() => setTickerFilter(active ? "" : ticker)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-[12px] font-semibold transition-colors ${
+                  active
+                    ? "bg-[#111111] text-white"
+                    : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+                }`}
+              >
+                <StockLogo
+                  ticker={ticker}
+                  size={20}
+                  fallbackBg={active ? "#ffffff" : "#e5e7eb"}
+                  fallbackFg={active ? "#111111" : "#374151"}
+                />
+                {ticker}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {articles.length === 0 ? (
         emptyBody

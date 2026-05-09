@@ -311,6 +311,42 @@ jobs:
           echo "Running: ${CMD[*]}"
           "${CMD[@]}"
 
+      - name: Rebuild heat list (open phase)
+        run: |
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          CMD=(
+            python -m backend.scripts.build_heat_list
+            --market US
+          )
+          if [ -n "$UNIVERSE" ]; then
+            CMD+=(--ai-universe "$UNIVERSE" --price-universe "$UNIVERSE")
+          fi
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Rebuild thematic screens (open phase)
+        run: |
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          if [ -z "$UNIVERSE" ]; then
+            UNIVERSE="$(python - <<'PY'
+          from backend.storage import TraceMoneyStore
+          store = TraceMoneyStore()
+          print(store.get_active_price_universe("US") or "")
+          PY
+          )"
+          fi
+          if [ -z "$UNIVERSE" ]; then
+            echo "Missing active US price universe for thematic screens"
+            exit 1
+          fi
+          CMD=(
+            python -m backend.scripts.build_thematic_screens
+            --market US
+            --universe "$UNIVERSE"
+          )
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"
+
       - name: Materialize paid views
         run: |
           python -m backend.scripts.materialize_views \
@@ -391,6 +427,42 @@ jobs:
           if [ -n "$UNIVERSE" ]; then
             CMD+=(--universe "$UNIVERSE")
           fi
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Rebuild heat list (close phase)
+        run: |
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          CMD=(
+            python -m backend.scripts.build_heat_list
+            --market US
+          )
+          if [ -n "$UNIVERSE" ]; then
+            CMD+=(--ai-universe "$UNIVERSE" --price-universe "$UNIVERSE")
+          fi
+          echo "Running: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Rebuild thematic screens (close phase)
+        run: |
+          UNIVERSE="${{ github.event.inputs.universe || '' }}"
+          if [ -z "$UNIVERSE" ]; then
+            UNIVERSE="$(python - <<'PY'
+          from backend.storage import TraceMoneyStore
+          store = TraceMoneyStore()
+          print(store.get_active_price_universe("US") or "")
+          PY
+          )"
+          fi
+          if [ -z "$UNIVERSE" ]; then
+            echo "Missing active US price universe for thematic screens"
+            exit 1
+          fi
+          CMD=(
+            python -m backend.scripts.build_thematic_screens
+            --market US
+            --universe "$UNIVERSE"
+          )
           echo "Running: ${CMD[*]}"
           "${CMD[@]}"
 

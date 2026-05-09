@@ -99,17 +99,21 @@ export default async function HomePage() {
   }> = [];
   let news: NewsArticle[] = [];
   let moversDoc: MarketMoversDoc | null = null;
-  const session = await getSessionUser();
-  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const sessionPromise = getSessionUser();
+  const homeViewPromise = getHomeView(market).catch(() => null);
+  const liveSnapshotPromise = getMarketSnapshot(market).catch(() => []);
+  const liveMoversPromise = getMarketMovers(market).catch(() => null);
+
+  const session = await sessionPromise;
+  const userDocPromise = session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null);
+  const [homeView, liveSnapshotRows, liveMovers, userDoc] = await Promise.all([
+    homeViewPromise,
+    liveSnapshotPromise,
+    liveMoversPromise,
+    userDocPromise,
+  ]);
   const isSubscribed = resolveIsSubscribed(userDoc);
   try {
-    const [homeView, liveSnapshotRows, thematicScreens, feed, liveMovers] = await Promise.all([
-      getHomeView(market).catch(() => null),
-      getMarketSnapshot(market).catch(() => []),
-      getThematicScreens(market).catch(() => null),
-      getNewsFeed(market, 30).catch(() => []),
-      getMarketMovers(market).catch(() => null),
-    ]);
     if (homeView) {
       view = homeView.dashboard ?? null;
     }
@@ -117,8 +121,14 @@ export default async function HomePage() {
       ? liveSnapshotRows
       : homeView?.market_snapshot_rows ?? [];
     moversDoc = liveMovers;
-    screens = thematicScreens ?? homeView?.thematic_screens ?? null;
-    news = feed.length > 0 ? feed : homeView?.news ?? [];
+    screens = homeView?.thematic_screens ?? null;
+    news = homeView?.news ?? [];
+    if (news.length === 0) {
+      news = await getNewsFeed(market, 30).catch(() => []);
+    }
+    if (!screens) {
+      screens = await getThematicScreens(market).catch(() => null);
+    }
     macroTicks = buildMacroTicksFromSnapshot(snapshotRows, market);
     if (macroTicks.length === 0) {
       macroTicks = (view?.market_tiles ?? [])
@@ -185,6 +195,13 @@ export default async function HomePage() {
         price: s.price ?? 0,
         changePct: s.day_change_pct ?? 0,
       }));
+  const heroStock =
+    ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL"].reduce<
+      ReturnType<typeof rowToStock> | null
+    >((match, ticker) => {
+      if (match) return match;
+      return allStocks.find((stock) => stock.ticker.toUpperCase() === ticker) ?? null;
+    }, null) ?? allStocks[0];
 
   return (
     <main className="flex-grow">
@@ -199,6 +216,7 @@ export default async function HomePage() {
             price: t.price ?? 0,
             changePct: t.day_change_pct ?? 0,
           }))}
+          featuredStock={heroStock}
           isSubscribed={isSubscribed}
         />
 

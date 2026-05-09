@@ -10,18 +10,18 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Heat List",
+  title: "Market Heat",
   description:
-    "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe. Find stocks showing unusual volume, RSI extremes, and breakout signals.",
+    "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving, and track names in Radar.",
   alternates: { canonical: "/heat" },
   openGraph: {
-    title: "Heat List — Hot Stocks & Breakouts · Tikrr",
-    description: "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe.",
+    title: "Market Heat — Daily Ranked Stock Setups · Tikrr",
+    description: "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",
     url: "https://www.tikrr.online/heat",
   },
   twitter: {
-    title: "Heat List — Hot Stocks & Breakouts · Tikrr",
-    description: "Today's heat read — overheated, breakout, news-spike, and catalyst-watch setups across the watch universe.",
+    title: "Market Heat — Daily Ranked Stock Setups · Tikrr",
+    description: "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",
   },
 };
 
@@ -66,14 +66,10 @@ export default async function HeatPage() {
         <header className="flex items-end justify-between gap-6 flex-wrap">
           <div className="flex flex-col gap-3 max-w-2xl">
             <h1 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.025em] text-[#111111]">
-              Heat
+              Market Heat
             </h1>
             <p className="text-[15px] md:text-[16px] leading-relaxed text-[#374151]">
-              Today’s loudest qualifying stock setups, sorted into{" "}
-              <span className="font-semibold text-[#c2410c]">overheated</span>,{" "}
-              <span className="font-semibold text-[#047857]">breakouts</span>,{" "}
-              <span className="font-semibold text-[#7c3aed]">news spikes</span>, and{" "}
-              <span className="font-semibold text-[#92400e]">catalyst windows</span>.
+              One ranked list. Scan the top names getting unusual attention, read why they are moving, then track only what fits your plan.
             </p>
           </div>
           {generatedAt && (
