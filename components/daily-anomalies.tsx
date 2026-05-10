@@ -104,7 +104,7 @@ export function DailyAnomalies({ anomalies, summary, generatedAt }: Props) {
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.015em]">
-              Market Movers
+              Market Anomalies
             </h2>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#6b7280]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />

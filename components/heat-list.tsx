@@ -133,10 +133,10 @@ function TableHeader() {
       <div className="hidden sm:block w-[120px] shrink-0">
         <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Setup</span>
       </div>
-      <div className="w-[52px] shrink-0 text-right">
+      <div className="w-[72px] shrink-0 text-right">
         <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Heat</span>
       </div>
-      <div className="w-[72px] shrink-0 text-right">
+      <div className="w-[96px] shrink-0 text-right">
         <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Day chg</span>
       </div>
       <div className="hidden md:block w-[52px] shrink-0 text-right">
@@ -234,7 +234,7 @@ function HeatTableRow({
       </div>
 
       {/* Heat score + bar */}
-      <div className="w-[52px] shrink-0 flex flex-col items-end gap-1">
+      <div className="w-[72px] shrink-0 flex flex-col items-end gap-1">
         <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
           {Math.round(row.heat_score)}
         </span>
@@ -251,7 +251,7 @@ function HeatTableRow({
       </div>
 
       {/* Day change */}
-      <div className="w-[72px] shrink-0 text-right">
+      <div className="w-[96px] shrink-0 text-right">
         {pct ? (
           <span
             className={`text-[13px] font-semibold tabular-nums ${
@@ -278,7 +278,7 @@ function HeatTableRow({
 
       {/* Signal text */}
       <div className="hidden lg:block flex-1 min-w-0">
-        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-1">{reason}</p>
+        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2">{reason}</p>
       </div>
 
       {/* Track button */}

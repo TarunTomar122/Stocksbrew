@@ -94,10 +94,10 @@ export function HeroSection({ score, tone, color, indices, isSubscribed = false 
         {/* Headline */}
         <div className="flex flex-col items-center gap-4 max-w-3xl">
           <h1 className="text-[40px] md:text-[56px] lg:text-[64px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.05]">
-            Your daily market brief<br />in 5 seconds.
+            Your daily market brief<br />in 5 minutes.
           </h1>
           <p className="text-[16px] md:text-[18px] text-[#6b7280] leading-[1.55] max-w-[480px]">
-            Tikrr tracks every unusual stock move and explains it in plain English, every day, free.
+            Tikrr tracks every unusual stock move and explains it in plain English, every day.
           </p>
         </div>
 

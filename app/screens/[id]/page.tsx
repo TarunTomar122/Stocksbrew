@@ -14,7 +14,7 @@ type Props = {
 };
 
 const SCREEN_META_INFO: Record<string, { title: string; subtitle: string }> = {
-  tikrr_top: { title: "Top Tikrr Score", subtitle: "Our house pick — the names with the best four-pillar composite right now." },
+  tikrr_top: { title: "Top Tikrr Score", subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders: { title: "Quality Compounders", subtitle: "Strong businesses built to grow year after year." },
   cheap_growth: { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
   momentum_leaders: { title: "On a Tear", subtitle: "Leading the tape with the long-term trend intact." },
@@ -33,19 +33,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: info.subtitle,
       alternates: { canonical: `/screens/${id}` },
       openGraph: {
-        title: `${info.title} — Thematic Screen · Tikrr`,
+        title: `${info.title} · Tikrr`,
         description: info.subtitle,
         url: `https://www.tikrr.online/screens/${id}`,
       },
       twitter: {
-        title: `${info.title} — Thematic Screen · Tikrr`,
+        title: `${info.title} · Tikrr`,
         description: info.subtitle,
       },
     };
   }
   return {
-    title: `${id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} — Screen`,
-    description: "Hand-picked thematic stock screen powered by Tikrr's four-pillar scoring.",
+    title: id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    description: "Curated stock screen based on growth, momentum, quality and valuation.",
     alternates: { canonical: `/screens/${id}` },
   };
 }
@@ -66,12 +66,12 @@ const SCREEN_META: Record<
 const COLUMN_LEGEND = [
   {
     label: "Tikrr score",
-    body: "Composite that blends all four pillars with our model weights.",
+    body: "Overall score blending growth, momentum, quality and valuation.",
     direction: "Higher = stronger overall",
   },
   {
     label: "Valuation",
-    body: "How richly priced vs. fundamentals — earnings, sales, cash flow.",
+    body: "How cheaply priced vs. earnings, sales and cash flow.",
     direction: "Higher = cheaper",
   },
   {
@@ -91,7 +91,7 @@ const COLUMN_LEGEND = [
   },
   {
     label: "Signal",
-    body: "Screen-specific evidence — RSI for oversold names, distance from 52w high for breakouts, institutional ownership for smart money, otherwise overall match strength.",
+    body: "What made this stock match the screen. RSI for oversold names, distance from 52w high for breakouts, institutional ownership for smart money.",
     direction: "Why this stock matched",
   },
 ];

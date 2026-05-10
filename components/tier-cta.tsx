@@ -53,17 +53,19 @@ export function TierCTA({
 
   if (tier === "ai_personal") {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3">
-        <span className="text-[13px] font-medium text-[#1e3a8a]">
+      <div className="flex flex-col items-start gap-2 rounded-2xl border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#1e3a8a]">
           On your Radar — updates with each run.
         </span>
-        <TrackButton
-          ticker={ticker}
-          instrumentId={instrumentId}
-          tier={tier}
-          isSubscribed={isSubscribed}
-          isTracked={isTracked}
-        />
+        <div className="self-end sm:self-auto">
+          <TrackButton
+            ticker={ticker}
+            instrumentId={instrumentId}
+            tier={tier}
+            isSubscribed={isSubscribed}
+            isTracked={isTracked}
+          />
+        </div>
       </div>
     );
   }

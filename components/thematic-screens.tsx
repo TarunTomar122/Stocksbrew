@@ -18,7 +18,7 @@ const HOME_SCREEN_ROWS_PRO = 8;
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top: {
     title: "Top Tikrr Score",
-    subtitle: "Our house pick — 10 names with the best four-pillar composite right now.",
+    subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation.",
   },
   quality_compounders: {
     title: "Quality Compounders",
@@ -135,10 +135,10 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
             Screens worth watching
           </h2>
           <p className="text-[13px] text-[#6b7280] mt-1.5 leading-relaxed">
-            Opinionated filters over the full four-pillar score — hand-picked so you can skip the screener.
+            Curated screens based on growth, momentum, quality and valuation. Skip the screener.
           </p>
         </div>
-        <span className="text-[12px] text-[#6b7280]">Live four-pillar scores</span>
+        <span className="text-[12px] text-[#6b7280]">Updated daily</span>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-4">

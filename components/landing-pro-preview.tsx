@@ -64,10 +64,10 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
       {/* Headline */}
       <div className="flex flex-col items-center gap-3 text-center max-w-3xl mx-auto">
         <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
-          Pro · what you unlock
+          Tikrr Pro
         </span>
         <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
-          Your Radar for the tickers you care about.
+          Your Radar for the stocks you care about.
         </h2>
       </div>
 

@@ -122,7 +122,7 @@ export default function HeatPage() {
               Market Heat
             </h1>
             <p className="text-[15px] md:text-[16px] leading-relaxed text-[#374151]">
-              One ranked list. Scan the top names getting unusual attention, read why they are moving, then track only what fits your plan.
+              Stocks that are getting unusual attention. It might be helpful to track them to see if an entry opportunity presents itself.
             </p>
           </div>
           <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">

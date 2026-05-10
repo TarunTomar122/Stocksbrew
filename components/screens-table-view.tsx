@@ -7,7 +7,7 @@ import { StockLogo } from "@/components/stock-logo";
 import type { ThematicScreen, ScreenMatchRow } from "@/lib/screens";
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
-  tikrr_top:          { title: "Top Tikrr Score",        subtitle: "Our house pick — the names with the best four-pillar composite right now." },
+  tikrr_top:          { title: "Top Tikrr Score",        subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders:{ title: "Quality Compounders",    subtitle: "Strong businesses built to grow year after year." },
   cheap_growth:       { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
   momentum_leaders:   { title: "On a Tear",              subtitle: "Leading the tape with the long-term trend intact." },
