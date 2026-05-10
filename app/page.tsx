@@ -30,6 +30,8 @@ import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
 import { getThematicScreens } from "@/lib/screens";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getRedditCues } from "@/lib/reddit-cues";
+import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 function rowToStock(s: SnapshotRow) {
@@ -384,6 +386,13 @@ async function HomeAnomaliesStream() {
   );
 }
 
+async function HomeRedditStream() {
+  const market = getCurrentMarket();
+  const data = await getRedditCues(market).catch(() => null);
+  if (!data || !data.tickers?.length) return null;
+  return <RedditCues data={data} />;
+}
+
 async function HomeContentStream() {
   const [core, supplemental] = await Promise.all([loadHomeCore(), loadHomeSupplemental()]);
   return (
@@ -412,6 +421,10 @@ export default function HomePage() {
 
         <Suspense fallback={null}>
           <HomeAnomaliesStream />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <HomeRedditStream />
         </Suspense>
 
         <Suspense fallback={<HomeMarketFallback />}>
