@@ -227,26 +227,29 @@ async function fetchSubredditPosts(subreddit) {
 
 // ─── Ticker Extraction via LLM ────────────────────────────────────────────────
 
-const TICKER_SYSTEM = `You are a market analyst summarizing Reddit chatter into actionable intelligence.
+const TICKER_SYSTEM = `You are a sharp market analyst writing for traders. Your tone is punchy, direct, and reads like a Bloomberg terminal note or a trading desk morning brief.
 
 Given Reddit post titles and bodies about stocks, extract:
 
-1. "tickers" — a map of ticker symbol → {
-   "mentions": count,
-   "sentiment": "bullish" | "bearish" | "neutral",
-   "context": 1-2 sentence market summary (write like a Bloomberg terminal alert — what's happening, not what users think),
-   "catalysts": array of up to 3 key catalysts or drivers (short phrases, e.g. "H200 chip sales to China cleared", "earnings beat expectations")
-}
-2. "market_mood" — overall: "bullish", "bearish", "mixed", or "neutral"
+1. "tickers" — map of ticker → {
+     mentions: number,
+     sentiment: "bullish" | "bearish" | "neutral",
+     context: 2-3 sentences. Write like a trading desk note. Focus on WHAT is happening with the stock (price action, news, catalysts, sector moves). Do NOT say "users are saying" or "traders are discussing". Write as if you're explaining the situation to someone who missed the move. Include specific numbers/percentages when available.
+     catalysts: array of 1-3 short phrases — the actual catalysts driving chatter (e.g. "H200 chip sales to China cleared", "Q1 earnings beat", "Samsung strike disrupts HBM supply")
+   }
+2. "market_mood" — "bullish" | "bearish" | "mixed" | "neutral"
 3. "top_themes" — up to 5 dominant themes (e.g. "AI infrastructure", "Fed policy", "short squeeze plays")
 4. "notable_posts" — up to 5 posts with { title, subreddit, why_notable }
 
-Writing rules for "context":
-- Write like a market news wire, NOT like a Reddit moderator
-- Good: "Nvidia rallying on H200 China export clearance. Jensen joining US trade delegation adds momentum."
-- Bad: "Users are excited about NVDA gains and expressing optimism"
-- Mention the actual driver if visible. If speculative, say "chatter around..." or "speculation that..."
-- Keep it under 40 words.
+Rules for context:
+- NEVER start with "users are..." or "traders are..." or "investors are..."
+- Lead with the catalyst or the price action
+- Use trading shorthand: "catching a bid", "ripping", "dumping", "in play", "on the radar"
+- Be specific: include the stock move %, the news, the sector context
+- GOOD: "NVDA ripping on H200 chip clearance to China. Jensen joining trade delegation adds fuel. AI names still in favor — some degens sitting on 1240% gains."
+- GOOD: "Micron catching a bid on Samsung strike fears disrupting HBM supply. Memory names looking like the next rotation."
+- BAD: "Users are expressing excitement over significant gains and positive news related to Nvidia."
+- BAD: "Investors believe MU will benefit from a potential Samsung strike."
 
 Rules for tickers:
 - Only valid US stock tickers (1-5 uppercase letters). No crypto.
@@ -444,7 +447,9 @@ async function main() {
   const top10 = Object.entries(analysis.tickers).slice(0, 10);
   for (const [sym, info] of top10) {
     const emoji = info.sentiment === "bullish" ? "🟢" : info.sentiment === "bearish" ? "🔴" : "⚪";
+    const cats = (info.catalysts || []).slice(0, 3).join(", ");
     console.log(`    ${emoji} $${sym}: ${info.mentions} mentions (${info.sentiment}) — ${info.context}`);
+    if (cats) console.log(`       ↳ ${cats}`);
   }
   if (analysis.top_themes.length) {
     console.log(`  Themes: ${analysis.top_themes.join(", ")}`);
