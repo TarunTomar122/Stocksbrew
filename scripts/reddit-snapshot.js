@@ -227,18 +227,30 @@ async function fetchSubredditPosts(subreddit) {
 
 // ─── Ticker Extraction via LLM ────────────────────────────────────────────────
 
-const TICKER_SYSTEM = `You are a financial analyst extracting stock ticker mentions from Reddit posts.
+const TICKER_SYSTEM = `You are a market analyst summarizing Reddit chatter into actionable intelligence.
 
-Given a batch of Reddit post titles and bodies, extract:
-1. "tickers" — a map of ticker symbol → { mentions (count), sentiment ("bullish"/"bearish"/"neutral"), context (1-line summary of what people are saying) }
-2. "market_mood" — overall sentiment across all posts: "bullish", "bearish", "mixed", or "neutral"
-3. "top_themes" — array of up to 5 dominant discussion themes (e.g., "earnings season", "Fed rate cuts", "AI stocks", "short squeeze plays")
-4. "notable_posts" — array of up to 5 most interesting/impactful posts with { title, subreddit, why_notable }
+Given Reddit post titles and bodies about stocks, extract:
 
-Rules:
-- Only extract valid US stock tickers (1-5 uppercase letters). Ignore crypto tickers.
-- Common words that aren't tickers: THE, A, AN, IS, IT, BE, TO, IN, FOR, ON, MY, I, CEO, IPO, ETF, DD, YOLO, FOMO, ATH, EPS, SEC, FDA, GDP, CPI, FED, PCE, RSI, GTC, RH, OP, PM, AM, RE, VS, BEAR, BULL, LOSS, GAIN, PUT, CALL, CALLS, PUTS, tendies, regard
-- If a word appears to be used as a stock ticker (e.g., "AAPL is mooning", "bought NVDA calls"), include it.
+1. "tickers" — a map of ticker symbol → {
+   "mentions": count,
+   "sentiment": "bullish" | "bearish" | "neutral",
+   "context": 1-2 sentence market summary (write like a Bloomberg terminal alert — what's happening, not what users think),
+   "catalysts": array of up to 3 key catalysts or drivers (short phrases, e.g. "H200 chip sales to China cleared", "earnings beat expectations")
+}
+2. "market_mood" — overall: "bullish", "bearish", "mixed", or "neutral"
+3. "top_themes" — up to 5 dominant themes (e.g. "AI infrastructure", "Fed policy", "short squeeze plays")
+4. "notable_posts" — up to 5 posts with { title, subreddit, why_notable }
+
+Writing rules for "context":
+- Write like a market news wire, NOT like a Reddit moderator
+- Good: "Nvidia rallying on H200 China export clearance. Jensen joining US trade delegation adds momentum."
+- Bad: "Users are excited about NVDA gains and expressing optimism"
+- Mention the actual driver if visible. If speculative, say "chatter around..." or "speculation that..."
+- Keep it under 40 words.
+
+Rules for tickers:
+- Only valid US stock tickers (1-5 uppercase letters). No crypto.
+- Not tickers: THE, A, AN, IS, IT, BE, TO, IN, FOR, ON, MY, I, CEO, IPO, ETF, DD, YOLO, FOMO, ATH, EPS, SEC, FDA, GDP, CPI, FED, PCE, RSI, GTC, RH, OP, PM, AM, RE, VS, BEAR, BULL, LOSS, GAIN, PUT, CALL, CALLS, PUTS, tendies, regard
 - Return valid JSON only.`;
 
 async function extractTickersFromPosts(posts) {
@@ -272,11 +284,18 @@ async function extractTickersFromPosts(posts) {
               allTickers[sym].sentiment = "bullish";
             if (info.sentiment === "bearish" && allTickers[sym].sentiment !== "bearish")
               allTickers[sym].sentiment = "bearish";
+            // Merge catalysts
+            if (info.catalysts) {
+              const existing = new Set(allTickers[sym].catalysts || []);
+              for (const c of info.catalysts) existing.add(c);
+              allTickers[sym].catalysts = [...existing].slice(0, 5);
+            }
           } else {
             allTickers[sym] = {
               mentions: info.mentions || 1,
               sentiment: info.sentiment || "neutral",
               context: info.context || "",
+              catalysts: info.catalysts || [],
             };
           }
         }
