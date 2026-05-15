@@ -106,14 +106,12 @@ const loadHomeCore = cache(async () => {
   let moversDoc: MarketMoversDoc | null = null;
   const sessionPromise = getSessionUser();
   const homeViewPromise = getHomeView(market).catch(() => null);
-  const liveSnapshotPromise = getMarketSnapshot(market).catch(() => []);
   const liveMoversPromise = getMarketMovers(market).catch(() => null);
 
   const session = await sessionPromise;
   const userDocPromise = session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null);
-  const [homeView, liveSnapshotRows, liveMovers, userDoc] = await Promise.all([
+  const [homeView, liveMovers, userDoc] = await Promise.all([
     homeViewPromise,
-    liveSnapshotPromise,
     liveMoversPromise,
     userDocPromise,
   ]);
@@ -122,9 +120,10 @@ const loadHomeCore = cache(async () => {
     if (homeView) {
       view = homeView.dashboard ?? null;
     }
-    snapshotRows = liveSnapshotRows.length > 0
-      ? liveSnapshotRows
-      : homeView?.market_snapshot_rows ?? [];
+    snapshotRows = homeView?.market_snapshot_rows ?? [];
+    if (snapshotRows.length === 0) {
+      snapshotRows = await getMarketSnapshot(market).catch(() => []);
+    }
     moversDoc = liveMovers;
     macroTicks = buildMacroTicksFromSnapshot(snapshotRows, market);
     if (macroTicks.length === 0) {

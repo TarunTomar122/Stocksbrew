@@ -134,14 +134,6 @@ export async function getLatestPrices(instrumentIds: string[]): Promise<Map<stri
 const getMarketSnapshotUncached = async (
   market: "US" | "IN" = "US",
 ): Promise<SnapshotRow[]> => {
-  const latest = await adminFirestore
-    .collection("market_price_snapshots")
-    .doc(market)
-    .get();
-  if (latest.exists) {
-    const payload = latest.data() as { rows?: SnapshotRow[] };
-    if (Array.isArray(payload.rows)) return payload.rows;
-  }
   const snap = await adminFirestore
     .collection("market_price_snapshots")
     .doc(market)
@@ -151,6 +143,16 @@ const getMarketSnapshotUncached = async (
   for (const doc of snap.docs) {
     const data = doc.data() as { rows?: SnapshotRow[] };
     if (Array.isArray(data.rows)) rows.push(...data.rows);
+  }
+  if (rows.length > 0) return rows;
+  // Backward compatibility for legacy snapshots with parent `rows`.
+  const latest = await adminFirestore
+    .collection("market_price_snapshots")
+    .doc(market)
+    .get();
+  if (latest.exists) {
+    const payload = latest.data() as { rows?: SnapshotRow[] };
+    if (Array.isArray(payload.rows)) return payload.rows;
   }
   return rows;
 };

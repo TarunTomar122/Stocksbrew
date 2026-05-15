@@ -260,7 +260,6 @@ class TraceMoneyStore:
             "rowCount": len(normalized_rows),
             "shardCount": len(shard_docs),
             "updatedAt": updated_at,
-            "rows": normalized_rows,
         }, merge=True)
 
         if stale_ids:
@@ -303,12 +302,6 @@ class TraceMoneyStore:
 
     def get_market_price_snapshot(self, market: str) -> list[dict[str, Any]]:
         market_key = str(market).upper()
-        latest_doc = self.db.collection("market_price_snapshots").document(market_key).get()
-        if latest_doc.exists:
-            latest_payload = _serialize(latest_doc.to_dict()) or {}
-            latest_rows = latest_payload.get("rows")
-            if isinstance(latest_rows, list):
-                return [row for row in latest_rows if isinstance(row, dict)]
         docs = (
             self.db.collection("market_price_snapshots")
             .document(market_key)
@@ -321,6 +314,15 @@ class TraceMoneyStore:
             shard_rows = payload.get("rows") or []
             if isinstance(shard_rows, list):
                 rows.extend(item for item in shard_rows if isinstance(item, dict))
+        if rows:
+            return rows
+        # Backward compatibility: legacy snapshots stored all rows on parent doc.
+        latest_doc = self.db.collection("market_price_snapshots").document(market_key).get()
+        if latest_doc.exists:
+            latest_payload = _serialize(latest_doc.to_dict()) or {}
+            latest_rows = latest_payload.get("rows")
+            if isinstance(latest_rows, list):
+                return [row for row in latest_rows if isinstance(row, dict)]
         return rows
 
     def save_market_movers(self, market: str, payload: dict[str, Any]) -> None:

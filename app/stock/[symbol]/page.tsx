@@ -64,34 +64,10 @@ function formatRelative(iso?: string): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
-  const cookieMarket = getCurrentMarket();
-  const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
-  let stock = await getStockSummary(symbol, cookieMarket);
-  if (!stock) {
-    stock = await getStockSummary(symbol, otherMarket);
-  }
   const normalized = normalizeStockSymbolParam(symbol);
   const label =
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
-
-  if (!stock) {
-    return {
-      title: `${label} — Coming soon · Tikrr`,
-      description: `We're adding ${label} to Tikrr. Open the page for any Reddit context we have and to queue full coverage.`,
-      alternates: { canonical: `/stock/${encodeURIComponent(label)}` },
-      openGraph: {
-        title: `${label} — Coming soon · Tikrr`,
-        description: `We're adding ${label} to Tikrr. Reddit context when available; full coverage queued.`,
-        url: `https://www.tikrr.online/stock/${encodeURIComponent(label)}`,
-      },
-      twitter: {
-        title: `${label} — Coming soon · Tikrr`,
-        description: `We're adding ${label} to Tikrr.`,
-      },
-    };
-  }
-
-  const upper = stock.ticker.toUpperCase();
+  const upper = label.toUpperCase();
   return {
     title: `${upper} — Stock Analysis & AI Brief`,
     description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your Tikrr Radar.`,

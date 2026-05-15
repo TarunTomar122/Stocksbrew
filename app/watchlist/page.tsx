@@ -2,14 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth-server";
-import { getCurrentMarket } from "@/lib/market";
-import { getNewsFeed } from "@/lib/news";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import { StockLogo } from "@/components/stock-logo";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
-import { WatchlistNewsPanel } from "@/components/watchlist-news-panel";
 import { WatchlistDailyCompare } from "@/components/watchlist-daily-compare";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +22,6 @@ export default async function WatchlistPage() {
   const userDoc = await getUserDoc(session.uid);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const market = getCurrentMarket();
-
   const watchlistView = await getWatchlistView(session.uid).catch(() => null);
   const radar = userDoc?.radar_v1 || {};
   const rows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
@@ -59,17 +54,6 @@ export default async function WatchlistPage() {
     );
   }
 
-  const radarTickerSet = new Set(rows.map((r) => r.ticker.toUpperCase()));
-  const radarTickers = [...radarTickerSet].sort();
-  const newsFeed = await getNewsFeed(market, 250).catch(() => []);
-  const seenIds = new Set<string>();
-  const radarArticles = newsFeed.filter((a) => {
-    if (!a.tickers.some((t) => radarTickerSet.has(String(t).toUpperCase()))) return false;
-    if (seenIds.has(a.id)) return false;
-    seenIds.add(a.id);
-    return true;
-  });
-
   return (
     <main className="flex-grow">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-8 px-3 sm:px-6 md:px-20 lg:px-32 py-6 lg:py-10">
@@ -86,10 +70,6 @@ export default async function WatchlistPage() {
         <WatchlistTabs holdings={holdings} watching={watching} suggestions={suggestions} />
 
         <WatchlistDailyCompare holdings={holdings} watching={watching} />
-
-        <div className="border-t border-[#e5e7eb] pt-10">
-          <WatchlistNewsPanel articles={radarArticles} radarTickers={radarTickers} />
-        </div>
       </div>
     </main>
   );
