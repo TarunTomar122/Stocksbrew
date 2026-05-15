@@ -56,7 +56,7 @@ upsert_job() {
       --time-zone="Etc/UTC" \
       --uri="${RUN_URI}" \
       --http-method=POST \
-      --headers="Content-Type=application/json" \
+      --update-headers="Content-Type=application/json" \
       --message-body-from-file="${body_file}" \
       --oauth-service-account-email="${SCHEDULER_SERVICE_ACCOUNT_EMAIL}" \
       --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform"
