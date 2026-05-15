@@ -30,7 +30,7 @@ CRON_OPEN_PRICE="${CRON_OPEN_PRICE:-30 13 * * 1-5}"       # 7:00 PM IST
 CRON_OPEN_BRIEFS="${CRON_OPEN_BRIEFS:-35 13 * * 1-5}"     # 7:05 PM IST
 CRON_OPEN_ANOMALIES="${CRON_OPEN_ANOMALIES:-38 13 * * 1-5}" # 7:08 PM IST
 CRON_REDDIT_BUZZ="${CRON_REDDIT_BUZZ:-20 13 * * 1-5}"     # 6:50 PM IST
-CRON_INTRADAY="${CRON_INTRADAY:-*/20 13-19 * * 1-5}"      # every 20 min during session
+CRON_INTRADAY="${CRON_INTRADAY:-*/30 13-19 * * 1-5}"      # every 30 min during session
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
 
 RUN_URI="https://run.googleapis.com/v2/projects/${GOOGLE_CLOUD_PROJECT}/locations/${GOOGLE_CLOUD_REGION}/jobs/${DISPATCH_JOB_NAME}:run"
