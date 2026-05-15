@@ -88,6 +88,10 @@ async function maybeQueueOnDemandNews(uid: string, instrumentId: string): Promis
   return queued;
 }
 
+function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
+  return instrumentId.startsWith("IN_") ? "IN" : "US";
+}
+
 export async function POST(req: NextRequest) {
   const traceId = randomUUID();
   const session = await getSessionUser();
@@ -152,6 +156,7 @@ export async function POST(req: NextRequest) {
 
   const userRef = adminFirestore.collection("users").doc(session.uid);
   const eventRef = userRef.collection("watchlist_events").doc(clientMutationId);
+  const trackedRef = adminFirestore.collection("tm_tracked_instruments").doc(instrumentId);
   let sourceVersion = Number(existing.watchlist_version ?? 0);
   let wasAlreadyTrackedInTxn = current.includes(instrumentId);
   await adminFirestore.runTransaction(async (tx) => {
@@ -188,6 +193,18 @@ export async function POST(req: NextRequest) {
       },
       { merge: true },
     );
+    if (!alreadyTracked) {
+      tx.set(
+        trackedRef,
+        {
+          instrument_id: instrumentId,
+          market: marketFromInstrumentId(instrumentId),
+          tracked_count: FieldValue.increment(1),
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    }
     tx.set(eventRef, {
       kind: "SET_POSITION",
       instrument_id: instrumentId,
@@ -238,7 +255,9 @@ export async function DELETE(req: NextRequest) {
   const existing = await getUserDoc(session.uid);
   const userRef = adminFirestore.collection("users").doc(session.uid);
   const eventRef = userRef.collection("watchlist_events").doc(clientMutationId);
+  const trackedRef = adminFirestore.collection("tm_tracked_instruments").doc(instrumentId);
   let sourceVersion = Number(existing?.watchlist_version ?? 0);
+  let wasTrackedInTxn = false;
   await adminFirestore.runTransaction(async (tx) => {
     const userSnap = await tx.get(userRef);
     const userData = userSnap.exists ? userSnap.data() : {};
@@ -249,6 +268,7 @@ export async function DELETE(req: NextRequest) {
       return;
     }
     const tracked = Array.isArray(userData?.tracked_stocks) ? (userData!.tracked_stocks as string[]) : [];
+    wasTrackedInTxn = tracked.includes(instrumentId);
     const positions = (
       userData?.watchlist_positions &&
       typeof userData.watchlist_positions === "object" &&
@@ -268,6 +288,18 @@ export async function DELETE(req: NextRequest) {
       },
       { merge: true },
     );
+    if (wasTrackedInTxn) {
+      tx.set(
+        trackedRef,
+        {
+          instrument_id: instrumentId,
+          market: marketFromInstrumentId(instrumentId),
+          tracked_count: FieldValue.increment(-1),
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    }
     tx.set(eventRef, {
       kind: "REMOVE_POSITION",
       instrument_id: instrumentId,
@@ -279,6 +311,7 @@ export async function DELETE(req: NextRequest) {
     uid: session.uid,
     instrument_id: instrumentId,
     watchlist_version: sourceVersion,
+    was_tracked: wasTrackedInTxn,
   });
 
   trackApiLog(traceId, "info", "delete_untrack_ok", { uid: session.uid, instrument_id: instrumentId });
