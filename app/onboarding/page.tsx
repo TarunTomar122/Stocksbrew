@@ -159,7 +159,7 @@ export default function OnboardingPage() {
     setCheckoutError(null);
     try {
       const url = await startCheckout();
-      finish();
+      await finish();
       window.location.href = url;
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Something went wrong");
@@ -176,8 +176,15 @@ export default function OnboardingPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [slide, total]);
 
-  function finish() {
+  async function finish() {
     try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
+    // Persist completion server-side so onboarding does not reappear on
+    // storage-isolated browsers/devices.
+    try {
+      await fetch("/api/user/onboarding", { method: "POST" });
+    } catch {
+      // best effort
+    }
   }
 
   return (
@@ -198,7 +205,7 @@ export default function OnboardingPage() {
         </div>
         <button
           type="button"
-          onClick={() => { finish(); router.push("/"); }}
+          onClick={async () => { await finish(); router.push("/"); }}
           className="text-[13px] font-medium text-[#9ca3af] hover:text-[#6b7280] transition-colors"
         >
           Skip
@@ -255,7 +262,7 @@ export default function OnboardingPage() {
             {checkoutError && <p className="text-[12px] text-[#ef4444]">{checkoutError}</p>}
             <button
               type="button"
-              onClick={() => { finish(); router.push("/"); }}
+              onClick={async () => { await finish(); router.push("/"); }}
               className="text-[12px] text-[#9ca3af] hover:text-[#6b7280] transition-colors"
             >
               No thanks, I don't want my stocks to make money 😢

@@ -1,14 +1,15 @@
 import Link from "next/link";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
+import { StockLogo } from "@/components/stock-logo";
 
 type Props = {
   data: RedditSnapshot;
 };
 
-const SENTIMENT_META: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  bullish:  { label: "Bullish",  color: "#047857", bg: "#ecfdf5", dot: "#10b981" },
-  bearish:  { label: "Bearish",  color: "#b91c1c", bg: "#fef2f2", dot: "#ef4444" },
-  neutral:  { label: "Neutral",  color: "#6b7280", bg: "#f3f4f6", dot: "#9ca3af" },
+const SENTIMENT_META: Record<string, { label: string; color: string }> = {
+  bullish: { label: "Bullish", color: "#10b981" },
+  bearish: { label: "Bearish", color: "#ef4444" },
+  neutral: { label: "Neutral", color: "#6b7280" },
 };
 
 function getSentimentMeta(s: string) {
@@ -23,40 +24,52 @@ function timeAgo(iso: string): string {
   return `${hours}h ago`;
 }
 
+function UpvoteArrow({ color }: { color: string }) {
+  return (
+    <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden>
+      <path d="M5 0L10 8H0L5 0Z" fill={color} />
+    </svg>
+  );
+}
+
 function TickerCard({ item }: { item: RedditTicker }) {
   const meta = getSentimentMeta(item.sentiment);
+  const topCatalyst = item.catalysts?.[0] ?? null;
 
   return (
     <Link
       href={`/stock/${encodeURIComponent(item.ticker)}`}
-      className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+      className="group flex h-full flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-[#f9fafb] p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6]">
-            <span className="text-[13px] font-bold text-[#111111]">
-              {item.ticker.slice(0, 2)}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[14px] font-semibold text-[#111111] group-hover:text-[#0052ff] transition-colors">
-              {item.ticker}
-            </span>
-            <span className="text-[11px] text-[#9ca3af]">
-              {item.mention_count} mention{item.mention_count !== 1 ? "s" : ""}
-            </span>
-          </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <StockLogo ticker={item.ticker} market="US" size={28} />
+        <span className="text-[13px] font-bold text-[#111111] tracking-[-0.01em]">{item.ticker}</span>
+        <div className="flex items-center gap-1" style={{ color: meta.color }}>
+          <UpvoteArrow color={meta.color} />
+          <span className="text-[12px] font-bold tabular-nums">{item.mention_count}</span>
         </div>
-        <span
-          className="shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-          style={{ background: meta.bg, color: meta.color }}
-        >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.dot }} />
+        <span className="ml-auto shrink-0 text-[11px] font-bold" style={{ color: meta.color }}>
           {meta.label}
         </span>
       </div>
 
-      <p className="text-[12px] leading-snug text-[#374151] line-clamp-3">{item.summary}</p>
+      {item.summary ? (
+        <p className="text-[13px] font-medium leading-snug text-[#374151]">
+          {item.summary}
+        </p>
+      ) : null}
+
+      {topCatalyst ? (
+        <div className="mt-auto pt-1">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold"
+            style={{ background: "#f3f4f6", color: meta.color }}
+          >
+            <span className="h-1 w-1 rounded-full shrink-0" style={{ background: meta.color }} />
+            {topCatalyst}
+          </span>
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -68,15 +81,23 @@ export function RedditCues({ data }: Props) {
   const bears = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-5">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.015em]">
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/anomalies"
+              className="group/title inline-flex items-center gap-1.5 text-[18px] font-semibold tracking-[-0.015em] text-[#111111] hover:text-[#0052ff] transition-colors"
+            >
               Reddit Buzz
-            </h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#6b7280]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff4500]" />
+              <span className="text-[14px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
+            </Link>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+              style={{ background: "#fff1ec", color: "#ff4500" }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#ff4500" }} />
               r/stocks &amp; more
             </span>
           </div>
@@ -85,21 +106,25 @@ export function RedditCues({ data }: Props) {
           </p>
         </div>
 
-        <div className="hidden sm:flex items-center divide-x divide-[#e5e7eb] rounded-xl border border-[#e5e7eb] bg-white overflow-hidden">
-          <div className="px-4 py-2 text-center">
-            <div className="text-[15px] font-semibold tabular-nums text-[#047857]">{bulls}</div>
+        <div
+          className="hidden sm:flex items-center divide-x rounded-xl overflow-hidden"
+          style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}
+        >
+          <div className="px-4 py-2 text-center" style={{ borderRight: "1px solid #e5e7eb" }}>
+            <div className="text-[15px] font-semibold tabular-nums" style={{ color: "#10b981" }}>{bulls}</div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">Bullish</div>
           </div>
           <div className="px-4 py-2 text-center">
-            <div className="text-[15px] font-semibold tabular-nums text-[#b91c1c]">{bears}</div>
+            <div className="text-[15px] font-semibold tabular-nums" style={{ color: "#ef4444" }}>{bears}</div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">Bearish</div>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
+      {/* Cards grid */}
+      <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0 md:items-stretch">
         {data.tickers.slice(0, 8).map((item) => (
-          <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0">
+          <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 h-full">
             <TickerCard item={item} />
           </div>
         ))}

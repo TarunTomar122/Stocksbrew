@@ -1,5 +1,4 @@
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
-import { ProLockOverlay } from "@/components/pro-lock-overlay";
 
 type Props = {
   facts: StockFacts | null;
@@ -357,12 +356,6 @@ export function StockFactsPanel({
 
             {topHolders.length > 0 && (
               <div className="relative flex flex-col gap-2 min-w-0 overflow-hidden">
-                {!isSubscribed && (
-                  <ProLockOverlay
-                    title="Top holders · Pro"
-                    description="Largest holders and recent position changes."
-                  />
-                )}
                 <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[#9ca3af]">
                   Top holders
                 </span>

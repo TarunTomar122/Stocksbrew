@@ -3,9 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { ScreenMatchesTable } from "@/components/screen-matches-table";
-import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getScreenById } from "@/lib/screens";
 
 type Props = {
@@ -105,10 +103,6 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
   const result = await getScreenById(market, params.id);
   if (!result) notFound();
   const { screen } = result;
-
-  const session = await getSessionUser();
-  const userDoc = session ? await getUserDoc(session.uid) : null;
-  const isSubscribed = resolveIsSubscribed(userDoc);
 
   const meta = SCREEN_META[screen.id] ?? {
     icon: "S",
@@ -219,7 +213,6 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
           matches={screen.matches}
           screenId={screen.id}
           market={market}
-          isSubscribed={isSubscribed}
         />
 
         {/* CTA */}

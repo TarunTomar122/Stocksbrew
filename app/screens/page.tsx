@@ -3,8 +3,6 @@ import { Suspense } from "react";
 
 import { getCurrentMarket } from "@/lib/market";
 import { getThematicScreens } from "@/lib/screens";
-import { getSessionUser } from "@/lib/auth-server";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { ScreensTableView } from "@/components/screens-table-view";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +39,6 @@ function ScreensFallback() {
 
 async function ScreensContentStream() {
   const market = getCurrentMarket();
-  const session = await getSessionUser();
-  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-  const isSubscribed = resolveIsSubscribed(userDoc);
   const doc = await getThematicScreens(market);
   const screens = (doc?.screens ?? []).filter((s) => s.match_count > 0);
 
@@ -60,7 +55,7 @@ async function ScreensContentStream() {
     );
   }
 
-  return <ScreensTableView screens={screens} market={market} isSubscribed={isSubscribed} />;
+  return <ScreensTableView screens={screens} market={market} />;
 }
 
 export default function ScreensIndexPage() {

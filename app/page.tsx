@@ -416,7 +416,7 @@ async function HomeContentStream() {
 export default function HomePage() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-8 md:py-10 flex flex-col gap-16 md:gap-20">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-16 lg:px-28 xl:px-40 py-8 md:py-10 flex flex-col gap-16 md:gap-20">
         <HomeHero />
 
         <Suspense fallback={null}>

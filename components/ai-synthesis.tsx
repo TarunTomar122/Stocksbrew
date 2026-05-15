@@ -54,6 +54,10 @@ function visualSummaryHasCards(vs: StockIntelligenceDoc["visual_summary"]): bool
   return Boolean(w || y || t);
 }
 
+function stripHtml(raw: string): string {
+  return raw.replace(/<[^>]*>/g, "").trim();
+}
+
 function formatRelative(iso?: string): string {
   if (!iso) return "not refreshed yet";
   const then = new Date(iso).getTime();
@@ -87,17 +91,17 @@ export function AiSynthesis({ intelligence, timeline }: Props) {
     .sort((a, b) => Date.parse(String(b.timestamp ?? "")) - Date.parse(String(a.timestamp ?? "")))[0]?.title;
 
   const whatChanged =
-    vs?.what_changed ||
-    newestNewsTitle ||
-    intelligence?.today_brief ||
+    (vs?.what_changed ? stripHtml(vs.what_changed) : null) ||
+    (newestNewsTitle ? stripHtml(newestNewsTitle) : null) ||
+    (intelligence?.today_brief ? stripHtml(intelligence.today_brief) : null) ||
     "No significant news events captured in the last run.";
   const whyItMatters =
-    vs?.why_it_matters ||
-    intelligence?.thesis ||
+    (vs?.why_it_matters ? stripHtml(vs.why_it_matters) : null) ||
+    (intelligence?.thesis ? stripHtml(intelligence.thesis) : null) ||
     "Context will appear once the pipeline synthesizes coverage.";
   const whatToWatch =
-    vs?.what_to_watch ||
-    intelligence?.catalyst ||
+    (vs?.what_to_watch ? stripHtml(vs.what_to_watch) : null) ||
+    (intelligence?.catalyst ? stripHtml(intelligence.catalyst) : null) ||
     "No catalysts flagged yet — check back after the next pipeline run.";
 
   const hasBriefText = Boolean(

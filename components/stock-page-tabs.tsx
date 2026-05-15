@@ -19,7 +19,7 @@ const TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
   { key: "ai", label: "AI brief", narrowLabel: "AI" },
 ];
 
-const SCROLL_OFFSET = 140;
+const SCROLL_OFFSET = typeof window !== "undefined" && window.innerWidth < 768 ? 160 : 140;
 
 export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribed }: Props) {
   const [active, setActive] = useState<TabKey>("overview");
@@ -61,14 +61,14 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
 
   return (
     <div className="flex flex-col gap-0 min-w-0">
-      <div className="sticky top-16 z-30 -mx-1 bg-[var(--background)] border-b border-[#e5e7eb]">
+      <div className="sticky top-[104px] md:top-16 z-30 -mx-1 bg-[var(--background)] border-b border-[#e5e7eb]">
         <nav
           className="flex flex-nowrap items-stretch gap-0 sm:gap-0.5 px-1 overflow-x-auto overscroll-x-contain scrollbar-hide touch-pan-x"
           role="tablist"
         >
           {visible.map((t) => {
             const isActive = active === t.key;
-            const locked = !isSubscribed && t.key !== "overview";
+            const locked = !isSubscribed && t.key === "ai";
             const label = locked ? `${t.label} 🔒` : t.label;
             const narrowLabel = locked ? `${t.narrowLabel ?? t.label} 🔒` : t.narrowLabel ?? t.label;
             return (

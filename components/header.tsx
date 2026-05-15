@@ -19,14 +19,14 @@ type Props = {
 };
 
 const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean }[] = [
-  { href: "/heat",      label: "Hot Stocks", icon: "local_fire_department" },
-  { href: "/screens",   label: "Screens",    icon: "tune" },
-  { href: "/news",      label: "News",       icon: "newspaper" },
-  { href: "/watchlist", label: "Radar",      icon: "radar", authOnly: true, beta: true },
+  { href: "/heat",      label: "Hot Stocks",       icon: "local_fire_department" },
+  { href: "/screens",   label: "Screens",          icon: "tune" },
+  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up" },
+  { href: "/watchlist", label: "Radar",            icon: "radar", authOnly: true, beta: true },
 ];
 
 /** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */
-const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/news", "/watchlist"] as const;
+const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/anomalies", "/watchlist"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;

@@ -169,18 +169,14 @@ function ScreenTableRow({
   );
 }
 
-const FREE_ROWS = 4;
-
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function ScreensTableView({
   screens,
   market,
-  isSubscribed = false,
 }: {
   screens: ThematicScreen[];
   market: "US" | "IN";
-  isSubscribed?: boolean;
 }) {
   const defaultId = screens.find((s) => s.id === "tikrr_top")?.id ?? screens[0]?.id ?? "";
   const [activeId, setActiveId] = useState(defaultId);
@@ -192,9 +188,6 @@ export function ScreensTableView({
   const sorted = [...activeScreen.matches].sort(
     (a, b) => (b.overall_score ?? 0) - (a.overall_score ?? 0),
   );
-
-  const displayed = isSubscribed ? sorted : sorted.slice(0, FREE_ROWS);
-  const lockedCount = !isSubscribed ? Math.max(0, sorted.length - FREE_ROWS) : 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -233,20 +226,18 @@ export function ScreensTableView({
       {/* Screen description */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <p className="text-[13px] text-[#6b7280]">{copy.subtitle}</p>
-        {isSubscribed && (
-          <Link
-            href={`/screens/${encodeURIComponent(activeId)}?market=${market}`}
-            className="text-[12px] font-semibold text-[#0052ff] hover:underline shrink-0"
-          >
-            View full screen →
-          </Link>
-        )}
+        <Link
+          href={`/screens/${encodeURIComponent(activeId)}?market=${market}`}
+          className="text-[12px] font-semibold text-[#0052ff] hover:underline shrink-0"
+        >
+          View full screen →
+        </Link>
       </div>
 
       {/* Table */}
       <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
         <TableHeader />
-        {displayed.map((row, i) => (
+        {sorted.map((row, i) => (
           <ScreenTableRow
             key={row.instrument_id}
             row={row}
@@ -255,23 +246,6 @@ export function ScreensTableView({
             screenId={activeId}
           />
         ))}
-
-        {lockedCount > 0 && (
-          <div className="border-t border-[#f3f4f6] px-5 py-6 flex flex-col items-center gap-3 text-center">
-            <p className="text-[13px] font-semibold text-[#111111]">
-              {lockedCount} more matches in this screen
-            </p>
-            <p className="text-[12px] text-[#6b7280] max-w-sm">
-              Pro unlocks all {sorted.length} results across every screen, plus RSI, pillar breakdowns, and alerts.
-            </p>
-            <Link
-              href="/subscribe"
-              className="inline-flex items-center justify-center rounded-full bg-[#111111] px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#222] transition-colors"
-            >
-              Unlock Pro
-            </Link>
-          </div>
-        )}
       </div>
     </div>
   );

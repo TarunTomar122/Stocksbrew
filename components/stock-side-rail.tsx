@@ -1,5 +1,7 @@
 import { StockLogo } from "@/components/stock-logo";
+import { StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
 import { TrackButton } from "@/components/track-button";
+import type { RedditTickerContext } from "@/lib/reddit-cues";
 import type { StockIntelPro } from "@/lib/types";
 import type { StockSummary, TimelineEvent } from "@/lib/stock";
 
@@ -12,6 +14,8 @@ type Props = {
   isSubscribed: boolean;
   isTracked: boolean;
   priceUpdatedAt?: string;
+  market: "US" | "IN";
+  redditTickerContext?: RedditTickerContext | null;
 };
 
 function sentimentDot(label?: string): string {
@@ -116,6 +120,8 @@ export function StockSideRail({
   isSubscribed,
   isTracked,
   priceUpdatedAt,
+  market,
+  redditTickerContext,
 }: Props) {
   const pct = stock.day_change_pct ?? 0;
   const abs = stock.day_change_abs ?? 0;
@@ -133,7 +139,7 @@ export function StockSideRail({
           <StockLogo
             ticker={stock.ticker}
             logoUrl={stock.logo_url}
-            market={stock.instrument_id.startsWith("IN_") ? "IN" : "US"}
+            market={market}
             size={48}
           />
           <div className="flex flex-col flex-1 min-w-0">
@@ -191,9 +197,9 @@ export function StockSideRail({
         />
       </div>
 
-      {/* Scorecard mini */}
+      {/* Scorecard mini — hidden on mobile (available in Fundamentals tab) */}
       {intelPro && (
-        <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-4">
+        <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
               Scorecard
@@ -245,8 +251,16 @@ export function StockSideRail({
         </div>
       )}
 
+      {/* Reddit buzz — hidden on mobile */}
+      {redditTickerContext && (
+        <div className="hidden lg:block">
+          <StockRedditBuzzRail context={redditTickerContext} />
+        </div>
+      )}
+
+      {/* Latest news — hidden on mobile */}
       {timeline && (
-        <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-3">
+        <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-3">
           <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
             Latest news
           </h3>

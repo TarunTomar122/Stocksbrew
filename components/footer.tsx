@@ -10,8 +10,8 @@ const COLUMNS: Column[] = [
     title: "Product",
     links: [
       { label: "Markets", href: "/" },
-      { label: "Hot Stocks", href: "/heat" },
-      { label: "Market Movers", href: "/anomalies" },
+      { label: "Market Heat", href: "/heat" },
+      { label: "Market Anomalies", href: "/anomalies" },
       { label: "Screens", href: "/screens" },
       { label: "News", href: "/news" },
       { label: "Radar", href: "/watchlist" },

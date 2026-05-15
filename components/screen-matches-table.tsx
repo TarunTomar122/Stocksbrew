@@ -23,12 +23,7 @@ type Props = {
   matches: ScreenMatchRow[];
   screenId: string;
   market?: "US" | "IN";
-  /** When false, only the first few rows are shown and the rest are gated. */
-  isSubscribed: boolean;
 };
-
-/** Free preview rows before subscribe CTA. */
-const FREE_SCREEN_PREVIEW_ROWS = 3;
 
 const COLUMNS: { key: SortKey; label: string; align?: "right"; mobile?: boolean }[] = [
   { key: "ticker",  label: "Stock",   mobile: true },
@@ -150,7 +145,6 @@ export function ScreenMatchesTable({
   matches,
   screenId,
   market = "US",
-  isSubscribed,
 }: Props) {
   const [sort, setSort] = useState<SortState>(null);
 
@@ -158,10 +152,6 @@ export function ScreenMatchesTable({
     if (!sort) return matches;
     return [...matches].sort((a, b) => compare(a, b, sort.key, sort.dir));
   }, [matches, sort]);
-
-  const showPaywall = !isSubscribed && sorted.length > FREE_SCREEN_PREVIEW_ROWS;
-  const visibleRows = showPaywall ? sorted.slice(0, FREE_SCREEN_PREVIEW_ROWS) : sorted;
-  const hiddenCount = showPaywall ? sorted.length - visibleRows.length : 0;
 
   function cycleSort(key: SortKey) {
     setSort((prev) => {
@@ -209,7 +199,7 @@ export function ScreenMatchesTable({
         </div>
       ) : (
         <>
-          {visibleRows.map((row) => {
+          {sorted.map((row) => {
           const change = row.day_change_pct;
           const up = typeof change === "number" && change > 0;
           const down = typeof change === "number" && change < 0;
@@ -287,22 +277,6 @@ export function ScreenMatchesTable({
             </Link>
           );
         })}
-        {showPaywall && (
-          <div className="border-t border-[#e5e7eb] bg-gradient-to-b from-white to-[#f9fafb] px-6 py-8 text-center">
-            <p className="text-[15px] font-semibold text-[#111111]">
-              {hiddenCount} more {hiddenCount === 1 ? "match" : "matches"} on this screen
-            </p>
-            <p className="mt-1.5 text-[13px] text-[#6b7280] max-w-md mx-auto leading-relaxed">
-              Subscribe to see the full list, updated daily with new matches and drop-offs.
-            </p>
-            <Link
-              href="/subscribe"
-              className="mt-5 inline-flex items-center justify-center h-[40px] px-6 rounded-full bg-[#111111] text-white text-[13px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-            >
-              Subscribe
-            </Link>
-          </div>
-        )}
         </>
       )}
     </section>

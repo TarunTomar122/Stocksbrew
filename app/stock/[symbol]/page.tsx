@@ -21,6 +21,7 @@ import { StockSideRail } from "@/components/stock-side-rail";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
 import { StockViewTracker } from "@/components/stock-view-tracker";
+import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
@@ -31,10 +32,12 @@ import {
   getStockIntelPro,
   getStockIntelligenceDoc,
   getStockSummary,
+  normalizeStockSymbolParam,
   type SentimentBreakdown,
   type StockIntelligenceDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
+import { getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
@@ -61,7 +64,34 @@ function formatRelative(iso?: string): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
-  const upper = symbol.toUpperCase();
+  const cookieMarket = getCurrentMarket();
+  const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
+  let stock = await getStockSummary(symbol, cookieMarket);
+  if (!stock) {
+    stock = await getStockSummary(symbol, otherMarket);
+  }
+  const normalized = normalizeStockSymbolParam(symbol);
+  const label =
+    normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
+
+  if (!stock) {
+    return {
+      title: `${label} — Coming soon · Tikrr`,
+      description: `We're adding ${label} to Tikrr. Open the page for any Reddit context we have and to queue full coverage.`,
+      alternates: { canonical: `/stock/${encodeURIComponent(label)}` },
+      openGraph: {
+        title: `${label} — Coming soon · Tikrr`,
+        description: `We're adding ${label} to Tikrr. Reddit context when available; full coverage queued.`,
+        url: `https://www.tikrr.online/stock/${encodeURIComponent(label)}`,
+      },
+      twitter: {
+        title: `${label} — Coming soon · Tikrr`,
+        description: `We're adding ${label} to Tikrr.`,
+      },
+    };
+  }
+
+  const upper = stock.ticker.toUpperCase();
   return {
     title: `${upper} — Stock Analysis & AI Brief`,
     description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your Tikrr Radar.`,
@@ -117,7 +147,28 @@ export default async function StockPage({ params }: Props) {
     stock = await getStockSummary(symbol, otherMarket);
     if (stock) market = otherMarket;
   }
-  if (!stock) notFound();
+  if (!stock) {
+    const normalizedTicker = normalizeStockSymbolParam(symbol);
+    if (!normalizedTicker) notFound();
+
+    const [snapUs, snapIn] = await Promise.all([
+      getRedditCues("US").catch(() => null),
+      getRedditCues("IN").catch(() => null),
+    ]);
+    const redditTickerContext =
+      resolveRedditContextForSymbol(snapUs, normalizedTicker) ??
+      resolveRedditContextForSymbol(snapIn, normalizedTicker);
+
+    return (
+      <main className="flex-grow">
+        <UnlistedStockShell
+          ticker={normalizedTicker}
+          market={cookieMarket}
+          redditTickerContext={redditTickerContext}
+        />
+      </main>
+    );
+  }
 
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
@@ -142,6 +193,7 @@ export default async function StockPage({ params }: Props) {
     stockFacts,
     marketMovers,
     anomaliesDoc,
+    redditSnapshot,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -154,7 +206,9 @@ export default async function StockPage({ params }: Props) {
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
     getDailyAnomalies(market).catch(() => null),
+    getRedditCues(market).catch(() => null),
   ]);
+  const redditTickerContext = resolveRedditContextForSymbol(redditSnapshot, stock.ticker);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const isPriorityStock = priorityIds.includes(stock.instrument_id);
   const showPriorityNotice = priorityIds.length > 0 && !isPriorityStock;
@@ -192,6 +246,7 @@ export default async function StockPage({ params }: Props) {
 
   const overviewContent = (
     <section className="flex flex-col gap-10">
+      {anomaly && <AnomalyBanner anomaly={anomaly} />}
       <SignalDeck
         facts={stockFacts}
         intelPro={intelPro}
@@ -241,18 +296,13 @@ export default async function StockPage({ params }: Props) {
     </section>
   );
 
-  const analystContent = subscribed ? (
+  const analystContent = (
     <section className="flex flex-col gap-6">
       <AnalystConsensus consensus={analystConsensus} currentPrice={stock.price} />
     </section>
-  ) : (
-    <PremiumTabLock
-      title="Analyst insights are Pro-only"
-      description="Unlock consensus trends, target dispersion, and analyst stance changes."
-    />
   );
 
-  const fundamentalsContent = subscribed ? (
+  const fundamentalsContent = (
     <section className="flex flex-col gap-6">
       <StockScorecard intel={intelPro} isSubscribed={subscribed} />
       {hasAI && (
@@ -265,11 +315,6 @@ export default async function StockPage({ params }: Props) {
         </>
       )}
     </section>
-  ) : (
-    <PremiumTabLock
-      title="Fundamentals are Pro-only"
-      description="Unlock full scorecard depth, valuation context, and peer comparisons."
-    />
   );
 
   const aiSource = intelligence?.source ?? "";
@@ -341,9 +386,8 @@ export default async function StockPage({ params }: Props) {
         instrumentId={stock.instrument_id}
         ticker={stock.ticker}
       />
-      <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 md:py-10">
-        {anomaly && <AnomalyBanner anomaly={anomaly} />}
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-10 lg:gap-14">
+      <div className="mx-auto w-full max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-6 md:px-10 lg:px-16 md:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4 sm:gap-6 lg:gap-14">
           <StockSideRail
             stock={stock}
             intelPro={intelPro}
@@ -353,6 +397,8 @@ export default async function StockPage({ params }: Props) {
             isSubscribed={subscribed}
             isTracked={isTracked}
             priceUpdatedAt={stock.captured_at}
+            market={market}
+            redditTickerContext={redditTickerContext}
           />
           <StockPageTabs
             overview={overviewContent}

@@ -62,7 +62,7 @@ export function HeroSection({ score, tone, color, indices, isSubscribed = false 
     try {
       await signInWithGoogle();
       await syncServerSession().catch(() => undefined);
-      router.push("/onboarding");
+      router.push("/watchlist");
     } catch (err) {
       console.error("sign-in failed", err);
       setBusy(false);

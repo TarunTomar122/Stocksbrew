@@ -10,6 +10,7 @@ import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchli
 import { StockLogo } from "@/components/stock-logo";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { WatchlistNewsPanel } from "@/components/watchlist-news-panel";
+import { WatchlistDailyCompare } from "@/components/watchlist-daily-compare";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,8 @@ export default async function WatchlistPage() {
         </header>
 
         <WatchlistTabs holdings={holdings} watching={watching} suggestions={suggestions} />
+
+        <WatchlistDailyCompare holdings={holdings} watching={watching} />
 
         <div className="border-t border-[#e5e7eb] pt-10">
           <WatchlistNewsPanel articles={radarArticles} radarTickers={radarTickers} />

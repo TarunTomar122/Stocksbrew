@@ -13,7 +13,7 @@ export function AnomalyBanner({ anomaly }: Props) {
   const changeColor = isUp ? "#10b981" : "#ef4444";
 
   return (
-    <div className="mb-6 rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5">
+    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5">
       <div className="flex flex-col gap-2">
         {/* Label row */}
         <div className="flex items-center gap-2">
@@ -33,20 +33,6 @@ export function AnomalyBanner({ anomaly }: Props) {
           <p className="text-[14px] font-semibold text-[#111111] leading-snug">
             {anomaly.headline}
           </p>
-        )}
-
-        {/* Brief */}
-        {anomaly.today_brief && (
-          <p className="text-[13px] text-[#6b7280] leading-relaxed line-clamp-2">
-            {anomaly.today_brief}
-          </p>
-        )}
-
-        {/* Catalyst */}
-        {anomaly.catalyst && (
-          <span className="inline-flex items-center self-start rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[11px] font-medium text-[#6b7280]">
-            {anomaly.catalyst}
-          </span>
         )}
       </div>
     </div>

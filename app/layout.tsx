@@ -8,7 +8,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { LaunchBanner } from "@/components/launch-banner";
-import { OnboardingTrigger } from "@/components/onboarding-trigger";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getSearchIndex } from "@/lib/search";
@@ -178,7 +177,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers initialAuthed={hasSessionCookie}>
-          <OnboardingTrigger />
           <Suspense fallback={null}>
             <SubscriptionBannerGate />
           </Suspense>
