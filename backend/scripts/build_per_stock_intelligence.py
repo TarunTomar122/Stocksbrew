@@ -295,6 +295,7 @@ def _fetch_chunk(
     chunk_index: int,
     instruments: list[dict[str, Any]],
     per_stock_cap: int,
+    per_stock_lookback_hours: int,
 ) -> tuple[int, list[Any], list[dict[str, object]], float]:
     started = time.time()
     articles, source_health = collect_per_ticker_articles(
@@ -303,6 +304,7 @@ def _fetch_chunk(
         per_stock_cap=per_stock_cap,
         broad_cap=0,
         instruments_override=instruments,
+        per_stock_lookback_hours=per_stock_lookback_hours,
     )
     return chunk_index, articles, source_health, time.time() - started
 
@@ -312,6 +314,7 @@ def main() -> None:
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None, help="AI-tier universe id, e.g. us_ai_launch")
     parser.add_argument("--per-stock-cap", type=int, default=5, help="Max articles fetched per ticker (default 5)")
+    parser.add_argument("--per-stock-lookback-hours", type=int, default=72, help="Lookback window for per-stock fetch (default 72h)")
     parser.add_argument("--broad-cap", type=int, default=12, help="Max broad-lane articles kept for market/sector briefs (default 12)")
     parser.add_argument(
         "--chunk-size",
@@ -463,6 +466,7 @@ def main() -> None:
                         chunk_index=index,
                         instruments=chunk,
                         per_stock_cap=args.per_stock_cap,
+                        per_stock_lookback_hours=args.per_stock_lookback_hours,
                     )
                     for index, chunk in enumerate(chunks)
                 ]
@@ -492,6 +496,7 @@ def main() -> None:
                 per_stock_cap=args.per_stock_cap,
                 broad_cap=args.broad_cap,
                 instruments_override=instruments,
+                per_stock_lookback_hours=args.per_stock_lookback_hours,
             )
         print(
             f"[per-stock] fetched {len(raw_articles)} articles across "

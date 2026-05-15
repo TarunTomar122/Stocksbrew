@@ -7,6 +7,7 @@ import os
 from typing import Any
 
 from backend.instrument_universe import list_instruments
+from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
 from backend.storage import TraceMoneyStore
 
@@ -214,6 +215,8 @@ def main() -> None:
             "price_core_open",
             "tracked_open_briefs",
             "price_core_intraday",
+            "open_anomalies",
+            "reddit_buzz",
             "daily_postclose",
         ],
         required=True,
@@ -230,6 +233,7 @@ def main() -> None:
     parser.add_argument("--max-workers", type=int, default=6)
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
+    parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -248,6 +252,8 @@ def main() -> None:
         "price_core_open": os.getenv("PRICE_CORE_OPEN_JOB_NAME", "tikrr-price-core-open"),
         "tracked_open_briefs": os.getenv("TRACKED_OPEN_BRIEFS_JOB_NAME", "tikrr-tracked-open-briefs"),
         "price_core_intraday": os.getenv("PRICE_CORE_INTRADAY_JOB_NAME", "tikrr-price-core-intraday"),
+        "open_anomalies": os.getenv("OPEN_ANOMALIES_JOB_NAME", "tikrr-open-anomalies"),
+        "reddit_buzz": os.getenv("REDDIT_BUZZ_JOB_NAME", "tikrr-reddit-buzz"),
         "daily_postclose": os.getenv("DAILY_POSTCLOSE_JOB_NAME", "tikrr-daily-postclose"),
     }
     job_name = job_name_by_lane[args.lane]
@@ -295,6 +301,20 @@ def main() -> None:
             client=RunJobsClient(project=args.project, region=args.region),
             state=state,
         )
+        should_refresh_home = args.refresh_home or args.lane in {"price_core_open", "price_core_intraday"}
+        if should_refresh_home:
+            home_refresh = materialize_views(
+                market=args.market,
+                universe_id=universe_id,
+                instrument_ids=None,
+                activate=False,
+                allow_missing_context=True,
+                skip_sector_scrape=True,
+                skip_dashboard=False,
+                dashboard_only=True,
+                store=store,
+            )
+            summary["home_refresh"] = home_refresh
     elif args.lane in {"tracked_news_prep", "tracked_open_briefs"}:
         instrument_ids = _tracked_ids(store, args.market)
         if args.dry_run:

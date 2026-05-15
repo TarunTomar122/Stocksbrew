@@ -38,8 +38,44 @@ class RunJobsClient:
         response = requests.post(url, headers=self._headers(), json=body, timeout=30)
         response.raise_for_status()
         payload = response.json()
-        # Example: projects/{p}/locations/{r}/jobs/{j}/executions/{exec}
-        return str(payload.get("name") or "")
+        # jobs.run returns a long-running operation resource. Resolve it to
+        # the actual execution resource before returning.
+        op_name = str(payload.get("name") or "")
+        if not op_name:
+            raise ValueError("jobs.run returned empty operation name")
+        return self._wait_operation_for_execution(op_name)
+
+    def _get_operation(self, operation_name: str) -> dict[str, Any]:
+        if operation_name.startswith("projects/"):
+            url = f"https://run.googleapis.com/v2/{operation_name}"
+        else:
+            url = f"{self.base}/{operation_name}"
+        response = requests.get(url, headers=self._headers(), timeout=30)
+        response.raise_for_status()
+        return response.json()
+
+    def _wait_operation_for_execution(
+        self,
+        operation_name: str,
+        *,
+        timeout_s: int = 180,
+        poll_s: int = 2,
+    ) -> str:
+        deadline = time.time() + timeout_s
+        last: dict[str, Any] = {}
+        while time.time() < deadline:
+            last = self._get_operation(operation_name)
+            if bool(last.get("done")):
+                error = last.get("error")
+                if error:
+                    raise RuntimeError(f"jobs.run operation failed: {error}")
+                response = last.get("response") or {}
+                execution_name = str(response.get("name") or "")
+                if not execution_name:
+                    raise RuntimeError(f"jobs.run operation missing execution name: {operation_name}")
+                return execution_name
+            time.sleep(max(1, poll_s))
+        raise TimeoutError(f"Timed out waiting for jobs.run operation: {operation_name}")
 
     def get_execution(self, execution_resource_name: str) -> dict[str, Any]:
         # execution_resource_name may be full resource or short "{job}/executions/{name}".
@@ -67,4 +103,3 @@ class RunJobsClient:
                 return last
             time.sleep(max(1, poll_s))
         raise TimeoutError(f"Timed out waiting for execution: {execution_resource_name}")
-

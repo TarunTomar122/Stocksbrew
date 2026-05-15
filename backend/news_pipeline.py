@@ -504,6 +504,7 @@ def collect_per_ticker_articles(
     fetcher: Callable[[str], str] | None = None,
     instrument_ids: list[str] | None = None,
     instruments_override: list[dict] | None = None,
+    per_stock_lookback_hours: int = 72,
 ) -> tuple[list[Article], list[dict[str, object]]]:
     """Fetch articles partitioned per-ticker plus a small broad-lane bucket.
 
@@ -555,7 +556,7 @@ def collect_per_ticker_articles(
             ),
             "providers": provider_set,
             "max_items_per_source": 2,
-            "max_age_hours": 72,
+            "max_age_hours": max(1, int(per_stock_lookback_hours)),
         }
         for instrument in instruments
     ]

@@ -68,6 +68,7 @@ def materialize_views(
     allow_missing_context: bool = False,
     skip_sector_scrape: bool = False,
     skip_dashboard: bool = False,
+    dashboard_only: bool = False,
     store: TraceMoneyStore | None = None,
 ) -> dict:
     store = store or TraceMoneyStore()
@@ -79,6 +80,8 @@ def materialize_views(
         instrument for instrument in instruments
         if str(instrument.get("instrument_id", "")).upper() in selected_ids
     ]
+    if dashboard_only:
+        selected_instruments = []
 
     data_ids = all_instrument_ids if not skip_dashboard else [instrument["instrument_id"] for instrument in selected_instruments]
     latest_prices = store.get_latest_prices(data_ids)
@@ -181,7 +184,9 @@ def materialize_views(
             market_context,
             sector_context_by_id.get(sector_id, {}),
         ))
-    saved_count = store.save_instrument_views_bulk(universe_id, instrument_views)
+    saved_count = 0
+    if not dashboard_only:
+        saved_count = store.save_instrument_views_bulk(universe_id, instrument_views)
 
     if activate:
         store.save_active_price_universe(market, universe_id)
