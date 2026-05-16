@@ -23,9 +23,7 @@ on:
         description: "How many priority instruments to refresh"
         required: false
         default: "100"
-  schedule:
-    # Weekly run: Sunday 03:30 UTC (Sunday night US, Monday morning IST)
-    - cron: "30 3 * * 0"
+
 
 concurrency:
   group: weekly-stock-facts-${{ github.event.inputs.market || 'US' }}
