@@ -410,6 +410,8 @@ export default function HomePage() {
           <HomeRedditStream />
         </Suspense>
 
+        <NewsletterSignup />
+
         <Suspense fallback={<HomeMarketFallback />}>
           <HomeMarketStream />
         </Suspense>
@@ -419,8 +421,6 @@ export default function HomePage() {
         </Suspense>
 
         <Testimonials />
-
-        <NewsletterSignup />
 
         <LearnTeaser />
       </div>

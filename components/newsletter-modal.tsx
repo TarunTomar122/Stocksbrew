@@ -85,7 +85,7 @@ export function NewsletterModal() {
               </div>
               <div className="flex flex-col gap-1">
                 <p className="text-[17px] font-semibold text-[#111111]">You&apos;re on the list.</p>
-                <p className="text-[13px] text-[#6b7280]">First issue lands in your inbox this week.</p>
+                <p className="text-[13px] text-[#6b7280]">Your first daily brief lands tomorrow morning.</p>
               </div>
             </div>
           ) : (
@@ -95,23 +95,23 @@ export function NewsletterModal() {
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d1fae5] px-2.5 py-1 text-[11px] font-semibold text-[#065f46] tracking-[0.04em]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                    Free every week
+                    Free every weekday
                   </span>
                 </div>
                 <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em] leading-[1.25]">
-                  The week in markets,<br />in plain English
+                  The market today,<br />in plain English
                 </h2>
                 <p className="text-[13px] text-[#6b7280] leading-relaxed">
-                  What moved, what mattered, and what to watch next - delivered free every week.
+                  What moved overnight, what to watch at the open, and why it matters - delivered free every weekday morning.
                 </p>
               </div>
 
               {/* Bullets */}
               <ul className="flex flex-col gap-2 border-t border-[#f3f4f6] pt-4">
                 {[
-                  "Biggest movers and the story behind them",
-                  "Macro shifts that actually affect your stocks",
-                  "What to watch in the week ahead",
+                  "Biggest pre-market movers and the story behind them",
+                  "Macro headlines that actually affect your stocks",
+                  "What to watch before the closing bell",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-[13px] text-[#374151]">
                     <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -138,7 +138,7 @@ export function NewsletterModal() {
                   disabled={state === "loading"}
                   className="h-11 rounded-xl bg-[#111111] px-6 text-[14px] font-semibold text-white hover:bg-[#000] disabled:opacity-60 transition-colors"
                 >
-                  {state === "loading" ? "Subscribing…" : "Get the weekly brief →"}
+                  {state === "loading" ? "Subscribing…" : "Get the daily brief →"}
                 </button>
                 {state === "error" && (
                   <p className="text-[12px] text-[#ef4444]">Something went wrong. Try again.</p>

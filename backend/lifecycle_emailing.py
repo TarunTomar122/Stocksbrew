@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import quote
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
@@ -160,7 +161,13 @@ def email_stock_request_ready(*, ticker: str, company_name: str | None = None) -
     return subject, html
 
 
-def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: list[dict[str, Any]] | None = None) -> tuple[str, str]:
+def email_pro_daily_digest(
+    rows: list[dict[str, Any]],
+    market_snapshot_rows: list[dict[str, Any]] | None = None,
+    *,
+    radar_brief: dict[str, Any] | None = None,
+    radar_events: list[dict[str, Any]] | None = None,
+) -> tuple[str, str]:
     def _num(v: Any) -> float:
         try:
             return float(v)
@@ -181,38 +188,79 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
         color = "#10b981" if n >= 0 else "#ef4444"
         return f"<span style='font-size:11px;color:{color}'>{n:+.2f}</span>"
 
-    def _logo(ticker: str) -> str:
+    def _logo(row: dict[str, Any]) -> str:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        logo_url = str(row.get("logo_url") or "").strip()
+        if logo_url:
+            src = f"{APP_URL}/api/logo-proxy?url={quote(logo_url, safe='')}"
+        else:
+            fmp = f"https://financialmodelingprep.com/image-stock/{ticker}.png"
+            src = f"{APP_URL}/api/logo-proxy?url={quote(fmp, safe='')}"
         return (
-            f"<img src='https://financialmodelingprep.com/image-stock/{ticker}.png' width='42' height='42' "
+            f"<img src='{src}' width='42' height='42' "
             "style='border-radius:10px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb;padding:2px;display:block' />"
         )
 
+    def _clean_sentence(text: str) -> str:
+        return " ".join(str(text or "").split()).strip()
+
+    def _is_weak_line(text: str) -> bool:
+        t = _clean_sentence(text).lower()
+        if not t:
+            return True
+        weak_patterns = (
+            "review holding",
+            "keep watching",
+            "watch for entry setup",
+            "headlines today",
+            "nothing unusual today",
+            "market momentum check",
+            "hold, watch closely",
+        )
+        return any(pattern in t for pattern in weak_patterns)
+
+    def _best_catalyst(row: dict[str, Any]) -> str:
+        cats = row.get("catalysts") or []
+        if not isinstance(cats, list):
+            return ""
+        for c in cats:
+            if not isinstance(c, dict):
+                continue
+            title = _clean_sentence(str(c.get("title") or c.get("kind") or ""))
+            if title:
+                return title
+        return ""
+
     def _directive(row: dict[str, Any]) -> str:
         # Keep this field strictly directive-first.
-        text = str(row.get("ai_directive_text") or "").strip()
-        if text:
+        text = _clean_sentence(str(row.get("ai_directive_text") or ""))
+        if text and not _is_weak_line(text):
             return text
         for key in ("suggested_action", "directive", "action"):
             value = row.get(key)
             if isinstance(value, str) and value.strip():
-                return value.strip()
+                candidate = _clean_sentence(value)
+                if candidate and not _is_weak_line(candidate):
+                    return candidate
             if isinstance(value, dict):
-                text = str(value.get("text") or "").strip()
-                if text:
-                    return text
-        return "Hold, watch closely."
+                nested = _clean_sentence(str(value.get("text") or ""))
+                if nested and not _is_weak_line(nested):
+                    return nested
+        chg = _num(row.get("day_change_pct"))
+        if abs(chg) >= 4.0:
+            return "Size risk before adding exposure."
+        if abs(chg) >= 2.0:
+            return "Wait for confirmation before acting."
+        return "No action edge yet."
 
     def _ai_take(row: dict[str, Any]) -> str:
-        rationale = str(row.get("ai_directive_rationale") or "").strip()
-        if rationale:
+        rationale = _clean_sentence(str(row.get("ai_directive_rationale") or ""))
+        if rationale and not _is_weak_line(rationale):
             return rationale
+
         news = row.get("news_velocity") or {}
         mentions = int(_num(news.get("mentions_1d"))) if isinstance(news, dict) else 0
-        catalysts = row.get("catalysts") or []
-        catalyst_text = ""
-        if isinstance(catalysts, list) and catalysts:
-            c0 = catalysts[0] if isinstance(catalysts[0], dict) else {}
-            catalyst_text = str(c0.get("title") or c0.get("kind") or "").strip()
+        catalyst_text = _best_catalyst(row)
 
         parts: list[str] = []
         if catalyst_text:
@@ -221,7 +269,10 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
             parts.append(f"{mentions} headline{'s' if mentions != 1 else ''} today")
 
         if not parts:
-            return "Nothing unusual today. Keep watching trend and risk."
+            chg = _num(row.get("day_change_pct"))
+            if abs(chg) >= 5:
+                return "Large move with thin signal quality; treat as high-volatility tape."
+            return "Signal quality is mixed; wait for cleaner confirmation."
         if len(parts) == 1:
             return parts[0] + "."
         return f"{parts[0]}. {parts[1]}."
@@ -302,7 +353,7 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
             chg = _num(row.get("day_change_pct"))
             blocks.append(
                 f"<tr><td style='padding:12px 32px'><table width='100%' cellpadding='0' cellspacing='0'><tr>"
-                f"<td style='vertical-align:middle;width:48px'>{_logo(ticker)}</td>"
+                f"<td style='vertical-align:middle;width:48px'>{_logo(row)}</td>"
                 f"<td style='padding-left:14px;vertical-align:middle'>"
                 f"<div style='font-size:15px;font-weight:700;color:#111111'>{ticker}</div>{_chip(row)}</td>"
                 f"<td style='text-align:right;vertical-align:middle'>"
@@ -368,6 +419,35 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
 
     sections_html = "<tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>".join(sections)
 
+    brief_line = ""
+    if isinstance(radar_brief, dict):
+        brief_line = _clean_sentence(str(radar_brief.get("narrative") or ""))
+    if not brief_line:
+        brief_line = "Personalized Radar summary across your tracked names."
+
+    event_lines: list[str] = []
+    if isinstance(radar_events, list):
+        for event in radar_events[:3]:
+            if not isinstance(event, dict):
+                continue
+            ticker = _clean_sentence(str(event.get("ticker") or ""))
+            title = _clean_sentence(str(event.get("title") or ""))
+            body = _clean_sentence(str(event.get("body") or ""))
+            line = " ".join(part for part in [ticker, title, body] if part).strip()
+            if line:
+                event_lines.append(line[:140])
+    events_html = ""
+    if event_lines:
+        rows_html = "".join(
+            f"<tr><td style='padding:0 32px 8px 32px;font-size:13px;line-height:1.5;color:#374151'>• {line}</td></tr>"
+            for line in event_lines
+        )
+        events_html = (
+            "<tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>"
+            "<tr><td style='padding:14px 32px 8px 32px'><div style='font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:0.12em;text-transform:uppercase'>Radar Signals</div></td></tr>"
+            f"{rows_html}"
+        )
+
     if hold_top and watch_top:
         intro = "Here's what moved across your holdings and watchlist, plus three wildcard movers from your Radar."
     elif watch_top:
@@ -376,6 +456,8 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
         intro = "Holdings are moving today. Add watchlist names to broaden idea flow in this digest."
     else:
         intro = "Radar is quiet right now. We still surface useful movers so tomorrow's setup is easier."
+    if brief_line:
+        intro = brief_line
 
     subject = "Your daily Radar pulse"
     html = f"""<!doctype html><html lang='en'><head><meta charset='UTF-8' /><meta name='viewport' content='width=device-width, initial-scale=1.0' />
@@ -390,6 +472,7 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
         <div style='font-size:15px;color:#6b7280;line-height:1.6'>{intro}</div></td></tr>
       <tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>
       {sections_html}
+      {events_html}
       <tr><td style='padding:24px 32px 32px 32px'><a href='{APP_URL}/watchlist' style='display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:13px 28px;border-radius:999px;letter-spacing:-0.01em'>Open Radar &rarr;</a>
       <div style='margin-top:10px;font-size:12px;color:#9ca3af'>Next digest tomorrow morning. AI briefs refresh twice daily.</div></td></tr>
     </table>

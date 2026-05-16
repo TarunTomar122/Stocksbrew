@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 const OUTCOMES = [
-  { label: "Start Monday informed", body: "You open your week already knowing what happened and why - no catching up." },
-  { label: "Stop missing the story", body: "When a stock moves 20%, you find out what actually caused it, not just the number." },
-  { label: "Know what to watch", body: "Each issue ends with the 3 things worth paying attention to in the coming week." },
+  { label: "Open the market informed", body: "Start every day already knowing what moved overnight and what to watch at the bell." },
+  { label: "Stop missing the story", body: "When a stock moves 5% pre-market, you find out what actually caused it, not just the number." },
+  { label: "Know what to watch today", body: "Each issue ends with the 3 things worth paying attention to before close." },
 ];
 
 export function NewsletterSignup() {
@@ -41,13 +41,13 @@ export function NewsletterSignup() {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75 animate-ping" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#10b981]" />
               </span>
-              Free every week
+              Free every weekday
             </span>
             <h2 className="text-[26px] md:text-[32px] font-semibold text-[#111111] tracking-[-0.025em] leading-[1.2]">
-              The week in markets,<br className="hidden md:block" /> in plain English
+              The market today,<br className="hidden md:block" /> in plain English
             </h2>
             <p className="text-[15px] text-[#6b7280] leading-relaxed max-w-sm">
-              One email every week. You read it in 3 minutes and actually understand what happened in the market.
+              One email every weekday morning. You read it in 3 minutes and walk in already knowing what moved overnight.
             </p>
           </div>
 
@@ -78,7 +78,7 @@ export function NewsletterSignup() {
                 </svg>
               </div>
               <p className="text-[15px] font-semibold text-[#111111]">You&apos;re on the list.</p>
-              <p className="text-[13px] text-[#6b7280]">First issue lands in your inbox this week.</p>
+              <p className="text-[13px] text-[#6b7280]">Your first daily brief lands tomorrow morning.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -95,7 +95,7 @@ export function NewsletterSignup() {
                 disabled={state === "loading"}
                 className="h-11 rounded-xl bg-[#111111] px-6 text-[14px] font-semibold text-white hover:bg-black disabled:opacity-60 transition-colors"
               >
-                {state === "loading" ? "Subscribing..." : "Get the weekly brief"}
+                {state === "loading" ? "Subscribing..." : "Get the daily brief"}
               </button>
               {state === "error" && (
                 <p className="text-[12px] text-[#ef4444]">Something went wrong. Try again.</p>

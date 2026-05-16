@@ -202,7 +202,7 @@ export function StockLogo({
       ? [
           ...(trimmedLogoUrl ? [trimmedLogoUrl] : []),
           finnhubUrl(ticker),
-          ...(domain ? [faviconUrl(domain), clearbitUrl(domain)] : []),
+          ...(domain ? [clearbitUrl(domain), faviconUrl(domain)] : []),
           fmpUrl(ticker, market),
         ]
       : [
@@ -268,7 +268,8 @@ export function StockLogo({
         }}
         onLoad={(event) => {
           const img = event.currentTarget;
-          if (img.naturalWidth <= 4 || img.naturalHeight <= 4) {
+          // Reject tiny icon-sized assets (favicons/placeholders) for card logos.
+          if (img.naturalWidth < 24 || img.naturalHeight < 24) {
             setLoaded(false);
             setSourceIndex((i) => i + 1);
             return;
