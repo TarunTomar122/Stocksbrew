@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from backend.lifecycle_emailing import send_email
+from backend.lifecycle_emailing import email_logo_img, send_email
 from backend.storage import TraceMoneyStore
 
 
@@ -54,10 +54,7 @@ def _build_generic_market_newsletter(
         t = ticker.strip().upper()
         if not t:
             return ""
-        return (
-            f"<img src='https://financialmodelingprep.com/image-stock/{t}.png' width='34' height='34' "
-            "style='border-radius:8px;border:1px solid #e5e7eb;background:#fff;object-fit:contain;padding:2px' />"
-        )
+        return email_logo_img(ticker=t, logo_url=None, size=34, radius=8)
 
     mover_cards: list[str] = []
     for row in rows[:6]:
@@ -191,12 +188,18 @@ def main() -> None:
         uid, user = _find_user_by_email(store, target)
     rows: list[dict[str, Any]] = []
     mode = "generic"
+    radar_brief: dict[str, Any] | None = None
+    radar_events: list[dict[str, Any]] | None = None
 
     if (not args.generic_only) and uid and bool(user.get("is_subscribed")):
         view = store.get_watchlist_view(uid) or {}
         candidate_rows = view.get("rows") if isinstance(view, dict) else []
         if isinstance(candidate_rows, list) and candidate_rows:
             rows = candidate_rows
+            brief_value = view.get("brief") if isinstance(view, dict) else None
+            events_value = view.get("event_radar") if isinstance(view, dict) else None
+            radar_brief = brief_value if isinstance(brief_value, dict) else None
+            radar_events = events_value if isinstance(events_value, list) else None
             mode = "personalized"
 
     if not rows:
@@ -229,7 +232,12 @@ def main() -> None:
         from backend.lifecycle_emailing import email_pro_daily_digest
 
         market_rows = store.get_market_price_snapshot(market)
-        subject, html = email_pro_daily_digest(rows, market_rows)
+        subject, html = email_pro_daily_digest(
+            rows,
+            market_rows,
+            radar_brief=radar_brief,
+            radar_events=radar_events,
+        )
 
     if args.dry_run:
         print({"mode": mode, "to": target, "subject": subject, "row_count": len(rows)})

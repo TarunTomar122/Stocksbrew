@@ -254,6 +254,7 @@ def main() -> None:
             "price_core_intraday",
             "open_anomalies",
             "reddit_buzz",
+            "market_open_email",
             "daily_postclose",
         ],
         required=True,
@@ -293,6 +294,7 @@ def main() -> None:
         "price_core_intraday": os.getenv("PRICE_CORE_INTRADAY_JOB_NAME", "tikrr-price-core-intraday"),
         "open_anomalies": os.getenv("OPEN_ANOMALIES_JOB_NAME", "tikrr-open-anomalies"),
         "reddit_buzz": os.getenv("REDDIT_BUZZ_JOB_NAME", "tikrr-reddit-buzz"),
+        "market_open_email": os.getenv("MARKET_OPEN_EMAIL_JOB_NAME", "tikrr-market-open-email"),
         "daily_postclose": os.getenv("DAILY_POSTCLOSE_JOB_NAME", "tikrr-daily-postclose"),
     }
     job_name = job_name_by_lane[args.lane]
@@ -442,7 +444,7 @@ def main() -> None:
     status = "success"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:
         status = "failed"
-    if args.lane == "daily_postclose" and summary.get("status") != "success":
+    if args.lane in {"daily_postclose", "open_anomalies", "reddit_buzz", "market_open_email"} and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)
     print(summary)

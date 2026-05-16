@@ -6,7 +6,8 @@
 2. `price_core_open` (market open): fast sharded price refresh for core list.
 3. `tracked_open_briefs` (after open): build tracked AI briefs from fresh prices + cached enriched news, then targeted materialize.
 4. `price_core_intraday` (every 15-20 min): sharded price refresh + lightweight materialize.
-5. `daily_postclose` (once post-close): heavier daily chain.
+5. `market_open_email` (after open chain): send market-open digest emails (pro personalized + free generic).
+6. `daily_postclose` (once post-close): heavier daily chain.
 
 ## Folder layout
 

@@ -30,6 +30,7 @@ CRON_OPEN_PRICE="${CRON_OPEN_PRICE:-30 13 * * 1-5}"       # 7:00 PM IST
 CRON_OPEN_BRIEFS="${CRON_OPEN_BRIEFS:-35 13 * * 1-5}"     # 7:05 PM IST
 CRON_OPEN_ANOMALIES="${CRON_OPEN_ANOMALIES:-38 13 * * 1-5}" # 7:08 PM IST
 CRON_REDDIT_BUZZ="${CRON_REDDIT_BUZZ:-20 13 * * 1-5}"     # 6:50 PM IST
+CRON_OPEN_EMAILS="${CRON_OPEN_EMAILS:-42 13 * * 1-5}"     # 7:12 PM IST (after open pipeline + anomalies)
 CRON_INTRADAY="${CRON_INTRADAY:-*/30 13-19 * * 1-5}"      # every 30 min during session
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
 
@@ -88,6 +89,7 @@ printf '%s\n' "$(mk_body price_core_open "${extra_universe},\"--session-phase\",
 printf '%s\n' "$(mk_body tracked_open_briefs "${extra_universe},\"--session-phase\",\"open_check\"")" > "${tmp_dir}/open_briefs.json"
 printf '%s\n' "$(mk_body open_anomalies "${extra_universe}")" > "${tmp_dir}/open_anomalies.json"
 printf '%s\n' "$(mk_body reddit_buzz "${extra_universe}")" > "${tmp_dir}/reddit_buzz.json"
+printf '%s\n' "$(mk_body market_open_email "${extra_universe}")" > "${tmp_dir}/open_emails.json"
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday.json"
 printf '%s\n' "$(mk_body daily_postclose "${extra_universe}")" > "${tmp_dir}/postclose.json"
 
@@ -96,6 +98,7 @@ upsert_job "tikrr-open-price" "${CRON_OPEN_PRICE}" "${tmp_dir}/open_price.json"
 upsert_job "tikrr-open-briefs" "${CRON_OPEN_BRIEFS}" "${tmp_dir}/open_briefs.json"
 upsert_job "tikrr-open-anomalies" "${CRON_OPEN_ANOMALIES}" "${tmp_dir}/open_anomalies.json"
 upsert_job "tikrr-reddit-buzz" "${CRON_REDDIT_BUZZ}" "${tmp_dir}/reddit_buzz.json"
+upsert_job "tikrr-open-emails" "${CRON_OPEN_EMAILS}" "${tmp_dir}/open_emails.json"
 upsert_job "tikrr-intraday-price" "${CRON_INTRADAY}" "${tmp_dir}/intraday.json"
 upsert_job "tikrr-postclose" "${CRON_POSTCLOSE}" "${tmp_dir}/postclose.json"
 

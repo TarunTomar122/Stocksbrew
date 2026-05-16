@@ -62,6 +62,44 @@ def _card(title: str, lines: list[str], cta_label: str, cta_url: str, kicker: st
 </table></td></tr></table></body></html>"""
 
 
+def _is_bad_logo_url(raw: str) -> bool:
+    s = str(raw or "").strip().lower()
+    if not s:
+        return True
+    if "google.com/s2/favicons" in s:
+        return True
+    if "/favicon" in s:
+        return True
+    return False
+
+
+def _proxied_logo(url: str) -> str:
+    return f"{APP_URL}/api/logo-proxy?url={quote(url, safe='')}"
+
+
+def email_logo_src(*, ticker: str, logo_url: str | None = None) -> str:
+    symbol = str(ticker or "").strip().upper()
+    candidate = str(logo_url or "").strip()
+    if candidate and not _is_bad_logo_url(candidate):
+        return _proxied_logo(candidate)
+    if symbol:
+        finnhub = (
+            "https://static2.finnhub.io/file/publicdatany/finnhubimage/"
+            f"stock_logo/{quote(symbol.replace('.', '-'))}.png"
+        )
+        return _proxied_logo(finnhub)
+    fmp = f"https://financialmodelingprep.com/image-stock/{quote(symbol)}.png"
+    return _proxied_logo(fmp)
+
+
+def email_logo_img(*, ticker: str, logo_url: str | None = None, size: int = 42, radius: int = 10) -> str:
+    src = email_logo_src(ticker=ticker, logo_url=logo_url)
+    return (
+        f"<img src='{src}' width='{size}' height='{size}' "
+        f"style='border-radius:{radius}px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb;padding:2px;display:block' />"
+    )
+
+
 def email_track_blocked(ticker: str | None = None) -> tuple[str, str]:
     subject = f"Your AI Radar for {ticker or 'this stock'} is one click away"
     html = _card(
@@ -191,15 +229,7 @@ def email_pro_daily_digest(
     def _logo(row: dict[str, Any]) -> str:
         ticker = str(row.get("ticker") or "").strip().upper()
         logo_url = str(row.get("logo_url") or "").strip()
-        if logo_url:
-            src = f"{APP_URL}/api/logo-proxy?url={quote(logo_url, safe='')}"
-        else:
-            fmp = f"https://financialmodelingprep.com/image-stock/{ticker}.png"
-            src = f"{APP_URL}/api/logo-proxy?url={quote(fmp, safe='')}"
-        return (
-            f"<img src='{src}' width='42' height='42' "
-            "style='border-radius:10px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb;padding:2px;display:block' />"
-        )
+        return email_logo_img(ticker=ticker, logo_url=logo_url, size=42, radius=10)
 
     def _clean_sentence(text: str) -> str:
         return " ".join(str(text or "").split()).strip()
