@@ -85,7 +85,7 @@ function SignalTile({ signal, from }: { signal: SignalTileModel; from: number })
 function SignalTilesPhase() {
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 100px", gap: 48 }}>
-      <LeadingText line1="Understand any stock —" bold="in plain, simple language." from={0} />
+      <LeadingText line1="Understand any stock -" bold="in plain, simple language." from={0} />
 
       {/* Stock context chip */}
       <SpringIn from={12} direction="up" distance={16}>
@@ -99,7 +99,7 @@ function SignalTilesPhase() {
         </div>
       </SpringIn>
 
-      {/* Signal tiles — stagger in */}
+      {/* Signal tiles - stagger in */}
       <div style={{ display: "flex", gap: 14 }}>
         {MOCK_SIGNAL_TILES.map((signal, i) => (
           <SignalTile key={signal.label} signal={signal} from={24 + i * 16} />
@@ -205,7 +205,7 @@ function PositionPhase() {
   );
 }
 
-// ─── Scene — sequences Phase A then Phase B ──────────────────────────────────
+// ─── Scene - sequences Phase A then Phase B ──────────────────────────────────
 
 export function DailyOverviewScene() {
   return (

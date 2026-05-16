@@ -509,7 +509,7 @@ def collect_per_ticker_articles(
     """Fetch articles partitioned per-ticker plus a small broad-lane bucket.
 
     The global pool approach (`collect_universe_articles`) pools every source
-    into one article list and caps the total — which means popular tickers
+    into one article list and caps the total - which means popular tickers
     drown out quiet ones and the tail gets zero coverage.  This collector
     instead guarantees each AI-tier instrument gets its own article slice
     (`per_stock_cap` per ticker) while still pulling a small broad-lane bucket
@@ -562,7 +562,7 @@ def collect_per_ticker_articles(
     ]
     core_sources = build_ticker_sources(market, ticker_entries, lane="core")
 
-    # Broad/market/sector sources — pulled from the market registry plus the
+    # Broad/market/sector sources - pulled from the market registry plus the
     # curated Google News broad/sector queries. Kept small intentionally: this
     # bucket only needs to feed the market brief and sector gates.
     all_market_sources = list_sources_for_market(market)
@@ -638,7 +638,7 @@ def collect_per_ticker_articles(
                 per_ticker_articles[focus_ticker].append(article)
                 kept += 1
                 continue
-            # Broad/sector/curated lane — apply the same heuristic gate as the
+            # Broad/sector/curated lane - apply the same heuristic gate as the
             # pooled flow so the market-brief bucket stays clean.
             if source.lane == "broad":
                 if not _matches_market_scope(article, market):
@@ -670,13 +670,13 @@ def collect_per_ticker_articles(
         })
 
     selected: list[Article] = []
-    # Per-ticker slice — top N by priority for each instrument.
+    # Per-ticker slice - top N by priority for each instrument.
     for instrument in instruments:
         ticker = instrument["ticker"].upper()
         bucket = per_ticker_articles.get(ticker, [])
         bucket.sort(key=lambda item: article_priority(item, tracked_terms), reverse=True)
         selected.extend(bucket[:per_stock_cap])
-    # Broad slice — top N by priority across the shared bucket.
+    # Broad slice - top N by priority across the shared bucket.
     broad_articles.sort(key=lambda item: article_priority(item, tracked_terms), reverse=True)
     selected.extend(broad_articles[:broad_cap])
 
@@ -747,7 +747,7 @@ def collect_universe_articles(
             continue
         kept = 0
         for article in fetched:
-            # Curated articles are hand-vouched by the operator — they bypass the
+            # Curated articles are hand-vouched by the operator - they bypass the
             # broad-lane heuristics (market-scope, tracked-term, low-signal etc.)
             # that are meant to filter noisy RSS feeds.
             if source.kind == "curated":

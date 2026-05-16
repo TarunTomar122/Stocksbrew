@@ -14,7 +14,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "what-is-stock-market-investing",
     title: "What Is Stock Market Investing? A Complete Beginner's Guide",
-    description: "Learn the fundamentals of stock market investing — what stocks are, how markets work, and why investing matters for building long-term wealth.",
+    description: "Learn the fundamentals of stock market investing - what stocks are, how markets work, and why investing matters for building long-term wealth.",
     category: "beginner",
     tags: ["basics", "getting-started", "markets"],
     date: "2025-01-15",
@@ -24,7 +24,7 @@ export const allLearnPosts: LearnPost[] = [
   },
   {
     slug: "how-to-start-investing-with-100",
-    title: "How to Start Investing with $100 — A Step-by-Step Guide",
+    title: "How to Start Investing with $100 - A Step-by-Step Guide",
     description: "You don't need thousands to begin investing. Here's exactly how to start with just $100, including broker selection, fractional shares, and your first portfolio.",
     category: "beginner",
     tags: ["getting-started", "beginners", "portfolio"],
@@ -102,7 +102,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "market-orders-vs-limit-orders",
     title: "Market Orders vs Limit Orders: When to Use Each",
-    description: "Understanding order types is critical to executing trades effectively. Learn the difference between market, limit, stop, and stop-limit orders — and when to use each.",
+    description: "Understanding order types is critical to executing trades effectively. Learn the difference between market, limit, stop, and stop-limit orders - and when to use each.",
     category: "beginner",
     tags: ["trading", "orders", "execution"],
     date: "2025-02-25",
@@ -190,7 +190,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "basics-of-technical-analysis",
     title: "The Basics of Technical Analysis: Trends, Support, and Resistance",
-    description: "Technical analysis studies price patterns to predict future movements. Learn the foundational concepts — trends, support/resistance, and key patterns every investor should know.",
+    description: "Technical analysis studies price patterns to predict future movements. Learn the foundational concepts - trends, support/resistance, and key patterns every investor should know.",
     category: "beginner",
     tags: ["technical-analysis", "charts", "patterns"],
     date: "2025-04-05",
@@ -267,7 +267,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "psychology-of-investing",
     title: "The Psychology of Investing: Overcoming Cognitive Biases",
-    description: "Your biggest investing enemy is your own brain. Learn about common cognitive biases — loss aversion, confirmation bias, recency bias — and how to overcome them.",
+    description: "Your biggest investing enemy is your own brain. Learn about common cognitive biases - loss aversion, confirmation bias, recency bias - and how to overcome them.",
     category: "beginner",
     tags: ["psychology", "behavioral-finance", "discipline"],
     date: "2025-05-10",
@@ -333,7 +333,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "understanding-market-volatility",
     title: "Understanding Market Volatility: The VIX, Fear, and What It Means",
-    description: "Volatility is not risk — it's opportunity dressed in uncertainty. Learn what the VIX measures, how volatility works, and strategies for volatile markets.",
+    description: "Volatility is not risk - it's opportunity dressed in uncertainty. Learn what the VIX measures, how volatility works, and strategies for volatile markets.",
     category: "beginner",
     tags: ["volatility", "vix", "risk"],
     date: "2025-06-10",
@@ -377,7 +377,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "how-to-analyze-earnings-reports",
     title: "How to Analyze Quarterly Earnings Reports Like a Pro",
-    description: "Earnings season creates massive opportunities. Learn to read beyond the headline numbers — revenue surprises, guidance changes, margin trends, and conference call signals.",
+    description: "Earnings season creates massive opportunities. Learn to read beyond the headline numbers - revenue surprises, guidance changes, margin trends, and conference call signals.",
     category: "intermediate",
     tags: ["earnings", "fundamentals", "analysis"],
     date: "2025-07-01",
@@ -542,7 +542,7 @@ export const allLearnPosts: LearnPost[] = [
   {
     slug: "factor-investing",
     title: "Factor Investing: Value, Momentum, Quality, and Size Explained",
-    description: "Factor investing systematically captures proven sources of excess returns. Learn the academic research behind value, momentum, quality, size, and low-volatility factors — and how to implement them.",
+    description: "Factor investing systematically captures proven sources of excess returns. Learn the academic research behind value, momentum, quality, size, and low-volatility factors - and how to implement them.",
     category: "intermediate",
     tags: ["factors", "strategy", "quantitative"],
     date: "2025-09-15",

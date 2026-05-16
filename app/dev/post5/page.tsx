@@ -17,7 +17,7 @@ const TILES: SignalTileModel[] = [
 const DIRECTIVE: Directive = {
   stance: "accumulate",
   text: "Accumulate on any dip below $850",
-  rationale: "Blackwell GPU ramp ahead of schedule. Q2 earnings in 3 weeks is a significant catalyst. Institutional volume 40% above average — the smart money is buying.",
+  rationale: "Blackwell GPU ramp ahead of schedule. Q2 earnings in 3 weeks is a significant catalyst. Institutional volume 40% above average - the smart money is buying.",
   confidence: "high",
   trigger_type: "price_below",
   trigger_value: "850",

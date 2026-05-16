@@ -31,7 +31,7 @@ export function OnboardingTrigger() {
       setShowNetworkHelp(false);
       return;
     }
-    // User was already set on mount — not a fresh sign-in
+    // User was already set on mount - not a fresh sign-in
     if (prevUserId.current === user.uid) return;
     prevUserId.current = user.uid;
 

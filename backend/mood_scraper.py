@@ -1,6 +1,6 @@
 """Market Mood Index scrapers.
 
-US pulls CNN's Fear & Greed JSON endpoint (unofficial but stable — backs the
+US pulls CNN's Fear & Greed JSON endpoint (unofficial but stable - backs the
 widget on edition.cnn.com/markets/fear-and-greed). IN pulls Tickertape's MMI
 which is embedded in the page's Next.js `__NEXT_DATA__` blob.
 
@@ -75,7 +75,7 @@ def _normalize_rating(score: float) -> str:
 
 
 def fetch_us_mood() -> MoodIndex:
-    """CNN Fear & Greed — unofficial but widely-used endpoint. Their HTML
+    """CNN Fear & Greed - unofficial but widely-used endpoint. Their HTML
     widget on edition.cnn.com hits this same URL."""
     url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
     body = _fetch(url, referer="https://edition.cnn.com/markets/fear-and-greed")
@@ -104,7 +104,7 @@ _NEXT_DATA_RE = re.compile(
 
 
 def fetch_in_mood() -> MoodIndex:
-    """Tickertape MMI — score is embedded in pageProps.nowData."""
+    """Tickertape MMI - score is embedded in pageProps.nowData."""
     html = _fetch("https://www.tickertape.in/market-mood-index")
     m = _NEXT_DATA_RE.search(html)
     if not m:

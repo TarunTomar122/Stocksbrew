@@ -21,14 +21,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: post.description,
     alternates: { canonical: `/blog/${slug}` },
     openGraph: {
-      title: `${post.title} · Tikrr Blog`,
+      title: `${post.title} · tikrr Blog`,
       description: post.description,
       url: `https://www.tikrr.online/blog/${slug}`,
       type: "article",
       publishedTime: post.date,
     },
     twitter: {
-      title: `${post.title} · Tikrr Blog`,
+      title: `${post.title} · tikrr Blog`,
       description: post.description,
     },
   };
@@ -88,7 +88,7 @@ export default async function BlogPostPage({ params }: Props) {
             prose-strong:text-[#111111] prose-strong:font-semibold
             prose-ul:my-5 prose-ul:pl-0 prose-ul:list-none
             prose-li:text-[16px] prose-li:text-[#374151] prose-li:leading-[1.7] prose-li:pl-6 prose-li:relative prose-li:my-2
-            [&_li::before]:content-['—'] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:text-[#d1d5db]
+            [&_li::before]:content-['-'] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:text-[#d1d5db]
             prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal
             [&_ol>li]:pl-1
             prose-blockquote:border-l-[3px] prose-blockquote:border-[#0052ff] prose-blockquote:bg-[#f8f9fa] prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:text-[#374151]

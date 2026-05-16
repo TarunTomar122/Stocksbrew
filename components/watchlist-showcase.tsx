@@ -93,7 +93,7 @@ function StocksGridVisual() {
 function BriefVisual() {
   const lines = [
     "S&P opened flat after CPI; semis leading.",
-    "NVDA testing prior breakout — watch $138 close.",
+    "NVDA testing prior breakout - watch $138 close.",
     "MSFT muted ahead of Copilot guidance Thursday.",
     "Healthcare lagging; AI Drug names hit by FDA delay.",
   ];
@@ -264,7 +264,7 @@ function PulseVisual() {
       <div className="flex items-start gap-2.5 rounded-xl bg-[#f8f9fa] p-3">
         <StockLogo ticker="NVDA" size={28} />
         <p className="text-[13px] text-[#111111] leading-snug">
-          <span className="font-semibold">NVDA</span> is the standout — up{" "}
+          <span className="font-semibold">NVDA</span> is the standout - up{" "}
           <span className="font-semibold text-[#10b981]">4.2%</span> on AI conference
           buzz. Tech leads, Healthcare drags.
         </p>
@@ -278,7 +278,7 @@ const SLIDES: Slide[] = [
     id: "track",
     eyebrow: "Track",
     title: "Your list, one place.",
-    body: "Stocks you care about — earnings, price, news — without juggling tabs.",
+    body: "Stocks you care about - earnings, price, news - without juggling tabs.",
     visual: StocksGridVisual,
   },
   {
@@ -292,7 +292,7 @@ const SLIDES: Slide[] = [
     id: "alerts",
     eyebrow: "Alerts",
     title: "Pinged when it matters.",
-    body: "Overbought, 52-week breaks, earnings tomorrow — ranked by urgency.",
+    body: "Overbought, 52-week breaks, earnings tomorrow - ranked by urgency.",
     visual: AlertsVisual,
   },
   {

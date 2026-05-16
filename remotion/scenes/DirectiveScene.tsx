@@ -61,12 +61,12 @@ export function DirectiveScene() {
       {/* Caption */}
       <SpringIn from={0} direction="up" distance={24}>
         <div style={{ textAlign: "center" as const, fontFamily: FONT, fontSize: 22, fontWeight: 500, color: "#6b7280", letterSpacing: "-0.01em", maxWidth: 680 }}>
-          And then — the part that actually helps you{" "}
+          And then - the part that actually helps you{" "}
           <span style={{ color: "#111215", fontWeight: 700 }}>act.</span>
         </div>
       </SpringIn>
 
-      {/* Directive card — fixed size so typewriter never shifts layout */}
+      {/* Directive card - fixed size so typewriter never shifts layout */}
       <SpringIn from={18} direction="up" distance={50} style={{ width: "100%", maxWidth: 900 }}>
         <div
           style={{
@@ -127,7 +127,7 @@ export function DirectiveScene() {
               </h2>
             </SpringIn>
 
-            {/* Rationale — fixed height container, typewriter overlays invisible placeholder */}
+            {/* Rationale - fixed height container, typewriter overlays invisible placeholder */}
             {directive.rationale && (
               <div style={{ minHeight: 68 }}>
                 <TypewriterText

@@ -23,7 +23,7 @@ _USER_AGENT = (
 
 
 def _nse_json(url: str) -> Any:
-    """Hit NSE with a shared cookie jar — a bare request returns 401."""
+    """Hit NSE with a shared cookie jar - a bare request returns 401."""
     opener = build_opener(HTTPCookieProcessor(CookieJar()))
     opener.addheaders = [
         ("User-Agent", _USER_AGENT),

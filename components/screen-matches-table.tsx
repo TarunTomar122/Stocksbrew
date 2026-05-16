@@ -37,19 +37,19 @@ const COLUMNS: { key: SortKey; label: string; align?: "right"; mobile?: boolean 
 ];
 
 function fmtPct(v: number | null | undefined, digits = 2): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   const sign = v > 0 ? "+" : "";
   return `${sign}${v.toFixed(digits)}%`;
 }
 
 function fmtPrice(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return v.toFixed(2);
 }
 
 function fmtScore(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   return Math.round(v).toString();
 }
 
@@ -227,7 +227,7 @@ export function ScreenMatchesTable({
                 </div>
               </div>
               <span className="hidden md:inline text-[13px] text-[#374151] truncate">
-                {row.sector ?? "—"}
+                {row.sector ?? "-"}
               </span>
               <span className="hidden md:inline text-right text-[14px] text-[#111111] tabular-nums">
                 {fmtPrice(row.price)}

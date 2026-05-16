@@ -1,7 +1,7 @@
 """Compute pre-built thematic screens over the scored stock_intel_pro docs
 plus the latest technical docs.
 
-Each screen is a deterministic filter+sort over metrics we already produce —
+Each screen is a deterministic filter+sort over metrics we already produce -
 no new pipeline, no LLM. Saved as a single doc per market so the frontend
 reads one Firestore row and renders the whole dashboard tile grid.
 """
@@ -76,18 +76,18 @@ def _instrument_row(
 
 SCREEN_DEFINITIONS: list[dict[str, Any]] = [
     {
-        # House pick — the only screen that cuts purely on our composite
+        # House pick - the only screen that cuts purely on our composite
         # overall score, which already weighs all four pillars. Kept first in
         # the list so it lands as the default tab on the landing page.
         "id": "tikrr_top",
-        "title": "Top Tikrr Score",
+        "title": "Top tikrr Score",
         "tagline": "Our highest composite-score picks across all four pillars.",
-        "hook": "The 10 stocks with the best overall Tikrr score right now.",
+        "hook": "The 10 stocks with the best overall tikrr score right now.",
     },
     {
         "id": "quality_compounders",
         "title": "Quality Compounders",
-        "tagline": "Great businesses with real growth — the kind you can own for years.",
+        "tagline": "Great businesses with real growth - the kind you can own for years.",
         "hook": "Top-quartile quality + durable growth, nothing ugly on valuation.",
     },
     {
@@ -99,7 +99,7 @@ SCREEN_DEFINITIONS: list[dict[str, Any]] = [
     {
         "id": "momentum_leaders",
         "title": "Momentum Leaders",
-        "tagline": "What's working right now — and still above its 200-day line.",
+        "tagline": "What's working right now - and still above its 200-day line.",
         "hook": "Top-quartile momentum with the long-term trend intact.",
     },
     {
@@ -111,13 +111,13 @@ SCREEN_DEFINITIONS: list[dict[str, Any]] = [
     {
         "id": "near_52w_high",
         "title": "Near 52-Week Highs",
-        "tagline": "Breakout watchlist — stocks within 3% of a yearly high.",
+        "tagline": "Breakout watchlist - stocks within 3% of a yearly high.",
         "hook": "Price within 3% of its 52-week high.",
     },
     {
         "id": "smart_money",
         "title": "Smart Money Favorites",
-        "tagline": "Where the pros are positioned — high institutional ownership.",
+        "tagline": "Where the pros are positioned - high institutional ownership.",
         "hook": "Institutional ownership above 70% with overall score ≥ 55.",
     },
 ]

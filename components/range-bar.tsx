@@ -58,7 +58,7 @@ export function RangeBar({
               "linear-gradient(90deg, #f97316 0%, #f59e0b 22%, #84cc16 55%, #10b981 100%)",
           }}
         />
-        {/* Inner safe zone — markers are centered within this padded area so
+        {/* Inner safe zone - markers are centered within this padded area so
          * the 0% and 100% extremes don't clip on the rounded edges. */}
         <div className="absolute inset-y-0 left-[7px] right-[7px]">
           {refPct !== null && (

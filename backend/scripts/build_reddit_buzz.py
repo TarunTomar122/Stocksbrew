@@ -10,11 +10,21 @@ from typing import Any
 
 import requests
 
-from backend.llm_client import MIMO_API_URL, json_response_format, llm_api_key, llm_headers, llm_model, parse_json_content, schema_system_prompt
+from backend.llm_client import (
+    MIMO_API_URL,
+    json_response_format,
+    llm_api_key,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 from backend.storage import TraceMoneyStore
 
 USER_AGENT = "tikrr-reddit-buzz/2.0"
 DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks", "investing", "StockMarket", "options", "shortsqueeze"]
+OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 LLM_URL = os.getenv("MIMO_API_URL", "").strip() or MIMO_API_URL
 
 TICKER_EXTRACTION_PROMPT = """You extract stock buzz from Reddit posts.
@@ -117,11 +127,25 @@ def _heuristic_fallback(posts: list[dict[str, Any]], max_tickers: int) -> tuple[
     return tickers, "neutral", []
 
 
+def _resolve_llm_config() -> tuple[str, str, str] | None:
+    """Prefer OpenAI for Reddit ticker extraction; fall back to MiMo."""
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        model = os.getenv("OPENAI_MODEL", "").strip() or OPENAI_DEFAULT_MODEL
+        return openai_key, model, OPENAI_CHAT_URL
+    mimo_key = llm_api_key()
+    if mimo_key:
+        return mimo_key, llm_model("gpt-4o-mini"), LLM_URL
+    return None
+
+
 def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:
-    api_key = llm_api_key()
+    resolved = _resolve_llm_config()
+    if not resolved:
+        return None
+    api_key, model, endpoint = resolved
     if not api_key:
         return None
-    model = llm_model("gpt-4o-mini")
     post_lines = []
     for index, post in enumerate(posts[:160], start=1):
         post_lines.append(
@@ -129,7 +153,7 @@ def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:
         )
     user_payload = {"posts": post_lines}
     resp = requests.post(
-        LLM_URL,
+        endpoint,
         headers=llm_headers(api_key),
         json={
             "model": model,

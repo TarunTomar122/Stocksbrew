@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Terms of service · Tikrr",
+  title: "Terms of service · tikrr",
 };
 
 export default function TermsPage() {
@@ -9,15 +9,15 @@ export default function TermsPage() {
     <LegalLayout
       eyebrow="Legal"
       title="Terms of service"
-      subtitle="The rules of the road for using Tikrr. By signing in or using the site, you agree to these terms."
+      subtitle="The rules of the road for using tikrr. By signing in or using the site, you agree to these terms."
       updated="May 2026"
     >
       <section>
         <h2>Who we are</h2>
         <p>
-          Tikrr is a market-intelligence service that surfaces price action, news,
+          tikrr is a market-intelligence service that surfaces price action, news,
           and AI-generated commentary on publicly traded equities across US and
-          Indian markets. "We", "us", and "Tikrr" refer to the operators of this
+          Indian markets. "We", "us", and "tikrr" refer to the operators of this
           service. "You" refers to the person using it.
         </p>
       </section>
@@ -35,9 +35,9 @@ export default function TermsPage() {
       <section>
         <h2>Not investment advice</h2>
         <p>
-          Everything Tikrr publishes — including AI briefs, alerts, screens,
-          scores, and price commentary — is for informational and educational
-          purposes only. Tikrr is not a registered investment advisor. Nothing on
+          Everything tikrr publishes - including AI briefs, alerts, screens,
+          scores, and price commentary - is for informational and educational
+          purposes only. tikrr is not a registered investment advisor. Nothing on
           the service is a recommendation to buy, sell, or hold any security. Do
           your own research and consider speaking to a licensed advisor before
           making investment decisions.
@@ -50,16 +50,16 @@ export default function TermsPage() {
           We pull pricing, fundamentals, and news from third-party providers and
           generate AI commentary on top of that. Data can be delayed, incomplete,
           or wrong. We don't warrant the accuracy or timeliness of anything on
-          the service. You use Tikrr at your own risk.
+          the service. You use tikrr at your own risk.
         </p>
       </section>
 
       <section>
         <h2>Acceptable use</h2>
         <ul>
-          <li>Don't scrape, mirror, or resell Tikrr data.</li>
+          <li>Don't scrape, mirror, or resell tikrr data.</li>
           <li>Don't reverse-engineer the service or attempt to bypass rate limits.</li>
-          <li>Don't use Tikrr to harass, deceive, or manipulate markets.</li>
+          <li>Don't use tikrr to harass, deceive, or manipulate markets.</li>
         </ul>
       </section>
 
@@ -67,8 +67,8 @@ export default function TermsPage() {
         <h2>Subscriptions</h2>
         <p>
           Pro features may require a paid subscription. Pricing, billing cycles,
-          and refund eligibility are described on the pricing page. While Tikrr is
-          in beta, the Radar tier is free of charge — we'll notify you well
+          and refund eligibility are described on the pricing page. While tikrr is
+          in beta, the Radar tier is free of charge - we'll notify you well
           before that changes.
         </p>
       </section>
@@ -76,8 +76,8 @@ export default function TermsPage() {
       <section>
         <h2>Termination</h2>
         <p>
-          You can stop using Tikrr at any time. We can suspend or terminate the
-          service, or your access to it, with reasonable notice — or immediately
+          You can stop using tikrr at any time. We can suspend or terminate the
+          service, or your access to it, with reasonable notice - or immediately
           if you breach these terms.
         </p>
       </section>
@@ -85,7 +85,7 @@ export default function TermsPage() {
       <section>
         <h2>Liability</h2>
         <p>
-          To the maximum extent permitted by law, Tikrr is not liable for any
+          To the maximum extent permitted by law, tikrr is not liable for any
           investment losses, lost profits, or indirect damages arising from your
           use of the service. The service is provided "as is".
         </p>

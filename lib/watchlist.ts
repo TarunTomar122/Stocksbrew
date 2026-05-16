@@ -19,6 +19,11 @@ export type UserDoc = {
     holdings_count?: number;
     watchlist_count?: number;
     tracked_count?: number;
+    brief?: Record<string, unknown>;
+    pulse?: Record<string, unknown>;
+    portfolio?: Record<string, unknown>;
+    event_radar?: Array<Record<string, unknown>>;
+    changes?: Record<string, unknown>;
   };
   created_at?: string;
   last_sign_in_at?: string;
@@ -28,7 +33,7 @@ export type UserDoc = {
   subscriptionStatus?: string | null;
   subscriptionPlan?: string | null;
   cancelAtPeriodEnd?: boolean;
-  /** Email opt-out flags — treated as true when absent (opt-in by default). */
+  /** Email opt-out flags - treated as true when absent (opt-in by default). */
   email_alerts_enabled?: boolean;
   email_digest_enabled?: boolean;
   onboarding_completed?: boolean;

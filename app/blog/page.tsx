@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   description: "Insights on market intelligence, AI-powered analysis, and smarter investing. From the makers of tikrr.online.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Blog — Market Intelligence Insights · Tikrr",
+    title: "Blog - Market Intelligence Insights · tikrr",
     description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
     url: "https://www.tikrr.online/blog",
   },
   twitter: {
-    title: "Blog — Market Intelligence Insights · Tikrr",
+    title: "Blog - Market Intelligence Insights · tikrr",
     description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
   },
 };

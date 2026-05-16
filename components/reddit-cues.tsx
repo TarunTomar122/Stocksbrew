@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
+import { getFeedPreviewLimit } from "@/lib/pro-features";
 
 type Props = {
   data: RedditSnapshot;
+  isSubscribed?: boolean;
 };
 
 const SENTIMENT_META: Record<string, { label: string; color: string }> = {
@@ -62,10 +64,9 @@ function TickerCard({ item }: { item: RedditTicker }) {
       {topCatalyst ? (
         <div className="mt-auto pt-1">
           <span
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold"
+            className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold"
             style={{ background: "#f3f4f6", color: meta.color }}
           >
-            <span className="h-1 w-1 rounded-full shrink-0" style={{ background: meta.color }} />
             {topCatalyst}
           </span>
         </div>
@@ -74,8 +75,12 @@ function TickerCard({ item }: { item: RedditTicker }) {
   );
 }
 
-export function RedditCues({ data }: Props) {
+export function RedditCues({ data, isSubscribed = false }: Props) {
   if (!data.tickers || data.tickers.length === 0) return null;
+  const maxCards = 8;
+  const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
+  const visible = data.tickers.slice(0, visibleLimit);
+  const lockedCount = Math.max(0, Math.min(data.tickers.length, maxCards) - visible.length);
 
   const bulls = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length;
   const bears = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
@@ -122,12 +127,32 @@ export function RedditCues({ data }: Props) {
       </div>
 
       {/* Cards grid */}
-      <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0 md:items-stretch">
-        {data.tickers.slice(0, 8).map((item) => (
-          <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 h-full">
+      <div className="flex items-stretch gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
+        {visible.map((item) => (
+          <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
             <TickerCard item={item} />
           </div>
         ))}
+        {!isSubscribed && lockedCount > 0 && (
+          <div className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
+            <Link
+              href="/subscribe"
+              className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center hover:border-[#111111] hover:bg-white transition-colors"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#f3f4f6] flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <rect x="3" y="7" width="10" height="8" rx="2" stroke="#6b7280" strokeWidth="1.4" />
+                  <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
+                  <circle cx="8" cy="11" r="1" fill="#6b7280" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-[#111111]">+{lockedCount} more names</p>
+                <p className="text-[11px] text-[#9ca3af] mt-0.5">Unlock with Pro</p>
+              </div>
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

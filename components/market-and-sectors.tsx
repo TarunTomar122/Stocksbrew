@@ -11,7 +11,7 @@ export function MarketAndSectors({
   tiles: MarketTile[];
   market?: string;
   sectorSlugMap?: SectorSlugMap;
-  /** When true, sector treemap is shown in the hero card — skip duplicate here */
+  /** When true, sector treemap is shown in the hero card - skip duplicate here */
   sectorsInHero?: boolean;
 }) {
   const isIN = market === "IN";

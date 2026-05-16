@@ -76,7 +76,7 @@ export function UnlistedStockDiscoveryModal({ ticker, onDismiss }: Props) {
           </p>
           <p className="text-[14px] text-[#6b7280] leading-relaxed">
             We haven&apos;t been tracking this name with full price and AI coverage. Because you opened this page,
-            we&apos;re queueing it now —{" "}
+            we&apos;re queueing it now -{" "}
             <span className="font-semibold text-[#111111]">we&apos;ll start today</span>.
           </p>
           {status === "error" && (

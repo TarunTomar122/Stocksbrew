@@ -134,7 +134,7 @@ export function HookScene() {
           </div>
         </div>
 
-        {/* Phase 3 — "Let me help you." */}
+        {/* Phase 3 - "Let me help you." */}
         <div
           style={{
             position: "absolute",

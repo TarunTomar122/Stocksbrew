@@ -1,6 +1,6 @@
 /**
  * Dodo Payments server-side helper.
- * All calls are server-only — this file must never be imported on the client.
+ * All calls are server-only - this file must never be imported on the client.
  */
 
 const DODO_MODE = process.env.DODO_MODE ?? "test";

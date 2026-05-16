@@ -40,7 +40,7 @@ def main() -> None:
         )
     benchmarks_doc = store.get_sector_benchmarks(args.market) or {}
     if not benchmarks_doc:
-        print(f"[warn] no sector benchmarks found — valuation pillar will lack sector comps")
+        print(f"[warn] no sector benchmarks found - valuation pillar will lack sector comps")
 
     today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     instruments = list_instruments(args.market, universe_id)

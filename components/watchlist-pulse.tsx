@@ -7,7 +7,7 @@ function StatTile({ label, value }: { label: string; value: string | number | nu
         {label}
       </span>
       <span className="text-lg font-bold text-on-surface tabular-nums">
-        {value === null || value === undefined ? "—" : value}
+        {value === null || value === undefined ? "-" : value}
       </span>
     </div>
   );

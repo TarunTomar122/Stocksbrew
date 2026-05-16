@@ -7,7 +7,7 @@ import { StockLogo } from "@/components/stock-logo";
 import type { ThematicScreen, ScreenMatchRow } from "@/lib/screens";
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
-  tikrr_top:          { title: "Top Tikrr Score",        subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
+  tikrr_top:          { title: "Top tikrr Score",        subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders:{ title: "Quality Compounders",    subtitle: "Strong businesses built to grow year after year." },
   cheap_growth:       { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
   momentum_leaders:   { title: "On a Tear",              subtitle: "Leading the tape with the long-term trend intact." },
@@ -34,7 +34,7 @@ function scoreColor(v: number | null | undefined): string {
 
 function ScoreBadge({ value }: { value: number | null | undefined }) {
   if (typeof value !== "number" || !Number.isFinite(value) || value === 0) {
-    return <span className="text-[12px] text-[#d1d5db]">—</span>;
+    return <span className="text-[12px] text-[#d1d5db]">-</span>;
   }
   const rounded = Math.round(value);
   const bg = rounded >= 70 ? "#ecfdf5" : rounded >= 50 ? "#fffbeb" : "#f3f4f6";
@@ -51,7 +51,7 @@ function ScoreBadge({ value }: { value: number | null | undefined }) {
 
 function PillarScore({ value }: { value: number | null | undefined }) {
   if (typeof value !== "number" || !Number.isFinite(value) || value === 0) {
-    return <span className="text-[12px] text-[#d1d5db]">—</span>;
+    return <span className="text-[12px] text-[#d1d5db]">-</span>;
   }
   return (
     <span className={`text-[13px] font-semibold tabular-nums ${scoreColor(value)}`}>
@@ -137,7 +137,7 @@ function ScreenTableRow({
         <ScoreBadge value={row.overall_score} />
       </div>
 
-      {/* Pillar scores — hidden on mobile */}
+      {/* Pillar scores - hidden on mobile */}
       <div className="hidden md:flex w-[40px] shrink-0 justify-center">
         <PillarScore value={pillars.valuation} />
       </div>
@@ -162,7 +162,7 @@ function ScreenTableRow({
             {pct.positive ? "▲" : "▼"} {pct.text.replace(/[+-]/, "")}
           </span>
         ) : (
-          <span className="text-[12px] text-[#d1d5db]">—</span>
+          <span className="text-[12px] text-[#d1d5db]">-</span>
         )}
       </div>
     </Link>

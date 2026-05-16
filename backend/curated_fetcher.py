@@ -81,7 +81,7 @@ def _fetch_html(url: str, fetcher: Callable[[str], str] | None = None) -> str | 
 
 
 def extract_url(url: str, *, fetcher: Callable[[str], str] | None = None) -> ExtractedArticle:
-    """Fetch + extract a single URL. Never raises — returns a diagnostic record."""
+    """Fetch + extract a single URL. Never raises - returns a diagnostic record."""
     publisher = _publisher_from_url(url)
     html = _fetch_html(url, fetcher=fetcher)
     if not html:
@@ -113,7 +113,7 @@ def extract_url(url: str, *, fetcher: Callable[[str], str] | None = None) -> Ext
         return ExtractedArticle(
             url=url, title=title, body_text=body, summary=summary, published_at=published_iso,
             publisher=publisher, status="too_short", word_count=word_count,
-            note=f"extracted only {word_count} words — likely paywall, JS-rendered page, or blocked fetch",
+            note=f"extracted only {word_count} words - likely paywall, JS-rendered page, or blocked fetch",
         )
 
     if not title:

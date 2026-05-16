@@ -94,7 +94,7 @@ export function MoversTable({ gainers, losers, mocked }: Props) {
         </h2>
         {mocked && (
           <span
-            title="Mocked — tm_views_dashboard not available."
+            title="Mocked - tm_views_dashboard not available."
             className="px-1.5 py-0.5 text-[9px] font-bold tracking-[0.15em] uppercase bg-signal-neutral/25 text-on-surface rounded-sm"
           >
             Mock

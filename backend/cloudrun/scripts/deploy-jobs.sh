@@ -18,6 +18,8 @@ IMAGE_NAME="${IMAGE_NAME:-tikrr-pipeline-runner}"
 IMAGE_URI="${GOOGLE_CLOUD_REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/tikrr/${IMAGE_NAME}:latest"
 FIREBASE_SECRET_NAME="${FIREBASE_SECRET_NAME:-tikrr-firebase-service-account-json}"
 MIMO_SECRET_NAME="${MIMO_SECRET_NAME:-tikrr-mimo-api-key}"
+OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-tikrr-openai-api-key}"
+OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini}"
 
 DISPATCH_JOB_NAME="${DISPATCH_JOB_NAME:-tikrr-dispatch}"
 TRACKED_NEWS_PREP_JOB_NAME="${TRACKED_NEWS_PREP_JOB_NAME:-tikrr-tracked-news-prep}"
@@ -75,6 +77,16 @@ upsert_optional_mimo_secret() {
   printf '%s' "${MIMO_API_KEY}" | gcloud secrets versions add "${MIMO_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
 }
 
+upsert_optional_openai_secret() {
+  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    return
+  fi
+  if ! gcloud secrets describe "${OPENAI_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
+    gcloud secrets create "${OPENAI_SECRET_NAME}" --replication-policy=automatic --project="${GOOGLE_CLOUD_PROJECT}"
+  fi
+  printf '%s' "${OPENAI_API_KEY}" | gcloud secrets versions add "${OPENAI_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
+}
+
 deploy_job() {
   local job_name="$1"
   local memory="$2"
@@ -94,8 +106,12 @@ deploy_job() {
     --parallelism=1
     --tasks=1
     --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SECRET_NAME}:latest"
-    --set-env-vars="GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_REGION=${GOOGLE_CLOUD_REGION},TRACKED_NEWS_PREP_JOB_NAME=${TRACKED_NEWS_PREP_JOB_NAME},PRICE_CORE_OPEN_JOB_NAME=${PRICE_CORE_OPEN_JOB_NAME},TRACKED_OPEN_BRIEFS_JOB_NAME=${TRACKED_OPEN_BRIEFS_JOB_NAME},PRICE_CORE_INTRADAY_JOB_NAME=${PRICE_CORE_INTRADAY_JOB_NAME},OPEN_ANOMALIES_JOB_NAME=${OPEN_ANOMALIES_JOB_NAME},REDDIT_BUZZ_JOB_NAME=${REDDIT_BUZZ_JOB_NAME},DAILY_POSTCLOSE_JOB_NAME=${DAILY_POSTCLOSE_JOB_NAME}"
+    --set-env-vars="GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_REGION=${GOOGLE_CLOUD_REGION},OPENAI_MODEL=${OPENAI_MODEL},TRACKED_NEWS_PREP_JOB_NAME=${TRACKED_NEWS_PREP_JOB_NAME},PRICE_CORE_OPEN_JOB_NAME=${PRICE_CORE_OPEN_JOB_NAME},TRACKED_OPEN_BRIEFS_JOB_NAME=${TRACKED_OPEN_BRIEFS_JOB_NAME},PRICE_CORE_INTRADAY_JOB_NAME=${PRICE_CORE_INTRADAY_JOB_NAME},OPEN_ANOMALIES_JOB_NAME=${OPEN_ANOMALIES_JOB_NAME},REDDIT_BUZZ_JOB_NAME=${REDDIT_BUZZ_JOB_NAME},DAILY_POSTCLOSE_JOB_NAME=${DAILY_POSTCLOSE_JOB_NAME}"
   )
+
+  if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+    deploy_args+=(--set-secrets="OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest")
+  fi
 
   if [[ -n "${MIMO_API_KEY:-}" ]]; then
     deploy_args+=(--set-secrets="MIMO_API_KEY=${MIMO_SECRET_NAME}:latest")
@@ -119,6 +135,10 @@ upsert_secret
 if [[ -n "${MIMO_API_KEY:-}" ]]; then
   echo "Updating MIMO secret ${MIMO_SECRET_NAME}..."
   upsert_optional_mimo_secret
+fi
+if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  echo "Updating OpenAI secret ${OPENAI_SECRET_NAME}..."
+  upsert_optional_openai_secret
 fi
 
 echo "Deploying jobs..."

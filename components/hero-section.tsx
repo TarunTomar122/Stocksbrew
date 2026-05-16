@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { StockLogo } from "@/components/stock-logo";
+import type { HeroVerdict } from "@/lib/hero-verdict";
 
 type IndexData = {
   ticker: string;
@@ -14,11 +17,8 @@ type IndexData = {
 };
 
 type Props = {
-  score: number;
-  tone: string;
-  color: string;
   indices: IndexData[];
-  featuredStock?: { ticker: string; name: string; price: number; changePct: number };
+  verdict?: HeroVerdict | null;
   isSubscribed?: boolean;
 };
 
@@ -42,18 +42,27 @@ async function syncServerSession(): Promise<void> {
   });
 }
 
-export function HeroSection({ score, tone, color, indices, isSubscribed = false }: Props) {
+const DEMO_VERDICT: HeroVerdict = {
+  ticker: "NVDA",
+  name: "NVIDIA Corporation",
+  price: 131.38,
+  changePct: 2.64,
+  level: "Buy signal",
+  shortLabel: "BUY",
+  color: "#10b981",
+  bg: "#ecfdf5",
+  textColor: "#065f46",
+  overall: 74,
+  oneLiner: "Up 2.6% today · momentum strong · valuation reasonable.",
+};
+
+export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
+  const displayVerdict = verdict ?? DEMO_VERDICT;
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
 
-  const moodLabel =
-    score < 25 ? "Very Cautious" :
-    score < 45 ? "Cautious" :
-    score < 55 ? "Balanced" :
-    score < 75 ? "Confident" : "Overheated";
-
-  async function startFreeRadar() {
+  async function startTracking() {
     if (user) {
       router.push("/watchlist");
       return;
@@ -69,69 +78,149 @@ export function HeroSection({ score, tone, color, indices, isSubscribed = false 
     }
   }
 
-  function scrollToMovers() {
-    const el = document.getElementById("market-movers");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      window.scrollBy({ top: window.innerHeight * 0.85, behavior: "smooth" });
-    }
-  }
-
   const displayIndices = indices.slice(0, 5);
 
   return (
     <section className="w-full overflow-hidden">
-      {/* Main content — centered */}
-      <div className="flex flex-col items-center text-center gap-6 pt-10 md:pt-14 pb-8 md:pb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-14 items-center pt-10 md:pt-14 pb-10">
 
-        {/* Mood pill */}
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1.5 text-[12px] font-medium text-[#374151]">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />
-          Today&apos;s market mood: {moodLabel} · {Math.round(score)}
-        </span>
+        {/* LEFT: copy + CTA */}
+        <div className="flex flex-col items-start gap-6 text-left">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1 text-[12px] font-medium text-[#374151]">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+            For people who own stocks
+          </span>
 
-        {/* Headline */}
-        <div className="flex flex-col items-center gap-4 max-w-3xl">
-          <h1 className="text-[40px] md:text-[56px] lg:text-[64px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.05]">
-            Your daily market brief<br />in 5 minutes.
+          <h1 className="text-[40px] md:text-[52px] lg:text-[60px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.02]">
+            Know what to do with every stock you own.
           </h1>
-          <p className="text-[16px] md:text-[18px] text-[#6b7280] leading-[1.55] max-w-[480px]">
-            Tikrr tracks every unusual stock move and explains it in plain English, every day.
+
+          <p className="text-[16px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
+            tikrr tells you what to buy, hold, or sell - in plain English, every morning.
           </p>
-        </div>
 
-        {/* CTAs */}
-        <div className="flex items-center justify-center gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={startFreeRadar}
-            disabled={busy}
-            className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
-          >
-            {busy ? "Opening Radar..." : user ? "Check your Radar" : "Start free Radar"}
-          </button>
-          <button
-            type="button"
-            onClick={scrollToMovers}
-            className="inline-flex items-center gap-1.5 justify-center h-11 px-5 rounded-full border border-[#e5e7eb] text-[#374151] text-[14px] font-medium hover:border-[#d1d5db] hover:bg-[#f9fafb] transition-colors"
-          >
-            See today&apos;s movers
-            <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'wght' 500" }}>arrow_downward</span>
-          </button>
-        </div>
-
-        {/* Proof points */}
-        {!isSubscribed && (
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
-            {["Free Radar for your first watchlist", "No credit card to start", "Pro is $9/mo when you want alerts"].map((p) => (
-              <span key={p} className="inline-flex items-center gap-1.5 text-[12px] text-[#9ca3af]">
-                <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
-                {p}
-              </span>
-            ))}
+          <div className="flex flex-col items-start gap-2.5">
+            <button
+              type="button"
+              onClick={startTracking}
+              disabled={busy}
+              className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
+            >
+              {busy ? "Opening..." : user ? "Open your Radar" : "Track your first stock - free"}
+            </button>
+            {!isSubscribed && (
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+                {["Free for 3 stocks", "No credit card", "Pro $9/mo"].map((p) => (
+                  <span key={p} className="inline-flex items-center gap-1.5 text-[11.5px] text-[#9ca3af]">
+                    <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* RIGHT: live product card + search */}
+        <div className="flex flex-col gap-3 w-full">
+          {(
+            <Link
+              href={`/stock/${encodeURIComponent(displayVerdict.ticker)}`}
+              className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-5 md:p-6 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.08)]"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                  Live · today
+                </span>
+                <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                  tikrr verdict
+                </span>
+              </div>
+
+              <div className="flex items-start gap-3.5">
+                <StockLogo
+                  ticker={displayVerdict.ticker}
+                  logoUrl={displayVerdict.logoUrl}
+                  market="US"
+                  size={48}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[18px] font-semibold text-[#111111]">
+                      {displayVerdict.ticker}
+                    </span>
+                    <span className="text-[12px] text-[#9ca3af] truncate">
+                      {displayVerdict.name}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-[15px] font-semibold tabular-nums text-[#111111]">
+                      ${fmtPrice(displayVerdict.price)}
+                    </span>
+                    {typeof displayVerdict.changePct === "number" && (
+                      <span
+                        className="text-[13px] font-semibold tabular-nums"
+                        style={{
+                          color: displayVerdict.changePct >= 0 ? "#10b981" : "#ef4444",
+                        }}
+                      >
+                        {fmtPct(displayVerdict.changePct)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="mt-5 rounded-xl px-4 py-3.5 flex items-center justify-between gap-3"
+                style={{ background: displayVerdict.bg }}
+              >
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span
+                    className="text-[10px] font-semibold tracking-[0.12em] uppercase"
+                    style={{ color: displayVerdict.textColor, opacity: 0.7 }}
+                  >
+                    Verdict
+                  </span>
+                  <span
+                    className="text-[22px] font-semibold tracking-[-0.02em] leading-none"
+                    style={{ color: displayVerdict.textColor }}
+                  >
+                    {displayVerdict.shortLabel}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end gap-0.5 shrink-0">
+                  <span
+                    className="text-[10px] font-semibold tracking-[0.08em] uppercase"
+                    style={{ color: displayVerdict.textColor, opacity: 0.7 }}
+                  >
+                    Score
+                  </span>
+                  <span
+                    className="text-[22px] font-semibold tabular-nums leading-none"
+                    style={{ color: displayVerdict.textColor }}
+                  >
+                    {displayVerdict.overall}
+                  </span>
+                </div>
+              </div>
+
+              <p className="mt-4 text-[13.5px] text-[#374151] leading-[1.5]">
+                {displayVerdict.oneLiner}
+              </p>
+
+              <div className="mt-4 flex items-center justify-between text-[12px]">
+                <span className="text-[#9ca3af]">
+                  This is what Pro shows for every stock you track
+                </span>
+                <span className="font-semibold text-[#111111] group-hover:translate-x-0.5 transition-transform">
+                  See full breakdown →
+                </span>
+              </div>
+            </Link>
+          )}
+
+        </div>
       </div>
 
       {/* Index strip */}

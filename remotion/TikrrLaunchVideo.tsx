@@ -7,11 +7,11 @@ import { DirectiveScene } from "./scenes/DirectiveScene";
 import { OutroScene } from "./scenes/OutroScene";
 
 export const SCENE_DURATIONS = {
-  hook: 280,           // 9.3s  — cream/dark/cream text animation
-  dailyOverview: 270,  // 9.0s  — signal tiles + range/RSI bars
-  fundamentals: 300,   // 10.0s — 4 pillar scorecard
-  directive: 270,      // 9.0s  — strategic directive + alert animation
-  outro: 100,          // 3.3s  — tikrr.online
+  hook: 280,           // 9.3s  - cream/dark/cream text animation
+  dailyOverview: 270,  // 9.0s  - signal tiles + range/RSI bars
+  fundamentals: 300,   // 10.0s - 4 pillar scorecard
+  directive: 270,      // 9.0s  - strategic directive + alert animation
+  outro: 100,          // 3.3s  - tikrr.online
 } as const;
 
 export const TOTAL_FRAMES = Object.values(SCENE_DURATIONS).reduce((a, b) => a + b, 0);

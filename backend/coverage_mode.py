@@ -81,7 +81,7 @@ def derive_coverage_mode(
         return "market"
 
     # No clear primary entity. For broad-lane multi-mode sources, prefer market
-    # — that is what a broad feed is for when no specific stock is the focus.
+    # - that is what a broad feed is for when no specific stock is the focus.
     if "market" in modes:
         return "market"
     if "sector" in modes:

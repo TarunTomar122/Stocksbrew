@@ -4,7 +4,7 @@
 
 /* ── Theme tokens: light ─────────────────────────────────────────────────── */
 :root {
-  /* Brand / primary — refined violet */
+  /* Brand / primary - refined violet */
   --primary:                   #6b38d4;
   --primary-container:         #8455ef;
   --primary-fixed:             #e9ddff;
@@ -15,7 +15,7 @@
   --on-primary-fixed-variant:  #5516be;
   --inverse-primary:           #d0bcff;
 
-  /* Secondary — warm amber */
+  /* Secondary - warm amber */
   --secondary:                   #9d4300;
   --secondary-container:         #fd761a;
   --secondary-fixed:             #ffdbca;
@@ -41,7 +41,7 @@
   --on-error:               #ffffff;
   --on-error-container:     #93000a;
 
-  /* Surfaces — page is pure white; cards earn their boundary from a hairline. */
+  /* Surfaces - page is pure white; cards earn their boundary from a hairline. */
   --background:                    #ffffff;
   --surface:                       #ffffff;
   --surface-bright:                #ffffff;
@@ -61,7 +61,7 @@
   --on-surface:          #111215;
   --on-surface-variant:  #4a4d55;
 
-  /* Outlines — softer */
+  /* Outlines - softer */
   --outline:          #c5c8ce;
   --outline-variant:  #e1e3e6;
 
@@ -267,20 +267,13 @@ body {
   scrollbar-width: none;
 }
 
-/* Subtle custom scrollbar for premium feel */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Hide all scrollbars globally */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--outline-variant);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--outline);
+*::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Selection ───────────────────────────────────────────────────────────── */

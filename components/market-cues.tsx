@@ -80,9 +80,9 @@ function syntheticSeries(seed: string, changePct: number, points = 36): number[]
   const amp1 = baseAmp * (0.85 + rand() * 0.4);
   const amp2 = baseAmp * (0.55 + rand() * 0.4);
   const amp3 = baseAmp * (0.25 + rand() * 0.25);
-  const freq1 = 2.0 + rand() * 1.8; // 1.0–1.9 cycles — broad swing
-  const freq2 = 5.5 + rand() * 3.5; // 2.7–4.5 cycles — mid ripple
-  const freq3 = 10 + rand() * 4.0;  // 5.0–7.0 cycles — fast jitter
+  const freq1 = 2.0 + rand() * 1.8; // 1.0–1.9 cycles - broad swing
+  const freq2 = 5.5 + rand() * 3.5; // 2.7–4.5 cycles - mid ripple
+  const freq3 = 10 + rand() * 4.0;  // 5.0–7.0 cycles - fast jitter
   const phase1 = rand() * Math.PI * 2;
   const phase2 = rand() * Math.PI * 2;
   const phase3 = rand() * Math.PI * 2;
@@ -298,7 +298,7 @@ export function MarketCues({ title = "Market cues", tiles }: Props) {
           const positive = t.changePct >= 0;
           const meta = metaFor(t.id, t.label);
           // Backend ships a 100→100+change linear interpolation as `series`.
-          // That's monotonic and renders as a straight ramp — replace with
+          // That's monotonic and renders as a straight ramp - replace with
           // a synthetic wavy line so the tile reads as live price action.
           const monotonic =
             !t.series ||

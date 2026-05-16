@@ -25,7 +25,7 @@ def _slug(text: str) -> str:
 
 
 def _fetch_in_benchmarks(universe_id: str, pause: float = 1.5) -> dict[str, dict[str, float]]:
-    """One Tickertape hit per sector is enough — its industry PE/PB/DY are
+    """One Tickertape hit per sector is enough - its industry PE/PB/DY are
     already the sector median. We pick the first ticker in each sector from
     the active universe to minimize scraping."""
     instruments = list_instruments("IN", universe_id)
@@ -61,7 +61,7 @@ def _fetch_in_benchmarks(universe_id: str, pause: float = 1.5) -> dict[str, dict
         benchmarks[slug] = payload
         sector_labels[slug] = sector_label
         seen_sectors.add(slug)
-        print(f"  [ok] {sector_label} ({slug}) — PE {payload.get('pe')}, PB {payload.get('pb')}")
+        print(f"  [ok] {sector_label} ({slug}) - PE {payload.get('pe')}, PB {payload.get('pb')}")
 
     for slug, label in sector_labels.items():
         benchmarks[slug]["label"] = label  # type: ignore[assignment]

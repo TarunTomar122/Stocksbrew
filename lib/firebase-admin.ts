@@ -73,7 +73,7 @@ const _fs = getFirestore();
 try {
   _fs.settings({ ignoreUndefinedProperties: true });
 } catch {
-  // settings() throws if already called — safe to ignore on HMR re-evaluation
+  // settings() throws if already called - safe to ignore on HMR re-evaluation
 }
 export const adminFirestore = _fs;
 export const adminAuth = getAuth();

@@ -17,13 +17,13 @@ function pickNumber(...values: Array<number | null | undefined>): number | null 
 }
 
 function formatPct(value?: number | null, signed = true): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   const sign = signed && value > 0 ? "+" : "";
   return `${sign}${value.toFixed(1)}%`;
 }
 
 function formatMoney(value?: number | null, currency = "$"): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   const abs = Math.abs(value);
   if (abs >= 1_000_000_000_000) return `${currency}${(value / 1_000_000_000_000).toFixed(2)}T`;
   if (abs >= 1_000_000_000) return `${currency}${(value / 1_000_000_000).toFixed(2)}B`;
@@ -32,7 +32,7 @@ function formatMoney(value?: number | null, currency = "$"): string {
 }
 
 function formatNumber(value?: number | null): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
@@ -181,7 +181,7 @@ export function StockFactsPanel({
   const topHolders = inst?.top_holders ?? [];
 
   // Fall back to the Yahoo-sourced fundamentals doc when stock_facts hasn't
-  // populated the value yet — same number, different collection.
+  // populated the value yet - same number, different collection.
   const marketCap = pickNumber(stats.market_cap, fundamentals?.market_cap);
   const peTtm = pickNumber(stats.pe_ttm, fundamentals?.pe_ttm);
   const recoScore = pickNumber(stats.recommendation_score);
@@ -289,7 +289,7 @@ export function StockFactsPanel({
               Key stats
             </h3>
             <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-              Updated {formatRelative(fundamentalsUpdatedAt) || "—"}
+              Updated {formatRelative(fundamentalsUpdatedAt) || "-"}
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-5">
@@ -382,7 +382,7 @@ export function StockFactsPanel({
                               : "text-[#6b7280]"
                           }`}
                         >
-                          {h.change_pct || h.market_value || "—"}
+                          {h.change_pct || h.market_value || "-"}
                         </span>
                       </li>
                     );

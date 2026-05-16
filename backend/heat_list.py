@@ -7,7 +7,7 @@ Primary signals (work from day one with existing data):
   - Catalyst urgency from intel_pro.catalysts
   - Growth pillar quality from intel_pro
 
-Bonus signal (builds up over time — adds to the score but does not gate):
+Bonus signal (builds up over time - adds to the score but does not gate):
   - Mention velocity: 7-day article mention count vs. 30-day rolling baseline
 
 The scorer is intentionally transparent. Each signal contributes a short
@@ -279,7 +279,7 @@ def _score_and_reasons(
 ) -> tuple[float, list[str]]:
     """Compute a 0-100 heat score and a list of short signal tags.
 
-    Tags are specific and numeric — never vague adjectives. The frontend
+    Tags are specific and numeric - never vague adjectives. The frontend
     renders them as chips directly, so "RSI 74 ↑" beats "strong momentum".
 
     Score tiers:
@@ -301,7 +301,7 @@ def _score_and_reasons(
 
     # ── Tier 1: momentum pillar (0-40 pts) ───────────────────────────────────
     # The score drives ranking; the label appears in the metric bar on the card,
-    # not as a chip — so we only emit a tag when the number is noteworthy.
+    # not as a chip - so we only emit a tag when the number is noteworthy.
     if momentum is not None:
         score += momentum * 0.4
 
@@ -321,7 +321,7 @@ def _score_and_reasons(
                 score -= 5.0
 
     # ── Tier 2: price move (0-15 pts) ────────────────────────────────────────
-    # Show the actual number — "+4.2% today" is infinitely more useful than
+    # Show the actual number - "+4.2% today" is infinitely more useful than
     # "big move today".
     if day_change_pct is not None:
         sign = "+" if day_change_pct >= 0 else ""
@@ -548,7 +548,7 @@ def build_heat_list(
       1. Update mention_stats from today's enrichment run (velocity bonus).
       2. Stream all intel_pro scores for the price universe.
       3. Batch-fetch latest prices.
-      4. Fetch RSI for each instrument (serial — no batch endpoint).
+      4. Fetch RSI for each instrument (serial - no batch endpoint).
       5. Score, sort, persist.
     """
 
@@ -559,7 +559,7 @@ def build_heat_list(
         print(f"        {len(enrichments)} enriched articles found")
     else:
         enrichments = []
-        print(f"  [1/4] No ai_universe_id — skipping velocity update")
+        print(f"  [1/4] No ai_universe_id - skipping velocity update")
 
     per_instrument_days = bucket_enrichments_by_day(enrichments)
     if per_instrument_days:
@@ -569,7 +569,7 @@ def build_heat_list(
             existing = store.get_mention_stats(instrument_id) or {}
             existing_days = dict(existing.get("days", {}) or {})
             for date_key, bucket in days.items():
-                existing_days[date_key] = bucket  # overwrite same-day key — no double-count
+                existing_days[date_key] = bucket  # overwrite same-day key - no double-count
             store.reset_mention_stats_window(
                 instrument_id,
                 _trim_to_window(existing_days, BASELINE_DAYS),
@@ -578,7 +578,7 @@ def build_heat_list(
             )
         print(f"        mention_stats updated ✓")
     else:
-        print(f"        No entity mentions found in enrichments — velocity data unchanged")
+        print(f"        No entity mentions found in enrichments - velocity data unchanged")
 
     # 2. Pull intel_pro for the price universe. This is a single streaming
     # read of the entire collection (one Firestore roundtrip).
@@ -597,7 +597,7 @@ def build_heat_list(
     if not intel_map:
         # Fallback: try AI universe if price universe has nothing.
         if ai_universe_id and ai_universe_id != universe_id:
-            print(f"        No docs found — trying fallback ai universe {ai_universe_id} ...")
+            print(f"        No docs found - trying fallback ai universe {ai_universe_id} ...")
             for doc in store.list_stock_intel_pro(market, ai_universe_id):
                 iid = str(doc.get("instrument_id", "")).strip()
                 if iid:
@@ -626,7 +626,7 @@ def build_heat_list(
     mention_map = store.get_mention_stats_batch(instrument_ids)
     print(f"        mention stats: {len(mention_map)} docs")
 
-    # 4. Score each instrument — pure in-memory, no Firestore reads.
+    # 4. Score each instrument - pure in-memory, no Firestore reads.
     print(f"  [4/4] Scoring {len(intel_map)} instruments ...")
     rows: list[dict[str, Any]] = []
     skipped_low = 0

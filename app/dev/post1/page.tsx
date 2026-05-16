@@ -114,7 +114,7 @@ export default function Post1() {
                     <p className="text-[14px] font-bold text-[#111215]">$592.80</p>
                   </div>
                 </div>
-                {/* Track: gradient bar with marker on top — no overflow-hidden on the outer */}
+                {/* Track: gradient bar with marker on top - no overflow-hidden on the outer */}
                 <div className="relative" style={{ height: 12 }}>
                   <div className="absolute inset-0 rounded-full" style={{ background: "linear-gradient(90deg,#f97316 0%,#f59e0b 22%,#84cc16 55%,#10b981 100%)" }} />
                   <div
@@ -123,7 +123,7 @@ export default function Post1() {
                   />
                 </div>
               </div>
-              <p className="text-[11px] text-[#6b7280] mt-2">Today <strong className="text-[#111215]">$576.45</strong> — near the 52W high</p>
+              <p className="text-[11px] text-[#6b7280] mt-2">Today <strong className="text-[#111215]">$576.45</strong> - near the 52W high</p>
             </div>
 
             {/* RSI */}
@@ -139,13 +139,13 @@ export default function Post1() {
               {/* Track: zones inside overflow-hidden, marker as sibling outside */}
               <div>
                 <div className="relative" style={{ height: 12 }}>
-                  {/* Zone fill layer — clipped */}
+                  {/* Zone fill layer - clipped */}
                   <div className="absolute inset-0 rounded-full overflow-hidden bg-[#f3f4f6]">
                     <div className="absolute inset-y-0 left-0 w-[30%] bg-[#ef4444]/20" />
                     <div className="absolute inset-y-0 left-[30%] w-[40%]" style={{ background: "linear-gradient(90deg,#84cc16,#10b981)", opacity: 0.85 }} />
                     <div className="absolute inset-y-0 right-0 w-[30%] bg-[#ef4444]/20" />
                   </div>
-                  {/* Marker on top — outside the overflow-hidden zone div */}
+                  {/* Marker on top - outside the overflow-hidden zone div */}
                   <div
                     className="absolute w-5 h-5 rounded-full bg-white z-10"
                     style={{ left: `${RSI_PCT}%`, top: "50%", transform: "translateX(-50%) translateY(-50%)", boxShadow: "0 0 0 2.5px #111215" }}

@@ -9,16 +9,16 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Market News",
   description:
-    "Daily market headlines with tone filters — scan fast and open the stories that matter. Filter by bullish, bearish, or neutral sentiment.",
+    "Daily market headlines with tone filters - scan fast and open the stories that matter. Filter by bullish, bearish, or neutral sentiment.",
   alternates: { canonical: "/news" },
   openGraph: {
-    title: "Market News · Tikrr",
-    description: "Daily market headlines with tone filters — scan fast and open the stories that matter.",
+    title: "Market News · tikrr",
+    description: "Daily market headlines with tone filters - scan fast and open the stories that matter.",
     url: "https://www.tikrr.online/news",
   },
   twitter: {
-    title: "Market News · Tikrr",
-    description: "Daily market headlines with tone filters — scan fast and open the stories that matter.",
+    title: "Market News · tikrr",
+    description: "Daily market headlines with tone filters - scan fast and open the stories that matter.",
   },
 };
 

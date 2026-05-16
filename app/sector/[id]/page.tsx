@@ -23,16 +23,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const label = doc?.sector_label ?? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const brief = doc?.today_brief?.slice(0, 150) ?? `Sector analysis and constituent stock performance for ${label}.`;
   return {
-    title: `${label} — Sector Brief`,
+    title: `${label} - Sector Brief`,
     description: brief,
     alternates: { canonical: `/sector/${id}` },
     openGraph: {
-      title: `${label} — Sector Brief · Tikrr`,
+      title: `${label} - Sector Brief · tikrr`,
       description: brief,
       url: `https://www.tikrr.online/sector/${id}`,
     },
     twitter: {
-      title: `${label} — Sector Brief · Tikrr`,
+      title: `${label} - Sector Brief · tikrr`,
       description: brief,
     },
   };

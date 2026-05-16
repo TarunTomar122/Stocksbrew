@@ -15,7 +15,7 @@ export default function StockLoading() {
         {/* Price strip */}
         <div className="h-20 w-full rounded-xl bg-surface-container-low" />
 
-        {/* Technical pulse — 3 cards */}
+        {/* Technical pulse - 3 cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-36 rounded-xl bg-surface-container-low" />

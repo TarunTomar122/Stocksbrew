@@ -8,7 +8,7 @@ The `/watchlist` page reads that one doc → 1 Firestore read per page view
 no matter how many stocks the user tracks.
 
 Cost shape: 1 write per subscriber per run. At 2 runs/day × 100 subscribers
-that's 200 writes/day — rounding-error territory.
+that's 200 writes/day - rounding-error territory.
 """
 from __future__ import annotations
 

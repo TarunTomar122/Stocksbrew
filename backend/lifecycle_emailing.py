@@ -12,7 +12,7 @@ load_backend_env()
 
 BREVO_API = "https://api.brevo.com/v3/smtp/email"
 FROM_EMAIL = "yourtrace.online@gmail.com"
-FROM_NAME = "Tikrr"
+FROM_NAME = "tikrr"
 APP_URL = os.environ.get("NEXT_PUBLIC_APP_URL", "https://www.tikrr.online").rstrip("/")
 EMAIL_PREVIEWS_DIR = Path(__file__).resolve().parent / "email_previews"
 
@@ -49,7 +49,7 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
         return False
 
 
-def _card(title: str, lines: list[str], cta_label: str, cta_url: str, kicker: str = "Tikrr") -> str:
+def _card(title: str, lines: list[str], cta_label: str, cta_url: str, kicker: str = "tikrr") -> str:
     body = "".join([f"<p style='margin:0 0 10px 0;font-size:14px;line-height:1.55;color:#374151'>{line}</p>" for line in lines])
     return f"""<!doctype html><html><body style=\"margin:0;padding:0;background:#f3f4f6\">
 <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"padding:28px 14px\"><tr><td align=\"center\">
@@ -362,7 +362,7 @@ def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: lis
 
     subject = "Your daily Radar pulse"
     html = f"""<!doctype html><html lang='en'><head><meta charset='UTF-8' /><meta name='viewport' content='width=device-width, initial-scale=1.0' />
-  <title>Your daily Radar pulse — Tikrr</title></head>
+  <title>Your daily Radar pulse - tikrr</title></head>
 <body style='margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif'>
   <table width='100%' cellpadding='0' cellspacing='0' style='padding:32px 16px'><tr><td align='center'>
     <table width='580' cellpadding='0' cellspacing='0'><tr><td style='padding-bottom:20px'>

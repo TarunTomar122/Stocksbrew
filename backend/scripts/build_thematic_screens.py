@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--universe",
         required=True,
-        help="Universe to screen — use the broad data-tier (e.g. us_core_100, in_core_150) "
+        help="Universe to screen - use the broad data-tier (e.g. us_core_100, in_core_150) "
              "so screens pull from the largest population we have intel_pro on.",
     )
     parser.add_argument("--top-n", type=int, default=10, help="Max matches per screen")

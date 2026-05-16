@@ -62,7 +62,7 @@ const PILLARS: { key: "valuation" | "growth" | "quality" | "momentum"; label: st
 ];
 
 function fmtPrice(v: number, currency: string): string {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "-";
   return `${currency}${v.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -91,7 +91,7 @@ function verdictTone(v?: string): { bg: string; fg: string; label: string } {
     case "weak":
       return { bg: "#fef2f2", fg: "#ef4444", label: "Weak" };
     default:
-      return { bg: "#f3f4f6", fg: "#6b7280", label: "—" };
+      return { bg: "#f3f4f6", fg: "#6b7280", label: "-" };
   }
 }
 
@@ -184,7 +184,7 @@ export function StockSideRail({
             </span>
           )}
           <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#9ca3af]" title={absoluteTime(priceUpdatedAt) || "Not available"}>
-            Updated {relativeTime(priceUpdatedAt) || "—"}
+            Updated {relativeTime(priceUpdatedAt) || "-"}
           </span>
         </div>
 
@@ -197,7 +197,7 @@ export function StockSideRail({
         />
       </div>
 
-      {/* Scorecard mini — hidden on mobile (available in Fundamentals tab) */}
+      {/* Scorecard mini - hidden on mobile (available in Fundamentals tab) */}
       {intelPro && (
         <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-4">
           <div className="flex items-baseline justify-between">
@@ -231,7 +231,7 @@ export function StockSideRail({
                   <span
                     className={`text-[13px] font-semibold tabular-nums text-right ${scoreTone(score)}`}
                   >
-                    {typeof score === "number" ? Math.round(score) : "—"}
+                    {typeof score === "number" ? Math.round(score) : "-"}
                   </span>
                   <span
                     className="inline-flex items-center justify-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase"
@@ -251,14 +251,14 @@ export function StockSideRail({
         </div>
       )}
 
-      {/* Reddit buzz — hidden on mobile */}
+      {/* Reddit buzz - hidden on mobile */}
       {redditTickerContext && (
         <div className="hidden lg:block">
           <StockRedditBuzzRail context={redditTickerContext} />
         </div>
       )}
 
-      {/* Latest news — hidden on mobile */}
+      {/* Latest news - hidden on mobile */}
       {timeline && (
         <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-3">
           <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">

@@ -15,7 +15,7 @@ import requests
 from backend.coverage_mode import coverage_modes_for_source_id, derive_coverage_mode
 from backend.env import load_backend_env
 from backend.llm_client import (
-    MIMO_API_URL,
+    llm_api_url,
     json_response_format,
     llm_api_key,
     llm_headers,
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 load_backend_env()
 
 
-LLM_API_URL = MIMO_API_URL
+LLM_API_URL = llm_api_url()
 DEFAULT_MODEL = default_llm_model()
 CACHE_VERSION = "2026-03-26-llm-v3"
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
@@ -433,7 +433,7 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("MIMO_API_KEY is required because heuristic enrichment has been removed")
+            raise ValueError("OPENAI_API_KEY or MIMO_API_KEY is required because heuristic enrichment has been removed")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending: list[tuple[int, Article, str]] = []

@@ -31,7 +31,7 @@ function DirectiveSlide() {
             </span>
           </div>
           <h3 className="text-[20px] font-semibold tracking-[-0.02em] leading-[1.2]">
-            Lean into NVDA into the next data-center print — supply commentary still leaves room vs. margin expectations.
+            Lean into NVDA into the next data-center print - supply commentary still leaves room vs. margin expectations.
           </h3>
           <p className="text-[13px] leading-[1.55] opacity-85">
             Growth and momentum pillars lead the scorecard; valuation is the friction the model weighs into the catalyst window.
@@ -39,7 +39,7 @@ function DirectiveSlide() {
         </div>
       </div>
       <p className="text-[13px] text-[#6b7280] leading-relaxed text-center">
-        Tikrr reads the news and filings twice a day and writes you a plain take on what it means — so you don't have to piece it together yourself.
+        tikrr reads the news and filings twice a day and writes you a plain take on what it means - so you don't have to piece it together yourself.
       </p>
     </div>
   );
@@ -84,7 +84,7 @@ function SignalsSlide() {
         ))}
       </div>
       <p className="text-[13px] text-[#6b7280] leading-relaxed text-center">
-        Instead of digging through earnings reports and analyst PDFs, you get the number that actually matters — right on the stock page.
+        Instead of digging through earnings reports and analyst PDFs, you get the number that actually matters - right on the stock page.
       </p>
     </div>
   );
@@ -137,7 +137,7 @@ function RadarSlide() {
         </ul>
       </div>
       <p className="text-[13px] text-[#6b7280] leading-relaxed text-center">
-        Add the stocks you follow and Tikrr shows you what moved, what's loud in the news, and what needs your attention — without you having to check 10 tabs.
+        Add the stocks you follow and tikrr shows you what moved, what's loud in the news, and what needs your attention - without you having to check 10 tabs.
       </p>
     </div>
   );
@@ -155,13 +155,13 @@ const SLIDES = [
   {
     step: "02",
     title: "The stuff that actually moves a stock",
-    subtitle: "RSI, analyst targets, earnings windows, revenue growth — in one place, no digging.",
+    subtitle: "RSI, analyst targets, earnings windows, revenue growth - in one place, no digging.",
     content: <SignalsSlide />,
   },
   {
     step: "03",
     title: "Your personal watchlist that keeps up",
-    subtitle: "See everything across your stocks at a glance — what moved, what's loud, what's next.",
+    subtitle: "See everything across your stocks at a glance - what moved, what's loud, what's next.",
     content: <RadarSlide />,
   },
 ];
@@ -200,13 +200,13 @@ export function OnboardingModal({ onClose }: Props) {
 
       {/* Card */}
       <div className="relative w-full max-w-[580px] h-[600px] rounded-3xl bg-white shadow-[0_32px_80px_rgba(17,24,39,0.22)] flex flex-col overflow-hidden">
-        {/* Welcome banner — only on slide 0 */}
+        {/* Welcome banner - only on slide 0 */}
         {slide === 0 && (
           <div className="flex items-center gap-3 bg-[#f3f4f6] border-b border-[#e5e7eb] px-6 py-3">
             <span className="text-[20px]">👋</span>
             <div>
-              <p className="text-[14px] font-semibold text-[#111111]">Welcome to Tikrr!</p>
-              <p className="text-[12px] text-[#6b7280]">Here's what you can do — quick 30-second tour.</p>
+              <p className="text-[14px] font-semibold text-[#111111]">Welcome to tikrr!</p>
+              <p className="text-[12px] text-[#6b7280]">Here's what you can do - quick 30-second tour.</p>
             </div>
           </div>
         )}
@@ -245,7 +245,7 @@ export function OnboardingModal({ onClose }: Props) {
               onClick={onClose}
               className="inline-flex w-full items-center justify-center gap-2 h-11 rounded-full bg-[#111111] text-[14px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
             >
-              Unlock everything — $9/mo
+              Unlock everything - $9/mo
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
             </Link>
             <button

@@ -105,7 +105,7 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
           id={`stock-section-${t.key}`}
           className="scroll-mt-32 flex flex-col gap-6"
         >
-          {/* Section heading with divider — skip top border on first section */}
+          {/* Section heading with divider - skip top border on first section */}
           <div className={`flex flex-col gap-4 ${i > 0 ? "pt-8 border-t-2 border-[#e5e7eb]" : ""}`}>
             <h2 className="text-[26px] md:text-[30px] font-semibold text-[#111111] tracking-[-0.03em] leading-none">
               {t.label}

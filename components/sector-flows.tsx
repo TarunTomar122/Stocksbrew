@@ -62,7 +62,7 @@ export function SectorFlows({ flows, mocked, sectorSlugMap }: Props) {
         <h2 className="text-[14px] font-semibold text-on-surface">Sectors</h2>
         {mocked && (
           <span
-            title="Mocked — sector_flows not populated."
+            title="Mocked - sector_flows not populated."
             className="px-1.5 py-0.5 text-[9px] font-bold tracking-[0.15em] uppercase bg-signal-neutral/25 text-on-surface rounded-sm"
           >
             Mock

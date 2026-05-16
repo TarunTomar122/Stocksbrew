@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
-import { isLaunchAITier } from "@/lib/ai-launch-tier";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -30,7 +30,6 @@ function trackApiLog(
   else console.log(line);
 }
 
-const PERSONAL_TIER_LIMIT = 10;
 const ON_DEMAND_QUEUE_DEDUPE_MS = 90 * 1000;
 
 async function parseTrackPayload(req: NextRequest): Promise<{
@@ -117,41 +116,32 @@ export async function POST(req: NextRequest) {
 
   const existing = await getUserDoc(session.uid);
   const isSubscribed = existing ? resolveIsSubscribed(existing) : false;
-  if (!existing || !isSubscribed) {
-    await recordLifecycleEvent({
-      uid: session.uid,
-      email: session.email ?? null,
-      type: "track_blocked_subscription_required",
-      payload: {
-        instrument_id: instrumentId,
-        position_type: positionType,
-      },
-    }).catch(() => undefined);
-    trackApiLog(traceId, "warn", "post_subscription_required", { uid: session.uid, instrument_id: instrumentId });
-    return NextResponse.json(
-      { error: "subscription_required", reason: "Tracking a stock adds it to your personal AI tier, which runs real LLM briefs twice daily." },
-      { status: 403 },
-    );
+  if (!existing) {
+    trackApiLog(traceId, "warn", "post_user_missing", { uid: session.uid, instrument_id: instrumentId });
+    return NextResponse.json({ error: "profile_not_ready" }, { status: 409 });
   }
 
   const current = Array.isArray(existing.tracked_stocks) ? existing.tracked_stocks : [];
-  // Launch-tier stocks are already covered by the free AI run — adding them
-  // to a watchlist costs zero extra LLM, so they don't consume a slot in the
-  // personal-tier limit. Only count non-launch stocks against the cap.
-  const isLaunch = isLaunchAITier(instrumentId);
-  if (!isLaunch && !current.includes(instrumentId) && !isSubscribed) {
-    const personalCount = current.filter((id) => !isLaunchAITier(id)).length;
-    if (personalCount >= PERSONAL_TIER_LIMIT) {
-      trackApiLog(traceId, "warn", "post_tier_limit", {
+  if (!current.includes(instrumentId) && !canTrackMore(isSubscribed, current.length)) {
+      await recordLifecycleEvent({
+        uid: session.uid,
+        email: session.email ?? null,
+        type: "track_blocked_subscription_required",
+        payload: {
+          instrument_id: instrumentId,
+          position_type: positionType,
+          free_tier_limit: FREE_RADAR_TRACK_LIMIT,
+        },
+      }).catch(() => undefined);
+      trackApiLog(traceId, "warn", "post_free_tier_limit", {
         uid: session.uid,
         instrument_id: instrumentId,
-        limit: PERSONAL_TIER_LIMIT,
+        limit: FREE_RADAR_TRACK_LIMIT,
       });
       return NextResponse.json(
-        { error: "tier_limit_reached", limit: PERSONAL_TIER_LIMIT },
+        { error: "free_tier_limit_reached", limit: FREE_RADAR_TRACK_LIMIT, reason: "Free Radar supports up to 3 stocks." },
         { status: 409 },
       );
-    }
   }
 
   const userRef = adminFirestore.collection("users").doc(session.uid);

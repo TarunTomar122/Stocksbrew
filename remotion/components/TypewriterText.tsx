@@ -33,7 +33,7 @@ export function TypewriterText({
   if (reserveSpace) {
     return (
       <span style={{ position: "relative", display: "inline", ...style }}>
-        {/* Invisible full text reserves space — layout never shifts */}
+        {/* Invisible full text reserves space - layout never shifts */}
         <span style={{ opacity: 0, userSelect: "none", pointerEvents: "none" }}>{text}</span>
         {/* Typed text sits on top */}
         <span

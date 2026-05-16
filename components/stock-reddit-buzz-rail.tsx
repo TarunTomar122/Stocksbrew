@@ -6,9 +6,9 @@ type Props = {
 };
 
 function timeAgo(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const diff = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(diff)) return "—";
+  if (!Number.isFinite(diff)) return "-";
   const hours = Math.floor(diff / 3_600_000);
   if (hours < 1) return "just now";
   if (hours === 1) return "1h ago";

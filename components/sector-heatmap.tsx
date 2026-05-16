@@ -4,7 +4,7 @@ import type { MarketTile } from "@/lib/market-tiles";
 type Props = {
   tiles: MarketTile[];
   sectorSlugMap?: Record<string, string>;
-  highlightLabel?: string; // label of the stock's sector — gets a ring
+  highlightLabel?: string; // label of the stock's sector - gets a ring
 };
 
 /**

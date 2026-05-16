@@ -38,7 +38,7 @@ export const MOCK_SIGNAL_TILES: SignalTileModel[] = [
     bg: "#fef3c7",
     label: "RSI Stretched",
     headline: "76",
-    supporting: "Overbought — pullback risk",
+    supporting: "Overbought - pullback risk",
     tone: "warn",
   },
   {
@@ -104,4 +104,4 @@ export const MOCK_DIRECTIVE: Directive = {
 };
 
 export const AI_SYNTHESIS_TEXT =
-  "NVDA is up 2.9% today after analysts raised price targets following stronger-than-expected GPU shipment data. Trading volume is 40% above average — institutional buyers are active. The momentum is bullish heading into next week's earnings.";
+  "NVDA is up 2.9% today after analysts raised price targets following stronger-than-expected GPU shipment data. Trading volume is 40% above average - institutional buyers are active. The momentum is bullish heading into next week's earnings.";

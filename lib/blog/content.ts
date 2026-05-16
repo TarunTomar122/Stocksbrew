@@ -13,9 +13,9 @@ export const blogContent: Record<string, string> = {
     <p>Unlike a simple news digest or email newsletter, an AI market brief does three things traditional briefs can't:</p>
 
     <ul>
-      <li><strong>Aggregates at scale</strong> — pulls from 50+ sources including news outlets, social media, SEC filings, earnings calls, and analyst reports simultaneously</li>
-      <li><strong>Scores relevance</strong> — uses AI to rank what actually matters to your portfolio or watchlist, not just what's trending</li>
-      <li><strong>Synthesizes context</strong> — connects the dots between related events, showing you the bigger picture instead of isolated headlines</li>
+      <li><strong>Aggregates at scale</strong> - pulls from 50+ sources including news outlets, social media, SEC filings, earnings calls, and analyst reports simultaneously</li>
+      <li><strong>Scores relevance</strong> - uses AI to rank what actually matters to your portfolio or watchlist, not just what's trending</li>
+      <li><strong>Synthesizes context</strong> - connects the dots between related events, showing you the bigger picture instead of isolated headlines</li>
     </ul>
 
     <p>The result is a focused, actionable summary that takes 5 minutes to read instead of 50 minutes to compile yourself.</p>
@@ -60,16 +60,16 @@ export const blogContent: Record<string, string> = {
 
     <div class="sample-brief">
       <h4>Sample: Daily AI Market Brief</h4>
-      <p><strong>Market Snapshot</strong> — S&P 500 futures +0.3%, Nasdaq +0.5%, 10Y yield 4.2%. Asian markets closed mixed; European markets opening higher.</p>
+      <p><strong>Market Snapshot</strong> - S&P 500 futures +0.3%, Nasdaq +0.5%, 10Y yield 4.2%. Asian markets closed mixed; European markets opening higher.</p>
       <p><strong>Top 3 Signals for Your Watchlist</strong></p>
       <ul>
         <li>NVDA: Unusual options activity detected. 3x normal call volume expiring this Friday. Catalyst: rumored hyperscaler deal announcement.</li>
         <li>AAPL: Supplier earnings beat expectations, positive signal for iPhone supply chain. Sentiment shift from neutral to bullish on social.</li>
         <li>Energy sector: OPEC meeting outcome uncertain. Positioning data shows hedge funds net long for first time in 3 weeks.</li>
       </ul>
-      <p><strong>Overnight Developments</strong> — Japan GDP beat expectations (+0.4% vs +0.2% expected). China PMI slightly below consensus. Both could impact global growth trades today.</p>
-      <p><strong>Earnings to Watch</strong> — 3 companies in your watchlist reporting this week. Detailed breakdown in the full report.</p>
-      <p><strong>AI Confidence Score</strong> — Each signal comes with a confidence rating based on source quality, corroboration, and historical accuracy.</p>
+      <p><strong>Overnight Developments</strong> - Japan GDP beat expectations (+0.4% vs +0.2% expected). China PMI slightly below consensus. Both could impact global growth trades today.</p>
+      <p><strong>Earnings to Watch</strong> - 3 companies in your watchlist reporting this week. Detailed breakdown in the full report.</p>
+      <p><strong>AI Confidence Score</strong> - Each signal comes with a confidence rating based on source quality, corroboration, and historical accuracy.</p>
     </div>
 
     <p>Notice what's different from a traditional newsletter: it's personalized, it's scored, it connects dots across sources, and it's actionable. You know what to watch and why.</p>
@@ -79,12 +79,12 @@ export const blogContent: Record<string, string> = {
     <p>If you're shopping for an AI market brief tool, here's your checklist:</p>
 
     <ol>
-      <li><strong>Source diversity</strong> — Does it pull from news, social media, filings, and analyst reports? Or just one or two?</li>
-      <li><strong>Scoring system</strong> — Does it rank signals by relevance and confidence, or just dump everything on you?</li>
-      <li><strong>Personalization</strong> — Can you set a watchlist and get tailored intelligence, or is it generic?</li>
-      <li><strong>Daily cadence</strong> — Does it deliver every trading day without fail?</li>
-      <li><strong>Speed</strong> — How quickly does it process and deliver after events happen?</li>
-      <li><strong>Price</strong> — Bloomberg costs $24,000/year. Reuters Eikon costs $22,000/year. What's the value-to-cost ratio?</li>
+      <li><strong>Source diversity</strong> - Does it pull from news, social media, filings, and analyst reports? Or just one or two?</li>
+      <li><strong>Scoring system</strong> - Does it rank signals by relevance and confidence, or just dump everything on you?</li>
+      <li><strong>Personalization</strong> - Can you set a watchlist and get tailored intelligence, or is it generic?</li>
+      <li><strong>Daily cadence</strong> - Does it deliver every trading day without fail?</li>
+      <li><strong>Speed</strong> - How quickly does it process and deliver after events happen?</li>
+      <li><strong>Price</strong> - Bloomberg costs $24,000/year. Reuters Eikon costs $22,000/year. What's the value-to-cost ratio?</li>
     </ol>
 
     <p>Most tools nail one or two of these. The best nail all six.</p>
@@ -96,11 +96,11 @@ export const blogContent: Record<string, string> = {
     <p>Here's how tikrr's daily market brief works:</p>
 
     <ul>
-      <li><strong>50+ sources aggregated daily</strong> — news, social media, Wall Street research, SEC filings, earnings transcripts</li>
-      <li><strong>AI-powered scoring</strong> — every signal gets a relevance and confidence score based on your watchlist and market context</li>
-      <li><strong>Delivered daily</strong> — you get your brief every trading day, consistently</li>
-      <li><strong>Free tier available</strong> — start with a daily market intelligence brief at no cost</li>
-      <li><strong>No terminal required</strong> — works in your browser, no Bloomberg subscription needed</li>
+      <li><strong>50+ sources aggregated daily</strong> - news, social media, Wall Street research, SEC filings, earnings transcripts</li>
+      <li><strong>AI-powered scoring</strong> - every signal gets a relevance and confidence score based on your watchlist and market context</li>
+      <li><strong>Delivered daily</strong> - you get your brief every trading day, consistently</li>
+      <li><strong>Free tier available</strong> - start with a daily market intelligence brief at no cost</li>
+      <li><strong>No terminal required</strong> - works in your browser, no Bloomberg subscription needed</li>
     </ul>
 
     <p>tikrr isn't trying to replace your brokerage or your charting software. It's replacing the 45 minutes you spend every morning trying to figure out what matters. It's the intelligence layer that sits on top of everything else you use.</p>
@@ -221,11 +221,11 @@ export const blogContent: Record<string, string> = {
     <p>Earnings season is when smart alerts really shine. Instead of waiting for the headline number and trying to figure out if it's good or bad, AI alerts provide instant context:</p>
 
     <ul>
-      <li><strong>Beat or miss vs consensus</strong> — How did results compare to analyst expectations?</li>
-      <li><strong>Beat or miss vs whisper numbers</strong> — How did they compare to the real expectations the market was pricing in?</li>
-      <li><strong>Forward guidance</strong> — Did the company raise, maintain, or lower guidance?</li>
-      <li><strong>Key metrics</strong> — Revenue growth, margins, user growth, or whatever metrics matter for that company</li>
-      <li><strong>Peer implications</strong> — How might this earnings report affect other stocks in the same sector?</li>
+      <li><strong>Beat or miss vs consensus</strong> - How did results compare to analyst expectations?</li>
+      <li><strong>Beat or miss vs whisper numbers</strong> - How did they compare to the real expectations the market was pricing in?</li>
+      <li><strong>Forward guidance</strong> - Did the company raise, maintain, or lower guidance?</li>
+      <li><strong>Key metrics</strong> - Revenue growth, margins, user growth, or whatever metrics matter for that company</li>
+      <li><strong>Peer implications</strong> - How might this earnings report affect other stocks in the same sector?</li>
     </ul>
 
     <p>This context is what separates an informed reaction from a knee-jerk one. And it arrives in seconds, not after you've spent 20 minutes reading the earnings release.</p>
@@ -235,11 +235,11 @@ export const blogContent: Record<string, string> = {
     <p>Technical analysis is where AI adds the most value over manual chart reading. AI can simultaneously monitor hundreds of stocks for technical patterns that would take a human analyst hours to identify:</p>
 
     <ul>
-      <li><strong>RSI divergence</strong> — When price makes a new high but RSI doesn't (bearish) or vice versa (bullish)</li>
-      <li><strong>Volume breakouts</strong> — Price breaking a key level on significantly above-average volume</li>
-      <li><strong>Moving average crossovers</strong> — Golden crosses, death crosses, and other MA signals</li>
-      <li><strong>Pattern completions</strong> — Head and shoulders, cup and handle, flags, and other classic patterns</li>
-      <li><strong>Support/resistance tests</strong> — When a stock approaches a key level for the third or fourth time</li>
+      <li><strong>RSI divergence</strong> - When price makes a new high but RSI doesn't (bearish) or vice versa (bullish)</li>
+      <li><strong>Volume breakouts</strong> - Price breaking a key level on significantly above-average volume</li>
+      <li><strong>Moving average crossovers</strong> - Golden crosses, death crosses, and other MA signals</li>
+      <li><strong>Pattern completions</strong> - Head and shoulders, cup and handle, flags, and other classic patterns</li>
+      <li><strong>Support/resistance tests</strong> - When a stock approaches a key level for the third or fourth time</li>
     </ul>
 
     <p>The key advantage is that AI does this continuously across your entire watchlist, not just the 2-3 stocks you have charts open for.</p>
@@ -266,11 +266,11 @@ export const blogContent: Record<string, string> = {
     <p>Here's how AI reduces noise:</p>
 
     <ul>
-      <li><strong>Multi-factor filtering</strong> — Alerts only trigger when multiple signals align, not when a single threshold is crossed</li>
-      <li><strong>Relevance scoring</strong> — Each alert gets a relevance score so you can prioritize</li>
-      <li><strong>Confidence levels</strong> — High-confidence alerts surface first; low-confidence ones are available but not pushy</li>
-      <li><strong>Deduplication</strong> — AI knows when an alert is essentially the same signal it already told you about</li>
-      <li><strong>Learning your preferences</strong> — Over time, the system learns which alerts you act on and which you ignore</li>
+      <li><strong>Multi-factor filtering</strong> - Alerts only trigger when multiple signals align, not when a single threshold is crossed</li>
+      <li><strong>Relevance scoring</strong> - Each alert gets a relevance score so you can prioritize</li>
+      <li><strong>Confidence levels</strong> - High-confidence alerts surface first; low-confidence ones are available but not pushy</li>
+      <li><strong>Deduplication</strong> - AI knows when an alert is essentially the same signal it already told you about</li>
+      <li><strong>Learning your preferences</strong> - Over time, the system learns which alerts you act on and which you ignore</li>
     </ul>
 
     <p>The result is fewer, more meaningful notifications. You get alerted about things that matter, not every price tick.</p>
@@ -280,10 +280,10 @@ export const blogContent: Record<string, string> = {
     <p>Getting started with AI stock alerts is straightforward:</p>
 
     <ol>
-      <li><strong>Define your watchlist</strong> — Add the stocks you care about. Start with 10-15 if you're new to this.</li>
-      <li><strong>Set your priorities</strong> — Tell the system what matters most to you: earnings, sentiment, technical signals, or news.</li>
-      <li><strong>Configure delivery</strong> — Choose how you want to be notified: email, app notification, or daily digest.</li>
-      <li><strong>Review and adjust</strong> — After a week, review which alerts were useful and adjust your settings.</li>
+      <li><strong>Define your watchlist</strong> - Add the stocks you care about. Start with 10-15 if you're new to this.</li>
+      <li><strong>Set your priorities</strong> - Tell the system what matters most to you: earnings, sentiment, technical signals, or news.</li>
+      <li><strong>Configure delivery</strong> - Choose how you want to be notified: email, app notification, or daily digest.</li>
+      <li><strong>Review and adjust</strong> - After a week, review which alerts were useful and adjust your settings.</li>
     </ol>
 
     <p><a href="https://tikrr.online">tikrr</a> delivers smart alerts as part of its daily market intelligence platform. Instead of setting individual alerts for each stock, you get a comprehensive daily brief that includes all the smart signals for your watchlist, scored and contextualized.</p>
@@ -304,10 +304,10 @@ export const blogContent: Record<string, string> = {
     <p>The AI stock analysis space has a credibility problem. Here's why:</p>
 
     <ul>
-      <li><strong>Survivorship bias</strong> — Companies that claim "87% accuracy" are showing you their best results, not their worst. They're not counting the trades they didn't highlight.</li>
-      <li><strong>Backtesting fallacy</strong> — AI models can be trained to perfectly predict the past. That doesn't mean they predict the future. Overfitting to historical data is the most common mistake in AI finance.</li>
-      <li><strong>Confusion between analysis and prediction</strong> — AI is genuinely good at analysis (processing data, finding patterns, scoring signals). It's much worse at prediction (telling you what will happen next). Most products blur this line intentionally.</li>
-      <li><strong>Marketing over substance</strong> — Slapping "AI-powered" on a product that uses basic algorithms is common. True AI-driven analysis requires massive data processing, sophisticated models, and continuous learning. Most products don't have this.</li>
+      <li><strong>Survivorship bias</strong> - Companies that claim "87% accuracy" are showing you their best results, not their worst. They're not counting the trades they didn't highlight.</li>
+      <li><strong>Backtesting fallacy</strong> - AI models can be trained to perfectly predict the past. That doesn't mean they predict the future. Overfitting to historical data is the most common mistake in AI finance.</li>
+      <li><strong>Confusion between analysis and prediction</strong> - AI is genuinely good at analysis (processing data, finding patterns, scoring signals). It's much worse at prediction (telling you what will happen next). Most products blur this line intentionally.</li>
+      <li><strong>Marketing over substance</strong> - Slapping "AI-powered" on a product that uses basic algorithms is common. True AI-driven analysis requires massive data processing, sophisticated models, and continuous learning. Most products don't have this.</li>
     </ul>
 
     <blockquote>
@@ -370,10 +370,10 @@ export const blogContent: Record<string, string> = {
     <p>Beyond curation, AI excels at scoring. Every piece of market information can be scored along multiple dimensions:</p>
 
     <ul>
-      <li><strong>Relevance</strong> — How important is this to stocks on my watchlist?</li>
-      <li><strong>Credibility</strong> — How reliable is this source? Is it corroborated by other sources?</li>
-      <li><strong>Timeliness</strong> — How fresh is this information? Is the market already reacting?</li>
-      <li><strong>Impact potential</strong> — Based on historical patterns, how much could this move the stock?</li>
+      <li><strong>Relevance</strong> - How important is this to stocks on my watchlist?</li>
+      <li><strong>Credibility</strong> - How reliable is this source? Is it corroborated by other sources?</li>
+      <li><strong>Timeliness</strong> - How fresh is this information? Is the market already reacting?</li>
+      <li><strong>Impact potential</strong> - Based on historical patterns, how much could this move the stock?</li>
     </ul>
 
     <p>A good AI scoring system doesn't just filter. It prioritizes. It tells you: "This is the most important thing happening on your watchlist right now, and here's why." That prioritization is enormously valuable when you're monitoring 10-20 stocks.</p>
@@ -541,11 +541,11 @@ export const blogContent: Record<string, string> = {
     <p>AI watchlist scoring typically combines multiple factors:</p>
 
     <ul>
-      <li><strong>Momentum score</strong> — Is the stock trending up or down? How strong is the trend?</li>
-      <li><strong>Sentiment score</strong> — Are people talking positively or negatively about it? Is the conversation heating up?</li>
-      <li><strong>News score</strong> — Has there been significant news? How relevant is it to the stock's price?</li>
-      <li><strong>Technical score</strong> — Are there support/resistance breaks, unusual volume, or pattern completions?</li>
-      <li><strong>Fundamental score</strong> — Have there been earnings surprises, guidance changes, or analyst revisions?</li>
+      <li><strong>Momentum score</strong> - Is the stock trending up or down? How strong is the trend?</li>
+      <li><strong>Sentiment score</strong> - Are people talking positively or negatively about it? Is the conversation heating up?</li>
+      <li><strong>News score</strong> - Has there been significant news? How relevant is it to the stock's price?</li>
+      <li><strong>Technical score</strong> - Are there support/resistance breaks, unusual volume, or pattern completions?</li>
+      <li><strong>Fundamental score</strong> - Have there been earnings surprises, guidance changes, or analyst revisions?</li>
     </ul>
 
     <p>These individual scores combine into a composite score that tells you, at a glance, which stocks on your watchlist deserve the most attention right now. It's not a prediction. It's a prioritization tool.</p>
@@ -588,11 +588,11 @@ export const blogContent: Record<string, string> = {
     <p>AI stock watchlists aren't just for day traders or quant analysts. They're valuable for:</p>
 
     <ul>
-      <li><strong>Long-term investors</strong> — Stay aware of developments affecting your holdings without constantly checking news</li>
-      <li><strong>Swing traders</strong> — Get early signals on momentum shifts and sentiment changes</li>
-      <li><strong>Busy professionals</strong> — Get a daily intelligence briefing on your watchlist without spending 30+ minutes on research</li>
-      <li><strong>Analysts</strong> — Monitor multiple stocks or sectors efficiently for research coverage</li>
-      <li><strong>Financial advisors</strong> — Stay informed about client holdings with minimal time investment</li>
+      <li><strong>Long-term investors</strong> - Stay aware of developments affecting your holdings without constantly checking news</li>
+      <li><strong>Swing traders</strong> - Get early signals on momentum shifts and sentiment changes</li>
+      <li><strong>Busy professionals</strong> - Get a daily intelligence briefing on your watchlist without spending 30+ minutes on research</li>
+      <li><strong>Analysts</strong> - Monitor multiple stocks or sectors efficiently for research coverage</li>
+      <li><strong>Financial advisors</strong> - Stay informed about client holdings with minimal time investment</li>
     </ul>
 
     <p>If you have a watchlist of more than 5 stocks, an AI watchlist will save you time and surface information you'd otherwise miss.</p>
@@ -617,11 +617,11 @@ export const blogContent: Record<string, string> = {
     <p>Daily market intelligence is a structured approach to staying informed about the forces that move markets, companies, and sectors. It goes beyond reading the news. Good daily intel combines:</p>
 
     <ul>
-      <li><strong>Price action and technical signals</strong> — what the market is doing right now</li>
-      <li><strong>Fundamental developments</strong> — earnings, guidance, product launches, regulatory changes</li>
-      <li><strong>Sentiment analysis</strong> — what people are saying on social media, forums, and analyst calls</li>
-      <li><strong>Macro context</strong> — central bank policy, economic data, geopolitical events</li>
-      <li><strong>Watchlist-specific signals</strong> — developments that directly impact your holdings or targets</li>
+      <li><strong>Price action and technical signals</strong> - what the market is doing right now</li>
+      <li><strong>Fundamental developments</strong> - earnings, guidance, product launches, regulatory changes</li>
+      <li><strong>Sentiment analysis</strong> - what people are saying on social media, forums, and analyst calls</li>
+      <li><strong>Macro context</strong> - central bank policy, economic data, geopolitical events</li>
+      <li><strong>Watchlist-specific signals</strong> - developments that directly impact your holdings or targets</li>
     </ul>
 
     <p>The key word is "daily." Not weekly. Not when you feel like it. Every trading day, you should have a fresh intelligence briefing that reflects the latest market reality.</p>
@@ -722,9 +722,9 @@ export const blogContent: Record<string, string> = {
     <p>Regardless of which tools you use, a good daily workflow follows this pattern:</p>
 
     <ol>
-      <li><strong>Morning brief (5 min)</strong> — Review your AI-generated or curated daily intelligence. Note what's changed overnight and what catalysts are coming today.</li>
-      <li><strong>Midday check (2 min)</strong> — Quick scan of any breaking developments or unexpected moves in your watchlist.</li>
-      <li><strong>End-of-day review (5 min)</strong> — Review what happened, note any signals you missed, and check tomorrow's catalyst calendar.</li>
+      <li><strong>Morning brief (5 min)</strong> - Review your AI-generated or curated daily intelligence. Note what's changed overnight and what catalysts are coming today.</li>
+      <li><strong>Midday check (2 min)</strong> - Quick scan of any breaking developments or unexpected moves in your watchlist.</li>
+      <li><strong>End-of-day review (5 min)</strong> - Review what happened, note any signals you missed, and check tomorrow's catalyst calendar.</li>
     </ol>
 
     <p>Total time: 12 minutes per day. That's less than the time most people spend scrolling Twitter for market takes, and you'll get better information.</p>
@@ -748,11 +748,11 @@ export const blogContent: Record<string, string> = {
     <p>Here are the tools worth considering, ranked by value for individual investors and analysts:</p>
 
     <ul>
-      <li><strong><a href="https://tikrr.online">tikrr</a></strong> — AI-powered daily market intelligence. Aggregates 50+ sources, scores signals, personalizes to your watchlist. Free tier available. Best value for daily intelligence.</li>
-      <li><strong>Seeking Alpha</strong> — Strong community-driven analysis with daily digests. Good for fundamental research. Premium starts at $240/year.</li>
-      <li><strong>Finviz</strong> — Excellent for screening and visualization. Limited intelligence features. Free with ads, $40/month for premium.</li>
-      <li><strong>Yahoo Finance</strong> — Free, decent for basic news and quotes. No AI scoring or personalization.</li>
-      <li><strong>Bloomberg Terminal</strong> — The gold standard, but $24,000/year. Overkill for most individual users.</li>
+      <li><strong><a href="https://tikrr.online">tikrr</a></strong> - AI-powered daily market intelligence. Aggregates 50+ sources, scores signals, personalizes to your watchlist. Free tier available. Best value for daily intelligence.</li>
+      <li><strong>Seeking Alpha</strong> - Strong community-driven analysis with daily digests. Good for fundamental research. Premium starts at $240/year.</li>
+      <li><strong>Finviz</strong> - Excellent for screening and visualization. Limited intelligence features. Free with ads, $40/month for premium.</li>
+      <li><strong>Yahoo Finance</strong> - Free, decent for basic news and quotes. No AI scoring or personalization.</li>
+      <li><strong>Bloomberg Terminal</strong> - The gold standard, but $24,000/year. Overkill for most individual users.</li>
     </ul>
 
     <p>For a detailed comparison of all major tools, see our guide on the <a href="/blog/best-market-intelligence-tools-2026">best market intelligence tools in 2026</a>.</p>
@@ -779,19 +779,19 @@ export const blogContent: Record<string, string> = {
     <p>Let's set expectations first. Free market intelligence tools are excellent for:</p>
 
     <ul>
-      <li><strong>Basic price tracking</strong> — Real-time or near-real-time quotes</li>
-      <li><strong>News aggregation</strong> — Collecting headlines from major outlets</li>
-      <li><strong>Basic screening</strong> — Filtering stocks by fundamental criteria</li>
-      <li><strong>Community sentiment</strong> — Gauging what retail investors are saying</li>
+      <li><strong>Basic price tracking</strong> - Real-time or near-real-time quotes</li>
+      <li><strong>News aggregation</strong> - Collecting headlines from major outlets</li>
+      <li><strong>Basic screening</strong> - Filtering stocks by fundamental criteria</li>
+      <li><strong>Community sentiment</strong> - Gauging what retail investors are saying</li>
     </ul>
 
     <p>They're generally poor at:</p>
 
     <ul>
-      <li><strong>Personalized intelligence</strong> — Tailoring signals to your specific watchlist</li>
-      <li><strong>Multi-source aggregation</strong> — Combining news, social, filings, and research</li>
-      <li><strong>AI scoring</strong> — Prioritizing what matters vs what's noise</li>
-      <li><strong>Consistent daily delivery</strong> — Giving you a structured daily brief</li>
+      <li><strong>Personalized intelligence</strong> - Tailoring signals to your specific watchlist</li>
+      <li><strong>Multi-source aggregation</strong> - Combining news, social, filings, and research</li>
+      <li><strong>AI scoring</strong> - Prioritizing what matters vs what's noise</li>
+      <li><strong>Consistent daily delivery</strong> - Giving you a structured daily brief</li>
     </ul>
 
     <p>The gap between what free tools offer and what you actually need for daily market intelligence is exactly where paid tools like <a href="https://tikrr.online">tikrr</a> add value. But let's start with what you can get for free.</p>
@@ -915,11 +915,11 @@ export const blogContent: Record<string, string> = {
     <p>If you want to build a market intelligence workflow using only free tools, here's the best approach:</p>
 
     <ol>
-      <li><strong>Morning: tikrr daily brief</strong> — Get your AI-powered daily intelligence for free. This covers news, sentiment, and watchlist signals in one place.</li>
-      <li><strong>Screening: Finviz</strong> — Use the free screener to find new stocks that match your criteria.</li>
-      <li><strong>Charting: TradingView</strong> — Analyze stocks you're interested in with the free charting tier.</li>
-      <li><strong>Fundamentals: SEC EDGAR + Macrotrends</strong> — Deep dive into filings and historical financials when you need them.</li>
-      <li><strong>Sentiment: StockTwits + Reddit</strong> — Gauge retail sentiment, but take it with a grain of salt.</li>
+      <li><strong>Morning: tikrr daily brief</strong> - Get your AI-powered daily intelligence for free. This covers news, sentiment, and watchlist signals in one place.</li>
+      <li><strong>Screening: Finviz</strong> - Use the free screener to find new stocks that match your criteria.</li>
+      <li><strong>Charting: TradingView</strong> - Analyze stocks you're interested in with the free charting tier.</li>
+      <li><strong>Fundamentals: SEC EDGAR + Macrotrends</strong> - Deep dive into filings and historical financials when you need them.</li>
+      <li><strong>Sentiment: StockTwits + Reddit</strong> - Gauge retail sentiment, but take it with a grain of salt.</li>
     </ol>
 
     <p>This workflow covers 80% of what a paid intelligence platform offers, at zero cost. The remaining 20% (advanced AI scoring, multi-source correlation, push delivery) is where a tool like tikrr's paid tier or a Bloomberg terminal adds value.</p>
@@ -942,12 +942,12 @@ export const blogContent: Record<string, string> = {
     <p>Before diving into specific tools, let's establish what actually matters:</p>
 
     <ul>
-      <li><strong>Intelligence vs data</strong> — Raw data is everywhere. Intelligence is data that's been filtered, scored, and contextualized. The best tools deliver intelligence, not just data.</li>
-      <li><strong>Source diversity</strong> — Does the tool pull from news, social media, filings, and research? Or just one source?</li>
-      <li><strong>Personalization</strong> — Can it tailor intelligence to your specific watchlist and interests?</li>
-      <li><strong>Speed</strong> — How quickly does it surface new developments?</li>
-      <li><strong>Cost</strong> — What's the value-to-price ratio?</li>
-      <li><strong>Learning curve</strong> — How long does it take to get value from the tool?</li>
+      <li><strong>Intelligence vs data</strong> - Raw data is everywhere. Intelligence is data that's been filtered, scored, and contextualized. The best tools deliver intelligence, not just data.</li>
+      <li><strong>Source diversity</strong> - Does the tool pull from news, social media, filings, and research? Or just one source?</li>
+      <li><strong>Personalization</strong> - Can it tailor intelligence to your specific watchlist and interests?</li>
+      <li><strong>Speed</strong> - How quickly does it surface new developments?</li>
+      <li><strong>Cost</strong> - What's the value-to-price ratio?</li>
+      <li><strong>Learning curve</strong> - How long does it take to get value from the tool?</li>
     </ul>
 
     <p>With those criteria in mind, let's look at the tools.</p>
@@ -1385,7 +1385,7 @@ export const blogContent: Record<string, string> = {
         <tbody>
           <tr>
             <td>Stock Screener</td>
-            <td>Excellent — 60+ filters, real-time (Elite)</td>
+            <td>Excellent - 60+ filters, real-time (Elite)</td>
             <td>Not a screener (different category)</td>
             <td>Finviz</td>
           </tr>
@@ -1397,7 +1397,7 @@ export const blogContent: Record<string, string> = {
           </tr>
           <tr>
             <td>Daily Market Brief</td>
-            <td>None — raw news feed only</td>
+            <td>None - raw news feed only</td>
             <td>Twice-daily AI briefs with context</td>
             <td>tikrr</td>
           </tr>
@@ -1415,7 +1415,7 @@ export const blogContent: Record<string, string> = {
           </tr>
           <tr>
             <td>News Aggregation</td>
-            <td>Good — aggregated from multiple sources</td>
+            <td>Good - aggregated from multiple sources</td>
             <td>AI-curated with relevance scoring</td>
             <td>Tie</td>
           </tr>
@@ -1439,13 +1439,13 @@ export const blogContent: Record<string, string> = {
           </tr>
           <tr>
             <td>Learning Curve</td>
-            <td>Medium — screener has learning curve</td>
-            <td>Low — brief format is immediately useful</td>
+            <td>Medium - screener has learning curve</td>
+            <td>Low - brief format is immediately useful</td>
             <td>tikrr</td>
           </tr>
           <tr>
             <td>Mobile Experience</td>
-            <td>Poor — desktop-focused, dated UI</td>
+            <td>Poor - desktop-focused, dated UI</td>
             <td>Modern, responsive design</td>
             <td>tikrr</td>
           </tr>
@@ -1478,8 +1478,8 @@ export const blogContent: Record<string, string> = {
           </tr>
           <tr>
             <td>Entry Paid</td>
-            <td>$39.50/mo (Elite) — real-time data, advanced screener, export, no ads</td>
-            <td>$9/mo (Pro) — full AI briefs, unlimited watchlist, email alerts, scorecard</td>
+            <td>$39.50/mo (Elite) - real-time data, advanced screener, export, no ads</td>
+            <td>$9/mo (Pro) - full AI briefs, unlimited watchlist, email alerts, scorecard</td>
           </tr>
           <tr>
             <td>Annual</td>
@@ -1533,7 +1533,7 @@ export const blogContent: Record<string, string> = {
       <div class="card" style="border-color:var(--green);">
         <h3>They Solve Different Problems</h3>
         <p style="font-size:1.05em; line-height:1.7; margin-top:12px;">Finviz is a <strong>screener</strong>. It answers "show me stocks that match my criteria." tikrr is an <strong>intelligence platform</strong>. It answers "what's happening in the market and what does it mean for me?"</p>
-        <p style="margin-top:12px; color:var(--text-dim);">If you're an active trader who scans for setups, Finviz is essential. If you're an investor who wants to understand the market in 5 minutes every morning, tikrr is the better fit. Many users will benefit from both — Finviz for screening, tikrr for intelligence.</p>
+        <p style="margin-top:12px; color:var(--text-dim);">If you're an active trader who scans for setups, Finviz is essential. If you're an investor who wants to understand the market in 5 minutes every morning, tikrr is the better fit. Many users will benefit from both - Finviz for screening, tikrr for intelligence.</p>
         <p style="margin-top:12px; color:var(--text-dim);">At $9/mo vs $39.50/mo, tikrr is also the clear value play. You get AI-powered intelligence for less than a quarter of Finviz's price.</p>
       </div>
 

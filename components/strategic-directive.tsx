@@ -90,7 +90,7 @@ export function StrategicDirective({ ticker, directive, instrumentId }: Props) {
   return <StrategicDirectiveCard ticker={ticker} directive={directive} instrumentId={instrumentId} />;
 }
 
-/** Same UI as the AI tab strategic directive — pass static copy for marketing / previews. */
+/** Same UI as the AI tab strategic directive - pass static copy for marketing / previews. */
 export function StrategicDirectiveDemo({
   ticker,
   directive,

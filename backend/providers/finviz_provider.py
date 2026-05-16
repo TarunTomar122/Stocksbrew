@@ -1,7 +1,7 @@
 """Finviz quote-page scraper.
 
-Finviz renders a stock's pre-computed technicals — RSI (14), SMA20/50/200,
-ATR, beta, etc. — as a static HTML table on every quote page:
+Finviz renders a stock's pre-computed technicals - RSI (14), SMA20/50/200,
+ATR, beta, etc. - as a static HTML table on every quote page:
 
     https://finviz.com/quote.ashx?t=AAPL
 
@@ -22,7 +22,7 @@ import requests
 
 FINVIZ_URL = "https://finviz.com/quote.ashx?t={ticker}"
 
-# A modern UA — Finviz returns 403 to default `python-requests`.
+# A modern UA - Finviz returns 403 to default `python-requests`.
 DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -131,7 +131,7 @@ def fetch_one_finviz_technicals(
             "value": round(rsi, 2) if rsi is not None else None,
             "state": _rsi_state_from_value(rsi),
         },
-        # Bonus: keep these around — useful for future technical signals
+        # Bonus: keep these around - useful for future technical signals
         # without paying for another scrape pass.
         "atr": _to_float(snap.get("ATR (14)", "")),
         "beta": _to_float(snap.get("Beta", "")),
@@ -149,7 +149,7 @@ def fetch_finviz_technicals_batch(
 ) -> dict[str, dict[str, Any]]:
     """Concurrently scrape Finviz for many tickers. Keyed by upper-case ticker.
 
-    Failed tickers are present with an `error` key — caller decides whether
+    Failed tickers are present with an `error` key - caller decides whether
     to fall back to another source.
     """
     if not tickers:

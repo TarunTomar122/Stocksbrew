@@ -158,7 +158,7 @@ function fallbackBrief(
   return {
     headline,
     today_brief: todayBrief,
-    thesis: "Tikrr has enough price, technical, and scorecard data to monitor this stock while the personal AI brief is generated.",
+    thesis: "tikrr has enough price, technical, and scorecard data to monitor this stock while the personal AI brief is generated.",
     catalyst: "No fresh catalyst found yet.",
     risk: "Watch for large price moves, stretched RSI, and scorecard deterioration.",
     overall_label: "neutral",

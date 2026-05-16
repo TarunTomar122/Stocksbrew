@@ -392,7 +392,7 @@ class TraceMoneyStore:
 
     def get_latest_prices(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
         """Batch-fetch latest price docs. Firestore's get_all() accepts up to
-        500 refs per call, so we chunk — one round trip per 500 instruments
+        500 refs per call, so we chunk - one round trip per 500 instruments
         instead of N serial round trips."""
         rows: dict[str, dict[str, Any]] = {}
         collection = self.db.collection("tm_latest_prices")
@@ -1052,7 +1052,7 @@ class TraceMoneyStore:
     # fresh enrichments by article.published_at date and merges them in,
     # trimming anything older than 30 days. This gives the heat-list scorer
     # a baseline it can compare the last 7 days against, without us needing
-    # a new long-lived time-series store — one doc, one read, one write.
+    # a new long-lived time-series store - one doc, one read, one write.
 
     def upsert_mention_stats(
         self,
@@ -1167,7 +1167,7 @@ class TraceMoneyStore:
                 for doc in self.db.get_all(chunk_refs):
                     if not doc.exists:
                         continue
-                    # Doc id is "{instrument_id}_{date}" — strip the date suffix.
+                    # Doc id is "{instrument_id}_{date}" - strip the date suffix.
                     raw_id = doc.id
                     iid = raw_id[: -(len(date_str) + 1)]  # remove trailing _YYYY-MM-DD
                     result[iid] = _serialize(doc.to_dict()) or {}

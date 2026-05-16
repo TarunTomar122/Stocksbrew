@@ -12,7 +12,7 @@ import requests
 
 from backend.env import load_backend_env
 from backend.llm_client import (
-    MIMO_API_URL,
+    llm_api_url,
     json_response_format,
     llm_api_key,
     llm_headers,
@@ -26,7 +26,7 @@ from backend.storage import TraceMoneyStore
 
 load_backend_env()
 
-LLM_API_URL = MIMO_API_URL
+LLM_API_URL = llm_api_url()
 CONTEXT_CACHE_VERSION = "2026-04-23-context-v15-strict-dates-no-placeholders"
 
 
@@ -61,14 +61,14 @@ class ContextBriefWriter:
                         "risk": {"type": "string"},
                         "what_changed": {
                             "type": "string",
-                            "description": "One sentence — TICKER + driver. Quote numbers only from stock_today_points / stock_week_points; never invent a percent move or price.",
+                            "description": "One sentence - TICKER + driver. Quote numbers only from stock_today_points / stock_week_points; never invent a percent move or price.",
                         },
                         "why_it_matters": {
                             "type": "object",
                             "properties": {
                                 "claim": {
                                     "type": "string",
-                                    "description": "One-sentence qualitative link between the event and a broader outcome. NO dollar or percent values in this string — the numeric gap is added by the server via gap_anchor.",
+                                    "description": "One-sentence qualitative link between the event and a broader outcome. NO dollar or percent values in this string - the numeric gap is added by the server via gap_anchor.",
                                 },
                                 "gap_anchor": {
                                     "type": "string",
@@ -167,7 +167,7 @@ class ContextBriefWriter:
                         },
                         "week_brief": {
                             "type": "string",
-                            "description": "1 short sentence on the rolling week. Must add a NEW fact not in today_brief — different ticker, different number, or different angle.",
+                            "description": "1 short sentence on the rolling week. Must add a NEW fact not in today_brief - different ticker, different number, or different angle.",
                         },
                         "what_changed": {
                             "type": "string",
@@ -175,19 +175,19 @@ class ContextBriefWriter:
                         },
                         "bull_case": {
                             "type": "string",
-                            "description": "One sentence — the strongest reason to be long the sector right now. Name a ticker or a payload fact. No cheerleading filler.",
+                            "description": "One sentence - the strongest reason to be long the sector right now. Name a ticker or a payload fact. No cheerleading filler.",
                         },
                         "bear_case": {
                             "type": "string",
-                            "description": "One sentence — the strongest reason to fade or avoid the sector right now. Name a ticker or a payload fact. Must be a real risk, not hedging.",
+                            "description": "One sentence - the strongest reason to fade or avoid the sector right now. Name a ticker or a payload fact. Must be a real risk, not hedging.",
                         },
                         "crowd_miss": {
                             "type": "string",
-                            "description": "One sentence — a contrarian angle the tape isn't pricing, or an under-covered name in the sector. Must name a ticker or a specific datapoint.",
+                            "description": "One sentence - a contrarian angle the tape isn't pricing, or an under-covered name in the sector. Must name a ticker or a specific datapoint.",
                         },
                         "what_to_watch": {
                             "type": "string",
-                            "description": "One concrete future trigger — ticker + event, a date, or a price threshold. Never 'watch for developments'.",
+                            "description": "One concrete future trigger - ticker + event, a date, or a price threshold. Never 'watch for developments'.",
                         },
                     },
                     "required": [
@@ -221,15 +221,15 @@ class ContextBriefWriter:
 
     def _system_prompt(self, kind: str) -> str:
         universal_rules = (
-            "Hard specificity rules — enforce these on every field you return:\n"
+            "Hard specificity rules - enforce these on every field you return:\n"
             "- Every sentence must name at least one ticker, sector, or concrete number (%, $, rank, or date). No exceptions.\n"
             "- Use only facts present in the provided payload. Do not invent tickers, prices, or catalysts.\n"
             "- When a ticker is available in the payload, use it by symbol (e.g. NVDA, AMD), not 'the company'.\n"
-            "- Banned filler words and phrases — never use: 'constructive', 'robust', 'strong momentum', 'notable', 'reinforces', 'reflects confidence', 'substantial upside', 'could drive', 'further insights', 'maintaining its leadership', 'signal is based on', 'today's tone is', 'over the last week', 'the company is a major player', 'sees substantial', 'overall market sentiment'.\n"
+            "- Banned filler words and phrases - never use: 'constructive', 'robust', 'strong momentum', 'notable', 'reinforces', 'reflects confidence', 'substantial upside', 'could drive', 'further insights', 'maintaining its leadership', 'signal is based on', 'today's tone is', 'over the last week', 'the company is a major player', 'sees substantial', 'overall market sentiment'.\n"
             "- Banned hedges unless paired with a concrete number: 'may', 'could', 'might', 'indicates'. If you hedge, include the number you are hedging about.\n"
-            "- Do not restate the label ('bullish', 'mixed', 'cautious') — the UI already shows it.\n"
+            "- Do not restate the label ('bullish', 'mixed', 'cautious') - the UI already shows it.\n"
             "- Do not write tautologies that would be true any day (e.g. 'tech is leading because tech stocks are up').\n"
-            "DATE DISCIPLINE — STRICT:\n"
+            "DATE DISCIPLINE - STRICT:\n"
             "- Do NOT emit any date (YYYY-MM-DD, 'Apr 27', 'next Tuesday', 'Q4 2023', etc.) unless that exact date string appears verbatim in the provided payload. If you cannot find it in the payload, write the sentence without a date.\n"
             "- The payload field `today` is the only reference date. Any date you emit must be on or after `today`. Never cite a year older than `today`'s year.\n"
             "- NEVER use angle-bracket placeholder tokens like '<move>', '<catalyst>', '<ticker>', or square-bracket tokens like '[date]', '[price]'. If you do not have the concrete value, rewrite the sentence so the token is not needed.\n"
@@ -238,7 +238,7 @@ class ContextBriefWriter:
             "The three one-liners must answer three different questions. Never paraphrase the same fact across them:\n"
             "- `what_changed` = a concrete EVENT that happened today. Format: TICKER <move or fact>, <driver>. Example: 'AMD +4.2% after Morgan Stanley raised PT to $600 from $480.'\n"
             "- `why_it_matters` = a LINKAGE between that event and a broader outcome, backed by a number or ratio. Example: 'NVDA's 1.7% move contributed ~40% of the tech sector gain on 78% up-volume.'\n"
-            "- `what_to_watch` = a concrete FUTURE trigger. Must include a ticker + event/date OR a price threshold. Example: 'NVDA earnings Tue after close — a beat + raised guide confirms the uptrend; a miss risks breaking the 50DMA near $195.'\n"
+            "- `what_to_watch` = a concrete FUTURE trigger. Must include a ticker + event/date OR a price threshold. Example: 'NVDA earnings Tue after close - a beat + raised guide confirms the uptrend; a miss risks breaking the 50DMA near $195.'\n"
             "If the payload genuinely lacks the data to populate a field concretely, say so plainly (e.g. 'No ticker-specific catalyst confirmed yet.') rather than inventing filler.\n"
         )
         if kind == "stock":
@@ -246,7 +246,7 @@ class ContextBriefWriter:
                 "You write short stock briefs for a market-intelligence product.\n"
                 + universal_rules
                 + "REFUSE meta-commentary. Never say 'X's Y is analyzed/discussed/reviewed/covered'. "
-                "The user already knows the topic — tell them WHAT happened or what the data shows. "
+                "The user already knows the topic - tell them WHAT happened or what the data shows. "
                 "If the only evidence is an explainer, evergreen educational content, or a 'history of' piece with "
                 "no new event, treat it as thin coverage and anchor the brief on the fundamentals payload "
                 "(`stock_score`, pillar standouts, analyst target gap, 52-week position) instead.\n"
@@ -256,15 +256,15 @@ class ContextBriefWriter:
                 "Keep `week_brief` to 1 or 2 short sentences.\n"
                 "Make `catalyst` and `risk` short phrases, each naming a concrete driver (earnings date, analyst action, product event, macro data).\n"
                 "Filling the structured fields `what_changed`, `why_it_matters`, `what_to_watch`:\n"
-                "- `what_changed` — one sentence. Name the TICKER and the driver. You may include a percent or dollar number ONLY if that exact figure already appears in `stock_today_points`, `stock_week_points`, `sector_context_*`, or `market_context_*`. Never invent a move (no 'GOOGL +3.5%' unless 3.5% is in the payload) and never invent a price.\n"
-                "- `why_it_matters.claim` — one short qualitative sentence linking the event to a broader outcome. Do NOT put ANY dollar or percent values in this string — they are added automatically by the server from `gap_anchor`.\n"
-                "- `why_it_matters.gap_anchor` — if the framing is about how far the stock sits from a payload price, pick `analyst_target`, `week_52_high`, or `week_52_low`. Otherwise pick `none`. The server computes both the percent gap and whether the current price is above or below that anchor — do NOT write the percent or the direction yourself.\n"
-                "- `what_to_watch.monitor` — a purely qualitative description of what to watch (e.g. 'follow-through in Google Cloud revenue', 'next earnings release for guidance'). NO dates, NO percent values, NO dollar values in this string — those slots exist separately.\n"
-                "- `what_to_watch.price_anchor` — pick `current_price` / `analyst_target` / `week_52_high` / `week_52_low` if it's natural to anchor the trigger to that payload price. Pick `none` otherwise. Do NOT invent prices; the server appends the exact payload number.\n"
-                "- `what_to_watch.future_date_iso` — set an ISO date (YYYY-MM-DD) ONLY if the payload clearly supports a specific future event date AND that date is on or after `today`. Otherwise return null. Never invent a date.\n"
+                "- `what_changed` - one sentence. Name the TICKER and the driver. You may include a percent or dollar number ONLY if that exact figure already appears in `stock_today_points`, `stock_week_points`, `sector_context_*`, or `market_context_*`. Never invent a move (no 'GOOGL +3.5%' unless 3.5% is in the payload) and never invent a price.\n"
+                "- `why_it_matters.claim` - one short qualitative sentence linking the event to a broader outcome. Do NOT put ANY dollar or percent values in this string - they are added automatically by the server from `gap_anchor`.\n"
+                "- `why_it_matters.gap_anchor` - if the framing is about how far the stock sits from a payload price, pick `analyst_target`, `week_52_high`, or `week_52_low`. Otherwise pick `none`. The server computes both the percent gap and whether the current price is above or below that anchor - do NOT write the percent or the direction yourself.\n"
+                "- `what_to_watch.monitor` - a purely qualitative description of what to watch (e.g. 'follow-through in Google Cloud revenue', 'next earnings release for guidance'). NO dates, NO percent values, NO dollar values in this string - those slots exist separately.\n"
+                "- `what_to_watch.price_anchor` - pick `current_price` / `analyst_target` / `week_52_high` / `week_52_low` if it's natural to anchor the trigger to that payload price. Pick `none` otherwise. Do NOT invent prices; the server appends the exact payload number.\n"
+                "- `what_to_watch.future_date_iso` - set an ISO date (YYYY-MM-DD) ONLY if the payload clearly supports a specific future event date AND that date is on or after `today`. Otherwise return null. Never invent a date.\n"
                 "General discipline:\n"
                 "- The payload field `today` is TODAY's date. Never reference any date earlier than `today` anywhere.\n"
-                "- Never output placeholder tokens like 'X%', 'TBD', 'N/A', '$—', '[price]'. If the number is unknown, rewrite without it.\n"
+                "- Never output placeholder tokens like 'X%', 'TBD', 'N/A', '$-', '[price]'. If the number is unknown, rewrite without it.\n"
                 "Return strict JSON only."
             )
         if kind == "sector":
@@ -272,18 +272,18 @@ class ContextBriefWriter:
                 "You write short sector briefs for a market-intelligence product. Every field names a ticker or a concrete number.\n"
                 + universal_rules
                 + "Never output placeholder tokens like 'X%', '+X%', 'TBD', 'N/A', '[insert date]', '{{ticker}}'. "
-                "If a number is unknown, rewrite the sentence without it — never ship a template.\n"
+                "If a number is unknown, rewrite the sentence without it - never ship a template.\n"
                 "No paraphrasing across fields. Each of the seven fields (today_brief, week_brief, what_changed, bull_case, bear_case, crowd_miss, what_to_watch) "
-                "must carry a DIFFERENT fact — different ticker, different driver, or different angle. If you cannot find seven distinct angles in the payload, "
+                "must carry a DIFFERENT fact - different ticker, different driver, or different angle. If you cannot find seven distinct angles in the payload, "
                 "say so plainly in the weakest field (e.g. 'No distinct week-over-week shift yet.') rather than repeat yourself.\n"
                 "Field roles:\n"
-                "- `today_brief` — 1 sentence capturing the sector's dominant story today.\n"
-                "- `week_brief` — 1 sentence on the rolling week, using a DIFFERENT ticker or angle than today_brief.\n"
-                "- `what_changed` — the concrete event driving today's tape. Format: TICKER <move or action>, <catalyst>. Use only tickers and numbers present in the payload.\n"
-                "- `bull_case` — the single strongest long thesis for this sector right now, anchored to a payload ticker or fact. Must be substantive, not 'momentum is strong'.\n"
-                "- `bear_case` — the single strongest reason to fade or avoid the sector, anchored to a real risk in the payload (a ticker breaking down, a rate/policy/demand concern mentioned). If the payload is uniformly positive, write 'No clear bear catalyst in today's flow.' — do not invent one.\n"
-                "- `crowd_miss` — a contrarian angle the consensus narrative isn't pricing, OR an under-covered ticker in the sector worth flagging. Name a ticker or a specific datapoint. If nothing qualifies, write 'Nothing off-consensus stands out today.'\n"
-                "- `what_to_watch` — one concrete future trigger: TICKER + event, OR a price threshold. You MAY include a date ONLY if that exact date string is present verbatim in `today_key_points`/`week_key_points`. If no such date exists in the payload, omit the date entirely — do not guess, do not default to last quarter, do not emit '2023-xx-xx'. Never 'watch for developments'.\n"
+                "- `today_brief` - 1 sentence capturing the sector's dominant story today.\n"
+                "- `week_brief` - 1 sentence on the rolling week, using a DIFFERENT ticker or angle than today_brief.\n"
+                "- `what_changed` - the concrete event driving today's tape. Format: TICKER <move or action>, <catalyst>. Use only tickers and numbers present in the payload.\n"
+                "- `bull_case` - the single strongest long thesis for this sector right now, anchored to a payload ticker or fact. Must be substantive, not 'momentum is strong'.\n"
+                "- `bear_case` - the single strongest reason to fade or avoid the sector, anchored to a real risk in the payload (a ticker breaking down, a rate/policy/demand concern mentioned). If the payload is uniformly positive, write 'No clear bear catalyst in today's flow.' - do not invent one.\n"
+                "- `crowd_miss` - a contrarian angle the consensus narrative isn't pricing, OR an under-covered ticker in the sector worth flagging. Name a ticker or a specific datapoint. If nothing qualifies, write 'Nothing off-consensus stands out today.'\n"
+                "- `what_to_watch` - one concrete future trigger: TICKER + event, OR a price threshold. You MAY include a date ONLY if that exact date string is present verbatim in `today_key_points`/`week_key_points`. If no such date exists in the payload, omit the date entirely - do not guess, do not default to last quarter, do not emit '2023-xx-xx'. Never 'watch for developments'.\n"
                 "Keep every sentence under 22 words. Return strict JSON only."
             )
         top_sectors_rule = ""
@@ -347,7 +347,7 @@ _ISO_DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 
 def _strip_unsafe_dates_and_placeholders(text: str, *, today_iso: str, allowed_dates: set[str]) -> str:
     """Belt-and-suspenders cleanup for LLM free-text fields. We already tell the
-    model not to emit placeholder tokens or unsupported dates — this scrubs them
+    model not to emit placeholder tokens or unsupported dates - this scrubs them
     anyway so stale cache hits and occasional slips never reach the UI."""
     if not text:
         return text
@@ -401,7 +401,7 @@ _CURRENCY_BY_MARKET = {"US": "$", "IN": "₹"}
 def _render_stock_visual_summary(generated: dict[str, Any], payload: dict[str, Any]) -> dict[str, str]:
     """Compose flat strings from the structured LLM output. Every numeric value
     in the final text comes from either the LLM's free-text prose fields or
-    from typed slots that name a specific payload field — we never scrape or
+    from typed slots that name a specific payload field - we never scrape or
     rewrite numbers from the LLM's prose."""
     today_iso = str(payload.get("today", ""))
     currency = _CURRENCY_BY_MARKET.get(str(payload.get("market", "")).upper(), "$")
@@ -448,7 +448,7 @@ def _render_stock_visual_summary(generated: dict[str, Any], payload: dict[str, A
         human = _format_future_date(date_iso.strip(), today_iso)
         if human:
             parts.append(f"by {human}")
-    what_to_watch = " — ".join(parts) if parts else monitor
+    what_to_watch = " - ".join(parts) if parts else monitor
     if what_to_watch and not what_to_watch.endswith("."):
         what_to_watch += "."
 
@@ -483,7 +483,7 @@ def _score_from_articles(articles: list[Article]) -> int:
 
 
 def _unique(values: list[str], limit: int = 4) -> list[str]:
-    """Dedup with prefix-similarity check — two bullets that share the first
+    """Dedup with prefix-similarity check - two bullets that share the first
     ~45 normalized chars (e.g. "Polymarket is seeking to raise $400 million"
     vs "Polymarket is in talks to raise $400 million...") are treated as the
     same point."""
@@ -581,7 +581,7 @@ _US_MARKET_MARKERS = (
 )
 
 _NON_US_WIRE_PATTERNS = (
-    # Titles that look like regional market wire summaries — e.g.
+    # Titles that look like regional market wire summaries - e.g.
     # "Asian Markets Track Wall Street Higher", "Australian Market Trims Early Losses".
     r"^(asian|australian|indian|japanese|chinese|european|uk|british|latam|latin american)\s+(market|markets|shares|stocks|equities)\b",
     r"^(taiwan|hong kong|korea|korean|singapore|philippine|thai|malaysian|indonesia|vietnam)\s+(stocks|shares|markets|weighted)\b",
@@ -610,7 +610,7 @@ def _is_non_us_market_article(article: Article) -> bool:
 
 
 def _article_substance_score(article: Article) -> tuple[int, int, int]:
-    """Rank articles for the LLM payload — longer bodies + more primary entities
+    """Rank articles for the LLM payload - longer bodies + more primary entities
     + US-anchor come first. Returned as a sort key (desc)."""
     body = (getattr(article, "body_text", "") or "").strip()
     body_bucket = min(len(body) // 500, 20)  # 0..20 buckets of 500 chars
@@ -988,7 +988,7 @@ def build_sector_context_docs(
         bear_case = ""
         crowd_miss = ""
         if evidence_gate_passed and writer and writer.enabled:
-            # Sector tickers mentioned across the articles — helps the model anchor
+            # Sector tickers mentioned across the articles - helps the model anchor
             # bull/bear cases to actual names instead of the sector label alone.
             mentioned_tickers = sorted(distinct_tickers)[:12]
             payload = {
@@ -1020,7 +1020,7 @@ def build_sector_context_docs(
             today_brief = _clean(str(generated.get("today_brief", today_brief)).strip()) or today_brief
             week_brief = _clean(str(generated.get("week_brief", week_brief)).strip()) or week_brief
             what_changed = _clean(str(generated.get("what_changed", what_changed)).strip()) or what_changed
-            # The new sector schema has no `why_it_matters` field — bull_case
+            # The new sector schema has no `why_it_matters` field - bull_case
             # replaces that slot on the UI side.
             why_it_matters = ""
             what_to_watch = _clean(str(generated.get("what_to_watch", what_to_watch)).strip()) or what_to_watch
@@ -1120,7 +1120,7 @@ def contextualize_stock_docs(
         generated_risk = str(doc.get("risk", "")).strip()
         # `visual_cards` feeds the Catalysts / Drivers / Risks UI column.
         # The upstream pipeline (stock_intelligence.build_stock_doc) writes
-        # these three arrays inside `visual_summary` — we reshape them into
+        # these three arrays inside `visual_summary` - we reshape them into
         # `visual_cards` here because the next step overwrites `visual_summary`
         # with the {what_changed, why_it_matters, what_to_watch} block.
         upstream_visual = doc.get("visual_summary") if isinstance(doc.get("visual_summary"), dict) else {}
@@ -1190,7 +1190,7 @@ def contextualize_stock_docs(
         doc["headline"] = generated_headline
         doc["catalyst"] = generated_catalyst
         doc["risk"] = generated_risk
-        # Always write visual_cards — even an empty-arrays object is valid and
+        # Always write visual_cards - even an empty-arrays object is valid and
         # lets the frontend distinguish "no data yet" from "field not written".
         doc["visual_cards"] = existing_visual_cards
         doc["visual_summary"] = visual_summary

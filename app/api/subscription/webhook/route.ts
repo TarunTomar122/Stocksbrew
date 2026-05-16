@@ -139,7 +139,7 @@ async function handleEvent(
   const plan = ((data.metadata as Record<string, string> | undefined)?.plan ?? "monthly") as "monthly" | "yearly";
 
   // Dodo docs: track subscription lifecycle via `subscription.active` and
-  // `payment.succeeded` (with a subscription) — do not grant Pro on
+  // `payment.succeeded` (with a subscription) - do not grant Pro on
   // `subscription.created` alone, which can precede a successful charge.
   switch (type) {
     case "subscription.active":
@@ -166,7 +166,7 @@ async function handleEvent(
     }
 
     case "payment.succeeded": {
-      // Only subscription payments extend Pro — ignore unrelated one-off charges.
+      // Only subscription payments extend Pro - ignore unrelated one-off charges.
       const paymentSubId =
         (data.subscription_id as string | undefined) ??
         (data.subscriptionId as string | undefined);

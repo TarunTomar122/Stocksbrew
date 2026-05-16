@@ -9,12 +9,12 @@ export const metadata: Metadata = {
   description: "Unlock Pro access to AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts. Free and Pro plans available.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
-    title: "Tikrr Pro — Pricing & Plans",
+    title: "tikrr Pro - Pricing & Plans",
     description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
     url: "https://www.tikrr.online/subscribe",
   },
   twitter: {
-    title: "Tikrr Pro — Pricing & Plans",
+    title: "tikrr Pro - Pricing & Plans",
     description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
   },
 };
@@ -44,7 +44,7 @@ export default async function SubscribePage({ searchParams }: Props) {
       <div className="mx-auto flex w-full max-w-screen-xl flex-col items-center gap-12 px-6 md:px-10 lg:px-16 py-16 md:py-24">
 
         {justSubscribed && !isSubscribed && (
-          /* Webhook hasn't fired yet — show a pending state */
+          /* Webhook hasn't fired yet - show a pending state */
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#eff6ff]">
               <span
@@ -54,7 +54,7 @@ export default async function SubscribePage({ searchParams }: Props) {
                 hourglass_top
               </span>
             </span>
-            <p className="text-[16px] font-semibold text-[#111111]">Payment received — activating your Pro…</p>
+            <p className="text-[16px] font-semibold text-[#111111]">Payment received - activating your Pro…</p>
             <p className="text-[14px] text-[#6b7280] max-w-sm">
               This usually takes a few seconds. Refresh the page if it doesn&apos;t update automatically.
             </p>

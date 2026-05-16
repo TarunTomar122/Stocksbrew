@@ -73,7 +73,7 @@ function rsiMeta(state?: string): { label: string; color: string; bg: string } |
   }
 }
 
-// ─── Rail row (left sidebar — lean) ──────────────────────────────────────────
+// ─── Rail row (left sidebar - lean) ──────────────────────────────────────────
 
 function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: string[]; isSubscribed: boolean }) {
   const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
@@ -100,16 +100,16 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
           {pct.positive ? "▲" : "▼"} {pct.text}
         </span>
       ) : (
-        <span className="text-[12px] text-[#d1d5db]">—</span>
+        <span className="text-[12px] text-[#d1d5db]">-</span>
       )}
       <TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.includes(row.instrument_id)} isSubscribed={isSubscribed} variant="icon" />
     </div>
   );
 }
 
-// ─── Table row (right rail — full columns) ────────────────────────────────────
+// ─── Table row (right rail - full columns) ────────────────────────────────────
 
-// Column widths — must match TableHeader exactly
+// Column widths - must match TableHeader exactly
 const COL_RSI    = "w-[160px]";
 const COL_HEAT   = "w-[48px]";
 const COL_CHANGE = "w-[80px]";
@@ -145,7 +145,7 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
         </div>
       </a>
 
-      {/* RSI — number always visible, badge sm+ only */}
+      {/* RSI - number always visible, badge sm+ only */}
       <div className="shrink-0 flex items-center justify-end gap-1.5 w-[36px] sm:w-[160px]">
         {rsi !== null ? (
           <>
@@ -157,11 +157,11 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
             )}
           </>
         ) : (
-          <span className="text-[12px] text-[#d1d5db]">—</span>
+          <span className="text-[12px] text-[#d1d5db]">-</span>
         )}
       </div>
 
-      {/* Heat — hidden on mobile */}
+      {/* Heat - hidden on mobile */}
       <div className={`${COL_HEAT} hidden sm:flex shrink-0 justify-end`}>
         <span className="text-[14px] font-semibold tabular-nums" style={{ color: heatColor }}>
           {Math.round(row.heat_score)}
@@ -178,7 +178,7 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
             {pct.positive ? "▲" : "▼"} {pct.text}
           </span>
         ) : (
-          <span className="text-[12px] text-[#d1d5db]">—</span>
+          <span className="text-[12px] text-[#d1d5db]">-</span>
         )}
       </div>
 

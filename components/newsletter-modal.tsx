@@ -102,7 +102,7 @@ export function NewsletterModal() {
                   The week in markets,<br />in plain English
                 </h2>
                 <p className="text-[13px] text-[#6b7280] leading-relaxed">
-                  What moved, what mattered, and what to watch next — delivered free every week.
+                  What moved, what mattered, and what to watch next - delivered free every week.
                 </p>
               </div>
 

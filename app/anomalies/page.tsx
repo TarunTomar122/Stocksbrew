@@ -4,31 +4,36 @@ import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { getCurrentMarket } from "@/lib/market";
 import { AnomaliesPageView } from "@/components/anomalies-page-view";
+import { getSessionUser } from "@/lib/auth-server";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Market Anomalies — Unusual Stock Moves Today",
+  title: "Market Anomalies - Unusual Stock Moves Today",
   description:
     "Stocks with the biggest unusual price moves today. See what's surging, what's dropping, and why.",
   alternates: { canonical: "/anomalies" },
   openGraph: {
-    title: "Market Anomalies · Tikrr",
-    description: "Stocks with unusual price moves today — what's surging, what's dropping, and why.",
+    title: "Market Anomalies · tikrr",
+    description: "Stocks with unusual price moves today - what's surging, what's dropping, and why.",
     url: "https://www.tikrr.online/anomalies",
   },
   twitter: {
-    title: "Market Anomalies · Tikrr",
-    description: "Stocks with unusual price moves today — what's surging, what's dropping, and why.",
+    title: "Market Anomalies · tikrr",
+    description: "Stocks with unusual price moves today - what's surging, what's dropping, and why.",
   },
 };
 
 export default async function AnomaliesPage() {
   const market = getCurrentMarket();
-  const [data, reddit] = await Promise.all([
+  const session = await getSessionUser();
+  const [data, reddit, userDoc] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
+    session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
   ]);
+  const isSubscribed = resolveIsSubscribed(userDoc);
 
   const isEmpty = !data || data.anomalies.length === 0;
 
@@ -49,6 +54,7 @@ export default async function AnomaliesPage() {
             summary={data.summary}
             generatedAt={data.enriched_at || data.generated_at}
             reddit={reddit}
+            isSubscribed={isSubscribed}
           />
         )}
 

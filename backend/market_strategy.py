@@ -65,6 +65,8 @@ def market_strategy_for(market: str) -> dict[str, Any]:
 
 
 def default_llm_model() -> str:
+    if os.getenv("OPENAI_API_KEY", "").strip():
+        return os.getenv("OPENAI_MODEL", "").strip() or "gpt-4.1-mini"
     return (
         os.getenv("MIMO_MODEL", "").strip()
         or load_market_strategy().get("default_llm_model", "mimo-v2.5")

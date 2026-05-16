@@ -3,12 +3,12 @@ import Link from "next/link";
 import type { DivergenceList, DivergenceRow } from "@/lib/divergence";
 
 function fmtPct(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
 function fmtScore(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   return v.toFixed(2);
 }
 

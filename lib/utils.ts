@@ -32,7 +32,7 @@ export function unique<T>(values: T[]): T[] {
 
 /**
  * Returns a human-readable relative time string for a given ISO date string.
- * Safe to call in server components — no client-side Date.now() drift.
+ * Safe to call in server components - no client-side Date.now() drift.
  * Examples: "just now", "5m ago", "2h ago", "Apr 16"
  */
 export function relativeTime(isoDate: string | undefined): string {
@@ -52,7 +52,7 @@ export function relativeTime(isoDate: string | undefined): string {
 /**
  * Currency symbol for a given market. Centralized so every price display on
  * the stock pages / scorecard can call the same helper instead of hardcoding
- * "$" — which broke for IN stocks. Expand as new markets come online.
+ * "$" - which broke for IN stocks. Expand as new markets come online.
  */
 export function currencySymbolFor(
   marketOrCurrency: string | undefined | null,
@@ -63,7 +63,7 @@ export function currencySymbolFor(
   if (s === "EUR") return "€";
   if (s === "GBP") return "£";
   if (s === "JPY") return "¥";
-  return "$"; // Safe default — matches our US-first launch.
+  return "$"; // Safe default - matches our US-first launch.
 }
 
 /**

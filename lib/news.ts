@@ -6,10 +6,10 @@ import { getAiUniverse } from "@/lib/firestore";
 // ─── Public news feed ────────────────────────────────────────────────────────
 //
 // Backs the /news page. Reads enriched articles from the current universe's
-// news run — enrichments carry the sentiment + entity mentions we want to
+// news run - enrichments carry the sentiment + entity mentions we want to
 // filter on, whereas the raw `articles` subcollection is just ingestion data.
 //
-// We cap rows per market so the server never ships a runaway payload — the
+// We cap rows per market so the server never ships a runaway payload - the
 // page does client-side filtering, so the cap is the working set a single
 // user can realistically scan at once. If we later need deeper archives we
 // can swap this for a paginated or cursor-based loader.
@@ -59,7 +59,7 @@ function normalizeSentimentLabel(raw: string | undefined): NewsArticle["sentimen
 // `<font color="#6f6f6f">Business Today</font>`), and occasionally carry
 // long unbreakable tokens (base64-ish blobs from tracking URLs) that wreck
 // the layout. Strip tags, collapse whitespace, and drop runs of 40+
-// non-space characters that aren't a real URL — those never add value.
+// non-space characters that aren't a real URL - those never add value.
 function cleanSummary(raw: string | undefined): string {
   if (!raw) return "";
   let s = String(raw);

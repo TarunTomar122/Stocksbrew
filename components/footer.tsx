@@ -36,6 +36,14 @@ const COLUMNS: Column[] = [
     ],
   },
   {
+    title: "Free tools",
+    links: [
+      { label: "Should I Buy?", href: "/should-i-buy" },
+      { label: "Earnings Calendar", href: "/earnings" },
+      { label: "IPO Calendar", href: "/ipos" },
+    ],
+  },
+  {
     title: "Legal",
     links: [
       { label: "Terms of service", href: "/legal/terms" },
@@ -51,7 +59,7 @@ export function Footer() {
   return (
     <footer className="mt-16 bg-[#0b1228] text-white">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-10">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-10">
           {/* Wordmark + tagline */}
           <div className="col-span-2 flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-1.5 w-fit">
@@ -60,7 +68,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-[14px] leading-[1.55] text-white/65 max-w-[280px]">
-              Market intelligence for the stocks you actually care about — US markets today, more coming soon.
+              Market intelligence for the stocks you actually care about - US markets today, more coming soon.
             </p>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/85">
@@ -106,10 +114,10 @@ export function Footer() {
 
         <div className="mt-14 pt-6 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-[12px] text-white/55">
-            © {year} Tikrr. All rights reserved.
+            © {year} tikrr. All rights reserved.
           </p>
           <p className="text-[12px] text-white/45 max-w-[640px]">
-            Tikrr provides market data and analytics for informational purposes only. Nothing here is investment advice. Past performance does not guarantee future results.
+            tikrr provides market data and analytics for informational purposes only. Nothing here is investment advice. Past performance does not guarantee future results.
           </p>
         </div>
       </div>

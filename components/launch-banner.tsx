@@ -12,7 +12,7 @@ export function LaunchBanner() {
       <span className="text-[13px] font-medium leading-none whitespace-nowrap">
         🎉{" "}
         <span className="font-semibold">Launch week</span>
-        {" — "}
+        {" - "}
         <span className="font-bold text-[#10b981]">25% off</span>
         <span className="hidden sm:inline"> your first year</span>
       </span>

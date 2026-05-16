@@ -16,7 +16,7 @@ export function WatchlistStockTabs({ rows }: { rows: WatchlistRow[] }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Tab strip — horizontally scrollable when overflowing */}
+      {/* Tab strip - horizontally scrollable when overflowing */}
       <div className="-mx-1 overflow-x-auto scrollbar-hide">
         <div
           role="tablist"
@@ -134,7 +134,7 @@ function StockBlock({ row }: { row: WatchlistRow }) {
         alerts={row.alerts}
       />
 
-      {/* Signals — flat rows */}
+      {/* Signals - flat rows */}
       {signals.length > 0 && (
         <div className="flex flex-col">
           {signals.map((signal, i) => (
@@ -281,7 +281,7 @@ function ChangeAndWatchStrip({
     );
   }
 
-  // What to watch — pick from next catalyst, then any active alert.
+  // What to watch - pick from next catalyst, then any active alert.
   const catalystTitle = text(nextCatalyst?.title);
   const catalystDate = text(nextCatalyst?.date_label);
   const catalystKind = text(nextCatalyst?.kind).replaceAll("_", " ");
@@ -423,17 +423,17 @@ function text(value: unknown): string {
 }
 
 function formatValue(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
 function formatPct(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   return `${value.toFixed(1)}%`;
 }
 
 function formatSignedPct(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
@@ -448,7 +448,7 @@ function formatCurrency(
   value: number | null | undefined,
   currency: string,
 ): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   const symbol = currency === "INR" ? "₹" : "$";
   return `${symbol}${value.toLocaleString(undefined, {
     minimumFractionDigits: value >= 100 ? 0 : 2,
@@ -460,7 +460,7 @@ function formatCompactMoney(
   value: number | null | undefined,
   currency: string,
 ): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   const symbol = currency === "INR" ? "₹" : "$";
   const abs = Math.abs(value);
   if (abs >= 1_000_000_000_000)

@@ -1,4 +1,4 @@
-"""Per-stock AI pipeline — fetches per-ticker news, enriches, and builds a
+"""Per-stock AI pipeline - fetches per-ticker news, enriches, and builds a
 brief for each instrument in the universe.
 
 This is the stock-first successor to `build_news_intelligence.py`. The old
@@ -510,7 +510,7 @@ def main() -> None:
             store.save_news_articles(args.market, universe_id, raw_payload, source_health=source_health)
 
         if not raw_articles:
-            print("[per-stock] no articles after partitioned fetch — skipping enrichment and synthesis")
+            print("[per-stock] no articles after partitioned fetch - skipping enrichment and synthesis")
             logger.info(
                 "per_stock_intelligence early_exit reason=no_articles market=%s universe=%s instruments=%s",
                 args.market,

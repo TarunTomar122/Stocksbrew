@@ -102,7 +102,7 @@ export function AiSynthesis({ intelligence, timeline }: Props) {
   const whatToWatch =
     (vs?.what_to_watch ? stripHtml(vs.what_to_watch) : null) ||
     (intelligence?.catalyst ? stripHtml(intelligence.catalyst) : null) ||
-    "No catalysts flagged yet — check back after the next pipeline run.";
+    "No catalysts flagged yet - check back after the next pipeline run.";
 
   const hasBriefText = Boolean(
     intelligence &&
@@ -136,7 +136,7 @@ export function AiSynthesis({ intelligence, timeline }: Props) {
             )}
           </div>
           <p className="text-[12px] text-[#6b7280] max-w-[520px]">
-            Synthesised from recent articles &amp; analyst reports — not a buy/sell
+            Synthesised from recent articles &amp; analyst reports - not a buy/sell
             recommendation.
           </p>
         </div>

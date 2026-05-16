@@ -42,7 +42,7 @@ export function AiBrief({ brief, mocked }: Props) {
         </div>
         {mocked && (
           <span
-            title="Mocked — tm_views_dashboard doc not available."
+            title="Mocked - tm_views_dashboard doc not available."
             className="px-1.5 py-0.5 text-[9px] font-bold tracking-[0.15em] uppercase bg-signal-neutral/25 text-on-surface rounded-sm"
           >
             Mock

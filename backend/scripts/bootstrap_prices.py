@@ -76,7 +76,7 @@ def bootstrap_market(
     skip_existing: bool = True,
 ) -> None:
     print(f"\n{'='*55}")
-    print(f"Bootstrapping {market} — universe: {universe_id}")
+    print(f"Bootstrapping {market} - universe: {universe_id}")
     print(f"{'='*55}")
 
     instruments = list_instruments(market, universe_id)
@@ -164,7 +164,7 @@ def bootstrap_market(
             print(f"  ✓ {ticker:>14s}  {quote['current']:>10.2f}  ({pct:+.2f}%)")
             ok += 1
         except Exception as exc:
-            print(f"  ✗ {ticker}: Firestore write failed — {exc}")
+            print(f"  ✗ {ticker}: Firestore write failed - {exc}")
             fail += 1
 
     print(f"\n  Done: {ok} upserted, {fail} failed, {len(to_fetch) - len(results)} no-quote")

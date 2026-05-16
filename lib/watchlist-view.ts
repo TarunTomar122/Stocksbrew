@@ -58,6 +58,22 @@ export type WatchlistRow = {
     vibe: "up" | "down" | "wild";
     source: "rules" | "mimo";
   };
+  ai_directive?: {
+    text?: string;
+    stance?: "accumulate" | "trim" | "watch" | "avoid" | "hold";
+    trigger_type?:
+      | "price_below"
+      | "price_above"
+      | "date"
+      | "sentiment_flip"
+      | "new_catalyst"
+      | "none";
+    trigger_value?: string;
+    rationale?: string;
+    confidence?: "low" | "med" | "high";
+  };
+  ai_directive_text?: string;
+  ai_directive_rationale?: string;
   coverage_status: "ready" | "score_pending";
   has_intel_pro: boolean;
 };
@@ -132,7 +148,7 @@ export type WatchlistView = {
 };
 
 // -----------------------------------------------------------------------------
-// Reader (cheap — one Firestore read)
+// Reader (cheap - one Firestore read)
 // -----------------------------------------------------------------------------
 
 export async function getWatchlistView(uid: string): Promise<WatchlistView | null> {
@@ -568,7 +584,7 @@ function rowAttention(
 }
 
 function formatSigned(value: number | null): string {
-  if (value === null) return "—";
+  if (value === null) return "-";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
@@ -917,7 +933,7 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
   const summaryParts: string[] = [];
   if (dominant) summaryParts.push(`${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`);
   const avgOverall = averageScore(rows, "overall");
-  if (avgOverall !== null) summaryParts.push(`Average Tikrr score is ${avgOverall}.`);
+  if (avgOverall !== null) summaryParts.push(`Average tikrr score is ${avgOverall}.`);
   if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
   if (opportunities.length) summaryParts.push(`${opportunities.length} upside candidates stand out.`);
 
@@ -973,7 +989,7 @@ function riskSummary(rows: WatchlistRow[], portfolio: Record<string, unknown>): 
     ? String(highAttentionHoldings[0].attention_reason || "A holding has a material signal.")
     : dominant
       ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of Radar names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
-      : "Add more holdings/watching names and Tikrr will detect concentration, technical, and news risk.";
+      : "Add more holdings/watching names and tikrr will detect concentration, technical, and news risk.";
   return {
     headline,
     body,
@@ -1290,7 +1306,7 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
     blind_spot_title: "Exposure check",
     blind_spot_body: concentrated
       ? `Most of this Radar clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
-      : "No obvious concentration yet. Add more stocks and Tikrr will flag sector, style, and event blind spots.",
+      : "No obvious concentration yet. Add more stocks and tikrr will flag sector, style, and event blind spots.",
     essential_events: alertEvents.length
       ? alertEvents.slice(0, 5)
       : movers.slice(0, 3).map((row) => ({

@@ -35,8 +35,8 @@ export function TierCTA({
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3">
         <span className="text-[13px] font-medium text-[#065f46]">
           {isSubscribed
-            ? "Launch list — full AI tab, twice daily."
-            : "Free launch list — full AI tab on select stocks only. Upgrade for more."}
+            ? "Launch list - full AI tab, twice daily."
+            : "Free launch list - full AI tab on select stocks only. Upgrade for more."}
         </span>
         {user && isSubscribed && (
           <TrackButton
@@ -55,7 +55,7 @@ export function TierCTA({
     return (
       <div className="flex flex-col items-start gap-2 rounded-2xl border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#1e3a8a]">
-          On your Radar — updates with each run.
+          On your Radar - updates with each run.
         </span>
         <div className="self-end sm:self-auto">
           <TrackButton
@@ -70,7 +70,7 @@ export function TierCTA({
     );
   }
 
-  // Free tier — bigger CTA card
+  // Free tier - bigger CTA card
   if (!user) {
     return (
       <CtaCard
@@ -113,7 +113,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`${ticker} is in your Radar`}
-        body="We’re tracking it — remove to free a slot."
+        body="We’re tracking it - remove to free a slot."
         action={
           <TrackButton
             ticker={ticker}

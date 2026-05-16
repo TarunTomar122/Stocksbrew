@@ -69,16 +69,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
   return {
-    title: `${upper} — Stock Analysis & AI Brief`,
-    description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your Tikrr Radar.`,
+    title: `${upper} - Stock Analysis & AI Brief`,
+    description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your tikrr Radar.`,
     alternates: { canonical: `/stock/${upper}` },
     openGraph: {
-      title: `${upper} — Stock Analysis & AI Brief · Tikrr`,
+      title: `${upper} - Stock Analysis & AI Brief · tikrr`,
       description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
       url: `https://www.tikrr.online/stock/${upper}`,
     },
     twitter: {
-      title: `${upper} — Stock Analysis & AI Brief · Tikrr`,
+      title: `${upper} - Stock Analysis & AI Brief · tikrr`,
       description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
     },
   };
@@ -157,7 +157,7 @@ export default async function StockPage({ params }: Props) {
   const isTracked = tracked.includes(stock.instrument_id);
   const shouldLoadAI = subscribed;
 
-  // fundamentals come free from getStockSummary (same tm_latest_prices doc) —
+  // fundamentals come free from getStockSummary (same tm_latest_prices doc) -
   // no extra Firestore read needed.
   const fundamentals = stock.fundamentals ?? null;
 
@@ -195,7 +195,7 @@ export default async function StockPage({ params }: Props) {
 
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
-  // Trend card inputs — 50D/200D MA and beta come from Yahoo's `.info`
+  // Trend card inputs - 50D/200D MA and beta come from Yahoo's `.info`
   // (stashed on fundamentals by the price-sync job), so every listed stock
   // renders a real Trend card even though we only carry ~60 sessions of our
   // own price history.
@@ -327,7 +327,7 @@ export default async function StockPage({ params }: Props) {
         {!showBriefStatus && (
           <>
             <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-              Updated {formatRelative(intelligence?.generated_at) || "—"}
+              Updated {formatRelative(intelligence?.generated_at) || "-"}
             </p>
             <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} instrumentId={stock.instrument_id} />
           </>

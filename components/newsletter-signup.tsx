@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 const OUTCOMES = [
-  { label: "Start Monday informed", body: "You open your week already knowing what happened and why — no catching up." },
+  { label: "Start Monday informed", body: "You open your week already knowing what happened and why - no catching up." },
   { label: "Stop missing the story", body: "When a stock moves 20%, you find out what actually caused it, not just the number." },
   { label: "Know what to watch", body: "Each issue ends with the 3 things worth paying attention to in the coming week." },
 ];

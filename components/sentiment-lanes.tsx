@@ -17,7 +17,7 @@ function labelTone(label?: string): { color: string; tone: string } {
   if (l.includes("bear")) return { color: "#ef4444", tone: "Bearish" };
   if (l.includes("caut")) return { color: "#ef4444", tone: "Cautious" };
   if (l.includes("mixed") || l.includes("neutral")) return { color: "#f59e0b", tone: "Mixed" };
-  return { color: "#9ca3af", tone: label || "—" };
+  return { color: "#9ca3af", tone: label || "-" };
 }
 
 function leanColor(lean: "bullish" | "bearish" | "neutral"): string {

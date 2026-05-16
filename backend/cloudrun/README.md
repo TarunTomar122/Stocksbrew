@@ -25,6 +25,8 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"
 export GOOGLE_CLOUD_REGION="us-central1"
 export FIREBASE_SERVICE_ACCOUNT_JSON="$(cat /abs/path/firebase-service-account.json)"
 export SERVICE_ACCOUNT_EMAIL="tikrr-runner@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+export OPENAI_API_KEY="sk-..."
+export OPENAI_MODEL="gpt-4.1-mini"  # cheap default
 ```
 
 For scheduler setup:

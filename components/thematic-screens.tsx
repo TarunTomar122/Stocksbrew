@@ -11,13 +11,13 @@ type Props = {
   isSubscribed: boolean;
 };
 
-/** Home widget row limits — free users see a short preview + lock. */
+/** Home widget row limits - free users see a short preview + lock. */
 const HOME_SCREEN_ROWS_FREE = 3;
 const HOME_SCREEN_ROWS_PRO = 8;
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top: {
-    title: "Top Tikrr Score",
+    title: "Top tikrr Score",
     subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation.",
   },
   quality_compounders: {
@@ -47,13 +47,13 @@ const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
 };
 
 function fmtPct(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   const sign = v > 0 ? "+" : "";
   return `${sign}${v.toFixed(2)}%`;
 }
 
 function fmtPrice(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "-";
   if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return v.toFixed(2);
 }
@@ -91,7 +91,7 @@ function MatchRow({ row, market }: { row: ScreenMatchRow; market: "US" | "IN" })
         <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
           {typeof row.overall_score === "number"
             ? Math.round(row.overall_score)
-            : "—"}
+            : "-"}
         </span>
       </div>
       <span className="text-[14px] font-medium text-[#111111] tabular-nums text-right">

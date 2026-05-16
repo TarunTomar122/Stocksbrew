@@ -12,7 +12,7 @@ from typing import Any
 import requests
 
 from backend.llm_client import (
-    MIMO_API_URL,
+    llm_api_url,
     json_response_format,
     llm_api_key,
     llm_headers,
@@ -24,7 +24,7 @@ from backend.models import Article
 
 logger = logging.getLogger(__name__)
 
-LLM_API_URL = MIMO_API_URL
+LLM_API_URL = llm_api_url()
 STOCK_BRIEF_CACHE_VERSION = "2026-04-21-stock-brief-v7-fundamentals"
 
 
@@ -86,25 +86,25 @@ Fields to write:
 
 - **headline**: Under 12 words. An insight, not a price move. BAD: "NVDA rises on earnings." GOOD: "Data-center demand is outpacing bull-case estimates."
 
-- **body**: 2-3 short sentences. Use \\n\\n for paragraph breaks if needed. What does this mean for someone holding the stock? What's the implication the headlines miss? Never open with "[Company] has seen..." — lead with the insight.
+- **body**: 2-3 short sentences. Use \\n\\n for paragraph breaks if needed. What does this mean for someone holding the stock? What's the implication the headlines miss? Never open with "[Company] has seen..." - lead with the insight.
 
-- **key_findings**: 2-4 short, punchy takeaways. Each one a different insight the user wouldn't get from the chart. Frame facts as implications: not "analyst set $200 target" but "Street consensus is 15% above current price — the market hasn't caught up to the upgrade cycle yet."
+- **key_findings**: 2-4 short, punchy takeaways. Each one a different insight the user wouldn't get from the chart. Frame facts as implications: not "analyst set $200 target" but "Street consensus is 15% above current price - the market hasn't caught up to the upgrade cycle yet."
 
-- **catalyst**: One sentence. The most important near-term trigger and what a surprise would mean. Not just "earnings coming" — what's priced in and what breaks if it misses.
+- **catalyst**: One sentence. The most important near-term trigger and what a surprise would mean. Not just "earnings coming" - what's priced in and what breaks if it misses.
 
-- **risk**: One sentence. The biggest downside scenario — what specifically goes wrong and what's the consequence.
+- **risk**: One sentence. The biggest downside scenario - what specifically goes wrong and what's the consequence.
 
 - **thesis**: One line, max 12 words. This is the primary "card title" insight.
 - **setup_state**: one of ["accumulation", "breakout", "trend", "rotation", "exhaustion", "unclear"].
 - **drivers**: 2-4 objects with keys:
   - label: short driver statement (3-6 words)
-  - detail: ONE sentence explaining what the label means — concrete, tied to evidence. Example: label="Analyst upgrades on AI demand" → detail="Three analysts raised price targets this week citing data-center order growth."
+  - detail: ONE sentence explaining what the label means - concrete, tied to evidence. Example: label="Analyst upgrades on AI demand" → detail="Three analysts raised price targets this week citing data-center order growth."
   - direction: "up" | "down" | "mixed"
   - strength: integer 1-5
   - horizon: "today" | "week" | "quarter"
 - **catalyst_cards**: 1-3 objects with keys:
   - event: short event name (3-6 words). Example: "Foxconn revenue report"
-  - detail: ONE sentence explaining why this matters for the stock. Example: "Foxconn is a key Nvidia supplier — strong revenue hints at AI server demand holding up through Q2."
+  - detail: ONE sentence explaining why this matters for the stock. Example: "Foxconn is a key Nvidia supplier - strong revenue hints at AI server demand holding up through Q2."
   - window, expected_impact (-2 to 2), priced_in ("low" | "med" | "high")
 - **risk_cards**: 1-3 objects with keys:
   - risk: short risk name (3-6 words)
@@ -112,7 +112,7 @@ Fields to write:
   - trigger, severity (1-5), probability (1-5)
 
 - **directive**: ONE actionable stance the user can take or watch for. Pick the single best fit based on evidence. Object with:
-  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $198", "Trim into strength above $220", "Watch Q1 earnings Apr 27", "Re-evaluate if Azure growth softens", "Starter position only — evidence thin"
+  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $198", "Trim into strength above $220", "Watch Q1 earnings Apr 27", "Re-evaluate if Azure growth softens", "Starter position only - evidence thin"
   - stance: one of ["accumulate", "trim", "watch", "avoid", "hold"]
   - trigger_type: one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]
   - trigger_value: a STRING. PARITY IS MANDATORY:
@@ -127,19 +127,19 @@ STYLE:
 - Conversational, sharp, zero filler
 - Short sentences mixed with longer ones
 - NO: "investors should monitor", "well-positioned", "could potentially", "it's worth noting"
-- If evidence is thin, say what the silence means — not just "limited coverage"
+- If evidence is thin, say what the silence means - not just "limited coverage"
 - Do not repeat the same fact across headline/body/key_findings/thesis/drivers/catalyst/risk.
 - If overlap exists, keep it in thesis and remove duplicates from other fields.
 
-FUNDAMENTALS — USE THEM:
-- The user payload includes a `fundamentals` block with four pillar scores (valuation, growth, quality, momentum — each 0-100), plus `standout_metrics` (score ≥ 75) and `weak_metrics` (score ≤ 25) and quant-driven `catalysts` (earnings dates, rank upgrades, short spikes). These are ground truth, not news.
+FUNDAMENTALS - USE THEM:
+- The user payload includes a `fundamentals` block with four pillar scores (valuation, growth, quality, momentum - each 0-100), plus `standout_metrics` (score ≥ 75) and `weak_metrics` (score ≤ 25) and quant-driven `catalysts` (earnings dates, rank upgrades, short spikes). These are ground truth, not news.
 - Let fundamentals shape the directive: a stock with weak valuation (PEG > 2, P/E > sector) trading up on news = "trim into strength" not "accumulate". A beaten-down name with strong growth and a Buy-tilted quant rank = "accumulate on dips".
-- Use fundamentals to pick concrete trigger prices — e.g. if the stock is above its analyst target, a "trim above $X" directive is natural; if below, "accumulate below $Y".
+- Use fundamentals to pick concrete trigger prices - e.g. if the stock is above its analyst target, a "trim above $X" directive is natural; if below, "accumulate below $Y".
 - Drivers and risk_cards should weave fundamentals + news: "label: Margin expansion outpaces peers / detail: Operating margin sits in the sector's top quartile while revenue still compounds at 16% YoY."
-- Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly — PEG under 1.2 keeps the setup constructive."
-- If fundamentals contradict the news sentiment, surface the tension in the body/thesis — that's the insight the user can't get elsewhere.
+- Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
+- If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
 
-EVIDENCE DISCIPLINE — THIS IS CRITICAL:
+EVIDENCE DISCIPLINE - THIS IS CRITICAL:
 - Every driver, catalyst_card, and risk_card MUST be grounded in a specific fact from the evidence OR fundamentals block. If neither supports it, don't write it.
 - Do NOT pad with generic filler like "Market sentiment remains constructive", "Negative economic news", "Macroeconomic factors", "Market sentiment shifts". These are worthless.
 - If there are only 1-2 articles, return FEWER cards (1-2 drivers max, 0-1 catalyst, 0-1 risk) rather than inventing generic ones to hit a quota. An empty array is better than a padded one.
@@ -165,7 +165,7 @@ STOCK_BRIEF_SCHEMA = {
             "key_findings": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "2-4 distinct concrete takeaways. Each a different fact — no redundancy.",
+                "description": "2-4 distinct concrete takeaways. Each a different fact - no redundancy.",
             },
             "catalyst": {
                 "type": "string",
@@ -350,13 +350,13 @@ def _llm_synthesize_brief(
         return None
 
 
-NO_NEWS_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. This stock has NO recent news — make that silence meaningful.
+NO_NEWS_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. This stock has NO recent news - make that silence meaningful.
 
 The user sees the price chart. Don't describe the price. Tell them what the quiet means.
 
 - **headline**: Under 12 words. Not "limited coverage for AMD." Something insightful about the silence: "AMD is quietly holding gains while the street looks elsewhere."
 - **body**: 2-3 short sentences. What does the technical and analyst picture tell someone holding this stock? Is this stock coiled, exhausted, or just boring? Use \\n\\n for breaks.
-- **key_findings**: 2-3 punchy insights from the numbers — analyst target gap, RSI, distance from highs, what these imply.
+- **key_findings**: 2-3 punchy insights from the numbers - analyst target gap, RSI, distance from highs, what these imply.
 - **catalyst**: What could break the silence. Be specific.
 - **risk**: What the lack of coverage might be hiding.
 - **thesis**: One line, max 12 words.
@@ -663,22 +663,22 @@ def build_no_news_intelligence_doc(
     }
 
 
-PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You produce structured intelligence cards for a premium market app dashboard. Think Bloomberg Terminal meets Morning Brew — each card is a discrete, punchy insight.
+PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You produce structured intelligence cards for a premium market app dashboard. Think Bloomberg Terminal meets Morning Brew - each card is a discrete, punchy insight.
 
 You get the user's watchlist with price moves, headlines, sentiment, catalysts, sectors, analyst data, and news. Your job is to generate content for FOUR distinct intelligence cards. Each card must be self-contained and cover different ground.
 
-**narrative**: 2-3 sentences summarizing the single most important story across the entire portfolio today. Not "stocks are up/down" — the THEME. What's driving the market, what changed, what matters for THIS portfolio. Write like a sharp newsletter opener. Max 50 words. Don't mention specific prices or percentages — the user sees those on the tiles. Focus on the WHY.
+**narrative**: 2-3 sentences summarizing the single most important story across the entire portfolio today. Not "stocks are up/down" - the THEME. What's driving the market, what changed, what matters for THIS portfolio. Write like a sharp newsletter opener. Max 50 words. Don't mention specific prices or percentages - the user sees those on the tiles. Focus on the WHY.
 
-Example: "The AI trade is fracturing. NVDA keeps pulling away from AMD on data-center wins, and your tech-heavy portfolio is riding that wave — but the gap is getting unsustainable. Watch for a rotation into value names if bond yields spike again this week."
+Example: "The AI trade is fracturing. NVDA keeps pulling away from AMD on data-center wins, and your tech-heavy portfolio is riding that wave - but the gap is getting unsustainable. Watch for a rotation into value names if bond yields spike again this week."
 
 **tiles**: An array with EXACTLY ONE entry for EACH stock in the watchlist. Each tile replaces a chart with actual intelligence. Each entry needs:
   - ticker: the stock symbol
-  - micro: A 5-10 word insight — the single most important thing to know about THIS stock RIGHT NOW. Examples: "Riding AI spending wave", "Earnings Apr 27 — analysts bullish", "RSI overbought, pullback likely", "Defense budget boost incoming", "Revenue miss fears building". Be specific — include dates, events, numbers when you know them. If earnings are upcoming, ALWAYS mention the date.
+  - micro: A 5-10 word insight - the single most important thing to know about THIS stock RIGHT NOW. Examples: "Riding AI spending wave", "Earnings Apr 27 - analysts bullish", "RSI overbought, pullback likely", "Defense budget boost incoming", "Revenue miss fears building". Be specific - include dates, events, numbers when you know them. If earnings are upcoming, ALWAYS mention the date.
   - vibe: "up" (momentum/opportunity), "down" (risk/weakness), or "wild" (volatile/uncertain)
 
 **movers**: An array of up to 4 stocks from the watchlist that had the most dramatic or newsworthy action. Each entry needs:
   - ticker: the symbol
-  - one_liner: A punchy 8-15 word insight (not "up 3% today" — more like "earnings whisper numbers just leaked and they're ugly")
+  - one_liner: A punchy 8-15 word insight (not "up 3% today" - more like "earnings whisper numbers just leaked and they're ugly")
   - vibe: "up", "down", or "wild"
 
 **signals**: An array of exactly 3 external forces / macro events / geopolitical things that affect this specific portfolio. Each signal needs:
@@ -688,7 +688,7 @@ Example: "The AI trade is fracturing. NVDA keeps pulling away from AMD on data-c
   - detail: A longer 3-5 sentence deep-dive explanation of this signal. Include specific data points, historical context, or expert opinions that make the user smarter. Max 80 words. This is shown when the user clicks "read more".
   - vibe: "positive", "negative", or "neutral"
 
-**blind_spot_title**: A 4-8 word intriguing headline about what the user is MISSING. Something they'd want to click on. Based on their portfolio composition — what sectors, themes, rotations are they not exposed to?
+**blind_spot_title**: A 4-8 word intriguing headline about what the user is MISSING. Something they'd want to click on. Based on their portfolio composition - what sectors, themes, rotations are they not exposed to?
 
 **blind_spot_body**: 2-3 sentences about what they're missing and why it matters. Be specific about sectors, themes, or trends they have zero exposure to. Max 50 words.
 
@@ -711,7 +711,7 @@ STYLE:
 - Write like you're texting a smart friend, not writing a research report
 - Bold claims > hedged language. "That's a problem" > "this could potentially be concerning"
 - Specific > vague. Name the stock, the event, the number
-- Each card covers COMPLETELY different ground — zero repetition across cards
+- Each card covers COMPLETELY different ground - zero repetition across cards
 - essential_events must be mixed across market and watchlist if possible
 - avoid slang; keep tone sharp and professional
 """
@@ -772,7 +772,7 @@ PORTFOLIO_BRIEF_SCHEMA = {
                         "ticker": {"type": "string"},
                         "micro": {
                             "type": "string",
-                            "description": "5-10 word insight — the single most important thing about this stock RIGHT NOW. Examples: 'Riding AI spending wave', 'Earnings Apr 27 — analysts bullish', 'RSI overbought, pullback likely'.",
+                            "description": "5-10 word insight - the single most important thing about this stock RIGHT NOW. Examples: 'Riding AI spending wave', 'Earnings Apr 27 - analysts bullish', 'RSI overbought, pullback likely'.",
                         },
                         "vibe": {"type": "string", "enum": ["up", "down", "wild"]},
                     },
@@ -922,7 +922,7 @@ def generate_portfolio_brief(
         return None
 
 
-MARKET_BRIEF_SYSTEM_PROMPT = """You write the daily market brief for a premium market app. Think Morning Brew meets Goldman Sachs — smart but effortless to read.
+MARKET_BRIEF_SYSTEM_PROMPT = """You write the daily market brief for a premium market app. Think Morning Brew meets Goldman Sachs - smart but effortless to read.
 
 The user sees index values, charts, and change% already. Don't narrate numbers back. Deliver insight.
 
@@ -932,7 +932,7 @@ Write THREE sections. Use SHORT paragraphs (2-3 sentences max each). Separate pa
 
 **overview**: The story behind today's market. Why are things moving this way? What's the tension? What's the market telling us between the lines? 2-3 short paragraphs.
 
-**global_forces**: The macro forces actually driving things. Not "oil dropped" — why it dropped and what that means for THIS market. Only cover what matters. Use \\n\\n between paragraphs. 1-2 short paragraphs.
+**global_forces**: The macro forces actually driving things. Not "oil dropped" - why it dropped and what that means for THIS market. Only cover what matters. Use \\n\\n between paragraphs. 1-2 short paragraphs.
 
 **outlook**: The one thing to watch next. What's priced in, what would surprise, what breaks if expectations are wrong. 1 paragraph.
 
@@ -952,7 +952,7 @@ MARKET_BRIEF_SCHEMA = {
         "properties": {
             "overview": {
                 "type": "string",
-                "description": "4-5 sentence market overview — the main narrative.",
+                "description": "4-5 sentence market overview - the main narrative.",
             },
             "global_forces": {
                 "type": "string",
@@ -1039,7 +1039,7 @@ def generate_market_brief(
         return None
 
 
-SECTOR_BRIEF_SYSTEM_PROMPT = """You write sector briefs for a premium market app. Morning Brew meets Goldman Sachs — smart but easy to read.
+SECTOR_BRIEF_SYSTEM_PROMPT = """You write sector briefs for a premium market app. Morning Brew meets Goldman Sachs - smart but easy to read.
 
 The user sees stock prices and charts already. Don't narrate numbers. Deliver insight.
 
@@ -1067,7 +1067,7 @@ SECTOR_BRIEF_SCHEMA = {
         "properties": {
             "analysis": {
                 "type": "string",
-                "description": "4-5 sentence sector analysis — what's happening and why.",
+                "description": "4-5 sentence sector analysis - what's happening and why.",
             },
             "outlook": {
                 "type": "string",
@@ -1730,7 +1730,7 @@ def _build_body(
 ) -> str:
     ticker = instrument["ticker"]
 
-    # Nothing concrete — say so plainly
+    # Nothing concrete - say so plainly
     lead = ""
     if top_fact and not _is_vague(top_fact):
         lead = top_fact
@@ -1739,8 +1739,8 @@ def _build_body(
 
     if not lead:
         if article_count == 1:
-            return f"Coverage is thin for {ticker} — one article from {source_count} source, no concrete catalyst or event extracted."[:400]
-        return f"Coverage for {ticker} is light — {article_count} articles across {source_count} sources, but nothing concrete on catalysts or earnings."[:400]
+            return f"Coverage is thin for {ticker} - one article from {source_count} source, no concrete catalyst or event extracted."[:400]
+        return f"Coverage for {ticker} is light - {article_count} articles across {source_count} sources, but nothing concrete on catalysts or earnings."[:400]
 
     # Build a synthesis that connects the dots instead of just listing facts
     parts: list[str] = []
@@ -1754,14 +1754,14 @@ def _build_body(
 
     body = ". ".join(parts)
 
-    # Add source consensus context — this helps the reader gauge confidence
+    # Add source consensus context - this helps the reader gauge confidence
     if article_count >= 3 and source_count >= 2:
         if label in ("bullish", "constructive"):
             body += f". {source_count} sources are aligned on a {label} outlook"
         elif label in ("cautious", "bearish"):
             body += f". {source_count} sources point to a {label} tone"
     elif article_count == 1 and source_count == 1:
-        body += ". Only one source is backing this right now — confidence is limited"
+        body += ". Only one source is backing this right now - confidence is limited"
 
     # Add a forward-looking hook if we have catalyst or risk
     has_catalyst = catalyst and "nothing concrete" not in catalyst.lower()
@@ -1823,7 +1823,7 @@ def build_stock_intelligence_docs(
 
     for article in articles:
         grouped_mode = str(getattr(article, "enrichment_source", "")).strip().lower() == "grouped_stock_llm"
-        # Drop articles the enricher flagged as unscored — these are landing
+        # Drop articles the enricher flagged as unscored - these are landing
         # pages / listing URLs that the LLM couldn't extract substance from.
         # Using the LLM's own quality signal instead of hardcoded title regexes.
         if not grouped_mode and str(article.sentiment_label or "").lower() == "unscored":
@@ -1860,7 +1860,7 @@ def build_stock_intelligence_docs(
             # refreshes do not cross-contaminate one ticker with another's news.
             if articles and len(instruments) == 1:
                 logger.info(
-                    "stock_intel no entity matches for %s — falling back to all %s articles",
+                    "stock_intel no entity matches for %s - falling back to all %s articles",
                     instrument_id,
                     len(articles),
                 )
@@ -1997,7 +1997,7 @@ def build_stock_intelligence_docs(
         except Exception:
             current_price = None
 
-        # Try LLM synthesis first — falls back to deterministic if unavailable
+        # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
         llm_brief = _llm_synthesize_brief(
             ticker=instrument["ticker"],
@@ -2039,7 +2039,7 @@ def build_stock_intelligence_docs(
             raw_risk_cards = llm_brief.get("risk_cards", [])
             drivers = [item for item in raw_drivers if isinstance(item, dict)][:4]
             # Drop catalyst/risk cards the LLM padded without a real detail or
-            # with placeholder labels — empty beats generic.
+            # with placeholder labels - empty beats generic.
             catalyst_cards = [
                 item for item in raw_catalyst_cards
                 if isinstance(item, dict)

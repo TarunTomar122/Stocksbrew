@@ -37,7 +37,7 @@ function DirectiveSlide() {
           <span className="text-[11px] font-semibold tracking-[0.1em] uppercase opacity-60">Strategic directive · Med confidence</span>
         </div>
         <p className="text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] leading-[1.2]">
-          Lean into NVDA into the next data-center print — supply commentary still leaves room vs. margin expectations.
+          Lean into NVDA into the next data-center print - supply commentary still leaves room vs. margin expectations.
         </p>
         <p className="text-[14px] leading-relaxed opacity-80">
           Growth and momentum pillars lead the scorecard; valuation is the friction the model weighs into the catalyst window.
@@ -124,19 +124,19 @@ const SLIDES = [
   {
     label: "AI directives",
     title: "An AI take on every stock you follow",
-    subtitle: "Tikrr reads the news and filings twice a day and gives you a plain opinion on what's going on — so you don't have to piece it together yourself.",
+    subtitle: "tikrr reads the news and filings twice a day and gives you a plain opinion on what's going on - so you don't have to piece it together yourself.",
     demo: <DirectiveSlide />,
   },
   {
     label: "Signal overview",
     title: "The numbers that actually matter",
-    subtitle: "Instead of digging through reports and PDFs, you get the metrics that move a stock — right on the page, no hunting around.",
+    subtitle: "Instead of digging through reports and PDFs, you get the metrics that move a stock - right on the page, no hunting around.",
     demo: <SignalsSlide />,
   },
   {
     label: "Radar",
     title: "Your watchlist that keeps up",
-    subtitle: "Add the stocks you follow and Tikrr shows you what moved, what's loud in the news, and what needs your attention today.",
+    subtitle: "Add the stocks you follow and tikrr shows you what moved, what's loud in the news, and what needs your attention today.",
     demo: <RadarSlide />,
   },
 ];
@@ -212,7 +212,7 @@ export default function OnboardingPage() {
         </button>
       </div>
 
-      {/* Main content — scrollable on small screens */}
+      {/* Main content - scrollable on small screens */}
       <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 md:px-10 py-8 md:py-10">
         <div className="w-full max-w-[680px] flex flex-col gap-8">
           {/* Text block */}
@@ -256,7 +256,7 @@ export default function OnboardingPage() {
               disabled={checkoutLoading}
               className="inline-flex items-center gap-2 h-11 rounded-full bg-[#111111] px-7 text-[14px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform disabled:opacity-60 disabled:cursor-wait"
             >
-              {checkoutLoading ? "Opening checkout…" : "Unlock everything — $9/mo"}
+              {checkoutLoading ? "Opening checkout…" : "Unlock everything - $9/mo"}
               {!checkoutLoading && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>}
             </button>
             {checkoutError && <p className="text-[12px] text-[#ef4444]">{checkoutError}</p>}

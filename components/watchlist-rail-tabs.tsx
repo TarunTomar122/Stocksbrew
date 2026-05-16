@@ -120,7 +120,7 @@ function formatCurrency(
   value: number | null | undefined,
   currency: string,
 ): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   const symbol = currency === "INR" ? "₹" : "$";
   return `${symbol}${value.toLocaleString(undefined, {
     minimumFractionDigits: value >= 100 ? 0 : 2,

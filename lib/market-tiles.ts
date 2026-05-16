@@ -10,7 +10,7 @@ export type MarketTile = {
   changePct: number;
   series: number[];
   kind: TileKind;
-  currency?: string; // "₹" | "$" | "" — prefix shown before the price
+  currency?: string; // "₹" | "$" | "" - prefix shown before the price
   mocked?: boolean;
 };
 

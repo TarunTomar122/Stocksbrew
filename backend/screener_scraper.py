@@ -209,7 +209,7 @@ def parse_screener_quote(html: str, ticker: str) -> ScreenerQuote:
     if "stock_cagr_5y" in quote.metrics:
         quote.metrics.setdefault("perf_5y_cagr", quote.metrics["stock_cagr_5y"])
 
-    # Ratios / P&L / Balance Sheet rows — Screener doesn't expose these in the
+    # Ratios / P&L / Balance Sheet rows - Screener doesn't expose these in the
     # top card, but they're in the year-over-year tables further down. Grab the
     # latest fiscal cell for each canonical quality field so IN scorecards
     # stop showing missing values.

@@ -28,7 +28,7 @@ const MARKET = "US";
 const TOP_N = 8;
 const MIN_ABS_CHANGE_PCT = 2.0;
 
-// LLM config — reads from env, falls back to OpenAI
+// LLM config - reads from env, falls back to OpenAI
 const LLM_API_URL = process.env.MIMO_API_URL || "https://api.openai.com/v1/chat/completions";
 const LLM_API_KEY = process.env.OPENAI_API_KEY || process.env.MIMO_API_KEY || "";
 const LLM_MODEL = process.env.MIMO_MODEL || process.env.TRACE_MONEY_LLM_MODEL || "gpt-4o-mini";
@@ -106,11 +106,11 @@ function callLLM(systemPrompt, userPrompt) {
 const ANOMALY_BRIEF_SYSTEM = `You are a stock market analyst. Given a stock's price movement and context, generate a concise anomaly brief.
 
 Return a JSON object with these fields:
-- "headline": One-line headline explaining the move (max 80 chars). Be specific — mention the driver if you can reason about it.
+- "headline": One-line headline explaining the move (max 80 chars). Be specific - mention the driver if you can reason about it.
 - "today_brief": 2-3 sentence explanation of why this stock is moving. If you don't know the exact reason, reason about what typically drives this stock (sector trends, recent earnings, macro factors).
 - "catalyst": The most likely catalyst or "Unknown" if unclear.
 - "risk": Key risk to watch.
-- "thesis": One sentence — bull or bear case.
+- "thesis": One sentence - bull or bear case.
 
 Be honest. If you're speculating, say "likely" or "may be driven by". Don't fabricate news.`;
 
@@ -301,7 +301,7 @@ async function main() {
   anomalies.forEach(a => {
     const arrow = a.direction === "up" ? "📈" : "📉";
     const src = a.llm_enriched ? " (LLM)" : "";
-    console.log(`  ${arrow} ${a.ticker}: ${a.day_change_pct > 0 ? "+" : ""}${a.day_change_pct}% — ${a.headline || "No headline"}${src}`);
+    console.log(`  ${arrow} ${a.ticker}: ${a.day_change_pct > 0 ? "+" : ""}${a.day_change_pct}% - ${a.headline || "No headline"}${src}`);
   });
 }
 

@@ -31,7 +31,7 @@ export function OutroScene() {
         gap: 18,
       }}
     >
-      {/* tikrr.online — big, bouncy */}
+      {/* tikrr.online - big, bouncy */}
       <div
         style={{
           opacity: urlOpacity,

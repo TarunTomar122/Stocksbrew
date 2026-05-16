@@ -80,7 +80,7 @@ def main() -> None:
         instruments,
         articles,
         stock_docs,
-        {},  # market_context — intentionally empty
+        {},  # market_context - intentionally empty
         sector_context_docs,
         writer=writer,
         price_by_id=price_by_id,

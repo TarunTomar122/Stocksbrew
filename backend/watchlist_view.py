@@ -5,7 +5,7 @@ computed intel_pro doc (scores, verdict, catalysts) + the latest price doc
 (price, day change, history_window) + the user's alert flags, then fold into
 one self-contained doc at `tm_watchlist_views/{uid}`.
 
-Consumers read that one doc on `/watchlist` page load — no per-entity
+Consumers read that one doc on `/watchlist` page load - no per-entity
 Firestore round trips at render time.
 """
 from __future__ import annotations
@@ -71,7 +71,7 @@ def _round(value: float | None, digits: int = 2) -> float | None:
 
 def _signed_pct(value: float | None) -> str:
     if value is None:
-        return "—"
+        return "-"
     return f"{value:+.1f}%"
 
 
@@ -631,7 +631,7 @@ def _load_user_alerts(store: TraceMoneyStore, uid: str) -> dict[str, list[dict[s
 
 
 def _pulse_headline(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Heuristic pulse summary — no LLM needed for v1."""
+    """Heuristic pulse summary - no LLM needed for v1."""
     if not rows:
         return {
             "headline": "Your watchlist is empty",
@@ -738,7 +738,7 @@ def _fallback_portfolio_brief(rows: list[dict[str, Any]], pulse: dict[str, Any])
     missing_body = (
         f"Most of this watchlist clusters around {dominant_sector}. Add a defensive or unrelated sector to reduce single-theme risk."
         if dominant_sector and sector_counts.get(dominant_sector, 0) >= max(2, len(rows) // 2)
-        else "No obvious concentration yet. Add more stocks and Tikrr will flag sector, style, and event blind spots."
+        else "No obvious concentration yet. Add more stocks and tikrr will flag sector, style, and event blind spots."
     )
     movers = sorted(rows, key=lambda r: abs(r.get("day_change_pct") or 0), reverse=True)[:4]
     events: list[dict[str, Any]] = []
@@ -973,7 +973,7 @@ def _portfolio_diagnostics(
         summary_parts.append(f"{dominant['sector']} is the largest cluster at {dominant['weight_pct']:.0f}%.")
     avg_overall = _average_score(rows, "overall")
     if avg_overall is not None:
-        summary_parts.append(f"Average Tikrr score is {avg_overall}.")
+        summary_parts.append(f"Average tikrr score is {avg_overall}.")
     if risk_flags:
         summary_parts.append(f"{len(risk_flags)} risk flags need review.")
     if opportunities:
@@ -1029,7 +1029,7 @@ def _risk_summary(rows: list[dict[str, Any]], portfolio: dict[str, Any]) -> dict
         body = f"{round(float(dominant.get('weight_pct') or 0))}% of tracked names sit in {dominant.get('sector')}. Keep an eye on single-theme risk."
     else:
         headline = "No obvious risk cluster yet"
-        body = "Add more holdings/watchlist names and Tikrr will detect concentration, technical, and news risk."
+        body = "Add more holdings/watchlist names and tikrr will detect concentration, technical, and news risk."
     return {
         "headline": headline,
         "body": body,
@@ -1222,7 +1222,7 @@ def build_watchlist_view(
 ) -> dict[str, Any]:
     """Produce the materialized payload for `tm_watchlist_views/{uid}`.
 
-    Does not write — caller is responsible for calling
+    Does not write - caller is responsible for calling
     `store.save_watchlist_view(uid, payload)`.
     """
     active_universes = active_universes or _active_universe_cache(store)

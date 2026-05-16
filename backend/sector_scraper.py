@@ -167,7 +167,7 @@ def fetch_us_sector_benchmarks() -> dict[str, dict[str, float]]:
     """Return per-Finviz-sector valuation benchmarks used as peer medians.
 
     Keyed by the Finviz sector slug (e.g. 'technology', 'financial',
-    'healthcare') — matches the slugs used in quote-page sector links, which
+    'healthcare') - matches the slugs used in quote-page sector links, which
     lets the scoring layer resolve a stock's peer row directly.
     """
     html = _fetch(_FINVIZ_SECTOR_VALUATION_URL)

@@ -29,6 +29,9 @@ export async function GET() {
     ["/legal/privacy", "0.3", "yearly"],
     ["/legal/cookies", "0.3", "yearly"],
     ["/legal/disclaimer", "0.3", "yearly"],
+    ["/should-i-buy", "0.8", "weekly"],
+    ["/earnings", "0.8", "weekly"],
+    ["/ipos", "0.8", "weekly"],
   ] as const) {
     entries.push(url(path, prio, freq));
   }
@@ -38,7 +41,7 @@ export async function GET() {
     entries.push(url(`/learn/${p.slug}`, "0.6", "monthly"));
   }
 
-  // Stock pages from price universe (safe — no universe key needed)
+  // Stock pages from price universe (safe - no universe key needed)
   try {
     const seen = new Set<string>();
     for (const market of ["US", "IN"] as const) {

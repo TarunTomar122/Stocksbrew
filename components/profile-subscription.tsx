@@ -58,17 +58,17 @@ export function ProfileSubscription({
   const statusLine = (() => {
     if (!isSubscribed) {
       if (subscriptionStatus === "payment_failed") {
-        return "Last payment failed — update your payment method on the billing portal or resubscribe.";
+        return "Last payment failed - update your payment method on the billing portal or resubscribe.";
       }
-      return "Free — upgrade to unlock Pro features.";
+      return "Free - upgrade to unlock Pro features.";
     }
     if (cancelAtPeriodEnd) {
-      return "Pro — scheduled to cancel at the end of this billing period.";
+      return "Pro - scheduled to cancel at the end of this billing period.";
     }
     if (subscriptionStatus && subscriptionStatus !== "active") {
       return `Status: ${subscriptionStatus.replace(/_/g, " ")}`;
     }
-    return "Pro — full access to Tikrr.";
+    return "Pro - full access to tikrr.";
   })();
 
   const plan = planLabel(subscriptionPlan ?? undefined);

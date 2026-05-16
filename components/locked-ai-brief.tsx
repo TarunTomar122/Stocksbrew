@@ -95,7 +95,7 @@ export function LockedAiBrief({ ticker, instrumentId, isSubscribed, isTracked = 
       }
     : {
         title: `Unlock the ${ticker} Pro brief`,
-        body: "Turn this into a monitored name: Tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
+        body: "Turn this into a monitored name: tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
         label: "Get Pro",
         onClick: () => router.push("/subscribe"),
       };
@@ -234,7 +234,7 @@ function MockDirective({ ticker }: { ticker: string }) {
         </span>
       </div>
       <p className="text-[15px] font-semibold text-[#111111] leading-snug">
-        Accumulate {ticker} into the next earnings print — recent guide-up has
+        Accumulate {ticker} into the next earnings print - recent guide-up has
         not yet been priced into the multiple.
       </p>
       <div className="flex items-center gap-2">
@@ -283,8 +283,8 @@ function MockCatalystsRow() {
       label: "Catalysts",
       tone: "#0052ff",
       cards: [
-        { title: "Earnings — Apr 29 AMC", detail: "Street looking for +18% EPS." },
-        { title: "Investor day — May 14", detail: "Multi-year capacity update." },
+        { title: "Earnings - Apr 29 AMC", detail: "Street looking for +18% EPS." },
+        { title: "Investor day - May 14", detail: "Multi-year capacity update." },
       ],
     },
     {

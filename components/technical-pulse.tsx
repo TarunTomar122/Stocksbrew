@@ -5,7 +5,7 @@ type Props = {
   rsi?: number;
   rsiLabel?: string;
   rsiMocked?: boolean;
-  // Trend card inputs — 50D / 200D moving averages come pre-computed from
+  // Trend card inputs - 50D / 200D moving averages come pre-computed from
   // Yahoo's `.info`, so we don't have to warehouse deep price history. Beta
   // is a bonus volatility gauge from the same payload.
   sma50?: number;
@@ -79,7 +79,7 @@ function MaRow({
     <div className="flex justify-between">
       <span className="text-on-surface-variant">{label}</span>
       <span className="font-semibold tabular-nums text-on-surface">
-        {has ? `${currency}${formatPrice(value!)}` : "—"}
+        {has ? `${currency}${formatPrice(value!)}` : "-"}
         {gapPct !== null && (
           <span
             className={`ml-2 ${
@@ -112,7 +112,7 @@ function CardShell({
     >
       {mocked && (
         <span
-          title="Mocked — not yet persisted in Firestore."
+          title="Mocked - not yet persisted in Firestore."
           className="absolute top-3 right-3 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.15em] uppercase bg-signal-neutral/25 text-on-surface rounded-sm"
         >
           Mock
@@ -184,9 +184,9 @@ export function TechnicalPulse({
   const gap200 = has200 && hasPrice ? ((currentPrice! - sma200!) / sma200!) * 100 : null;
   const above50 = gap50 !== null ? gap50 >= 0 : null;
   const above200 = gap200 !== null ? gap200 >= 0 : null;
-  // Headline state for the trend card — both MAs above = Uptrend,
+  // Headline state for the trend card - both MAs above = Uptrend,
   // both below = Downtrend, mixed = Transition.
-  let trendHeadline: "Uptrend" | "Downtrend" | "Transition" | "—" = "—";
+  let trendHeadline: "Uptrend" | "Downtrend" | "Transition" | "-" = "-";
   let trendAccent = "var(--signal-neutral)";
   if (above50 !== null && above200 !== null) {
     if (above50 && above200) {
@@ -310,7 +310,7 @@ export function TechnicalPulse({
               style={{ color: rangeAccent }}
             >
               {distHighPct === null
-                ? "—"
+                ? "-"
                 : `${distHighPct > 0 ? "+" : ""}${distHighPct.toFixed(1)}%`}
             </span>
             <span className="text-[13px] font-semibold text-on-surface-variant">

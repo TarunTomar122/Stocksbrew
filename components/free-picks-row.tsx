@@ -7,7 +7,7 @@ type Props = {
   snapshotRows: SnapshotRow[];
 };
 
-// The launch-tier stocks — always-free AI briefs, surfaced on the home page
+// The launch-tier stocks - always-free AI briefs, surfaced on the home page
 // as the "here's what you can read today without signing in" table. The right
 // rail is the Radar CTA; subscribers get a personal AI tier on top of this
 // baseline, which is how we fund the per-ticker enrichment.
@@ -28,7 +28,7 @@ export function FreePicksRow({ instrumentIds, snapshotRows }: Props) {
           Free AI Briefs
         </span>
         <h2 className="text-lg font-semibold text-on-surface">
-          On the house — tracked for everyone
+          On the house - tracked for everyone
         </h2>
         <p className="text-[12px] text-on-surface-variant">
           News-backed AI reads refreshed twice daily on these {picks.length}{" "}
@@ -37,7 +37,7 @@ export function FreePicksRow({ instrumentIds, snapshotRows }: Props) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stock list — 2 columns on wide screens, 1 on mobile, takes 2/3. */}
+        {/* Stock list - 2 columns on wide screens, 1 on mobile, takes 2/3. */}
         <div className="lg:col-span-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
             {picks.map((row) => (
@@ -46,7 +46,7 @@ export function FreePicksRow({ instrumentIds, snapshotRows }: Props) {
           </div>
         </div>
 
-        {/* CTA rail — owns the remaining 1/3 on desktop. */}
+        {/* CTA rail - owns the remaining 1/3 on desktop. */}
         <WatchlistCTA />
       </div>
     </section>
@@ -85,12 +85,12 @@ function PickRow({ row }: { row: SnapshotRow }) {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })
-            : "—"}
+            : "-"}
         </div>
         <div className={`text-[11px] font-bold tabular-nums ${toneClass}`}>
           {typeof pct === "number"
             ? `${arrow} ${Math.abs(pct).toFixed(2)}%`
-            : "—"}
+            : "-"}
         </div>
       </div>
     </Link>
@@ -109,7 +109,7 @@ function WatchlistCTA() {
         </h3>
         <p className="text-[12px] text-on-surface-variant leading-relaxed">
           Add up to 10 stocks and we&apos;ll run the same news-backed AI read
-          on each — plus a radar pulse that spots themes, overlaps, and
+          on each - plus a radar pulse that spots themes, overlaps, and
           blind spots across your picks.
         </p>
       </div>
@@ -121,7 +121,7 @@ function WatchlistCTA() {
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
-          <span>Radar pulse — what moved, what to act on</span>
+          <span>Radar pulse - what moved, what to act on</span>
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>

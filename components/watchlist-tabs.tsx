@@ -24,7 +24,7 @@ function num(v: unknown): number | null {
 
 function formatCurrency(price: unknown, currency: unknown): string {
   const p = num(price);
-  if (p === null) return "—";
+  if (p === null) return "-";
   const cur = String(currency ?? "USD");
   try {
     return p.toLocaleString("en-US", { style: "currency", currency: cur, minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -35,7 +35,7 @@ function formatCurrency(price: unknown, currency: unknown): string {
 
 function formatSignedPct(v: unknown): string {
   const n = num(v);
-  if (n === null) return "—";
+  if (n === null) return "-";
   return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
@@ -276,7 +276,7 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
             <DailySummary rows={holdings} label="Holdings" />
             <ul className="divide-y divide-[#f3f4f6]">
               {holdings.length === 0
-                ? <EmptyList message="No holdings yet — open a stock you own and mark it as a holding." />
+                ? <EmptyList message="No holdings yet - open a stock you own and mark it as a holding." />
                 : holdings.map((r) => <StockRow key={r.instrument_id} row={r} />)}
             </ul>
           </>
@@ -286,7 +286,7 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
             <DailySummary rows={watching} label="Watching" />
             <ul className="divide-y divide-[#f3f4f6]">
               {watching.length === 0
-                ? <EmptyList message="Nothing in Watching — bookmark tickers from the search bar." />
+                ? <EmptyList message="Nothing in Watching - bookmark tickers from the search bar." />
                 : watching.map((r) => <StockRow key={r.instrument_id} row={r} />)}
             </ul>
           </>
@@ -294,7 +294,7 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
         {active === "suggestions" && (
           <ul className="divide-y divide-[#f3f4f6]">
             {suggestions.length === 0
-              ? <EmptyList message="No ideas queued — Tikrr will suggest names that complement your Radar." />
+              ? <EmptyList message="No ideas queued - tikrr will suggest names that complement your Radar." />
               : suggestions.slice(0, 8).map((s) => (
                   <SuggestionRow key={String(s.instrument_id || s.ticker)} item={s} />
                 ))}
@@ -307,13 +307,13 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
         <DesktopColumn title="Holdings" count={holdings.length}>
           <DailySummary rows={holdings} label="Holdings" />
           {holdings.length === 0
-            ? <EmptyList message="No holdings yet — open a stock you own and mark it as a holding." />
+            ? <EmptyList message="No holdings yet - open a stock you own and mark it as a holding." />
             : holdings.map((r) => <StockRow key={r.instrument_id} row={r} />)}
         </DesktopColumn>
         <DesktopColumn title="Watching" count={watching.length}>
           <DailySummary rows={watching} label="Watching" />
           {watching.length === 0
-            ? <EmptyList message="Nothing in Watching — bookmark tickers from the search bar." />
+            ? <EmptyList message="Nothing in Watching - bookmark tickers from the search bar." />
             : watching.map((r) => <StockRow key={r.instrument_id} row={r} />)}
         </DesktopColumn>
         <DesktopColumn title="Ideas" count={suggestions.slice(0, 8).length}>

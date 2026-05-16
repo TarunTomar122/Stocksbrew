@@ -12,7 +12,7 @@ type Props = {
 };
 
 const SCREEN_META_INFO: Record<string, { title: string; subtitle: string }> = {
-  tikrr_top: { title: "Top Tikrr Score", subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
+  tikrr_top: { title: "Top tikrr Score", subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders: { title: "Quality Compounders", subtitle: "Strong businesses built to grow year after year." },
   cheap_growth: { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
   momentum_leaders: { title: "On a Tear", subtitle: "Leading the tape with the long-term trend intact." },
@@ -31,12 +31,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: info.subtitle,
       alternates: { canonical: `/screens/${id}` },
       openGraph: {
-        title: `${info.title} · Tikrr`,
+        title: `${info.title} · tikrr`,
         description: info.subtitle,
         url: `https://www.tikrr.online/screens/${id}`,
       },
       twitter: {
-        title: `${info.title} · Tikrr`,
+        title: `${info.title} · tikrr`,
         description: info.subtitle,
       },
     };
@@ -63,7 +63,7 @@ const SCREEN_META: Record<
 
 const COLUMN_LEGEND = [
   {
-    label: "Tikrr score",
+    label: "tikrr score",
     body: "Overall score blending growth, momentum, quality and valuation.",
     direction: "Higher = stronger overall",
   },

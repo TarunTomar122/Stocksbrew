@@ -7,7 +7,7 @@ import requests
 
 from backend.env import load_backend_env
 from backend.llm_client import (
-    MIMO_API_URL,
+    llm_api_url,
     json_response_format,
     llm_api_key,
     llm_headers,
@@ -177,7 +177,7 @@ class OpenAIJSONClient:
     def __init__(self, api_key: str | None = None, model: str | None = None, timeout: int = 60) -> None:
         self.api_key = api_key or llm_api_key()
         if not self.api_key:
-            raise RuntimeError("MIMO_API_KEY is required")
+            raise RuntimeError("OPENAI_API_KEY or MIMO_API_KEY is required")
         self.model = model or DEFAULT_MODEL
         self.timeout = timeout
 
@@ -192,7 +192,7 @@ class OpenAIJSONClient:
 
     def _generate(self, system_prompt: str, user_prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         response = requests.post(
-            MIMO_API_URL,
+            llm_api_url(),
             headers=llm_headers(self.api_key),
             json={
                 "model": self.model,

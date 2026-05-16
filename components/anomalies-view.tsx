@@ -9,7 +9,7 @@ function fmtPct(v: number): string {
 }
 
 function fmtPrice(v: number): string {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "-";
   if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return v.toFixed(2);
 }

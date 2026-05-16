@@ -15,7 +15,7 @@ type Props = {
   ticker: string;
   instrumentId: string;
   isTracked: boolean;
-  /** Optional — affects the button label only. When omitted we show a generic
+  /** Optional - affects the button label only. When omitted we show a generic
    * "Add to Radar" label and let the API decide if the user can add this stock. */
   tier?: "ai_launch" | "ai_personal" | "free";
   isSubscribed?: boolean;
@@ -66,7 +66,7 @@ export function TrackButton({
             body: JSON.stringify({ instrument_id: instrumentId }),
           });
           if (!res.ok) {
-            setError("Could not remove — try again.");
+            setError("Could not remove - try again.");
             return;
           }
           setLocalTracked(false);
@@ -104,15 +104,15 @@ export function TrackButton({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          if (res.status === 403) {
-            setOpen(false);
-            router.push("/subscribe");
-            return;
-          }
           if (res.status === 409) {
-            setError("Personal radar is full — remove one first.");
+            if (data?.error === "free_tier_limit_reached") {
+              setOpen(false);
+              router.push("/subscribe");
+              return;
+            }
+            setError("Radar is full - remove one first.");
           } else {
-            setError("Could not add — try again.");
+            setError("Could not add - try again.");
           }
           return;
         }
@@ -130,9 +130,6 @@ export function TrackButton({
     });
   }
 
-  const canTrackOrUntrack =
-    !!user && (tier === "ai_launch" || tier === "ai_personal" || isSubscribed);
-
   if (loading) {
     if (variant === "icon") {
       return <span className="inline-block h-5 w-5" aria-hidden />;
@@ -142,9 +139,7 @@ export function TrackButton({
 
   const label = !user
     ? "Sign in to add"
-    : !canTrackOrUntrack
-      ? "Subscribe to add"
-      : pendingOp === "remove"
+    : pendingOp === "remove"
         ? "Removing…"
         : pendingOp === "add"
           ? "Adding…"
@@ -243,7 +238,7 @@ function TrackModal({
   pending: boolean;
   error: string | null;
 }) {
-  // ESC to dismiss. Lock scroll without breaking `position: sticky` — plain
+  // ESC to dismiss. Lock scroll without breaking `position: sticky` - plain
   // `overflow: hidden` on body removes the scrollbar and confuses sticky tabs.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -303,7 +298,7 @@ function TrackModal({
             Add {ticker} to Radar
           </h2>
           <p className="text-[13px] text-[#6b7280] leading-relaxed">
-            Tell Tikrr how to monitor this stock. You can move it later.
+            Tell tikrr how to monitor this stock. You can move it later.
           </p>
         </div>
 

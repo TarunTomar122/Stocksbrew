@@ -4,7 +4,7 @@ Call ``configure_pipeline_logging()`` once near the start of ``main()`` in any
 entrypoint so failures are timestamped and searchable in GitHub Actions / logs.
 
 Env:
-  TRACE_MONEY_LOG_LEVEL — DEBUG, INFO (default), WARNING, ERROR
+  TRACE_MONEY_LOG_LEVEL - DEBUG, INFO (default), WARNING, ERROR
 """
 from __future__ import annotations
 

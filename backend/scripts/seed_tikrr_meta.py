@@ -250,7 +250,7 @@ NAME_MAP = {
     "LYFT": "Lyft, Inc.",
     "SHOP": "Shopify Inc.",
     "ZS": "Zscaler, Inc.",
-    # New US — Healthcare
+    # New US - Healthcare
     "AMGN": "Amgen Inc.",
     "GILD": "Gilead Sciences, Inc.",
     "REGN": "Regeneron Pharmaceuticals, Inc.",
@@ -266,7 +266,7 @@ NAME_MAP = {
     "TMO": "Thermo Fisher Scientific Inc.",
     "DHR": "Danaher Corporation",
     "BIIB": "Biogen Inc.",
-    # New US — Financials
+    # New US - Financials
     "COF": "Capital One Financial Corporation",
     "USB": "U.S. Bancorp",
     "PNC": "PNC Financial Services Group, Inc.",
@@ -278,7 +278,7 @@ NAME_MAP = {
     "NDAQ": "Nasdaq, Inc.",
     "COIN": "Coinbase Global, Inc.",
     "MSTR": "MicroStrategy Incorporated",
-    # New US — Semiconductors / AI / Software
+    # New US - Semiconductors / AI / Software
     "ARM": "Arm Holdings plc",
     "SMCI": "Super Micro Computer, Inc.",
     "MRVL": "Marvell Technology, Inc.",
@@ -292,21 +292,21 @@ NAME_MAP = {
     "VEEV": "Veeva Systems Inc.",
     "HUBS": "HubSpot, Inc.",
     "IONQ": "IonQ, Inc.",
-    # New US — Consumer Staples
+    # New US - Consumer Staples
     "KO": "The Coca-Cola Company",
     "PEP": "PepsiCo, Inc.",
     "PG": "The Procter & Gamble Company",
     "PM": "Philip Morris International Inc.",
     "MO": "Altria Group, Inc.",
-    # New US — Utilities / Clean Energy
+    # New US - Utilities / Clean Energy
     "NEE": "NextEra Energy, Inc.",
     "DUK": "Duke Energy Corporation",
     "SO": "The Southern Company",
-    # New US — REITs
+    # New US - REITs
     "AMT": "American Tower Corporation",
     "PLD": "Prologis, Inc.",
     "EQIX": "Equinix, Inc.",
-    # New US — Materials
+    # New US - Materials
     "FCX": "Freeport-McMoRan Inc.",
     "NEM": "Newmont Corporation",
     "LIN": "Linde plc",
@@ -410,14 +410,14 @@ NAME_MAP = {
     "TATACOMM": "Tata Communications Ltd",
     "SUNTV": "Sun TV Network Ltd",
     "ZEEL": "Zee Entertainment Enterprises Ltd",
-    # New India — IT
+    # New India - IT
     "TATAELXSI": "Tata Elxsi Ltd",
     "KPITTECH": "KPIT Technologies Ltd",
     "CYIENT": "Cyient Ltd",
     "BIRLASOFT": "Birlasoft Ltd",
     "MASTEK": "Mastek Ltd",
     "HEXAWARE": "Hexaware Technologies Ltd",
-    # New India — Banking
+    # New India - Banking
     "CANBK": "Canara Bank",
     "BANDHANBNK": "Bandhan Bank Ltd",
     "RBLBANK": "RBL Bank Ltd",
@@ -425,32 +425,32 @@ NAME_MAP = {
     "YESBANK": "Yes Bank Ltd",
     "AUBANK": "AU Small Finance Bank Ltd",
     "KARURVYSYA": "Karur Vysya Bank Ltd",
-    # New India — Auto
+    # New India - Auto
     "MOTHERSON": "Samvardhana Motherson International Ltd",
     "APOLLOTYRE": "Apollo Tyres Ltd",
     "MRF": "MRF Ltd",
     "BALKRISIND": "Balkrishna Industries Ltd",
     "CUMMINSIND": "Cummins India Ltd",
-    # New India — Energy
+    # New India - Energy
     "ADANIGREEN": "Adani Green Energy Ltd",
     "ADANIPORTS": "Adani Ports and Special Economic Zone Ltd",
     "ADANIPOWER": "Adani Power Ltd",
     "TORNTPOWER": "Torrent Power Ltd",
     "NHPC": "NHPC Ltd",
     "SJVN": "SJVN Ltd",
-    # New India — Pharma
+    # New India - Pharma
     "ALKEM": "Alkem Laboratories Ltd",
     "IPCALAB": "IPCA Laboratories Ltd",
     "LAURUSLABS": "Laurus Labs Ltd",
     "GLENMARK": "Glenmark Pharmaceuticals Ltd",
-    # New India — FMCG
+    # New India - FMCG
     "RADICO": "Radico Khaitan Ltd",
     "EMAMILTD": "Emami Ltd",
     "JYOTHYLAB": "Jyothy Labs Ltd",
-    # New India — Metals
+    # New India - Metals
     "NATIONALUM": "National Aluminium Company Ltd",
     "JSWINFRA": "JSW Infrastructure Ltd",
-    # New India — Industrials
+    # New India - Industrials
     "HAVELLS": "Havells India Ltd",
     "VOLTAS": "Voltas Ltd",
     "THERMAX": "Thermax Ltd",
@@ -468,7 +468,7 @@ NAME_MAP = {
     "CONCOR": "Container Corporation of India Ltd",
     "INDIGO": "InterGlobe Aviation Ltd",
     "EASEMYTRIP": "Easy Trip Planners Ltd",
-    # New India — Financial Services
+    # New India - Financial Services
     "BAJAJFINSV": "Bajaj Finserv Ltd",
     "ICICIPRULI": "ICICI Prudential Life Insurance Company Ltd",
     "MANAPPURAM": "Manappuram Finance Ltd",
@@ -476,7 +476,7 @@ NAME_MAP = {
     "LICHSGFIN": "LIC Housing Finance Ltd",
     "CDSL": "Central Depository Services (India) Ltd",
     "MCXINDIA": "Multi Commodity Exchange of India Ltd",
-    # New India — Consumer / Retail
+    # New India - Consumer / Retail
     "INDIGOPNTS": "Indigo Paints Ltd",
     "KALYANKJIL": "Kalyan Jewellers India Ltd",
     "MANYAVAR": "Vedant Fashions Ltd",
@@ -488,7 +488,7 @@ NAME_MAP = {
     "POLICYBZR": "PB Fintech Ltd",
     "DEVYANI": "Devyani International Ltd",
     "WESTLIFE": "Westlife Foodworld Ltd",
-    # New India — Telecom / Media
+    # New India - Telecom / Media
     "PVRINOX": "PVR INOX Ltd",
 }
 

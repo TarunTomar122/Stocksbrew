@@ -117,7 +117,7 @@ class YFinanceClient:
         week_52_low = _to_float(info.get("fiftyTwoWeekLow")) or _to_float(getattr(fast_info, "get", lambda _key, _default=None: None)("yearLow"))
         target_price = _to_float(info.get("targetMeanPrice"))
         consensus_label = _consensus_label(info)
-        # Trend signals — Yahoo pre-computes 50D/200D moving averages, so we
+        # Trend signals - Yahoo pre-computes 50D/200D moving averages, so we
         # don't need to stockpile >200 sessions of history on our side just to
         # show a "price vs SMA" card. `beta` comes along for free from the
         # same `.info` payload. All three can be None/absent for illiquid
@@ -198,9 +198,9 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
     analyst mean target, and an analyst buy % derived from `recommendationMean`.
 
     Screener.in and Tickertape don't publish forward consensus for IN stocks,
-    so these fields used to render as "—" on the scorecard. Yahoo aggregates
+    so these fields used to render as "-" on the scorecard. Yahoo aggregates
     them for most NSE tickers. Returns a dict with only the keys that parsed
-    cleanly — callers should treat absence as "not available", same as every
+    cleanly - callers should treat absence as "not available", same as every
     other scraper.
     """
     if market == "IN":
@@ -231,13 +231,13 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
     _set("peg", info.get("trailingPegRatio"))
     _set("peg", info.get("pegRatio"))  # fallback if trailingPeg missing
     _set("target_price", info.get("targetMeanPrice"))
-    # Trend card inputs — Yahoo pre-computes the 50D / 200D moving averages
+    # Trend card inputs - Yahoo pre-computes the 50D / 200D moving averages
     # so we don't have to carry >200 sessions of price history per instrument.
     # We also grab beta for the same cheap-`.info`-read reason.
     _set("fifty_day_average", info.get("fiftyDayAverage"))
     _set("two_hundred_day_average", info.get("twoHundredDayAverage"))
     # Beta can legitimately be negative (inverse ETFs, hedges) or near zero
-    # (stable utilities), so we don't use `_set` — it would drop those.
+    # (stable utilities), so we don't use `_set` - it would drop those.
     beta_raw = info.get("beta")
     if beta_raw not in (None, "", "null"):
         try:

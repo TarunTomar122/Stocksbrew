@@ -5,7 +5,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 // Heat list reader.
 //
 // Backs the /heat page. One Firestore read (`tm_heat_list/{market}`) returns
-// a fully joined, pre-ranked list — no per-stock fan-out on the server. The
+// a fully joined, pre-ranked list - no per-stock fan-out on the server. The
 // backend `build_heat_list.py` stage writes this doc after every pipeline
 // run (see backend/heat_list.py for the scoring model).
 
@@ -40,11 +40,11 @@ export type HeatRow = {
   reason_sentence?: string;
   suggested_action?: string;
 
-  // Fundamentals signals (primary — works from day 1)
+  // Fundamentals signals (primary - works from day 1)
   overall_score?: number | null;
   momentum_score?: number | null;
 
-  // Mention velocity signals (bonus — builds over 7+ days)
+  // Mention velocity signals (bonus - builds over 7+ days)
   mention_count_7d: number;
   primary_mention_7d: number;
   baseline_per_day: number;
@@ -93,7 +93,7 @@ async function getHeatListUncached(
   const doc = await adminFirestore.collection("tm_heat_list").doc(market).get();
   if (!doc.exists) return null;
   const data = doc.data() as HeatList;
-  // Defensive: Firestore maps occasionally omit empty arrays — normalise.
+  // Defensive: Firestore maps occasionally omit empty arrays - normalise.
   return {
     ...data,
     rows: Array.isArray(data.rows) ? data.rows : [],

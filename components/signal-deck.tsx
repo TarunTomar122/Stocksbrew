@@ -52,7 +52,7 @@ function isForwardEvent(event?: NonNullable<StockFacts["events"]>[number]): bool
 // Surface the top "why care?" reasons for this stock right now. Pulls from
 // every free-tier data source we already have (facts, intel pro, technicals,
 // Yahoo fundamentals). Each generator returns null when the underlying number
-// isn't useful — only the most actionable signals make it into the deck.
+// isn't useful - only the most actionable signals make it into the deck.
 export function SignalDeck({
   facts,
   intelPro,
@@ -151,7 +151,7 @@ function collectSignals({
       supporting:
         fromHigh >= -3
           ? "Riding the top of the range"
-          : `Off the high — momentum still hot`,
+          : `Off the high - momentum still hot`,
       tone: "up",
       importance: 95 - Math.min(40, Math.abs(fromHigh) * 4),
     });
@@ -162,8 +162,8 @@ function collectSignals({
       label: "52W low",
       headline: fromLow <= 1 ? "At 52W low" : `+${fromLow.toFixed(1)}%`,
       supporting: fromLow <= 5
-        ? "Washed-out — watch for capitulation"
-        : "Just off the low — cap-bottom watch",
+        ? "Washed-out - watch for capitulation"
+        : "Just off the low - cap-bottom watch",
       tone: "down",
       importance: 90 - Math.min(40, fromLow * 3),
     });
@@ -205,7 +205,7 @@ function collectSignals({
         bg: "#fef3c7",
         label: "RSI stretched",
         headline: `${Math.round(rsi.value)}`,
-        supporting: "Overbought — pullback risk",
+        supporting: "Overbought - pullback risk",
         tone: "warn",
         importance: 78 + Math.min(10, rsi.value - 70),
       });
@@ -215,7 +215,7 @@ function collectSignals({
         bg: "#eff6ff",
         label: "RSI washed",
         headline: `${Math.round(rsi.value)}`,
-        supporting: "Oversold — bounce setup",
+        supporting: "Oversold - bounce setup",
         tone: "warn",
         importance: 78 + Math.min(10, 30 - rsi.value),
       });
@@ -281,7 +281,7 @@ function collectSignals({
     });
   }
 
-  // 7. Ownership — language differs US vs India
+  // 7. Ownership - language differs US vs India
   const instPct =
     facts?.institutions?.ownership_pct ??
     facts?.quick_stats?.institutional_ownership_pct ??
@@ -301,7 +301,7 @@ function collectSignals({
     });
   }
 
-  // 8. Earnings event hint — bumps to top when imminent
+  // 8. Earnings event hint - bumps to top when imminent
   const event = facts?.events?.find(isForwardEvent);
   if (event?.date_label) {
     out.push({
@@ -309,7 +309,7 @@ function collectSignals({
       bg: "#fef3c7",
       label: `Next ${event.title?.toLowerCase() ?? "event"}`,
       headline: event.date_label,
-      supporting: "Catalyst window — watch for guide",
+      supporting: "Catalyst window - watch for guide",
       tone: "warn",
       importance: 88,
     });

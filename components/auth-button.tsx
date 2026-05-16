@@ -21,7 +21,7 @@ export function AuthButton() {
     }
   }
 
-  // Server already validated the session — show avatar placeholder while
+  // Server already validated the session - show avatar placeholder while
   // Firebase client resolves on the client side. No flash of "Sign in".
   if (loading && !initialAuthed) {
     return (
@@ -32,7 +32,7 @@ export function AuthButton() {
     );
   }
 
-  // initialAuthed is true but user hasn't resolved yet — show a stable avatar
+  // initialAuthed is true but user hasn't resolved yet - show a stable avatar
   // placeholder instead of the "Sign in" button.
   if (!user && initialAuthed) {
     return (

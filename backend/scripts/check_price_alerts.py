@@ -1,5 +1,5 @@
 """
-Price alert checker — checks active alerts against current prices and sends email notifications.
+Price alert checker - checks active alerts against current prices and sends email notifications.
 
 Usage: python -m backend.scripts.check_price_alerts
 Env vars: BREVO_API_KEY (for email delivery via Brevo)
@@ -19,7 +19,7 @@ from backend.storage import TraceMoneyStore  # noqa: E402
 
 BREVO_API = "https://api.brevo.com/v3/smtp/email"
 FROM_EMAIL = "yourtrace.online@gmail.com"
-FROM_NAME = "Tikrr Alerts"
+FROM_NAME = "tikrr Alerts"
 
 
 def send_email(to: str, subject: str, body: str) -> bool:
@@ -91,13 +91,13 @@ def build_email(ticker: str, condition: str, target: float, current: float, dire
         <table cellpadding="0" cellspacing="0">
           <tr>
             <td align="center" valign="middle" height="40" style="height:40px;background-color:#111;border-radius:999px;padding-left:20px;padding-right:20px">
-              <a href="https://www.tikrr.online/stock/{ticker}" target="_blank" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#fff;text-decoration:none;white-space:nowrap;line-height:1">View {ticker} on Tikrr →</a>
+              <a href="https://www.tikrr.online/stock/{ticker}" target="_blank" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#fff;text-decoration:none;white-space:nowrap;line-height:1">View {ticker} on tikrr →</a>
             </td>
           </tr>
         </table>
       </td></tr>
       <tr><td style="padding:0 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid #e5e7eb;font-size:0;line-height:0">&nbsp;</td></tr></table></td></tr>
-      <tr><td style="padding:24px 24px 32px 24px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;line-height:1.5">Sent by Tikrr because you set a price alert. <a href="https://www.tikrr.online/profile" target="_blank" style="color:#0052ff;text-decoration:none">Manage alerts</a></td></tr>
+      <tr><td style="padding:24px 24px 32px 24px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;line-height:1.5">Sent by tikrr because you set a price alert. <a href="https://www.tikrr.online/profile" target="_blank" style="color:#0052ff;text-decoration:none">Manage alerts</a></td></tr>
     </table>
   </td></tr>
 </table>
@@ -109,10 +109,38 @@ def build_email(ticker: str, condition: str, target: float, current: float, dire
 def main() -> None:
     store = TraceMoneyStore()
 
-    alerts = store.db.collection("tm_alerts").where("active", "==", True).where("triggered", "==", False).stream()
+    price_alerts = (
+        store.db.collection("tm_alerts")
+        .where("active", "==", True)
+        .where("triggered", "==", False)
+        .where("kind", "==", "price_threshold")
+        .stream()
+    )
+    legacy_alerts = (
+        store.db.collection("tm_alerts")
+        .where("active", "==", True)
+        .where("triggered", "==", False)
+        .stream()
+    )
     alert_list = []
-    for doc in alerts:
+    seen_ids: set[str] = set()
+    for doc in price_alerts:
         data = doc.to_dict()
+        if not isinstance(data, dict):
+            continue
+        seen_ids.add(doc.id)
+        data.setdefault("kind", "price_threshold")
+        alert_list.append({"id": doc.id, **data})
+
+    for doc in legacy_alerts:
+        if doc.id in seen_ids:
+            continue
+        data = doc.to_dict()
+        if not isinstance(data, dict):
+            continue
+        if data.get("kind") not in (None, "", "price_threshold"):
+            continue
+        data.setdefault("kind", "price_threshold")
         alert_list.append({"id": doc.id, **data})
 
     if not alert_list:
@@ -144,7 +172,7 @@ def main() -> None:
         current = prices.get(ticker)
 
         if current is None:
-            print(f"  [{ticker}] no price data — skipping")
+            print(f"  [{ticker}] no price data - skipping")
             continue
 
         triggered = False
@@ -164,7 +192,7 @@ def main() -> None:
                 "active": not sent,  # deactivate after send; keep if email failed
             })
         else:
-            print(f"  [{ticker}] not triggered — ${current:.2f} (target ${target:.2f} {condition})")
+            print(f"  [{ticker}] not triggered - ${current:.2f} (target ${target:.2f} {condition})")
 
 
 if __name__ == "__main__":

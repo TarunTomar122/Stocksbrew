@@ -1,6 +1,6 @@
 export default function DevLayout({ children }: { children: React.ReactNode }) {
   // Full-viewport overlay that covers the root layout's header & footer.
-  // Dev-only — gives clean full-bleed screenshots without restructuring the app.
+  // Dev-only - gives clean full-bleed screenshots without restructuring the app.
   return (
     <div
       style={{

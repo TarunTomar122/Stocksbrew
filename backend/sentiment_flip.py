@@ -2,7 +2,7 @@
 
 Flags stocks where news coverage has reversed direction: a name that carried
 consistently negative (or positive) coverage for the past 10 days has flipped
-sharply in the last 3 days. This is an early-warning signal — the price often
+sharply in the last 3 days. This is an early-warning signal - the price often
 hasn't moved yet.
 
 Data source: same enrichment runs as divergence. No extra Firestore reads.

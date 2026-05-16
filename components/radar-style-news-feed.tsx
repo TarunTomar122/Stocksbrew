@@ -11,7 +11,7 @@ const MAX_TICKER_PILLS = 24;
 type SentimentFilter = "all" | "bullish" | "bearish" | "neutral";
 
 const PLACEHOLDER_SUMMARY =
-  "Open the article for the full story — summary not available for this source.";
+  "Open the article for the full story - summary not available for this source.";
 
 function formatArticleTime(iso: string): string {
   const t = new Date(iso).getTime();
@@ -232,7 +232,7 @@ function ArticleCard({ article, radarSet, tickerMetaMode, compact }: ArticleCard
             {rawSummary}
           </p>
         )}
-        <p className="mt-3 text-[11px] leading-normal text-[#a3a3a3]">{metaParts.join(" — ")}</p>
+        <p className="mt-3 text-[11px] leading-normal text-[#a3a3a3]">{metaParts.join(" - ")}</p>
       </a>
     </article>
   );
@@ -255,12 +255,12 @@ export type RadarStyleNewsFeedProps =
 const RADAR_COPY = {
   title: "Radar news",
   subtitle:
-    "Stories mentioning your tracked names — scan fast like a wire, open anything that matters.",
+    "Stories mentioning your tracked names - scan fast like a wire, open anything that matters.",
 } as const;
 
 function marketSubtitle(market: "US" | "IN"): string {
   const region = market === "IN" ? "India" : "US";
-  return `Latest headlines across the ${region} universe — scan fast like a wire, open anything that matters.`;
+  return `Latest headlines across the ${region} universe - scan fast like a wire, open anything that matters.`;
 }
 
 export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
@@ -279,7 +279,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
   const tickerMetaMode: ArticleCardProps["tickerMetaMode"] =
     variant === "radar" ? "radar_overlap" : "article_tickers";
 
-  // Top tickers by article-mention count — only computed for market variant.
+  // Top tickers by article-mention count - only computed for market variant.
   const topTickers = useMemo(() => {
     if (!showTickerPills) return [];
     const counts = new Map<string, number>();
@@ -368,7 +368,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
     variant === "radar" ? (
       <div className="flex flex-col gap-2 text-[13px] leading-relaxed text-[#737373]">
         <p>
-          Nothing matched your Radar in the latest news run yet — try again after the pipeline
+          Nothing matched your Radar in the latest news run yet - try again after the pipeline
           refreshes, or open the full market feed.
         </p>
         <Link href="/news" className="w-fit font-semibold text-[#0052ff] hover:underline">
@@ -377,15 +377,15 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       </div>
     ) : (
       <p className="text-[13px] leading-relaxed text-[#737373]">
-        No articles are available for this market in the latest news run yet — check back after the
+        No articles are available for this market in the latest news run yet - check back after the
         pipeline refreshes.
       </p>
     );
 
   const filteredEmptyHint =
     variant === "radar"
-      ? "No stories match these filters — try another symbol or tone."
-      : "No stories match this tone — try All or another tone.";
+      ? "No stories match these filters - try another symbol or tone."
+      : "No stories match this tone - try All or another tone.";
 
   return (
     <section className="flex flex-col gap-4 bg-white p-3 md:p-5">
@@ -397,7 +397,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
           <p className="max-w-xl text-[13px] leading-relaxed text-[#737373]">{subtitle}</p>
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#b5b5b5]">
             {articles.length === 0
-              ? "—"
+              ? "-"
               : filtered.length === articles.length
                 ? `${articles.length} stories`
                 : `${filtered.length} of ${articles.length} stories`}
@@ -460,7 +460,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
 
       </div>
 
-      {/* Ticker pills — market variant, own row */}
+      {/* Ticker pills - market variant, own row */}
       {showTickerPills && topTickers.length > 0 && (
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
           <button

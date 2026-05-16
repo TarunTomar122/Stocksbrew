@@ -251,7 +251,7 @@ def _build_market_tiles(
 
     Indices and macros come from the dedicated macro universe (real yfinance
     prices). Sector tiles are pre-computed by the caller (e.g. scraped from
-    Finviz or NSE) — this function just renders them with a directional sparkline.
+    Finviz or NSE) - this function just renders them with a directional sparkline.
     """
     tiles: list[dict[str, Any]] = []
     tile_order = _MACRO_TILE_ORDER_IN if market.upper() == "IN" else _MACRO_TILE_ORDER_US
@@ -425,7 +425,7 @@ def build_dashboard_view(
 
     # Back-compat: keep `macro_cards` populated from the first few index/macro
     # tiles so older consumers still work. New consumers should read
-    # `market_tiles` instead — it carries type + sublabel + sector rollups.
+    # `market_tiles` instead - it carries type + sublabel + sector rollups.
     macro_cards = [
         {
             "id": tile["id"],

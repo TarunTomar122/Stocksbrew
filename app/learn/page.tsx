@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   description: "50 free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
   alternates: { canonical: "/learn" },
   openGraph: {
-    title: "Learn to Invest — Free Guides & Tutorials · Tikrr",
+    title: "Learn to Invest - Free Guides & Tutorials · tikrr",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
     url: "https://www.tikrr.online/learn",
   },
   twitter: {
-    title: "Learn to Invest — Free Guides & Tutorials · Tikrr",
+    title: "Learn to Invest - Free Guides & Tutorials · tikrr",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
   },
 };
@@ -78,7 +78,7 @@ export default function LearnPage() {
             Learn to Invest
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
-            50 free guides covering everything from stock market basics to advanced factor investing. No jargon, no sales pitches — just clear, actionable knowledge.
+            50 free guides covering everything from stock market basics to advanced factor investing. No jargon, no sales pitches - just clear, actionable knowledge.
           </p>
         </header>
 

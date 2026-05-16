@@ -204,7 +204,7 @@ def _sync_in(args: argparse.Namespace) -> None:
 
         # Yahoo fallback for fields IN-native sources don't publish: forward
         # P/E, PEG, analyst mean target, and an analyst buy % derived from
-        # Yahoo's recommendationMean. Only fills gaps — never overwrites a
+        # Yahoo's recommendationMean. Only fills gaps - never overwrites a
         # value Screener/Tickertape already produced.
         try:
             yahoo_metrics = fetch_yfinance_scorecard_metrics(ticker, "IN")
@@ -298,7 +298,7 @@ def _sync_in(args: argparse.Namespace) -> None:
             continue
         store.save_stock_metrics_snapshot(payload["instrument_id"], snapshot_date, payload)
         saved += 1
-        print(f"  [ok] {payload['ticker']} — {len(payload.get('metrics') or {})} metrics, sector={payload.get('sector_label', '')}")
+        print(f"  [ok] {payload['ticker']} - {len(payload.get('metrics') or {})} metrics, sector={payload.get('sector_label', '')}")
 
     print(
         f"Saved {saved}/{len(instruments)} snapshots for {args.market} / "

@@ -22,7 +22,7 @@ const FEATURES: Feature[] = [
     iconFg: "#92400e",
     label: "Know your risk",
     title: "See when you're too heavy in one area",
-    body: "You find out you were over-concentrated after a drop. Tikrr shows it before.",
+    body: "You find out you were over-concentrated after a drop. tikrr shows it before.",
     example: "67% in Technology. Consider adding a defensive position.",
   },
   {
@@ -64,7 +64,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
       {/* Headline */}
       <div className="flex flex-col items-center gap-3 text-center max-w-3xl mx-auto">
         <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
-          Tikrr Pro
+          tikrr Pro
         </span>
         <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
           Your Radar for the stocks you care about.

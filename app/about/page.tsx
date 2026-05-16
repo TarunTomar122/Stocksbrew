@@ -3,15 +3,15 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "Tikrr delivers AI-powered market intelligence for retail investors — twice-daily briefs, stock scores, heat lists, and thematic screens grounded in real news.",
+  description: "tikrr delivers AI-powered market intelligence for retail investors - twice-daily briefs, stock scores, heat lists, and thematic screens grounded in real news.",
   alternates: { canonical: "/about" },
   openGraph: {
-    title: "About Tikrr — AI-Powered Market Intelligence",
+    title: "About tikrr - AI-Powered Market Intelligence",
     description: "Twice-daily AI briefs grounded in real news. No more wading through 30 tabs to figure out what mattered.",
     url: "https://www.tikrr.online/about",
   },
   twitter: {
-    title: "About Tikrr — AI-Powered Market Intelligence",
+    title: "About tikrr - AI-Powered Market Intelligence",
     description: "Twice-daily AI briefs grounded in real news. No more wading through 30 tabs to figure out what mattered.",
   },
 };
@@ -23,11 +23,11 @@ const PILLARS = [
   },
   {
     title: "Catch what you'd miss.",
-    body: "Insider sells, buried downgrades, options-flow flips, technical setups — surfaced before they hit the headlines.",
+    body: "Insider sells, buried downgrades, options-flow flips, technical setups - surfaced before they hit the headlines.",
   },
   {
     title: "Track without limits.",
-    body: "Pin every US stock you actually care about. We watch it — more markets coming soon.",
+    body: "Pin every US stock you actually care about. We watch it - more markets coming soon.",
   },
 ];
 
@@ -38,13 +38,13 @@ export default function AboutPage() {
         {/* Hero */}
         <section className="flex flex-col gap-5">
           <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">
-            About Tikrr
+            About tikrr
           </span>
           <h1 className="text-[40px] md:text-[56px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
             We're building the read on the market we wished existed.
           </h1>
           <p className="text-[17px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Tikrr surfaces institutional flows, sentiment shifts, and sector rotations across US markets — written in plain English, grounded in real data, refreshed twice a day. More markets coming soon.
+            tikrr surfaces institutional flows, sentiment shifts, and sector rotations across US markets - written in plain English, grounded in real data, refreshed twice a day. More markets coming soon.
           </p>
         </section>
 
@@ -69,10 +69,10 @@ export default function AboutPage() {
             Why this exists
           </h2>
           <p className="text-[15px] text-[#374151] leading-[1.7]">
-            Most retail investors are drowning in feeds. Twitter is fast but noisy, Bloomberg is rigorous but expensive, Yahoo Finance is free but doesn't tell you what to look at. We built Tikrr to bridge that gap — institutional-quality reads in retail-friendly language, on the stocks you actually care about.
+            Most retail investors are drowning in feeds. Twitter is fast but noisy, Bloomberg is rigorous but expensive, Yahoo Finance is free but doesn't tell you what to look at. We built tikrr to bridge that gap - institutional-quality reads in retail-friendly language, on the stocks you actually care about.
           </p>
           <p className="text-[15px] text-[#374151] leading-[1.7]">
-            We're a small team. The product is live and improving daily. Feedback is gold — write to us anytime.
+            We're a small team. The product is live and improving daily. Feedback is gold - write to us anytime.
           </p>
         </section>
 

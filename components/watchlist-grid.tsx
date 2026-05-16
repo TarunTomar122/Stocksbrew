@@ -19,7 +19,7 @@ type SortKey =
 type SortDir = "asc" | "desc";
 
 function formatPrice(value: number | null, currency: string): string {
-  if (value === null) return "—";
+  if (value === null) return "-";
   const symbol = currency === "INR" ? "₹" : "$";
   return `${symbol}${value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -28,13 +28,13 @@ function formatPrice(value: number | null, currency: string): string {
 }
 
 function formatPct(value: number | null): string {
-  if (value === null) return "—";
+  if (value === null) return "-";
   const sign = value >= 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
 }
 
 function formatScore(value: number | null): string {
-  if (value === null) return "—";
+  if (value === null) return "-";
   return value.toFixed(0);
 }
 

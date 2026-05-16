@@ -1,4 +1,4 @@
-"""Shared MiMo chat-completions helpers for backend LLM calls."""
+"""Shared chat-completions helpers for backend LLM calls."""
 from __future__ import annotations
 
 import json
@@ -9,23 +9,32 @@ from backend.env import load_backend_env
 
 load_backend_env()
 
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 MIMO_API_URL = os.getenv(
     "MIMO_API_URL",
     "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
 )
-DEFAULT_MIMO_MODEL = (
-    os.getenv("MIMO_MODEL", "mimo-v2.5").strip()
-    or "mimo-v2.5"
-)
+DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+DEFAULT_MIMO_MODEL = os.getenv("MIMO_MODEL", "mimo-v2.5").strip() or "mimo-v2.5"
 
 
 def llm_api_key() -> str:
-    """Return the server-side MiMo API key."""
-    return os.getenv("MIMO_API_KEY", "").strip()
+    """Return server-side LLM key (OpenAI preferred, MiMo fallback)."""
+    return (
+        os.getenv("OPENAI_API_KEY", "").strip()
+        or os.getenv("MIMO_API_KEY", "").strip()
+    )
+
+
+def llm_api_url() -> str:
+    """Return chat completions endpoint for the active provider."""
+    return OPENAI_API_URL if os.getenv("OPENAI_API_KEY", "").strip() else MIMO_API_URL
 
 
 def llm_model(default: str | None = None) -> str:
-    """Return the MiMo model name used for cache keys and API calls."""
+    """Return model name used for cache keys and API calls."""
+    if os.getenv("OPENAI_API_KEY", "").strip():
+        return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
     return os.getenv("MIMO_MODEL", "").strip() or default or DEFAULT_MIMO_MODEL
 
 

@@ -135,7 +135,7 @@ def build_stock_technical_doc(
 
     # Yahoo-derived trend fallbacks. We only store ~60 sessions of daily history
     # per instrument, so our own sma_50 / sma_200 are often null. Yahoo's
-    # `.info` exposes 50D/200D averages pre-computed on their side — we capture
+    # `.info` exposes 50D/200D averages pre-computed on their side - we capture
     # them in yfinance_provider and fall back to them here so the Trend card
     # renders for every listed ticker, not just those we've backfilled deeply.
     yahoo_50d = _to_float(fundamentals.get("fifty_day_average"))

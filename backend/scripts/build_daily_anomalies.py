@@ -92,10 +92,21 @@ def _pick_row(
         visual_summary = None
 
     if not headline:
-        move_word = "rose" if day_change_pct >= 0 else "fell"
-        headline = f"{ticker} {move_word} {abs(day_change_pct):.2f}% today."
+        sector = str(instrument.get("sector") or "").strip()
+        if sector:
+            headline = f"{ticker} is a top {direction} mover in {sector}."
+        else:
+            headline = f"{ticker} is a top {direction} mover today."
     if not brief:
-        brief = "No fresh stock-specific news matched this run; showing price-led anomaly only."
+        context = (
+            f"relative to its prior close and peer moves"
+            if previous_close is not None
+            else "against the broader tape"
+        )
+        brief = (
+            f"Move is driven by price momentum {context}. "
+            "Watch for follow-through, catalyst updates, and reversal risk in the next session."
+        )
 
     return {
         "instrument_id": instrument_id,

@@ -33,7 +33,7 @@ export async function batchGetRefs<T>(
 // call them. Without this, each of getStockIntelligenceDoc / getInstrumentViewDoc
 // / getStockIntelPro / getSectorContextDoc fires its own independent read.
 
-// Single cached fetch of the raw config doc — shared by both getters below.
+// Single cached fetch of the raw config doc - shared by both getters below.
 const _getUniverseConfig = cache(async (): Promise<Record<string, string>> => {
   const doc = await adminFirestore.collection("tm_config").doc("active_universes").get();
   return doc.exists ? (doc.data() as Record<string, string>) : {};

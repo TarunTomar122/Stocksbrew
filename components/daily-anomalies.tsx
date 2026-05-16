@@ -2,15 +2,17 @@ import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
+import { getFeedPreviewLimit } from "@/lib/pro-features";
 
 type Props = {
   anomalies: AnomalyItem[];
   summary: string;
   generatedAt: string;
+  isSubscribed?: boolean;
 };
 
 function fmtPrice(v: number): string {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "-";
   if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return v.toFixed(2);
 }
@@ -79,7 +81,7 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
         </p>
       )}
 
-      {/* Catalyst — only short labels, not full sentences */}
+      {/* Catalyst - only short labels, not full sentences */}
       <div className="mt-auto min-h-[20px]">
         {item.catalyst && item.catalyst.length <= 48 && (
           <span className="inline-flex items-center self-start rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280]">
@@ -91,8 +93,12 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
   );
 }
 
-export function DailyAnomalies({ anomalies, summary, generatedAt }: Props) {
+export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed = false }: Props) {
   if (!anomalies || anomalies.length === 0) return null;
+  const maxCards = 8;
+  const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
+  const visible = anomalies.slice(0, visibleLimit);
+  const lockedCount = Math.max(0, Math.min(anomalies.length, maxCards) - visible.length);
 
   const ups = anomalies.filter((a) => a.direction === "up");
   const downs = anomalies.filter((a) => a.direction === "down");
@@ -133,12 +139,32 @@ export function DailyAnomalies({ anomalies, summary, generatedAt }: Props) {
       </div>
 
       {/* Cards grid */}
-      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0 md:items-stretch">
-        {anomalies.slice(0, 8).map((item) => (
-          <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 h-full">
+      <div className="flex items-stretch gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
+        {visible.map((item) => (
+          <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
             <AnomalyCard item={item} />
           </div>
         ))}
+        {!isSubscribed && lockedCount > 0 && (
+          <div className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
+            <Link
+              href="/subscribe"
+              className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center hover:border-[#111111] hover:bg-white transition-colors"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#f3f4f6] flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <rect x="3" y="7" width="10" height="8" rx="2" stroke="#6b7280" strokeWidth="1.4" />
+                  <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
+                  <circle cx="8" cy="11" r="1" fill="#6b7280" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-[#111111]">+{lockedCount} more moves</p>
+                <p className="text-[11px] text-[#9ca3af] mt-0.5">Unlock with Pro</p>
+              </div>
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

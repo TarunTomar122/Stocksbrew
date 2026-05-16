@@ -34,12 +34,12 @@ export function UnlistedStockShell({ ticker, market, redditTickerContext }: Prop
                     {ticker}
                   </span>
                   <span className="text-[12px] text-[#6b7280] leading-snug mt-1">
-                    Not in Tikrr&apos;s tracked universe yet. Full quotes and AI briefs will appear once we add it.
+                    Not in tikrr&apos;s tracked universe yet. Full quotes and AI briefs will appear once we add it.
                   </span>
                 </div>
               </div>
               <p className="text-[11px] font-medium text-[#9ca3af] border-t border-[#f3f4f6] pt-3">
-                Tip: open this page again after we ship coverage — the URL stays the same.
+                Tip: open this page again after we ship coverage - the URL stays the same.
               </p>
             </div>
 

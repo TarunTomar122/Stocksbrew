@@ -7,9 +7,9 @@ import { StrategicDirectiveDemo } from "@/components/strategic-directive";
 import { SignalTileCard, type SignalTileModel } from "@/components/signal-tile";
 import type { Directive } from "@/lib/stock";
 
-/** Landing-only sample — matches AI tab `Directive` shape; not generated live. */
+/** Landing-only sample - matches AI tab `Directive` shape; not generated live. */
 const LANDING_DEMO_DIRECTIVE: Directive = {
-  text: "Lean into NVDA into the next data-center print — supply commentary still leaves room vs. margin expectations.",
+  text: "Lean into NVDA into the next data-center print - supply commentary still leaves room vs. margin expectations.",
   stance: "accumulate",
   trigger_type: "none",
   rationale:
@@ -31,7 +31,7 @@ const VALUE_PROPS: ValueProp[] = [
     iconBg: "#eff6ff",
     iconFg: "#0052ff",
     title: "Numbers into pillars",
-    body: "Tikrr reads the fundamentals and surfaces key insights into four pillars that you can skim on the scorecard.",
+    body: "tikrr reads the fundamentals and surfaces key insights into four pillars that you can skim on the scorecard.",
   },
   {
     icon: "mark_email_read",

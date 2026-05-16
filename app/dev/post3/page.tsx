@@ -51,7 +51,7 @@ export default function Post3() {
         {/* Right */}
         <div className="flex-1 flex flex-col gap-4">
 
-          {/* Directive card — the real component */}
+          {/* Directive card - the real component */}
           <StrategicDirectiveDemo ticker="NVDA" directive={DIRECTIVE} />
 
           {/* Supporting row */}

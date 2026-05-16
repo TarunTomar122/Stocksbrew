@@ -23,13 +23,13 @@ PILLAR_WEIGHTS = {
 # Each curve: list of (input_value, score_0_100) anchor points. Interpolate
 # linearly between anchors; clamp outside the endpoints.
 _CURVES: dict[str, list[tuple[float, float]]] = {
-    # Valuation — cheaper = higher score. PE/FwdPE are expressed as
+    # Valuation - cheaper = higher score. PE/FwdPE are expressed as
     # ratio-to-sector (stock_pe / sector_pe); 0.7 means 30% cheaper.
     "pe_ratio_to_sector":       [(0.6, 100), (0.9, 75), (1.1, 40), (1.5, 0)],
     "fwd_pe_ratio_to_sector":   [(0.6, 100), (0.9, 75), (1.1, 40), (1.5, 0)],
     "peg_absolute":             [(0.0, 100), (1.0, 85), (2.0, 50), (3.0, 10)],
     "target_upside_pct":        [(-20, 0), (-5, 30), (5, 55), (15, 85), (30, 100)],
-    # Growth — higher = better
+    # Growth - higher = better
     "growth_pct_tall":          [(0.0, 0), (10, 50), (25, 85), (40, 100)],
     "growth_pct_short":         [(-5, 0), (0, 40), (10, 70), (20, 100)],
     # Quality
@@ -38,19 +38,19 @@ _CURVES: dict[str, list[tuple[float, float]]] = {
     "payout_pct":               [(0.0, 60), (40, 85), (60, 60), (80, 20), (100, 0)],
     "debt_eq":                  [(0.0, 100), (0.5, 85), (1.0, 55), (2.0, 15), (4.0, 0)],
     "inst_own_pct":             [(0.0, 10), (30, 50), (60, 85), (80, 100)],
-    # Momentum — Recom 1=strong buy, 5=strong sell
+    # Momentum - Recom 1=strong buy, 5=strong sell
     "recom_reverse":            [(1.0, 100), (2.0, 80), (3.0, 50), (4.0, 20), (5.0, 0)],
     "short_float_pct":          [(0.0, 100), (5.0, 70), (10, 40), (15, 15), (25, 0)],
     "insider_trans_pct":        [(-2, 0), (-0.5, 35), (0, 50), (0.5, 75), (2, 100)],
     "perf_1m_pct":              [(-15, 0), (-5, 30), (0, 50), (5, 70), (15, 100)],
     "rsi_14":                   [(20, 10), (35, 50), (55, 90), (70, 60), (80, 25)],
-    # Zacks — rank 1=strong buy, 5=strong sell (reversed)
+    # Zacks - rank 1=strong buy, 5=strong sell (reversed)
     "zacks_rank":               [(1.0, 100), (2.0, 80), (3.0, 50), (4.0, 20), (5.0, 0)],
-    # Earnings ESP — positive percent means likely to beat consensus
+    # Earnings ESP - positive percent means likely to beat consensus
     "zacks_esp":                [(-5, 0), (-1, 30), (0, 50), (1, 75), (5, 100)],
-    # IN momentum substitutes: analyst buy % (0-100) — higher = stronger consensus
+    # IN momentum substitutes: analyst buy % (0-100) - higher = stronger consensus
     "analyst_buy_pct":          [(0, 0), (50, 40), (70, 70), (90, 95), (100, 100)],
-    # 5-year stock CAGR (% annualized) — long-horizon momentum
+    # 5-year stock CAGR (% annualized) - long-horizon momentum
     "cagr_5y_pct":              [(-10, 0), (0, 30), (10, 60), (20, 85), (30, 100)],
 }
 
@@ -326,9 +326,9 @@ def _growth_summary(
     if benchmark is not None:
         diff = value - benchmark
         direction = "ahead of" if diff > 1 else "below" if diff < -1 else "in line with"
-        return f"{value:+.1f}% — {tier} pace, {direction} sector ({benchmark:+.1f}%)"
+        return f"{value:+.1f}% - {tier} pace, {direction} sector ({benchmark:+.1f}%)"
     if tier:
-        return f"{value:+.1f}% — {tier} pace"
+        return f"{value:+.1f}% - {tier} pace"
     return f"{value:+.1f}%"
 
 
@@ -347,10 +347,10 @@ def _quality_summary(label: str, v: float | None, score: float | None) -> str:
     if not tier:
         return f"{v:.1f}"
     if label == "Debt / Equity":
-        return f"{v:.2f} — {tier} {thing}"
+        return f"{v:.2f} - {tier} {thing}"
     if thing:
-        return f"{v:.1f}% — {tier} {thing}"
-    return f"{v:.1f} — {tier}"
+        return f"{v:.1f}% - {tier} {thing}"
+    return f"{v:.1f} - {tier}"
 
 
 def _momentum_summary(label: str, v: float | None, score: float | None) -> str:
@@ -359,63 +359,63 @@ def _momentum_summary(label: str, v: float | None, score: float | None) -> str:
     tier = _tier(score)
     if label == "Quant rank":
         tiers = {1: "Strong Buy", 2: "Buy", 3: "Hold", 4: "Sell", 5: "Strong Sell"}
-        return f"{int(v)} — {tiers.get(int(v), '')} signal"
+        return f"{int(v)} - {tiers.get(int(v), '')} signal"
     if label == "Beat likelihood":
         if v > 1:
-            return f"+{v:.1f}% — beat-likely this quarter"
+            return f"+{v:.1f}% - beat-likely this quarter"
         if v < -1:
-            return f"{v:+.1f}% — miss-likely this quarter"
-        return f"{v:+.1f}% — in line with consensus"
+            return f"{v:+.1f}% - miss-likely this quarter"
+        return f"{v:+.1f}% - in line with consensus"
     if label == "Analyst rating":
         if v <= 2:
-            return f"{v:.2f} — buy-tilted consensus"
+            return f"{v:.2f} - buy-tilted consensus"
         if v >= 4:
-            return f"{v:.2f} — sell-tilted consensus"
-        return f"{v:.2f} — hold-tilted consensus"
+            return f"{v:.2f} - sell-tilted consensus"
+        return f"{v:.2f} - hold-tilted consensus"
     if label == "1-month performance":
         direction = "outperformed" if v > 2 else "lagged" if v < -2 else "tracked"
-        return f"{v:+.1f}% — {direction} over last month"
+        return f"{v:+.1f}% - {direction} over last month"
     if label == "Short float":
         if v < 3:
-            return f"{v:.1f}% — calm short interest"
+            return f"{v:.1f}% - calm short interest"
         if v < 8:
-            return f"{v:.1f}% — moderate short interest"
-        return f"{v:.1f}% — heavy short interest"
+            return f"{v:.1f}% - moderate short interest"
+        return f"{v:.1f}% - heavy short interest"
     if label == "Insider activity":
         if abs(v) < 0.1:
-            return f"{v:+.2f}% — quiet on insider side"
+            return f"{v:+.2f}% - quiet on insider side"
         direction = "buying" if v > 0 else "selling"
-        return f"{v:+.2f}% — net insider {direction} (6M)"
+        return f"{v:+.2f}% - net insider {direction} (6M)"
     if label == "RSI (14)":
         if v >= 70:
-            return f"{v:.1f} — overbought zone"
+            return f"{v:.1f} - overbought zone"
         if v <= 30:
-            return f"{v:.1f} — oversold zone"
+            return f"{v:.1f} - oversold zone"
         if 50 <= v < 70:
-            return f"{v:.1f} — healthy uptrend"
-        return f"{v:.1f} — {tier or 'neutral'} trend"
+            return f"{v:.1f} - healthy uptrend"
+        return f"{v:.1f} - {tier or 'neutral'} trend"
     if label == "Analyst consensus":
         if v >= 80:
-            return f"{v:.0f}% of analysts rate buy — strong conviction"
+            return f"{v:.0f}% of analysts rate buy - strong conviction"
         if v >= 60:
-            return f"{v:.0f}% of analysts rate buy — constructive tilt"
+            return f"{v:.0f}% of analysts rate buy - constructive tilt"
         if v >= 40:
-            return f"{v:.0f}% of analysts rate buy — split view"
-        return f"{v:.0f}% of analysts rate buy — bearish consensus"
+            return f"{v:.0f}% of analysts rate buy - split view"
+        return f"{v:.0f}% of analysts rate buy - bearish consensus"
     if label == "1-week performance":
         direction = "up" if v > 1 else "down" if v < -1 else "flat"
-        return f"{v:+.1f}% — {direction} over last week"
+        return f"{v:+.1f}% - {direction} over last week"
     if label == "1-year performance":
         direction = "ahead" if v > 5 else "behind" if v < -5 else "flat"
-        return f"{v:+.1f}% — {direction} over trailing year"
+        return f"{v:+.1f}% - {direction} over trailing year"
     if label == "5-year CAGR":
         if v >= 20:
-            return f"{v:+.1f}% annualized — multibagger pace"
+            return f"{v:+.1f}% annualized - multibagger pace"
         if v >= 10:
-            return f"{v:+.1f}% annualized — solid long-run return"
+            return f"{v:+.1f}% annualized - solid long-run return"
         if v >= 0:
-            return f"{v:+.1f}% annualized — muted long-run return"
-        return f"{v:+.1f}% annualized — value destroyed"
+            return f"{v:+.1f}% annualized - muted long-run return"
+        return f"{v:+.1f}% annualized - value destroyed"
     return f"{v:.1f}"
 
 

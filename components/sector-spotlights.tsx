@@ -48,7 +48,7 @@ const DEFAULT_THEMES: Theme[] = [
 ];
 
 function fmtPrice(v: number): string {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "-";
   return v.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

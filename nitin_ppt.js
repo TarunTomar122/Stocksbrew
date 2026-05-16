@@ -145,11 +145,11 @@ const makeShadow = () => ({
   });
 
   const gaps = [
-    "Trial penetration at scale — category penetration stuck at 2–5% across platforms",
-    "Full-funnel media integration — keyword-only search, fragmented 14-day creative TAT",
-    "Agile supply chain — cost-optimized distributor-led model, 85% OLA, 10-day replenishment",
-    "Qcom-first assortment — platform built for 4-minute trips not yet addressed",
-    "Data-driven value creation — no real-time bidding intelligence on Q-com platforms",
+    "Trial penetration at scale - category penetration stuck at 2–5% across platforms",
+    "Full-funnel media integration - keyword-only search, fragmented 14-day creative TAT",
+    "Agile supply chain - cost-optimized distributor-led model, 85% OLA, 10-day replenishment",
+    "Qcom-first assortment - platform built for 4-minute trips not yet addressed",
+    "Data-driven value creation - no real-time bidding intelligence on Q-com platforms",
   ];
   gaps.forEach((g, i) => {
     const y = 3.85 + i * 0.57;
@@ -231,7 +231,7 @@ const makeShadow = () => ({
     x: 0, y: 6.45, w: 13.3, h: 1.05,
     fill: { color: C.gold }, line: { color: C.gold }
   });
-  s.addText("$1BN NOS  ·  45% Share  ·  98% OLA  ·  15% BT — DCom-1st India", {
+  s.addText("$1BN NOS  ·  45% Share  ·  98% OLA  ·  15% BT - DCom-1st India", {
     x: 0.5, y: 6.45, w: 12.3, h: 1.05,
     fontSize: 16, color: C.navy, bold: true, align: "center", valign: "middle", fontFace: "Calibri", margin: 0
   });
@@ -325,11 +325,11 @@ function capabilitySlide(num, title, tagline, accentColor, bullets, kpis, bottom
 capabilitySlide(
   1, "Portfolio &\nE-Trials", "Closed-Loop Trial Engine at 14.5MM Scale", "0891B2",
   [
-    { head: "5X Scale in One Year", body: "Grew from 3MM users in FY24-25 to 14.5MM in FY25-26 — spanning 7 platforms, 10+ user cohorts, 100% of P&G categories." },
+    { head: "5X Scale in One Year", body: "Grew from 3MM users in FY24-25 to 14.5MM in FY25-26 - spanning 7 platforms, 10+ user cohorts, 100% of P&G categories." },
     { head: "Platform-Specific Constructs", body: "Always-on Bill Buster on Flipkart · Cohorted Steal Deals with retargeting on Swiggy · VPC-led marketplace GTM on Amazon." },
     { head: "Full Closed-Loop Chassis Proven", body: "Build (25MM reach) → Remind (16MM) → On-platform (15MM) → Trial. Whisper Period Pants: 650MM impressions, ~20% category offtake." },
-    { head: "Cross-Functional Governance", body: "Capability spans planning, finance, supply chain, platform ops, and 2LOD-aligned governance — built for durability, not a one-off." },
-    { head: "Commercial Impact", body: "15% DCom growth contribution; 10% repeat rate — validating trial-to-loyalty loop." },
+    { head: "Cross-Functional Governance", body: "Capability spans planning, finance, supply chain, platform ops, and 2LOD-aligned governance - built for durability, not a one-off." },
+    { head: "Commercial Impact", body: "15% DCom growth contribution; 10% repeat rate - validating trial-to-loyalty loop." },
   ],
   [
     { val: "14.5MM", label: "Trial Users (5X vs FY24-25)" },
@@ -344,7 +344,7 @@ capabilitySlide(
   2, "Full-Funnel\nMedia", "Integrated Build-Remind-Buy Personalization Engine", "7C3AED",
   [
     { head: "From Keyword to Full-Funnel", body: "Unified nation + retailer plans across Linear TV, OLV, Gaming, Bumper, Influencer, eRetail Search, and Ratings & Reviews." },
-    { head: "Amazon Unified Media — Proven ROI", body: "Targeting 8.5MN retail signal audiences delivered +6% CVR, +6% incremental NTBs, +6% repeat rates, +1.5% incremental share." },
+    { head: "Amazon Unified Media - Proven ROI", body: "Targeting 8.5MN retail signal audiences delivered +6% CVR, +6% incremental NTBs, +6% repeat rates, +1.5% incremental share." },
     { head: "Intent-Differentiated Search (Industry First on Qcom)", body: "Amazon AMC-powered personalization shifted from one keyword/one experience to differential shelf based on consumer intent signal." },
     { head: "Self-Funded Quality SOV", body: "100% pilots on quality SOV self-funded for 110 effectiveness in FY26-27. Media effectiveness at 105 vs P3Y avg of 97." },
     { head: "Cost Discipline", body: "Maintained performance gains despite 10–12% media inflation and 200bps escalation on agency cost." },
@@ -361,11 +361,11 @@ capabilitySlide(
 capabilitySlide(
   3, "Agile ONE\nSupply Chain", "Availability-First, DCom-Native Re-Architecture", "059669",
   [
-    { head: "OLA Command Center", body: "Real-time dark store tracking scaled from 300 to 4,000 zip codes — live visibility across all Qcom partners." },
+    { head: "OLA Command Center", body: "Real-time dark store tracking scaled from 300 to 4,000 zip codes - live visibility across all Qcom partners." },
     { head: "D+1 Supply Cycle", body: "Replaced 10-day replenishment with 1/3-day P&G-to-customer flow via collaborative forecasting, green channel appointment, and distributor competitive advantage." },
     { head: "OLA Improvement: 85% → 90%", body: "OLA improved from 85% (Nov'25) to 90% in March. PO TAT compressing 7→3 days. Days on Hand reducing 21→14 days." },
-    { head: "GTM of Future Pilot", body: "Last-mile service improvement pilot live — evaluating end-to-end DCom-native supply architecture for FY26-27 scale." },
-    { head: "From Cost-Optimized to Availability-First", body: "Re-engineered from distributor-led cost model to Dcom-native availability-first — a structural shift in P&G India supply philosophy." },
+    { head: "GTM of Future Pilot", body: "Last-mile service improvement pilot live - evaluating end-to-end DCom-native supply architecture for FY26-27 scale." },
+    { head: "From Cost-Optimized to Availability-First", body: "Re-engineered from distributor-led cost model to Dcom-native availability-first - a structural shift in P&G India supply philosophy." },
   ],
   [
     { val: "90%",    label: "OLA (from 85% Nov'25)" },
@@ -379,10 +379,10 @@ capabilitySlide(
 capabilitySlide(
   4, "Qcom-First\nAssortment", "Designed for 4-Minute Trips & Dark Store Economics", "DC2626",
   [
-    { head: "Qcom Rules Decoded", body: "4-minute trips · 80% ATC via Search · 40% trial pack salience · limited dark store space — assortment redesigned from the ground up." },
-    { head: "100 Cart-Breaker SKUs + 43 Super Value Packs", body: "Rationalised to a focused Cart Breaker + SVP structure — the first FMCG brand to define Qcom-native assortment architecture at this scale." },
+    { head: "Qcom Rules Decoded", body: "4-minute trips · 80% ATC via Search · 40% trial pack salience · limited dark store space - assortment redesigned from the ground up." },
+    { head: "100 Cart-Breaker SKUs + 43 Super Value Packs", body: "Rationalised to a focused Cart Breaker + SVP structure - the first FMCG brand to define Qcom-native assortment architecture at this scale." },
     { head: "Traffic & Conversion Mechanics", body: "Traffic driven via search optimization and 'Previously Bought' placements. Conversion via Best Value badging and SKU-level pricing architecture." },
-    { head: "Proven Commercial Uplift", body: "+0.6% market share growth. +5% business uplift for Cart Breaker + SVP vs plain pack — validated across Blinkit, Swiggy, and Zepto." },
+    { head: "Proven Commercial Uplift", body: "+0.6% market share growth. +5% business uplift for Cart Breaker + SVP vs plain pack - validated across Blinkit, Swiggy, and Zepto." },
     { head: "Architecture Built to Scale", body: "Assortment framework designed to serve 200MM+ online shoppers as Qcom penetration grows from current 2–5% category levels." },
   ],
   [
@@ -390,18 +390,18 @@ capabilitySlide(
     { val: "+5%",    label: "Biz uplift vs plain pack" },
     { val: "100",    label: "Cart-Breaker SKUs defined" },
   ],
-  "Industry-first Qcom-native assortment architecture — 100 Cart Breakers + 43 SVPs defined across Blinkit, Swiggy, Zepto"
+  "Industry-first Qcom-native assortment architecture - 100 Cart Breakers + 43 SVPs defined across Blinkit, Swiggy, Zepto"
 );
 
 // ─── SLIDE 8: Value Creation ─────────────────────────────────
 capabilitySlide(
   5, "Value Creation\n& Auto-Bidder", "India's First Q-Com Search Planner & Auto-Bidder", "F59E0B",
   [
-    { head: "India's First Qcom Auto-Bidder", body: "Real-time, city-level bidding engine on hourly frequency — hybrid CPC/CPM logic with forecasted click/conversion algorithms. Addresses volatile dynamic demand that marketplace tools cannot handle." },
-    { head: "Deployed Across Top 4 Qcom Platforms", body: "Live on Blinkit, Swiggy, Zepto, and Walmart (Flipkart) — the only FMCG brand with a unified cross-platform Qcom bidding engine." },
-    { head: "Platinum Data Partnerships — All Top 6 Customers", body: "Emedia Falcon deployed across all top 6 customers: Amazon, Flipkart, Myntra, Blinkit, Swiggy, Zepto." },
+    { head: "India's First Qcom Auto-Bidder", body: "Real-time, city-level bidding engine on hourly frequency - hybrid CPC/CPM logic with forecasted click/conversion algorithms. Addresses volatile dynamic demand that marketplace tools cannot handle." },
+    { head: "Deployed Across Top 4 Qcom Platforms", body: "Live on Blinkit, Swiggy, Zepto, and Walmart (Flipkart) - the only FMCG brand with a unified cross-platform Qcom bidding engine." },
+    { head: "Platinum Data Partnerships - All Top 6 Customers", body: "Emedia Falcon deployed across all top 6 customers: Amazon, Flipkart, Myntra, Blinkit, Swiggy, Zepto." },
     { head: "Flipkart × P&G SOCH'26", body: "Collaboration secured across category intelligence, shopper & demand intelligence, competitive intelligence, and retail execution." },
-    { head: "Proven Performance at Scale", body: "+20% impressions · +27% CPM efficiency · +20% RoAS — sustained results, not a test." },
+    { head: "Proven Performance at Scale", body: "+20% impressions · +27% CPM efficiency · +20% RoAS - sustained results, not a test." },
   ],
   [
     { val: "+20%",   label: "Impressions delivered" },
@@ -488,7 +488,7 @@ capabilitySlide(
     x: 0, y: 6.7, w: 13.3, h: 0.8,
     fill: { color: "0F1E4A" }, line: { color: "0F1E4A" }
   });
-  s.addText("India DCom: on the path to $1BN NOS · 45% Share · 98% OLA · 15% BT — Dcom-1st Organization", {
+  s.addText("India DCom: on the path to $1BN NOS · 45% Share · 98% OLA · 15% BT - Dcom-1st Organization", {
     x: 0.5, y: 6.7, w: 12.3, h: 0.8,
     fontSize: 12, color: C.gold, bold: true, align: "center", valign: "middle", fontFace: "Calibri", margin: 0
   });
@@ -513,7 +513,7 @@ capabilitySlide(
     x: 0.5, y: 1.5, w: 9, h: 0.5,
     fontSize: 12, color: C.gold, bold: true, charSpacing: 3, fontFace: "Calibri", margin: 0
   });
-  s.addText("India DCom is not just a channel —\nit's a structural capability.", {
+  s.addText("India DCom is not just a channel -\nit's a structural capability.", {
     x: 0.5, y: 2.1, w: 10, h: 1.8,
     fontSize: 38, color: C.white, bold: true, fontFace: "Calibri", margin: 0
   });

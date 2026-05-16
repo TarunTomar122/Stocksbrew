@@ -90,13 +90,13 @@ export function FeedbackWidget() {
             <div className="px-5 pb-5">
               <p className="text-[13px] text-[#10b981] leading-relaxed flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                Feedback sent — we read every one.
+                Feedback sent - we read every one.
               </p>
             </div>
           ) : (
             <div className="px-5 pb-5 flex flex-col gap-3">
               <p className="text-[13px] text-[#6b7280] leading-relaxed">
-                What feature, data, or insight would make Tikrr better for you?
+                What feature, data, or insight would make tikrr better for you?
               </p>
               <textarea
                 ref={inputRef}
@@ -106,7 +106,7 @@ export function FeedbackWidget() {
                   setError("");
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="I wish Tikrr had…"
+                placeholder="I wish tikrr had…"
                 rows={3}
                 autoFocus
                 className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3 text-[14px] text-[#111111] placeholder:text-[#9ca3af] outline-none resize-none focus:border-[#6366f1] focus:bg-white transition-colors"

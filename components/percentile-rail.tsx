@@ -9,7 +9,7 @@ const VALUE_TEXT: Record<string, string> = {
 };
 
 function formatValue(v: number | string | null): string {
-  if (v === null || v === undefined) return "—";
+  if (v === null || v === undefined) return "-";
   if (typeof v === "string") return v;
   const abs = Math.abs(v);
   if (abs >= 1000) return v.toFixed(0);

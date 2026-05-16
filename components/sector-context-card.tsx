@@ -51,7 +51,7 @@ function Card({
 function MoverList({ movers, tone }: { movers: SectorStock[]; tone: "bull" | "bear" }) {
   const toneClass = tone === "bull" ? "text-[#10b981]" : "text-[#ef4444]";
   if (movers.length === 0) {
-    return <span className="text-[13px] text-[#6b7280]">—</span>;
+    return <span className="text-[13px] text-[#6b7280]">-</span>;
   }
   return (
     <ul className="flex flex-col gap-2">

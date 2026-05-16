@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     console.error("user doc upsert failed", err);
-    // do not fail the session — user can still sign in; doc will sync on next login
+    // do not fail the session - user can still sign in; doc will sync on next login
   }
 
   const response = NextResponse.json({ ok: true, uid: decoded.uid, waitlistPromoted });

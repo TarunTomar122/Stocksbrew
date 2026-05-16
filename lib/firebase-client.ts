@@ -26,7 +26,7 @@ export function getFirebaseAuth(): Auth {
   if (_auth) return _auth;
   _auth = getAuth(getFirebaseApp());
   setPersistence(_auth, browserLocalPersistence).catch(() => {
-    // persistence may be unavailable (e.g. SSR, private mode) — safe to ignore
+    // persistence may be unavailable (e.g. SSR, private mode) - safe to ignore
   });
   return _auth;
 }

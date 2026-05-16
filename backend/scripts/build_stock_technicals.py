@@ -1,7 +1,7 @@
 """Build lightweight stock technical docs for the landing experience.
 
 RSI (and a few other technicals) are scraped directly from Finviz at build
-time — no rolling price history needed. SMA distances and trend signals
+time - no rolling price history needed. SMA distances and trend signals
 still fall back to whatever `tm_latest_prices.history_window` has, plus
 Yahoo's pre-computed 50D/200D averages.
 """

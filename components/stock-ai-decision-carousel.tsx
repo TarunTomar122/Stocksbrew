@@ -51,7 +51,7 @@ const BASE_SLIDES: Slide[] = [
   {
     id: "watch",
     verb: "Watch",
-    line: "Headlines move first — AI maps which moves actually hit fundamentals.",
+    line: "Headlines move first - AI maps which moves actually hit fundamentals.",
     tone: "blue",
   },
   {
@@ -63,37 +63,37 @@ const BASE_SLIDES: Slide[] = [
   {
     id: "add",
     verb: "Add",
-    line: "Numbers improving while price sleeps — AI spots dislocations worth a look.",
+    line: "Numbers improving while price sleeps - AI spots dislocations worth a look.",
     tone: "emerald",
   },
   {
     id: "hold",
     verb: "Hold",
-    line: "Noisy tape, steady thesis — AI keeps the story tied to filings + margins.",
+    line: "Noisy tape, steady thesis - AI keeps the story tied to filings + margins.",
     tone: "slate",
   },
   {
     id: "lookout",
     verb: "Look out",
-    line: "Earnings, macro, legal — AI surfaces dates and scenarios before the wire.",
+    line: "Earnings, macro, legal - AI surfaces dates and scenarios before the wire.",
     tone: "violet",
   },
   {
     id: "buy-zone",
     verb: "Buy zone",
-    line: "Only when scorecard + narrative align — AI resists chasing pure momentum.",
+    line: "Only when scorecard + narrative align - AI resists chasing pure momentum.",
     tone: "emerald",
   },
   {
     id: "take-profits",
     verb: "Take profits",
-    line: "Stretched RSI + hot sentiment — AI tags mean-reversion risk early.",
+    line: "Stretched RSI + hot sentiment - AI tags mean-reversion risk early.",
     tone: "rose",
   },
   {
     id: "reread",
     verb: "Re-read",
-    line: "New filing, same ticker — AI diffs narrative vs. what the model already knew.",
+    line: "New filing, same ticker - AI diffs narrative vs. what the model already knew.",
     tone: "blue",
   },
 ];
@@ -107,7 +107,7 @@ function verdictSlide(intel: StockIntelPro): Slide | null {
   return {
     id: "intel-live",
     verb: `${Math.round(o.score)}/100`,
-    line: `${verdict} scorecard${stanceBit} — blended with live news for today's stance.`,
+    line: `${verdict} scorecard${stanceBit} - blended with live news for today's stance.`,
     tone:
       verdict.toLowerCase() === "strong"
         ? "emerald"
@@ -166,7 +166,7 @@ export function StockAiDecisionCarousel({ ticker, intelPro }: Props) {
         <span className="text-[10px] font-medium text-[#9ca3af] tabular-nums">{ticker}</span>
       </div>
       <p className="text-[11px] leading-snug text-[#6b7280]">
-        Suggestion-style cues from <span className="font-semibold text-[#374151]">news + fundamentals</span> — not
+        Suggestion-style cues from <span className="font-semibold text-[#374151]">news + fundamentals</span> - not
         advice; open the AI tab for the full read.
       </p>
 

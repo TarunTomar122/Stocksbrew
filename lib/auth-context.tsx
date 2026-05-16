@@ -18,7 +18,7 @@ import { initPostHog, posthog } from "@/lib/posthog";
 type AuthState = {
   user: User | null;
   loading: boolean;
-  /** Server already validated the session cookie — we know the user is authed
+  /** Server already validated the session cookie - we know the user is authed
    *  even if the Firebase User object hasn't resolved yet on the client. */
   initialAuthed: boolean;
 };

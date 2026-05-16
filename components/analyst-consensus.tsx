@@ -24,7 +24,7 @@ export function AnalystConsensus({ consensus, currentPrice }: Props) {
   const hold = consensus?.hold ?? 0;
   const sell = consensus?.sell ?? 0;
   const total = buy + hold + sell;
-  const label = consensus?.label ?? "—";
+  const label = consensus?.label ?? "-";
   const target = consensus?.target_price;
   const upside = upsideTone(currentPrice, target);
   const buyPct = total > 0 ? Math.round((buy / total) * 100) : 0;
@@ -60,11 +60,11 @@ export function AnalystConsensus({ consensus, currentPrice }: Props) {
             <p className="text-[13px] text-[#6b7280]">
               Based on {total} analyst{total === 1 ? "" : "s"}
               {dominantLean === "bullish" && buyPct >= 70
-                ? ` — ${buyPct}% rate it a Buy`
+                ? ` - ${buyPct}% rate it a Buy`
                 : dominantLean === "bearish"
-                  ? " — leaning bearish"
+                  ? " - leaning bearish"
                   : dominantLean === "mixed"
-                    ? " — ratings are split"
+                    ? " - ratings are split"
                     : ""}
             </p>
           )}

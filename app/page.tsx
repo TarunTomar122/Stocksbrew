@@ -2,11 +2,9 @@ import { Suspense, cache } from "react";
 import { DailyAnomalies } from "@/components/daily-anomalies";
 import { HeroSection } from "@/components/hero-section";
 import { HomeContent } from "@/components/home-content";
-import { LandingProPreview } from "@/components/landing-pro-preview";
 import { MarketCues } from "@/components/market-cues";
 import { SectorSpotlights } from "@/components/sector-spotlights";
 import { WatchlistShowcase } from "@/components/watchlist-showcase";
-import { ThematicScreens } from "@/components/thematic-screens";
 import { LearnTeaser } from "@/components/learn-teaser";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { NewsletterSignup } from "@/components/newsletter-signup";
@@ -33,6 +31,7 @@ import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { LandingProPreview } from "@/components/landing-pro-preview";
 
 function rowToStock(s: SnapshotRow) {
   return {
@@ -217,15 +216,11 @@ const loadHomeCore = cache(async () => {
 const loadHomeSupplemental = cache(async () => {
   const market = getCurrentMarket();
   const homeView = await getHomeView(market).catch(() => null);
-  let screens = homeView?.thematic_screens ?? null;
   let news: NewsArticle[] = homeView?.news ?? [];
   if (news.length === 0) {
     news = await getNewsFeed(market, 30).catch(() => []);
   }
-  if (!screens) {
-    screens = await getThematicScreens(market).catch(() => null);
-  }
-  return { news, screens };
+  return { news };
 });
 
 function SkeletonBlock({ className = "" }: { className?: string }) {
@@ -402,12 +397,6 @@ async function HomeContentStream() {
         launchTickers={core.launchTickers}
         market={core.market}
       />
-
-      <ThematicScreens
-        doc={supplemental.screens}
-        market={core.market}
-        isSubscribed={core.isSubscribed}
-      />
     </>
   );
 }
@@ -434,11 +423,11 @@ export default function HomePage() {
           <HomeContentStream />
         </Suspense>
 
-        <LearnTeaser />
-
         <Testimonials />
 
         <NewsletterSignup />
+
+        <LearnTeaser />
       </div>
       <FeedbackWidget />
       <NewsletterModal />

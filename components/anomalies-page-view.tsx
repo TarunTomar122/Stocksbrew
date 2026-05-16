@@ -5,6 +5,7 @@ import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
+import { getFeedPreviewLimit } from "@/lib/pro-features";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -13,7 +14,7 @@ function fmtPct(v: number): string {
 }
 
 function fmtPrice(v: number): string {
-  if (!Number.isFinite(v)) return "—";
+  if (!Number.isFinite(v)) return "-";
   if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return v.toFixed(2);
 }
@@ -205,16 +206,23 @@ export function AnomaliesPageView({
   summary,
   generatedAt,
   reddit,
+  isSubscribed = false,
 }: {
   anomalies: AnomalyItem[];
   summary: string;
   generatedAt: string;
   reddit: RedditSnapshot | null;
+  isSubscribed?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("anomalies");
 
   const hasReddit = reddit && (reddit.tickers?.length ?? 0) > 0;
   const redditCount = reddit?.tickers?.length ?? 0;
+  const freeLimit = getFeedPreviewLimit(isSubscribed, 8);
+  const visibleAnomalies = anomalies.slice(0, freeLimit);
+  const visibleReddit = (reddit?.tickers ?? []).slice(0, freeLimit);
+  const lockedAnomalyCount = Math.max(0, anomalies.length - visibleAnomalies.length);
+  const lockedRedditCount = Math.max(0, redditCount - visibleReddit.length);
 
   // On mobile, show only the active tab. On desktop, show both stacked.
   const showAnomalies = tab === "anomalies";
@@ -222,7 +230,7 @@ export function AnomaliesPageView({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Tab bar — mobile only, shown when reddit data exists */}
+      {/* Tab bar - mobile only, shown when reddit data exists */}
       {hasReddit && (
         <MobileTabBar
           active={tab}
@@ -232,7 +240,7 @@ export function AnomaliesPageView({
         />
       )}
 
-      {/* Anomalies section — always visible on desktop, tab-controlled on mobile */}
+      {/* Anomalies section - always visible on desktop, tab-controlled on mobile */}
       <div className={tab === "reddit" ? "hidden md:flex md:flex-col md:gap-4" : "flex flex-col gap-4"}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -252,13 +260,22 @@ export function AnomaliesPageView({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {anomalies.map((item) => (
+          {visibleAnomalies.map((item) => (
             <AnomalyCard key={item.ticker} item={item} />
           ))}
+          {!isSubscribed && lockedAnomalyCount > 0 && (
+            <Link
+              href="/subscribe"
+              className="flex min-h-[176px] flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center"
+            >
+              <p className="text-[15px] font-semibold text-[#111111]">+{lockedAnomalyCount} more anomalies</p>
+              <p className="text-[12px] text-[#6b7280]">Unlock Pro for full anomaly feed</p>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Reddit section — always visible on desktop (below anomalies), tab-controlled on mobile */}
+      {/* Reddit section - always visible on desktop (below anomalies), tab-controlled on mobile */}
       {hasReddit && (
         <div className={tab === "anomalies" ? "hidden md:flex md:flex-col md:gap-4" : "flex flex-col gap-4"}>
           <div className="flex items-center gap-4">
@@ -268,9 +285,27 @@ export function AnomaliesPageView({
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {reddit!.tickers.map((item) => (
+            {visibleReddit.map((item) => (
               <RedditCard key={item.ticker} item={item} />
             ))}
+            {!isSubscribed && lockedRedditCount > 0 && (
+              <Link
+                href="/subscribe"
+                className="flex min-h-[176px] flex-col items-center justify-center gap-3 rounded-[20px] border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center hover:border-[#111111] hover:bg-white transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full bg-[#f3f4f6] flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <rect x="3" y="7" width="10" height="8" rx="2" stroke="#6b7280" strokeWidth="1.4" />
+                    <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
+                    <circle cx="8" cy="11" r="1" fill="#6b7280" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#111111]">+{lockedRedditCount} more names</p>
+                  <p className="text-[11px] text-[#9ca3af] mt-0.5">Unlock with Pro</p>
+                </div>
+              </Link>
+            )}
           </div>
         </div>
       )}

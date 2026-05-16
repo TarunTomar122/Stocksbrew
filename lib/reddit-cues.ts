@@ -211,7 +211,7 @@ export function resolveRedditContextForSymbol(
       ticker: upper,
       sentiment: "neutral",
       summary:
-        "This name isn’t in Tikrr’s library yet. Below is what Reddit discussed in our latest scan.",
+        "This name isn’t in tikrr’s library yet. Below is what Reddit discussed in our latest scan.",
       mention_count: top_posts.length,
       catalysts: [],
     },

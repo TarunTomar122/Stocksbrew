@@ -25,7 +25,7 @@ type SampleRow = {
 };
 
 // Realistic-looking sample rows for the blurred preview. Shown to anon and
-// non-subscribed users so they can see the shape of what they'd get — verdicts,
+// non-subscribed users so they can see the shape of what they'd get - verdicts,
 // red-flag chips, score bars. This is the "you're missing this" surface.
 const SAMPLE_ROWS: SampleRow[] = [
   {
@@ -159,7 +159,7 @@ function ScoreBar({ value }: { value: number }) {
   );
 }
 
-// Fake but realistic sparkline — six points per row, shape keyed to the day %.
+// Fake but realistic sparkline - six points per row, shape keyed to the day %.
 function sparkPath(seed: number, positive: boolean): string {
   const pts = [0, 1, 2, 3, 4, 5].map((i) => {
     const t = i / 5;
@@ -400,7 +400,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
 
   // --- Case: signed-in subscriber with empty Radar → show a real sample
   //     preview of what Radar looks like, plus the three feature
-  //     callouts, plus a clear "how to add" nudge. No blur — subscribers have
+  //     callouts, plus a clear "how to add" nudge. No blur - subscribers have
   //     already paid the ticket, they should see the full shape. ---
   if (signedIn && isSubscribed && !hasRows) {
     return (
@@ -411,7 +411,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
               Your Radar · empty
             </div>
             <h3 className="mt-1 text-base font-semibold text-on-surface">
-              Nothing in Radar yet — here&apos;s what you&apos;ll get
+              Nothing in Radar yet - here&apos;s what you&apos;ll get
             </h3>
           </div>
           <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
@@ -419,7 +419,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
           </span>
         </header>
 
-        {/* Feature callouts — what Radar actually delivers */}
+        {/* Feature callouts - what Radar actually delivers */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 border-b border-outline-variant/20">
           <FeatureCallout
             icon="schedule"
@@ -429,7 +429,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
           <FeatureCallout
             icon="warning"
             title="Alerts"
-            body="RSI, 52-week levels, earnings — when they fire."
+            body="RSI, 52-week levels, earnings - when they fire."
             divider
           />
           <FeatureCallout

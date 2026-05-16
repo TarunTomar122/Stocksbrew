@@ -14,7 +14,7 @@ function freshnessTone(status?: string): { label: string; color: string } {
 }
 
 function confidenceTone(score?: number): { label: string; color: string } {
-  if (typeof score !== "number") return { label: "—", color: "#9ca3af" };
+  if (typeof score !== "number") return { label: "-", color: "#9ca3af" };
   if (score >= 75) return { label: "High",   color: "#10b981" };
   if (score >= 50) return { label: "Medium", color: "#f59e0b" };
   return { label: "Low", color: "#ef4444" };

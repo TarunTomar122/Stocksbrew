@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Privacy policy · Tikrr",
+  title: "Privacy policy · tikrr",
 };
 
 export default function PrivacyPage() {
@@ -16,17 +16,17 @@ export default function PrivacyPage() {
         <h2>What we collect</h2>
         <ul>
           <li>
-            <strong>Account info</strong> — your name, email, and profile picture
+            <strong>Account info</strong> - your name, email, and profile picture
             from Google when you sign in. We use Firebase Authentication to handle
             this.
           </li>
           <li>
-            <strong>Radar &amp; preferences</strong> — the tickers you add
+            <strong>Radar &amp; preferences</strong> - the tickers you add
             and the market you've selected (US or IN), stored against your
             account.
           </li>
           <li>
-            <strong>Usage signals</strong> — anonymized pageviews, navigation
+            <strong>Usage signals</strong> - anonymized pageviews, navigation
             paths, and feature interactions to help us improve the product.
           </li>
         </ul>
@@ -53,10 +53,10 @@ export default function PrivacyPage() {
       <section>
         <h2>Third parties</h2>
         <ul>
-          <li>Google (Firebase Auth) — sign-in.</li>
-          <li>Firestore (Google Cloud) — your account and Radar storage.</li>
-          <li>OpenAI — generates the natural-language AI briefs and alerts.</li>
-          <li>News and pricing vendors — provide the underlying market data.</li>
+          <li>Google (Firebase Auth) - sign-in.</li>
+          <li>Firestore (Google Cloud) - your account and Radar storage.</li>
+          <li>OpenAI - generates the natural-language AI briefs and alerts.</li>
+          <li>News and pricing vendors - provide the underlying market data.</li>
         </ul>
       </section>
 
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Children</h2>
         <p>
-          Tikrr isn't directed at children under 18 and we don't knowingly
+          tikrr isn't directed at children under 18 and we don't knowingly
           collect data from them. If you believe a minor has signed up, contact
           us and we'll remove the account.
         </p>

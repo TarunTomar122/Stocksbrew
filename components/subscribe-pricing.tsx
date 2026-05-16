@@ -11,7 +11,7 @@ const PRO_BULLETS = [
   "Twice-daily news-backed briefs",
   "Radar concentration & blind-spot alerts",
   "Full heat list, divergences, and screens",
-  "Refresh deltas — only the new signal",
+  "Refresh deltas - only the new signal",
   "Email alerts when a signal fires",
 ];
 
@@ -83,7 +83,7 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
   async function handlePlanClick(period: "monthly" | "yearly") {
     setError(null);
 
-    // Not signed in — sign in first, then retry
+    // Not signed in - sign in first, then retry
     if (!user) {
       setLoadingPlan(period);
       try {
@@ -128,7 +128,7 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
           Cheaper than a coffee.
         </h1>
         <p className="text-[15px] text-[#6b7280] max-w-md leading-relaxed">
-          One plan, full access. Cancel anytime with one click — no questions asked.
+          One plan, full access. Cancel anytime with one click - no questions asked.
         </p>
       </div>
 
