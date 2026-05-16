@@ -118,12 +118,11 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
 }
 
 const PRO_BULLETS = [
-  "Unlimited personal AI-tier stocks",
-  "Twice-daily news-backed briefs",
-  "Radar concentration & blind-spot alerts",
-  "Full heat list, divergences, and screens",
-  "Refresh deltas - only the new signal",
-  "Email + (soon) WhatsApp pings on your Radar",
+  "Unlimited stocks on your Radar (free is capped at 3)",
+  "Per-stock AI verdict — buy / hold / sell, fundamentals scorecard, news-backed brief",
+  "Portfolio diagnosis — concentration risks, clusters, opportunities, daily activity",
+  "Market anomalies & email alerts — RSI extremes, earnings, breakouts when they fire",
+  "Cancel anytime · one click · no questions asked",
 ];
 
 function PricingCard({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -20,7 +21,13 @@ export async function POST(req: NextRequest) {
       tx.update(ref, {
         count: (snap.data()?.count ?? 1) + 1,
         last_requested_at: new Date().toISOString(),
-        ...(session ? { last_requested_by: session.uid } : {}),
+        ...(session
+          ? {
+              last_requested_by: session.uid,
+              requester_uids: FieldValue.arrayUnion(session.uid),
+              ...(session.email ? { requester_emails: FieldValue.arrayUnion(session.email.toLowerCase()) } : {}),
+            }
+          : {}),
       });
     } else {
       tx.set(ref, {
@@ -28,8 +35,16 @@ export async function POST(req: NextRequest) {
         count: 1,
         requested_at: new Date().toISOString(),
         last_requested_at: new Date().toISOString(),
-        ...(session ? { requested_by: session.uid, requester_email: session.email } : {}),
+        ...(session
+          ? {
+              requested_by: session.uid,
+              requester_email: session.email,
+              requester_uids: [session.uid],
+              ...(session.email ? { requester_emails: [session.email.toLowerCase()] } : {}),
+            }
+          : {}),
         fulfilled: false,
+        status: "queued",
       });
     }
   });

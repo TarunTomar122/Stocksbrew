@@ -84,7 +84,7 @@ export function StockRequestModal({ query, onClose }: Props) {
                 <span className="font-bold">{query}</span>
               </p>
               <p className="text-[14px] text-[#6b7280] leading-relaxed">
-                We'll review it and add the stock within <span className="font-semibold text-[#111111]">24 hours</span>. Thanks for the suggestion!
+                We queued this request. We’ll email you as soon as this stock is available in Tikrr.
               </p>
             </>
           )}

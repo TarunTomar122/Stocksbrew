@@ -25,6 +25,37 @@ def _parse_instrument_ids(value: str | None) -> set[str] | None:
     return ids or None
 
 
+def _resolve_instruments(
+    store: TraceMoneyStore,
+    market: str,
+    universe_id: str,
+    allowed_ids: set[str] | None,
+) -> list[dict[str, Any]]:
+    if not allowed_ids:
+        return list_instruments(market, universe_id)
+    market_catalog = list_instruments(market, None)
+    by_id = {
+        str(instrument.get("instrument_id", "")).upper(): instrument
+        for instrument in market_catalog
+    }
+    resolved = [
+        by_id[instrument_id]
+        for instrument_id in sorted(allowed_ids)
+        if instrument_id in by_id
+    ]
+    missing = [instrument_id for instrument_id in sorted(allowed_ids) if instrument_id not in by_id]
+    if missing:
+        refs = [store.db.collection("tm_instruments").document(instrument_id) for instrument_id in missing]
+        for doc in store.db.get_all(refs):
+            if not doc.exists:
+                continue
+            row = doc.to_dict() or {}
+            if str(row.get("market") or "").upper() != market.upper():
+                continue
+            resolved.append(row)
+    return resolved
+
+
 def _history_from_latest(latest_price: dict | None, limit: int) -> list[dict]:
     if not latest_price:
         return []
@@ -89,13 +120,8 @@ def main() -> None:
 
     store = TraceMoneyStore()
     universe_id = _resolve_universe(store, args.market, args.universe)
-    instruments = list_instruments(args.market, universe_id)
     allowed_ids = _parse_instrument_ids(args.instrument_ids)
-    if allowed_ids is not None:
-        instruments = [
-            instrument for instrument in instruments
-            if str(instrument.get("instrument_id", "")).upper() in allowed_ids
-        ]
+    instruments = _resolve_instruments(store, args.market, universe_id, allowed_ids)
     instrument_ids = [instrument["instrument_id"] for instrument in instruments]
     latest_prices = store.get_latest_prices(instrument_ids)
 

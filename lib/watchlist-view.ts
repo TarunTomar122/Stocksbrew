@@ -698,6 +698,15 @@ function rowFromDocs(
     mentionCompact,
     alerts,
   );
+  const rawDirective =
+    stockBrief && typeof stockBrief.directive === "object" && stockBrief.directive !== null
+      ? (stockBrief.directive as Record<string, unknown>)
+      : {};
+  const directiveText = String(rawDirective.text || "").trim();
+  const directiveRationale = String(rawDirective.rationale || "").trim();
+  const directiveStance = String(rawDirective.stance || "").toLowerCase();
+  const directiveTrigger = String(rawDirective.trigger_type || "").toLowerCase();
+  const directiveConfidence = String(rawDirective.confidence || "").toLowerCase();
 
   return {
     instrument_id: instrumentId,
@@ -743,6 +752,30 @@ function rowFromDocs(
       vibe,
       source: briefMicrocopy && isFullAiBrief(stockBrief) ? "mimo" : "rules",
     },
+    ai_directive: Object.keys(rawDirective).length > 0
+      ? {
+          text: directiveText || undefined,
+          stance: (
+            ["accumulate", "trim", "watch", "avoid", "hold"].includes(directiveStance)
+              ? directiveStance
+              : undefined
+          ) as "accumulate" | "trim" | "watch" | "avoid" | "hold" | undefined,
+          trigger_type: (
+            ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"].includes(directiveTrigger)
+              ? directiveTrigger
+              : undefined
+          ) as "price_below" | "price_above" | "date" | "sentiment_flip" | "new_catalyst" | "none" | undefined,
+          trigger_value: typeof rawDirective.trigger_value === "string" ? rawDirective.trigger_value : undefined,
+          rationale: directiveRationale || undefined,
+          confidence: (
+            ["low", "med", "high"].includes(directiveConfidence)
+              ? directiveConfidence
+              : undefined
+          ) as "low" | "med" | "high" | undefined,
+        }
+      : undefined,
+    ai_directive_text: directiveText || undefined,
+    ai_directive_rationale: directiveRationale || undefined,
     ...attention,
     coverage_status: Object.keys(intel).length > 0 ? "ready" : "score_pending",
     has_intel_pro: Object.keys(intel).length > 0,
@@ -1371,11 +1404,54 @@ export async function rebuildAndSaveWatchlistView(
   trackedStocks: string[],
   positions: Record<string, unknown> = {},
   sourceVersion?: number,
+  options?: {
+    preserveBriefIfFallback?: boolean;
+    preserveDirectivesIfMissing?: boolean;
+    preserveActivityIfThin?: boolean;
+  },
 ): Promise<WatchlistView> {
   const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
   const previous = await ref.get();
   const previousData = previous.exists ? (previous.data() as WatchlistView) : null;
   const view = await buildWatchlistView(uid, trackedStocks, positions, previousData);
+  if (
+    options?.preserveBriefIfFallback &&
+    previousData?.brief &&
+    previousData.brief.source === "mimo" &&
+    view.brief.source !== "mimo"
+  ) {
+    view.brief = previousData.brief;
+  }
+  if (options?.preserveDirectivesIfMissing && previousData?.rows?.length) {
+    const previousById = new Map(previousData.rows.map((row) => [row.instrument_id, row]));
+    view.rows = view.rows.map((row) => {
+      const prev = previousById.get(row.instrument_id);
+      if (!prev) return row;
+      const hasDirective =
+        Boolean(row.ai_directive && Object.keys(row.ai_directive).length > 0) ||
+        Boolean((row.ai_directive_text || "").trim());
+      if (hasDirective) return row;
+      const prevHasDirective =
+        Boolean(prev.ai_directive && Object.keys(prev.ai_directive).length > 0) ||
+        Boolean((prev.ai_directive_text || "").trim());
+      if (!prevHasDirective) return row;
+      return {
+        ...row,
+        ai_directive: prev.ai_directive,
+        ai_directive_text: prev.ai_directive_text,
+        ai_directive_rationale: prev.ai_directive_rationale,
+      };
+    });
+  }
+  if (
+    options?.preserveActivityIfThin &&
+    previousData &&
+    Array.isArray(previousData.event_radar) &&
+    previousData.event_radar.length > 0 &&
+    (!Array.isArray(view.event_radar) || view.event_radar.length === 0)
+  ) {
+    view.event_radar = previousData.event_radar;
+  }
   if (previousData) {
     const historyId = String(previousData.built_at || previousData.updated_at || new Date().toISOString())
       .replaceAll(":", "-")

@@ -22,6 +22,44 @@ from backend.storage import TraceMoneyStore
 from backend.tickertape_scraper import fetch_tickertape_quote
 
 
+def _parse_instrument_ids(value: str | None) -> set[str] | None:
+    if not value:
+        return None
+    ids = {item.strip().upper() for item in value.split(",") if item.strip()}
+    return ids or None
+
+
+def _resolve_instruments(
+    store: TraceMoneyStore,
+    market: str,
+    universe_id: str,
+    allowed_ids: set[str] | None,
+) -> list[dict[str, Any]]:
+    if not allowed_ids:
+        return list_instruments(market, universe_id)
+    market_catalog = list_instruments(market, None)
+    by_id = {
+        str(instrument.get("instrument_id", "")).upper(): instrument
+        for instrument in market_catalog
+    }
+    resolved = [
+        by_id[instrument_id]
+        for instrument_id in sorted(allowed_ids)
+        if instrument_id in by_id
+    ]
+    missing = [instrument_id for instrument_id in sorted(allowed_ids) if instrument_id not in by_id]
+    if missing:
+        refs = [store.db.collection("tm_instruments").document(instrument_id) for instrument_id in missing]
+        for doc in store.db.get_all(refs):
+            if not doc.exists:
+                continue
+            row = doc.to_dict() or {}
+            if str(row.get("market") or "").upper() != market.upper():
+                continue
+            resolved.append(row)
+    return resolved
+
+
 def _sync_us(args: argparse.Namespace) -> None:
     run_started = time.time()
     store = TraceMoneyStore()
@@ -32,7 +70,12 @@ def _sync_us(args: argparse.Namespace) -> None:
             "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
         )
 
-    instruments = list_instruments(args.market, universe_id)
+    instruments = _resolve_instruments(
+        store,
+        args.market,
+        universe_id,
+        _parse_instrument_ids(getattr(args, "instrument_ids", None)),
+    )
     tickers = [inst["ticker"] for inst in instruments]
     ticker_to_instrument = {inst["ticker"]: inst for inst in instruments}
 
@@ -164,7 +207,12 @@ def _sync_in(args: argparse.Namespace) -> None:
             "Set tm_config/active_universes.<MARKET>_price_universe or pass --universe."
         )
 
-    instruments = list_instruments(args.market, universe_id)
+    instruments = _resolve_instruments(
+        store,
+        args.market,
+        universe_id,
+        _parse_instrument_ids(getattr(args, "instrument_ids", None)),
+    )
     snapshot_date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     captured_at = datetime.now(timezone.utc).isoformat()
 
@@ -331,6 +379,7 @@ def main() -> None:
     parser.add_argument("--pause", type=float, default=1.5, help="Seconds between scrape requests")
     parser.add_argument("--date", default=None, help="Snapshot date override YYYY-MM-DD")
     parser.add_argument("--max-workers", type=int, default=1, help="Bounded per-ticker workers for secondary scrapers")
+    parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids for subset sync")
     args = parser.parse_args()
 
     if args.market == "US":

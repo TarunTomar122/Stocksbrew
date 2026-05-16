@@ -1,0 +1,112 @@
+"""Build deterministic symbol master in Firestore.
+
+Collection: tm_symbol_master/{MARKET__SYMBOL}
+State doc : tm_config/symbol_master_state
+"""
+from __future__ import annotations
+
+import argparse
+import re
+from datetime import datetime, timezone
+from typing import Any
+
+from backend.instrument_universe import list_instruments
+from backend.storage import TraceMoneyStore
+
+
+SUFFIX_RE = re.compile(
+    r"\b(incorporated|inc|corp|corporation|ltd|limited|plc|class a|class b|co|company|holdings?)\b",
+    flags=re.IGNORECASE,
+)
+PUNCT_RE = re.compile(r"[^a-z0-9\s]")
+SPACE_RE = re.compile(r"\s+")
+
+
+def normalize_name(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = SUFFIX_RE.sub(" ", text)
+    text = PUNCT_RE.sub(" ", text)
+    text = SPACE_RE.sub(" ", text).strip()
+    return text
+
+
+def _aliases(instrument: dict[str, Any]) -> list[str]:
+    raw = [
+        str(instrument.get("ticker") or "").upper(),
+        str(instrument.get("quote_symbol") or "").upper(),
+        str(instrument.get("quote_symbol_yahoo") or "").upper(),
+        str(instrument.get("name") or ""),
+    ]
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not item:
+            continue
+        key = item.strip()
+        if not key:
+            continue
+        norm = key.upper()
+        if norm in seen:
+            continue
+        seen.add(norm)
+        out.append(key)
+    return out
+
+
+def build_rows_for_market(market: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    now = datetime.now(timezone.utc).isoformat()
+    for instrument in list_instruments(market, None):
+        symbol = str(instrument.get("ticker") or "").strip().upper()
+        instrument_id = str(instrument.get("instrument_id") or "").strip()
+        if not symbol or not instrument_id:
+            continue
+        name = str(instrument.get("name") or symbol).strip()
+        rows.append(
+            {
+                "market": market,
+                "symbol": symbol,
+                "instrument_id": instrument_id,
+                "name": name,
+                "exchange": str(instrument.get("exchange") or "").strip().upper(),
+                "aliases": _aliases(instrument),
+                "normalized_name": normalize_name(name),
+                "active": str(instrument.get("status") or "active").lower() != "inactive",
+                "updated_at": now,
+            }
+        )
+    return rows
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build tm_symbol_master from instrument catalog")
+    parser.add_argument("--markets", default="US,IN", help="Comma-separated markets")
+    args = parser.parse_args()
+
+    markets = [m.strip().upper() for m in str(args.markets or "").split(",") if m.strip()]
+    if not markets:
+        raise ValueError("No markets specified")
+
+    store = TraceMoneyStore()
+    coll = store.db.collection("tm_symbol_master")
+    state_payload: dict[str, Any] = {"updated_at": datetime.now(timezone.utc).isoformat(), "markets": {}}
+    total = 0
+
+    for market in markets:
+        rows = build_rows_for_market(market)
+        for start in range(0, len(rows), 450):
+            batch = store.db.batch()
+            for row in rows[start : start + 450]:
+                doc_id = f"{row['market']}__{row['symbol']}"
+                batch.set(coll.document(doc_id), row, merge=True)
+                total += 1
+            batch.commit()
+        state_payload["markets"][market] = {"count": len(rows)}
+        print(f"[symbol-master] {market}: {len(rows)} rows")
+
+    store.db.collection("tm_config").document("symbol_master_state").set(state_payload, merge=True)
+    print(f"[symbol-master] done total_rows={total}")
+
+
+if __name__ == "__main__":
+    main()

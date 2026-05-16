@@ -143,6 +143,23 @@ def email_pro_welcome() -> tuple[str, str]:
     return subject, html
 
 
+def email_stock_request_ready(*, ticker: str, company_name: str | None = None) -> tuple[str, str]:
+    display = (company_name or ticker).strip()
+    subject = f"{ticker} is now live on tikrr"
+    html = _card(
+        title=f"{display} is ready to track",
+        lines=[
+            f"We added {ticker} to Tikrr based on your request.",
+            "You can now open the stock page, track it in Radar, and get fresh updates.",
+            "Thanks for helping us improve coverage.",
+        ],
+        cta_label=f"Open {ticker}",
+        cta_url=f"{APP_URL}/stock/{ticker}",
+        kicker="Stock request fulfilled",
+    )
+    return subject, html
+
+
 def email_pro_daily_digest(rows: list[dict[str, Any]], market_snapshot_rows: list[dict[str, Any]] | None = None) -> tuple[str, str]:
     def _num(v: Any) -> float:
         try:

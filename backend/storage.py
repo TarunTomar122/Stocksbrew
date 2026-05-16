@@ -1252,6 +1252,24 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
+    def get_price_core_overrides(self, market: str) -> list[str]:
+        doc = self.db.collection("tm_config").document("price_core_overrides").get()
+        if not doc.exists:
+            return []
+        data = _serialize(doc.to_dict()) or {}
+        rows = data.get(str(market).upper(), [])
+        if not isinstance(rows, list):
+            return []
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in rows:
+            iid = str(raw or "").strip().upper()
+            if not iid or iid in seen:
+                continue
+            seen.add(iid)
+            out.append(iid)
+        return out
+
     def save_price_refresh_status(self, market: str, payload: dict[str, Any]) -> None:
         market_key = str(market).upper()
         self.db.collection("tm_price_refresh_status").document(market_key).set({

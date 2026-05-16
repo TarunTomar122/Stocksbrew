@@ -22,6 +22,29 @@ function docSafe(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 120);
 }
 
+async function maybePromoteOnFirstVisit(instrumentId: string, ticker: string, market: "US" | "IN") {
+  const firstVisitRef = adminFirestore.collection("tm_stock_first_views").doc(instrumentId);
+  try {
+    await firstVisitRef.create({
+      instrument_id: instrumentId,
+      ticker,
+      market,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    return;
+  }
+
+  const configRef = adminFirestore.collection("tm_config").doc("price_core_overrides");
+  await configRef.set(
+    {
+      [market]: FieldValue.arrayUnion(instrumentId),
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSessionUser();
 
@@ -53,6 +76,8 @@ export async function POST(req: NextRequest) {
     created_at: `${bucketHour}:00:00.000Z`,
     updated_at: now.toISOString(),
   }, { merge: true });
+
+  await maybePromoteOnFirstVisit(instrumentId, ticker, market).catch(() => undefined);
 
   return NextResponse.json({ ok: true });
 }

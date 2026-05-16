@@ -5,6 +5,8 @@ import subprocess
 import sys
 from typing import Sequence
 
+from backend.storage import TraceMoneyStore
+
 
 def _run(cmd: Sequence[str]) -> None:
     print({"cmd": " ".join(cmd)})
@@ -47,6 +49,37 @@ def main() -> None:
     _run([sys.executable, "-m", "backend.scripts.materialize_views", *common, "--activate"])
     _run([sys.executable, "-m", "backend.scripts.build_watchlist_views"])
     _run([sys.executable, "-m", "backend.scripts.build_snapshot", "--market", args.market])
+
+    # Extended core refresh: keep dynamic overrides fully thick (price + fundamentals + score + technicals)
+    # even when they are outside the static base universe file.
+    store = TraceMoneyStore()
+    override_ids = store.get_price_core_overrides(args.market)
+    if override_ids:
+        ids_csv = ",".join(override_ids)
+        extra = [*common, "--instrument-ids", ids_csv]
+        _run([
+            sys.executable,
+            "-m",
+            "backend.scripts.sync_price_snapshots",
+            *extra,
+            "--session-phase",
+            args.session_phase,
+            "--max-workers",
+            str(args.max_workers),
+            "--merge-market-snapshot",
+        ])
+        _run([sys.executable, "-m", "backend.scripts.sync_stock_metrics", *extra, "--max-workers", "1", "--pause", "0.4"])
+        _run([sys.executable, "-m", "backend.scripts.build_stock_intel_pro", *extra])
+        _run([sys.executable, "-m", "backend.scripts.build_stock_technicals", *extra, "--finviz-workers", "1"])
+        _run([
+            sys.executable,
+            "-m",
+            "backend.scripts.materialize_views",
+            *extra,
+            "--allow-missing-context",
+            "--skip-sector-scrape",
+            "--skip-dashboard",
+        ])
 
     if args.include_heavy:
         _run([

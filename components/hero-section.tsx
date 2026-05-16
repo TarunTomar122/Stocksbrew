@@ -54,6 +54,7 @@ const DEMO_VERDICT: HeroVerdict = {
   textColor: "#065f46",
   overall: 74,
   oneLiner: "Up 2.6% today · momentum strong · valuation reasonable.",
+  logoUrl: "https://logo.clearbit.com/nvidia.com",
 };
 
 export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
@@ -92,11 +93,11 @@ export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
           </span>
 
           <h1 className="text-[40px] md:text-[52px] lg:text-[60px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.02]">
-            Know what to do with every stock you own.
+            What to do with your stocks. <br />Every morning.
           </h1>
 
-          <p className="text-[16px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
-            tikrr tells you what to buy, hold, or sell - in plain English, every morning.
+          <p className="text-[16px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[480px]">
+            AI verdicts on each stock. Portfolio risks flagged. Market anomalies surfaced. In plain English.
           </p>
 
           <div className="flex flex-col items-start gap-2.5">
@@ -110,7 +111,7 @@ export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
             </button>
             {!isSubscribed && (
               <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-                {["Free for 3 stocks", "No credit card", "Pro $9/mo"].map((p) => (
+                {["Free for 3 stocks", "No credit card", "Pro unlocks unlimited + alerts"].map((p) => (
                   <span key={p} className="inline-flex items-center gap-1.5 text-[11.5px] text-[#9ca3af]">
                     <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
                     {p}
@@ -121,105 +122,149 @@ export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
           </div>
         </div>
 
-        {/* RIGHT: live product card + search */}
+        {/* RIGHT: three-pillar preview — verdict / radar / anomaly */}
         <div className="flex flex-col gap-3 w-full">
-          {(
-            <Link
-              href={`/stock/${encodeURIComponent(displayVerdict.ticker)}`}
-              className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-5 md:p-6 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.08)]"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                  Live · today
-                </span>
-                <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                  tikrr verdict
-                </span>
-              </div>
+          {/* TILE 1 — Per-stock verdict */}
+          <Link
+            href={`/stock/${encodeURIComponent(displayVerdict.ticker)}`}
+            className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)]"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+                01 · Per-stock verdict
+              </span>
+              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                tikrr
+              </span>
+            </div>
 
-              <div className="flex items-start gap-3.5">
-                <StockLogo
-                  ticker={displayVerdict.ticker}
-                  logoUrl={displayVerdict.logoUrl}
-                  market="US"
-                  size={48}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[18px] font-semibold text-[#111111]">
-                      {displayVerdict.ticker}
+            <div className="flex items-center gap-3">
+              <StockLogo
+                ticker={displayVerdict.ticker}
+                logoUrl={displayVerdict.logoUrl}
+                market="US"
+                size={40}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[16px] font-semibold text-[#111111]">
+                    {displayVerdict.ticker}
+                  </span>
+                  <span className="text-[11px] text-[#9ca3af] truncate">
+                    {displayVerdict.name}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
+                    ${fmtPrice(displayVerdict.price)}
+                  </span>
+                  {typeof displayVerdict.changePct === "number" && (
+                    <span
+                      className="text-[12px] font-semibold tabular-nums"
+                      style={{ color: displayVerdict.changePct >= 0 ? "#10b981" : "#ef4444" }}
+                    >
+                      {fmtPct(displayVerdict.changePct)}
                     </span>
-                    <span className="text-[12px] text-[#9ca3af] truncate">
-                      {displayVerdict.name}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                    <span className="text-[15px] font-semibold tabular-nums text-[#111111]">
-                      ${fmtPrice(displayVerdict.price)}
-                    </span>
-                    {typeof displayVerdict.changePct === "number" && (
-                      <span
-                        className="text-[13px] font-semibold tabular-nums"
-                        style={{
-                          color: displayVerdict.changePct >= 0 ? "#10b981" : "#ef4444",
-                        }}
-                      >
-                        {fmtPct(displayVerdict.changePct)}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
-
               <div
-                className="mt-5 rounded-xl px-4 py-3.5 flex items-center justify-between gap-3"
+                className="flex items-center gap-2 rounded-xl px-3 py-2"
                 style={{ background: displayVerdict.bg }}
               >
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span
-                    className="text-[10px] font-semibold tracking-[0.12em] uppercase"
-                    style={{ color: displayVerdict.textColor, opacity: 0.7 }}
-                  >
-                    Verdict
-                  </span>
-                  <span
-                    className="text-[22px] font-semibold tracking-[-0.02em] leading-none"
-                    style={{ color: displayVerdict.textColor }}
-                  >
-                    {displayVerdict.shortLabel}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-0.5 shrink-0">
-                  <span
-                    className="text-[10px] font-semibold tracking-[0.08em] uppercase"
-                    style={{ color: displayVerdict.textColor, opacity: 0.7 }}
-                  >
-                    Score
-                  </span>
-                  <span
-                    className="text-[22px] font-semibold tabular-nums leading-none"
-                    style={{ color: displayVerdict.textColor }}
-                  >
-                    {displayVerdict.overall}
-                  </span>
-                </div>
-              </div>
-
-              <p className="mt-4 text-[13.5px] text-[#374151] leading-[1.5]">
-                {displayVerdict.oneLiner}
-              </p>
-
-              <div className="mt-4 flex items-center justify-between text-[12px]">
-                <span className="text-[#9ca3af]">
-                  This is what Pro shows for every stock you track
+                <span
+                  className="text-[14px] font-semibold tracking-[-0.01em] leading-none"
+                  style={{ color: displayVerdict.textColor }}
+                >
+                  {displayVerdict.shortLabel}
                 </span>
-                <span className="font-semibold text-[#111111] group-hover:translate-x-0.5 transition-transform">
-                  See full breakdown →
+                <span
+                  aria-hidden
+                  className="h-3 w-px"
+                  style={{ background: displayVerdict.textColor, opacity: 0.3 }}
+                />
+                <span
+                  className="text-[14px] font-semibold tabular-nums leading-none"
+                  style={{ color: displayVerdict.textColor }}
+                >
+                  {displayVerdict.overall}
                 </span>
               </div>
-            </Link>
-          )}
+            </div>
 
+            <p className="mt-3 text-[12.5px] text-[#374151] leading-[1.45] line-clamp-2">
+              {displayVerdict.oneLiner}
+            </p>
+          </Link>
+
+          {/* TILE 2 — Your Radar */}
+          <Link
+            href="/watchlist"
+            className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)]"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#0052ff]" />
+                02 · Your Radar
+              </span>
+              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                portfolio
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-[#fef3c7] px-2 py-1 text-[11px] font-semibold text-[#92400e]">
+                <span aria-hidden>⚠</span>
+                67% in Technology
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-[#eff6ff] px-2 py-1 text-[11px] font-semibold text-[#1e3a8a]">
+                <span aria-hidden>🎯</span>
+                3 opportunities
+              </span>
+            </div>
+
+            <p className="mt-3 text-[12.5px] text-[#374151] leading-[1.45] line-clamp-2">
+              <span className="font-semibold text-[#111111]">AMD broke out</span> · NVDA RSI at 78 · MSFT earnings May 20 AMC
+            </p>
+          </Link>
+
+          {/* TILE 3 — Market anomaly */}
+          <Link
+            href="/anomalies"
+            className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)]"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#ef4444]" />
+                03 · Market anomaly
+              </span>
+              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                today
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <StockLogo
+                ticker="PLTR"
+                market="US"
+                size={36}
+                logoUrl="https://logo.clearbit.com/palantir.com"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[15px] font-semibold text-[#111111]">PLTR</span>
+                  <span className="text-[13px] font-semibold tabular-nums text-[#10b981]">+12.3%</span>
+                </div>
+                <p className="text-[12px] text-[#6b7280] leading-snug truncate">
+                  Unusual call volume · 3× average flow
+                </p>
+              </div>
+              <span className="shrink-0 text-[11px] font-semibold tracking-[0.06em] uppercase text-[#9ca3af] group-hover:text-[#111111] group-hover:translate-x-0.5 transition-all">
+                See all →
+              </span>
+            </div>
+          </Link>
         </div>
       </div>
 

@@ -24,6 +24,37 @@ def _parse_instrument_ids(value: str | None) -> set[str] | None:
     return ids or None
 
 
+def _resolve_instruments(
+    store: TraceMoneyStore,
+    market: str,
+    universe_id: str,
+    allowed_ids: set[str] | None,
+) -> list[dict]:
+    if not allowed_ids:
+        return list_instruments(market, universe_id)
+    market_catalog = list_instruments(market, None)
+    by_id = {
+        str(instrument.get("instrument_id", "")).upper(): instrument
+        for instrument in market_catalog
+    }
+    resolved = [
+        by_id[instrument_id]
+        for instrument_id in sorted(allowed_ids)
+        if instrument_id in by_id
+    ]
+    missing = [instrument_id for instrument_id in sorted(allowed_ids) if instrument_id not in by_id]
+    if missing:
+        refs = [store.db.collection("tm_instruments").document(instrument_id) for instrument_id in missing]
+        for doc in store.db.get_all(refs):
+            if not doc.exists:
+                continue
+            row = doc.to_dict() or {}
+            if str(row.get("market") or "").upper() != market.upper():
+                continue
+            resolved.append(row)
+    return resolved
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score stocks on four pillars")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -43,13 +74,8 @@ def main() -> None:
         print(f"[warn] no sector benchmarks found - valuation pillar will lack sector comps")
 
     today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    instruments = list_instruments(args.market, universe_id)
     allowed_ids = _parse_instrument_ids(args.instrument_ids)
-    if allowed_ids is not None:
-        instruments = [
-            instrument for instrument in instruments
-            if str(instrument.get("instrument_id", "")).upper() in allowed_ids
-        ]
+    instruments = _resolve_instruments(store, args.market, universe_id, allowed_ids)
     instrument_ids = [instrument["instrument_id"] for instrument in instruments]
     today_snaps = store.get_stock_metrics_snapshots_batch(instrument_ids, today_date)
     if len(today_snaps) < len(instrument_ids):
@@ -59,7 +85,7 @@ def main() -> None:
     saved = 0
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]
-        today_snap = today_snaps.get(instrument_id)
+        today_snap = today_snaps.get(instrument_id) or store.get_latest_stock_metrics_snapshot(instrument_id)
         if not today_snap:
             print(f"  [skip] {instrument['ticker']}: no snapshot yet")
             continue

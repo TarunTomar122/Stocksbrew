@@ -79,6 +79,20 @@ def sync_price_snapshots(
             for instrument_id in instrument_ids
             if instrument_id.strip().upper() in market_by_id and instrument_id.strip().upper() in allowed
         ]
+        missing = [
+            instrument_id.strip().upper()
+            for instrument_id in instrument_ids
+            if instrument_id.strip().upper() in allowed and instrument_id.strip().upper() not in market_by_id
+        ]
+        if missing:
+            refs = [store.db.collection("tm_instruments").document(instrument_id) for instrument_id in missing]
+            for doc in store.db.get_all(refs):
+                if not doc.exists:
+                    continue
+                row = doc.to_dict() or {}
+                if str(row.get("market") or "").upper() != str(market).upper():
+                    continue
+                instruments.append(row)
     else:
         instruments = list_instruments(market, universe_id)
     client = YFinanceClient(max_workers=max_workers)

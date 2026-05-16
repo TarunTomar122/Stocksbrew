@@ -47,6 +47,29 @@ export default async function WatchlistPage() {
       ? radar.built_at
       : undefined;
 
+  if (watchlistView && radar && Array.isArray((radar as Dict).rows)) {
+    const materializedRows = (watchlistView.rows || []).map((r) => String(r.ticker || r.instrument_id || ""));
+    const legacyRows = ((radar as Dict).rows as Array<Record<string, unknown>>)
+      .map((r) => String(r.ticker || r.instrument_id || ""));
+    const a = new Set(materializedRows.filter(Boolean));
+    const b = new Set(legacyRows.filter(Boolean));
+    const onlyA = [...a].filter((x) => !b.has(x));
+    const onlyB = [...b].filter((x) => !a.has(x));
+    if (onlyA.length > 0 || onlyB.length > 0) {
+      console.warn(
+        JSON.stringify({
+          svc: "watchlist-page",
+          msg: "materialized_vs_legacy_divergence",
+          uid: session.uid,
+          materialized_count: a.size,
+          legacy_count: b.size,
+          only_materialized: onlyA.slice(0, 8),
+          only_legacy: onlyB.slice(0, 8),
+        }),
+      );
+    }
+  }
+
   if (!isSubscribed && rows.length === 0) {
     return <UnsubscribedState tracked={tracked} />;
   }
@@ -336,6 +359,25 @@ function TodaySection({
   );
 }
 
+function PositionPill({ type }: { type?: string }) {
+  const isHolding = type === "holding";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase ${
+        isHolding
+          ? "bg-[#ecfdf5] text-[#047857]"
+          : "bg-[#f3f4f6] text-[#6b7280]"
+      }`}
+    >
+      <span
+        aria-hidden
+        className={`h-1 w-1 rounded-full ${isHolding ? "bg-[#10b981]" : "bg-[#9ca3af]"}`}
+      />
+      {isHolding ? "Holding" : "Watching"}
+    </span>
+  );
+}
+
 function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
   const market = row.market === "IN" ? "IN" : "US";
   const dayChange = row.day_change_pct ?? 0;
@@ -360,13 +402,14 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
         size={36}
       />
       <div className="flex flex-col gap-0">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-center gap-2">
           <span className="text-[18px] font-semibold tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
             {row.ticker}
           </span>
           <span className="text-[12px] text-[#9ca3af] truncate max-w-[260px]">
             {row.sector_label || ""}
           </span>
+          <PositionPill type={row.position_type} />
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-[13px] font-semibold tabular-nums text-[#0a0a0a]">
@@ -440,12 +483,25 @@ function SecondaryDirectiveCard({
       <div className="flex items-center gap-2.5">
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} />
         <div className="flex flex-col min-w-0">
-          <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-            {row.ticker}
-          </span>
-          <span className="text-[11px] text-[#9ca3af] truncate max-w-[160px]">
-            {row.sector_label || "—"}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+              {row.ticker}
+            </span>
+            <PositionPill type={row.position_type} />
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            {typeof row.price === "number" && (
+              <span className="text-[12px] font-semibold tabular-nums text-[#374151]">
+                {row.currency === "INR" ? "₹" : "$"}{row.price.toLocaleString(undefined, {
+                  minimumFractionDigits: row.price >= 1000 ? 0 : 2,
+                  maximumFractionDigits: row.price >= 1000 ? 0 : 2,
+                })}
+              </span>
+            )}
+            <span className="text-[11px] text-[#9ca3af] truncate max-w-[120px]">
+              {row.sector_label || "—"}
+            </span>
+          </div>
         </div>
       </div>
 

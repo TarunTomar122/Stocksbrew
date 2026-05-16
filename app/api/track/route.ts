@@ -87,7 +87,11 @@ async function refreshUserRadarNow(traceId: string, uid: string, sourceVersion: 
     fresh?.watchlist_positions && typeof fresh.watchlist_positions === "object"
       ? fresh.watchlist_positions
       : {};
-  await rebuildAndSaveWatchlistView(uid, tracked, positions, sourceVersion);
+  await rebuildAndSaveWatchlistView(uid, tracked, positions, sourceVersion, {
+    preserveBriefIfFallback: true,
+    preserveDirectivesIfMissing: true,
+    preserveActivityIfThin: true,
+  });
   trackApiLog(traceId, "info", "watchlist_refresh_ok", {
     uid,
     source_version: sourceVersion,

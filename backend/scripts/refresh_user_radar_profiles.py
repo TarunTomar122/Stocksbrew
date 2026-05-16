@@ -8,10 +8,25 @@ from backend.watchlist_view import _active_universe_cache, build_watchlist_view
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Refresh users/{uid}.radar_v1 from tracked_stocks.")
+    parser = argparse.ArgumentParser(
+        description="Legacy utility: refresh users/{uid}.radar_v1 from tracked_stocks."
+    )
     parser.add_argument("--uid", default=None, help="Optional single uid.")
     parser.add_argument("--no-llm", action="store_true", help="Skip personalized LLM synthesis.")
+    parser.add_argument(
+        "--write-legacy",
+        action="store_true",
+        help="Actually write users/{uid}.radar_v1. Disabled by default to avoid dual-source drift.",
+    )
     args = parser.parse_args()
+
+    if not args.write_legacy:
+        print(
+            "No-op: legacy radar_v1 writer disabled. "
+            "Use tm_watchlist_views as source of truth. "
+            "Pass --write-legacy only for emergency backfills."
+        )
+        return
 
     store = TraceMoneyStore()
     active_universes = _active_universe_cache(store)

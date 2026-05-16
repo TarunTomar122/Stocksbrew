@@ -62,10 +62,19 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
     ranked = _rank_instruments(store, market, universe_id, limit)
     ids: list[str] = []
+    seen: set[str] = set()
     for row in ranked:
         iid = str(row.get("instrument_id") or "").strip().upper()
         if not iid:
             continue
+        if iid in seen:
+            continue
+        seen.add(iid)
+        ids.append(iid)
+    for iid in store.get_price_core_overrides(market):
+        if iid in seen:
+            continue
+        seen.add(iid)
         ids.append(iid)
     return ids
 

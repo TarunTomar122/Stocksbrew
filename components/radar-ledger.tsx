@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import type { WatchlistRow } from "@/lib/watchlist-view";
@@ -156,6 +156,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                   <th className="px-3 py-3 text-right font-semibold">Change</th>
                   <th className="px-3 py-3 text-right font-semibold">Score</th>
                   <th className="px-4 py-3 font-semibold">Directive</th>
+                  <th className="px-3 py-3 w-8" />
                 </tr>
               </thead>
               <tbody>
@@ -343,6 +344,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 // -----------------------------------------------------------------------------
 
 function MobileRow({ row, hasBorder }: { row: WatchlistRow; hasBorder: boolean }) {
+  const router = useRouter();
   const market = row.market === "IN" ? "IN" : "US";
   const dayChange = row.day_change_pct;
   const positive = (dayChange ?? 0) >= 0;
@@ -350,13 +352,14 @@ function MobileRow({ row, hasBorder }: { row: WatchlistRow; hasBorder: boolean }
   const stanceMeta = STANCE_CHIP[stance];
   const rsi = rsiExtremeFromRow(row);
   const cats = (row.catalysts ?? []) as Array<Record<string, unknown>>;
+  const href = `/stock/${encodeURIComponent(row.ticker)}`;
 
   return (
-    <Link
-      href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-[#fafafa] transition-colors ${
+    <div
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-[#fafafa] transition-colors cursor-pointer ${
         hasBorder ? "border-t border-[#f3f4f6]" : ""
       }`}
+      onClick={() => router.push(href)}
     >
       {/* LEFT: logo + ticker + directive */}
       <div className="flex items-center gap-2.5 min-w-0">
@@ -402,26 +405,30 @@ function MobileRow({ row, hasBorder }: { row: WatchlistRow; hasBorder: boolean }
         </div>
       </div>
 
-      {/* RIGHT: price + % change */}
-      <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
-          {fmtPrice(row.price, row.currency)}
-        </span>
-        {typeof dayChange === "number" && (
-          <span className={`text-[12px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
-            {fmtSignedPct(dayChange)}
+      {/* RIGHT: price + % change + menu */}
+      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+            {fmtPrice(row.price, row.currency)}
           </span>
-        )}
+          {typeof dayChange === "number" && (
+            <span className={`text-[12px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+              {fmtSignedPct(dayChange)}
+            </span>
+          )}
+        </div>
+        <RowMenu row={row} />
       </div>
-    </Link>
+    </div>
   );
 }
 
 // -----------------------------------------------------------------------------
-// LedgerRow — desktop table row
+// LedgerRow — desktop table row (fully clickable + options menu)
 // -----------------------------------------------------------------------------
 
 function LedgerRow({ row }: { row: WatchlistRow }) {
+  const router = useRouter();
   const dayChange = row.day_change_pct;
   const positive = (dayChange ?? 0) >= 0;
   const market = row.market === "IN" ? "IN" : "US";
@@ -430,21 +437,24 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
   const cats = (row.catalysts ?? []) as Array<Record<string, unknown>>;
   const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
   const stanceMeta = STANCE_CHIP[stance];
+  const href = `/stock/${encodeURIComponent(row.ticker)}`;
 
   return (
-    <tr className="border-b border-[#f3f4f6] last:border-b-0 hover:bg-[#fafafa] transition-colors">
+    <tr
+      className="border-b border-[#f3f4f6] last:border-b-0 hover:bg-[#fafafa] transition-colors cursor-pointer"
+      onClick={() => router.push(href)}
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="shrink-0">
-            <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={28} />
-          </Link>
-          <div className="flex flex-col gap-1 min-w-0">
-            <Link
-              href={`/stock/${encodeURIComponent(row.ticker)}`}
-              className="text-[13px] font-semibold text-[#111111] hover:text-[#0052ff] transition-colors leading-none"
-            >
-              {row.ticker}
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Link href={href}>
+              <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={28} />
             </Link>
+          </div>
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="text-[13px] font-semibold text-[#111111] leading-none">
+              {row.ticker}
+            </span>
             {(rsi || cats.length > 0) && (
               <div className="flex flex-wrap items-center gap-1">
                 {rsi && (
@@ -487,28 +497,18 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
       </td>
       <td className="px-3 py-3 text-right">
         <div className="flex flex-col items-end gap-0.5">
-          <span
-            className={`text-[13px] font-semibold tabular-nums ${
-              positive ? "text-[#10b981]" : "text-[#ef4444]"
-            }`}
-          >
+          <span className={`text-[13px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
             {fmtSignedPct(dayChange)}
           </span>
           {row.day_change_abs !== null && row.day_change_abs !== undefined && (
-            <span
-              className={`text-[11px] tabular-nums ${
-                positive ? "text-[#10b981]" : "text-[#ef4444]"
-              }`}
-            >
+            <span className={`text-[11px] tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
               {fmtSignedAbs(row.day_change_abs, row.currency)}
             </span>
           )}
         </div>
       </td>
       <td className="px-3 py-3 text-right">
-        <span
-          className={`text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}
-        >
+        <span className={`text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}>
           {score === null ? "—" : Math.round(score)}
         </span>
       </td>
@@ -518,17 +518,107 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
             className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em]"
             style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
           >
-            <span
-              aria-hidden
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ background: stanceMeta.dot }}
-            />
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: stanceMeta.dot }} />
             {stanceMeta.label}
           </span>
         ) : (
           <span className="text-[11px] text-[#9ca3af]">—</span>
         )}
       </td>
+      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+        <RowMenu row={row} />
+      </td>
     </tr>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// RowMenu — ⋯ button with position-switch + remove options
+// -----------------------------------------------------------------------------
+
+function RowMenu({ row }: { row: WatchlistRow }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const isHolding = row.position_type === "holding";
+  const instrumentId = row.instrument_id;
+
+  async function move(positionType: "holding" | "watchlist") {
+    setBusy(true);
+    setOpen(false);
+    await fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType }),
+    });
+    setBusy(false);
+    router.refresh();
+  }
+
+  async function remove() {
+    setBusy(true);
+    setOpen(false);
+    await fetch("/api/track", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instrument_id: instrumentId }),
+    });
+    setBusy(false);
+    router.refresh();
+  }
+
+  return (
+    <div ref={ref} className="relative flex items-center justify-center">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={busy}
+        className="flex h-6 w-6 items-center justify-center rounded-md text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] transition-colors disabled:opacity-40"
+        aria-label="Row options"
+      >
+        {busy ? (
+          <span className="text-[10px]">…</span>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <circle cx="7" cy="2.5" r="1.2" />
+            <circle cx="7" cy="7" r="1.2" />
+            <circle cx="7" cy="11.5" r="1.2" />
+          </svg>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-8 z-50 w-48 rounded-xl border border-[#e5e7eb] bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+          <button
+            type="button"
+            onClick={() => move(isHolding ? "watchlist" : "holding")}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#111111] hover:bg-[#f9fafb] transition-colors"
+          >
+            <span aria-hidden className="text-[15px]">{isHolding ? "👁" : "💼"}</span>
+            {isHolding ? "Move to Watching" : "Move to Holdings"}
+          </button>
+          <div className="my-1 border-t border-[#f3f4f6]" />
+          <button
+            type="button"
+            onClick={remove}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+          >
+            <span aria-hidden className="text-[15px]">✕</span>
+            Stop tracking
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
