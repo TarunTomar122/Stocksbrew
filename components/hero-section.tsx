@@ -93,11 +93,11 @@ export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
           </span>
 
           <h1 className="text-[40px] md:text-[52px] lg:text-[60px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.02]">
-            What to do with your stocks. <br />Every morning.
+            Stock Market <br />in 5 minutes.
           </h1>
 
           <p className="text-[16px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[480px]">
-            AI verdicts on each stock. Portfolio risks flagged. Market anomalies surfaced. In plain English.
+            Tikrr tells you what to do with your stocks with research-backed analysis every day.
           </p>
 
           <div className="flex flex-col items-start gap-2.5">

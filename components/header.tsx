@@ -22,7 +22,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean
   { href: "/heat",      label: "Hot Stocks",       icon: "local_fire_department" },
   { href: "/screens",   label: "Screens",          icon: "tune" },
   { href: "/anomalies", label: "Market Anomalies", icon: "trending_up" },
-  { href: "/watchlist", label: "Radar",            icon: "radar", authOnly: true, beta: true },
+  { href: "/watchlist", label: "Radar",            icon: "radar", beta: true },
 ];
 
 /** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { DemoRadar } from "@/components/demo-radar";
 import { getWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
@@ -25,7 +25,7 @@ type Dict = Record<string, unknown>;
 export default async function WatchlistPage() {
   const session = await getSessionUser();
   if (!session) {
-    redirect("/?signin=required");
+    return <DemoRadar />;
   }
 
   const userDoc = await getUserDoc(session.uid);
