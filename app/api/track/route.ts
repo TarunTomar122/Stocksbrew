@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
+import { rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -31,6 +32,68 @@ function trackApiLog(
 }
 
 const ON_DEMAND_QUEUE_DEDUPE_MS = 90 * 1000;
+const WATCHLIST_REFRESH_DEDUPE_MS = 45 * 1000;
+
+async function shouldRunImmediateRefresh(uid: string, sourceVersion: number): Promise<boolean> {
+  const ref = adminFirestore.collection("tm_watchlist_view_refresh_control").doc(uid);
+  const nowIso = new Date().toISOString();
+  let shouldRun = false;
+  await adminFirestore.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const current = snap.exists ? (snap.data() || {}) : {};
+    const lastVersion = Number(current.last_source_version ?? 0);
+    const lastRequestedAtRaw = String(current.last_requested_at ?? "");
+    const lastRequestedAt = Date.parse(lastRequestedAtRaw);
+    const recentlyRequested =
+      Number.isFinite(lastRequestedAt) && Date.now() - lastRequestedAt < WATCHLIST_REFRESH_DEDUPE_MS;
+    if (lastVersion >= sourceVersion && recentlyRequested) {
+      tx.set(
+        ref,
+        {
+          last_seen_version: sourceVersion,
+          updated_at: nowIso,
+        },
+        { merge: true },
+      );
+      shouldRun = false;
+      return;
+    }
+    tx.set(
+      ref,
+      {
+        last_source_version: sourceVersion,
+        last_requested_at: nowIso,
+        updated_at: nowIso,
+      },
+      { merge: true },
+    );
+    shouldRun = true;
+  });
+  return shouldRun;
+}
+
+async function refreshUserRadarNow(traceId: string, uid: string, sourceVersion: number): Promise<void> {
+  const shouldRun = await shouldRunImmediateRefresh(uid, sourceVersion);
+  if (!shouldRun) {
+    trackApiLog(traceId, "info", "watchlist_refresh_deduped", {
+      uid,
+      source_version: sourceVersion,
+    });
+    return;
+  }
+  const fresh = await getUserDoc(uid);
+  const tracked = Array.isArray(fresh?.tracked_stocks) ? fresh.tracked_stocks : [];
+  const positions =
+    fresh?.watchlist_positions && typeof fresh.watchlist_positions === "object"
+      ? fresh.watchlist_positions
+      : {};
+  await rebuildAndSaveWatchlistView(uid, tracked, positions, sourceVersion);
+  trackApiLog(traceId, "info", "watchlist_refresh_ok", {
+    uid,
+    source_version: sourceVersion,
+    tracked_count: tracked.length,
+  });
+}
 
 async function parseTrackPayload(req: NextRequest): Promise<{
   instrumentId: string;
@@ -215,6 +278,13 @@ export async function POST(req: NextRequest) {
       instrument_id: instrumentId,
     });
   }
+  await refreshUserRadarNow(traceId, session.uid, sourceVersion).catch((error) => {
+    trackApiLog(traceId, "warn", "watchlist_refresh_failed", {
+      uid: session.uid,
+      instrument_id: instrumentId,
+      error: String(error),
+    });
+  });
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
   return NextResponse.json({ ok: true });
@@ -302,6 +372,13 @@ export async function DELETE(req: NextRequest) {
     instrument_id: instrumentId,
     watchlist_version: sourceVersion,
     was_tracked: wasTrackedInTxn,
+  });
+  await refreshUserRadarNow(traceId, session.uid, sourceVersion).catch((error) => {
+    trackApiLog(traceId, "warn", "watchlist_refresh_failed", {
+      uid: session.uid,
+      instrument_id: instrumentId,
+      error: String(error),
+    });
   });
 
   trackApiLog(traceId, "info", "delete_untrack_ok", { uid: session.uid, instrument_id: instrumentId });

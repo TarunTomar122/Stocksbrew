@@ -4,6 +4,8 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 import os
+import subprocess
+import sys
 from typing import Any
 
 from backend.instrument_universe import list_instruments
@@ -206,6 +208,32 @@ def _run_single_job_lane(
     }
 
 
+def _refresh_watchlist_views(
+    *,
+    run_id: str,
+    no_llm: bool,
+    subscribed_only: bool = False,
+) -> dict[str, Any]:
+    cmd = [
+        sys.executable,
+        "-m",
+        "backend.scripts.build_watchlist_views",
+        "--input-version",
+        run_id,
+        "--skip-if-version-matches",
+    ]
+    if no_llm:
+        cmd.append("--no-llm")
+    if subscribed_only:
+        cmd.append("--subscribed-only")
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return {
+        "status": "success",
+        "cmd": " ".join(cmd),
+        "stdout_tail": "\n".join(proc.stdout.strip().splitlines()[-8:]) if proc.stdout else "",
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cloud Run lane dispatcher")
     parser.add_argument(
@@ -234,6 +262,8 @@ def main() -> None:
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--refresh-home", action="store_true")
+    parser.add_argument("--refresh-watchlists", action="store_true")
+    parser.add_argument("--watchlist-with-llm", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -315,6 +345,13 @@ def main() -> None:
                 store=store,
             )
             summary["home_refresh"] = home_refresh
+        should_refresh_watchlists = args.refresh_watchlists or args.lane in {"price_core_open", "price_core_intraday"}
+        if should_refresh_watchlists:
+            summary["watchlist_refresh"] = _refresh_watchlist_views(
+                run_id=run_id,
+                no_llm=not args.watchlist_with_llm,
+                subscribed_only=False,
+            )
     elif args.lane in {"tracked_news_prep", "tracked_open_briefs"}:
         instrument_ids = _tracked_ids(store, args.market)
         if args.dry_run:
@@ -358,6 +395,13 @@ def main() -> None:
             client=RunJobsClient(project=args.project, region=args.region),
             state=state,
         )
+        should_refresh_watchlists = args.refresh_watchlists or args.lane == "tracked_open_briefs"
+        if should_refresh_watchlists:
+            summary["watchlist_refresh"] = _refresh_watchlist_views(
+                run_id=run_id,
+                no_llm=not args.watchlist_with_llm,
+                subscribed_only=False,
+            )
     else:
         if args.dry_run:
             print(

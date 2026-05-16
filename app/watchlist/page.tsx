@@ -48,7 +48,7 @@ export default async function WatchlistPage() {
       : undefined;
 
   if (!isSubscribed && rows.length === 0) {
-    return <UnsubscribedState />;
+    return <UnsubscribedState tracked={tracked} />;
   }
   if (!isSubscribed) {
     return <FreeRadarState rows={rows} builtAt={builtAt} />;
@@ -1333,63 +1333,104 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
   );
 }
 
-function UnsubscribedState() {
+const STARTER_PICKS = [
+  { ticker: "NVDA", market: "US", sector: "Semiconductors", reason: "AI infrastructure leader — most-tracked on tikrr." },
+  { ticker: "AAPL", market: "US", sector: "Consumer Electronics", reason: "Durable free cash flow, highest retail ownership." },
+  { ticker: "MSFT", market: "US", sector: "Software", reason: "Quality compounder with steady earnings growth." },
+  { ticker: "META", market: "US", sector: "Comm. Services", reason: "Analyst runway +33% — strong momentum." },
+  { ticker: "GOOGL", market: "US", sector: "Comm. Services", reason: "Cheap relative to peers on forward earnings." },
+  { ticker: "AMZN", market: "US", sector: "Consumer Cyclical", reason: "Cloud + retail flywheel, underappreciated margins." },
+];
+
+function UnsubscribedState({ tracked }: { tracked: string[] }) {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
-        <header className="flex flex-col gap-1.5">
-          <h1 className="text-[28px] md:text-[34px] font-semibold text-[#111111] tracking-[-0.02em] leading-none">
+      <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-10">
+
+        {/* Header */}
+        <header className="flex flex-col gap-2">
+          <h1 className="text-[32px] md:text-[40px] font-semibold text-[#0a0a0a] tracking-[-0.03em] leading-none">
             Radar
           </h1>
-          <p className="text-[13px] text-[#6b7280]">
-            Track up to 3 stocks for free. Upgrade for unlimited stocks, alerts, and full briefing.
+          <p className="text-[14px] text-[#6b7280] leading-snug">
+            Track up to 3 stocks free. Get AI directives, alerts, and daily briefings.
           </p>
         </header>
 
-        <section className="rounded-3xl border border-[#e5e7eb] bg-white p-6 md:p-8 flex flex-col gap-5">
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#eff6ff] text-[18px]"
-            >
-              🔒
-            </span>
-            <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
-              Subscriber tier
-            </span>
+        {/* Start here — pick your first stocks */}
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#ecfdf5] text-[15px]">🚀</span>
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">Start your Radar</h2>
+              <p className="text-[12px] text-[#6b7280]">Add up to 3 stocks free. tikrr tracks them daily and tells you what to do.</p>
+            </div>
           </div>
-          <h2 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
-            Radar Pro unlocks the full experience
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <FeatureCard
-              emoji="🎯"
-              iconBg="#ecfdf5"
-              title="Per-stock AI briefs"
-              body="Stance, news, catalysts, sentiment — same as the launch tier."
-            />
-            <FeatureCard
-              emoji="⚡"
-              iconBg="#fef3c7"
-              title="Cross-Radar read"
-              body="One daily pass over themes and risks in your list."
-            />
-            <FeatureCard
-              emoji="🔔"
-              iconBg="#fef2f2"
-              title="Alerts"
-              body="Earnings, RSI extremes, 52-week levels — when they fire."
-            />
-          </div>
-          <div>
+
+          <ul className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+            {STARTER_PICKS.map((pick, i) => {
+              const instrumentId = `${pick.market}_${pick.ticker}`;
+              const isTracked = tracked.includes(instrumentId);
+              return (
+                <li
+                  key={pick.ticker}
+                  className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[#fafafa] transition-colors ${i > 0 ? "border-t border-[#f3f4f6]" : ""}`}
+                >
+                  <Link
+                    href={`/stock/${encodeURIComponent(pick.ticker)}`}
+                    className="flex items-center gap-3 flex-1 min-w-0 group"
+                  >
+                    <StockLogo ticker={pick.ticker} market={pick.market as "US" | "IN"} size={36} />
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                          {pick.ticker}
+                        </span>
+                        <span className="text-[11px] text-[#9ca3af]">{pick.sector}</span>
+                      </div>
+                      <span className="text-[12px] text-[#6b7280] truncate">{pick.reason}</span>
+                    </div>
+                  </Link>
+                  <TrackButton
+                    ticker={pick.ticker}
+                    instrumentId={instrumentId}
+                    isTracked={isTracked}
+                    isSubscribed={false}
+                    variant="icon"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+
+          <p className="text-[11.5px] text-[#9ca3af] text-center">
+            Or search for any stock using the search bar above.
+          </p>
+        </section>
+
+        {/* Pro upsell — secondary, not the hero */}
+        <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-5 md:p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">Pro · $9/mo</span>
+              <h3 className="text-[16px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
+                Unlock the full Radar experience
+              </h3>
+            </div>
             <Link
               href="/subscribe"
-              className="inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+              className="shrink-0 inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
             >
-              See subscription options
+              See plans →
             </Link>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <FeatureCard emoji="🎯" iconBg="#ecfdf5" title="AI briefs" body="Buy / hold / sell directive for every stock you track, every morning." />
+            <FeatureCard emoji="⚡" iconBg="#fef3c7" title="Cross-Radar read" body="Daily portfolio-level themes, risks, and opportunities." />
+            <FeatureCard emoji="🔔" iconBg="#fef2f2" title="Alerts" body="Earnings, RSI extremes, 52-week levels — when they fire." />
+          </div>
         </section>
+
       </div>
     </main>
   );

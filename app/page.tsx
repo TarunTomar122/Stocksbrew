@@ -325,9 +325,7 @@ function HomeContentFallback() {
 
 async function HomeHero() {
   const core = await loadHomeCore();
-  const { sentiment, macroTicks, isSubscribed } = core;
-  const moodColor =
-    sentiment.score >= 55 ? "#8B5CF6" : sentiment.score >= 45 ? "#FACC15" : "#F97316";
+  const { macroTicks, isSubscribed } = core;
   const indices = macroTicks.slice(0, 5).map((t) => ({
     ticker: t.ticker,
     name: t.name,
@@ -336,9 +334,6 @@ async function HomeHero() {
   }));
   return (
     <HeroSection
-      score={sentiment.score}
-      tone={sentiment.label}
-      color={moodColor}
       indices={indices}
       isSubscribed={isSubscribed}
     />
