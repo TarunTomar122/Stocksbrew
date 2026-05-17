@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { SubscribePricing } from "@/components/subscribe-pricing";
 import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
+import { MARKET_COOKIE } from "@/lib/market";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
@@ -35,6 +37,10 @@ export default async function SubscribePage({ searchParams }: Props) {
   const callbackSuccess = searchParams.success === "1" || searchParams.status === "active";
   const justSubscribed = callbackSuccess || isSubscribed;
 
+  const cookieStore = await cookies();
+  const marketCookie = cookieStore.get(MARKET_COOKIE)?.value;
+  const market: "US" | "IN" = marketCookie === "IN" ? "IN" : "US";
+
   return (
     <main className="flex-grow">
       <SubscriptionSuccessModal
@@ -61,7 +67,7 @@ export default async function SubscribePage({ searchParams }: Props) {
           </div>
         )}
 
-        <SubscribePricing isSubscribed={isSubscribed} />
+        <SubscribePricing isSubscribed={isSubscribed} market={market} />
 
         {/* Trust row */}
         <div className="flex flex-wrap items-center justify-center gap-6 text-[12px] text-[#9ca3af]">

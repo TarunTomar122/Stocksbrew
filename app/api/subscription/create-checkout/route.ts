@@ -27,10 +27,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payments not configured", needsSetup: true }, { status: 400 });
   }
 
-  // 3. Parse plan
+  // 3. Parse plan + market
   const body = await req.json().catch(() => ({}));
   const period: "monthly" | "yearly" = body.period === "yearly" ? "yearly" : "monthly";
-  const productId = productIdFor(period);
+  const market: "US" | "IN" = body.market === "IN" ? "IN" : "US";
+  // India doesn't offer yearly — fall back to monthly silently
+  const effectivePeriod: "monthly" | "yearly" = market === "IN" ? "monthly" : period;
+  const productId = productIdFor(effectivePeriod, market);
   if (!productId) {
     return NextResponse.json({ error: "Product not configured" }, { status: 400 });
   }
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
   const dodoPayload = {
     billing: {
       city: null,
-      country: "US",
+      country: market === "IN" ? "IN" : "US",
       state: null,
       street: null,
       zipcode: null,
@@ -110,7 +113,8 @@ export async function POST(req: NextRequest) {
       {
         lastCheckoutSessionId: session.id ?? null,
         lastCheckoutCreatedAt: new Date().toISOString(),
-        lastCheckoutPlan: period,
+        lastCheckoutPlan: effectivePeriod,
+        lastCheckoutMarket: market,
       },
       { merge: true },
     );

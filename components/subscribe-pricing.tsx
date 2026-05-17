@@ -14,7 +14,7 @@ const PRO_BULLETS = [
   "Cancel anytime · one click · no questions asked",
 ];
 
-const PLANS = [
+const PLANS_US = [
   {
     id: "monthly" as const,
     tag: "Monthly",
@@ -35,7 +35,20 @@ const PLANS = [
   },
 ];
 
-async function startCheckout(period: "monthly" | "yearly"): Promise<string> {
+// India: monthly only. Price set to match DODO_PRODUCT_ID_INDIA configuration.
+const PLANS_IN = [
+  {
+    id: "monthly" as const,
+    tag: "Monthly",
+    price: "₹99",
+    period: "/ month",
+    strike: "₹149",
+    save: "Save 33%",
+    highlight: true,
+  },
+];
+
+async function startCheckout(period: "monthly" | "yearly", market: "US" | "IN"): Promise<string> {
   const auth = getFirebaseAuth();
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error("Not signed in");
@@ -47,7 +60,7 @@ async function startCheckout(period: "monthly" | "yearly"): Promise<string> {
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ period }),
+    body: JSON.stringify({ period, market }),
   });
 
   const json = await res.json().catch(() => ({}));
@@ -57,10 +70,18 @@ async function startCheckout(period: "monthly" | "yearly"): Promise<string> {
   return json.checkoutUrl;
 }
 
-export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
+export function SubscribePricing({
+  isSubscribed,
+  market = "US",
+}: {
+  isSubscribed: boolean;
+  market?: "US" | "IN";
+}) {
   const { user } = useUser();
   const [loadingPlan, setLoadingPlan] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const plans = market === "IN" ? PLANS_IN : PLANS_US;
 
   if (isSubscribed) {
     return (
@@ -87,10 +108,10 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
       setLoadingPlan(period);
       try {
         await signInWithGoogle();
-        posthog.capture("subscribe_signin_started", { period });
+        posthog.capture("subscribe_signin_started", { period, market });
         // Auth state is now updated; Firebase currentUser is available
-        const checkoutUrl = await startCheckout(period);
-        posthog.capture("checkout_started", { period });
+        const checkoutUrl = await startCheckout(period, market);
+        posthog.capture("checkout_started", { period, market });
         window.location.href = checkoutUrl;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -103,8 +124,8 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
 
     setLoadingPlan(period);
     try {
-      const checkoutUrl = await startCheckout(period);
-      posthog.capture("checkout_started", { period });
+      const checkoutUrl = await startCheckout(period, market);
+      posthog.capture("checkout_started", { period, market });
       window.location.href = checkoutUrl;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -133,7 +154,7 @@ export function SubscribePricing({ isSubscribed }: { isSubscribed: boolean }) {
 
       {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-[780px] mx-auto">
-        {PLANS.map((plan) => {
+        {plans.map((plan) => {
           const isLoading = loadingPlan === plan.id;
           return (
             <article

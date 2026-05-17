@@ -22,8 +22,12 @@ export function isDodoConfigured(): boolean {
   return Boolean(key) && key !== "sk_your_key_here";
 }
 
-/** The product ID to use for each billing period. */
-export function productIdFor(period: "monthly" | "yearly"): string {
+/** The product ID to use for a given billing period and market. */
+export function productIdFor(period: "monthly" | "yearly", market: "US" | "IN" = "US"): string {
+  if (market === "IN") {
+    // India only has monthly billing; yearly is not offered.
+    return process.env.DODO_PRODUCT_ID_INDIA ?? "";
+  }
   return period === "yearly"
     ? (process.env.DODO_PRODUCT_ID_YEARLY ?? "")
     : (process.env.DODO_PRODUCT_ID_MONTHLY ?? "");

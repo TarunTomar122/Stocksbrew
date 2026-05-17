@@ -32,6 +32,7 @@ export async function GET() {
     ["/should-i-buy", "0.8", "weekly"],
     ["/earnings", "0.8", "weekly"],
     ["/ipos", "0.8", "weekly"],
+    ["/portfolio", "0.8", "weekly"],
   ] as const) {
     entries.push(url(path, prio, freq));
   }
