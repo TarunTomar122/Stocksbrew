@@ -1543,4 +1543,391 @@ export const blogContent: Record<string, string> = {
         <a href="https://tikrr.online" class="cta-button">Start Free →</a>
       </div>
 `,
+  "track-stock-news-for-your-portfolio": `
+<div class="blog-meta">May 2026 · 12 min read</div>
+
+<p>If you own more than 5 stocks, keeping up with news for all of them is a real problem. Open Reddit on any given day and you'll find the same question in r/stocks, r/StockMarket, r/Trading: "How do you guys keep track of news for all your stocks?" The answers are always a mess of app recommendations, spreadsheet hacks, and "I just check Yahoo Finance 47 times a day."</p>
+
+<p>There's a better way. Here's a practical system for tracking stock news that doesn't require you to quit your job or develop an anxiety disorder.</p>
+
+<h2 id="the-problem">The Real Problem: Signal vs Noise</h2>
+
+<p>The issue isn't a lack of news. It's too much of it. Every stock you own generates hundreds of headlines per week. Most of them are filler: analyst reiterations, price target adjustments of $2, and "What investors need to know about [company]" articles that say nothing new.</p>
+
+<p>If you try to read everything, you'll spend 2 hours a day and still miss the one headline that actually matters. If you ignore it entirely, you'll find out your stock dropped 15% when you open your brokerage app three days later.</p>
+
+<p>The solution is a system that filters news by relevance to <em>your</em> portfolio, not the entire market.</p>
+
+<h2 id="methods">5 Ways to Track Stock News (Ranked)</h2>
+
+<h3>1. Google Finance Watchlist (Free, 5 min/day)</h3>
+<p>Google Finance has the best free news aggregation for individual stocks. Add your holdings to a watchlist and Google curates a news feed from hundreds of sources. The quality is surprisingly good, better than most paid tools.</p>
+<p><strong>Pros:</strong> Free, excellent source diversity, clean interface, fast.</p>
+<p><strong>Cons:</strong> No scoring, no alerts, no AI filtering. You still have to read everything yourself.</p>
+<p><strong>Verdict:</strong> Best free starting point. Use it until you outgrow it.</p>
+
+<h3>2. Yahoo Finance Portfolio (Free, 10 min/day)</h3>
+<p>Yahoo Finance lets you import your portfolio and shows news, earnings, and analyst ratings for your holdings. The portfolio view is better than Google Finance for depth, but the interface is cluttered with ads and the news is sometimes stale.</p>
+<p><strong>Pros:</strong> Free, portfolio import, earnings dates, analyst coverage.</p>
+<p><strong>Cons:</strong> Ad-heavy, some data delayed 15 minutes, no AI filtering, can be slow.</p>
+<p><strong>Verdict:</strong> Good complement to Google Finance. Use for earnings and analyst data.</p>
+
+<h3>3. Seeking Alpha Portfolio Alerts (Free tier, 15 min/day)</h3>
+<p>Seeking Alpha's portfolio feature sends you article alerts when new analysis is published about your holdings. The quality of analysis is higher than generic news because it's written by investors, not journalists.</p>
+<p><strong>Pros:</strong> High-quality analysis, portfolio-specific alerts, earnings alerts.</p>
+<p><strong>Cons:</strong> Free tier is limited (3 articles/month for some features), can be opinion-heavy, premium is $240/year.</p>
+<p><strong>Verdict:</strong> Best for fundamental analysis. Worth it if you're a long-term investor.</p>
+
+<h3>4. RSS Feeds + Feedly (Free, 15 min setup)</h3>
+<p>Old school but effective. Set up RSS feeds for SEC filings (EDGAR has RSS), your favorite financial blogs, and company press releases. Feedly aggregates them all. You can filter by keyword to catch only the stories that mention your tickers.</p>
+<p><strong>Pros:</strong> Customizable, no algorithm deciding what you see, fast once set up.</p>
+<p><strong>Cons:</strong> Requires setup effort, no scoring or AI, manual keyword filtering is imperfect.</p>
+<p><strong>Verdict:</strong> Best for control freaks who want to see everything on their terms.</p>
+
+<h3>5. AI-Powered Market Intelligence (tikrr, 5 min/day)</h3>
+<p>This is the category that changes the equation. Tools like <a href="https://tikrr.online">tikrr</a> aggregate 50+ sources, score signals by relevance, and deliver a personalized daily brief for your watchlist. Instead of reading 50 headlines, you read 5 that matter.</p>
+<p><strong>Pros:</strong> AI scoring, watchlist personalization, multi-source aggregation, 5-minute daily brief.</p>
+<p><strong>Cons:</strong> Not a charting or execution tool. Focused purely on intelligence.</p>
+<p><strong>Verdict:</strong> Best for busy investors who want the signal without the noise. <a href="https://tikrr.online">Try it free</a>.</p>
+
+<h2 id="system">The 5-Minute Daily System</h2>
+
+<p>Here's the actual system I recommend. It takes 5 minutes and covers 90% of what you need:</p>
+
+<ol>
+  <li><strong>Morning (3 min):</strong> Read your AI market brief. <a href="https://tikrr.online">tikrr</a> delivers this automatically. It covers overnight moves, news for your watchlist, and earnings previews. You're done before your coffee gets cold.</li>
+  <li><strong>Midday (1 min):</strong> Quick scan of Google Finance news feed for your holdings. Flag anything unusual.</li>
+  <li><strong>Evening (1 min):</strong> Check after-hours moves. If something moved more than 3%, read the headline.</li>
+</ol>
+
+<p>That's it. 5 minutes, and you're more informed than 90% of retail investors who either ignore everything or drown in noise.</p>
+
+<h2 id="what-to-ignore">What to Ignore</h2>
+
+<p>Part of tracking news effectively is knowing what to skip:</p>
+<ul>
+  <li><strong>Price target changes under 10%</strong> - Analysts adjust targets by $2 all the time. It means nothing.</li>
+  <li><strong>"What investors need to know" articles</strong> - These are SEO content, not analysis.</li>
+  <li><strong>Reiteration of ratings</strong> - An analyst reiterating "Buy" isn't news. A downgrade from "Buy" to "Sell" is.</li>
+  <li><strong>General market commentary</strong> - "Markets are up on trade hopes" tells you nothing actionable.</li>
+</ul>
+
+<p>Focus on: earnings surprises, guidance changes, insider trading, SEC filings (8-Ks), unusual volume, and sector-wide catalysts. Everything else is noise.</p>
+
+<h2 id="common-mistakes">Common Mistakes</h2>
+
+<ul>
+  <li><strong>Checking too often</strong> - More than 3x/day is counterproductive. You'll react to noise instead of signal.</li>
+  <li><strong>Reading comments before the article</strong> - Comments are opinions. The article is (hopefully) facts. Read in that order.</li>
+  <li><strong>Trusting a single source</strong> - Always cross-reference. If one outlet reports something, check if others confirm it.</li>
+  <li><strong>Ignoring after-hours</strong> - Earnings and major announcements happen after close. If you only check during market hours, you're 12 hours behind.</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Stop Drowning in Stock News</h3>
+  <p>tikrr aggregates 50+ sources and scores what matters for your watchlist. Free tier available.</p>
+  <a href="https://tikrr.online" class="cta-button">Try tikrr Free →</a>
+</div>
+
+<p>For more on building an efficient market intelligence workflow, see our guide on <a href="/blog/daily-market-intelligence-guide">daily market intelligence</a> and our comparison of <a href="/blog/free-market-intelligence-tools">free market intelligence tools</a>.</p>
+`,
+  "earnings-calendar-for-my-watchlist": `
+<div class="blog-meta">May 2026 · 10 min read</div>
+
+<p>"Is there a site to make a custom earnings calendar for the stocks I own?" This question shows up on r/stocks, r/TradingView, and r/investing almost every earnings season. The top answer is usually some variation of "just check Nasdaq's earnings calendar and cross-reference your portfolio manually." That's 2023 advice. Here's 2026 advice.</p>
+
+<h2 id="why-it-matters">Why Watchlist-Based Earnings Calendars Matter</h2>
+
+<p>Generic earnings calendars show you every company reporting this week. That's thousands of entries. You don't care about 99.9% of them. You care about the 8 stocks in your portfolio and the 12 on your watchlist.</p>
+
+<p>When you miss an earnings report for a stock you own, you're not just uninformed, you're exposed. A company can drop 20% on a bad earnings report while you're at dinner. By the time you check your portfolio the next morning, the damage is done.</p>
+
+<p>The solution is simple: an earnings calendar filtered to <em>your</em> stocks. Here's how to get one.</p>
+
+<h2 id="methods">How to Get an Earnings Calendar for Your Watchlist</h2>
+
+<h3>Option 1: tikrr Earnings Calendar (Recommended)</h3>
+<p><a href="https://tikrr.online/earnings">tikrr's earnings calendar</a> automatically syncs with your watchlist. You add stocks to your radar, and the earnings calendar shows upcoming reports for only those stocks. It also includes AI-powered briefs for recent earnings, so you can see what happened last quarter at a glance.</p>
+<p><strong>What makes it different:</strong> Watchlist sync, AI brief integration, free tier available.</p>
+<p><strong>Best for:</strong> Investors who want earnings dates tied to their actual portfolio, not a generic calendar.</p>
+
+<h3>Option 2: TradingView Earnings Calendar</h3>
+<p>TradingView has a good earnings calendar, but filtering by watchlist is a premium feature. On the free tier, you get the full calendar and have to manually find your stocks. Users on r/TradingView have been requesting watchlist filtering since 2021.</p>
+<p><strong>What makes it different:</strong> Excellent charting integration. See the chart alongside the earnings date.</p>
+<p><strong>Best for:</strong> Traders who already pay for TradingView premium.</p>
+
+<h3>Option 3: Seeking Alpha Portfolio</h3>
+<p>Seeking Alpha shows earnings dates in your portfolio view and sends alerts before reports. The integration is seamless if you already use SA for research. But full access requires a $240/year premium subscription.</p>
+<p><strong>What makes it different:</strong> Deep analysis alongside earnings dates.</p>
+<p><strong>Best for:</strong> Fundamental investors who read SA analysis regularly.</p>
+
+<h3>Option 4: Nasdaq Earnings Calendar + Manual Filtering</h3>
+<p>The Nasdaq website has a free earnings calendar. You can't filter by watchlist, but you can search for individual tickers. It works if you own 3-5 stocks. It falls apart if you own 20+.</p>
+<p><strong>What makes it different:</strong> Free, official data, no account required.</p>
+<p><strong>Best for:</strong> People with very small portfolios who don't mind manual work.</p>
+
+<h3>Option 5: Google Calendar + Manual Entry</h3>
+<p>Some investors manually add earnings dates to their Google Calendar. It's tedious (you have to look up each date and create an event), but once it's done, you get reminders automatically. You'll need to update it every quarter.</p>
+<p><strong>What makes it different:</strong> Integrates with your existing calendar. Reminders are automatic.</p>
+<p><strong>Best for:</strong> People who love spreadsheets and manual processes.</p>
+
+<h2 id="earnings-prep">What to Do Before Earnings</h2>
+
+<p>Having the date is only half the battle. Here's a quick pre-earnings checklist:</p>
+
+<ol>
+  <li><strong>Check consensus estimates</strong> - What are analysts expecting? Revenue and EPS are the two numbers that matter most.</li>
+  <li><strong>Review last quarter's guidance</strong> - Did the company guide up, down, or in-line? This sets expectations.</li>
+  <li><strong>Look at sector peers</strong> - If competitors already reported, their results are a leading indicator.</li>
+  <li><strong>Check options implied move</strong> - The options market prices in expected moves. If the implied move is 8%, expect volatility.</li>
+  <li><strong>Set a decision rule</strong> - "If they miss, I sell half. If they beat, I hold." Decide <em>before</em> the report, not during the panic.</li>
+</ol>
+
+<p>tikrr's <a href="https://tikrr.online/should-i-buy">"Should I Buy?"</a> tool and <a href="https://tikrr.online/earnings">earnings page</a> cover most of this automatically, with AI analysis of recent earnings and consensus data.</p>
+
+<h2 id="earnings-moves">How Much Do Stocks Move on Earnings?</h2>
+
+<p>A lot more than most people think. The average S&P 500 stock moves 4-6% on earnings day. Small-caps can move 10-20%. Here are some real examples from recent seasons:</p>
+
+<ul>
+  <li><strong>Meta (Q4 2024):</strong> +20% after beating expectations and raising guidance</li>
+  <li><strong>Apple (Q1 2025):</strong> -3% despite beating, because China revenue disappointed</li>
+  <li><strong>NVIDIA (Q4 2024):</strong> +8% on massive data center growth</li>
+  <li><strong>Tesla (Q3 2024):</strong> -7% on margin concerns despite delivery beat</li>
+</ul>
+
+<p>The point isn't to predict the move. It's to not be surprised by it. If you own a stock, you need to know when it reports. Period.</p>
+
+<h2 id="common-mistakes">Common Earnings Mistakes</h2>
+
+<ul>
+  <li><strong>Not knowing the date</strong> - The #1 mistake. "I didn't know they were reporting" is not a strategy.</li>
+  <li><strong>Reacting to headlines</strong> - Earnings headlines often miss the nuance. Read the actual report or a good summary before making decisions.</li>
+  <li><strong>Ignoring guidance</strong> - A company can beat estimates and still drop if guidance is weak. Guidance matters more than the beat/miss.</li>
+  <li><strong>Trading during the call</strong> - Earnings calls often change the narrative. Wait for the full picture before acting.</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Never Miss Earnings Again</h3>
+  <p>tikrr syncs your watchlist with the earnings calendar. Add your stocks, see their dates. Free tier available.</p>
+  <a href="https://tikrr.online/earnings" class="cta-button">See Your Earnings Calendar →</a>
+</div>
+
+<p>For more on earnings analysis, check our <a href="/blog/ai-stock-analysis-what-works">guide to AI stock analysis</a> and the <a href="/blog/what-is-ai-market-brief">AI market brief explainer</a>.</p>
+`,
+  "stay-updated-on-stocks-without-checking-daily": `
+<div class="blog-meta">May 2026 · 10 min read</div>
+
+<p>r/Bogleheads has a recurring thread: "How do I stop checking my portfolio every day?" r/investing has another: "Do you guys check your portfolio every day or try to ignore it?" The advice is usually "just don't look" or "delete the app." That's not helpful. You <em>want</em> to stay informed. You just don't want it to take over your life.</p>
+
+<p>Here's how to stay updated on your stocks without turning market-watching into a full-time job.</p>
+
+<h2 id="the-dilemma">The Informed vs. Obsessed Dilemma</h2>
+
+<p>There's a spectrum. On one end: people who check their portfolio 47 times a day and can't eat lunch without knowing what the S&P is doing. On the other: people who don't know their stock dropped 30% until they file their taxes.</p>
+
+<p>Neither is good. The sweet spot is being informed enough to make timely decisions, without being so engaged that you make emotional ones. That sweet spot is about 5-10 minutes per day.</p>
+
+<h2 id="morning-routine">The 5-Minute Morning Routine</h2>
+
+<p>This is the core of staying informed without constant checking. Do this once per day, ideally in the morning:</p>
+
+<ol>
+  <li><strong>Read a daily market brief (2 min)</strong> - A good AI market brief, like the one <a href="https://tikrr.online">tikrr</a> delivers, gives you the overnight summary, what moved, and what to watch. No scrolling, no clicking, just one structured read.</li>
+  <li><strong>Check your portfolio once (1 min)</strong> - Open your brokerage app. Look at total portfolio change. If it's within normal range (say, +/- 1%), close it. Don't drill into individual positions unless something moved more than 3%.</li>
+  <li><strong>Scan alerts (2 min)</strong> - If you have alerts set up (see below), scan them. Price alerts, earnings alerts, news alerts. Deal with anything urgent. Ignore everything else.</li>
+</ol>
+
+<p>Done. 5 minutes. You're more informed than 95% of retail investors.</p>
+
+<h2 id="alert-setup">Set Up the Right Alerts</h2>
+
+<p>Alerts flip the model from "pull" (you go find information) to "push" (information comes to you). But you need the right alerts, or you'll get buried in notifications.</p>
+
+<h3>Essential Alerts</h3>
+<ul>
+  <li><strong>Price alerts (5% moves)</strong> - Set alerts at +/- 5% from current price for each holding. This catches meaningful moves without triggering on daily noise.</li>
+  <li><strong>Earnings alerts</strong> - Get notified 1 day before and 1 day after each earnings report. <a href="https://tikrr.online/earnings">tikrr's earnings calendar</a> does this automatically for your watchlist.</li>
+  <li><strong>52-week high/low alerts</strong> - When a stock hits a new 52-week high or low, it's worth knowing. These are structural events.</li>
+</ul>
+
+<h3>Optional Alerts (For Active Investors)</h3>
+<ul>
+  <li><strong>Insider trading alerts</strong> - When a CEO buys or sells, it's a signal. SEC EDGAR has free alerts for insider transactions.</li>
+  <li><strong>Volume spikes</strong> - Unusual volume often precedes news. TradingView can alert on volume thresholds.</li>
+  <li><strong>Analyst upgrades/downgrades</strong> - Meaningful changes in analyst ratings. Ignore reiterations.</li>
+</ul>
+
+<h3>Alerts to Avoid</h3>
+<ul>
+  <li><strong>Small price changes (1-2%)</strong> - These happen every day. Alerting on them is just noise.</li>
+  <li><strong>Social media mentions</strong> - Unless you're doing sentiment analysis, these are mostly useless.</li>
+  <li><strong>Every news headline</strong> - You'll get 50/day per stock. Your phone will never stop buzzing.</li>
+</ul>
+
+<h2 id="weekly-check">The Weekly Deep Dive (15 min)</h2>
+
+<p>Once a week, usually on Sunday, do a slightly deeper check:</p>
+
+<ol>
+  <li><strong>Review the week's moves</strong> - Any position up or down more than 5%? Read the headlines for context.</li>
+  <li><strong>Check upcoming earnings</strong> - Any of your stocks reporting this week? <a href="https://tikrr.online/earnings">tikrr's earnings calendar</a> shows this at a glance.</li>
+  <li><strong>Read your weekly market summary</strong> - Many services offer weekly digests. tikrr's <a href="https://tikrr.online">daily briefs</a> are daily, but you can also review the week's accumulated signals.</li>
+  <li><strong>Review sector performance</strong> - Are the sectors you're exposed to trending up or down? <a href="https://tikrr.online/heat">tikrr's market heat map</a> shows this visually.</li>
+</ol>
+
+<p>This weekly check is where you catch the things your daily 5-minute scan might miss.</p>
+
+<h2 id="tools">Tools That Help You Check Less</h2>
+
+<ul>
+  <li><strong><a href="https://tikrr.online">tikrr</a></strong> - AI daily brief, watchlist radar, earnings calendar. The whole point is staying informed in 5 min/day. Free tier.</li>
+  <li><strong>TradingView alerts</strong> - Best for price and technical alerts. Free tier gives you a limited number of alerts.</li>
+  <li><strong>Google Finance</strong> - Simple portfolio tracking with news aggregation. Free.</li>
+  <li><strong>Brokerage app alerts</strong> - Most brokerages (Fidelity, Schwab, Robinhood) let you set price and news alerts. Use them.</li>
+</ul>
+
+<h2 id="mindset">The Mindset Shift</h2>
+
+<p>The biggest change isn't a tool. It's a mindset. Here's what experienced investors know:</p>
+
+<blockquote>
+  "The market doesn't care if you're watching. Your stocks will go up or down whether you check or not. The only question is: will you make better decisions by checking more? Almost always, the answer is no."
+</blockquote>
+
+<p>Checking your portfolio more doesn't make you a better investor. It makes you a more anxious one. The best investors set up systems (alerts, briefs, weekly reviews) and then <em>trust the system</em>.</p>
+
+<p>Set it up once. Check it once a day. Live your life.</p>
+
+<div class="cta-section">
+  <h3>Stay Informed in 5 Minutes a Day</h3>
+  <p>tikrr delivers a personalized daily brief for your watchlist. No scrolling, no noise. Free tier available.</p>
+  <a href="https://tikrr.online" class="cta-button">Try tikrr Free →</a>
+</div>
+
+<p>Related: <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a> and <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
+`,
+  "best-free-stock-alert-tools-2026": `
+<div class="blog-meta">May 2026 · 14 min read</div>
+
+<p>"What stock alert tools do you recommend?" This question hits r/StockMarket, r/stocks, and r/investing every few weeks. The answers are always a mix of TradingView, brokerage alerts, and some app nobody has heard of. Most of the recommendations are based on what people have used, not what's actually best. So we tested them.</p>
+
+<p>Here are 8 free stock alert tools, tested and ranked for what actually works in 2026.</p>
+
+<h2 id="what-makes-good-alert">What Makes a Good Stock Alert?</h2>
+
+<p>Before ranking tools, let's define what a good alert actually does:</p>
+
+<ul>
+  <li><strong>Timely</strong> - The alert fires within seconds of the trigger, not 15 minutes later.</li>
+  <li><strong>Relevant</strong> - It alerts on things that matter, not daily noise.</li>
+  <li><strong>Customizable</strong> - You set the conditions, not the app.</li>
+  <li><strong>Reliable</strong> - It doesn't miss alerts or fire false positives.</li>
+  <li><strong>Actionable</strong> - The alert tells you enough to make a decision without opening 3 more apps.</li>
+</ul>
+
+<p>With those criteria, here's the ranking.</p>
+
+<h2 id="rankings">8 Free Stock Alert Tools, Ranked</h2>
+
+<h3>1. TradingView (Best Overall)</h3>
+<p>TradingView's alert system is the gold standard for retail investors. You can set alerts on price, indicators, drawing tools, and custom Pine Script conditions. The free tier gives you 1 server-side alert (runs even when you're offline). Premium unlocks unlimited alerts.</p>
+<p><strong>Alert types:</strong> Price, indicators, volume, Pine Script custom conditions.</p>
+<p><strong>Delivery:</strong> In-app, push notification, email, webhooks (premium).</p>
+<p><strong>Free tier:</strong> 1 alert. Enough for your most important stock.</p>
+<p><strong>Verdict:</strong> Best alert engine for technical traders. The free tier is limited but the premium ($13/month) is worth it if you rely on alerts.</p>
+
+<h3>2. Brokerage Alerts (Best Free Option)</h3>
+<p>Your brokerage probably has alert functionality built in. Fidelity, Schwab, TD Ameritrade, E*TRADE, and Robinhood all offer price alerts for free. They're basic (price up/down, percent change), but they work and they're already connected to your account.</p>
+<p><strong>Alert types:</strong> Price, percent change, 52-week high/low, volume.</p>
+<p><strong>Delivery:</strong> Push notification, email, SMS (some brokerages).</p>
+<p><strong>Free tier:</strong> Unlimited alerts on most platforms.</p>
+<p><strong>Verdict:</strong> Best starting point. No extra app, no extra cost. Use these before paying for anything else.</p>
+
+<h3>3. Google Finance (Best for Simplicity)</h3>
+<p>Google Finance doesn't have traditional alerts, but it has a watchlist with price tracking and news aggregation. If you have the app, you get notifications for significant moves on your watchlist stocks. It's not customizable, but it's free and requires zero setup.</p>
+<p><strong>Alert types:</strong> Significant price moves, news for watchlist stocks.</p>
+<p><strong>Delivery:</strong> Push notification (Google app).</p>
+<p><strong>Free tier:</strong> Unlimited, automatic.</p>
+<p><strong>Verdict:</strong> Best for passive investors who want some alerts without any setup. Not for active traders.</p>
+
+<h3>4. tikrr (Best for Intelligence-Based Alerts)</h3>
+<p><a href="https://tikrr.online">tikrr</a> takes a different approach to alerts. Instead of just price triggers, it uses AI to score market signals and alerts you when something significant happens for your watchlist: earnings beats/misses, unusual sentiment shifts, analyst changes, sector rotations. The alerts are part of a broader daily intelligence system.</p>
+<p><strong>Alert types:</strong> AI-scored market signals, earnings alerts, watchlist radar, anomaly detection.</p>
+<p><strong>Delivery:</strong> Daily brief, web dashboard.</p>
+<p><strong>Free tier:</strong> Full daily brief and watchlist radar. <a href="https://tikrr.online">Sign up free</a>.</p>
+<p><strong>Verdict:</strong> Best for investors who want intelligence, not just price triggers. The alert philosophy is fundamentally different: it tells you <em>what matters</em>, not just <em>what moved</em>.</p>
+
+<h3>5. Yahoo Finance (Best for Portfolio Alerts)</h3>
+<p>Yahoo Finance lets you create a portfolio and get alerts for earnings, dividends, and price moves. The portfolio integration is the best free option if you want alerts tied to your actual holdings.</p>
+<p><strong>Alert types:</strong> Price, earnings, dividends, analyst changes.</p>
+<p><strong>Delivery:</strong> Push notification, email.</p>
+<p><strong>Free tier:</strong> Unlimited portfolio alerts.</p>
+<p><strong>Verdict:</strong> Good complement to a brokerage. Better news aggregation than most brokerages.</p>
+
+<h3>6. Finviz (Best for Screening Alerts)</h3>
+<p>Finviz is primarily a screener, but the premium version ($40/month) includes email alerts when stocks match your screen criteria. This is useful if you have a specific setup (e.g., "alert me when a stock crosses above its 200-day MA with volume > 2x average").</p>
+<p><strong>Alert types:</strong> Screen-based criteria matches.</p>
+<p><strong>Delivery:</strong> Email.</p>
+<p><strong>Free tier:</strong> No alerts. Alerts are premium only.</p>
+<p><strong>Verdict:</strong> Only worth it if you already use Finviz for screening. The alert feature alone doesn't justify $40/month.</p>
+
+<h3>7. Seeking Alpha (Best for Fundamental Alerts)</h3>
+<p>Seeking Alpha sends alerts for earnings, analyst rating changes, and new articles about your portfolio stocks. The quality of analysis is high, but the free tier is increasingly limited.</p>
+<p><strong>Alert types:</strong> Earnings, analyst changes, new articles, SEC filings.</p>
+<p><strong>Delivery:</strong> Push notification, email.</p>
+<p><strong>Free tier:</strong> Basic alerts. Full access requires $240/year premium.</p>
+<p><strong>Verdict:</strong> Best for long-term fundamental investors who read SA analysis. Not for traders.</p>
+
+<h3>8. StockTwits (Best for Sentiment Alerts)</h3>
+<p>StockTwits has trending ticker alerts and volume spike notifications. It's more of a social platform than an alert tool, but the trending feature can catch momentum early.</p>
+<p><strong>Alert types:</strong> Trending tickers, volume spikes, social sentiment shifts.</p>
+<p><strong>Delivery:</strong> Push notification.</p>
+<p><strong>Free tier:</strong> Basic trending alerts. Premium adds more.</p>
+<p><strong>Verdict:</strong> High noise, low reliability. Use as a supplementary signal, not your primary alert system.</p>
+
+<h2 id="comparison">Quick Comparison Table</h2>
+
+<ul>
+  <li><strong>Best for technical traders:</strong> TradingView</li>
+  <li><strong>Best free option:</strong> Your brokerage</li>
+  <li><strong>Best for simplicity:</strong> Google Finance</li>
+  <li><strong>Best for intelligence:</strong> <a href="https://tikrr.online">tikrr</a></li>
+  <li><strong>Best for portfolio tracking:</strong> Yahoo Finance</li>
+  <li><strong>Best for fundamental investors:</strong> Seeking Alpha</li>
+  <li><strong>Best for screening alerts:</strong> Finviz (premium)</li>
+  <li><strong>Best for sentiment:</strong> StockTwits (use cautiously)</li>
+</ul>
+
+<h2 id="my-setup">Recommended Free Alert Setup</h2>
+
+<p>If you want comprehensive alerts at $0/month, here's the setup I recommend:</p>
+
+<ol>
+  <li><strong>Brokerage alerts</strong> for price moves (5% thresholds on each holding)</li>
+  <li><strong><a href="https://tikrr.online">tikrr</a></strong> for daily intelligence brief and watchlist radar</li>
+  <li><strong>Google Finance</strong> for news aggregation and basic price tracking</li>
+  <li><strong>TradingView free</strong> for your #1 most important technical alert</li>
+  <li><strong>Yahoo Finance</strong> for earnings and dividend date alerts</li>
+</ol>
+
+<p>This setup gives you price alerts, intelligence alerts, news alerts, earnings alerts, and one technical alert, all for free. It covers 90% of what you need.</p>
+
+<h2 id="common-mistakes">Common Alert Mistakes</h2>
+
+<ul>
+  <li><strong>Too many alerts</strong> - If you get 20 alerts a day, you'll start ignoring all of them. Set 5-10 max.</li>
+  <li><strong>Alerting on noise</strong> - 1% price moves are daily noise. Alert on 5%+ moves only.</li>
+  <li><strong>Not acting on alerts</strong> - If you get an alert and do nothing 95% of the time, your thresholds are wrong. Every alert should prompt at least a quick review.</li>
+  <li><strong>Using only one source</strong> - Price alerts alone miss the context. Intelligence alerts alone miss the trigger. Combine them.</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Get Intelligence-Based Alerts</h3>
+  <p>tikrr alerts you on what matters, not just what moved. AI-scored signals for your watchlist. Free tier available.</p>
+  <a href="https://tikrr.online" class="cta-button">Try tikrr Free →</a>
+</div>
+
+<p>Related: <a href="/blog/ai-stock-alerts-vs-price-alerts">AI Stock Alerts vs Price Alerts</a> and <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a>.</p>
+`,
 };

@@ -21,6 +21,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   intelligence: "bg-[#ecfdf5] text-[#10b981]",
   tools: "bg-[#eef2ff] text-[#6366f1]",
   comparison: "bg-[#fef3c7] text-[#d97706]",
+  guides: "bg-[#eff6ff] text-[#3b82f6]",
 };
 
 export default function BlogPage() {
