@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { EarningsCalendar } from "@/components/earnings-calendar";
 import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
@@ -33,6 +34,13 @@ export default async function EarningsPage() {
         </header>
 
         <EarningsCalendar universeTickers={universeTickers} />
+
+        {/* Cross-link to Blog */}
+        <div className="w-full max-w-[960px] rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-6 text-center">
+          <p className="text-[14px] text-[#6b7280] mb-3">
+            New to earnings tracking? Read our guide on <Link href="/blog/earnings-calendar-for-my-watchlist" className="text-[#0052ff] font-medium hover:underline">how to never miss earnings again</Link>.
+          </p>
+        </div>
       </div>
     </main>
   );

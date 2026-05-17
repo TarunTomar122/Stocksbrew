@@ -4,6 +4,13 @@ import Link from "next/link";
 import { allBlogPosts, type BlogPost } from "@/lib/blog-data";
 import { getBlogContent } from "@/lib/blog";
 
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  intelligence: { bg: "bg-[#ecfdf5]", text: "text-[#10b981]" },
+  tools: { bg: "bg-[#eef2ff]", text: "text-[#6366f1]" },
+  comparison: { bg: "bg-[#fef3c7]", text: "text-[#d97706]" },
+  guides: { bg: "bg-[#eff6ff]", text: "text-[#3b82f6]" },
+};
+
 type Props = {
   params: Promise<{ slug: string }>;
 };
@@ -53,7 +60,7 @@ export default async function BlogPostPage({ params }: Props) {
 
         <header className="flex flex-col gap-4 mb-10">
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#10b981]">
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase ${CATEGORY_COLORS[post.category]?.bg || "bg-[#f3f4f6]"} ${CATEGORY_COLORS[post.category]?.text || "text-[#6b7280]"}`}>
               {post.category}
             </span>
             <span className="text-[13px] text-[#6b7280]">{post.date}</span>
@@ -95,7 +102,11 @@ export default async function BlogPostPage({ params }: Props) {
             prose-hr:my-10 prose-hr:border-[#e5e7eb]
             prose-img:rounded-xl
             [&_.sample-brief]:bg-[#f8f9fa] [&_.sample-brief]:border [&_.sample-brief]:border-[#e5e7eb] [&_.sample-brief]:rounded-xl [&_.sample-brief]:p-5 [&_.sample-brief]:my-5
-            [&_.sample-brief_h4]:text-[#6b38d4] [&_.sample-brief_h4]:font-semibold [&_.sample-brief_h4]:mb-3"
+            [&_.sample-brief_h4]:text-[#6b38d4] [&_.sample-brief_h4]:font-semibold [&_.sample-brief_h4]:mb-3
+            [&_.cta-section]:mt-12 [&_.cta-section]:p-6 [&_.cta-section]:bg-[#f8f9fa] [&_.cta-section]:border [&_.cta-section]:border-[#e5e7eb] [&_.cta-section]:rounded-2xl [&_.cta-section]:text-center
+            [&_.cta-section_h3]:text-[20px] [&_.cta-section_h3]:font-semibold [&_.cta-section_h3]:text-[#111111] [&_.cta-section_h3]:mb-2 [&_.cta-section_h3]:mt-0
+            [&_.cta-section_p]:text-[14px] [&_.cta-section_p]:text-[#6b7280] [&_.cta-section_p]:mb-5
+            [&_.cta-button]:inline-flex [&_.cta-button]:items-center [&_.cta-button]:justify-center [&_.cta-button]:h-[44px] [&_.cta-button]:px-6 [&_.cta-button]:rounded-full [&_.cta-button]:bg-[#111111] [&_.cta-button]:text-white [&_.cta-button]:text-[14px] [&_.cta-button]:font-semibold [&_.cta-button]:tracking-tight [&_.cta-button]:no-underline [&_.cta-button]:hover:-translate-y-[1px]"
           dangerouslySetInnerHTML={{ __html: content }}
         />
 
