@@ -15,6 +15,8 @@ import { TrackButton } from "@/components/track-button";
 import { YourBookLayout } from "@/components/your-book-layout";
 import { DiagnosisSectorChart, DiagnosisFactorRadar } from "@/components/diagnosis-charts";
 import { RadarUpdatingBanner } from "@/components/radar-updating-banner";
+import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
+import { getSearchIndex, type SearchEntry } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +37,12 @@ export default async function WatchlistPage() {
   const userDoc = await getUserDoc(session.uid);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
+  const searchIndex = await getSearchIndex("US").catch(() => [] as SearchEntry[]);
   const watchlistView = await getWatchlistView(session.uid).catch(() => null);
   const radar = userDoc?.radar_v1 || {};
-  const rows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
+  const materializedRows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
+  const trackedSet = new Set(tracked);
+  const rows = materializedRows.filter((r) => trackedSet.has(r.instrument_id));
   const suggestions = (watchlistView?.suggestions || radar.suggestions || []) as Dict[];
   const brief = ((watchlistView?.brief || radar.brief) ?? null) as WatchlistBrief | null;
   const pulse = ((watchlistView?.pulse || radar.pulse) ?? null) as WatchlistPulse | null;
@@ -52,12 +57,18 @@ export default async function WatchlistPage() {
       : undefined;
   const watchlistUpdatedAt =
     typeof userDoc?.watchlist_updated_at === "string" ? userDoc.watchlist_updated_at : undefined;
+  const builtAtMs = builtAt ? Date.parse(builtAt) : NaN;
   const pendingCount = Math.max(0, tracked.length - rows.length);
   const watchlistUpdatedMs = watchlistUpdatedAt ? Date.parse(watchlistUpdatedAt) : NaN;
   const shouldShowUpdatingBanner =
     pendingCount > 0 &&
     Number.isFinite(watchlistUpdatedMs) &&
     Date.now() - watchlistUpdatedMs < UPDATE_BANNER_WINDOW_MS;
+  const isAnalysisRefreshing =
+    Number.isFinite(watchlistUpdatedMs) &&
+    Number.isFinite(builtAtMs) &&
+    watchlistUpdatedMs > builtAtMs &&
+    Date.now() - watchlistUpdatedMs < 3 * 60 * 1000;
 
   if (watchlistView && radar && Array.isArray((radar as Dict).rows)) {
     const materializedRows = (watchlistView.rows || []).map((r) => String(r.ticker || r.instrument_id || ""));
@@ -142,7 +153,15 @@ export default async function WatchlistPage() {
         )}
 
         {/* ── HEADER STRIP ──────────────────────────────────────────────── */}
-        <HeaderStrip rows={rows} builtAt={builtAt} pulse={pulse} tapeItems={tapeItems} isSubscribed={isSubscribed} trackedCount={tracked.length} />
+        <HeaderStrip
+          rows={rows}
+          builtAt={builtAt}
+          pulse={pulse}
+          tapeItems={tapeItems}
+          isSubscribed={isSubscribed}
+          trackedCount={tracked.length}
+          searchIndex={searchIndex}
+        />
 
         {/* ── § 01 · TODAY ──────────────────────────────────────────────── */}
         <TodaySection
@@ -150,6 +169,7 @@ export default async function WatchlistPage() {
           topDirective={topDirective}
           secondaryDirectives={secondaryDirectives}
           suggestions={suggestions}
+          refreshing={isAnalysisRefreshing}
         />
 
         {/* ── § 02 · YOUR BOOK ──────────────────────────────────────────── */}
@@ -161,6 +181,7 @@ export default async function WatchlistPage() {
           suggestions={suggestions}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
+          refreshing={isAnalysisRefreshing}
         />
 
         {/* ── § 03 · DIAGNOSIS ──────────────────────────────────────────── */}
@@ -171,10 +192,11 @@ export default async function WatchlistPage() {
           suggestions={suggestions}
           tracked={tracked}
           isSubscribed={isSubscribed}
+          refreshing={isAnalysisRefreshing}
         />
 
         {/* ── § 04 · ACTIVITY ───────────────────────────────────────────── */}
-        <RadarActivity events={activityEvents} changes={changesData} />
+        <RadarActivity events={activityEvents} changes={changesData} refreshing={isAnalysisRefreshing} />
       </div>
     </main>
   );
@@ -191,6 +213,7 @@ function HeaderStrip({
   tapeItems,
   isSubscribed,
   trackedCount,
+  searchIndex,
 }: {
   rows: WatchlistRow[];
   builtAt?: string;
@@ -198,8 +221,10 @@ function HeaderStrip({
   tapeItems: TapeItem[];
   isSubscribed: boolean;
   trackedCount: number;
+  searchIndex: SearchEntry[];
 }) {
-  const atLimit = !isSubscribed && trackedCount >= 3;
+  // Use visible rows (have price data) — ghost Firestore entries shouldn't block the user
+  const atLimit = !isSubscribed && rows.length >= 3;
   return (
     <header className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
@@ -230,7 +255,7 @@ function HeaderStrip({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start">
+        <div className="flex items-center gap-2 self-start mt-2">
           {atLimit ? (
             <Link
               href="/subscribe"
@@ -239,13 +264,18 @@ function HeaderStrip({
               Upgrade to track more →
             </Link>
           ) : (
-            <Link
-              href="/"
-              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
-            >
-              <span aria-hidden>＋</span>
-              Add a stock
-            </Link>
+            <RadarBatchEditModal
+              searchIndex={searchIndex}
+              initialItems={rows.map((r) => ({
+                instrument_id: r.instrument_id,
+                ticker: r.ticker,
+                name: r.ticker,
+                position_type: r.position_type === "holding" ? "holding" : "watchlist",
+              }))}
+              isSubscribed={isSubscribed}
+              ctaLabel="Add a stock"
+              enableImageUpload
+            />
           )}
         </div>
       </div>
@@ -356,11 +386,13 @@ function TodaySection({
   topDirective,
   secondaryDirectives,
   suggestions,
+  refreshing,
 }: {
   brief: WatchlistBrief | null;
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
   suggestions: Dict[];
+  refreshing?: boolean;
 }) {
   // If we have no directives at all, fall back to brief-only display
   if (!topDirective && (!brief?.narrative || !brief.narrative.trim())) {
@@ -373,7 +405,7 @@ function TodaySection({
 
   return (
     <section className="flex flex-col gap-6">
-      <SectionOpener number="01" title="Today" />
+      <SectionOpener number="01" title="Today" refreshing={refreshing} />
 
       {/* Tone lede (the macro one-liner) */}
       {brief?.narrative && (
@@ -636,6 +668,7 @@ function YourBookSection({
   suggestions,
   isSubscribed,
   trackedCount,
+  refreshing,
 }: {
   holdings: WatchlistRow[];
   watching: WatchlistRow[];
@@ -644,6 +677,7 @@ function YourBookSection({
   suggestions: Dict[];
   isSubscribed: boolean;
   trackedCount: number;
+  refreshing?: boolean;
 }) {
   // Flatten suggestion dicts to the shape RadarLedger expects.
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -656,7 +690,18 @@ function YourBookSection({
     market: text(item.market) || "US",
   }));
 
-  const atLimit = !isSubscribed && trackedCount >= 3;
+  // Use visible row count (has price data) so the number matches what the user actually sees in the table
+  const visibleCount = holdings.length + watching.length;
+  const atLimit = !isSubscribed && visibleCount >= 3;
+  // Show a "add more stocks" nudge when radar is sparse but not at the limit
+  const showAddMoreNudge = !atLimit && visibleCount > 0 && (isSubscribed ? visibleCount < 5 : visibleCount < 3);
+  const nudge = showAddMoreNudge
+    ? visibleCount === 1
+      ? { headline: "Add 1 more stock to unlock comparisons", body: "With 2+ stocks tikrr can compare scores, cluster your book, and surface which one deserves attention today." }
+      : visibleCount === 2
+      ? { headline: "One more stock and your Radar really kicks in", body: "Portfolio diagnosis, concentration risks, and daily directives all light up once you have 3 stocks tracked." }
+      : { headline: "Pro tip: 5+ stocks makes everything smarter", body: "The more you track, the better tikrr clusters your book, spots risks, and prioritises what to act on today." }
+    : null;
 
   return (
     <section className="flex flex-col gap-6">
@@ -664,6 +709,7 @@ function YourBookSection({
         number="02"
         title="Your book"
         meta={`${holdings.length} held · ${watching.length} watching`}
+        refreshing={refreshing}
       />
 
       <YourBookLayout
@@ -672,29 +718,48 @@ function YourBookSection({
         suggestions={suggestionList}
         upNextSlot={<UpNextPanel items={upNext} />}
         alertsSlot={<AlertsPanel alerts={alerts} />}
-      />
+        belowLedgerSlot={atLimit ? (
+          <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Subtle gradient glow */}
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(129,140,248,0.25)_0%,transparent_55%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(16,185,129,0.15)_0%,transparent_55%)]" />
 
-      {atLimit && (
-        <div className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 text-[16px]">📊</span>
-            <div>
-              <p className="text-[13px] font-semibold text-[#111111]">
-                You&apos;re tracking {trackedCount}/3 stocks on the free plan
+            <div className="relative flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-white/60">
+                  Free · {visibleCount}/3 stocks
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#fef3c7]/15 border border-[#fcd34d]/30 px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#fcd34d]">
+                  🚀 Launch pricing
+                </span>
+              </div>
+              <p className="text-[15px] font-semibold text-white leading-snug">
+                You&apos;ve hit the limit. Unlock your full Radar.
               </p>
-              <p className="text-[12px] text-[#6b7280] mt-0.5 leading-relaxed">
-                Upgrade to Pro to track unlimited stocks — plus get alerts when something changes, earnings reminders, and deeper analysis across your whole book.
-              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {[
+                  { icon: "trending_up", text: "Unlimited stocks" },
+                  { icon: "notifications", text: "RSI & breakout alerts" },
+                  { icon: "psychology", text: "AI verdict per stock" },
+                  { icon: "analytics", text: "Portfolio diagnosis" },
+                ].map(({ icon, text }) => (
+                  <span key={text} className="inline-flex items-center gap-1 text-[11px] text-white/55">
+                    <span className="material-symbols-outlined text-white/40" style={{ fontSize: 13, fontVariationSettings: "'wght' 500" }}>{icon}</span>
+                    {text}
+                  </span>
+                ))}
+              </div>
             </div>
+
+            <Link
+              href="/subscribe"
+              className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]"
+            >
+              Unlock Pro — $9/mo →
+            </Link>
           </div>
-          <Link
-            href="/subscribe"
-            className="shrink-0 inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap"
-          >
-            Upgrade to Pro →
-          </Link>
-        </div>
-      )}
+        ) : undefined}
+      />
     </section>
   );
 }
@@ -823,6 +888,7 @@ function DiagnosisSection({
   suggestions,
   tracked,
   isSubscribed,
+  refreshing,
 }: {
   portfolio: Dict;
   pillarAverages: PillarAverages;
@@ -830,6 +896,7 @@ function DiagnosisSection({
   suggestions: Dict[];
   tracked: string[];
   isSubscribed: boolean;
+  refreshing?: boolean;
 }) {
   const clusters = asArray(portfolio.clusters).slice(0, 5);
   const risks = asArray(portfolio.risk_flags).slice(0, 4);
@@ -848,7 +915,7 @@ function DiagnosisSection({
 
   return (
     <section className="flex flex-col gap-8">
-      <SectionOpener number="03" title="Diagnosis" />
+      <SectionOpener number="03" title="Diagnosis" refreshing={refreshing} />
 
       {summary && (
         <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">
@@ -1292,10 +1359,12 @@ function SectionOpener({
   number,
   title,
   meta,
+  refreshing,
 }: {
   number: string;
   title: string;
   meta?: string;
+  refreshing?: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-[#ececea] pt-8">
@@ -1306,6 +1375,15 @@ function SectionOpener({
         <h2 className="text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">
           {title}
         </h2>
+        {refreshing && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fcd34d] bg-[#fffbeb] px-2.5 py-1 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.15)]">
+            <span aria-hidden className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]" />
+            </span>
+            Updating
+          </span>
+        )}
       </div>
       {meta && (
         <span className="text-[12px] font-medium text-[#6b7280]">{meta}</span>

@@ -561,7 +561,9 @@ function RowMenu({ row }: { row: WatchlistRow }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -571,6 +573,14 @@ function RowMenu({ row }: { row: WatchlistRow }) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
+
+  function openMenu() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((v) => !v);
+  }
 
   const isHolding = row.position_type === "holding";
   const instrumentId = row.instrument_id;
@@ -617,44 +627,48 @@ function RowMenu({ row }: { row: WatchlistRow }) {
 
   return (
     <>
-      <div ref={ref} className="relative flex items-center justify-center">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        disabled={busy}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] transition-colors disabled:opacity-40"
-        aria-label="Row options"
-      >
-        {busy ? (
-          <span className="text-[10px]">…</span>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-            <circle cx="7" cy="2.5" r="1.2" />
-            <circle cx="7" cy="7" r="1.2" />
-            <circle cx="7" cy="11.5" r="1.2" />
-          </svg>
-        )}
-      </button>
+      <div ref={ref} className="flex items-center justify-center">
+        <button
+          ref={btnRef}
+          type="button"
+          onClick={openMenu}
+          disabled={busy}
+          className="flex h-6 w-6 items-center justify-center rounded-md text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] transition-colors disabled:opacity-40 outline-none focus:outline-none"
+          aria-label="Row options"
+        >
+          {busy ? (
+            <span className="h-3 w-3 rounded-full border-2 border-[#d1d5db] border-t-[#6b7280] animate-spin" />
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <circle cx="7" cy="2.5" r="1.2" />
+              <circle cx="7" cy="7" r="1.2" />
+              <circle cx="7" cy="11.5" r="1.2" />
+            </svg>
+          )}
+        </button>
 
         {open && (
-          <div className="absolute right-0 top-8 z-50 w-48 rounded-xl border border-[#e5e7eb] bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
-          <button
-            type="button"
-            onClick={() => move(isHolding ? "watchlist" : "holding")}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#111111] hover:bg-[#f9fafb] transition-colors"
+          <div
+            style={{ top: menuPos.top, right: menuPos.right }}
+            className="fixed z-[200] w-44 rounded-2xl border border-[#e5e7eb] bg-white py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
           >
-            <span aria-hidden className="text-[15px]">{isHolding ? "👁" : "💼"}</span>
-            {isHolding ? "Move to Watching" : "Move to Holdings"}
-          </button>
-          <div className="my-1 border-t border-[#f3f4f6]" />
-          <button
-            type="button"
-            onClick={remove}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
-          >
-            <span aria-hidden className="text-[15px]">✕</span>
-            Stop tracking
-          </button>
+            <button
+              type="button"
+              onClick={() => move(isHolding ? "watchlist" : "holding")}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#111111] hover:bg-[#f9fafb] transition-colors"
+            >
+              <span aria-hidden className="text-[14px]">{isHolding ? "👁" : "💼"}</span>
+              {isHolding ? "Move to Watching" : "Move to Holdings"}
+            </button>
+            <div className="mx-3 my-1 border-t border-[#f3f4f6]" />
+            <button
+              type="button"
+              onClick={remove}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+            >
+              <span aria-hidden className="text-[14px]">✕</span>
+              Stop tracking
+            </button>
           </div>
         )}
       </div>

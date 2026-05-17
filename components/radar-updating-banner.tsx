@@ -41,9 +41,10 @@ export function RadarUpdatingBanner({
   if (!forceVisible && hidden) return null;
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3.5 text-[12.5px] text-[#1e3a8a] shadow-[0_1px_0_rgba(30,64,175,0.08)]">
-      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#dbeafe] text-[#1d4ed8]">
-        <span className="h-3.5 w-3.5 rounded-full border-2 border-[#93c5fd] border-t-[#1d4ed8] animate-spin" />
+    <div className="flex items-center gap-3 rounded-xl border border-[#fcd34d] bg-[#fffbeb] px-4 py-3.5 text-[12.5px] text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.12)]">
+      <span className="relative flex h-2.5 w-2.5 shrink-0">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
       </span>
       <span className="font-medium">
         Radar is updating —{" "}

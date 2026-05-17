@@ -21,9 +21,10 @@ type Props = {
   suggestions: Suggestion[];
   upNextSlot: React.ReactNode;
   alertsSlot: React.ReactNode;
+  belowLedgerSlot?: React.ReactNode;
 };
 
-export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, alertsSlot }: Props) {
+export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, alertsSlot, belowLedgerSlot }: Props) {
   const [tab, setTab] = useState<Tab>(
     holdings.length === 0 && watching.length > 0 ? "watching" : "holdings",
   );
@@ -48,14 +49,17 @@ export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, al
 
       {/* 2-col grid: table (fluid) + right rail (fixed) — tops aligned */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
-        {/* Controlled ledger (no internal tab pills) */}
-        <RadarLedger
-          holdings={holdings}
-          watching={watching}
-          suggestions={suggestions}
-          activeTab={tab}
-          onTabChange={setTab}
-        />
+        {/* Left col: ledger + optional below-ledger slot */}
+        <div className="flex flex-col gap-4">
+          <RadarLedger
+            holdings={holdings}
+            watching={watching}
+            suggestions={suggestions}
+            activeTab={tab}
+            onTabChange={setTab}
+          />
+          {belowLedgerSlot}
+        </div>
 
         {/* Right rail */}
         <div className="flex flex-col gap-4">

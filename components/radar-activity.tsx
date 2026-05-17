@@ -26,11 +26,12 @@ type Props = {
     scoreChanges: ChangeItem[];
     newTickers: string[];
   };
+  refreshing?: boolean;
 };
 
 type Tab = "events" | "changes";
 
-export function RadarActivity({ events, changes }: Props) {
+export function RadarActivity({ events, changes, refreshing }: Props) {
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState<Tab>("events");
   const totalCount = events.length + changes.changedCount + changes.newTickers.length;
@@ -50,6 +51,15 @@ export function RadarActivity({ events, changes }: Props) {
           <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[#111111]">
             Activity
           </h2>
+          {refreshing && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fcd34d] bg-[#fffbeb] px-2.5 py-1 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.15)]">
+              <span aria-hidden className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]" />
+              </span>
+              Updating
+            </span>
+          )}
           {totalCount > 0 && (
             <span className="text-[12px] font-semibold tabular-nums text-[#9ca3af]">
               {totalCount}
@@ -227,4 +237,3 @@ function ChangesList({ changes }: { changes: Props["changes"] }) {
     </div>
   );
 }
-
