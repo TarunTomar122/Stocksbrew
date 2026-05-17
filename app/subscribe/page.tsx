@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { SubscribePricing } from "@/components/subscribe-pricing";
 import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
-import { MARKET_COOKIE } from "@/lib/market";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
@@ -37,9 +36,11 @@ export default async function SubscribePage({ searchParams }: Props) {
   const callbackSuccess = searchParams.success === "1" || searchParams.status === "active";
   const justSubscribed = callbackSuccess || isSubscribed;
 
-  const cookieStore = await cookies();
-  const marketCookie = cookieStore.get(MARKET_COOKIE)?.value;
-  const market: "US" | "IN" = marketCookie === "IN" ? "IN" : "US";
+  // Vercel injects x-vercel-ip-country on every request — use it for automatic
+  // geo-detection. Falls back to "US" in local dev where the header isn't present.
+  const headerStore = await headers();
+  const ipCountry = headerStore.get("x-vercel-ip-country") ?? "";
+  const market: "US" | "IN" = ipCountry === "IN" ? "IN" : "US";
 
   return (
     <main className="flex-grow">
@@ -74,7 +75,7 @@ export default async function SubscribePage({ searchParams }: Props) {
           {[
             { icon: "lock", text: "Secure checkout via Dodo Payments" },
             { icon: "cancel", text: "Cancel anytime" },
-            { icon: "support_agent", text: "hello@tikrr.com" },
+            { icon: "support_agent", text: "tomartarun2001@gmail.com" },
           ].map(({ icon, text }) => (
             <span key={text} className="inline-flex items-center gap-1.5">
               <span
