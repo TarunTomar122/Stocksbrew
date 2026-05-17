@@ -17,6 +17,7 @@ from backend.lifecycle_emailing import (  # noqa: E402
     email_checkout_abandoned,
     email_free_alert_teaser,
     email_free_high_intent,
+    email_pro_directive_change,
     email_pro_daily_digest,
     email_pro_welcome,
     email_track_blocked,
@@ -298,6 +299,81 @@ def _process_pro_daily_digest(store: TraceMoneyStore, cache: RunCache) -> int:
     return sent
 
 
+def _process_pro_directive_changes(store: TraceMoneyStore, cache: RunCache) -> int:
+    sent = 0
+    events = (
+        store.db.collection("tm_lifecycle_events")
+        .where("type", "==", "directive_change")
+        .where("processed_at", "==", None)
+        .stream()
+    )
+    for event in events:
+        data = event.to_dict() or {}
+        uid = str(data.get("uid") or "")
+        if not uid:
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "missing_uid"})
+            continue
+        user = cache.user(uid)
+        if not bool(user.get("is_subscribed")):
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "not_subscribed"})
+            continue
+        if not _email_opted_in(user, "email_alerts_enabled"):
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "opted_out"})
+            continue
+        email = str(user.get("email") or user.get("email_lower") or "").strip()
+        if not email:
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "missing_email"})
+            continue
+
+        payload = data.get("payload") or {}
+        ticker = str(payload.get("ticker") or "").strip().upper()
+        position_type = str(payload.get("position_type") or "watchlist").strip().lower()
+        prev_stance = str(payload.get("prev_stance") or "").strip().lower()
+        new_stance = str(payload.get("new_stance") or "").strip().lower()
+        directive_text = str(payload.get("directive_text") or "").strip()
+        if not ticker or not prev_stance or not new_stance:
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "missing_payload"})
+            continue
+        # Keep strict to requested transitions only.
+        if position_type == "holding":
+            should_send = new_stance == "trim"
+        else:
+            should_send = new_stance == "accumulate"
+        if not should_send:
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "not_alertable_transition"})
+            continue
+
+        dedupe_key = f"pro_directive_change_{ticker}_{position_type}_{new_stance}"
+        if _sent_recent(cache, uid, dedupe_key, 18):
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "deduped"})
+            continue
+
+        subject, body = email_pro_directive_change(
+            ticker=ticker,
+            position_type=position_type,
+            prev_stance=prev_stance,
+            new_stance=new_stance,
+            directive_text=directive_text,
+        )
+        ok = send_email(email, subject, body)
+        event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
+        if ok:
+            _log_send(
+                cache,
+                uid,
+                email,
+                dedupe_key,
+                {
+                    "ticker": ticker,
+                    "position_type": position_type,
+                    "prev_stance": prev_stance,
+                    "new_stance": new_stance,
+                },
+            )
+            sent += 1
+    return sent
+
+
 def main() -> None:
     store = TraceMoneyStore()
     cache = RunCache(store)
@@ -308,6 +384,7 @@ def main() -> None:
         "free_alert_teaser": _process_free_alert_teaser(store, cache),
         "pro_welcome": _process_pro_welcome(store, cache),
         "pro_daily_digest": _process_pro_daily_digest(store, cache),
+        "pro_directive_change": _process_pro_directive_changes(store, cache),
     }
     print("Lifecycle email run summary:")
     for key, value in totals.items():

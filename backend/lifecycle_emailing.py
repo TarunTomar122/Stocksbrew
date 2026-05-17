@@ -182,6 +182,40 @@ def email_pro_welcome() -> tuple[str, str]:
     return subject, html
 
 
+def email_pro_directive_change(
+    *,
+    ticker: str,
+    position_type: str,
+    prev_stance: str,
+    new_stance: str,
+    directive_text: str | None = None,
+) -> tuple[str, str]:
+    pos = "holding" if str(position_type).lower() == "holding" else "watching"
+    title = (
+        f"{ticker} flipped to Trim in your holdings"
+        if pos == "holding"
+        else f"{ticker} flipped to Accumulate in your watchlist"
+    )
+    subject = title
+    line = (directive_text or "").strip()
+    if not line:
+        line = (
+            "This is a fresh stance change from your previous Radar build."
+            f" ({prev_stance} → {new_stance})"
+        )
+    html = _card(
+        title=title,
+        lines=[
+            line,
+            "This email only fires on stance transitions, not on every refresh.",
+        ],
+        cta_label=f"Open {ticker} in Radar",
+        cta_url=f"{APP_URL}/watchlist",
+        kicker="Directive change",
+    )
+    return subject, html
+
+
 def email_stock_request_ready(*, ticker: str, company_name: str | None = None) -> tuple[str, str]:
     display = (company_name or ticker).strip()
     subject = f"{ticker} is now live on tikrr"

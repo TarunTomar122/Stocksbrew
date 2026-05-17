@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { PercentileRail } from "@/components/percentile-rail";
 import { ProLockOverlay } from "@/components/pro-lock-overlay";
+import { ProBadge } from "@/components/pro-badge";
 import type { StockIntelPro, StockIntelPillar } from "@/lib/types";
 
 type PillarKey = keyof StockIntelPro["pillars"];
@@ -79,8 +80,9 @@ export function PillarBreakdown({
           description="Four scores vs sector: growth, momentum, valuation, quality."
         />
       )}
-      <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+      <h3 className="inline-flex items-center gap-2 text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
         Pillar breakdown
+        <ProBadge isSubscribed={isSubscribed} />
       </h3>
 
       {/* Segmented tab strip */}

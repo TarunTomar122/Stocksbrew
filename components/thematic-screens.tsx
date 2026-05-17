@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { ThematicScreensDoc, ScreenMatchRow } from "@/lib/screens";
 import { StockLogo } from "@/components/stock-logo";
+import { ProBadge } from "@/components/pro-badge";
 
 type Props = {
   doc?: ThematicScreensDoc | null;
@@ -45,6 +46,35 @@ const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
     subtitle: "Heavy institutional ownership, solid overall scores.",
   },
 };
+
+function companyKey(row: ScreenMatchRow): string {
+  const raw = String(row.name || "").toLowerCase();
+  const cleaned = raw
+    .replace(/\bclass\s+[a-z]\b/gi, " ")
+    .replace(/\b(incorporated|inc|corp|corporation|co|company|ltd|limited|plc|nv|n\.v\.|sa|s\.a\.)\b/gi, " ")
+    .replace(/[^a-z0-9]+/gi, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (cleaned) return `name:${cleaned}`;
+  const ticker = String(row.ticker || "").toUpperCase();
+  if (ticker === "GOOG" || ticker === "GOOGL") return "ticker:ALPHABET";
+  if (ticker === "BRK_A" || ticker === "BRK_B" || ticker === "BRK-A" || ticker === "BRK-B") {
+    return "ticker:BERKSHIRE_HATHAWAY";
+  }
+  return `ticker:${ticker}`;
+}
+
+function dedupeByCompany(rows: ScreenMatchRow[]): ScreenMatchRow[] {
+  const seen = new Set<string>();
+  const out: ScreenMatchRow[] = [];
+  for (const row of rows) {
+    const key = companyKey(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
 
 function fmtPct(v: number | null | undefined): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "-";
@@ -123,16 +153,18 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
   };
 
   const rowLimit = isSubscribed ? HOME_SCREEN_ROWS_PRO : HOME_SCREEN_ROWS_FREE;
-  const visibleMatches = active.matches.slice(0, rowLimit);
-  const showLock = !isSubscribed && active.matches.length > HOME_SCREEN_ROWS_FREE;
-  const lockedCount = showLock ? Math.max(0, active.matches.length - HOME_SCREEN_ROWS_FREE) : 0;
+  const uniqueMatches = dedupeByCompany(active.matches);
+  const visibleMatches = uniqueMatches.slice(0, rowLimit);
+  const showLock = !isSubscribed && uniqueMatches.length > HOME_SCREEN_ROWS_FREE;
+  const lockedCount = showLock ? Math.max(0, uniqueMatches.length - HOME_SCREEN_ROWS_FREE) : 0;
 
   return (
     <section>
       <div className="flex items-baseline justify-between gap-3 flex-wrap mb-5">
         <div>
-          <h2 className="text-[18px] md:text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
+          <h2 className="inline-flex items-center gap-2 text-[18px] md:text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
             Screens worth watching
+            <ProBadge isSubscribed={isSubscribed} />
           </h2>
           <p className="text-[13px] text-[#6b7280] mt-1.5 leading-relaxed">
             Curated screens based on growth, momentum, quality and valuation. Skip the screener.
@@ -193,7 +225,7 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
             </p>
           </div>
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af]">
-            {active.match_count} {active.match_count === 1 ? "match" : "matches"}
+            {uniqueMatches.length} {uniqueMatches.length === 1 ? "match" : "matches"}
           </span>
         </div>
 
@@ -227,15 +259,15 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
           </div>
         )}
 
-        {isSubscribed && active.match_count > HOME_SCREEN_ROWS_PRO && (
+        {isSubscribed && uniqueMatches.length > HOME_SCREEN_ROWS_PRO && (
           <Link
             href={`/screens/${active.id}?market=${market}`}
             className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"
           >
-            See all {active.match_count} matches →
+            See all {uniqueMatches.length} matches →
           </Link>
         )}
-        {!isSubscribed && active.match_count <= HOME_SCREEN_ROWS_FREE && active.match_count > 0 && (
+        {!isSubscribed && uniqueMatches.length <= HOME_SCREEN_ROWS_FREE && uniqueMatches.length > 0 && (
           <Link
             href={`/screens/${active.id}?market=${market}`}
             className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthButton } from "@/components/auth-button";
 import { TrackButton } from "@/components/track-button";
 import { StockRequestModal } from "@/components/stock-request-modal";
+import { ProBadge } from "@/components/pro-badge";
 import { useUser } from "@/lib/auth-context";
 import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
@@ -18,11 +19,11 @@ type Props = {
   isSubscribed?: boolean;
 };
 
-const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean }[] = [
+const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean }[] = [
   { href: "/heat",      label: "Hot Stocks",       icon: "local_fire_department" },
   { href: "/screens",   label: "Screens",          icon: "tune" },
-  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up" },
-  { href: "/watchlist", label: "Radar",            icon: "radar", beta: true },
+  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up", pro: true },
+  { href: "/watchlist", label: "Radar",            icon: "radar" },
 ];
 
 /** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */
@@ -274,6 +275,12 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
                       >
                         Beta
                       </span>
+                    )}
+                    {item.pro && !isSubscribed && (
+                      <ProBadge
+                        isSubscribed={isSubscribed}
+                        className={active ? "bg-white/15 text-white border-white/30" : ""}
+                      />
                     )}
                   </Link>
                 );

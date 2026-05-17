@@ -880,35 +880,154 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
   const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))];
   const preferred = ["quality_compounders", "cheap_growth", "oversold_quality", "smart_money", "tikrr_top"];
   const suggestions: Array<Record<string, unknown>> = [];
+  const avgGrowth = averageScore(rows, "growth");
+  const avgQuality = averageScore(rows, "quality");
+  const avgValuation = averageScore(rows, "valuation");
+  const avgMomentum = averageScore(rows, "momentum");
+  const clusters = sectorClusters(rows);
+  const dominant = (clusters[0] || {}) as Record<string, unknown>;
+  const dominantSector = String(dominant.sector || "");
+  const dominantWeight = toNumber(dominant.weight_pct) ?? 0;
+
   const screenDocs = await adminFirestore.getAll(
     ...markets.map((market) => adminFirestore.collection("tm_thematic_screens").doc(market)),
   );
+  const redditDocs = await adminFirestore.getAll(
+    ...markets.map((market) => adminFirestore.collection("reddit_snapshots").doc(`${market}__latest`)),
+  );
+  const anomalyDocs = await adminFirestore.getAll(
+    ...markets.map((market) => adminFirestore.collection("tm_daily_anomalies").doc(`${market}__latest`)),
+  );
+  const redditByMarket = new Map<string, Map<string, Record<string, unknown>>>();
+  for (const doc of redditDocs) {
+    if (!doc.exists) continue;
+    const payload = (doc.data() || {}) as Record<string, unknown>;
+    const rowsRaw = payload.tickers;
+    const market = String(doc.id.split("__")[0] || "").toUpperCase();
+    const map = new Map<string, Record<string, unknown>>();
+    if (rowsRaw && typeof rowsRaw === "object" && !Array.isArray(rowsRaw)) {
+      for (const [ticker, item] of Object.entries(rowsRaw as Record<string, unknown>)) {
+        map.set(String(ticker).toUpperCase(), (item || {}) as Record<string, unknown>);
+      }
+    } else if (Array.isArray(rowsRaw)) {
+      for (const item of rowsRaw) {
+        const row = (item || {}) as Record<string, unknown>;
+        const ticker = String(row.ticker || row.symbol || "").toUpperCase();
+        if (ticker) map.set(ticker, row);
+      }
+    }
+    redditByMarket.set(market, map);
+  }
+  const anomalyByMarket = new Map<string, Map<string, Record<string, unknown>>>();
+  for (const doc of anomalyDocs) {
+    if (!doc.exists) continue;
+    const payload = (doc.data() || {}) as Record<string, unknown>;
+    const rowsRaw = (payload.anomalies || []) as Array<Record<string, unknown>>;
+    const market = String(doc.id.split("__")[0] || "").toUpperCase();
+    const map = new Map<string, Record<string, unknown>>();
+    for (const row of rowsRaw) {
+      const ticker = String(row.ticker || row.symbol || "").toUpperCase();
+      if (ticker) map.set(ticker, row);
+    }
+    anomalyByMarket.set(market, map);
+  }
+
+  const candidates: Array<Record<string, unknown>> = [];
   for (const doc of screenDocs) {
     const market = doc.id as "US" | "IN";
     const screens = ((doc.exists ? doc.data()?.screens : []) || []) as Array<Record<string, unknown>>;
     for (const screenId of preferred) {
       const screen = screens.find((item) => item.id === screenId);
       const matches = (screen?.matches || []) as Array<Record<string, unknown>>;
-      const match = matches.find((item) => {
+      matches.forEach((item, rank) => {
         const instrumentId = String(item.instrument_id || "");
-        return instrumentId && !tracked.has(instrumentId) && !suggested.has(instrumentId);
+        if (!instrumentId || tracked.has(instrumentId) || suggested.has(instrumentId)) return;
+        const ticker = String(item.ticker || "").toUpperCase();
+        if (!ticker) return;
+        const overallScore = toNumber(item.overall_score) ?? 0;
+        const sector = String(item.sector || "");
+        let weaknessFit = 0;
+        const reasons: string[] = [];
+        const growthScore = toNumber(item.growth_score);
+        const qualityScore = toNumber(item.quality_score);
+        const valuationScore = toNumber(item.valuation_score);
+        const momentumScore = toNumber(item.momentum_score);
+        if (avgGrowth !== null && avgGrowth < 62 && growthScore !== null) {
+          const fit = Math.max(0, growthScore - avgGrowth);
+          weaknessFit += Math.min(12, fit * 0.35);
+          if (fit >= 4) reasons.push("improves growth balance");
+        }
+        if (avgQuality !== null && avgQuality < 62 && qualityScore !== null) {
+          const fit = Math.max(0, qualityScore - avgQuality);
+          weaknessFit += Math.min(12, fit * 0.35);
+          if (fit >= 4) reasons.push("lifts quality profile");
+        }
+        if (avgMomentum !== null && avgMomentum < 58 && momentumScore !== null) {
+          const fit = Math.max(0, momentumScore - avgMomentum);
+          weaknessFit += Math.min(10, fit * 0.3);
+          if (fit >= 4) reasons.push("adds momentum support");
+        }
+        if (avgValuation !== null && avgValuation < 58 && valuationScore !== null) {
+          const fit = Math.max(0, valuationScore - avgValuation);
+          weaknessFit += Math.min(10, fit * 0.3);
+          if (fit >= 4) reasons.push("improves valuation cushion");
+        }
+        let sectorFit = 0;
+        if (dominantWeight >= 50 && dominantSector) {
+          if (sector && sector !== dominantSector) {
+            sectorFit += 12;
+            reasons.push(`reduces ${dominantSector} concentration`);
+          } else if (sector === dominantSector) {
+            sectorFit -= 10;
+          }
+        }
+        const redditItem = redditByMarket.get(String(market).toUpperCase())?.get(ticker) || {};
+        const redditMentions = Math.max(0, Math.round(toNumber(redditItem.mentions) ?? 0));
+        const redditSummary = String(redditItem.summary || redditItem.context || "");
+        const redditBoost = Math.min(12, redditMentions * 2);
+        const anomalyItem = anomalyByMarket.get(String(market).toUpperCase())?.get(ticker) || {};
+        const anomalyMove = toNumber(anomalyItem.day_change_pct);
+        const anomalyBoost = Math.min(12, Math.abs(anomalyMove ?? 0) * 1.2);
+        const screenBias = screenId === "oversold_quality" ? 8 : screenId === "cheap_growth" ? 6 : 4;
+        const rankBonus = Math.max(0, 8 - rank);
+        const personalizationScore =
+          25 + overallScore * 0.45 + screenBias + rankBonus + weaknessFit + sectorFit + redditBoost + anomalyBoost;
+        candidates.push({
+          instrument_id: instrumentId,
+          ticker,
+          name: item.name,
+          market,
+          reason: screen?.title,
+          why: screen?.hook || screen?.tagline,
+          score: item.overall_score,
+          match_score: item.match_score,
+          sector,
+          personalization_score: Math.round(personalizationScore * 10) / 10,
+          reddit_mentions: redditMentions,
+          reddit_summary: redditSummary ? redditSummary.slice(0, 140) : "",
+          anomaly_move_pct: anomalyMove,
+          anomaly_headline: String(anomalyItem.headline || "").slice(0, 140),
+          personalization_reasons: reasons.slice(0, 3),
+        });
       });
-      if (!match) continue;
-      const instrumentId = String(match.instrument_id);
-      suggested.add(instrumentId);
-      suggestions.push({
-        instrument_id: instrumentId,
-        ticker: match.ticker,
-        name: match.name,
-        market,
-        reason: screen?.title,
-        why: screen?.hook || screen?.tagline,
-        score: match.overall_score,
-        match_score: match.match_score,
-        sector: match.sector,
-      });
-      if (suggestions.length >= 6) return suggestions;
     }
+  }
+  candidates.sort((a, b) => (toNumber(b.personalization_score) ?? 0) - (toNumber(a.personalization_score) ?? 0));
+  for (const candidate of candidates) {
+    const instrumentId = String(candidate.instrument_id || "");
+    if (!instrumentId || suggested.has(instrumentId)) continue;
+    suggested.add(instrumentId);
+    const reasons = Array.isArray(candidate.personalization_reasons)
+      ? candidate.personalization_reasons.map((v) => String(v)).filter(Boolean)
+      : [];
+    const summaryBits = [...reasons];
+    const mentions = Math.round(toNumber(candidate.reddit_mentions) ?? 0);
+    if (mentions > 0) summaryBits.push(`Reddit buzz ${mentions} mentions`);
+    const anomalyMove = toNumber(candidate.anomaly_move_pct);
+    if (anomalyMove !== null) summaryBits.push(`anomaly move ${anomalyMove >= 0 ? "+" : ""}${anomalyMove.toFixed(1)}%`);
+    if (summaryBits.length) candidate.why = summaryBits.slice(0, 3).join("; ");
+    suggestions.push(candidate);
+    if (suggestions.length >= 6) break;
   }
   return suggestions;
 }
@@ -1359,19 +1478,20 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
   };
 }
 
-const WATCHLIST_ROW_CAP = 20;
+const FREE_WATCHLIST_ROW_CAP = 3;
 
 export async function buildWatchlistView(
   uid: string,
   trackedStocks: string[],
   positions: Record<string, unknown> = {},
+  isSubscribed = false,
   previousView?: WatchlistView | null,
 ): Promise<WatchlistView> {
   const universes = await getActiveUniverses();
   const alertsByInstrument = await loadAlertsByInstrument(uid);
   const previous = previousView ?? null;
 
-  const ids = (trackedStocks || []).slice(0, WATCHLIST_ROW_CAP);
+  const ids = isSubscribed ? (trackedStocks || []) : (trackedStocks || []).slice(0, FREE_WATCHLIST_ROW_CAP);
   const rows = applyRowDeltas(await buildRows(ids, positions, universes, alertsByInstrument), previous);
   rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
   const pulse = pulseFromRows(rows);
@@ -1403,6 +1523,7 @@ export async function rebuildAndSaveWatchlistView(
   uid: string,
   trackedStocks: string[],
   positions: Record<string, unknown> = {},
+  isSubscribed = false,
   sourceVersion?: number,
   options?: {
     preserveBriefIfFallback?: boolean;
@@ -1413,7 +1534,7 @@ export async function rebuildAndSaveWatchlistView(
   const ref = adminFirestore.collection("tm_watchlist_views").doc(uid);
   const previous = await ref.get();
   const previousData = previous.exists ? (previous.data() as WatchlistView) : null;
-  const view = await buildWatchlistView(uid, trackedStocks, positions, previousData);
+  const view = await buildWatchlistView(uid, trackedStocks, positions, isSubscribed, previousData);
   if (
     options?.preserveBriefIfFallback &&
     previousData?.brief &&

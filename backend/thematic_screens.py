@@ -8,6 +8,7 @@ reads one Firestore row and renders the whole dashboard tile grid.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 
@@ -72,6 +73,44 @@ def _instrument_row(
     if extras:
         row.update(extras)
     return row
+
+
+_CORP_SUFFIX_RE = re.compile(
+    r"\b(incorporated|inc|corp|corporation|co|company|ltd|limited|plc|nv|n\.v\.|sa|s\.a\.)\b",
+    flags=re.IGNORECASE,
+)
+_CLASS_SUFFIX_RE = re.compile(r"\bclass\s+[a-z]\b", flags=re.IGNORECASE)
+_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+", flags=re.IGNORECASE)
+
+
+def _company_key(row: dict[str, Any]) -> str:
+    name = str(row.get("name") or "").strip().lower()
+    if name:
+        cleaned = _CLASS_SUFFIX_RE.sub(" ", name)
+        cleaned = _CORP_SUFFIX_RE.sub(" ", cleaned)
+        cleaned = _NON_ALNUM_RE.sub(" ", cleaned)
+        cleaned = " ".join(cleaned.split()).strip()
+        if cleaned:
+            return f"name:{cleaned}"
+
+    ticker = str(row.get("ticker") or "").strip().upper()
+    if ticker in {"GOOG", "GOOGL"}:
+        return "ticker:ALPHABET"
+    if ticker in {"BRK_A", "BRK_B", "BRK-A", "BRK-B"}:
+        return "ticker:BERKSHIRE_HATHAWAY"
+    return f"ticker:{ticker}"
+
+
+def _dedupe_company(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        key = _company_key(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out
 
 
 SCREEN_DEFINITIONS: list[dict[str, Any]] = [
@@ -151,6 +190,7 @@ def compute_screens(
                 extras={"match_score": round(float(overall), 1)},
             ))
         out.sort(key=lambda row: row["match_score"], reverse=True)
+        out = _dedupe_company(out)
         return out[:top_n]
 
     def quality_compounders() -> list[dict[str, Any]]:
@@ -165,6 +205,7 @@ def compute_screens(
                     extras={"match_score": round(q * 0.6 + g * 0.4, 1)},
                 ))
         out.sort(key=lambda row: row["match_score"], reverse=True)
+        out = _dedupe_company(out)
         return out[:top_n]
 
     def cheap_growth() -> list[dict[str, Any]]:
@@ -178,6 +219,7 @@ def compute_screens(
                     extras={"match_score": round(g * 0.5 + v * 0.5, 1)},
                 ))
         out.sort(key=lambda row: row["match_score"], reverse=True)
+        out = _dedupe_company(out)
         return out[:top_n]
 
     def momentum_leaders() -> list[dict[str, Any]]:
@@ -191,6 +233,7 @@ def compute_screens(
                     extras={"match_score": m, "above_200dma": True},
                 ))
         out.sort(key=lambda row: row["match_score"], reverse=True)
+        out = _dedupe_company(out)
         return out[:top_n]
 
     def oversold_quality() -> list[dict[str, Any]]:
@@ -204,6 +247,7 @@ def compute_screens(
                     extras={"match_score": round(q - rsi, 1), "rsi_14": round(rsi, 1)},
                 ))
         out.sort(key=lambda row: row["match_score"], reverse=True)
+        out = _dedupe_company(out)
         return out[:top_n]
 
     def near_52w_high() -> list[dict[str, Any]]:
@@ -220,6 +264,7 @@ def compute_screens(
                 ))
         # Sort by proximity to high (distance closest to 0 first)
         out.sort(key=lambda row: abs(row["match_score"]))
+        out = _dedupe_company(out)
         return out[:top_n]
 
     def smart_money() -> list[dict[str, Any]]:
@@ -233,6 +278,7 @@ def compute_screens(
                     extras={"match_score": round(inst_own, 1), "inst_own_pct": round(inst_own, 1)},
                 ))
         out.sort(key=lambda row: row["match_score"], reverse=True)
+        out = _dedupe_company(out)
         return out[:top_n]
 
     computers = {

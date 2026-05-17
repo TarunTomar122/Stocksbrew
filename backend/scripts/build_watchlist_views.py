@@ -13,12 +13,94 @@ that's 200 writes/day - rounding-error territory.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 
 from backend.storage import TraceMoneyStore
 from backend.watchlist_view import (
     _active_universe_cache,
     build_watchlist_view,
 )
+
+ALERTABLE_HOLDING_STANCES = {"trim"}
+ALERTABLE_WATCHING_STANCES = {"accumulate"}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _row_stance(row: dict) -> str:
+    directive = row.get("ai_directive") if isinstance(row.get("ai_directive"), dict) else {}
+    return str(directive.get("stance") or "").strip().lower()
+
+
+def _stance_map(rows: list[dict]) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for row in rows or []:
+        instrument_id = str(row.get("instrument_id") or "").strip().upper()
+        if not instrument_id:
+            continue
+        out[instrument_id] = {
+            "instrument_id": instrument_id,
+            "ticker": str(row.get("ticker") or "").strip().upper(),
+            "position_type": str(row.get("position_type") or "watchlist").strip().lower(),
+            "stance": _row_stance(row),
+            "text": str(row.get("ai_directive_text") or "").strip(),
+        }
+    return out
+
+
+def _queue_directive_change_events(
+    store: TraceMoneyStore,
+    *,
+    uid: str,
+    previous_rows: list[dict],
+    current_rows: list[dict],
+) -> int:
+    previous = _stance_map(previous_rows)
+    current = _stance_map(current_rows)
+    if not previous or not current:
+        return 0
+
+    queued = 0
+    now = _now_iso()
+    for instrument_id, curr in current.items():
+        prev = previous.get(instrument_id)
+        if not prev:
+            continue
+        prev_stance = str(prev.get("stance") or "")
+        curr_stance = str(curr.get("stance") or "")
+        if not prev_stance or not curr_stance or prev_stance == curr_stance:
+            continue
+
+        position_type = str(curr.get("position_type") or "watchlist")
+        if position_type == "holding":
+            should_alert = curr_stance in ALERTABLE_HOLDING_STANCES
+        else:
+            should_alert = curr_stance in ALERTABLE_WATCHING_STANCES
+        if not should_alert:
+            continue
+
+        event_id = f"directive_{uid}_{instrument_id}_{curr_stance}_{now[:13].replace(':', '')}"
+        store.db.collection("tm_lifecycle_events").document(event_id).set(
+            {
+                "type": "directive_change",
+                "uid": uid,
+                "processed_at": None,
+                "created_at": now,
+                "payload": {
+                    "instrument_id": instrument_id,
+                    "ticker": curr.get("ticker"),
+                    "position_type": position_type,
+                    "prev_stance": prev_stance,
+                    "new_stance": curr_stance,
+                    "directive_text": curr.get("text") or "",
+                },
+            },
+            merge=False,
+        )
+        queued += 1
+    return queued
 
 
 def main() -> None:
@@ -86,8 +168,8 @@ def main() -> None:
             skipped += 1
             continue
 
+        existing = store.get_watchlist_view(uid) or {}
         if args.skip_if_version_matches and input_version:
-            existing = store.get_watchlist_view(uid) or {}
             if str(existing.get("built_from_version") or "").strip() == input_version:
                 skipped_version += 1
                 continue
@@ -96,6 +178,7 @@ def main() -> None:
             store,
             uid,
             [str(t) for t in tracked],
+            is_subscribed=bool(user.get("is_subscribed")),
             positions=user.get("watchlist_positions") or {},
             active_universes=active_universes,
             include_llm_brief=not args.no_llm,
@@ -117,7 +200,15 @@ def main() -> None:
             )
         else:
             store.save_watchlist_view(uid, payload)
+            queued = _queue_directive_change_events(
+                store,
+                uid=uid,
+                previous_rows=existing.get("rows") or [],
+                current_rows=payload.get("rows") or [],
+            )
             print(f"  [ok] {uid}: {payload['tracked_count']} rows written")
+            if queued:
+                print(f"    [events] directive_change queued={queued}")
         built += 1
     print(
         f"Done. Built {built}, skipped {skipped} (no tracked_stocks), "

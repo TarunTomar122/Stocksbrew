@@ -364,22 +364,29 @@ async function HomeMarketStream() {
 
 async function HomeAnomaliesStream() {
   const market = getCurrentMarket();
-  const anomaliesData = await getDailyAnomalies(market).catch(() => null);
+  const [anomaliesData, core] = await Promise.all([
+    getDailyAnomalies(market).catch(() => null),
+    loadHomeCore(),
+  ]);
   if (!anomaliesData || anomaliesData.anomalies.length === 0) return null;
   return (
     <DailyAnomalies
       anomalies={anomaliesData.anomalies}
       summary={anomaliesData.summary}
       generatedAt={anomaliesData.enriched_at || anomaliesData.generated_at}
+      isSubscribed={core.isSubscribed}
     />
   );
 }
 
 async function HomeRedditStream() {
   const market = getCurrentMarket();
-  const data = await getRedditCues(market).catch(() => null);
+  const [data, core] = await Promise.all([
+    getRedditCues(market).catch(() => null),
+    loadHomeCore(),
+  ]);
   if (!data || !data.tickers?.length) return null;
-  return <RedditCues data={data} />;
+  return <RedditCues data={data} isSubscribed={core.isSubscribed} />;
 }
 
 async function HomeContentStream() {

@@ -38,6 +38,7 @@ const COLUMNS: Column[] = [
   {
     title: "Free tools",
     links: [
+      { label: "Portfolio Analyzer", href: "/portfolio" },
       { label: "Should I Buy?", href: "/should-i-buy" },
       { label: "Earnings Calendar", href: "/earnings" },
       { label: "IPO Calendar", href: "/ipos" },
@@ -111,6 +112,10 @@ export function Footer() {
             </div>
           ))}
         </div>
+
+        <a href="https://www.scrolllaunch.com/products/tikrr?utm_source=badge&utm_medium=embed&utm_campaign=tikrr&ref=scrolllaunch" target="_blank" rel="noopener noreferrer">
+  <img src="https://www.scrolllaunch.com/api/badge/tikrr" alt="Featured on ScrollLaunch" width="220" height="48" loading="lazy" />
+</a>
 
         <div className="mt-14 pt-6 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-[12px] text-white/55">

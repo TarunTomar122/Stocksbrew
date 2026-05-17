@@ -22,6 +22,9 @@ function docSafe(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 120);
 }
 
+const US_OVERRIDE_CAP = 500;
+const IN_OVERRIDE_CAP = 250;
+
 async function maybePromoteOnFirstVisit(instrumentId: string, ticker: string, market: "US" | "IN") {
   const firstVisitRef = adminFirestore.collection("tm_stock_first_views").doc(instrumentId);
   try {
@@ -36,13 +39,30 @@ async function maybePromoteOnFirstVisit(instrumentId: string, ticker: string, ma
   }
 
   const configRef = adminFirestore.collection("tm_config").doc("price_core_overrides");
-  await configRef.set(
-    {
-      [market]: FieldValue.arrayUnion(instrumentId),
-      updated_at: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+  await adminFirestore.runTransaction(async (tx) => {
+    const snap = await tx.get(configRef);
+    const data = snap.exists ? (snap.data() ?? {}) : {};
+    const current = Array.isArray(data?.[market]) ? (data[market] as unknown[]) : [];
+    const normalized: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of current) {
+      const iid = cleanInstrumentId(String(raw || ""));
+      if (!iid || seen.has(iid)) continue;
+      seen.add(iid);
+      normalized.push(iid);
+    }
+    if (!seen.has(instrumentId)) normalized.push(instrumentId);
+    const cap = market === "US" ? US_OVERRIDE_CAP : IN_OVERRIDE_CAP;
+    const capped = normalized.slice(Math.max(0, normalized.length - cap));
+    tx.set(
+      configRef,
+      {
+        [market]: capped,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+  });
 }
 
 export async function POST(req: NextRequest) {

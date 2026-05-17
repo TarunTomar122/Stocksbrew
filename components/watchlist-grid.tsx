@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
+import { RadarAsyncModal } from "@/components/radar-async-modal";
 import type { WatchlistRow } from "@/lib/watchlist-view";
 
 type SortKey =
@@ -94,6 +95,9 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("change");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
   const [, startTransition] = useTransition();
 
   const sorted = useMemo(() => {
@@ -133,6 +137,10 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
     ev.stopPropagation();
     if (pendingId) return;
     setPendingId(instrumentId);
+    const row = rows.find((item) => item.instrument_id === instrumentId);
+    setModalTitle(`Stopping tracking for ${row?.ticker || "stock"}`);
+    setModalStatus("loading");
+    setModalOpen(true);
     try {
       const res = await fetch("/api/track", {
         method: "DELETE",
@@ -141,17 +149,21 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
       });
       if (!res.ok) {
         console.error("Remove from Radar failed", await res.text());
+        setModalStatus("error");
         return;
       }
+      setModalStatus("success");
       startTransition(() => router.refresh());
     } finally {
       setPendingId(null);
+      setTimeout(() => setModalOpen(false), 900);
     }
   }
 
   return (
-    <section className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
-      <div
+    <>
+      <section className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+        <div
         className={`hidden md:grid ${GRID_COLS} gap-4 px-5 py-3 border-b border-[#e5e7eb] bg-[#f8f9fa]`}
       >
         <HeaderCell
@@ -382,6 +394,13 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
           );
         })}
       </ul>
-    </section>
+      </section>
+      <RadarAsyncModal
+        open={modalOpen}
+        title={modalTitle}
+        subtitle="Applying your update and refreshing Radar..."
+        status={modalStatus}
+      />
+    </>
   );
 }

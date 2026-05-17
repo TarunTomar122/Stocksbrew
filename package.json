@@ -62,7 +62,9 @@
     "posthog-js": "^1.372.9",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "standardwebhooks": "^1.0.0"
+    "recharts": "^3.8.1",
+    "standardwebhooks": "^1.0.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@remotion/cli": "^4.0.457",

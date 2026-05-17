@@ -243,6 +243,20 @@ def _refresh_watchlist_views(
     }
 
 
+def _send_directive_change_alerts() -> dict[str, Any]:
+    cmd = [
+        sys.executable,
+        "-m",
+        "backend.scripts.send_directive_change_alerts",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return {
+        "status": "success",
+        "cmd": " ".join(cmd),
+        "stdout_tail": "\n".join(proc.stdout.strip().splitlines()[-8:]) if proc.stdout else "",
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cloud Run lane dispatcher")
     parser.add_argument(
@@ -363,6 +377,7 @@ def main() -> None:
                 no_llm=not args.watchlist_with_llm,
                 subscribed_only=False,
             )
+            summary["directive_change_alerts"] = _send_directive_change_alerts()
     elif args.lane in {"tracked_news_prep", "tracked_open_briefs"}:
         instrument_ids = _tracked_ids(store, args.market)
         if args.dry_run:
@@ -413,6 +428,7 @@ def main() -> None:
                 no_llm=not args.watchlist_with_llm,
                 subscribed_only=False,
             )
+            summary["directive_change_alerts"] = _send_directive_change_alerts()
     else:
         if args.dry_run:
             print(

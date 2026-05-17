@@ -365,6 +365,7 @@ def _promote_instrument(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
         store.save_promoted_tickers(market, promoted)
 
     ref = store.db.collection("tm_config").document("price_core_overrides")
+    cap = 500 if market == "US" else 250
     doc = ref.get()
     payload = doc.to_dict() if doc.exists else {}
     current = payload.get(market) if isinstance(payload, dict) else []
@@ -377,6 +378,8 @@ def _promote_instrument(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
             continue
         seen.add(iid)
         normalized.append(iid)
+    if len(normalized) > cap:
+        normalized = normalized[-cap:]
     ref.set({market: normalized, "updated_at": _now()}, merge=True)
 
 

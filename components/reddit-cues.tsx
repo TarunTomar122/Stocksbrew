@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
+import { ProBadge } from "@/components/pro-badge";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
 
 type Props = {
@@ -98,6 +99,7 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
               Reddit Buzz
               <span className="text-[14px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
             </Link>
+            {lockedCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
               style={{ background: "#fff1ec", color: "#ff4500" }}

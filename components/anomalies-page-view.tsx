@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
+import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
@@ -244,7 +245,10 @@ export function AnomaliesPageView({
       <div className={tab === "reddit" ? "hidden md:flex md:flex-col md:gap-4" : "flex flex-col gap-4"}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <SectionLabel label="Biggest moves" count={anomalies.length} />
+            <div className="flex items-center gap-2">
+              <SectionLabel label="Biggest moves" count={anomalies.length} />
+              {lockedAnomalyCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
+            </div>
             <p className="text-[12px] text-[#9ca3af]">
               {summary} · {timeAgo(generatedAt)}
             </p>
@@ -279,7 +283,10 @@ export function AnomaliesPageView({
       {hasReddit && (
         <div className={tab === "anomalies" ? "hidden md:flex md:flex-col md:gap-4" : "flex flex-col gap-4"}>
           <div className="flex items-center gap-4">
-            <SectionLabel label="Reddit buzz" count={redditCount} />
+            <div className="flex items-center gap-2">
+              <SectionLabel label="Reddit buzz" count={redditCount} />
+              {lockedRedditCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
+            </div>
             <p className="text-[12px] text-[#9ca3af]">
               {reddit!.post_count} posts scanned · {timeAgo(reddit!.generated_at)}
             </p>

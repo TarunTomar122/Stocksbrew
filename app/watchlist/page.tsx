@@ -13,6 +13,8 @@ import { RadarActivity } from "@/components/radar-activity";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { TrackButton } from "@/components/track-button";
 import { YourBookLayout } from "@/components/your-book-layout";
+import { DiagnosisSectorChart, DiagnosisFactorRadar } from "@/components/diagnosis-charts";
+import { RadarUpdatingBanner } from "@/components/radar-updating-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,8 @@ type Dict = Record<string, unknown>;
 // =============================================================================
 
 export default async function WatchlistPage() {
+  const SHOW_TEST_UPDATING_BANNER = false;
+  const UPDATE_BANNER_WINDOW_MS = 90 * 1000;
   const session = await getSessionUser();
   if (!session) {
     return <DemoRadar />;
@@ -46,6 +50,14 @@ export default async function WatchlistPage() {
       : typeof radar.built_at === "string"
       ? radar.built_at
       : undefined;
+  const watchlistUpdatedAt =
+    typeof userDoc?.watchlist_updated_at === "string" ? userDoc.watchlist_updated_at : undefined;
+  const pendingCount = Math.max(0, tracked.length - rows.length);
+  const watchlistUpdatedMs = watchlistUpdatedAt ? Date.parse(watchlistUpdatedAt) : NaN;
+  const shouldShowUpdatingBanner =
+    pendingCount > 0 &&
+    Number.isFinite(watchlistUpdatedMs) &&
+    Date.now() - watchlistUpdatedMs < UPDATE_BANNER_WINDOW_MS;
 
   if (watchlistView && radar && Array.isArray((radar as Dict).rows)) {
     const materializedRows = (watchlistView.rows || []).map((r) => String(r.ticker || r.instrument_id || ""));
@@ -73,9 +85,8 @@ export default async function WatchlistPage() {
   if (!isSubscribed && rows.length === 0) {
     return <UnsubscribedState tracked={tracked} />;
   }
-  if (!isSubscribed) {
-    return <FreeRadarState rows={rows} builtAt={builtAt} />;
-  }
+  // Free users with rows get the full Radar — the only difference is the 3-stock
+  // limit enforced at /api/track time, not at display time.
   if (rows.length === 0) {
     return (
       <main className="flex-grow">
@@ -122,8 +133,16 @@ export default async function WatchlistPage() {
     <main className="flex-grow bg-white">
       <style>{tapeStyles}</style>
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-12 px-3 sm:px-6 md:px-20 lg:px-32 py-6 lg:py-10">
+        {/* ── UPDATING NOTICE — auto-polls via router.refresh() until rebuild lands */}
+        {(shouldShowUpdatingBanner || SHOW_TEST_UPDATING_BANNER) && (
+          <RadarUpdatingBanner
+            pendingCount={Math.max(1, pendingCount)}
+            forceVisible={SHOW_TEST_UPDATING_BANNER}
+          />
+        )}
+
         {/* ── HEADER STRIP ──────────────────────────────────────────────── */}
-        <HeaderStrip rows={rows} builtAt={builtAt} pulse={pulse} tapeItems={tapeItems} />
+        <HeaderStrip rows={rows} builtAt={builtAt} pulse={pulse} tapeItems={tapeItems} isSubscribed={isSubscribed} trackedCount={tracked.length} />
 
         {/* ── § 01 · TODAY ──────────────────────────────────────────────── */}
         <TodaySection
@@ -140,6 +159,8 @@ export default async function WatchlistPage() {
           upNext={upNext}
           alerts={flatAlerts}
           suggestions={suggestions}
+          isSubscribed={isSubscribed}
+          trackedCount={tracked.length}
         />
 
         {/* ── § 03 · DIAGNOSIS ──────────────────────────────────────────── */}
@@ -168,12 +189,17 @@ function HeaderStrip({
   builtAt,
   pulse,
   tapeItems,
+  isSubscribed,
+  trackedCount,
 }: {
   rows: WatchlistRow[];
   builtAt?: string;
   pulse: WatchlistPulse | null;
   tapeItems: TapeItem[];
+  isSubscribed: boolean;
+  trackedCount: number;
 }) {
+  const atLimit = !isSubscribed && trackedCount >= 3;
   return (
     <header className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
@@ -181,9 +207,22 @@ function HeaderStrip({
           <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
             tikrr · {todayMasthead()}
           </span>
-          <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">
-            Radar
-          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">
+              Radar
+            </h1>
+            {!isSubscribed && (
+              <Link
+                href="/subscribe"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-semibold text-[#92400e] hover:border-[#f59e0b] transition-colors"
+              >
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
+                  <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#b45309"/>
+                </svg>
+                Free · {trackedCount}/3 stocks
+              </Link>
+            )}
+          </div>
           <p className="text-[12.5px] text-[#6b7280]">
             {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
             {builtAt ? formatRelative(builtAt) : "never"}
@@ -191,13 +230,24 @@ function HeaderStrip({
           </p>
         </div>
 
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-1.5 self-start rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
-        >
-          <span aria-hidden>＋</span>
-          Add a stock
-        </Link>
+        <div className="flex items-center gap-2 self-start">
+          {atLimit ? (
+            <Link
+              href="/subscribe"
+              className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
+            >
+              Upgrade to track more →
+            </Link>
+          ) : (
+            <Link
+              href="/"
+              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
+            >
+              <span aria-hidden>＋</span>
+              Add a stock
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* live tape */}
@@ -584,12 +634,16 @@ function YourBookSection({
   upNext,
   alerts,
   suggestions,
+  isSubscribed,
+  trackedCount,
 }: {
   holdings: WatchlistRow[];
   watching: WatchlistRow[];
   upNext: UpNextItem[];
   alerts: FlatAlert[];
   suggestions: Dict[];
+  isSubscribed: boolean;
+  trackedCount: number;
 }) {
   // Flatten suggestion dicts to the shape RadarLedger expects.
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -601,6 +655,8 @@ function YourBookSection({
     score: num(item.score ?? item.match_score),
     market: text(item.market) || "US",
   }));
+
+  const atLimit = !isSubscribed && trackedCount >= 3;
 
   return (
     <section className="flex flex-col gap-6">
@@ -617,6 +673,28 @@ function YourBookSection({
         upNextSlot={<UpNextPanel items={upNext} />}
         alertsSlot={<AlertsPanel alerts={alerts} />}
       />
+
+      {atLimit && (
+        <div className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-[16px]">📊</span>
+            <div>
+              <p className="text-[13px] font-semibold text-[#111111]">
+                You&apos;re tracking {trackedCount}/3 stocks on the free plan
+              </p>
+              <p className="text-[12px] text-[#6b7280] mt-0.5 leading-relaxed">
+                Upgrade to Pro to track unlimited stocks — plus get alerts when something changes, earnings reminders, and deeper analysis across your whole book.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/subscribe"
+            className="shrink-0 inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap"
+          >
+            Upgrade to Pro →
+          </Link>
+        </div>
+      )}
     </section>
   );
 }
@@ -799,9 +877,6 @@ function DiagnosisSection({
           <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#6b7280]">
             {verdictLabel(overall)}
           </span>
-          <p className="text-[13px] text-[#6b7280] leading-relaxed mt-1 max-w-[280px]">
-            Averaged across every stock you hold or watch — composite of valuation, growth, quality &amp; momentum.
-          </p>
         </div>
 
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -812,11 +887,24 @@ function DiagnosisSection({
         </div>
       </div>
 
-      {/* Clusters + Risk flags */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-8 pt-2">
-        <ClustersBlock clusters={clusters} />
-        <RiskFlagsBlock risks={risks} />
-      </div>
+      {/* Sector pie + factor radar — visual at a glance */}
+      {clusters.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <DiagnosisSectorChart
+            sectors={clusters.map((c) => ({
+              sector: (c.sector as string) || "Unknown",
+              weight_pct: (c.weight_pct as number) ?? 0,
+              count: (c.count as number) ?? 0,
+            }))}
+          />
+          <DiagnosisFactorRadar
+            factors={{ valuation, growth, quality, momentum }}
+          />
+        </div>
+      )}
+
+      {/* Risk flags */}
+      <RiskFlagsBlock risks={risks} />
 
       {/* Opportunities */}
       <OpportunitiesGrid items={opportunities} />
@@ -1152,10 +1240,10 @@ function StocksToCheckOut({
                       {ticker || "Suggestion"}
                     </span>
                     {reason && (
-                      <span className="text-[11.5px] text-[#6b7280] truncate">{reason}</span>
+                      <span className="text-[11.5px] text-[#4b5563] truncate">{reason}</span>
                     )}
                     {why && (
-                      <span className="text-[11px] text-[#9ca3af] truncate mt-0.5">{why}</span>
+                      <span className="text-[11.5px] text-[#6b7280] truncate mt-0.5">{why}</span>
                     )}
                   </div>
                 </Link>
@@ -1347,12 +1435,10 @@ function EmptyState({ suggestions = [] }: { suggestions?: Dict[] }) {
 }
 
 function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: string }) {
-  const holdings = rows
-    .filter((row) => row.position_type === "holding")
-    .sort(byAttention);
-  const watching = rows
-    .filter((row) => row.position_type !== "holding")
-    .sort(byAttention);
+  // Fallback shown only when the rebuild ran but produced zero rows (e.g. all
+  // newly-tracked stocks don't have price data in tm_latest_prices yet).
+  const holdings = rows.filter((r) => r.position_type === "holding").sort(byAttention);
+  const watching = rows.filter((r) => r.position_type !== "holding").sort(byAttention);
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
@@ -1361,26 +1447,25 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
             Radar
           </h1>
           <p className="text-[13px] text-[#6b7280]">
-            Free Radar: {rows.length}/3 stocks · refreshed{" "}
+            {rows.length}/3 stocks · refreshed{" "}
             {builtAt ? formatRelative(builtAt) : "never"}
           </p>
         </header>
-
         <section className="rounded-3xl border border-[#e5e7eb] bg-white p-4 md:p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
-              Live Dashboard
+              Your stocks
             </h2>
             <Link
               href="/subscribe"
               className="inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-4 text-[12px] font-semibold text-white"
             >
-              Upgrade For Full Radar
+              Upgrade for unlimited stocks
             </Link>
           </div>
           <p className="text-[12px] text-[#6b7280]">
-            Track up to 3 stocks on free. Pro unlocks unlimited stocks, morning brief, event
-            stream, and alerts.
+            Prices are loading — your analysis will appear here once the next radar cycle runs.
+            Free plan supports up to 3 stocks; Pro unlocks unlimited.
           </p>
           <WatchlistTabs holdings={holdings} watching={watching} suggestions={[]} />
         </section>

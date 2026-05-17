@@ -16,7 +16,7 @@ from typing import Any
 from backend.storage import TraceMoneyStore
 from backend.stock_intelligence import generate_portfolio_brief
 
-WATCHLIST_ROW_CAP = 20  # safety cap; UI limit is 10
+FREE_WATCHLIST_ROW_CAP = 3
 MONTHS = {
     "jan": 1,
     "feb": 2,
@@ -856,6 +856,54 @@ def _average_score(rows: list[dict[str, Any]], key: str) -> float | None:
     return round(sum(values) / len(values), 1)
 
 
+def _load_reddit_buzz_by_market(store: TraceMoneyStore, markets: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
+    by_market: dict[str, dict[str, dict[str, Any]]] = {}
+    for market in markets:
+        market_key = str(market).upper()
+        snap = store.db.collection("reddit_snapshots").document(f"{market_key}__latest").get()
+        if not snap.exists:
+            continue
+        payload = snap.to_dict() or {}
+        rows = payload.get("tickers") or []
+        if isinstance(rows, dict):
+            mapped: dict[str, dict[str, Any]] = {}
+            for ticker, item in rows.items():
+                mapped[str(ticker).upper()] = item if isinstance(item, dict) else {}
+            by_market[market_key] = mapped
+            continue
+        mapped = {}
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            ticker = str(item.get("ticker") or item.get("symbol") or "").upper()
+            if not ticker:
+                continue
+            mapped[ticker] = item
+        by_market[market_key] = mapped
+    return by_market
+
+
+def _load_anomalies_by_market(store: TraceMoneyStore, markets: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
+    by_market: dict[str, dict[str, dict[str, Any]]] = {}
+    for market in markets:
+        market_key = str(market).upper()
+        snap = store.db.collection("tm_daily_anomalies").document(f"{market_key}__latest").get()
+        if not snap.exists:
+            continue
+        payload = snap.to_dict() or {}
+        rows = payload.get("anomalies") or []
+        mapped: dict[str, dict[str, Any]] = {}
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            ticker = str(item.get("ticker") or item.get("symbol") or "").upper()
+            if not ticker:
+                continue
+            mapped[ticker] = item
+        by_market[market_key] = mapped
+    return by_market
+
+
 def _screen_suggestions(
     store: TraceMoneyStore,
     rows: list[dict[str, Any]],
@@ -871,6 +919,17 @@ def _screen_suggestions(
         "smart_money",
         "tikrr_top",
     ]
+    avg_growth = _average_score(rows, "growth")
+    avg_quality = _average_score(rows, "quality")
+    avg_valuation = _average_score(rows, "valuation")
+    avg_momentum = _average_score(rows, "momentum")
+    clusters = _sector_counts(rows)
+    dominant_sector = str((clusters[0] or {}).get("sector") or "") if clusters else ""
+    dominant_weight = float((clusters[0] or {}).get("weight_pct") or 0) if clusters else 0.0
+    reddit_by_market = _load_reddit_buzz_by_market(store, markets)
+    anomaly_by_market = _load_anomalies_by_market(store, markets)
+
+    candidate_pool: list[dict[str, Any]] = []
     for market in markets:
         screens_doc = store.get_thematic_screens(market)
         for screen_id in preferred_screen_ids:
@@ -880,26 +939,114 @@ def _screen_suggestions(
             )
             if not screen:
                 continue
-            for match in screen.get("matches") or []:
+            for rank, match in enumerate(screen.get("matches") or []):
                 instrument_id = match.get("instrument_id")
                 if not instrument_id or instrument_id in tracked or instrument_id in suggested:
                     continue
-                suggested.add(str(instrument_id))
-                suggestions.append({
+                ticker = str(match.get("ticker") or "").upper()
+                if not ticker:
+                    continue
+                overall_score = _safe_float(match.get("overall_score")) or 0.0
+                candidate_sector = str(match.get("sector") or "")
+                screen_hook = str(screen.get("hook") or screen.get("tagline") or "").strip()
+                screen_title = str(screen.get("title") or screen_id).strip()
+                screen_bias = 8.0 if screen_id == "oversold_quality" else 6.0 if screen_id == "cheap_growth" else 4.0
+                rank_bonus = max(0.0, 8.0 - float(rank))
+                quality_val = _safe_float(match.get("quality_score"))
+                growth_val = _safe_float(match.get("growth_score"))
+                valuation_val = _safe_float(match.get("valuation_score"))
+                momentum_val = _safe_float(match.get("momentum_score"))
+                weakness_fit = 0.0
+                weakness_lines: list[str] = []
+                if avg_growth is not None and avg_growth < 62 and growth_val is not None:
+                    fit = max(0.0, growth_val - avg_growth)
+                    weakness_fit += min(12.0, fit * 0.35)
+                    if fit >= 4:
+                        weakness_lines.append("improves growth balance")
+                if avg_quality is not None and avg_quality < 62 and quality_val is not None:
+                    fit = max(0.0, quality_val - avg_quality)
+                    weakness_fit += min(12.0, fit * 0.35)
+                    if fit >= 4:
+                        weakness_lines.append("lifts quality profile")
+                if avg_momentum is not None and avg_momentum < 58 and momentum_val is not None:
+                    fit = max(0.0, momentum_val - avg_momentum)
+                    weakness_fit += min(10.0, fit * 0.3)
+                    if fit >= 4:
+                        weakness_lines.append("adds momentum support")
+                if avg_valuation is not None and avg_valuation < 58 and valuation_val is not None:
+                    fit = max(0.0, valuation_val - avg_valuation)
+                    weakness_fit += min(10.0, fit * 0.3)
+                    if fit >= 4:
+                        weakness_lines.append("improves valuation cushion")
+
+                sector_diversification = 0.0
+                if dominant_weight >= 50 and dominant_sector:
+                    if candidate_sector and candidate_sector != dominant_sector:
+                        sector_diversification += 12.0
+                        weakness_lines.append(f"reduces {dominant_sector} concentration")
+                    elif candidate_sector and candidate_sector == dominant_sector:
+                        sector_diversification -= 10.0
+
+                reddit_item = (reddit_by_market.get(str(market).upper()) or {}).get(ticker)
+                reddit_mentions = int(_safe_float((reddit_item or {}).get("mentions")) or 0)
+                reddit_summary = str((reddit_item or {}).get("summary") or (reddit_item or {}).get("context") or "").strip()
+                reddit_catalysts = [str(v).strip() for v in ((reddit_item or {}).get("catalysts") or []) if str(v).strip()][:2]
+                reddit_boost = min(12.0, float(reddit_mentions) * 2.0) if reddit_mentions > 0 else 0.0
+
+                anomaly_item = (anomaly_by_market.get(str(market).upper()) or {}).get(ticker)
+                anomaly_move = _safe_float((anomaly_item or {}).get("day_change_pct"))
+                anomaly_headline = str((anomaly_item or {}).get("headline") or "").strip()
+                anomaly_boost = min(12.0, abs(anomaly_move or 0.0) * 1.2) if anomaly_move is not None else 0.0
+
+                total_score = (
+                    25.0
+                    + (overall_score * 0.45)
+                    + screen_bias
+                    + rank_bonus
+                    + weakness_fit
+                    + sector_diversification
+                    + reddit_boost
+                    + anomaly_boost
+                )
+                candidate_pool.append({
                     "instrument_id": instrument_id,
-                    "ticker": match.get("ticker"),
+                    "ticker": ticker,
                     "name": match.get("name"),
                     "market": market,
-                    "reason": screen.get("title"),
-                    "why": screen.get("hook") or screen.get("tagline"),
+                    "reason": screen_title,
+                    "why": screen_hook,
                     "score": match.get("overall_score"),
                     "match_score": match.get("match_score"),
-                    "sector": match.get("sector"),
+                    "sector": candidate_sector,
+                    "personalization_score": round(total_score, 1),
+                    "reddit_mentions": reddit_mentions,
+                    "reddit_summary": reddit_summary[:140] if reddit_summary else "",
+                    "anomaly_move_pct": anomaly_move,
+                    "anomaly_headline": anomaly_headline[:140] if anomaly_headline else "",
+                    "catalysts": reddit_catalysts,
+                    "personalization_reasons": weakness_lines[:3],
                 })
-                break
-            if len(suggestions) >= 6:
-                return suggestions
-    return suggestions[:6]
+    candidate_pool.sort(key=lambda item: float(item.get("personalization_score") or 0.0), reverse=True)
+    for item in candidate_pool:
+        instrument_id = str(item.get("instrument_id") or "")
+        if not instrument_id or instrument_id in suggested:
+            continue
+        suggested.add(instrument_id)
+        summary_bits: list[str] = []
+        reasons = item.get("personalization_reasons") or []
+        if isinstance(reasons, list):
+            summary_bits.extend([str(v).strip() for v in reasons if str(v).strip()])
+        if int(item.get("reddit_mentions") or 0) > 0:
+            summary_bits.append(f"Reddit buzz {int(item.get('reddit_mentions') or 0)} mentions")
+        anomaly_move = _safe_float(item.get("anomaly_move_pct"))
+        if anomaly_move is not None:
+            summary_bits.append(f"anomaly move {anomaly_move:+.1f}%")
+        if summary_bits:
+            item["why"] = "; ".join(summary_bits[:3])
+        suggestions.append(item)
+        if len(suggestions) >= 6:
+            break
+    return suggestions
 
 
 def _portfolio_diagnostics(
@@ -1216,6 +1363,7 @@ def build_watchlist_view(
     uid: str,
     tracked_stocks: list[str],
     *,
+    is_subscribed: bool = False,
     positions: dict[str, Any] | None = None,
     active_universes: dict[str, str] | None = None,
     include_llm_brief: bool = True,
@@ -1229,7 +1377,11 @@ def build_watchlist_view(
     alerts_by_instrument = _load_user_alerts(store, uid)
     previous_view = store.get_watchlist_view(uid)
 
-    ids = [str(instrument_id) for instrument_id in (tracked_stocks or [])[:WATCHLIST_ROW_CAP]]
+    max_rows = FREE_WATCHLIST_ROW_CAP if not is_subscribed else None
+    source_ids = tracked_stocks or []
+    if max_rows is not None:
+        source_ids = source_ids[:max_rows]
+    ids = [str(instrument_id) for instrument_id in source_ids]
     latest_by_id = store.get_latest_prices(ids)
     facts_by_id = store.get_stock_facts_batch(ids)
     technical_by_id = store.get_latest_stock_technicals_batch(ids)

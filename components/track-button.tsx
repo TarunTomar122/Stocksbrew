@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { posthog } from "@/lib/posthog";
+import { RadarAsyncModal } from "@/components/radar-async-modal";
 
 type Variant = "pill" | "icon";
 type PositionType = "watchlist" | "holding";
@@ -41,6 +42,9 @@ export function TrackButton({
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [positionType, setPositionType] = useState<PositionType>("watchlist");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
     setLocalTracked(isTracked);
@@ -58,6 +62,9 @@ export function TrackButton({
     // Already in radar → toggle off without modal.
     if (localTracked) {
       setPendingOp("remove");
+      setModalTitle(`Stopping tracking for ${ticker}`);
+      setModalStatus("loading");
+      setModalOpen(true);
       startTransition(async () => {
         try {
           const res = await fetch("/api/track", {
@@ -67,13 +74,17 @@ export function TrackButton({
           });
           if (!res.ok) {
             setError("Could not remove - try again.");
+            setModalStatus("error");
+            setTimeout(() => setModalOpen(false), 1200);
             return;
           }
           setLocalTracked(false);
+          setModalStatus("success");
           posthog.capture("radar_remove_clicked", { instrument_id: instrumentId, ticker });
           router.refresh();
         } finally {
           setPendingOp(null);
+          setTimeout(() => setModalOpen(false), 900);
         }
       });
       return;
@@ -92,6 +103,13 @@ export function TrackButton({
   function confirmTrack() {
     setError(null);
     setPendingOp("add");
+    setModalTitle(
+      positionType === "holding"
+        ? `Adding ${ticker} to Holdings`
+        : `Adding ${ticker} to Watching`,
+    );
+    setModalOpen(true);
+    setModalStatus("loading");
     startTransition(async () => {
       try {
         const res = await fetch("/api/track", {
@@ -107,6 +125,8 @@ export function TrackButton({
           if (res.status === 409) {
             if (data?.error === "free_tier_limit_reached") {
               setOpen(false);
+              setModalStatus("error");
+              setTimeout(() => setModalOpen(false), 1200);
               router.push("/subscribe");
               return;
             }
@@ -114,9 +134,12 @@ export function TrackButton({
           } else {
             setError("Could not add - try again.");
           }
+          setModalStatus("error");
+          setTimeout(() => setModalOpen(false), 1200);
           return;
         }
         setLocalTracked(true);
+        setModalStatus("success");
         posthog.capture("radar_add_clicked", {
           instrument_id: instrumentId,
           ticker,
@@ -126,6 +149,7 @@ export function TrackButton({
         router.refresh();
       } finally {
         setPendingOp(null);
+        setTimeout(() => setModalOpen(false), 900);
       }
     });
   }
@@ -217,6 +241,12 @@ export function TrackButton({
           error={error}
         />
       )}
+      <RadarAsyncModal
+        open={modalOpen}
+        title={modalTitle}
+        subtitle="Applying your update and refreshing Radar..."
+        status={modalStatus}
+      />
     </>
   );
 }

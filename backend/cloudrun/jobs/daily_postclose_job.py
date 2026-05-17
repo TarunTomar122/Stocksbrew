@@ -50,6 +50,21 @@ def main() -> None:
     _run([sys.executable, "-m", "backend.scripts.build_watchlist_views"])
     _run([sys.executable, "-m", "backend.scripts.build_snapshot", "--market", args.market])
 
+    # Keep override set bounded and active before running extended-core thick refresh.
+    _run([
+        sys.executable,
+        "-m",
+        "backend.scripts.prune_price_core_overrides",
+        "--market",
+        args.market,
+        "--recent-days",
+        "21",
+        "--target-cap",
+        "500" if args.market == "US" else "250",
+        "--floor",
+        "200" if args.market == "US" else "80",
+    ])
+
     # Extended core refresh: keep dynamic overrides fully thick (price + fundamentals + score + technicals)
     # even when they are outside the static base universe file.
     store = TraceMoneyStore()

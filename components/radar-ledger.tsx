@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
+import { RadarAsyncModal } from "@/components/radar-async-modal";
 import type { WatchlistRow } from "@/lib/watchlist-view";
 
 type Tab = "holdings" | "watching";
@@ -265,6 +266,8 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   const score = suggestion.score ?? null;
   const instrumentId = `${market}_${ticker}`;
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
   const router = useRouter();
 
   async function addAsHolding(e: React.MouseEvent) {
@@ -272,6 +275,8 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
     e.stopPropagation();
     if (status !== "idle") return;
     setStatus("loading");
+    setModalStatus("loading");
+    setModalOpen(true);
     try {
       const res = await fetch("/api/track", {
         method: "POST",
@@ -280,62 +285,75 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       });
       if (res.ok) {
         setStatus("done");
+        setModalStatus("success");
         router.refresh();
       } else {
         setStatus("error");
+        setModalStatus("error");
         setTimeout(() => setStatus("idle"), 2000);
       }
     } catch {
       setStatus("error");
+      setModalStatus("error");
       setTimeout(() => setStatus("idle"), 2000);
+    } finally {
+      setTimeout(() => setModalOpen(false), 900);
     }
   }
 
   return (
-    <Link
-      href={`/stock/${encodeURIComponent(ticker)}`}
-      className="group flex items-center gap-2.5 rounded-xl border border-[#e5e7eb] bg-white p-3 transition-all hover:border-[#111111] hover:shadow-sm"
-    >
-      <StockLogo ticker={ticker} market={market} size={32} />
-      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-            {ticker}
-          </span>
-          {suggestion.sector && (
-            <span className="text-[10px] text-[#9ca3af] truncate">{suggestion.sector}</span>
+    <>
+      <Link
+        href={`/stock/${encodeURIComponent(ticker)}`}
+        className="group flex items-center gap-2.5 rounded-xl border border-[#e5e7eb] bg-white p-3 transition-all hover:border-[#111111] hover:shadow-sm"
+      >
+        <StockLogo ticker={ticker} market={market} size={32} />
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+              {ticker}
+            </span>
+            {suggestion.sector && (
+              <span className="text-[10px] text-[#9ca3af] truncate">{suggestion.sector}</span>
+            )}
+          </div>
+          {suggestion.reason && (
+            <span className="text-[11px] text-[#6b7280] leading-snug truncate">
+              {suggestion.reason}
+            </span>
           )}
         </div>
-        {suggestion.reason && (
-          <span className="text-[11px] text-[#6b7280] leading-snug truncate">
-            {suggestion.reason}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {typeof score === "number" && (
-          <span className={`text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}>
-            {Math.round(score)}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={addAsHolding}
-          title="Add as holding"
-          className={`inline-flex items-center justify-center rounded-lg px-2 py-1 text-[10px] font-semibold transition-all ${
-            status === "done"
-              ? "bg-[#ecfdf5] text-[#047857]"
-              : status === "error"
-              ? "bg-[#fef2f2] text-[#b91c1c]"
-              : status === "loading"
-              ? "bg-[#f3f4f6] text-[#9ca3af]"
-              : "bg-[#f3f4f6] text-[#374151] hover:bg-[#111111] hover:text-white"
-          }`}
-        >
-          {status === "done" ? "✓ Added" : status === "loading" ? "…" : status === "error" ? "Retry" : "+ Hold"}
-        </button>
-      </div>
-    </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {typeof score === "number" && (
+            <span className={`text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}>
+              {Math.round(score)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={addAsHolding}
+            title="Add as holding"
+            className={`inline-flex items-center justify-center rounded-lg px-2 py-1 text-[10px] font-semibold transition-all ${
+              status === "done"
+                ? "bg-[#ecfdf5] text-[#047857]"
+                : status === "error"
+                ? "bg-[#fef2f2] text-[#b91c1c]"
+                : status === "loading"
+                ? "bg-[#f3f4f6] text-[#9ca3af]"
+                : "bg-[#f3f4f6] text-[#374151] hover:bg-[#111111] hover:text-white"
+            }`}
+          >
+            {status === "done" ? "✓ Added" : status === "loading" ? "…" : status === "error" ? "Retry" : "+ Hold"}
+          </button>
+        </div>
+      </Link>
+      <RadarAsyncModal
+        open={modalOpen}
+        title={`Adding ${ticker} to Holdings`}
+        subtitle="Updating your Radar..."
+        status={modalStatus}
+      />
+    </>
   );
 }
 
@@ -540,6 +558,9 @@ function RowMenu({ row }: { row: WatchlistRow }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -557,29 +578,46 @@ function RowMenu({ row }: { row: WatchlistRow }) {
   async function move(positionType: "holding" | "watchlist") {
     setBusy(true);
     setOpen(false);
-    await fetch("/api/track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType }),
-    });
-    setBusy(false);
-    router.refresh();
+    setModalTitle(positionType === "holding" ? `Moving ${row.ticker} to Holdings` : `Moving ${row.ticker} to Watching`);
+    setModalStatus("loading");
+    setModalOpen(true);
+    try {
+      const res = await fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType }),
+      });
+      setModalStatus(res.ok ? "success" : "error");
+      if (res.ok) router.refresh();
+    } finally {
+      setBusy(false);
+      setTimeout(() => setModalOpen(false), 900);
+    }
   }
 
   async function remove() {
     setBusy(true);
     setOpen(false);
-    await fetch("/api/track", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instrument_id: instrumentId }),
-    });
-    setBusy(false);
-    router.refresh();
+    setModalTitle(`Stopping tracking for ${row.ticker}`);
+    setModalStatus("loading");
+    setModalOpen(true);
+    try {
+      const res = await fetch("/api/track", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instrument_id: instrumentId }),
+      });
+      setModalStatus(res.ok ? "success" : "error");
+      if (res.ok) router.refresh();
+    } finally {
+      setBusy(false);
+      setTimeout(() => setModalOpen(false), 900);
+    }
   }
 
   return (
-    <div ref={ref} className="relative flex items-center justify-center">
+    <>
+      <div ref={ref} className="relative flex items-center justify-center">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -598,8 +636,8 @@ function RowMenu({ row }: { row: WatchlistRow }) {
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-8 z-50 w-48 rounded-xl border border-[#e5e7eb] bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+        {open && (
+          <div className="absolute right-0 top-8 z-50 w-48 rounded-xl border border-[#e5e7eb] bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
           <button
             type="button"
             onClick={() => move(isHolding ? "watchlist" : "holding")}
@@ -617,8 +655,10 @@ function RowMenu({ row }: { row: WatchlistRow }) {
             <span aria-hidden className="text-[15px]">✕</span>
             Stop tracking
           </button>
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+      <RadarAsyncModal open={modalOpen} title={modalTitle} subtitle="Applying your change and refreshing Radar..." status={modalStatus} />
+    </>
   );
 }

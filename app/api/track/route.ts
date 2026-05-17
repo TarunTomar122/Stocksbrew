@@ -83,11 +83,12 @@ async function refreshUserRadarNow(traceId: string, uid: string, sourceVersion: 
   }
   const fresh = await getUserDoc(uid);
   const tracked = Array.isArray(fresh?.tracked_stocks) ? fresh.tracked_stocks : [];
+  const isSubscribed = resolveIsSubscribed(fresh);
   const positions =
     fresh?.watchlist_positions && typeof fresh.watchlist_positions === "object"
       ? fresh.watchlist_positions
       : {};
-  await rebuildAndSaveWatchlistView(uid, tracked, positions, sourceVersion, {
+  await rebuildAndSaveWatchlistView(uid, tracked, positions, isSubscribed, sourceVersion, {
     preserveBriefIfFallback: true,
     preserveDirectivesIfMissing: true,
     preserveActivityIfThin: true,
@@ -102,6 +103,7 @@ async function refreshUserRadarNow(traceId: string, uid: string, sourceVersion: 
 async function parseTrackPayload(req: NextRequest): Promise<{
   instrumentId: string;
   positionType: "holding" | "watchlist";
+  skipRefresh: boolean;
 } | null> {
   try {
     const body = await req.json();
@@ -110,6 +112,7 @@ async function parseTrackPayload(req: NextRequest): Promise<{
     return {
       instrumentId: raw,
       positionType: body?.position_type === "holding" ? "holding" : "watchlist",
+      skipRefresh: body?.skip_refresh === true,
     };
   } catch {
     return null;
@@ -171,7 +174,7 @@ export async function POST(req: NextRequest) {
     trackApiLog(traceId, "warn", "post_invalid_payload", { uid: session.uid });
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
-  const { instrumentId, positionType } = payload;
+  const { instrumentId, positionType, skipRefresh } = payload;
   const mutationToken = new Date().toISOString();
   const clientMutationId = req.headers.get("x-client-mutation-id") || randomUUID();
 
@@ -282,13 +285,21 @@ export async function POST(req: NextRequest) {
       instrument_id: instrumentId,
     });
   }
-  await refreshUserRadarNow(traceId, session.uid, sourceVersion).catch((error) => {
-    trackApiLog(traceId, "warn", "watchlist_refresh_failed", {
+  if (!skipRefresh) {
+    await refreshUserRadarNow(traceId, session.uid, sourceVersion).catch((error) => {
+      trackApiLog(traceId, "warn", "watchlist_refresh_failed", {
+        uid: session.uid,
+        instrument_id: instrumentId,
+        error: String(error),
+      });
+    });
+  } else {
+    trackApiLog(traceId, "info", "watchlist_refresh_skipped_by_client", {
       uid: session.uid,
       instrument_id: instrumentId,
-      error: String(error),
+      source_version: sourceVersion,
     });
-  });
+  }
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
   return NextResponse.json({ ok: true });

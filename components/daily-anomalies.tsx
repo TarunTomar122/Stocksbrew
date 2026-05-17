@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
+import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
 
@@ -116,6 +117,7 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
               Market Anomalies
               <span className="text-[14px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
             </Link>
+            {lockedCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#6b7280]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
               Live
