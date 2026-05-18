@@ -34,6 +34,7 @@ export default async function AnomaliesPage() {
     session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
   ]);
   const isSubscribed = resolveIsSubscribed(userDoc);
+  const trackedIds = new Set<string>(Array.isArray(userDoc?.tracked_stocks) ? userDoc.tracked_stocks : []);
 
   const isEmpty = !data || data.anomalies.length === 0;
 
@@ -55,6 +56,7 @@ export default async function AnomaliesPage() {
             generatedAt={data.enriched_at || data.generated_at}
             reddit={reddit}
             isSubscribed={isSubscribed}
+            trackedIds={trackedIds}
           />
         )}
 
