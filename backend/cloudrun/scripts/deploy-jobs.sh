@@ -19,6 +19,7 @@ IMAGE_URI="${GOOGLE_CLOUD_REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/tikrr/$
 FIREBASE_SECRET_NAME="${FIREBASE_SECRET_NAME:-tikrr-firebase-service-account-json}"
 MIMO_SECRET_NAME="${MIMO_SECRET_NAME:-tikrr-mimo-api-key}"
 OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-tikrr-openai-api-key}"
+BREVO_SECRET_NAME="${BREVO_SECRET_NAME:-tikrr-brevo-api-key}"
 OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini}"
 
 DISPATCH_JOB_NAME="${DISPATCH_JOB_NAME:-tikrr-dispatch}"
@@ -88,6 +89,16 @@ upsert_optional_openai_secret() {
   printf '%s' "${OPENAI_API_KEY}" | gcloud secrets versions add "${OPENAI_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
 }
 
+upsert_optional_brevo_secret() {
+  if [[ -z "${BREVO_API_KEY:-}" ]]; then
+    return
+  fi
+  if ! gcloud secrets describe "${BREVO_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
+    gcloud secrets create "${BREVO_SECRET_NAME}" --replication-policy=automatic --project="${GOOGLE_CLOUD_PROJECT}"
+  fi
+  printf '%s' "${BREVO_API_KEY}" | gcloud secrets versions add "${BREVO_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
+}
+
 deploy_job() {
   local job_name="$1"
   local memory="$2"
@@ -117,6 +128,9 @@ deploy_job() {
   if [[ -n "${MIMO_API_KEY:-}" ]]; then
     deploy_args+=(--set-secrets="MIMO_API_KEY=${MIMO_SECRET_NAME}:latest")
   fi
+  if [[ -n "${BREVO_API_KEY:-}" ]]; then
+    deploy_args+=(--set-secrets="BREVO_API_KEY=${BREVO_SECRET_NAME}:latest")
+  fi
 
   if [[ -n "${SERVICE_ACCOUNT_EMAIL:-}" ]]; then
     deploy_args+=(--service-account="${SERVICE_ACCOUNT_EMAIL}")
@@ -140,6 +154,10 @@ fi
 if [[ -n "${OPENAI_API_KEY:-}" ]]; then
   echo "Updating OpenAI secret ${OPENAI_SECRET_NAME}..."
   upsert_optional_openai_secret
+fi
+if [[ -n "${BREVO_API_KEY:-}" ]]; then
+  echo "Updating Brevo secret ${BREVO_SECRET_NAME}..."
+  upsert_optional_brevo_secret
 fi
 
 echo "Deploying jobs..."

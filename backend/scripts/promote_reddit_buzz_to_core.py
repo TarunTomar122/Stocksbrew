@@ -164,7 +164,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Promote Reddit buzz tickers into price_core_overrides")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default="")
-    parser.add_argument("--min-mentions", type=int, default=2)
+    parser.add_argument("--min-mentions", type=int, default=1)
     parser.add_argument("--max-add", type=int, default=8)
     parser.add_argument("--max-backfill", type=int, default=6)
     parser.add_argument("--pause", type=float, default=0.35)

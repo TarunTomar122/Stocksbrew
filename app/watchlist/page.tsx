@@ -16,6 +16,7 @@ import { YourBookLayout } from "@/components/your-book-layout";
 import { DiagnosisSectorChart, DiagnosisFactorRadar } from "@/components/diagnosis-charts";
 import { RadarUpdatingBanner } from "@/components/radar-updating-banner";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
+import { BuildingStateRefresher } from "@/components/building-state-refresher";
 import { getSearchIndex, type SearchEntry } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
@@ -99,11 +100,16 @@ export default async function WatchlistPage() {
   // Free users with rows get the full Radar — the only difference is the 3-stock
   // limit enforced at /api/track time, not at display time.
   if (rows.length === 0) {
+    // Stocks have been added but the radar hasn't finished building yet — show a
+    // "we're on it" loading state instead of the empty onboarding screen.
+    if (tracked.length > 0) {
+      return <BuildingState trackedCount={tracked.length} />;
+    }
     return (
       <main className="flex-grow">
         <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
           <BareHeader rowsCount={tracked.length} builtAt={builtAt} />
-          <EmptyState suggestions={suggestions} />
+          <EmptyState suggestions={suggestions} trackedIds={new Set(tracked)} />
         </div>
       </main>
     );
@@ -170,6 +176,7 @@ export default async function WatchlistPage() {
           secondaryDirectives={secondaryDirectives}
           suggestions={suggestions}
           refreshing={isAnalysisRefreshing}
+          trackedIds={new Set(tracked)}
         />
 
         {/* ── § 02 · YOUR BOOK ──────────────────────────────────────────── */}
@@ -387,12 +394,14 @@ function TodaySection({
   secondaryDirectives,
   suggestions,
   refreshing,
+  trackedIds = new Set(),
 }: {
   brief: WatchlistBrief | null;
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
   suggestions: Dict[];
   refreshing?: boolean;
+  trackedIds?: Set<string>;
 }) {
   // If we have no directives at all, fall back to brief-only display
   if (!topDirective && (!brief?.narrative || !brief.narrative.trim())) {
@@ -432,9 +441,17 @@ function TodaySection({
           {secondaryDirectives.map(({ row, directive }) => (
             <SecondaryDirectiveCard key={row.instrument_id} row={row} directive={directive} />
           ))}
-          {exploreSuggestions.map((s) => (
-            <ExploreDirectiveCard key={String(s.ticker)} suggestion={s} />
-          ))}
+          {exploreSuggestions.map((s) => {
+            const market = String(s.market ?? "US") === "IN" ? "IN" : "US";
+            const instrumentId = `${market}_${String(s.ticker)}`;
+            return (
+              <ExploreDirectiveCard
+                key={String(s.ticker)}
+                suggestion={s}
+                isTracked={trackedIds.has(instrumentId)}
+              />
+            );
+          })}
         </div>
       )}
     </section>
@@ -599,18 +616,16 @@ function SecondaryDirectiveCard({
   );
 }
 
-function ExploreDirectiveCard({ suggestion }: { suggestion: Dict }) {
+function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: Dict; isTracked?: boolean }) {
   const ticker = String(suggestion.ticker ?? "");
   const market = String(suggestion.market ?? "US") === "IN" ? "IN" : "US";
+  const instrumentId = `${market}_${ticker}`;
   const sector = String(suggestion.sector ?? suggestion.name ?? "");
   const why = String(suggestion.why ?? suggestion.reason ?? "");
   const score = typeof suggestion.score === "number" ? suggestion.score : null;
   return (
-    <Link
-      href={`/stock/${encodeURIComponent(ticker)}`}
-      className="group relative overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-4 transition-all hover:border-[#111111] hover:bg-white hover:shadow-sm flex flex-col gap-3"
-    >
-      {/* "Explore" badge top-left */}
+    <div className="group relative overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-4 transition-all hover:border-[#111111] hover:bg-white hover:shadow-sm flex flex-col gap-3">
+      {/* "Explore" badge top-left + score */}
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase bg-[#f3f4f6] text-[#6b7280]">
           Explore
@@ -624,28 +639,38 @@ function ExploreDirectiveCard({ suggestion }: { suggestion: Dict }) {
         )}
       </div>
 
+      {/* Logo + name row — links to detail; TrackButton at far right */}
       <div className="flex items-center gap-2.5">
-        <StockLogo ticker={ticker} market={market} size={32} />
-        <div className="flex flex-col min-w-0">
-          <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-            {ticker}
-          </span>
-          {sector && (
-            <span className="text-[11px] text-[#9ca3af] truncate max-w-[160px]">{sector}</span>
-          )}
-        </div>
+        <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex items-center gap-2.5 min-w-0 flex-1">
+          <StockLogo ticker={ticker} market={market} size={32} />
+          <div className="flex flex-col min-w-0">
+            <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+              {ticker}
+            </span>
+            {sector && (
+              <span className="text-[11px] text-[#9ca3af] truncate max-w-[130px]">{sector}</span>
+            )}
+          </div>
+        </Link>
+        <TrackButton
+          ticker={ticker}
+          instrumentId={instrumentId}
+          isTracked={isTracked}
+          variant="icon"
+        />
       </div>
 
-      {why && (
-        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2 mt-auto">
-          {why}
-        </p>
-      )}
-
-      <span className="text-[11px] font-semibold text-[#9ca3af] group-hover:text-[#0052ff] transition-colors">
-        Track to get directive →
-      </span>
-    </Link>
+      <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex flex-col gap-2 flex-1">
+        {why && (
+          <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2">
+            {why}
+          </p>
+        )}
+        <span className="text-[11px] font-semibold text-[#9ca3af] group-hover:text-[#0052ff] transition-colors mt-auto">
+          View analysis →
+        </span>
+      </Link>
+    </div>
   );
 }
 
@@ -1412,6 +1437,46 @@ function BareHeader({ rowsCount, builtAt }: { rowsCount: number; builtAt?: strin
   );
 }
 
+// =============================================================================
+// BUILDING STATE — shown when stocks are tracked but radar hasn't built yet
+// =============================================================================
+
+function BuildingState({ trackedCount }: { trackedCount: number }) {
+  return (
+    <main className="flex-grow">
+      <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
+        <header className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">tikrr · Radar</span>
+          <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">Radar</h1>
+        </header>
+        <div className="rounded-3xl border border-[#e5e7eb] bg-white p-10 md:p-14 flex flex-col items-center gap-5 text-center">
+          {/* Animated radar pulse rings */}
+          <div className="relative flex h-16 w-16 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0052ff] opacity-10" style={{ animationDuration: "1.8s" }} />
+            <span className="absolute inline-flex h-12 w-12 animate-ping rounded-full bg-[#0052ff] opacity-15" style={{ animationDuration: "1.8s", animationDelay: "0.3s" }} />
+            <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#eff6ff]">
+              <span className="material-symbols-outlined text-[#0052ff]" style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}>radar</span>
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-[20px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
+              Building your Radar…
+            </p>
+            <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-sm">
+              We&apos;re fetching prices, running analysis, and setting up alerts for your {trackedCount} {trackedCount === 1 ? "stock" : "stocks"}. This usually takes under a minute.
+            </p>
+          </div>
+          <BuildingStateRefresher />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// =============================================================================
+// POPULAR_FALLBACK
+// =============================================================================
+
 const POPULAR_FALLBACK: Array<{ ticker: string; sector: string; reason: string }> = [
   { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on tikrr." },
   { ticker: "NVDA", sector: "Semiconductors", reason: "AI infra leader · high heat." },
@@ -1421,7 +1486,7 @@ const POPULAR_FALLBACK: Array<{ ticker: string; sector: string; reason: string }
   { ticker: "AMZN", sector: "Consumer Cyclical", reason: "Cloud + retail compounder." },
 ];
 
-function EmptyState({ suggestions = [] }: { suggestions?: Dict[] }) {
+function EmptyState({ suggestions = [], trackedIds = new Set() }: { suggestions?: Dict[]; trackedIds?: Set<string> }) {
   const cards =
     suggestions.length > 0
       ? suggestions.slice(0, 6).map((s) => ({
@@ -1475,37 +1540,47 @@ function EmptyState({ suggestions = [] }: { suggestions?: Dict[] }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.map((card) => (
-            <Link
-              key={card.ticker}
-              href={`/stock/${encodeURIComponent(card.ticker)}`}
-              className="group flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
-            >
-              <StockLogo ticker={card.ticker} market={card.market} size={36} />
-              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-                    {card.ticker}
-                  </span>
-                  {card.sector && (
-                    <span className="text-[11px] text-[#9ca3af] truncate">{card.sector}</span>
+          {cards.map((card) => {
+            const instrumentId = `${card.market === "IN" ? "IN" : "US"}_${card.ticker}`;
+            return (
+              <div
+                key={card.ticker}
+                className="group flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+              >
+                <Link href={`/stock/${encodeURIComponent(card.ticker)}`} className="flex items-center gap-3 min-w-0 flex-1">
+                  <StockLogo ticker={card.ticker} market={card.market} size={36} />
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                        {card.ticker}
+                      </span>
+                      {card.sector && (
+                        <span className="text-[11px] text-[#9ca3af] truncate">{card.sector}</span>
+                      )}
+                    </div>
+                    {card.reason && (
+                      <span className="text-[11.5px] text-[#6b7280] leading-snug truncate">
+                        {card.reason}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  {typeof card.score === "number" && (
+                    <span className={`text-[15px] font-semibold tabular-nums ${scoreToneText(card.score)}`}>
+                      {Math.round(card.score)}
+                    </span>
                   )}
+                  <TrackButton
+                    ticker={card.ticker}
+                    instrumentId={instrumentId}
+                    isTracked={trackedIds.has(instrumentId)}
+                    variant="icon"
+                  />
                 </div>
-                {card.reason && (
-                  <span className="text-[11.5px] text-[#6b7280] leading-snug truncate">
-                    {card.reason}
-                  </span>
-                )}
               </div>
-              {typeof card.score === "number" && (
-                <span
-                  className={`shrink-0 text-[15px] font-semibold tabular-nums ${scoreToneText(card.score)}`}
-                >
-                  {Math.round(card.score)}
-                </span>
-              )}
-            </Link>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -84,6 +84,15 @@ def materialize_views(
         selected_instruments = []
 
     data_ids = all_instrument_ids if not skip_dashboard else [instrument["instrument_id"] for instrument in selected_instruments]
+    if skip_dashboard and not data_ids:
+        return {
+            "market": market,
+            "universe_id": universe_id,
+            "dashboard_rows": 0,
+            "selected_count": len(selected_instruments),
+            "saved_instrument_views": 0,
+            "skipped_reason": "no_selected_instruments_in_universe",
+        }
     latest_prices = store.get_latest_prices(data_ids)
     if not latest_prices:
         raise ValueError(f"No latest prices found for {market} / {universe_id}")

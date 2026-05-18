@@ -33,7 +33,10 @@ def _email_key(email: str) -> str:
 def _already_sent(store: TraceMoneyStore, *, market: str, date_key: str, email: str) -> bool:
     doc_id = f"{market}__{date_key}__{_email_key(email)}"
     doc = store.db.collection("tm_market_open_email_log").document(doc_id).get()
-    return bool(doc.exists)
+    if not doc.exists:
+        return False
+    payload = doc.to_dict() or {}
+    return bool(payload.get("sent") is True)
 
 
 def _mark_sent(
