@@ -35,7 +35,11 @@ Return JSON object:
       "mentions": 4,
       "sentiment": "bullish|bearish|neutral",
       "context": "2 concise sentences explaining the catalyst or narrative",
-      "catalysts": ["...", "..."]
+      "catalysts": ["...", "..."],
+      "company_name": "NVIDIA Corporation",
+      "exchange_hint": "NASDAQ|NYSE|AMEX|UNKNOWN",
+      "confidence": 0.0,
+      "evidence_span": "short quote or phrase from post text"
     }
   },
   "notable_posts": [
@@ -46,6 +50,7 @@ Rules:
 - Output valid JSON only.
 - Use only US stock tickers; no crypto.
 - No filler language like "users are saying"; explain the market narrative directly.
+- Confidence must be 0..1 and should be low when ticker/company mapping is uncertain.
 """
 
 
@@ -225,6 +230,10 @@ def main() -> None:
                     "summary": str(item.get("context") or "").strip() or f"{ticker} is active in Reddit chatter.",
                     "mention_count": int(item.get("mentions") or 0),
                     "catalysts": [str(c).strip() for c in (item.get("catalysts") or []) if str(c).strip()][:4],
+                    "company_name": str(item.get("company_name") or "").strip(),
+                    "exchange_hint": str(item.get("exchange_hint") or "UNKNOWN").strip().upper()[:12],
+                    "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0.0))),
+                    "evidence_span": str(item.get("evidence_span") or "").strip()[:180],
                 }
             )
         tickers_payload.sort(key=lambda row: int(row.get("mention_count") or 0), reverse=True)

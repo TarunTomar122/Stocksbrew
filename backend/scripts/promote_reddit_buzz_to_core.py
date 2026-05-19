@@ -46,11 +46,19 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _extract_tickers(payload: dict[str, Any], min_mentions: int) -> list[str]:
+def _normalize_name(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = re.sub(r"\b(inc|inc\.|corp|corporation|ltd|limited|holdings?|company|co|plc|class a|class b)\b", " ", text)
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _extract_tickers(payload: dict[str, Any], min_mentions: int) -> list[dict[str, Any]]:
     rows = payload.get("tickers") or []
     if not isinstance(rows, list):
         return []
-    out: list[str] = []
+    out: list[dict[str, Any]] = []
     seen: set[str] = set()
     for row in rows:
         if not isinstance(row, dict):
@@ -66,21 +74,45 @@ def _extract_tickers(payload: dict[str, Any], min_mentions: int) -> list[str]:
         if ticker in seen:
             continue
         seen.add(ticker)
-        out.append(ticker)
+        out.append(
+            {
+                "ticker": ticker,
+                "mention_count": mentions,
+                "company_name": str(row.get("company_name") or "").strip(),
+                "exchange_hint": str(row.get("exchange_hint") or "").strip().upper(),
+                "confidence": float(row.get("confidence") or 0.0),
+            }
+        )
     return out
 
 
-def _resolve_instrument_ids(store: TraceMoneyStore, market: str, tickers: list[str]) -> tuple[list[str], list[str]]:
+def _resolve_instrument_ids(
+    store: TraceMoneyStore,
+    market: str,
+    ticker_rows: list[dict[str, Any]],
+    min_confidence: float,
+) -> tuple[list[str], list[str]]:
     resolved: list[str] = []
     unresolved: list[str] = []
     market_key = str(market).upper()
-    for ticker in tickers:
+    for row in ticker_rows:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        confidence = float(row.get("confidence") or 0.0)
+        if confidence < min_confidence:
+            unresolved.append(ticker)
+            continue
         doc_id = f"{market_key}__{ticker}"
         sym_doc = store.db.collection("tm_symbol_master").document(doc_id).get()
         instrument_id = ""
         if sym_doc.exists:
             payload = sym_doc.to_dict() or {}
-            instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+            master_name = _normalize_name(str(payload.get("name") or ""))
+            llm_name = _normalize_name(str(row.get("company_name") or ""))
+            name_ok = True
+            if llm_name and master_name:
+                name_ok = llm_name == master_name or llm_name in master_name or master_name in llm_name
+            if name_ok:
+                instrument_id = str(payload.get("instrument_id") or "").strip().upper()
         if not instrument_id:
             fallback_id = f"{market_key}_{ticker}"
             inst_doc = store.db.collection("tm_instruments").document(fallback_id).get()
@@ -167,6 +199,7 @@ def main() -> None:
     parser.add_argument("--min-mentions", type=int, default=1)
     parser.add_argument("--max-add", type=int, default=8)
     parser.add_argument("--max-backfill", type=int, default=6)
+    parser.add_argument("--min-confidence", type=float, default=0.55)
     parser.add_argument("--pause", type=float, default=0.35)
     parser.add_argument("--skip-backfill", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -184,12 +217,17 @@ def main() -> None:
         return
 
     payload = snap_doc.to_dict() or {}
-    tickers = _extract_tickers(payload, min_mentions=max(1, args.min_mentions))
-    if not tickers:
+    ticker_rows = _extract_tickers(payload, min_mentions=max(1, args.min_mentions))
+    if not ticker_rows:
         print({"stage": "noop", "reason": "no_eligible_tickers", "market": market})
         return
 
-    resolved_ids, unresolved = _resolve_instrument_ids(store, market, tickers)
+    resolved_ids, unresolved = _resolve_instrument_ids(
+        store,
+        market,
+        ticker_rows,
+        min_confidence=max(0.0, min(1.0, args.min_confidence)),
+    )
     current_overrides = store.get_price_core_overrides(market)
     current_set = set(current_overrides)
     would_add: list[str] = []
@@ -205,7 +243,7 @@ def main() -> None:
         print(
             {
                 "market": market,
-                "snapshot_tickers": len(tickers),
+                "snapshot_tickers": len(ticker_rows),
                 "resolved_ids": len(resolved_ids),
                 "would_add_ids": len(would_add),
                 "override_total_after": len(current_overrides) + len(would_add),
@@ -231,7 +269,7 @@ def main() -> None:
     print(
         {
             "market": market,
-            "snapshot_tickers": len(tickers),
+            "snapshot_tickers": len(ticker_rows),
             "resolved_ids": len(resolved_ids),
             "added_ids": len(added_ids),
             "override_total": total_override_count,
