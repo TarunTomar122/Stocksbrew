@@ -171,6 +171,13 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
         symbol = str(item.get("symbol") or "").strip().upper()
         if not symbol:
             continue
+        # Keep deterministic matching focused on standard equity-like symbols.
+        # This avoids pseudo rows (e.g. long synthetic IDs) tying score with real tickers.
+        if market == "US":
+            if len(symbol) > 5:
+                continue
+            if not symbol.isalpha():
+                continue
         exchange = str(item.get("exchange") or "").strip().upper()
         country = str(item.get("country") or "").strip().upper()
         if market == "US" and country and country != "UNITED STATES":
@@ -320,6 +327,30 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
     )
 
 
+def _upsert_search_index_entry(store: TraceMoneyStore, instrument: dict[str, Any]) -> None:
+    market = str(instrument.get("market") or "US").upper()
+    instrument_id = str(instrument.get("instrument_id") or "").upper()
+    ticker = str(instrument.get("ticker") or "").upper()
+    if not instrument_id or not ticker:
+        return
+    latest = store.get_latest_prices([instrument_id]).get(instrument_id) or {}
+    quote = latest.get("quote") or {}
+    store.save_search_index_entries(
+        market,
+        [
+            {
+                "instrument_id": instrument_id,
+                "ticker": ticker,
+                "name": str(instrument.get("name") or ticker).strip(),
+                "exchange": str(instrument.get("exchange") or "").strip(),
+                "price": quote.get("current"),
+                "day_change_pct": quote.get("day_change_pct"),
+                "updated_at": latest.get("updated_at"),
+            }
+        ],
+    )
+
+
 def _queue_news_job(store: TraceMoneyStore, instrument: dict[str, Any]) -> None:
     instrument_id = str(instrument.get("instrument_id") or "").upper()
     market = str(instrument.get("market") or "US").upper()
@@ -425,8 +456,12 @@ def _materialize_home(store: TraceMoneyStore, market: str) -> None:
     )
 
 
-def _pending_requests(store: TraceMoneyStore, limit: int) -> list[Any]:
-    docs = list(store.db.collection("stock_requests").stream())
+def _pending_requests(store: TraceMoneyStore, limit: int, query: str | None = None) -> list[Any]:
+    if query:
+        doc = store.db.collection("stock_requests").document(query.strip().upper()).get()
+        docs = [doc] if doc.exists else []
+    else:
+        docs = list(store.db.collection("stock_requests").stream())
     out = []
     for doc in docs:
         data = doc.to_dict() or {}
@@ -444,12 +479,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Process stock requests automatically")
     parser.add_argument("--market", default="US", choices=["US", "IN"])
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--query", default="", help="Process only this request query (doc id)")
     parser.add_argument("--to-email", default="", help="Override send target for testing")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
-    jobs = _pending_requests(store, args.limit)
+    query = str(args.query or "").strip().upper()
+    jobs = _pending_requests(store, args.limit, query=query or None)
     if not jobs:
         print("No pending stock requests.")
         return
@@ -493,6 +530,7 @@ def main() -> None:
             instrument = _upsert_instrument(store, resolved)
             _promote_instrument(store, instrument)
             _sync_price_for_one(store, instrument)
+            _upsert_search_index_entry(store, instrument)
             _backfill_single_instrument(store, instrument)
             _queue_news_job(store, instrument)
             _materialize_home(store, market)

@@ -271,6 +271,7 @@ def main() -> None:
             "market_open_email",
             "daily_postclose",
             "on_demand_news",
+            "stock_requests",
         ],
         required=True,
     )
@@ -287,6 +288,7 @@ def main() -> None:
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--on-demand-broad-cap", type=int, default=0)
+    parser.add_argument("--query", default="")
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
     parser.add_argument("--watchlist-with-llm", action="store_true")
@@ -313,6 +315,7 @@ def main() -> None:
         "market_open_email": os.getenv("MARKET_OPEN_EMAIL_JOB_NAME", "tikrr-market-open-email"),
         "daily_postclose": os.getenv("DAILY_POSTCLOSE_JOB_NAME", "tikrr-daily-postclose"),
         "on_demand_news": os.getenv("ON_DEMAND_NEWS_JOB_NAME", "tikrr-on-demand-news"),
+        "stock_requests": os.getenv("STOCK_REQUESTS_JOB_NAME", "tikrr-stock-requests"),
     }
     job_name = job_name_by_lane[args.lane]
 
@@ -460,6 +463,11 @@ def main() -> None:
                 "--broad-cap",
                 str(args.on_demand_broad_cap),
             ]
+        elif args.lane == "stock_requests":
+            single_extra_args = ["--limit", str(args.limit)]
+            query = str(args.query or "").strip().upper()
+            if query:
+                single_extra_args.extend(["--query", query])
         summary = _run_single_job_lane(
             lane=args.lane,
             market=args.market,
@@ -473,7 +481,7 @@ def main() -> None:
     status = "success"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:
         status = "failed"
-    if args.lane in {"daily_postclose", "open_anomalies", "reddit_buzz", "market_open_email", "on_demand_news"} and summary.get("status") != "success":
+    if args.lane in {"daily_postclose", "open_anomalies", "reddit_buzz", "market_open_email", "on_demand_news", "stock_requests"} and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)
     print(summary)

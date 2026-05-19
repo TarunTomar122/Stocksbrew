@@ -522,6 +522,45 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=True)
 
+    def replace_search_index(self, market: str, entries: list[dict[str, Any]]) -> None:
+        market_key = str(market).upper()
+        entries_map: dict[str, dict[str, Any]] = {}
+        for raw in entries:
+            row = _serialize(raw) or {}
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            ticker = str(row.get("ticker") or "").strip().upper()
+            if not instrument_id or not ticker:
+                continue
+            entries_map[instrument_id] = row
+        self.db.collection("tm_search_index").document(market_key).set(
+            {
+                "market": market_key,
+                "entries": entries_map,
+                "size": len(entries_map),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    def save_search_index_entries(self, market: str, entries: list[dict[str, Any]]) -> int:
+        market_key = str(market).upper()
+        updates: dict[str, Any] = {
+            "market": market_key,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        saved = 0
+        for raw in entries:
+            row = _serialize(raw) or {}
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            ticker = str(row.get("ticker") or "").strip().upper()
+            if not instrument_id or not ticker:
+                continue
+            updates[f"entries.{instrument_id}"] = row
+            saved += 1
+        if saved == 0:
+            return 0
+        self.db.collection("tm_search_index").document(market_key).set(updates, merge=True)
+        return saved
+
     def get_news_home_feed(self, market: str, universe_id: str, limit: int = 30) -> list[dict[str, Any]]:
         namespace = self._news_namespace(market, universe_id).get()
         if not namespace.exists:
