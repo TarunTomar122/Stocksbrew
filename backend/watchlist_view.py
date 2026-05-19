@@ -1102,16 +1102,27 @@ def _portfolio_diagnostics(
         })
 
     opportunities = []
-    for row in sorted(rows, key=lambda item: (_safe_float(item.get("target_upside_pct")) or -999), reverse=True)[:4]:
+    watching_rows = [row for row in rows if row.get("position_type") != "holding"]
+    for row in sorted(
+        watching_rows,
+        key=lambda item: (_safe_float(item.get("target_upside_pct")) or -999),
+        reverse=True,
+    ):
         upside = _safe_float(row.get("target_upside_pct"))
-        if upside is None:
+        if upside is None or upside < 15:
             continue
         opportunities.append({
             "ticker": row.get("ticker"),
+            "market": row.get("market"),
             "kind": "analyst_runway",
             "headline": f"{row.get('ticker')} has {upside:+.1f}% target runway",
-            "body": f"Score {row.get('scores', {}).get('overall')}; analyst count {(row.get('facts') or {}).get('analyst', {}).get('analyst_count')}.",
+            "body": (
+                f"On your watch list · score {row.get('scores', {}).get('overall')}; "
+                "consider adding at good entry points while runway holds."
+            ),
         })
+        if len(opportunities) >= 3:
+            break
 
     markets = sorted({str(row.get("market")) for row in rows if row.get("market") in {"US", "IN"}})
     suggestions = _screen_suggestions(store, rows, markets)
@@ -1124,7 +1135,10 @@ def _portfolio_diagnostics(
     if risk_flags:
         summary_parts.append(f"{len(risk_flags)} risk flags need review.")
     if opportunities:
-        summary_parts.append(f"{len(opportunities)} upside candidates stand out.")
+        summary_parts.append(
+            f"{len(opportunities)} watch list name{'s' if len(opportunities) != 1 else ''} "
+            "have strong analyst runway for entry."
+        )
 
     return {
         "summary": " ".join(summary_parts) or "Watchlist diagnosis is ready.",

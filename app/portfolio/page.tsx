@@ -5,13 +5,13 @@ import { getCurrentMarket } from "@/lib/market";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Portfolio Analyzer — tikrr",
+  title: "Portfolio Analyzer | tikrr",
   description:
     "Analyze your stock portfolio for free. Paste tickers, search, or upload a screenshot to get sector allocation, factor tilt, risk flags, and opportunities.",
   openGraph: {
     title: "Free Portfolio Analyzer | tikrr",
     description:
-      "Get a full breakdown of your portfolio's sector allocation, factor tilt, risk flags, and opportunities — for free.",
+      "Get a full breakdown of your portfolio's sector allocation, factor tilt, risk flags, and opportunities for free.",
   },
 };
 

@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 JOB_COLLECTION = "tm_on_demand_news_jobs"
+RETRYABLE_TERMINAL_STATUSES = {"no_articles", "no_brief", "failed"}
+RETRY_COOLDOWN_MINUTES = 120
+MAX_RETRY_ATTEMPTS = 6
 
 
 def _now() -> str:
@@ -63,6 +66,16 @@ def _normalize_doc(doc: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _parse_iso(ts: str) -> datetime | None:
+    text = str(ts or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
 def _load_instrument(store: TraceMoneyStore, market: str, instrument_id: str) -> dict[str, Any] | None:
     rows = store.list_instruments(market, [instrument_id])
     if rows:
@@ -73,10 +86,21 @@ def _load_instrument(store: TraceMoneyStore, market: str, instrument_id: str) ->
 def _queued_jobs(store: TraceMoneyStore, limit: int) -> list[Any]:
     docs = list(store.db.collection(JOB_COLLECTION).stream())
     runnable = []
+    now = datetime.now(timezone.utc)
     for doc in docs:
         data = doc.to_dict() or {}
-        if str(data.get("status") or "") in {"queued", "retry"}:
+        status = str(data.get("status") or "").strip().lower()
+        attempts = int(data.get("attempts") or 0)
+        if status in {"queued", "retry"}:
             runnable.append(doc)
+            continue
+        if status in RETRYABLE_TERMINAL_STATUSES and attempts < MAX_RETRY_ATTEMPTS:
+            updated_at = _parse_iso(str(data.get("updated_at") or data.get("finished_at") or ""))
+            if not updated_at:
+                continue
+            age_mins = (now - updated_at).total_seconds() / 60.0
+            if age_mins >= RETRY_COOLDOWN_MINUTES:
+                runnable.append(doc)
     runnable.sort(key=lambda doc: str((doc.to_dict() or {}).get("requested_at") or ""))
     return runnable[:limit]
 
@@ -94,6 +118,11 @@ def process_job(
     market = str(job.get("market") or instrument_id.split("_", 1)[0] or "US").upper()
     universe_id = str(job.get("universe_id") or store.get_active_ai_universe(market) or "").strip()
     attempts = int(job.get("attempts") or 0) + 1
+    run_per_stock_cap = per_stock_cap
+    run_broad_cap = broad_cap
+    if attempts >= 2:
+        run_per_stock_cap = max(run_per_stock_cap, 10)
+        run_broad_cap = max(run_broad_cap, 30)
 
     ref.set({
         "status": "running",
@@ -125,8 +154,8 @@ def process_job(
         raw_articles, source_health = collect_per_ticker_articles(
             market=market,
             universe_id=universe_id,
-            per_stock_cap=per_stock_cap,
-            broad_cap=broad_cap,
+            per_stock_cap=run_per_stock_cap,
+            broad_cap=run_broad_cap,
             instruments_override=[instrument],
         )
         raw_payload = [article.to_dict() for article in raw_articles]

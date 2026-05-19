@@ -6,6 +6,7 @@ import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
+import { flushWatchlistRebuild, scheduleWatchlistRebuild } from "@/lib/radar-client-refresh";
 
 type Props = {
   /** instrument_ids like ["US_NVDA", "US_META"] */
@@ -76,11 +77,9 @@ async function trackAll(ids: string[], positionType: "holding" | "watchlist"): P
     }
   }
 
-  // Trigger a single rebuild after all writes are done — fire and forget so the
-  // UI redirects immediately. The /watchlist page shows an "updating" notice
-  // if tracked stocks outnumber the current view rows.
+  // Trigger a single rebuild after all writes are done.
   if (added.length > 0) {
-    fetch("/api/watchlist/refresh", { method: "POST" }).catch(() => {});
+    scheduleWatchlistRebuild(0);
   }
 
   return { added, skipped, limitReached, limitAt };
@@ -128,7 +127,10 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
     setTimeout(() => setModalOpen(false), 900);
     if (!r.limitReached) {
       // Hard redirect after short delay
-      setTimeout(() => router.push("/watchlist"), 1200);
+      setTimeout(() => {
+        flushWatchlistRebuild(router, 0);
+        router.push("/watchlist");
+      }, 1200);
     }
   }
 
@@ -145,9 +147,9 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M2.5 7l3 3 6-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Added to Radar — open it →
+          Added to Radar. Open it →
         </button>
-        <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saving picks and rebuilding your Radar..." status={modalStatus} />
+        <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
       </>
     );
   }
@@ -165,7 +167,7 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
               {addedCount} stock{addedCount !== 1 ? "s" : ""} added to Radar
             </p>
             <p className="text-[12px] text-[#b45309] leading-relaxed">
-              Free Radar tracks up to {result.limitAt} stocks. Upgrade to Pro to add your full portfolio — {result.skipped.length} more waiting.
+              Free Radar tracks up to {result.limitAt} stocks. Upgrade to Pro to add your full portfolio. {result.skipped.length} more waiting.
             </p>
             <div className="flex items-center gap-2 mt-1">
               <a
@@ -184,7 +186,7 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
           </div>
         </div>
         </div>
-        <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saving what fits your plan and rebuilding Radar..." status={modalStatus} />
+        <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
       </>
     );
   }
@@ -213,7 +215,7 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
         )}
         {buttonLabel}
       </button>
-      <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saving picks and rebuilding your Radar..." status={modalStatus} />
+      <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
     </>
   );
 }

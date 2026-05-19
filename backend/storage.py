@@ -984,6 +984,7 @@ class TraceMoneyStore:
             .select([
                 "tracked_stocks",
                 "watchlist_positions",
+                "watchlist_version",
                 "alert_thresholds",
                 "thresholds",
                 "email",

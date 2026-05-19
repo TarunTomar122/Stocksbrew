@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
+import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import type { WatchlistRow } from "@/lib/watchlist-view";
 
 type Tab = "holdings" | "watching";
@@ -67,6 +68,18 @@ function scoreToneText(score: number | null): string {
   if (score >= 60) return "text-[#111111]";
   if (score >= 40) return "text-[#6b7280]";
   return "text-[#ef4444]";
+}
+
+function runwayToneText(pct: number | null): string {
+  if (pct === null) return "text-[#9ca3af]";
+  if (pct >= 15) return "text-[#047857]";
+  if (pct >= 0) return "text-[#111111]";
+  return "text-[#ef4444]";
+}
+
+function fmtRunwayPct(v: number | null | undefined): string {
+  if (v === null || v === undefined || !Number.isFinite(v)) return "—";
+  return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
 const STANCE_CHIP: Record<
@@ -155,7 +168,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                   <th className="px-4 py-3 font-semibold">Ticker</th>
                   <th className="px-3 py-3 text-right font-semibold">Price</th>
                   <th className="px-3 py-3 text-right font-semibold">Change</th>
-                  <th className="px-3 py-3 text-right font-semibold">Score</th>
+                  <th className="px-3 py-3 text-right font-semibold">Runway</th>
                   <th className="px-4 py-3 font-semibold">Directive</th>
                   <th className="px-3 py-3 w-8" />
                 </tr>
@@ -286,7 +299,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       if (res.ok) {
         setStatus("done");
         setModalStatus("success");
-        router.refresh();
+        triggerRadarBackgroundRefresh(router);
       } else {
         setStatus("error");
         setModalStatus("error");
@@ -350,7 +363,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       <RadarAsyncModal
         open={modalOpen}
         title={`Adding ${ticker} to Holdings`}
-        subtitle="Updating your Radar..."
+        subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
     </>
@@ -451,7 +464,7 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
   const positive = (dayChange ?? 0) >= 0;
   const market = row.market === "IN" ? "IN" : "US";
   const rsi = rsiExtremeFromRow(row);
-  const score = row.scores?.overall ?? null;
+  const runway = num(row.target_upside_pct);
   const cats = (row.catalysts ?? []) as Array<Record<string, unknown>>;
   const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
   const stanceMeta = STANCE_CHIP[stance];
@@ -526,8 +539,8 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
         </div>
       </td>
       <td className="px-3 py-3 text-right">
-        <span className={`text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}>
-          {score === null ? "—" : Math.round(score)}
+        <span className={`text-[14px] font-semibold tabular-nums ${runwayToneText(runway)}`}>
+          {fmtRunwayPct(runway)}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -598,7 +611,7 @@ function RowMenu({ row }: { row: WatchlistRow }) {
         body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType }),
       });
       setModalStatus(res.ok ? "success" : "error");
-      if (res.ok) router.refresh();
+      if (res.ok) triggerRadarBackgroundRefresh(router);
     } finally {
       setBusy(false);
       setTimeout(() => setModalOpen(false), 900);
@@ -618,7 +631,7 @@ function RowMenu({ row }: { row: WatchlistRow }) {
         body: JSON.stringify({ instrument_id: instrumentId }),
       });
       setModalStatus(res.ok ? "success" : "error");
-      if (res.ok) router.refresh();
+      if (res.ok) triggerRadarBackgroundRefresh(router);
     } finally {
       setBusy(false);
       setTimeout(() => setModalOpen(false), 900);
@@ -672,7 +685,7 @@ function RowMenu({ row }: { row: WatchlistRow }) {
           </div>
         )}
       </div>
-      <RadarAsyncModal open={modalOpen} title={modalTitle} subtitle="Applying your change and refreshing Radar..." status={modalStatus} />
+      <RadarAsyncModal open={modalOpen} title={modalTitle} subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
     </>
   );
 }

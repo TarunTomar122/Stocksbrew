@@ -130,6 +130,9 @@ export type WatchlistPulse = {
 export type WatchlistView = {
   uid: string;
   source_version?: number;
+  today_version_applied?: number;
+  diagnosis_version_applied?: number;
+  activity_version_applied?: number;
   tracked_count: number;
   holdings_count?: number;
   watchlist_count?: number;
@@ -1073,21 +1076,27 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
     });
   }
   const opportunities = rows
-    .filter((row) => typeof row.target_upside_pct === "number")
+    .filter((row) => row.position_type !== "holding")
+    .filter((row) => typeof row.target_upside_pct === "number" && (row.target_upside_pct ?? 0) >= 15)
     .sort((a, b) => (b.target_upside_pct ?? -999) - (a.target_upside_pct ?? -999))
-    .slice(0, 4)
+    .slice(0, 3)
     .map((row) => ({
       ticker: row.ticker,
+      market: row.market,
       kind: "analyst_runway",
       headline: `${row.ticker} has ${(row.target_upside_pct ?? 0) >= 0 ? "+" : ""}${row.target_upside_pct?.toFixed(1)}% target runway`,
-      body: `Score ${row.scores.overall}; analyst count ${((row.facts?.analyst as Record<string, unknown>) || {}).analyst_count ?? 0}.`,
+      body: `On your watch list · score ${row.scores.overall}; consider adding at good entry points while runway holds.`,
     }));
   const summaryParts: string[] = [];
   if (dominant) summaryParts.push(`${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`);
   const avgOverall = averageScore(rows, "overall");
   if (avgOverall !== null) summaryParts.push(`Average tikrr score is ${avgOverall}.`);
   if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
-  if (opportunities.length) summaryParts.push(`${opportunities.length} upside candidates stand out.`);
+  if (opportunities.length) {
+    summaryParts.push(
+      `${opportunities.length} watch list name${opportunities.length === 1 ? "" : "s"} have strong analyst runway for entry.`,
+    );
+  }
 
   return {
     summary: summaryParts.join(" ") || "Radar diagnosis is ready.",
@@ -1598,11 +1607,15 @@ export async function rebuildAndSaveWatchlistView(
     if (incomingVersion > 0 && currentVersion > incomingVersion) {
       return;
     }
+    const appliedVersion = incomingVersion > 0 ? incomingVersion : currentVersion;
     tx.set(
       ref,
       {
         ...view,
-        source_version: incomingVersion > 0 ? incomingVersion : currentVersion,
+        source_version: appliedVersion,
+        today_version_applied: appliedVersion,
+        diagnosis_version_applied: appliedVersion,
+        activity_version_applied: appliedVersion,
         updated_at: FieldValue.serverTimestamp(),
       },
       { merge: false },

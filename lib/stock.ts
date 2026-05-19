@@ -276,6 +276,18 @@ export type StockFacts = {
   };
 };
 
+export type OnDemandNewsJobDoc = {
+  instrument_id: string;
+  market?: "US" | "IN" | string;
+  universe_id?: string;
+  status?: "queued" | "running" | "complete" | "no_articles" | "no_brief" | "failed" | "retry" | string;
+  error?: string;
+  updated_at?: string;
+  requested_at?: string;
+  started_at?: string;
+  finished_at?: string;
+};
+
 export async function getStockFacts(
   instrumentId: string,
 ): Promise<StockFacts | null> {
@@ -447,6 +459,17 @@ export async function getStockIntelPro(
     .doc(instrumentId)
     .get();
   return doc.exists ? (doc.data() as StockIntelPro) : null;
+}
+
+export async function getOnDemandNewsJob(
+  instrumentId: string,
+): Promise<OnDemandNewsJobDoc | null> {
+  const doc = await adminFirestore
+    .collection("tm_on_demand_news_jobs")
+    .doc(instrumentId)
+    .get();
+  if (!doc.exists) return null;
+  return doc.data() as OnDemandNewsJobDoc;
 }
 
 export async function getStockFundamentals(

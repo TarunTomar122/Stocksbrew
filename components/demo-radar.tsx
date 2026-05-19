@@ -167,7 +167,7 @@ export function DemoRadar() {
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="h-1.5 w-1.5 rounded-full bg-[#10b981] shrink-0" />
           <span className="text-[12px] text-white/50 truncate hidden sm:block">
-            You&apos;re viewing a sample — sign in to get this for your own stocks
+            You&apos;re viewing a sample. Sign in to get this for your own stocks
           </span>
         </div>
         <button
@@ -201,7 +201,7 @@ export function DemoRadar() {
               </h1>
               <p className="text-[15px] text-[#6b7280] leading-[1.65] mt-3">
                 Every morning, tikrr reads the market and tells you exactly what to do
-                with each stock you own — directives, risk flags, and opportunities, personalized
+                with each stock you own: directives, risk flags, and opportunities, personalized
                 to your portfolio. This is what yours could look like.
               </p>
             </div>
@@ -212,7 +212,7 @@ export function DemoRadar() {
               disabled={busy}
               className="self-start inline-flex items-center justify-center h-11 px-6 rounded-full bg-[#0a0a0a] text-white text-[13px] font-semibold hover:bg-black transition-colors disabled:opacity-60 shadow-[0_2px_16px_rgba(0,0,0,0.15)]"
             >
-              {busy ? "Signing you in…" : "Sign in free — takes 30 seconds →"}
+              {busy ? "Signing you in…" : "Sign in free, takes 30 seconds →"}
             </button>
           </div>
 
@@ -311,7 +311,7 @@ export function DemoRadar() {
               <span className="text-[#10b981]">It takes 30 seconds.</span>
             </h2>
             <p className="text-[14px] text-[#6b7280] leading-[1.6]">
-              Add the stocks you own and watch. tikrr builds a personalized Radar overnight —
+              Add the stocks you own and watch. tikrr builds a personalized Radar overnight with
               a full directive on every holding, risk flags, and opportunities, waiting for you
               each morning. Free for 3 stocks, no credit card.
             </p>
@@ -326,7 +326,7 @@ export function DemoRadar() {
               className="w-full inline-flex items-center justify-center h-13 px-8 rounded-full bg-[#0a0a0a] text-white text-[15px] font-semibold hover:bg-black transition-colors disabled:opacity-60 shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
               style={{ height: "52px" }}
             >
-              {busy ? "Signing you in…" : "Sign in with Google — it's free →"}
+              {busy ? "Signing you in…" : "Sign in with Google, it's free →"}
             </button>
             <p className="text-[12px] text-[#9ca3af]">
               Free for 3 stocks &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; 2,400+ investors tracking daily
@@ -430,7 +430,7 @@ function PrimaryDirectiveCard({ row }: { row: DemoRow }) {
         style={{ color: meta.fg, opacity: 0.82 }}
       >
         A value icon is buying, quality metrics are elite, and the stock is the Dow&apos;s
-        worst performer today — creating a tactical entry point ahead of the May 20 earnings print.
+        worst performer today, creating a tactical entry point ahead of the May 20 earnings print.
       </p>
 
       {/* Signal chips */}

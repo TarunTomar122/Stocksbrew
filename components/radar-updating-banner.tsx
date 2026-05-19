@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+import { scheduleWatchlistRebuild } from "@/lib/radar-client-refresh";
+
 const POLL_MS = 4000;
-const MAX_POLLS = 4; // give up after ~16 s — if it hasn't resolved by then it won't
+const MAX_POLLS = 22; // ~88s — then stop polling; badge clears when rebuild lands on next navigation
 
 /**
- * Shown briefly after batch-tracking new stocks while the watchlist rebuild
- * runs in the background. Polls via router.refresh() up to MAX_POLLS times,
- * then hides itself — so a rebuild failure or a permanent data gap (stock with
- * no price data) doesn't leave the banner stuck on screen forever.
+ * Shown while the materialized watchlist view is behind the user's profile version.
+ * Triggers a rebuild on mount and polls router.refresh() until the server page
+ * unmounts this banner (versions caught up) or MAX_POLLS is reached.
  */
 export function RadarUpdatingBanner({
   pendingCount,
@@ -21,24 +22,24 @@ export function RadarUpdatingBanner({
 }) {
   const router = useRouter();
   const polls = useRef(0);
-  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     if (forceVisible) return;
-    if (hidden) return;
+
+    scheduleWatchlistRebuild(0);
+    router.refresh();
+
     const id = setInterval(() => {
       polls.current += 1;
       if (polls.current >= MAX_POLLS) {
         clearInterval(id);
-        setHidden(true);
         return;
       }
       router.refresh();
     }, POLL_MS);
-    return () => clearInterval(id);
-  }, [router, hidden, forceVisible]);
 
-  if (!forceVisible && hidden) return null;
+    return () => clearInterval(id);
+  }, [router, forceVisible]);
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[#fcd34d] bg-[#fffbeb] px-4 py-3.5 text-[12.5px] text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.12)]">
@@ -47,11 +48,13 @@ export function RadarUpdatingBanner({
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
       </span>
       <span className="font-medium">
-        Radar is updating —{" "}
-        {pendingCount} new {pendingCount === 1 ? "stock" : "stocks"} being processed.
+        Radar is updating.{" "}
+        {pendingCount > 0
+          ? `${pendingCount} new ${pendingCount === 1 ? "stock" : "stocks"} being processed.`
+          : "Refreshing your analysis."}{" "}
         {forceVisible
-          ? " Test mode is on so this banner stays visible."
-          : " Hang tight, this usually takes a few seconds."}
+          ? "Test mode is on so this banner stays visible."
+          : "Hang tight, this usually takes a few seconds."}
       </span>
     </div>
   );

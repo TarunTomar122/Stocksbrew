@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 const OUTCOMES = [
-  { label: "What moved overnight — and why" },
+  { label: "What moved overnight and why" },
   { label: "3 things worth watching before close" },
 ];
 

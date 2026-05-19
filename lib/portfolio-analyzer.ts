@@ -124,7 +124,7 @@ function detectRiskFlags(stocks: PortfolioStock[]): RiskFlag[] {
       severity: "medium",
       ticker: s.ticker,
       headline: `${s.ticker} is the weakest score in your portfolio`,
-      body: `Overall score ${s.scores.overall} — review if this still fits your thesis.`,
+      body: `Overall score ${s.scores.overall}. Review if this still fits your thesis.`,
     });
   }
 
@@ -152,7 +152,7 @@ function detectOpportunities(stocks: PortfolioStock[]): Opportunity[] {
       ticker: s.ticker,
       kind: "analyst_runway",
       headline: `${s.ticker} has ${(s.target_upside_pct ?? 0) >= 0 ? "+" : ""}${s.target_upside_pct?.toFixed(1)}% analyst target runway`,
-      body: `Score ${s.scores.overall} — analysts see room to run.`,
+      body: `Score ${s.scores.overall}. Analysts see room to run.`,
     }));
 }
 

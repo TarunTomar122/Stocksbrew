@@ -28,6 +28,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getMarketMovers } from "@/lib/firestore";
 import {
   getInstrumentViewDoc,
+  getOnDemandNewsJob,
   getStockFacts,
   getStockIntelPro,
   getStockIntelligenceDoc,
@@ -170,6 +171,7 @@ export default async function StockPage({ params }: Props) {
     marketMovers,
     anomaliesDoc,
     redditSnapshot,
+    onDemandJob,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -183,6 +185,7 @@ export default async function StockPage({ params }: Props) {
     getMarketMovers(market).catch(() => null),
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
+    getOnDemandNewsJob(stock.instrument_id).catch(() => null),
   ]);
   const redditTickerContext = resolveRedditContextForSymbol(redditSnapshot, stock.ticker);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
@@ -345,6 +348,8 @@ export default async function StockPage({ params }: Props) {
         instrumentId={stock.instrument_id}
         isSubscribed={subscribed}
         isTracked={isTracked}
+        onDemandStatus={onDemandJob?.status}
+        onDemandError={onDemandJob?.error}
       />
     )
   ) : (

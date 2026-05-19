@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { posthog } from "@/lib/posthog";
+import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 
 type Variant = "pill" | "icon";
@@ -46,6 +47,10 @@ export function TrackButton({
   const [modalTitle, setModalTitle] = useState("");
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
 
+  function triggerBackgroundRefresh() {
+    triggerRadarBackgroundRefresh(router);
+  }
+
   useEffect(() => {
     setLocalTracked(isTracked);
   }, [isTracked]);
@@ -81,7 +86,7 @@ export function TrackButton({
           setLocalTracked(false);
           setModalStatus("success");
           posthog.capture("radar_remove_clicked", { instrument_id: instrumentId, ticker });
-          router.refresh();
+          triggerBackgroundRefresh();
         } finally {
           setPendingOp(null);
           setTimeout(() => setModalOpen(false), 900);
@@ -146,7 +151,7 @@ export function TrackButton({
           position_type: positionType,
         });
         setOpen(false);
-        router.refresh();
+        triggerBackgroundRefresh();
       } finally {
         setPendingOp(null);
         setTimeout(() => setModalOpen(false), 900);
@@ -244,7 +249,7 @@ export function TrackButton({
       <RadarAsyncModal
         open={modalOpen}
         title={modalTitle}
-        subtitle="Applying your update and refreshing Radar..."
+        subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
     </>

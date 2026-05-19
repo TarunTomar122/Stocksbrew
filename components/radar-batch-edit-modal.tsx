@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
+import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import type { SearchEntry } from "@/lib/search";
 
 type PositionType = "holding" | "watchlist";
@@ -23,6 +24,7 @@ type Props = {
   freeLimit?: number;
   ctaLabel?: string;
   enableImageUpload?: boolean;
+  triggerClassName?: string;
 };
 
 export function RadarBatchEditModal({
@@ -32,6 +34,7 @@ export function RadarBatchEditModal({
   freeLimit = 3,
   ctaLabel = "Add a stock",
   enableImageUpload = true,
+  triggerClassName,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -156,12 +159,10 @@ export function RadarBatchEditModal({
       }
 
       setModalStatus("success");
-      // Kick heavy Radar materialization in background.
-      void fetch("/api/watchlist/refresh", { method: "POST" }).catch(() => undefined);
       setTimeout(() => {
         setModalOpen(false);
         setOpen(false);
-        router.refresh();
+        flushWatchlistRebuild(router, 0);
       }, 700);
     } catch (e) {
       setModalStatus("error");
@@ -222,9 +223,12 @@ export function RadarBatchEditModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
+        className={
+          triggerClassName ??
+          "inline-flex w-fit items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
+        }
       >
-        <span aria-hidden>＋</span>
+        {!triggerClassName && <span aria-hidden>＋</span>}
         {ctaLabel}
       </button>
 
@@ -451,7 +455,7 @@ export function RadarBatchEditModal({
       <RadarAsyncModal
         open={modalOpen}
         title="Updating Radar"
-        subtitle="Applying all staged changes and rebuilding your view..."
+        subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
     </>

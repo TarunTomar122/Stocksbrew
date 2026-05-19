@@ -33,6 +33,7 @@ CRON_REDDIT_BUZZ="${CRON_REDDIT_BUZZ:-20 13 * * 1-5}"     # 6:50 PM IST
 CRON_OPEN_EMAILS="${CRON_OPEN_EMAILS:-42 13 * * 1-5}"     # 7:12 PM IST (after open pipeline + anomalies)
 CRON_INTRADAY="${CRON_INTRADAY:-*/30 13-19 * * 1-5}"      # every 30 min during session
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
+CRON_ON_DEMAND_NEWS="${CRON_ON_DEMAND_NEWS:-*/10 * * * 1-5}" # every 10 min weekdays
 
 RUN_URI="https://run.googleapis.com/v2/projects/${GOOGLE_CLOUD_PROJECT}/locations/${GOOGLE_CLOUD_REGION}/jobs/${DISPATCH_JOB_NAME}:run"
 
@@ -92,6 +93,7 @@ printf '%s\n' "$(mk_body reddit_buzz "${extra_universe}")" > "${tmp_dir}/reddit_
 printf '%s\n' "$(mk_body market_open_email "${extra_universe}")" > "${tmp_dir}/open_emails.json"
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday.json"
 printf '%s\n' "$(mk_body daily_postclose "${extra_universe}")" > "${tmp_dir}/postclose.json"
+printf '%s\n' "$(mk_body on_demand_news "${extra_universe},\"--limit\",\"12\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
 upsert_job "tikrr-open-price" "${CRON_OPEN_PRICE}" "${tmp_dir}/open_price.json"
@@ -101,5 +103,6 @@ upsert_job "tikrr-reddit-buzz" "${CRON_REDDIT_BUZZ}" "${tmp_dir}/reddit_buzz.jso
 upsert_job "tikrr-open-emails" "${CRON_OPEN_EMAILS}" "${tmp_dir}/open_emails.json"
 upsert_job "tikrr-intraday-price" "${CRON_INTRADAY}" "${tmp_dir}/intraday.json"
 upsert_job "tikrr-postclose" "${CRON_POSTCLOSE}" "${tmp_dir}/postclose.json"
+upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
 
 echo "Scheduler jobs ready in ${SCHEDULER_LOCATION}."
