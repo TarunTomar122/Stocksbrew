@@ -20,12 +20,13 @@ from backend.llm_client import (
     parse_json_content,
     schema_system_prompt,
 )
+from backend.landing_metrics import _extract_series, _to_float, build_stock_technical_doc
 from backend.models import Article
 
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-04-21-stock-brief-v7-fundamentals"
+STOCK_BRIEF_CACHE_VERSION = "2026-05-19-stock-brief-v8-price-context"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -75,6 +76,160 @@ def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
     block["standout_metrics"] = block["standout_metrics"][:6]
     block["weak_metrics"] = block["weak_metrics"][:6]
     return block
+
+
+def _avg_volume_from_history(history_points: list[dict[str, Any]]) -> float | None:
+    volumes: list[float] = []
+    for row in history_points:
+        quote = row.get("quote") or {}
+        value = _to_float(quote.get("volume"))
+        if value is not None and value > 0:
+            volumes.append(value)
+    if not volumes:
+        return None
+    return sum(volumes) / len(volumes)
+
+
+def _return_over_sessions(closes: list[float], sessions: int) -> float | None:
+    if len(closes) < sessions + 1:
+        return None
+    start = closes[-(sessions + 1)]
+    end = closes[-1]
+    if start <= 0:
+        return None
+    return round((end - start) / start * 100.0, 2)
+
+
+def _recent_session_prices(
+    history_points: list[dict[str, Any]],
+    latest_price_doc: dict[str, Any] | None,
+    *,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    rows: list[tuple[str, float, float | None]] = []
+    for row in history_points:
+        quote = row.get("quote") or {}
+        close = _to_float(quote.get("current"))
+        if close is None:
+            continue
+        ts = str(row.get("captured_at") or row.get("timestamp") or row.get("as_of_date") or "")
+        day_change = _to_float(quote.get("day_change_pct"))
+        rows.append((ts, close, day_change))
+
+    if latest_price_doc:
+        quote = latest_price_doc.get("quote") or {}
+        close = _to_float(quote.get("current"))
+        if close is not None:
+            ts = str(latest_price_doc.get("captured_at") or latest_price_doc.get("as_of_date") or "")
+            day_change = _to_float(quote.get("day_change_pct"))
+            rows.append((ts, close, day_change))
+
+    rows.sort(key=lambda item: item[0])
+    dedup: dict[str, tuple[float, float | None]] = {}
+    for ts, close, day_change in rows:
+        key = ts[:10] if ts else str(close)
+        dedup[key] = (close, day_change)
+
+    recent: list[dict[str, Any]] = []
+    for date_key, (close, day_change) in list(dedup.items())[-limit:]:
+        entry: dict[str, Any] = {"date": date_key, "close": round(close, 4)}
+        if day_change is not None:
+            entry["day_change_pct"] = round(day_change, 2)
+        recent.append(entry)
+    return recent
+
+
+def _comparative_day_change_context(
+    instrument: dict[str, Any],
+    instrument_id: str,
+    latest_prices_by_id: dict[str, dict[str, Any]],
+    instruments_by_id: dict[str, dict[str, Any]],
+    market_day_change_values: list[float],
+) -> tuple[float, float | None, float | None]:
+    quote = (latest_prices_by_id.get(instrument_id, {}) or {}).get("quote", {})
+    self_day_change = _to_float((quote or {}).get("day_change_pct")) or 0.0
+
+    market_median = (
+        sum(market_day_change_values) / len(market_day_change_values)
+        if market_day_change_values
+        else None
+    )
+    vs_market = round(self_day_change - market_median, 4) if market_median is not None else None
+
+    instrument_sector = str(instrument.get("sector", "")).strip().lower()
+    sector_values: list[float] = []
+    for peer_id, payload in latest_prices_by_id.items():
+        peer = instruments_by_id.get(peer_id)
+        if not peer:
+            continue
+        if str(peer.get("sector", "")).strip().lower() != instrument_sector:
+            continue
+        peer_quote = (payload.get("quote") or {}) if isinstance(payload, dict) else {}
+        peer_change = _to_float(peer_quote.get("day_change_pct"))
+        if peer_change is not None:
+            sector_values.append(peer_change)
+    sector_median = sum(sector_values) / len(sector_values) if sector_values else None
+    vs_sector = round(self_day_change - sector_median, 4) if sector_median is not None else None
+    return self_day_change, vs_market, vs_sector
+
+
+def _summarize_price_context(
+    latest_price_doc: dict[str, Any] | None,
+    technical_doc: dict[str, Any] | None,
+    history_points: list[dict[str, Any]] | None,
+    *,
+    vs_market_day_change_pct: float | None = None,
+    vs_sector_day_change_pct: float | None = None,
+) -> dict[str, Any] | None:
+    if not latest_price_doc:
+        return None
+
+    quote = latest_price_doc.get("quote") or {}
+    current = _to_float(quote.get("current"))
+    day_change = _to_float(quote.get("day_change_pct"))
+    volume = _to_float(quote.get("volume"))
+    history = list(history_points or [])
+    avg_volume = _avg_volume_from_history(history)
+    volume_vs_avg: float | str = "unknown"
+    if volume is not None and avg_volume and avg_volume > 0:
+        volume_vs_avg = round(volume / avg_volume, 2)
+
+    closes, _ = _extract_series(history, latest_price_doc)
+    returns: dict[str, float | None] = {
+        "week_1_pct": _return_over_sessions(closes, 5),
+        "month_1_pct": _return_over_sessions(closes, 21),
+        "month_3_pct": _return_over_sessions(closes, 63),
+    }
+
+    rsi_block = (technical_doc or {}).get("rsi_14") or {}
+    distance = (technical_doc or {}).get("distance") or {}
+    moving_averages = (technical_doc or {}).get("moving_averages") or {}
+
+    block: dict[str, Any] = {
+        "current_price": current,
+        "day_change_pct": day_change,
+        "vs_market_day_change_pct": vs_market_day_change_pct,
+        "vs_sector_day_change_pct": vs_sector_day_change_pct,
+        "volume_vs_avg": volume_vs_avg,
+        "rsi_14": {
+            "value": rsi_block.get("value"),
+            "state": rsi_block.get("state"),
+        },
+        "from_52w_high_pct": distance.get("from_52w_high_pct"),
+        "from_52w_low_pct": distance.get("from_52w_low_pct"),
+        "ma_position": {
+            "sma_20": moving_averages.get("price_vs_sma_20"),
+            "sma_50": moving_averages.get("price_vs_sma_50"),
+            "sma_200": moving_averages.get("price_vs_sma_200"),
+        },
+        "trend": _derive_trend(technical_doc),
+        "returns": returns,
+        "recent_sessions": _recent_session_prices(history, latest_price_doc, limit=5),
+    }
+    if not any(value is not None for value in (current, day_change)):
+        return None
+    return block
+
 
 STOCK_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. Smart but easy to read.
 
@@ -138,6 +293,12 @@ FUNDAMENTALS - USE THEM:
 - Drivers and risk_cards should weave fundamentals + news: "label: Margin expansion outpaces peers / detail: Operating margin sits in the sector's top quartile while revenue still compounds at 16% YoY."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
+
+PRICE CONTEXT - USE IT:
+- The user payload may include a `price_context` block with day change vs market/sector, RSI, 52-week distance, MA position, volume vs average, multi-week returns, and recent session closes.
+- Use it to interpret news vs setup: bullish news after a big run = trim into strength, not accumulate. Quiet news while coiled above support = accumulation.
+- Do NOT narrate the chart back ("stock is up 2% today"). Use price context for setup_state, directive trigger levels, and tension with fundamentals/news.
+- Anchor directive trigger prices to levels in price_context when sensible (recent closes, MAs, analyst targets).
 
 EVIDENCE DISCIPLINE - THIS IS CRITICAL:
 - Every driver, catalyst_card, and risk_card MUST be grounded in a specific fact from the evidence OR fundamentals block. If neither supports it, don't write it.
@@ -274,6 +435,7 @@ def _llm_synthesize_brief(
     current_price: float | None = None,
     analyst_target: float | None = None,
     fundamentals: dict[str, Any] | None = None,
+    price_context: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
     """Call MiMo to generate a synthesized stock brief. Returns None on failure."""
@@ -299,6 +461,8 @@ def _llm_synthesize_brief(
         "analyst_target": analyst_target,
         "fundamentals": fundamentals,
     }
+    if price_context:
+        payload["price_context"] = price_context
 
     # Check cache
     cache_key = None
@@ -1790,6 +1954,7 @@ def build_stock_intelligence_docs(
 
     latest_prices_by_id: dict[str, dict[str, Any]] = {}
     intel_pro_by_id: dict[str, dict[str, Any]] = {}
+    technicals_by_id: dict[str, dict[str, Any]] = {}
     if store is not None:
         try:
             latest_prices_by_id = store.get_latest_prices(list(instruments_by_id.keys()))
@@ -1801,6 +1966,10 @@ def build_stock_intelligence_docs(
                     intel_pro_by_id[doc["instrument_id"]] = doc
         except Exception:
             intel_pro_by_id = {}
+        try:
+            technicals_by_id = store.get_latest_stock_technicals_batch(list(instruments_by_id.keys()))
+        except Exception:
+            technicals_by_id = {}
 
     market_day_change_values: list[float] = []
     for instrument_id, payload in latest_prices_by_id.items():
@@ -1991,11 +2160,48 @@ def build_stock_intelligence_docs(
         )
 
         # Get current price for directive generation
-        latest_quote = (latest_prices_by_id.get(instrument_id, {}) or {}).get("quote", {})
+        latest_price_doc = latest_prices_by_id.get(instrument_id)
+        latest_quote = (latest_price_doc or {}).get("quote", {})
         try:
             current_price = float((latest_quote or {}).get("current", 0.0)) or None
         except Exception:
             current_price = None
+
+        history_points: list[dict[str, Any]] = []
+        if store is not None:
+            try:
+                history_points = store.get_price_history(instrument_id, limit=65)
+            except Exception:
+                history_points = []
+
+        technical_doc = technicals_by_id.get(instrument_id)
+        if not technical_doc and latest_price_doc and history_points:
+            technical_doc = build_stock_technical_doc(
+                instrument=instrument,
+                latest_price=latest_price_doc,
+                history_points=history_points,
+                as_of_date=now_utc.date().isoformat(),
+            )
+
+        self_day_change, vs_market, vs_sector = _comparative_day_change_context(
+            instrument,
+            instrument_id,
+            latest_prices_by_id,
+            instruments_by_id,
+            market_day_change_values,
+        )
+        price_context = _summarize_price_context(
+            latest_price_doc,
+            technical_doc,
+            history_points,
+            vs_market_day_change_pct=vs_market,
+            vs_sector_day_change_pct=vs_sector,
+        )
+
+        _, analyst_target, _ = _extract_analyst_from_intel_pro(
+            intel_pro_by_id.get(instrument_id),
+            current_price,
+        )
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
@@ -2011,8 +2217,9 @@ def build_stock_intelligence_docs(
             catalyst=catalyst,
             risk=risk,
             current_price=current_price,
-            analyst_target=None,
+            analyst_target=analyst_target,
             fundamentals=fundamentals_block,
+            price_context=price_context,
             store=store,
         )
 
@@ -2192,13 +2399,16 @@ def build_stock_intelligence_docs(
 
         # Comparative context against market and sector peers.
         instrument_sector = str(instrument.get("sector", "")).strip().lower()
-        self_day_change = 0.0
-        quote = (latest_prices_by_id.get(instrument_id, {}) or {}).get("quote", {})
-        try:
-            self_day_change = float((quote or {}).get("day_change_pct", 0.0))
-        except Exception:
-            self_day_change = 0.0
-
+        sorted_market = sorted(market_day_change_values) if market_day_change_values else []
+        percentile = 50
+        if sorted_market:
+            below = sum(1 for value in sorted_market if value <= self_day_change)
+            percentile = int(round((below / len(sorted_market)) * 100))
+        market_median = (
+            sum(market_day_change_values) / len(market_day_change_values)
+            if market_day_change_values
+            else 0.0
+        )
         sector_values: list[float] = []
         for peer_id, payload in latest_prices_by_id.items():
             peer = instruments_by_id.get(peer_id)
@@ -2207,18 +2417,10 @@ def build_stock_intelligence_docs(
             if str(peer.get("sector", "")).strip().lower() != instrument_sector:
                 continue
             peer_quote = (payload.get("quote") or {}) if isinstance(payload, dict) else {}
-            try:
-                sector_values.append(float(peer_quote.get("day_change_pct", 0.0)))
-            except Exception:
-                continue
-
-        market_median = sum(market_day_change_values) / len(market_day_change_values) if market_day_change_values else 0.0
+            peer_change = _to_float(peer_quote.get("day_change_pct"))
+            if peer_change is not None:
+                sector_values.append(peer_change)
         sector_median = sum(sector_values) / len(sector_values) if sector_values else 0.0
-        sorted_market = sorted(market_day_change_values) if market_day_change_values else []
-        percentile = 50
-        if sorted_market:
-            below = sum(1 for value in sorted_market if value <= self_day_change)
-            percentile = int(round((below / len(sorted_market)) * 100))
 
         docs.append({
             "instrument_id": instrument_id,
