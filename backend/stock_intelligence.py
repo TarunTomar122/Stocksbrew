@@ -21,6 +21,7 @@ from backend.llm_client import (
     schema_system_prompt,
 )
 from backend.landing_metrics import _extract_series, _to_float, build_stock_technical_doc
+from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.models import Article
 
 logger = logging.getLogger(__name__)
@@ -438,7 +439,7 @@ def _llm_synthesize_brief(
     price_context: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
-    """Call MiMo to generate a synthesized stock brief. Returns None on failure."""
+    """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
     api_key = llm_api_key()
     if not api_key:
         return None
@@ -2046,7 +2047,7 @@ def build_stock_intelligence_docs(
                 )
                 if no_news_doc:
                     no_news_doc["coverage_type"] = "on_demand_no_news"
-                    no_news_doc["source"] = "mimo"
+                    no_news_doc["source"] = LLM_BRIEF_SOURCE
                     docs.append(no_news_doc)
                 continue
         primary_articles = [

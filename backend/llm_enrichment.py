@@ -433,7 +433,7 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("OPENAI_API_KEY or MIMO_API_KEY is required because heuristic enrichment has been removed")
+            raise ValueError("OPENAI_API_KEY is required because heuristic enrichment has been removed")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending: list[tuple[int, Article, str]] = []
@@ -464,10 +464,10 @@ class OpenAIArticleEnricher:
         payload = response.json()
         message = payload["choices"][0]["message"]
         if message.get("refusal"):
-            raise ValueError("MiMo refused enrichment request")
+            raise ValueError("LLM refused enrichment request")
         content = (message.get("content") or "").strip()
         if not content:
-            raise ValueError("MiMo returned empty content")
+            raise ValueError("LLM returned empty content")
         return parse_json_content(content)
 
     def _request_payload(self, article: Article, repair: bool = False) -> dict[str, Any]:

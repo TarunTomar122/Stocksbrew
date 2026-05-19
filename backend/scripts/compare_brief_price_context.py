@@ -149,7 +149,7 @@ def _print_brief(label: str, brief: dict[str, Any] | None) -> None:
     print(label)
     print("=" * 72)
     if not brief:
-        print("(no LLM response — check MIMO_API_KEY)")
+        print("(no LLM response — check OPENAI_API_KEY)")
         return
     for key in (
         "headline",

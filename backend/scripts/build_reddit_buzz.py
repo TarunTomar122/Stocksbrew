@@ -11,9 +11,9 @@ from typing import Any
 import requests
 
 from backend.llm_client import (
-    MIMO_API_URL,
     json_response_format,
     llm_api_key,
+    llm_api_url,
     llm_headers,
     llm_model,
     parse_json_content,
@@ -23,9 +23,7 @@ from backend.storage import TraceMoneyStore
 
 USER_AGENT = "tikrr-reddit-buzz/2.0"
 DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks", "investing", "StockMarket", "options", "shortsqueeze"]
-OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
-LLM_URL = os.getenv("MIMO_API_URL", "").strip() or MIMO_API_URL
 
 TICKER_EXTRACTION_PROMPT = """You extract stock buzz from Reddit posts.
 Return JSON object:
@@ -128,15 +126,12 @@ def _heuristic_fallback(posts: list[dict[str, Any]], max_tickers: int) -> tuple[
 
 
 def _resolve_llm_config() -> tuple[str, str, str] | None:
-    """Prefer OpenAI for Reddit ticker extraction; fall back to MiMo."""
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if openai_key:
-        model = os.getenv("OPENAI_MODEL", "").strip() or OPENAI_DEFAULT_MODEL
-        return openai_key, model, OPENAI_CHAT_URL
-    mimo_key = llm_api_key()
-    if mimo_key:
-        return mimo_key, llm_model("gpt-4o-mini"), LLM_URL
-    return None
+    """Return OpenAI credentials for Reddit ticker extraction."""
+    api_key = llm_api_key()
+    if not api_key:
+        return None
+    model = llm_model(OPENAI_DEFAULT_MODEL)
+    return api_key, model, llm_api_url()
 
 
 def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:

@@ -17,7 +17,6 @@ fi
 IMAGE_NAME="${IMAGE_NAME:-tikrr-pipeline-runner}"
 IMAGE_URI="${GOOGLE_CLOUD_REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/tikrr/${IMAGE_NAME}:latest"
 FIREBASE_SECRET_NAME="${FIREBASE_SECRET_NAME:-tikrr-firebase-service-account-json}"
-MIMO_SECRET_NAME="${MIMO_SECRET_NAME:-tikrr-mimo-api-key}"
 OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-tikrr-openai-api-key}"
 BREVO_SECRET_NAME="${BREVO_SECRET_NAME:-tikrr-brevo-api-key}"
 OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini}"
@@ -70,16 +69,6 @@ upsert_secret() {
   printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" | gcloud secrets versions add "${FIREBASE_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
 }
 
-upsert_optional_mimo_secret() {
-  if [[ -z "${MIMO_API_KEY:-}" ]]; then
-    return
-  fi
-  if ! gcloud secrets describe "${MIMO_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
-    gcloud secrets create "${MIMO_SECRET_NAME}" --replication-policy=automatic --project="${GOOGLE_CLOUD_PROJECT}"
-  fi
-  printf '%s' "${MIMO_API_KEY}" | gcloud secrets versions add "${MIMO_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
-}
-
 upsert_optional_openai_secret() {
   if [[ -z "${OPENAI_API_KEY:-}" ]]; then
     return
@@ -126,9 +115,6 @@ deploy_job() {
     deploy_args+=(--set-secrets="OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest")
   fi
 
-  if [[ -n "${MIMO_API_KEY:-}" ]]; then
-    deploy_args+=(--set-secrets="MIMO_API_KEY=${MIMO_SECRET_NAME}:latest")
-  fi
   if [[ -n "${BREVO_API_KEY:-}" ]]; then
     deploy_args+=(--set-secrets="BREVO_API_KEY=${BREVO_SECRET_NAME}:latest")
   fi
@@ -148,10 +134,6 @@ build_image
 
 echo "Updating firebase secret ${FIREBASE_SECRET_NAME}..."
 upsert_secret
-if [[ -n "${MIMO_API_KEY:-}" ]]; then
-  echo "Updating MIMO secret ${MIMO_SECRET_NAME}..."
-  upsert_optional_mimo_secret
-fi
 if [[ -n "${OPENAI_API_KEY:-}" ]]; then
   echo "Updating OpenAI secret ${OPENAI_SECRET_NAME}..."
   upsert_optional_openai_secret

@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 
 const MONTHS: Record<string, number> = {
   jan: 0,
@@ -56,7 +57,7 @@ export type WatchlistRow = {
   brief_tile: {
     micro: string;
     vibe: "up" | "down" | "wild";
-    source: "rules" | "mimo";
+    source: BriefSource;
   };
   ai_directive?: {
     text?: string;
@@ -110,7 +111,7 @@ export type WatchlistBrief = {
     symbol: string;
     sector_id: string;
   }>;
-  source: "rules" | "mimo";
+  source: BriefSource;
   status: "pending" | "fallback" | "ready";
   generated_at?: string;
 };
@@ -360,7 +361,7 @@ function microcopyFromStockBrief(
 function isFullAiBrief(stockBrief: Record<string, unknown>): boolean {
   const source = String(stockBrief.source || "").toLowerCase();
   const coverageType = String(stockBrief.coverage_type || "").toLowerCase();
-  return source === "mimo" && coverageType !== "on_demand_no_news";
+  return isLlmBriefSource(source) && coverageType !== "on_demand_no_news";
 }
 
 function targetUpsidePct(
@@ -753,7 +754,7 @@ function rowFromDocs(
     brief_tile: {
       micro,
       vibe,
-      source: briefMicrocopy && isFullAiBrief(stockBrief) ? "mimo" : "rules",
+      source: briefMicrocopy && isFullAiBrief(stockBrief) ? LLM_BRIEF_SOURCE : "rules",
     },
     ai_directive: Object.keys(rawDirective).length > 0
       ? {
@@ -1547,8 +1548,9 @@ export async function rebuildAndSaveWatchlistView(
   if (
     options?.preserveBriefIfFallback &&
     previousData?.brief &&
-    previousData.brief.source === "mimo" &&
-    view.brief.source !== "mimo"
+    previousData.brief.source &&
+    isLlmBriefSource(previousData.brief.source) &&
+    !isLlmBriefSource(view.brief.source)
   ) {
     view.brief = previousData.brief;
   }

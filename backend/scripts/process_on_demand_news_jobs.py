@@ -17,6 +17,7 @@ from backend.instrument_universe import get_instrument
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_pipeline import collect_per_ticker_articles
 from backend.pipeline_logging import configure_pipeline_logging
+from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.stock_intelligence import build_stock_intelligence_docs
 from backend.storage import TraceMoneyStore
 
@@ -36,7 +37,7 @@ def _now() -> str:
 def _normalize_doc(doc: dict[str, Any]) -> dict[str, Any]:
     """Make stock_intelligence docs match the app's current AI-tab contract."""
     out = dict(doc)
-    out["source"] = "mimo"
+    out["source"] = LLM_BRIEF_SOURCE
     if not out.get("coverage_type"):
         out["coverage_type"] = "on_demand_news"
 

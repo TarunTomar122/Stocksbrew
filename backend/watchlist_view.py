@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.storage import TraceMoneyStore
+from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.stock_intelligence import generate_portfolio_brief
 
 FREE_WATCHLIST_ROW_CAP = 3
@@ -827,7 +828,7 @@ def _build_portfolio_brief(
 
     result = {
         **result,
-        "source": "mimo",
+        "source": LLM_BRIEF_SOURCE,
         "status": "ready",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }

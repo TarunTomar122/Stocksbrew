@@ -1,14 +1,13 @@
 import { adminFirestore } from "@/lib/firebase-admin";
+import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
 import type { Instrument } from "@/lib/types";
 
 type Market = "US" | "IN";
 type Dict = Record<string, unknown>;
 
-const MIMO_API_URL =
-  process.env.MIMO_API_URL ||
-  "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions";
-const MIMO_MODEL = process.env.MIMO_MODEL || "mimo-v2.5";
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
 const SYSTEM_PROMPT = `You write premium stock Radar briefs for paid users.
 Use only the supplied price, technical, analyst, and scorecard facts.
@@ -132,7 +131,7 @@ function parseJsonContent(content: string): Dict {
   } catch {
     const start = raw.indexOf("{");
     const end = raw.lastIndexOf("}");
-    if (start < 0 || end <= start) throw new Error("MiMo response did not contain JSON");
+    if (start < 0 || end <= start) throw new Error("OpenAI response did not contain JSON");
     return JSON.parse(raw.slice(start, end + 1)) as Dict;
   }
 }
@@ -215,22 +214,21 @@ async function loadIntelPro(instrumentId: string, market: Market): Promise<Dict 
   return null;
 }
 
-async function callMimo(payload: Dict): Promise<Dict | null> {
-  const apiKey = process.env.MIMO_API_KEY?.trim();
+async function callOpenAi(payload: Dict): Promise<Dict | null> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
 
-  const res = await fetch(MIMO_API_URL, {
+  const res = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: MIMO_MODEL,
+      model: OPENAI_MODEL,
       temperature: 0.25,
       top_p: 0.9,
       max_completion_tokens: 1200,
-      stream: false,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -244,13 +242,13 @@ async function callMimo(payload: Dict): Promise<Dict | null> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`MiMo on-demand brief failed: ${res.status} ${body.slice(0, 200)}`);
+    throw new Error(`OpenAI on-demand brief failed: ${res.status} ${body.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) {
-    throw new Error("MiMo returned empty on-demand brief");
+    throw new Error("OpenAI returned empty on-demand brief");
   }
   return parseJsonContent(content);
 }
@@ -298,18 +296,19 @@ export async function ensureOnDemandStockBrief(
     scorecard: compactIntelPro(intelPro),
   };
 
-  let source: "mimo" | "rules" = "rules";
+  let source: BriefSource = "rules";
   let brief = fallback;
   try {
-    const aiBrief = await callMimo(llmPayload);
+    const aiBrief = await callOpenAi(llmPayload);
     if (aiBrief) {
       brief = normalizeBrief(aiBrief, fallback);
-      source = "mimo";
+      source = LLM_BRIEF_SOURCE;
     }
   } catch (err) {
-    console.error("[on-demand-stock-brief] MiMo generation failed:", err);
+    console.error("[on-demand-stock-brief] OpenAI generation failed:", err);
   }
 
+  const llmGenerated = isLlmBriefSource(source);
   const now = new Date().toISOString();
   await ref.set(
     {
@@ -320,13 +319,13 @@ export async function ensureOnDemandStockBrief(
       generated_at: now,
       as_of: now,
       source,
-      coverage_type: source === "mimo" ? "on_demand_no_news" : "on_demand_fallback",
+      coverage_type: llmGenerated ? "on_demand_no_news" : "on_demand_fallback",
       news_count: 0,
       source_count: 0,
       ...brief,
       data_quality: {
-        freshness_status: source === "mimo" ? "fresh" : "pending",
-        confidence_score: source === "mimo" ? 65 : 45,
+        freshness_status: llmGenerated ? "fresh" : "pending",
+        confidence_score: llmGenerated ? 65 : 45,
         evidence_count: 0,
         source_tier_mix: { price: 1, technicals: technicals ? 1 : 0, scorecard: intelPro ? 1 : 0 },
       },
@@ -334,5 +333,5 @@ export async function ensureOnDemandStockBrief(
     { merge: true },
   );
 
-  return source === "mimo" ? "generated" : "fallback";
+  return llmGenerated ? "generated" : "fallback";
 }
