@@ -3,29 +3,42 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ProBadge } from "@/components/pro-badge";
 
-type TabKey = "overview" | "analyst" | "fundamentals" | "ai";
+type TabKey = "overview" | "analyst" | "fundamentals" | "earnings" | "ai";
 
 type Props = {
   overview: ReactNode;
   analyst: ReactNode;
   fundamentals: ReactNode;
+  earnings?: ReactNode | null;
   ai: ReactNode | null;
   isSubscribed: boolean;
 };
 
-const TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
+const BASE_TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "analyst", label: "Analyst" },
   { key: "fundamentals", label: "Fundamentals" },
   { key: "ai", label: "AI brief", narrowLabel: "AI" },
+  { key: "earnings", label: "Earnings" },
 ];
 
 const SCROLL_OFFSET = typeof window !== "undefined" && window.innerWidth < 768 ? 160 : 140;
 
-export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribed }: Props) {
+export function StockPageTabs({
+  overview,
+  analyst,
+  fundamentals,
+  earnings,
+  ai,
+  isSubscribed,
+}: Props) {
   const [active, setActive] = useState<TabKey>("overview");
   const clickLockUntil = useRef(0);
-  const visible = ai ? TABS : TABS.filter((t) => t.key !== "ai");
+  const visible = BASE_TABS.filter((t) => {
+    if (t.key === "ai" && !ai) return false;
+    if (t.key === "earnings" && !earnings) return false;
+    return true;
+  });
 
   useEffect(() => {
     function onScroll() {
@@ -57,6 +70,7 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
     overview,
     analyst,
     fundamentals,
+    earnings: earnings ?? null,
     ai,
   };
 

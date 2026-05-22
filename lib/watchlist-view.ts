@@ -377,12 +377,23 @@ function targetUpsidePct(
 
 function eventIsCurrent(dateLabel: string): boolean {
   const parts = dateLabel.toLowerCase().replaceAll(",", " ").split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return true;
+  if (parts.length < 2) return false;
   const month = MONTHS[parts[0].slice(0, 3)];
   const day = Number(parts[1]);
-  if (month === undefined || !Number.isFinite(day)) return true;
+  if (month === undefined || !Number.isFinite(day)) return false;
   const now = new Date();
-  const eventDate = new Date(Date.UTC(now.getUTCFullYear(), month, day));
+  let year = now.getUTCFullYear();
+  if (parts.length >= 3) {
+    const parsedYear = Number(parts[2]);
+    if (Number.isFinite(parsedYear)) year = parsedYear;
+  }
+  let eventDate = new Date(Date.UTC(year, month, day));
+  if (parts.length < 3) {
+    const todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const deltaDays = Math.round((eventDate.getTime() - todayTs) / 86_400_000);
+    if (deltaDays < -180) eventDate = new Date(Date.UTC(year + 1, month, day));
+    else if (deltaDays > 180) eventDate = new Date(Date.UTC(year - 1, month, day));
+  }
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const deltaDays = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
   return deltaDays >= -1 && deltaDays <= 45;
@@ -390,9 +401,22 @@ function eventIsCurrent(dateLabel: string): boolean {
 
 function catalystIsCurrent(catalyst: Record<string, unknown>): boolean {
   if (String(catalyst.kind || "").toLowerCase() !== "earnings") return true;
+  const dateLabel = String(catalyst.date_label || catalyst.window || "").trim();
+  if (dateLabel && eventIsCurrent(dateLabel)) return true;
+  const dateRaw = String(catalyst.date || "").trim();
+  if (dateRaw) {
+    const iso = dateRaw.split("T", 1)[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const now = new Date();
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const eventDate = new Date(`${iso}T00:00:00.000Z`);
+      const delta = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
+      if (delta >= -1 && delta <= 45) return true;
+    }
+  }
   const parts = String(catalyst.title || "").split(/\s+/).filter(Boolean);
-  if (parts.length >= 3) return eventIsCurrent(`${parts[1]} ${parts[2]}`);
-  return true;
+  if (parts.length >= 3) return eventIsCurrent(parts.slice(1).join(" "));
+  return false;
 }
 
 function premiumSignals(
@@ -1091,7 +1115,7 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
   const summaryParts: string[] = [];
   if (dominant) summaryParts.push(`${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`);
   const avgOverall = averageScore(rows, "overall");
-  if (avgOverall !== null) summaryParts.push(`Average tikrr score is ${avgOverall}.`);
+  if (avgOverall !== null) summaryParts.push(`Average stocksbrew score is ${avgOverall}.`);
   if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
   if (opportunities.length) {
     summaryParts.push(
@@ -1151,7 +1175,7 @@ function riskSummary(rows: WatchlistRow[], portfolio: Record<string, unknown>): 
     ? String(highAttentionHoldings[0].attention_reason || "A holding has a material signal.")
     : dominant
       ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of Radar names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
-      : "Add more holdings/watching names and tikrr will detect concentration, technical, and news risk.";
+      : "Add more holdings/watching names and stocksbrew will detect concentration, technical, and news risk.";
   return {
     headline,
     body,
@@ -1468,7 +1492,7 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
     blind_spot_title: "Exposure check",
     blind_spot_body: concentrated
       ? `Most of this Radar clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
-      : "No obvious concentration yet. Add more stocks and tikrr will flag sector, style, and event blind spots.",
+      : "No obvious concentration yet. Add more stocks and stocksbrew will flag sector, style, and event blind spots.",
     essential_events: alertEvents.length
       ? alertEvents.slice(0, 5)
       : movers.slice(0, 3).map((row) => ({

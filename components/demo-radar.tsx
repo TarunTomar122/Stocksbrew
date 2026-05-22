@@ -200,7 +200,7 @@ export function DemoRadar() {
                 Your Radar
               </h1>
               <p className="text-[15px] text-[#6b7280] leading-[1.65] mt-3">
-                Every morning, tikrr reads the market and tells you exactly what to do
+                Every morning, stocksbrew reads the market and tells you exactly what to do
                 with each stock you own: directives, risk flags, and opportunities, personalized
                 to your portfolio. This is what yours could look like.
               </p>
@@ -311,7 +311,7 @@ export function DemoRadar() {
               <span className="text-[#10b981]">It takes 30 seconds.</span>
             </h2>
             <p className="text-[14px] text-[#6b7280] leading-[1.6]">
-              Add the stocks you own and watch. tikrr builds a personalized Radar overnight with
+              Add the stocks you own and watch. stocksbrew builds a personalized Radar overnight with
               a full directive on every holding, risk flags, and opportunities, waiting for you
               each morning. Free for 3 stocks, no credit card.
             </p>

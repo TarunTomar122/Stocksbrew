@@ -7,16 +7,16 @@ import { SubscriptionSuccessModal } from "@/components/subscription-success-moda
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
-  description: "Unlock Pro access to AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts. Free and Pro plans available.",
+  description: "Unlock Pro for unlimited Radar stocks, personalized buy/hold/sell calls, full scorecards, and email alerts when stocks hit buy or sell zones. Free for 3 stocks.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
-    title: "tikrr Pro - Pricing & Plans",
-    description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
-    url: "https://www.tikrr.online/subscribe",
+    title: "stocksbrew Pro - Pricing & Plans",
+    description: "Unlimited Radar, research-backed calls, price triggers, and email alerts when setups change.",
+    url: "https://www.stocksbrew.online/subscribe",
   },
   twitter: {
-    title: "tikrr Pro - Pricing & Plans",
-    description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
+    title: "stocksbrew Pro - Pricing & Plans",
+    description: "Unlimited Radar, research-backed calls, price triggers, and email alerts when setups change.",
   },
 };
 

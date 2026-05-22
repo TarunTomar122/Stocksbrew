@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Disclaimer · tikrr",
+  title: "Disclaimer · stocksbrew",
 };
 
 export default function DisclaimerPage() {
@@ -9,14 +9,14 @@ export default function DisclaimerPage() {
     <LegalLayout
       eyebrow="Legal"
       title="Investment disclaimer"
-      subtitle="A plain-English statement of what tikrr is and isn't, so there's no ambiguity when money is on the line."
+      subtitle="A plain-English statement of what stocksbrew is and isn't, so there's no ambiguity when money is on the line."
       updated="May 2026"
     >
       <section>
         <h2>Not investment advice</h2>
         <p>
-          tikrr publishes market data, news summaries, AI-generated briefs,
-          screens, and alerts. None of it is investment advice. tikrr is not a
+          stocksbrew publishes market data, news summaries, AI-generated briefs,
+          screens, and alerts. None of it is investment advice. stocksbrew is not a
           registered investment advisor, broker-dealer, or financial planner in
           any jurisdiction. Nothing on the service is a recommendation to buy,
           sell, or hold any security.
@@ -26,7 +26,7 @@ export default function DisclaimerPage() {
       <section>
         <h2>Past performance</h2>
         <p>
-          Historical price action, returns, and screen results shown on tikrr do
+          Historical price action, returns, and screen results shown on stocksbrew do
           not guarantee future performance. Markets are uncertain and your own
           results may differ materially.
         </p>

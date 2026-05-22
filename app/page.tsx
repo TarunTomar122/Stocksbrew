@@ -1,6 +1,7 @@
 import { Suspense, cache } from "react";
 import { DailyAnomalies } from "@/components/daily-anomalies";
 import { HeroSection } from "@/components/hero-section";
+import { HomeHeroLive } from "@/components/home-hero-live";
 import { HomeContent } from "@/components/home-content";
 import { MarketCues } from "@/components/market-cues";
 import { SectorSpotlights } from "@/components/sector-spotlights";
@@ -323,20 +324,40 @@ function HomeContentFallback() {
   );
 }
 
-async function HomeHero() {
-  const core = await loadHomeCore();
-  const { macroTicks, isSubscribed } = core;
-  const indices = macroTicks.slice(0, 5).map((t) => ({
-    ticker: t.ticker,
-    name: t.name,
-    price: t.price ?? 0,
-    changePct: t.day_change_pct ?? 0,
-  }));
+function HomeSignalStreamFallback({ title }: { title: string }) {
   return (
-    <HeroSection
-      indices={indices}
-      isSubscribed={isSubscribed}
-    />
+    <section className="flex flex-col gap-4 animate-pulse">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <SkeletonBlock className="h-7 w-44 rounded-lg" />
+          <SkeletonBlock className="h-6 w-16 rounded-full" />
+        </div>
+        <SkeletonBlock className="h-12 w-40 rounded-2xl" />
+      </div>
+      <SkeletonBlock className="h-4 w-80 max-w-full" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={`${title}-card-${i}`}
+            className="rounded-3xl border border-[#e5e7eb] bg-white p-6 flex flex-col gap-4"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <SkeletonBlock className="h-11 w-11 rounded-xl" />
+                <div className="flex flex-col gap-1.5">
+                  <SkeletonBlock className="h-4 w-20" />
+                  <SkeletonBlock className="h-3 w-28" />
+                </div>
+              </div>
+              <SkeletonBlock className="h-6 w-16 rounded-lg" />
+            </div>
+            <SkeletonBlock className="h-6 w-32" />
+            <SkeletonBlock className="h-4 w-full" />
+            <SkeletonBlock className="h-4 w-5/6" />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -406,14 +427,14 @@ async function HomeContentStream() {
 export default function HomePage() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-16 lg:px-28 xl:px-40 py-8 md:py-10 flex flex-col gap-16 md:gap-20">
-        <HomeHero />
+      <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 py-8 md:py-10 flex flex-col gap-16 md:gap-20">
+        <HomeHeroLive />
 
-        <Suspense fallback={null}>
+        <Suspense fallback={<HomeSignalStreamFallback title="anomalies" />}>
           <HomeAnomaliesStream />
         </Suspense>
 
-        <Suspense fallback={null}>
+        <Suspense fallback={<HomeSignalStreamFallback title="reddit" />}>
           <HomeRedditStream />
         </Suspense>
 

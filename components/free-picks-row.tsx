@@ -31,7 +31,7 @@ export function FreePicksRow({ instrumentIds, snapshotRows }: Props) {
           On the house - tracked for everyone
         </h2>
         <p className="text-[12px] text-on-surface-variant">
-          News-backed AI reads refreshed twice daily on these {picks.length}{" "}
+          Research-backed buy, hold, and sell reads on these {picks.length}{" "}
           stocks. No sign-in required.
         </p>
       </div>
@@ -117,7 +117,7 @@ function WatchlistCTA() {
       <ul className="flex flex-col gap-1.5 text-[12px] text-on-surface">
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
-          <span>Full AI brief on every radar stock, twice a day</span>
+          <span>Personalized calls on every Radar stock</span>
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>

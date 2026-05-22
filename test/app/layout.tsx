@@ -15,7 +15,7 @@ const bodyFont = IBM_Plex_Sans({
 });
 
 export const metadata = {
-  title: "Tikrr Test Frontend",
+  title: "stocksbrew Test Frontend",
   description: "US market explorer",
 };
 

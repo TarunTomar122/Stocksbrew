@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "Daily market headlines with tone filters - scan fast and open the stories that matter. Filter by bullish, bearish, or neutral sentiment.",
   alternates: { canonical: "/news" },
   openGraph: {
-    title: "Market News · tikrr",
+    title: "Market News · stocksbrew",
     description: "Daily market headlines with tone filters - scan fast and open the stories that matter.",
-    url: "https://www.tikrr.online/news",
+    url: "https://www.stocksbrew.online/news",
   },
   twitter: {
-    title: "Market News · tikrr",
+    title: "Market News · stocksbrew",
     description: "Daily market headlines with tone filters - scan fast and open the stories that matter.",
   },
 };

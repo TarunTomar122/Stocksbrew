@@ -14,7 +14,7 @@ export function AppShell({ title, subtitle, children }: ShellProps) {
     <main className="page-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">Tikrr Test</p>
+          <p className="eyebrow">stocksbrew Test</p>
           <h1>{title}</h1>
           {subtitle ? <p className="subtitle">{subtitle}</p> : null}
         </div>

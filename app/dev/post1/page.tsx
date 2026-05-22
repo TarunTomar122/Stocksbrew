@@ -25,7 +25,7 @@ export default function Post1() {
 
       {/* Logo */}
       <div className="flex-shrink-0">
-        <span className="text-[20px] font-semibold text-[#111215] tracking-[-0.04em]">tikrr</span>
+        <span className="text-[20px] font-semibold text-[#111215] tracking-[-0.04em]">stocksbrew</span>
       </div>
 
       {/* Two-column body */}

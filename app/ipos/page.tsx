@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { IpoCalendar } from "@/components/ipo-calendar";
 
 export const metadata: Metadata = {
-  title: "IPO Calendar | tikrr",
+  title: "IPO Calendar | stocksbrew",
   description: "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
   openGraph: {
-    title: "IPO Calendar | tikrr",
+    title: "IPO Calendar | stocksbrew",
     description: "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
   },
 };

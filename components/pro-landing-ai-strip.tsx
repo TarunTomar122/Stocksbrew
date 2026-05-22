@@ -31,7 +31,7 @@ const VALUE_PROPS: ValueProp[] = [
     iconBg: "#eff6ff",
     iconFg: "#0052ff",
     title: "Numbers into pillars",
-    body: "tikrr reads the fundamentals and surfaces key insights into four pillars that you can skim on the scorecard.",
+    body: "stocksbrew reads the fundamentals and surfaces key insights into four pillars that you can skim on the scorecard.",
   },
   {
     icon: "mark_email_read",
@@ -44,8 +44,8 @@ const VALUE_PROPS: ValueProp[] = [
     icon: "schedule",
     iconBg: "#fef3c7",
     iconFg: "#92400e",
-    title: "AI runs twice daily",
-    body: "Morning and after-close passes re-read news and filings against your list so Overview tiles and AI briefs stay current. WhatsApp delivery is on the way.",
+    title: "Research stays current",
+    body: "We re-read fundamentals, news, Reddit, and earnings against your list so calls and overview tiles stay fresh. WhatsApp delivery is on the way.",
   },
 ];
 

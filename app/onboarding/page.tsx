@@ -124,7 +124,7 @@ const SLIDES = [
   {
     label: "AI directives",
     title: "An AI take on every stock you follow",
-    subtitle: "tikrr reads the news and filings twice a day and gives you a plain opinion on what's going on - so you don't have to piece it together yourself.",
+    subtitle: "stocksbrew reads fundamentals, news, Reddit, and earnings and gives you a plain buy, hold, or sell read on what's going on - so you don't have to piece it together yourself.",
     demo: <DirectiveSlide />,
   },
   {
@@ -136,7 +136,7 @@ const SLIDES = [
   {
     label: "Radar",
     title: "Your watchlist that keeps up",
-    subtitle: "Add the stocks you follow and tikrr shows you what moved, what's loud in the news, and what needs your attention today.",
+    subtitle: "Add the stocks you follow and stocksbrew shows you what moved, what's loud in the news, and what needs your attention today.",
     demo: <RadarSlide />,
   },
 ];
@@ -191,7 +191,7 @@ export default function OnboardingPage() {
     <div className="fixed inset-0 z-[100] flex flex-col bg-white">
       {/* Top bar */}
       <div className="flex shrink-0 items-center justify-between px-6 md:px-10 h-14 border-b border-[#f3f4f6]">
-        <span className="text-[20px] font-semibold text-[#111111] tracking-[-0.04em]">tikrr</span>
+        <span className="text-[20px] font-semibold text-[#111111] tracking-[-0.04em]">stocksbrew</span>
         {/* Dot progress */}
         <div className="flex items-center gap-1.5">
           {SLIDES.map((_, i) => (

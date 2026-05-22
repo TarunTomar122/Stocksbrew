@@ -82,6 +82,21 @@ function fmtRunwayPct(v: number | null | undefined): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
+function groupSummary(rows: WatchlistRow[]): {
+  avgPct: number | null;
+  totalAbs: number | null;
+  currency: string;
+} {
+  const pcts = rows.map((r) => num(r.day_change_pct)).filter((n): n is number => n !== null);
+  const absRows = rows.filter((r) => num(r.day_change_abs) !== null);
+  const avgPct = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
+  const totalAbs = absRows.length
+    ? absRows.reduce((s, r) => s + (num(r.day_change_abs) ?? 0), 0)
+    : null;
+  const currency = rows.find((r) => r.currency)?.currency ?? "USD";
+  return { avgPct, totalAbs, currency };
+}
+
 const STANCE_CHIP: Record<
   string,
   { label: string; bg: string; fg: string; dot: string }
@@ -154,34 +169,66 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
       ) : (
         <>
           {/* ── Mobile card list (< md) ── */}
-          <div className="md:hidden rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden max-h-[560px] overflow-y-auto">
-            {rows.map((row, i) => (
-              <MobileRow key={row.instrument_id} row={row} hasBorder={i > 0} />
-            ))}
+          <div className="md:hidden rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+            <DailySummary rows={rows} label={tab === "holdings" ? "Holdings" : "Watching"} />
+            <div className="max-h-[560px] overflow-y-auto">
+              {rows.map((row, i) => (
+                <MobileRow key={row.instrument_id} row={row} hasBorder={i > 0} />
+              ))}
+            </div>
           </div>
 
           {/* ── Desktop table (≥ md) ── */}
-          <div className="hidden md:block overflow-x-auto overflow-y-auto max-h-[540px] rounded-2xl border border-[#e5e7eb] bg-white">
-            <table className="w-full min-w-[720px] border-collapse text-[13px]">
-              <thead className="sticky top-0 z-10 bg-white">
-                <tr className="border-b border-[#f3f4f6] text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
-                  <th className="px-4 py-3 font-semibold">Ticker</th>
-                  <th className="px-3 py-3 text-right font-semibold">Price</th>
-                  <th className="px-3 py-3 text-right font-semibold">Change</th>
-                  <th className="px-3 py-3 text-right font-semibold">Runway</th>
-                  <th className="px-4 py-3 font-semibold">Directive</th>
-                  <th className="px-3 py-3 w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <LedgerRow key={row.instrument_id} row={row} />
-                ))}
-              </tbody>
-            </table>
+          <div className="hidden md:block rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+            <DailySummary rows={rows} label={tab === "holdings" ? "Holdings" : "Watching"} />
+            <div className="overflow-x-auto overflow-y-auto max-h-[540px]">
+              <table className="w-full min-w-[720px] border-collapse text-[13px]">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr className="border-b border-[#f3f4f6] text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+                    <th className="px-4 py-3 font-semibold">Ticker</th>
+                    <th className="px-3 py-3 text-right font-semibold">Price</th>
+                    <th className="px-3 py-3 text-right font-semibold">Change</th>
+                    <th className="px-3 py-3 text-right font-semibold">Runway</th>
+                    <th className="px-4 py-3 font-semibold">Directive</th>
+                    <th className="px-3 py-3 w-8" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <LedgerRow key={row.instrument_id} row={row} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function DailySummary({ rows, label }: { rows: WatchlistRow[]; label: string }) {
+  const { avgPct, totalAbs, currency } = groupSummary(rows);
+  if (avgPct === null) return null;
+  const positive = avgPct >= 0;
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-3">
+      <span className="text-[12px] font-medium text-[#9ca3af]">{label} · today</span>
+      <div className="flex flex-col items-end gap-0.5">
+        <span
+          className={`text-[14px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
+        >
+          {fmtSignedPct(avgPct)}
+        </span>
+        {totalAbs !== null && (
+          <span
+            className={`text-[12px] tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
+          >
+            {fmtSignedAbs(totalAbs, currency)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -224,7 +271,7 @@ function TabButton({
 // -----------------------------------------------------------------------------
 
 const FALLBACK_SUGGESTIONS: Suggestion[] = [
-  { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on tikrr.", market: "US" },
+  { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on stocksbrew.", market: "US" },
   { ticker: "NVDA", sector: "Semiconductors", reason: "AI infra leader · high heat.", market: "US" },
   { ticker: "MSFT", sector: "Software", reason: "Quality compounder · steady.", market: "US" },
   { ticker: "META", sector: "Communication Services", reason: "Analyst runway +33%.", market: "US" },

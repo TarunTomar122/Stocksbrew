@@ -1,4 +1,4 @@
-"""Lifecycle email templates + Brevo sender for Tikrr."""
+"""Lifecycle email templates + Brevo sender for stocksbrew."""
 from __future__ import annotations
 
 import os
@@ -13,8 +13,8 @@ load_backend_env()
 
 BREVO_API = "https://api.brevo.com/v3/smtp/email"
 FROM_EMAIL = "yourtrace.online@gmail.com"
-FROM_NAME = "tikrr"
-APP_URL = os.environ.get("NEXT_PUBLIC_APP_URL", "https://www.tikrr.online").rstrip("/")
+FROM_NAME = "stocksbrew"
+APP_URL = os.environ.get("NEXT_PUBLIC_APP_URL", "https://www.stocksbrew.online").rstrip("/")
 EMAIL_PREVIEWS_DIR = Path(__file__).resolve().parent / "email_previews"
 
 
@@ -50,7 +50,7 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
         return False
 
 
-def _card(title: str, lines: list[str], cta_label: str, cta_url: str, kicker: str = "tikrr") -> str:
+def _card(title: str, lines: list[str], cta_label: str, cta_url: str, kicker: str = "stocksbrew") -> str:
     body = "".join([f"<p style='margin:0 0 10px 0;font-size:14px;line-height:1.55;color:#374151'>{line}</p>" for line in lines])
     return f"""<!doctype html><html><body style=\"margin:0;padding:0;background:#f3f4f6\">
 <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"padding:28px 14px\"><tr><td align=\"center\">
@@ -106,7 +106,7 @@ def email_track_blocked(ticker: str | None = None) -> tuple[str, str]:
         title=f"Unlock Radar for {ticker or 'this stock'}",
         lines=[
             "You just tried to add a stock to Radar.",
-            "Radar tracking runs personal AI briefs twice daily, so this is a Pro feature.",
+            "Radar tracking runs personalized buy, hold, and sell calls plus alerts, so this is a Pro feature.",
             "Upgrade now to track holdings, watchlist names, and get AI stance updates.",
         ],
         cta_label="See Pro plans",
@@ -218,11 +218,11 @@ def email_pro_directive_change(
 
 def email_stock_request_ready(*, ticker: str, company_name: str | None = None) -> tuple[str, str]:
     display = (company_name or ticker).strip()
-    subject = f"{ticker} is now live on tikrr"
+    subject = f"{ticker} is now live on stocksbrew"
     html = _card(
         title=f"{display} is ready to track",
         lines=[
-            f"We added {ticker} to Tikrr based on your request.",
+            f"We added {ticker} to stocksbrew based on your request.",
             "You can now open the stock page, track it in Radar, and get fresh updates.",
             "Thanks for helping us improve coverage.",
         ],
@@ -525,11 +525,11 @@ def email_pro_daily_digest(
 
     subject = "Your daily Radar pulse"
     html = f"""<!doctype html><html lang='en'><head><meta charset='UTF-8' /><meta name='viewport' content='width=device-width, initial-scale=1.0' />
-  <title>Your daily Radar pulse - tikrr</title></head>
+  <title>Your daily Radar pulse - stocksbrew</title></head>
 <body style='margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif'>
   <table width='100%' cellpadding='0' cellspacing='0' style='padding:32px 16px'><tr><td align='center'>
     <table width='580' cellpadding='0' cellspacing='0'><tr><td style='padding-bottom:20px'>
-      <span style='font-size:24px;font-weight:800;color:#111111;letter-spacing:-0.05em'>tikrr</span></td></tr></table>
+      <span style='font-size:24px;font-weight:800;color:#111111;letter-spacing:-0.05em'>stocksbrew</span></td></tr></table>
     <table width='580' cellpadding='0' cellspacing='0' style='background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden'>
       <tr><td style='padding:28px 32px 20px 32px'>
         <div style='font-size:30px;font-weight:800;color:#111111;line-height:1.15;letter-spacing:-0.03em;margin-bottom:8px'>Your Radar today</div>
@@ -538,7 +538,7 @@ def email_pro_daily_digest(
       {sections_html}
       {events_html}
       <tr><td style='padding:24px 32px 32px 32px'><a href='{APP_URL}/watchlist' style='display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:13px 28px;border-radius:999px;letter-spacing:-0.01em'>Open Radar &rarr;</a>
-      <div style='margin-top:10px;font-size:12px;color:#9ca3af'>Next digest tomorrow morning. AI briefs refresh twice daily.</div></td></tr>
+      <div style='margin-top:10px;font-size:12px;color:#9ca3af'>Calls and alerts update as news, fundamentals, and price action change.</div></td></tr>
     </table>
   </td></tr></table></body></html>"""
     return subject, html

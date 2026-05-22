@@ -423,8 +423,8 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 border-b border-outline-variant/20">
           <FeatureCallout
             icon="schedule"
-            title="Twice-daily brief"
-            body="AM + close read on every stock you track."
+            title="Personalized calls"
+            body="Buy, hold, or sell guidance on every stock you track."
           />
           <FeatureCallout
             icon="warning"
@@ -485,7 +485,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
 
   // --- Case: anon or non-subscribed → blurred sample + CTA overlay ---
   const teaserTitle = "Your Radar";
-  const teaserBody = "Twice-daily AI on the tickers you track.";
+  const teaserBody = "Research-backed calls on the tickers you track.";
   const ctaLabel = signedIn ? "Unlock Radar" : "Sign in to start";
   const onClick = signedIn ? () => router.push("/subscribe") : handleSignIn;
 

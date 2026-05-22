@@ -6,9 +6,9 @@ import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
-const ON_DEMAND_QUEUE_DEDUPE_MS = 90 * 1000;
 
 type PositionType = "holding" | "watchlist";
 
@@ -28,50 +28,6 @@ function batchLog(traceId: string, level: BatchLogLevel, msg: string, meta?: Rec
 
 function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
   return instrumentId.startsWith("IN_") ? "IN" : "US";
-}
-
-async function maybeQueueOnDemandNews(uid: string, instrumentId: string): Promise<boolean> {
-  const coveredSnap = await adminFirestore.collection("tm_tracked_instruments").doc(instrumentId).get();
-  const coveredCount = coveredSnap.exists ? Number(coveredSnap.data()?.tracked_count ?? 0) : 0;
-  if (Number.isFinite(coveredCount) && coveredCount > 0) return false;
-
-  const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
-  let queued = false;
-  await adminFirestore.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const existing = snap.exists ? snap.data() : null;
-    const status = String(existing?.status || "");
-    const updatedAtRaw = String(existing?.updated_at || "");
-    const updatedAt = Date.parse(updatedAtRaw);
-    const recentlyQueued =
-      status === "queued" && Number.isFinite(updatedAt) && Date.now() - updatedAt < ON_DEMAND_QUEUE_DEDUPE_MS;
-    if (status === "running" || recentlyQueued) {
-      tx.set(
-        ref,
-        {
-          requested_by: FieldValue.arrayUnion(uid),
-          requested_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { merge: true },
-      );
-      return;
-    }
-    tx.set(
-      ref,
-      {
-        instrument_id: instrumentId,
-        market: marketFromInstrumentId(instrumentId),
-        status: "queued",
-        requested_by: FieldValue.arrayUnion(uid),
-        requested_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { merge: true },
-    );
-    queued = true;
-  });
-  return queued;
 }
 
 function normalizeItems(rawItems: unknown): BatchItem[] {

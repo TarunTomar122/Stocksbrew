@@ -5,10 +5,10 @@ import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
 
 export const metadata: Metadata = {
-  title: "Earnings Calendar | tikrr",
+  title: "Earnings Calendar | stocksbrew",
   description: "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
   openGraph: {
-    title: "Earnings Calendar | tikrr",
+    title: "Earnings Calendar | stocksbrew",
     description: "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
   },
 };

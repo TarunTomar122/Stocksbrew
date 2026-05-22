@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Cookie policy · tikrr",
+  title: "Cookie policy · stocksbrew",
 };
 
 export default function CookiesPage() {
@@ -9,7 +9,7 @@ export default function CookiesPage() {
     <LegalLayout
       eyebrow="Legal"
       title="Cookie policy"
-      subtitle="tikrr uses a small set of cookies to keep you signed in and to remember your market choice. We don't run tracking ads."
+      subtitle="stocksbrew uses a small set of cookies to keep you signed in and to remember your market choice. We don't run tracking ads."
       updated="May 2026"
     >
       <section>
@@ -32,7 +32,7 @@ export default function CookiesPage() {
         <p>
           We use a privacy-respecting analytics setup that doesn't store
           personally identifiable information in cookies. No cross-site
-          advertising trackers run on tikrr.
+          advertising trackers run on stocksbrew.
         </p>
       </section>
 

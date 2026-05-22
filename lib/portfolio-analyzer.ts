@@ -224,7 +224,7 @@ export async function analyzePortfolio(tickers: string[]): Promise<PortfolioAnal
   const avgOverall = averageScores(stocks, "overall");
   if (avgOverall !== null) {
     const label = avgOverall >= 75 ? "Solid" : avgOverall >= 55 ? "Average" : avgOverall >= 35 ? "Mixed" : "Weak";
-    summaryParts.push(`Average tikrr score is ${avgOverall} (${label}).`);
+    summaryParts.push(`Average stocksbrew score is ${avgOverall} (${label}).`);
   }
   if (stocks.length === unique.length) summaryParts.push(`All ${stocks.length} stocks resolved.`);
 

@@ -581,7 +581,7 @@ function ProCTA() {
           </h3>
         </div>
         <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-[480px]">
-          Tikrr Pro tracks each of your stocks daily, flagging risk before it hits, surfacing opportunities you&apos;d miss, and telling you exactly what to do with every holding every morning.
+          stocksbrew Pro tracks each of your stocks daily, flagging risk before it hits, surfacing opportunities you&apos;d miss, and telling you exactly what to do with every holding every morning.
         </p>
         <ul className="flex flex-col gap-2">
           {[

@@ -27,12 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: brief,
     alternates: { canonical: `/sector/${id}` },
     openGraph: {
-      title: `${label} - Sector Brief · tikrr`,
+      title: `${label} - Sector Brief · stocksbrew`,
       description: brief,
-      url: `https://www.tikrr.online/sector/${id}`,
+      url: `https://www.stocksbrew.online/sector/${id}`,
     },
     twitter: {
-      title: `${label} - Sector Brief · tikrr`,
+      title: `${label} - Sector Brief · stocksbrew`,
       description: brief,
     },
   };

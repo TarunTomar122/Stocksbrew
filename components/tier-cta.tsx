@@ -35,7 +35,7 @@ export function TierCTA({
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3">
         <span className="text-[13px] font-medium text-[#065f46]">
           {isSubscribed
-            ? "Launch list - full AI tab, twice daily."
+            ? "Launch list - full AI tab with personalized calls."
             : "Free launch list - full AI tab on select stocks only. Upgrade for more."}
         </span>
         {user && isSubscribed && (
@@ -131,7 +131,7 @@ export function TierCTA({
   return (
     <CtaCard
       title={`Add ${ticker} to Radar`}
-      body="Holding = you own it. Watching = on your list. We’ll brief both twice daily."
+      body="Holding = you own it. Watching = on your list. You get personalized calls and alerts on both."
       action={
         <TrackButton
           ticker={ticker}

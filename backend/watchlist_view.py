@@ -10,7 +10,7 @@ Firestore round trips at render time.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from backend.storage import TraceMoneyStore
@@ -239,36 +239,132 @@ def _target_upside_pct(price: float | None, facts: dict[str, Any], intel_pro: di
     return None
 
 
-def _event_is_current(date_label: str) -> bool:
-    parts = date_label.lower().replace(",", " ").split()
+def _parse_event_date(raw: Any) -> date | None:
+    if raw is None:
+        return None
+    if isinstance(raw, datetime):
+        return raw.date()
+    if isinstance(raw, date):
+        return raw
+    text = str(raw).strip()
+    if not text:
+        return None
+
+    # ISO date first: YYYY-MM-DD
+    iso_candidate = text.split("T", 1)[0]
+    try:
+        return datetime.strptime(iso_candidate, "%Y-%m-%d").date()
+    except ValueError:
+        pass
+
+    # Month day labels like "May 20 AMC" / "May 20, 2026"
+    cleaned = (
+        text.lower()
+        .replace(",", " ")
+        .replace("amc", "")
+        .replace("bmo", "")
+        .replace("after close", "")
+        .replace("before open", "")
+        .replace("during market", "")
+        .strip()
+    )
+    parts = [part for part in cleaned.split() if part]
     if len(parts) < 2:
-        return True
+        return None
+
     month = MONTHS.get(parts[0][:3])
+    if not month:
+        return None
     try:
         day = int(parts[1])
     except (TypeError, ValueError):
-        return True
-    if not month:
-        return True
+        return None
+
     today = datetime.now(timezone.utc).date()
+    parsed_year = None
+    if len(parts) >= 3:
+        try:
+            parsed_year = int(parts[2])
+        except (TypeError, ValueError):
+            parsed_year = None
+    year = parsed_year or today.year
+
     try:
-        event_date = today.replace(month=month, day=day)
+        event_date = date(year=year, month=month, day=day)
     except ValueError:
-        return True
-    delta = (event_date - today).days
+        return None
+
+    if parsed_year is None:
+        # Handle year-boundary labels that omit year (e.g. Dec viewing Jan event).
+        if (event_date - today).days < -180:
+            try:
+                event_date = date(year=year + 1, month=month, day=day)
+            except ValueError:
+                return None
+        elif (event_date - today).days > 180:
+            try:
+                event_date = date(year=year - 1, month=month, day=day)
+            except ValueError:
+                return None
+    return event_date
+
+
+def _event_is_current(date_label: str) -> bool:
+    parsed = _parse_event_date(date_label)
+    if parsed is None:
+        return False
+    today = datetime.now(timezone.utc).date()
+    delta = (parsed - today).days
     return -1 <= delta <= 45
 
 
 def _catalyst_is_current(catalyst: dict[str, Any]) -> bool:
     if str(catalyst.get("kind") or "").lower() != "earnings":
         return True
-    title = str(catalyst.get("title") or "")
-    # Expected shape is usually "Earnings May 04 AMC"; keep non-date titles
-    # rather than accidentally dropping useful non-standard catalyst text.
-    parts = title.split()
-    if len(parts) >= 3:
-        return _event_is_current(" ".join(parts[1:3]))
-    return True
+    parsed = (
+        _parse_event_date(catalyst.get("date"))
+        or _parse_event_date(catalyst.get("date_label"))
+        or _parse_event_date(catalyst.get("window"))
+    )
+    if parsed is None:
+        title = str(catalyst.get("title") or "")
+        parts = title.split()
+        if len(parts) >= 3:
+            parsed = _parse_event_date(" ".join(parts[1:]))
+    if parsed is None:
+        return False
+    today = datetime.now(timezone.utc).date()
+    delta = (parsed - today).days
+    return -1 <= delta <= 45
+
+
+def _facts_earnings_catalysts(facts: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for event in (facts.get("events") or []):
+        if not isinstance(event, dict):
+            continue
+        if str(event.get("kind") or "").lower() != "earnings":
+            continue
+        parsed = _parse_event_date(event.get("date")) or _parse_event_date(event.get("date_label"))
+        if parsed is None:
+            continue
+        today = datetime.now(timezone.utc).date()
+        delta = (parsed - today).days
+        if not (-1 <= delta <= 45):
+            continue
+        date_label = str(event.get("date_label") or parsed.strftime("%b %d"))
+        out.append(
+            {
+                "kind": "earnings",
+                "title": f"Earnings {date_label}",
+                "date": parsed.isoformat(),
+                "date_label": date_label,
+                "urgency": "high" if delta <= 7 else "med",
+                "window": date_label,
+                "source": event.get("source") or "facts",
+            }
+        )
+    return out
 
 
 def _row_premium_signals(
@@ -437,6 +533,27 @@ def _row_attention(
             "suggested_action": "Read latest context",
             "action_tone": "neutral",
         }
+    intel_catalysts = [
+        catalyst for catalyst in (intel_pro.get("catalysts") or [])
+        if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
+    ]
+    facts_earnings = _facts_earnings_catalysts(facts)
+    merged_catalysts: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for catalyst in [*facts_earnings, *intel_catalysts]:
+        key = "|".join(
+            [
+                str(catalyst.get("kind") or "").lower(),
+                str(catalyst.get("date") or ""),
+                str(catalyst.get("date_label") or ""),
+                str(catalyst.get("title") or ""),
+            ]
+        )
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        merged_catalysts.append(catalyst)
+
     return {
         "attention_score": 35,
         "attention_reason": f"{ticker} is calm. No major price, technical, alert, or news anomaly stood out.",
@@ -566,10 +683,7 @@ def _row_for_instrument(
             "momentum": _safe_float((pillars.get("momentum") or {}).get("score")),
         },
         "alerts": alert_flags,
-        "catalysts": [
-            catalyst for catalyst in (intel_pro.get("catalysts") or [])
-            if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
-        ][:3],
+        "catalysts": merged_catalysts[:3],
         "facts": _facts_summary(facts),
         "technicals": _technical_summary(technical),
         "news_velocity": mention_summary,
@@ -739,7 +853,7 @@ def _fallback_portfolio_brief(rows: list[dict[str, Any]], pulse: dict[str, Any])
     missing_body = (
         f"Most of this watchlist clusters around {dominant_sector}. Add a defensive or unrelated sector to reduce single-theme risk."
         if dominant_sector and sector_counts.get(dominant_sector, 0) >= max(2, len(rows) // 2)
-        else "No obvious concentration yet. Add more stocks and tikrr will flag sector, style, and event blind spots."
+        else "No obvious concentration yet. Add more stocks and stocksbrew will flag sector, style, and event blind spots."
     )
     movers = sorted(rows, key=lambda r: abs(r.get("day_change_pct") or 0), reverse=True)[:4]
     events: list[dict[str, Any]] = []
@@ -1132,7 +1246,7 @@ def _portfolio_diagnostics(
         summary_parts.append(f"{dominant['sector']} is the largest cluster at {dominant['weight_pct']:.0f}%.")
     avg_overall = _average_score(rows, "overall")
     if avg_overall is not None:
-        summary_parts.append(f"Average tikrr score is {avg_overall}.")
+        summary_parts.append(f"Average stocksbrew score is {avg_overall}.")
     if risk_flags:
         summary_parts.append(f"{len(risk_flags)} risk flags need review.")
     if opportunities:
@@ -1191,7 +1305,7 @@ def _risk_summary(rows: list[dict[str, Any]], portfolio: dict[str, Any]) -> dict
         body = f"{round(float(dominant.get('weight_pct') or 0))}% of tracked names sit in {dominant.get('sector')}. Keep an eye on single-theme risk."
     else:
         headline = "No obvious risk cluster yet"
-        body = "Add more holdings/watchlist names and tikrr will detect concentration, technical, and news risk."
+        body = "Add more holdings/watchlist names and stocksbrew will detect concentration, technical, and news risk."
     return {
         "headline": headline,
         "body": body,

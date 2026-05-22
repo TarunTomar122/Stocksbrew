@@ -68,7 +68,7 @@ export function ProfileSubscription({
     if (subscriptionStatus && subscriptionStatus !== "active") {
       return `Status: ${subscriptionStatus.replace(/_/g, " ")}`;
     }
-    return "Pro - full access to tikrr.";
+    return "Pro - full access to stocksbrew.";
   })();
 
   const plan = planLabel(subscriptionPlan ?? undefined);

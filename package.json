@@ -42,7 +42,7 @@
     "build": "next build",
     "dev": "next dev",
     "remotion": "remotion studio",
-    "remotion:render": "remotion render TikrrLaunch out/tikrr-launch.mp4",
+    "remotion:render": "remotion render TikrrLaunch out/stocksbrew-launch.mp4",
     "lint": "eslint .",
     "start": "next start",
     "test": "vitest run",
@@ -50,7 +50,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.64",
+    "@ai-sdk/react": "^3.0.187",
+    "@tavily/core": "^0.7.3",
     "@vercel/analytics": "^2.0.1",
+    "ai": "^6.0.185",
     "fast-xml-parser": "^5.3.1",
     "firebase": "^12.12.1",
     "firebase-admin": "^13.7.0",
@@ -62,7 +66,9 @@
     "posthog-js": "^1.372.9",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.8.1",
+    "remark-gfm": "^4.0.1",
     "standardwebhooks": "^1.0.0",
     "tesseract.js": "^7.0.0"
   },

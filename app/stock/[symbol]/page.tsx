@@ -11,6 +11,7 @@ import { DataQualityStrip } from "@/components/data-quality-strip";
 import { PeersRow } from "@/components/peers-row";
 import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
+import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { StockPageTabs } from "@/components/stock-page-tabs";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
 import { ProLockOverlay } from "@/components/pro-lock-overlay";
@@ -24,8 +25,9 @@ import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
+import { stockMetaDescription } from "@/lib/brand-copy";
 import { getSessionUser } from "@/lib/auth-server";
-import { getMarketMovers } from "@/lib/firestore";
+import { getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
 import {
   getInstrumentViewDoc,
   getOnDemandNewsJob,
@@ -42,6 +44,7 @@ import { getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues"
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 60;
@@ -71,16 +74,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const upper = label.toUpperCase();
   return {
     title: `${upper} - Stock Analysis & AI Brief`,
-    description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your tikrr Radar.`,
+    description: stockMetaDescription(upper),
     alternates: { canonical: `/stock/${upper}` },
     openGraph: {
-      title: `${upper} - Stock Analysis & AI Brief · tikrr`,
-      description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
-      url: `https://www.tikrr.online/stock/${upper}`,
+      title: `${upper} - Stock Analysis & AI Brief · stocksbrew`,
+      description: stockMetaDescription(upper),
+      url: `https://www.stocksbrew.online/stock/${upper}`,
     },
     twitter: {
-      title: `${upper} - Stock Analysis & AI Brief · tikrr`,
-      description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
+      title: `${upper} - Stock Analysis & AI Brief · stocksbrew`,
+      description: stockMetaDescription(upper),
     },
   };
 }
@@ -169,9 +172,11 @@ export default async function StockPage({ params }: Props) {
     intelPro,
     stockFacts,
     marketMovers,
+    priceCoreOverrides,
     anomaliesDoc,
     redditSnapshot,
     onDemandJob,
+    earningsIntel,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -183,14 +188,18 @@ export default async function StockPage({ params }: Props) {
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
+    getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
     getOnDemandNewsJob(stock.instrument_id).catch(() => null),
+    getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null),
   ]);
   const redditTickerContext = resolveRedditContextForSymbol(redditSnapshot, stock.ticker);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
-  const isPriorityStock = priorityIds.includes(stock.instrument_id);
-  const showPriorityNotice = priorityIds.length > 0 && !isPriorityStock;
+  const inPriorityCohort = priorityIds.includes(stock.instrument_id);
+  const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
+  const isHighFrequencyEligible = inPriorityCohort || inExtendedOverrides;
+  const showPriorityNotice = priorityIds.length > 0 && !isHighFrequencyEligible;
   const anomaly = anomaliesDoc?.anomalies.find(
     (a) => a.ticker?.toUpperCase() === stock.ticker.toUpperCase(),
   ) ?? null;
@@ -310,6 +319,10 @@ export default async function StockPage({ params }: Props) {
   const showCards = hasAI && hasVisualCards(intelligence);
   const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown);
 
+  const earningsContent = earningsIntel ? (
+    <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} />
+  ) : null;
+
   const aiContent = subscribed ? (
     hasAI ? (
       <section className="flex flex-col gap-6">
@@ -385,6 +398,7 @@ export default async function StockPage({ params }: Props) {
             overview={overviewContent}
             analyst={analystContent}
             fundamentals={fundamentalsContent}
+            earnings={earningsContent}
             ai={aiContent}
             isSubscribed={subscribed}
           />

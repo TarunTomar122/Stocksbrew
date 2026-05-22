@@ -129,7 +129,7 @@ export function FundamentalsScene() {
       <SpringIn from={0} direction="up" distance={24}>
         <div style={{ textAlign: "center" as const, fontFamily: FONT, fontSize: 22, fontWeight: 500, color: MUTED, letterSpacing: "-0.01em" }}>
           Is it growing? Is it overpriced?{" "}
-          <span style={{ color: TEXT, fontWeight: 700 }}>tikrr breaks down the fundamentals for you.</span>
+          <span style={{ color: TEXT, fontWeight: 700 }}>stocksbrew breaks down the fundamentals for you.</span>
         </div>
       </SpringIn>
 

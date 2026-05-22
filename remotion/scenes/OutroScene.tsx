@@ -31,7 +31,7 @@ export function OutroScene() {
         gap: 18,
       }}
     >
-      {/* tikrr.online - big, bouncy */}
+      {/* www.stocksbrew.online - big, bouncy */}
       <div
         style={{
           opacity: urlOpacity,
@@ -44,7 +44,7 @@ export function OutroScene() {
           lineHeight: 1,
         }}
       >
-        tikrr.online
+        www.stocksbrew.online
       </div>
 
       {/* Subtitle */}
@@ -59,7 +59,7 @@ export function OutroScene() {
           letterSpacing: "0.01em",
         }}
       >
-        Market intelligence for everyone.
+        Personalized stock calls. Research-backed. Alerts when it matters.
       </div>
     </div>
   );

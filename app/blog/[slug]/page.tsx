@@ -28,14 +28,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: post.description,
     alternates: { canonical: `/blog/${slug}` },
     openGraph: {
-      title: `${post.title} · tikrr Blog`,
+      title: `${post.title} · stocksbrew Blog`,
       description: post.description,
-      url: `https://www.tikrr.online/blog/${slug}`,
+      url: `https://www.stocksbrew.online/blog/${slug}`,
       type: "article",
       publishedTime: post.date,
     },
     twitter: {
-      title: `${post.title} · tikrr Blog`,
+      title: `${post.title} · stocksbrew Blog`,
       description: post.description,
     },
   };
@@ -113,16 +113,16 @@ export default async function BlogPostPage({ params }: Props) {
         <footer className="mt-16 pt-8 border-t border-[#e5e7eb] flex flex-col gap-6">
           <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
             <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
-              Get AI Market Intelligence
+              Know what to do with your stocks
             </h3>
             <p className="text-[14px] text-[#6b7280] mb-5">
-              tikrr delivers twice-daily AI briefs, watchlist radar, and smart alerts. Free tier available.
+              Personalized buy, hold, and sell calls from fundamentals, news, Reddit, and earnings. Set triggers and get emailed in buy or sell zones. Free for 3 stocks.
             </p>
             <a
-              href="https://tikrr.online"
+              href="https://www.stocksbrew.online"
               className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
             >
-              Try tikrr Free →
+              Try stocksbrew Free →
             </a>
           </div>
 

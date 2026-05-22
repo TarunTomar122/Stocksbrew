@@ -106,7 +106,7 @@ export function LockedAiBrief({
       }
     : {
         title: `Unlock the ${ticker} Pro brief`,
-        body: "Turn this into a monitored name: tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
+        body: "Turn this into a monitored name: stocksbrew reads the latest news, scores the setup, and shows what matters before the next move.",
         label: "Get Pro",
         onClick: () => router.push("/subscribe"),
       };
@@ -208,7 +208,7 @@ function ProBriefPreparingState({
         tone="failed"
         badge="Retry queued"
         title={`${ticker} brief hit a snag`}
-        body={`Synthesis did not finish cleanly${onDemandError ? `: ${onDemandError}` : ""}. tikrr will retry on the next pass.`}
+        body={`Synthesis did not finish cleanly${onDemandError ? `: ${onDemandError}` : ""}. stocksbrew will retry on the next pass.`}
         steps={[
           { done: true, label: "In your Radar" },
           { done: true, label: "Sources fetched" },
@@ -273,8 +273,8 @@ function CoveragePausedBrief({
       title={`${ticker} is on Radar. Brief coming soon.`}
       body={
         usedFallbackSources
-          ? "We found some sources, but not enough high-confidence material for a full brief yet. tikrr will keep scanning and publish here automatically."
-          : "We checked for fresh stock-specific news and did not find enough yet. tikrr will keep scanning on the next passes and publish here automatically."
+          ? "We found some sources, but not enough high-confidence material for a full brief yet. stocksbrew will keep scanning and publish here automatically."
+          : "We checked for fresh stock-specific news and did not find enough yet. stocksbrew will keep scanning on the next passes and publish here automatically."
       }
       steps={[
         { done: true, label: "In your Radar" },

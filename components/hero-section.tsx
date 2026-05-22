@@ -19,6 +19,7 @@ type Props = {
   indices: IndexData[];
   verdict?: unknown;
   isSubscribed?: boolean;
+  showIndexSkeleton?: boolean;
 };
 
 function fmtPrice(v: number): string {
@@ -67,7 +68,41 @@ const VERDICT_STYLES = {
   Sell: { text: "#ef4444", bg: "#fef2f2" },
 };
 
-export function HeroSection({ indices, isSubscribed = false }: Props) {
+const MOBILE_CHIPS = SCATTERED_CHIPS.slice(0, 4);
+
+function StockVerdictChip({
+  ticker,
+  verdict,
+  rotate,
+  compact,
+}: {
+  ticker: string;
+  verdict: "Buy" | "Hold" | "Sell";
+  rotate?: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] ${
+        compact ? "px-2.5 py-1.5" : "px-3 py-2 shadow-[0_2px_16px_rgba(0,0,0,0.07)]"
+      }`}
+      style={rotate ? { transform: `rotate(${rotate})` } : undefined}
+    >
+      <StockLogo ticker={ticker} market="US" size={compact ? 18 : 22} />
+      <span className={`font-semibold text-[#111111] ${compact ? "text-[11px]" : "text-[12px]"}`}>
+        {ticker}
+      </span>
+      <span
+        className={`font-bold rounded-md ${compact ? "text-[10px] px-1 py-0.5" : "text-[11px] px-1.5 py-0.5"}`}
+        style={{ color: VERDICT_STYLES[verdict].text, background: VERDICT_STYLES[verdict].bg }}
+      >
+        {verdict}
+      </span>
+    </div>
+  );
+}
+
+export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton = false }: Props) {
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
@@ -119,23 +154,12 @@ export function HeroSection({ indices, isSubscribed = false }: Props) {
           {/* Scattered stock chips — desktop only */}
           <div className="hidden lg:block absolute inset-0 select-none">
             {SCATTERED_CHIPS.map((s) => (
-              /* outer div: position + static rotation */
               <div
                 key={s.ticker}
-                className="absolute"
+                className="absolute transition-transform duration-200 ease-out hover:-translate-y-1.5"
                 style={{ ...s.pos, transform: `rotate(${s.rotate})` }}
               >
-                {/* inner div: hover lift — independent of rotation transform */}
-                <div className="flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 shadow-[0_2px_16px_rgba(0,0,0,0.07)] transition-all duration-200 ease-out hover:-translate-y-1.5 hover:shadow-[0_10px_28px_rgba(0,0,0,0.11)] cursor-default">
-                  <StockLogo ticker={s.ticker} market="US" size={22} />
-                  <span className="text-[12px] font-semibold text-[#111111]">{s.ticker}</span>
-                  <span
-                    className="text-[11px] font-bold px-1.5 py-0.5 rounded-md"
-                    style={{ color: VERDICT_STYLES[s.verdict].text, background: VERDICT_STYLES[s.verdict].bg }}
-                  >
-                    {s.verdict}
-                  </span>
-                </div>
+                <StockVerdictChip ticker={s.ticker} verdict={s.verdict} />
               </div>
             ))}
           </div>
@@ -146,9 +170,22 @@ export function HeroSection({ indices, isSubscribed = false }: Props) {
               Know exactly what to do with your stocks.
             </h1>
 
-            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[400px]">
-              Personalized AI analysis on every stock you own, every morning.
+            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[420px]">
+              We read fundamentals, news, Reddit, and earnings for the stocks you follow, then give you a clear call. Set triggers and get emailed when something hits a buy or sell zone.
             </p>
+
+            {/* Stock chips — mobile / tablet (desktop uses scattered layout above) */}
+            <div className="flex lg:hidden flex-wrap items-center justify-center gap-2.5 w-full max-w-[340px]">
+              {MOBILE_CHIPS.map((s) => (
+                <StockVerdictChip
+                  key={s.ticker}
+                  ticker={s.ticker}
+                  verdict={s.verdict}
+                  rotate={s.rotate}
+                  compact
+                />
+              ))}
+            </div>
 
             <div className="flex flex-col items-center gap-2.5 w-full">
               <button
@@ -183,14 +220,14 @@ export function HeroSection({ indices, isSubscribed = false }: Props) {
               <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b] opacity-70" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] opacity-70" />
               <div className="mx-3 flex-1 rounded-md bg-white border border-[#e5e7eb] px-3 py-0.5 text-[11px] text-[#9ca3af] text-center">
-                tikrr.online/watchlist
+                www.stocksbrew.online/watchlist
               </div>
             </div>
             <div className="relative w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl overflow-hidden border sm:border-t-0 border-[#e5e7eb] shadow-[0_20px_60px_rgba(0,0,0,0.10)]" style={{ paddingBottom: "56.25%" }}>
               <iframe
                 ref={iframeRef}
                 src={`https://www.youtube.com/embed/${YT_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${YT_VIDEO_ID}&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&enablejsapi=1`}
-                title="See tikrr in action"
+                title="See stocksbrew in action"
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
                 className="absolute inset-0 h-full w-full"
@@ -253,6 +290,18 @@ export function HeroSection({ indices, isSubscribed = false }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+      {displayIndices.length === 0 && showIndexSkeleton && (
+        <div className="border-t border-[#f3f4f6] py-3 px-4 md:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-pulse">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={`hero-index-skeleton-${i}`} className="flex flex-col items-center gap-2">
+                <span className="h-3 w-16 rounded bg-[#f3f4f6]" />
+                <span className="h-6 w-20 rounded bg-[#f3f4f6]" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>

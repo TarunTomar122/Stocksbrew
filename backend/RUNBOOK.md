@@ -154,6 +154,7 @@ prefix can run in parallel.
 | 12 | `build_heat_list` | intel_pro + technicals + prices + mention_stats | `tm_heat_list/{market}` | `/heat` → "Hot Stocks" tab |
 | 13 | `build_divergence` | enrichments + prices | `tm_divergence/{market}` | `/heat` → "Divergences" tab |
 | 14 | `build_sentiment_flip` | enrichments | `tm_sentiment_flip/{market}` | `/heat` → "Sentiment Flip" tab |
+| 15 | `build_earnings_intel --all-recent` | `tm_earnings_events`, prices, facts, technicals, stock_intel_pro, stock_intelligence, reddit | `tm_earnings_intel/{market}__{instrument}__{event_date}`, `{market}__{instrument}__latest` | Pro earnings-intel pages + Radar earnings deep-links |
 
 ---
 
@@ -218,6 +219,7 @@ build_per_stock_intelligence ───────┬─→ materialize_views
 | `/heat` "Hot Stocks" empty | `tm_heat_list/{market}` missing or rows empty | Re-run `build_heat_list` (depends on intel_pro + technicals being current) |
 | `/heat` RSI column shows "—" | Finviz scrape was rate-limited or skipped | Re-run `build_stock_technicals` — console prints `RSI resolved: N/M`. Lower `--finviz-workers` to 2 if 429s persist |
 | `/heat` "Divergences" empty | No recent enrichments, or no price moves above the threshold | Verify `tm_news_runs/{ns}/enrichments` has today's data and `day_change_pct` exists on prices |
+| Earnings-intel page redirects to stock page | No `tm_earnings_intel/...__latest` doc exists yet for that ticker | Run `build_earnings_intel --ticker <TICKER> --write` or schedule `--all-recent` lane |
 | `/heat` "Sentiment Flip" empty | <14 days of enrichment history accumulated, or no qualifying flips | Wait — needs 14 days of news data to detect flips |
 
 ---

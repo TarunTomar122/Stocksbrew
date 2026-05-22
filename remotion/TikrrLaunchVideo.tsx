@@ -11,7 +11,7 @@ export const SCENE_DURATIONS = {
   dailyOverview: 270,  // 9.0s  - signal tiles + range/RSI bars
   fundamentals: 300,   // 10.0s - 4 pillar scorecard
   directive: 270,      // 9.0s  - strategic directive + alert animation
-  outro: 100,          // 3.3s  - tikrr.online
+  outro: 100,          // 3.3s  - www.stocksbrew.online
 } as const;
 
 export const TOTAL_FRAMES = Object.values(SCENE_DURATIONS).reduce((a, b) => a + b, 0);

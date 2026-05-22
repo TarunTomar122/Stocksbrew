@@ -181,6 +181,27 @@ const getMarketMoversCached = unstable_cache(
 
 export const getMarketMovers = cache(getMarketMoversCached);
 
+const getPriceCoreOverridesUncached = async (
+  market: "US" | "IN" = "US",
+): Promise<string[]> => {
+  const doc = await adminFirestore.collection("tm_config").doc("price_core_overrides").get();
+  if (!doc.exists) return [];
+  const data = doc.data() as Record<string, unknown>;
+  const values = data?.[market];
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter(Boolean);
+};
+
+const getPriceCoreOverridesCached = unstable_cache(
+  getPriceCoreOverridesUncached,
+  ["price-core-overrides"],
+  { revalidate: 60 },
+);
+
+export const getPriceCoreOverrides = cache(getPriceCoreOverridesCached);
+
 // ─── Instruments ─────────────────────────────────────────────────────────────
 
 export async function getInstrument(instrumentId: string): Promise<Instrument | null> {

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
+import { scrubLegacyBrand } from "@/lib/brand";
 import type { ThematicScreen, ScreenMatchRow } from "@/lib/screens";
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
-  tikrr_top:          { title: "Top tikrr Score",        subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
+  tikrr_top:          { title: "Top stocksbrew Score",        subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders:{ title: "Quality Compounders",    subtitle: "Strong businesses built to grow year after year." },
   cheap_growth:       { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
   momentum_leaders:   { title: "On a Tear",              subtitle: "Leading the tape with the long-term trend intact." },
@@ -17,7 +18,12 @@ const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
 };
 
 function getCopy(screen: ThematicScreen) {
-  return FRIENDLY_COPY[screen.id] ?? { title: screen.title, subtitle: screen.tagline };
+  const friendly = FRIENDLY_COPY[screen.id];
+  if (friendly) return friendly;
+  return {
+    title: scrubLegacyBrand(screen.title),
+    subtitle: scrubLegacyBrand(screen.tagline),
+  };
 }
 
 function fmtPct(v: number | null | undefined): { text: string; positive: boolean } | null {
@@ -60,35 +66,115 @@ function PillarScore({ value }: { value: number | null | undefined }) {
   );
 }
 
+// ─── Sorting ─────────────────────────────────────────────────────────────────
+
+type SortKey = "company" | "score" | "valuation" | "growth" | "quality" | "momentum" | "dayChange";
+type SortDir = "asc" | "desc";
+type SortState = { key: SortKey; dir: SortDir } | null;
+
+function sortValue(row: ScreenMatchRow, key: SortKey): number | string | null {
+  const p = row.pillar_scores ?? {};
+  switch (key) {
+    case "company":
+      return (row.name?.trim() || row.ticker || "").toLowerCase();
+    case "score":
+      return row.overall_score ?? null;
+    case "valuation":
+      return p.valuation ?? null;
+    case "growth":
+      return p.growth ?? null;
+    case "quality":
+      return p.quality ?? null;
+    case "momentum":
+      return p.momentum ?? null;
+    case "dayChange":
+      return row.day_change_pct ?? null;
+  }
+}
+
+function compareRows(a: ScreenMatchRow, b: ScreenMatchRow, key: SortKey, dir: SortDir): number {
+  const va = sortValue(a, key);
+  const vb = sortValue(b, key);
+  if (va === null && vb === null) return 0;
+  if (va === null) return 1;
+  if (vb === null) return -1;
+  const mult = dir === "asc" ? 1 : -1;
+  if (typeof va === "number" && typeof vb === "number") return (va - vb) * mult;
+  if (typeof va === "string" && typeof vb === "string") return va.localeCompare(vb) * mult;
+  return 0;
+}
+
+/** First click: desc for numeric columns (strongest first), asc for company (A–Z). */
+function initialDir(key: SortKey): SortDir {
+  return key === "company" ? "asc" : "desc";
+}
+
+function cycleSort(prev: SortState, key: SortKey): SortState {
+  if (!prev || prev.key !== key) return { key, dir: initialDir(key) };
+  const first = initialDir(key);
+  if (prev.dir === first) return { key, dir: first === "asc" ? "desc" : "asc" };
+  return null;
+}
+
+function SortIndicator({ active, dir }: { active: boolean; dir: SortDir | null }) {
+  return (
+    <span
+      className={`ml-0.5 inline-flex flex-col leading-[6px] text-[8px] ${active ? "text-[#111111]" : "text-[#d1d5db]"}`}
+      aria-hidden
+    >
+      <span style={{ opacity: dir === "asc" ? 1 : 0.35 }}>▲</span>
+      <span style={{ opacity: dir === "desc" ? 1 : 0.35 }}>▼</span>
+    </span>
+  );
+}
+
 // ─── Table header ─────────────────────────────────────────────────────────────
 
-function TableHeader() {
+function TableHeader({
+  sort,
+  onSort,
+}: {
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+}) {
+  const col = (key: SortKey, label: string, className: string) => {
+    const active = sort?.key === key;
+    const dir = active ? sort.dir : null;
+    return (
+      <button
+        type="button"
+        onClick={() => onSort(key)}
+        className={`inline-flex items-center justify-center select-none cursor-pointer rounded-md py-0.5 -my-0.5 px-0.5 -mx-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors hover:text-[#111111] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[#0052ff]/30 ${
+          active ? "text-[#111111]" : "text-[#9ca3af]"
+        } ${className}`}
+        aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        {label}
+        <SortIndicator active={active} dir={dir} />
+      </button>
+    );
+  };
+
   return (
     <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[#e5e7eb] bg-[#f9fafb]">
-      <div className="w-7 shrink-0">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">#</span>
+      <div className="hidden md:block w-7 shrink-0" aria-hidden />
+      <div className="flex-1 min-w-0 flex justify-start">
+        {col("company", "Company", "justify-start")}
       </div>
-      <div className="flex-1 min-w-0">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Company</span>
+      <div className="w-[64px] shrink-0 flex justify-center">{col("score", "Score", "justify-center")}</div>
+      <div className="hidden md:flex w-[40px] shrink-0 justify-center">
+        {col("valuation", "Val", "justify-center")}
       </div>
-      <div className="w-[64px] shrink-0 text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Score</span>
+      <div className="hidden md:flex w-[40px] shrink-0 justify-center">
+        {col("growth", "Gro", "justify-center")}
       </div>
-      <div className="hidden md:block w-[40px] shrink-0 text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Val</span>
+      <div className="hidden md:flex w-[40px] shrink-0 justify-center">
+        {col("quality", "Qual", "justify-center")}
       </div>
-      <div className="hidden md:block w-[40px] shrink-0 text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Gro</span>
+      <div className="hidden md:flex w-[40px] shrink-0 justify-center">
+        {col("momentum", "Mom", "justify-center")}
       </div>
-      <div className="hidden md:block w-[40px] shrink-0 text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Qual</span>
-      </div>
-      <div className="hidden md:block w-[40px] shrink-0 text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Mom</span>
-      </div>
-      <div className="w-[72px] shrink-0 text-right">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Day chg</span>
-      </div>
+      <div className="w-[72px] shrink-0 flex justify-end">{col("dayChange", "Day chg", "justify-end")}</div>
     </div>
   );
 }
@@ -114,8 +200,8 @@ function ScreenTableRow({
       href={`/stock/${encodeURIComponent(row.ticker)}`}
       className="flex items-center gap-3 px-5 py-3.5 border-t border-[#f3f4f6] hover:bg-[#fafafa] transition-colors"
     >
-      {/* Rank */}
-      <div className="w-7 shrink-0">
+      {/* Rank — desktop only */}
+      <div className="hidden md:block w-7 shrink-0">
         <span className="text-[12px] font-semibold tabular-nums text-[#9ca3af]">{rank}</span>
       </div>
 
@@ -180,14 +266,33 @@ export function ScreensTableView({
 }) {
   const defaultId = screens.find((s) => s.id === "tikrr_top")?.id ?? screens[0]?.id ?? "";
   const [activeId, setActiveId] = useState(defaultId);
+  const [sort, setSort] = useState<SortState>(null);
 
   const activeScreen = screens.find((s) => s.id === activeId) ?? screens[0];
+
+  useEffect(() => {
+    setSort(null);
+  }, [activeId]);
+
+  const matches = activeScreen?.matches ?? [];
+
+  const sorted = useMemo(() => {
+    const rows = [...matches];
+    if (!sort) {
+      rows.sort((a, b) => (b.overall_score ?? 0) - (a.overall_score ?? 0));
+      return rows;
+    }
+    rows.sort((a, b) => compareRows(a, b, sort.key, sort.dir));
+    return rows;
+  }, [matches, sort]);
+
   if (!activeScreen) return null;
 
   const copy = getCopy(activeScreen);
-  const sorted = [...activeScreen.matches].sort(
-    (a, b) => (b.overall_score ?? 0) - (a.overall_score ?? 0),
-  );
+
+  function handleSort(key: SortKey) {
+    setSort((prev) => cycleSort(prev, key));
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -236,7 +341,7 @@ export function ScreensTableView({
 
       {/* Table */}
       <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
-        <TableHeader />
+        <TableHeader sort={sort} onSort={handleSort} />
         {sorted.map((row, i) => (
           <ScreenTableRow
             key={row.instrument_id}

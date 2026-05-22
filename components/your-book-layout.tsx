@@ -20,11 +20,20 @@ type Props = {
   watching: import("@/lib/watchlist-view").WatchlistRow[];
   suggestions: Suggestion[];
   upNextSlot: React.ReactNode;
+  earningsReadySlot?: React.ReactNode;
   alertsSlot: React.ReactNode;
   belowLedgerSlot?: React.ReactNode;
 };
 
-export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, alertsSlot, belowLedgerSlot }: Props) {
+export function YourBookLayout({
+  holdings,
+  watching,
+  suggestions,
+  upNextSlot,
+  earningsReadySlot,
+  alertsSlot,
+  belowLedgerSlot,
+}: Props) {
   const [tab, setTab] = useState<Tab>(
     holdings.length === 0 && watching.length > 0 ? "watching" : "holdings",
   );
@@ -64,6 +73,7 @@ export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, al
         {/* Right rail */}
         <div className="flex flex-col gap-4">
           {upNextSlot}
+          {earningsReadySlot}
           {alertsSlot}
         </div>
       </div>

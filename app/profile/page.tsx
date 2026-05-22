@@ -92,13 +92,13 @@ export default async function ProfilePage() {
             field="email_digest_enabled"
             icon="mail"
             label="Email digest"
-            description="Daily AI brief across your Radar, delivered to your inbox"
+            description="Radar summary and call updates delivered to your inbox"
             initialValue={userDoc?.email_digest_enabled ?? true}
           />
           <PreferenceRow
             icon="schedule"
             label="Refresh cadence"
-            description="How often your Radar brief regenerates"
+            description="How often your Radar calls refresh"
             badge="Coming soon"
           />
         </section>

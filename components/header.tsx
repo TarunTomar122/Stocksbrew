@@ -13,7 +13,7 @@ import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
 
 type Props = {
-  searchIndex: SearchEntry[];
+  searchIndex?: SearchEntry[];
   market: Market;
   trackedIds?: string[];
   isSubscribed?: boolean;
@@ -126,9 +126,11 @@ function MarketPicker({ market }: { market: Market }) {
   );
 }
 
-export function Header({ searchIndex, market, trackedIds = [], isSubscribed = false }: Props) {
+export function Header({ searchIndex: initialSearchIndex = [], market, trackedIds = [], isSubscribed = false }: Props) {
   const router = useRouter();
   const { user, initialAuthed } = useUser();
+  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(initialSearchIndex);
+  const [searchIndexReady, setSearchIndexReady] = useState<boolean>(initialSearchIndex.length > 0);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -149,6 +151,39 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const url = `/api/search-index?market=${encodeURIComponent(String(market || "US"))}`;
+    const run = async () => {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = (await res.json()) as { entries?: SearchEntry[] };
+        const entries = Array.isArray(payload.entries) ? payload.entries : [];
+        if (!cancelled) {
+          setSearchIndex(entries);
+          setSearchIndexReady(entries.length > 0);
+        }
+      } catch {
+        // keep local fallback
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(run);
+      return () => {
+        cancelled = true;
+        if ("cancelIdleCallback" in window) {
+          (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
+        }
+      };
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [market]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -242,7 +277,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
               href="/"
               className="flex shrink-0 items-center gap-2 text-[20px] font-semibold text-[#111111] tracking-[-0.04em] leading-none"
             >
-              tikrr
+              stocksbrew
             </Link>
             <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
               {navItems.map((item) => {
@@ -314,7 +349,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
                 }}
                 onFocus={() => setOpen(true)}
                 onKeyDown={onKeyDown}
-                placeholder="Search ticker…"
+                placeholder={searchIndexReady ? "Search ticker…" : "Preparing search…"}
                 autoComplete="off"
                 spellCheck={false}
                 className="h-10 w-56 rounded-lg border border-[#e5e7eb] bg-white pl-10 pr-3 text-[14px] text-[#111111] placeholder:text-[#898989] outline-none transition-all duration-200 focus:w-72 focus:border-[#111111]"

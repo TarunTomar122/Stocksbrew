@@ -4,16 +4,19 @@ import { allBlogPosts } from "@/lib/blog-data";
 
 export const metadata: Metadata = {
   title: "Blog",
-  description: "Insights on market intelligence, AI-powered analysis, and smarter investing. From the makers of tikrr.online.",
+  description:
+    "Practical notes on stock calls, watchlists, risk-aware investing, and tools from the makers of stocksbrew.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Blog - Market Intelligence Insights · tikrr",
-    description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
-    url: "https://www.tikrr.online/blog",
+    title: "Blog · Stock calls & investing · stocksbrew",
+    description:
+      "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",
+    url: "https://www.stocksbrew.online/blog",
   },
   twitter: {
-    title: "Blog - Market Intelligence Insights · tikrr",
-    description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
+    title: "Blog · Stock calls & investing · stocksbrew",
+    description:
+      "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",
   },
 };
 
@@ -36,7 +39,7 @@ export default function BlogPage() {
             Notes from the desk.
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Insights on market intelligence, AI-powered analysis, and smarter investing. No jargon, no hype, just what works.
+            Notes on personalized stock calls, cutting through noise, and investing with clearer risk and opportunity framing. No jargon, no hype.
           </p>
         </header>
 

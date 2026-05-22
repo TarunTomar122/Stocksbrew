@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Privacy policy · tikrr",
+  title: "Privacy policy · stocksbrew",
 };
 
 export default function PrivacyPage() {
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
         <p>
           You can update your Radar any time in the app. To delete your
           account or request a copy of your data, email{" "}
-          <a href="mailto:privacy@tikrr.com">privacy@tikrr.com</a> and we'll
+          <a href="mailto:tomartarun2001@gmail.com">tomartarun2001@gmail.com</a> and we'll
           action the request within 30 days.
         </p>
       </section>
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Children</h2>
         <p>
-          tikrr isn't directed at children under 18 and we don't knowingly
+          stocksbrew isn't directed at children under 18 and we don't knowingly
           collect data from them. If you believe a minor has signed up, contact
           us and we'll remove the account.
         </p>

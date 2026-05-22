@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
+import { scrubLegacyBrand } from "@/lib/brand";
 import { getWatchlistView } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
@@ -16,8 +17,21 @@ import { YourBookLayout } from "@/components/your-book-layout";
 import { DiagnosisSectorChart, DiagnosisFactorRadar } from "@/components/diagnosis-charts";
 import { RadarUpdatingBanner } from "@/components/radar-updating-banner";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
+import { RadarEarningsReadyBanner } from "@/components/radar-earnings-ready-banner";
+import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-workspace";
 import { BuildingStateRefresher } from "@/components/building-state-refresher";
 import { getSearchIndex, type SearchEntry } from "@/lib/search";
+import {
+  filterEarningsIntelThisWeek,
+  getLatestEarningsIntelForInstruments,
+  type EarningsIntelDoc,
+} from "@/lib/earnings-intel";
+import {
+  getPortfolioExposure,
+  getPortfolioScenario,
+  type PortfolioExposure,
+  type PortfolioScenario,
+} from "@/lib/portfolio-scenarios";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +43,7 @@ type Dict = Record<string, unknown>;
 
 export default async function WatchlistPage() {
   const SHOW_TEST_UPDATING_BANNER = false;
+  const SHOW_SCENARIO_LAB = false;
   const session = await getSessionUser();
   if (!session) {
     return <DemoRadar />;
@@ -39,6 +54,12 @@ export default async function WatchlistPage() {
   const isSubscribed = resolveIsSubscribed(userDoc);
   const searchIndex = await getSearchIndex("US").catch(() => [] as SearchEntry[]);
   const watchlistView = await getWatchlistView(session.uid).catch(() => null);
+  const portfolioExposure = SHOW_SCENARIO_LAB
+    ? await getPortfolioExposure(session.uid).catch(() => null)
+    : null;
+  const nvdaScenario = SHOW_SCENARIO_LAB
+    ? await getPortfolioScenario(session.uid).catch(() => null)
+    : null;
   const radar = userDoc?.radar_v1 || {};
   const materializedRows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
   const watchlistPositions =
@@ -211,6 +232,24 @@ export default async function WatchlistPage() {
   // ── up-next (forward catalysts across all rows) ─────────────────────────────
   const upNext = buildUpNext(rows);
 
+  let earningsReadyThisWeek: EarningsIntelDoc[] = [];
+  if (rows.length > 0) {
+    const idsByMarket = { US: [] as string[], IN: [] as string[] };
+    for (const row of rows) {
+      const m = row.market === "IN" ? "IN" : "US";
+      idsByMarket[m].push(row.instrument_id);
+    }
+    const [usDocs, inDocs] = await Promise.all([
+      idsByMarket.US.length
+        ? getLatestEarningsIntelForInstruments("US", idsByMarket.US).catch(() => [] as EarningsIntelDoc[])
+        : Promise.resolve([] as EarningsIntelDoc[]),
+      idsByMarket.IN.length
+        ? getLatestEarningsIntelForInstruments("IN", idsByMarket.IN).catch(() => [] as EarningsIntelDoc[])
+        : Promise.resolve([] as EarningsIntelDoc[]),
+    ]);
+    earningsReadyThisWeek = filterEarningsIntelThisWeek([...usDocs, ...inDocs]);
+  }
+
   // ── portfolio score + pillar averages ───────────────────────────────────────
   const pillarAverages = computePillarAverages(rows);
   const factorTilt = asDict(portfolio.factor_tilt);
@@ -219,10 +258,43 @@ export default async function WatchlistPage() {
   const activityEvents = buildActivityEvents(eventRadar, brief);
   const changesData = buildChangesData(changes);
 
+  const chatTickers = rows.map((r) => r.ticker).filter(Boolean);
+  const chatStarters: RadarChatStarter[] = [
+    { label: "How's my radar today?", message: "How is my radar looking today?" },
+    ...(topDirective
+      ? [
+          {
+            label: `Why ${topDirective.row.ticker}?`,
+            message: `Why is ${topDirective.row.ticker} ${topDirective.directive.stance ?? "on my radar"}? Summarize the directive.`,
+          },
+        ]
+      : []),
+    ...(chatTickers.length > 0
+      ? [
+          {
+            label: "Biggest risk in my book",
+            message: "What's the biggest risk across my current holdings and watchlist?",
+          },
+        ]
+      : []),
+    ...(chatTickers[0]
+      ? [
+          {
+            label: `News on ${chatTickers[0]}`,
+            message: `Any breaking news on ${chatTickers[0]} I should know about?`,
+          },
+        ]
+      : []),
+  ].slice(0, 4);
+
   return (
-    <main className="flex-grow bg-white">
+    <main className="flex flex-grow flex-col bg-white">
       <style>{tapeStyles}</style>
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-12 px-3 sm:px-6 md:px-20 lg:px-32 py-6 lg:py-10">
+      <RadarWorkspace
+        trackedCount={tracked.length}
+        tickers={chatTickers}
+        starters={chatStarters}
+      >
         {/* ── UPDATING NOTICE — auto-polls via router.refresh() until rebuild lands */}
         {(shouldShowUpdatingBanner || SHOW_TEST_UPDATING_BANNER) && (
           <RadarUpdatingBanner
@@ -258,12 +330,17 @@ export default async function WatchlistPage() {
           holdings={holdings}
           watching={watching}
           upNext={upNext}
+          earningsReadyThisWeek={earningsReadyThisWeek}
           alerts={flatAlerts}
           suggestions={suggestions}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
           refreshing={false}
         />
+
+        {SHOW_SCENARIO_LAB && (
+          <ScenarioLabSection exposure={portfolioExposure} scenario={nvdaScenario} />
+        )}
 
         {/* ── § 03 · DIAGNOSIS ──────────────────────────────────────────── */}
         <DiagnosisSection
@@ -278,7 +355,7 @@ export default async function WatchlistPage() {
 
         {/* ── § 04 · ACTIVITY ───────────────────────────────────────────── */}
         <RadarActivity events={activityEvents} changes={changesData} refreshing={isActivityRefreshing} />
-      </div>
+      </RadarWorkspace>
     </main>
   );
 }
@@ -314,7 +391,7 @@ function HeaderStrip({
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
-            tikrr · {todayMasthead()}
+            stocksbrew · {todayMasthead()}
           </span>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">
@@ -460,7 +537,7 @@ function todayMasthead(): string {
 // =============================================================================
 
 const FALLBACK_EXPLORE_SUGGESTIONS: Dict[] = [
-  { ticker: "NVDA", sector: "Semiconductors", why: "AI infra leader · top tikrr score", score: 90, market: "US" },
+  { ticker: "NVDA", sector: "Semiconductors", why: "AI infra leader · top stocksbrew score", score: 90, market: "US" },
   { ticker: "MSFT", sector: "Software", why: "Quality compounder · steady earnings", score: 82, market: "US" },
   { ticker: "META", sector: "Comm. Services", why: "Analyst runway +33% · momentum", score: 78, market: "US" },
   { ticker: "AAPL", sector: "Consumer Electronics", why: "Most-watched · durable free cash flow", score: 74, market: "US" },
@@ -515,7 +592,7 @@ function TodaySection({
 
       {/* Secondary directives + explore fill cards */}
       {(secondaryDirectives.length > 0 || exploreSuggestions.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {secondaryDirectives.map(({ row, directive }) => (
             <SecondaryDirectiveCard key={row.instrument_id} row={row} directive={directive} />
           ))}
@@ -568,9 +645,10 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
         })}`
       : "—";
   return (
+    <div className="flex items-center gap-2 self-start">
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="group inline-flex items-center gap-3 self-start"
+      className="group inline-flex items-center gap-3"
     >
       <StockLogo
         ticker={row.ticker}
@@ -608,6 +686,7 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
         </div>
       </div>
     </Link>
+    </div>
   );
 }
 
@@ -636,7 +715,7 @@ function SecondaryDirectiveCard({
   return (
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="group relative overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm flex flex-col gap-3"
+      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
       <div className="flex items-center justify-between gap-2">
         <span
@@ -761,12 +840,14 @@ type UpNextItem = {
   title: string;
   window: string;
   urgency: "high" | "med" | "low" | "";
+  isEarnings?: boolean;
 };
 
 function YourBookSection({
   holdings,
   watching,
   upNext,
+  earningsReadyThisWeek,
   alerts,
   suggestions,
   isSubscribed,
@@ -776,6 +857,7 @@ function YourBookSection({
   holdings: WatchlistRow[];
   watching: WatchlistRow[];
   upNext: UpNextItem[];
+  earningsReadyThisWeek: EarningsIntelDoc[];
   alerts: FlatAlert[];
   suggestions: Dict[];
   isSubscribed: boolean;
@@ -800,10 +882,10 @@ function YourBookSection({
   const showAddMoreNudge = !atLimit && visibleCount > 0 && (isSubscribed ? visibleCount < 5 : visibleCount < 3);
   const nudge = showAddMoreNudge
     ? visibleCount === 1
-      ? { headline: "Add 1 more stock to unlock comparisons", body: "With 2+ stocks tikrr can compare scores, cluster your book, and surface which one deserves attention today." }
+      ? { headline: "Add 1 more stock to unlock comparisons", body: "With 2+ stocks stocksbrew can compare scores, cluster your book, and surface which one deserves attention today." }
       : visibleCount === 2
       ? { headline: "One more stock and your Radar really kicks in", body: "Portfolio diagnosis, concentration risks, and daily directives all light up once you have 3 stocks tracked." }
-      : { headline: "Pro tip: 5+ stocks makes everything smarter", body: "The more you track, the better tikrr clusters your book, spots risks, and prioritises what to act on today." }
+      : { headline: "Pro tip: 5+ stocks makes everything smarter", body: "The more you track, the better stocksbrew clusters your book, spots risks, and prioritises what to act on today." }
     : null;
 
   return (
@@ -820,6 +902,11 @@ function YourBookSection({
         watching={watching}
         suggestions={suggestionList}
         upNextSlot={<UpNextPanel items={upNext} />}
+        earningsReadySlot={
+          earningsReadyThisWeek.length > 0 ? (
+            <RadarEarningsReadyBanner docs={earningsReadyThisWeek} />
+          ) : null
+        }
         alertsSlot={<AlertsPanel alerts={alerts} />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -981,6 +1068,142 @@ function AlertsPanel({ alerts }: { alerts: FlatAlert[] }) {
 }
 
 // =============================================================================
+// § 02B · SCENARIO LAB — event what-if + rebalance ranges
+// =============================================================================
+
+function ScenarioLabSection({
+  exposure,
+  scenario,
+}: {
+  exposure: PortfolioExposure | null;
+  scenario: PortfolioScenario | null;
+}) {
+  const concentration = exposure?.concentration || {};
+  const topSectors = (exposure?.sector_weights || []).slice(0, 3);
+  const recos = (exposure?.weight_recommendations || []).slice(0, 4);
+  const cases = (scenario?.scenarios || []).slice(0, 2);
+
+  if (!exposure && !scenario) return null;
+
+  return (
+    <section className="flex flex-col gap-5">
+      <SectionOpener number="02B" title="Scenario lab" />
+
+      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-6 flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-4 text-[12px]">
+          <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 font-semibold text-[#111111]">
+            Top-3 concentration {num(concentration.top3_pct)?.toFixed(1) ?? "—"}%
+          </span>
+          <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 font-semibold text-[#111111]">
+            HHI {num(concentration.hhi)?.toFixed(3) ?? "—"}
+          </span>
+          <span className="rounded-full bg-[#ecfdf5] px-2.5 py-1 font-semibold text-[#065f46]">
+            Risk {text(concentration.risk_label || "unknown")}
+          </span>
+          {scenario?.generated_at ? (
+            <span className="text-[#9ca3af]">Scenario refreshed {formatRelative(scenario.generated_at)}</span>
+          ) : null}
+        </div>
+
+        {topSectors.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            {topSectors.map((item, i) => (
+              <div key={`sector-${i}`} className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Sector exposure</div>
+                <div className="mt-1 text-[13px] font-semibold text-[#111111]">{text(item.sector || "Unknown")}</div>
+                <div className="text-[12px] text-[#6b7280]">{((num(item.weight) || 0) * 100).toFixed(1)}%</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {cases.length > 0 ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {cases.map((c, i) => {
+              const impacts = (c.impacts || []).slice(0, 5);
+              const actions = (c.actions || []).slice(0, 3);
+              const isBeat = text(c.case).toLowerCase() === "beat";
+              return (
+                <div key={`case-${i}`} className="rounded-xl border border-[#f3f4f6] p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
+                        {text(c.market_mood || "mixed")}
+                      </span>
+                      <span className="text-[15px] font-semibold text-[#111111]">
+                        {text(c.label || c.case || "Scenario")}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        isBeat ? "bg-[#ecfdf5] text-[#047857]" : "bg-[#fef2f2] text-[#991b1b]"
+                      }`}
+                    >
+                      {text(c.case || "case")}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    {impacts.map((impact, idx) => {
+                      const move = num(impact.estimated_move_pct);
+                      const up = (move || 0) >= 0;
+                      return (
+                        <div key={`impact-${idx}`} className="flex items-center justify-between gap-2 text-[12px]">
+                          <span className="font-semibold text-[#111111]">{text(impact.ticker || "—")}</span>
+                          <span className={up ? "text-[#047857] font-semibold" : "text-[#b91c1c] font-semibold"}>
+                            {move === null ? "—" : `${up ? "+" : ""}${move.toFixed(2)}%`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {actions.length > 0 ? (
+                    <div className="rounded-lg bg-[#fafafa] border border-[#f3f4f6] p-2.5 flex flex-col gap-1.5">
+                      {actions.map((a, idx) => (
+                        <p key={`action-${idx}`} className="text-[12px] leading-snug text-[#374151]">
+                          {a}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {recos.length > 0 ? (
+          <div className="rounded-xl border border-[#f3f4f6] p-4">
+            <h4 className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af] mb-2">Weight range guidance</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {recos.map((r, i) => {
+                const minW = (num(r.weight_target_range?.min) || 0) * 100;
+                const maxW = (num(r.weight_target_range?.max) || 0) * 100;
+                return (
+                  <div key={`reco-${i}`} className="flex items-center justify-between gap-2 rounded-lg border border-[#f3f4f6] px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-[#111111]">{text(r.ticker || "—")}</div>
+                      <div className="text-[11px] text-[#6b7280] truncate">{text(r.rebalance_note || "")}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[11px] font-semibold text-[#111111]">
+                        {minW.toFixed(1)}% - {maxW.toFixed(1)}%
+                      </div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-[#9ca3af]">{text(r.directive || "hold")}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
 // § 03 · DIAGNOSIS — Scorecard pattern + clusters/risks + opportunities + checks
 // =============================================================================
 
@@ -1004,7 +1227,7 @@ function DiagnosisSection({
   const clusters = asArray(portfolio.clusters).slice(0, 5);
   const risks = asArray(portfolio.risk_flags).slice(0, 4);
   const opportunities = asArray(portfolio.opportunities).slice(0, 3);
-  const summary = text(portfolio.summary);
+  const summary = scrubLegacyBrand(text(portfolio.summary));
 
   // prefer backend factor_tilt, fallback to computed averages from rows
   const overall = num(factorTilt.overall) ?? pillarAverages.overall;
@@ -1562,7 +1785,7 @@ function BuildingState({ trackedCount }: { trackedCount: number }) {
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
         <header className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">tikrr · Radar</span>
+          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">stocksbrew · Radar</span>
           <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">Radar</h1>
         </header>
         <div className="rounded-3xl border border-[#e5e7eb] bg-white p-10 md:p-14 flex flex-col items-center gap-5 text-center">
@@ -1594,7 +1817,7 @@ function BuildingState({ trackedCount }: { trackedCount: number }) {
 // =============================================================================
 
 const POPULAR_FALLBACK: Array<{ ticker: string; sector: string; reason: string }> = [
-  { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on tikrr." },
+  { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on stocksbrew." },
   { ticker: "NVDA", sector: "Semiconductors", reason: "AI infra leader · high heat." },
   { ticker: "MSFT", sector: "Software", reason: "Quality compounder · steady." },
   { ticker: "META", sector: "Communication Services", reason: "Analyst runway +33%." },
@@ -1639,8 +1862,8 @@ function EmptyState({
               Build your Radar
             </h2>
             <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-[560px]">
-              Add stocks from any detail page and tikrr will deliver twice-daily AI briefs on
-              what you hold and watch: directives, catalysts, alerts, all personalized.
+              Add stocks from any detail page and stocksbrew gives you personalized buy, hold, and
+              sell calls on what you hold and watch, plus triggers and email alerts when setups change.
             </p>
           </div>
         </div>
@@ -1756,7 +1979,7 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
 }
 
 const STARTER_PICKS = [
-  { ticker: "NVDA", market: "US", sector: "Semiconductors", reason: "AI infrastructure leader, most-tracked on tikrr." },
+  { ticker: "NVDA", market: "US", sector: "Semiconductors", reason: "AI infrastructure leader, most-tracked on stocksbrew." },
   { ticker: "AAPL", market: "US", sector: "Consumer Electronics", reason: "Durable free cash flow, highest retail ownership." },
   { ticker: "MSFT", market: "US", sector: "Software", reason: "Quality compounder with steady earnings growth." },
   { ticker: "META", market: "US", sector: "Comm. Services", reason: "Analyst runway +33%, strong momentum." },
@@ -1785,7 +2008,7 @@ function UnsubscribedState({ tracked }: { tracked: string[] }) {
             <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#ecfdf5] text-[15px]">🚀</span>
             <div>
               <h2 className="text-[15px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">Start your Radar</h2>
-              <p className="text-[12px] text-[#6b7280]">Add up to 3 stocks free. tikrr tracks them daily and tells you what to do.</p>
+              <p className="text-[12px] text-[#6b7280]">Add up to 3 stocks free. stocksbrew tracks them daily and tells you what to do.</p>
             </div>
           </div>
 
@@ -1848,7 +2071,7 @@ function UnsubscribedState({ tracked }: { tracked: string[] }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <FeatureCard emoji="🎯" iconBg="#ecfdf5" title="AI briefs" body="Buy / hold / sell directive for every stock you track, every morning." />
-            <FeatureCard emoji="⚡" iconBg="#fef3c7" title="Cross-Radar read" body="Daily portfolio-level themes, risks, and opportunities." />
+            <FeatureCard emoji="⚡" iconBg="#fef3c7" title="Cross-Radar read" body="Portfolio-level themes, risks, and opportunities across your list." />
             <FeatureCard emoji="🔔" iconBg="#fef2f2" title="Alerts" body="Earnings, RSI extremes, 52-week levels when they fire." />
           </div>
         </section>
@@ -1939,6 +2162,20 @@ const STANCE_WEIGHT: Record<string, number> = {
   hold: 1,
 };
 const CONFIDENCE_WEIGHT: Record<string, number> = { high: 3, med: 2, low: 1 };
+const MONTH_TO_INDEX: Record<string, number> = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
 
 function directiveUrgency(row: WatchlistRow, directive: Directive): number {
   const stance = STANCE_WEIGHT[directive.stance ?? "hold"] ?? 1;
@@ -1971,14 +2208,61 @@ function byAttention(a: WatchlistRow, b: WatchlistRow): number {
 }
 
 function buildUpNext(rows: WatchlistRow[]): UpNextItem[] {
+  const isCurrentEventWindow = (raw: string): boolean => {
+    const textVal = raw.trim();
+    if (!textVal) return false;
+    const iso = textVal.split("T", 1)[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const now = new Date();
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const eventDate = new Date(`${iso}T00:00:00.000Z`);
+      const delta = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
+      return delta >= -1 && delta <= 45;
+    }
+    const parts = textVal
+      .toLowerCase()
+      .replaceAll(",", " ")
+      .replaceAll("amc", "")
+      .replaceAll("bmo", "")
+      .replaceAll("after close", "")
+      .replaceAll("before open", "")
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length < 2) return false;
+    const month = MONTH_TO_INDEX[parts[0].slice(0, 3)];
+    const day = Number(parts[1]);
+    if (month === undefined || !Number.isFinite(day)) return false;
+    const now = new Date();
+    let year = now.getUTCFullYear();
+    if (parts.length >= 3) {
+      const parsedYear = Number(parts[2]);
+      if (Number.isFinite(parsedYear)) year = parsedYear;
+    }
+    let eventDate = new Date(Date.UTC(year, month, day));
+    if (parts.length < 3) {
+      const todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const deltaDays = Math.round((eventDate.getTime() - todayTs) / 86_400_000);
+      if (deltaDays < -180) eventDate = new Date(Date.UTC(year + 1, month, day));
+      else if (deltaDays > 180) eventDate = new Date(Date.UTC(year - 1, month, day));
+    }
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const delta = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
+    return delta >= -1 && delta <= 45;
+  };
+
   const out: UpNextItem[] = [];
   for (const r of rows) {
     for (const c of (r.catalysts ?? []) as Dict[]) {
       const title = text(c.title ?? c.kind);
       if (!title) continue;
+      const kind = text(c.kind).toLowerCase();
+      if (kind === "earnings") {
+        const windowCandidate = text(c.date) || text(c.date_label) || text(c.window) || title.replace(/^earnings\s+/i, "");
+        if (!isCurrentEventWindow(windowCandidate)) continue;
+      }
       const window = text(c.window) || text(c.date_label) || "soon";
       const urgency = text(c.urgency).toLowerCase() as UpNextItem["urgency"];
-      out.push({ ticker: r.ticker, title, window, urgency });
+      out.push({ ticker: r.ticker, title, window, urgency, isEarnings: kind === "earnings" });
     }
   }
   // sort by urgency, holdings first implicitly via input order

@@ -148,7 +148,7 @@ def _build_generic_market_newsletter(
 <tr><td style="padding:8px 22px 6px 22px;font-size:18px;font-weight:800;color:#0f172a">Top Reddit Buzz</td></tr>
 <tr><td style="padding:0 22px 16px 22px"><table width="100%" cellpadding="0" cellspacing="0">{buzz_html}</table></td></tr>
 
-<tr><td style="padding:10px 22px 24px 22px"><a href="https://www.tikrr.online" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:11px 16px;border-radius:999px">Open Tikrr →</a><span style="font-size:12px;color:#94a3b8;margin-left:10px">Auto-generated at market open.</span></td></tr>
+<tr><td style="padding:10px 22px 24px 22px"><a href="https://www.stocksbrew.online" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:11px 16px;border-radius:999px">Open stocksbrew →</a><span style="font-size:12px;color:#94a3b8;margin-left:10px">Auto-generated at market open.</span></td></tr>
 </table></td></tr></table>
 </body></html>"""
     return subject, html

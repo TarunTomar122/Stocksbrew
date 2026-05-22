@@ -20,8 +20,9 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "daily-market-intelligence-guide",
-    title: "Daily Market Intelligence: The Complete Guide for 2026",
-    description: "What daily market intelligence actually means, why it matters, and how to get it without spending hours researching.",
+    title: "Daily Portfolio Briefs: The Complete Guide for 2026",
+    description:
+      "What a repeatable brief workflow looks like—directives per holding, risk flags, opportunities—and how to get it without spending hours researching.",
     category: "intelligence",
     tags: ["market-intelligence", "daily", "strategy"],
     date: "2026-05-07",
@@ -47,8 +48,9 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-market-intelligence-tools-2026",
-    title: "Best Market Intelligence Tools in 2026 (Honest Comparison)",
-    description: "10 tools compared: Finviz, TradingView, Seeking Alpha, tikrr, and more. Honest pros, cons, and pricing.",
+    title: "Best Tools for Portfolio Briefs & Watchlist Intel in 2026",
+    description:
+      "10 tools compared: Finviz, TradingView, Seeking Alpha, stocksbrew, and more—with honest pros, cons, and pricing.",
     category: "comparison",
     tags: ["tools", "comparison", "pricing"],
     date: "2026-05-07",
@@ -65,17 +67,18 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "free-market-intelligence-tools",
-    title: "The Best Free Market Intelligence Tools You're Not Using",
-    description: "Free tools across 10 competitors. What's actually useful at $0, and where the gaps are.",
+    title: "The Best Free Portfolio Brief & Watchlist Tools You're Not Using",
+    description: "Free tools across 10 competitors—what's useful at $0 for briefs and alerts, and where the gaps are.",
     category: "tools",
     tags: ["free", "tools", "comparison"],
     date: "2026-05-07",
     readTime: "12 min read",
   },
   {
-    slug: "tikrr-vs-finviz",
-    title: "tikrr vs Finviz: Which Market Intelligence Tool Is Right for You?",
-    description: "Finviz dominates screening. tikrr owns daily intelligence. They solve different problems. Here's how to pick.",
+    slug: "stocksbrew-vs-finviz",
+    title: "stocksbrew vs Finviz: Portfolio Briefs vs Screeners",
+    description:
+      "Finviz excels at screening; stocksbrew focuses on personalized buy, hold, and sell calls per holding. Different jobs. Here is how to pick.",
     category: "comparison",
     tags: ["comparison", "finviz", "tools"],
     date: "2026-05-07",

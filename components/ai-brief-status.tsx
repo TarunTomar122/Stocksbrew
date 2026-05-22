@@ -27,7 +27,7 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
     : `We're researching ${ticker} now.`;
   const body = noMajorNews
     ? "We did not detect a major market-moving company update today, so this brief uses fundamentals, price action, and technical context. It automatically switches to full news-backed AI coverage when fresh coverage appears."
-    : "tikrr has kicked off a fresh research run: recent news, fundamentals, technicals, and scorecard data go into our AI model, then this tab becomes the full AI brief with stance, catalysts, risks, and sentiment.";
+    : "stocksbrew has kicked off a fresh research run: recent news, fundamentals, technicals, and scorecard data go into our AI model, then this tab becomes the full AI brief with stance, catalysts, risks, and sentiment.";
 
   return (
     <section

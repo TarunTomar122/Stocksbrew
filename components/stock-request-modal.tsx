@@ -84,7 +84,7 @@ export function StockRequestModal({ query, onClose }: Props) {
                 <span className="font-bold">{query}</span>
               </p>
               <p className="text-[14px] text-[#6b7280] leading-relaxed">
-                We queued this request. We’ll email you as soon as this stock is available in Tikrr.
+                We queued this request. We’ll email you as soon as this stock is available in stocksbrew.
               </p>
             </>
           )}

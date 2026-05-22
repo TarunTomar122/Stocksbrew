@@ -1,3 +1,5 @@
+import { allBlogPosts } from "@/lib/blog-data";
+import { listEarningsIntelForSitemap } from "@/lib/earnings-intel";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { listSectorContextDocs } from "@/lib/sector";
 import { getThematicScreens } from "@/lib/screens";
@@ -5,10 +7,10 @@ import { allLearnPosts } from "@/lib/learn-data";
 
 export const revalidate = 86400; // ISR once a day
 
-const BASE = "https://www.tikrr.online";
+const BASE = "https://www.stocksbrew.online";
 
-function url(path: string, prio: string, freq: string) {
-  const d = new Date().toISOString().split("T")[0];
+function url(path: string, prio: string, freq: string, lastmod?: string) {
+  const d = lastmod ?? new Date().toISOString().split("T")[0];
   return `  <url><loc>${BASE}${path}</loc><lastmod>${d}</lastmod><changefreq>${freq}</changefreq><priority>${prio}</priority></url>`;
 }
 
@@ -19,8 +21,10 @@ export async function GET() {
   for (const [path, prio, freq] of [
     ["/", "1.0", "hourly"],
     ["/heat", "0.9", "hourly"],
+    ["/anomalies", "0.9", "hourly"],
     ["/news", "0.9", "hourly"],
     ["/screens", "0.9", "daily"],
+    ["/blog", "0.7", "weekly"],
     ["/watchlist", "0.7", "daily"],
     ["/subscribe", "0.7", "weekly"],
     ["/about", "0.5", "monthly"],
@@ -31,6 +35,7 @@ export async function GET() {
     ["/legal/disclaimer", "0.3", "yearly"],
     ["/should-i-buy", "0.8", "weekly"],
     ["/earnings", "0.8", "weekly"],
+    ["/earnings-intel", "0.8", "daily"],
     ["/ipos", "0.8", "weekly"],
     ["/portfolio", "0.8", "weekly"],
   ] as const) {
@@ -40,6 +45,28 @@ export async function GET() {
   // Learn posts
   for (const p of allLearnPosts) {
     entries.push(url(`/learn/${p.slug}`, "0.6", "monthly"));
+  }
+
+  // Blog posts
+  for (const p of allBlogPosts) {
+    entries.push(url(`/blog/${p.slug}`, "0.6", "monthly", p.date));
+  }
+
+  // Earnings intel — index + one URL per ticker with a published report
+  try {
+    const intel = await listEarningsIntelForSitemap();
+    for (const { ticker, lastmod } of intel) {
+      entries.push(
+        url(
+          `/earnings-intel/${encodeURIComponent(ticker)}`,
+          "0.75",
+          "weekly",
+          lastmod,
+        ),
+      );
+    }
+  } catch {
+    /* Firestore may be unreachable at build time */
   }
 
   // Stock pages from price universe (safe - no universe key needed)

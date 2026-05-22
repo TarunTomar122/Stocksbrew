@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(url, {
-      headers: { "User-Agent": "tikrr-logo-proxy/1.0" },
+      headers: { "User-Agent": "stocksbrew-logo-proxy/1.0" },
       // 3 s timeout — logos are small
       signal: AbortSignal.timeout(3000),
     });

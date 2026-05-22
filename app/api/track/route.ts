@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
+import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -30,7 +31,6 @@ function trackApiLog(
   else console.log(line);
 }
 
-const ON_DEMAND_QUEUE_DEDUPE_MS = 90 * 1000;
 
 async function queueWatchlistRefresh(
   traceId: string,
@@ -74,44 +74,6 @@ async function parseTrackPayload(req: NextRequest): Promise<{
   } catch {
     return null;
   }
-}
-
-async function maybeQueueOnDemandNews(uid: string, instrumentId: string): Promise<boolean> {
-  const coveredSnap = await adminFirestore.collection("tm_tracked_instruments").doc(instrumentId).get();
-  const coveredCount = coveredSnap.exists ? Number(coveredSnap.data()?.tracked_count ?? 0) : 0;
-  if (Number.isFinite(coveredCount) && coveredCount > 0) return false;
-
-  const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
-  let queued = false;
-  await adminFirestore.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const existing = snap.exists ? snap.data() : null;
-    const status = String(existing?.status || "");
-    const updatedAtRaw = String(existing?.updated_at || "");
-    const updatedAt = Date.parse(updatedAtRaw);
-    const recentlyQueued =
-      status === "queued" &&
-      Number.isFinite(updatedAt) &&
-      Date.now() - updatedAt < ON_DEMAND_QUEUE_DEDUPE_MS;
-    if (status === "running" || recentlyQueued) {
-      tx.set(ref, {
-        requested_by: FieldValue.arrayUnion(uid),
-        requested_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
-      return;
-    }
-    tx.set(ref, {
-      instrument_id: instrumentId,
-      market: instrumentId.startsWith("IN_") ? "IN" : "US",
-      status: "queued",
-      requested_by: FieldValue.arrayUnion(uid),
-      requested_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { merge: true });
-    queued = true;
-  });
-  return queued;
 }
 
 function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
