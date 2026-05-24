@@ -20,7 +20,7 @@ export const LONG_DESCRIPTION =
 export const HERO_HEADLINE = "Know exactly what to do with your stocks.";
 
 export const HERO_SUBHEAD =
-  "We read fundamentals, news, Reddit, and earnings for the stocks you follow, then give you a clear call. Set triggers and get emailed when something hits a buy or sell zone.";
+  "Clear buy, hold, and sell calls on your watchlist, with email alerts when it matters.";
 
 export const ABOUT_PILLARS = [
   {

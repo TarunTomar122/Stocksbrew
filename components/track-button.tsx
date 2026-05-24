@@ -170,7 +170,7 @@ export function TrackButton({
   }
 
   const trackedPillClass =
-    "inline-flex h-[40px] items-center justify-center rounded-full border border-[#111111] bg-white px-4 text-[13px] font-semibold tracking-tight text-[#111111] sm:h-11";
+    "inline-flex h-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#111111] bg-white px-4 text-[13px] font-semibold tracking-tight text-[#111111]";
 
   if (trackedAsBadge && localTracked && user) {
     if (variant === "icon") {
@@ -258,7 +258,7 @@ export function TrackButton({
             type="button"
             onClick={onPrimaryClick}
             disabled={pending}
-            className={`inline-flex items-center justify-center h-[40px] px-4 rounded-full text-[13px] font-semibold tracking-tight transition-transform disabled:opacity-60 ${
+            className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap h-[40px] px-4 rounded-full text-[13px] font-semibold tracking-tight transition-transform disabled:opacity-60 ${
               localTracked
                 ? "bg-white text-[#111111] border border-[#111111] hover:-translate-y-[1px] active:translate-y-0"
                 : "bg-[#111111] text-white hover:-translate-y-[1px] active:translate-y-0"

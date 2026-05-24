@@ -72,6 +72,7 @@ export default async function ProfilePage() {
             subscriptionStatus={userDoc?.subscriptionStatus ?? null}
             subscriptionPlan={userDoc?.subscriptionPlan ?? null}
             cancelAtPeriodEnd={userDoc?.cancelAtPeriodEnd ?? false}
+            subscriptionId={subscriptionId ?? null}
           />
         </section>
 

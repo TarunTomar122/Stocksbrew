@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { StockLogo } from "@/components/stock-logo";
+import { ExpandableYoutubeVideo } from "@/components/expandable-youtube-video";
+import { HERO_SUBHEAD } from "@/lib/brand-copy";
 
 type IndexData = {
   ticker: string;
@@ -106,25 +107,6 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
-  const [muted, setMuted] = useState(true);
-  const [playing, setPlaying] = useState(true);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  const postYT = useCallback((func: string) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args: [] }),
-      "*"
-    );
-  }, []);
-
-  function toggleMute() {
-    postYT(muted ? "unMute" : "mute");
-    setMuted((v) => !v);
-  }
-  function togglePlay() {
-    postYT(playing ? "pauseVideo" : "playVideo");
-    setPlaying((v) => !v);
-  }
 
   async function startTracking() {
     if (user) {
@@ -146,7 +128,7 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
 
   return (
     <section className="w-full overflow-hidden">
-      <div className="flex flex-col items-center gap-8 pt-10 md:pt-16 pb-10">
+      <div className="flex flex-col items-center gap-12 md:gap-20 pt-10 md:pt-16 pb-10">
 
         {/* Headline block — centered, with scattered floating chips */}
         <div className="relative w-full flex items-center justify-center" style={{ minHeight: "220px" }}>
@@ -170,8 +152,8 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
               Know exactly what to do with your stocks.
             </h1>
 
-            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[420px]">
-              We read fundamentals, news, Reddit, and earnings for the stocks you follow, then give you a clear call. Set triggers and get emailed when something hits a buy or sell zone.
+            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[380px]">
+              {HERO_SUBHEAD}
             </p>
 
             {/* Stock chips — mobile / tablet (desktop uses scattered layout above) */}
@@ -223,42 +205,14 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
                 www.stocksbrew.online/watchlist
               </div>
             </div>
-            <div className="relative w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl overflow-hidden border sm:border-t-0 border-[#e5e7eb] shadow-[0_20px_60px_rgba(0,0,0,0.10)]" style={{ paddingBottom: "56.25%" }}>
-              <iframe
-                ref={iframeRef}
-                src={`https://www.youtube.com/embed/${YT_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${YT_VIDEO_ID}&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&enablejsapi=1`}
-                title="See stocksbrew in action"
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 h-full w-full"
-                style={{ border: 0 }}
-              />
-              {/* Custom controls — bottom-right, just mute + play/pause */}
-              <div className="absolute bottom-3 right-3 flex items-center gap-1.5 z-10">
-                <button
-                  type="button"
-                  onClick={togglePlay}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-                  aria-label={playing ? "Pause" : "Play"}
-                >
-                  {playing ? (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="1" width="3" height="10" rx="1"/><rect x="7" y="1" width="3" height="10" rx="1"/></svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.5l7 4.5-7 4.5V1.5z"/></svg>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleMute}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-                  aria-label={muted ? "Unmute" : "Mute"}
-                >
-                  {muted ? (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M2 5h2.5L8 2v10L4.5 9H2V5z"/><path d="M10.5 5.5l2 2-2 2M12.5 5.5l-2 2 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/></svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M2 5h2.5L8 2v10L4.5 9H2V5z"/><path d="M10 5.5a3 3 0 010 3M11.5 4a5 5 0 010 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/></svg>
-                  )}
-                </button>
+            <div className="relative w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl overflow-hidden border sm:border-t-0 border-[#e5e7eb] shadow-[0_20px_60px_rgba(0,0,0,0.10)] isolate" style={{ paddingBottom: "56.25%" }}>
+              <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-t-none sm:rounded-b-2xl">
+                <ExpandableYoutubeVideo
+                  videoId={YT_VIDEO_ID}
+                  title="See stocksbrew in action"
+                  previewLabel="See stocksbrew in action"
+                  className="h-full w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl"
+                />
               </div>
             </div>
           </div>

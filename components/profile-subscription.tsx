@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import { profileStatusLine } from "@/lib/subscription-recovery-copy";
+import { SubscriptionActivator } from "@/components/subscription-activator";
 
 type Props = {
   isSubscribed: boolean;
@@ -12,6 +14,7 @@ type Props = {
   subscriptionStatus?: string | null;
   subscriptionPlan?: string | null;
   cancelAtPeriodEnd?: boolean | null;
+  subscriptionId?: string | null;
 };
 
 function planLabel(plan: string | null | undefined): string | null {
@@ -27,6 +30,7 @@ export function ProfileSubscription({
   subscriptionStatus,
   subscriptionPlan,
   cancelAtPeriodEnd,
+  subscriptionId,
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -57,10 +61,7 @@ export function ProfileSubscription({
 
   const statusLine = (() => {
     if (!isSubscribed) {
-      if (subscriptionStatus === "payment_failed") {
-        return "Last payment failed - update your payment method on the billing portal or resubscribe.";
-      }
-      return "Free - upgrade to unlock Pro features.";
+      return profileStatusLine(isSubscribed, subscriptionStatus);
     }
     if (cancelAtPeriodEnd) {
       return "Pro - scheduled to cancel at the end of this billing period.";
@@ -104,7 +105,9 @@ export function ProfileSubscription({
             href="/subscribe"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-[13px] font-semibold text-on-primary hover:opacity-90"
           >
-            Subscribe to Pro
+            {subscriptionStatus === "payment_failed" || subscriptionStatus === "processing"
+              ? "Try subscribing again"
+              : "Subscribe to Pro"}
           </Link>
         )}
         {isSubscribed && hasBillableSubscription && !cancelAtPeriodEnd && (
@@ -123,6 +126,14 @@ export function ProfileSubscription({
           </span>
         )}
       </div>
+
+      {!isSubscribed && (
+        <SubscriptionActivator
+          subscriptionId={subscriptionId ?? null}
+          isSubscribed={isSubscribed}
+          compact
+        />
+      )}
     </div>
   );
 }

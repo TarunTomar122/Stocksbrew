@@ -275,9 +275,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
             <Link
               href="/"
-              className="flex shrink-0 items-center gap-2 text-[20px] font-semibold text-[#111111] tracking-[-0.04em] leading-none"
+              className="flex shrink-0 flex-col gap-0.5 text-[#111111] leading-none"
             >
-              stocksbrew
+              <span className="text-[20px] font-semibold tracking-[-0.04em]">stocksbrew</span>
+              <span className="text-[10px] font-medium text-[#9ca3af] tracking-normal">
+                (formerly tikrr)
+              </span>
             </Link>
             <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
               {navItems.map((item) => {

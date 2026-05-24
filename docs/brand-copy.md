@@ -156,7 +156,7 @@ Old IDs kept for diff only. All used **twice a day / brief cadence** framing.
 | Field | Approved | Status | Where it lives |
 | --- | --- | --- | --- |
 | **Headline** | Know exactly what to do with your stocks. | live | `components/hero-section.tsx` |
-| **Subhead** | HS4 (see hero candidates) | live | `components/hero-section.tsx` |
+| **Subhead** | Clear buy, hold, and sell calls on your watchlist, with email alerts when it matters. | live | `components/hero-section.tsx` |
 | **Primary CTA (signed out)** | Track your first stock for free | live | same |
 | **Primary CTA (signed in)** | Open your Radar | live | same |
 | **Trust chips** | Free for 3 stocks · No credit card · Pro unlocks unlimited + alerts | live | same |
@@ -333,8 +333,7 @@ Medium (M2): stocksbrew turns your watchlist into clear calls: what to do, what 
              Free for 3 stocks.
 Long (L1):   (see L1 above)
 Hero H/S:    Know exactly what to do with your stocks. /
-             We read fundamentals, news, Reddit, and earnings for your list, then give
-             you a clear call. Set triggers and get emailed in buy or sell zones.
+             Clear buy, hold, and sell calls on your watchlist, with email alerts when it matters.
 ```
 
 ---

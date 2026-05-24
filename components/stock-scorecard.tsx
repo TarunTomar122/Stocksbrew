@@ -84,7 +84,7 @@ function PillarCard({
 }) {
   const icon = PILLAR_ICON[name];
   return (
-    <div className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-4.5">
+    <div className="flex h-full min-w-[148px] flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-4.5">
       <div className="flex items-center justify-between gap-2">
         <span
           className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
@@ -167,7 +167,7 @@ export function StockScorecard({
           )}
         </div>
 
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(148px,1fr))] gap-3">
           {PILLAR_ORDER.map((name) => (
             <PillarCard key={name} name={name} pillar={intel.pillars[name]} />
           ))}

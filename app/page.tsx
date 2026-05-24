@@ -1,7 +1,6 @@
 import { Suspense, cache } from "react";
 import { DailyAnomalies } from "@/components/daily-anomalies";
-import { HeroSection } from "@/components/hero-section";
-import { HomeHeroLive } from "@/components/home-hero-live";
+import { HomeHeroStream } from "@/components/home-hero-stream";
 import { HomeContent } from "@/components/home-content";
 import { MarketCues } from "@/components/market-cues";
 import { SectorSpotlights } from "@/components/sector-spotlights";
@@ -33,6 +32,7 @@ import { getRedditCues } from "@/lib/reddit-cues";
 import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { LandingProPreview } from "@/components/landing-pro-preview";
+import { HeroSection } from "@/components/hero-section";
 
 function rowToStock(s: SnapshotRow) {
   return {
@@ -428,7 +428,13 @@ export default function HomePage() {
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 py-8 md:py-10 flex flex-col gap-16 md:gap-20">
-        <HomeHeroLive />
+        <Suspense
+          fallback={
+            <HeroSection indices={[]} isSubscribed={false} showIndexSkeleton />
+          }
+        >
+          <HomeHeroStream />
+        </Suspense>
 
         <Suspense fallback={<HomeSignalStreamFallback title="anomalies" />}>
           <HomeAnomaliesStream />

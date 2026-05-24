@@ -28,6 +28,9 @@ export type UserDoc = {
   created_at?: string;
   last_sign_in_at?: string;
   lastCheckoutCreatedAt?: number;
+  lastCheckoutSessionId?: string | null;
+  lastCheckoutPlan?: "monthly" | "yearly" | null;
+  lastCheckoutMarket?: "US" | "IN" | null;
   /** Dodo subscription fields (see app/api/subscription/webhook). */
   subscriptionId?: string | null;
   subscriptionStatus?: string | null;
