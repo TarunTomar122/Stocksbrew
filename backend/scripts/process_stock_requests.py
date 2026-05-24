@@ -12,6 +12,7 @@ Flow:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -22,6 +23,15 @@ import requests
 
 from backend.instrument_universe import list_instruments
 from backend.lifecycle_emailing import email_stock_request_ready, send_email
+from backend.llm_client import (
+    json_response_format,
+    llm_api_key,
+    llm_api_url,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 from backend.market_strategy import normalize_ticker_entry
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.scripts.materialize_views import materialize_views
@@ -34,6 +44,19 @@ SUFFIX_RE = re.compile(
 )
 PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
+OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+
+SYMBOL_HINT_PROMPT = """You map user stock requests to likely US stock tickers.
+
+Return JSON with:
+- "symbol_hints": array of 1-5 uppercase ticker candidates (letters only where possible)
+- "name_hints": array of 1-3 likely company names
+
+Rules:
+- Do not include ETFs unless the request clearly is an ETF (e.g. SPY, XBI, QQQ).
+- If unsure, return an empty array.
+- No prose, JSON only.
+"""
 
 
 def _now() -> str:
@@ -180,9 +203,9 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
                 continue
         exchange = str(item.get("exchange") or "").strip().upper()
         country = str(item.get("country") or "").strip().upper()
-        if market == "US" and country and country != "UNITED STATES":
+        if market == "US" and country and country not in {"UNITED STATES", "USA", "US"}:
             continue
-        if market == "IN" and country and country != "INDIA":
+        if market == "IN" and country and country not in {"INDIA", "IN"}:
             continue
         out.append(
             {
@@ -197,6 +220,59 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
             }
         )
     return out
+
+
+def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
+    if market != "US":
+        return [], []
+    api_key = llm_api_key()
+    if not api_key:
+        return [], []
+    model = llm_model(OPENAI_DEFAULT_MODEL)
+    endpoint = llm_api_url()
+    payload = {"query": str(query or "").strip(), "market": market}
+    resp = requests.post(
+        endpoint,
+        headers=llm_headers(api_key),
+        json={
+            "model": model,
+            "temperature": 0.0,
+            "messages": [
+                {"role": "system", "content": schema_system_prompt(SYMBOL_HINT_PROMPT, {"type": "object"})},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            "response_format": json_response_format(),
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    content = resp.json()["choices"][0]["message"]["content"]
+    parsed = parse_json_content(content)
+    symbols = []
+    for raw in parsed.get("symbol_hints") or []:
+        sym = str(raw or "").strip().upper()
+        if not sym:
+            continue
+        if len(sym) > 8:
+            continue
+        symbols.append(sym)
+    names = []
+    for raw in parsed.get("name_hints") or []:
+        name = str(raw or "").strip()
+        if name:
+            names.append(name)
+    # de-dup, preserve order
+    def _dedupe(items: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for item in items:
+            key = item.upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+    return _dedupe(symbols)[:5], _dedupe(names)[:3]
 
 
 def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
@@ -220,6 +296,32 @@ def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str)
     if second and int(top["_score"]) - int(second["_score"]) < 15:
         return None
     return top
+
+
+def _resolve_request_with_llm_fallback(
+    master_rows: list[dict[str, Any]],
+    market: str,
+    query: str,
+) -> dict[str, Any] | None:
+    resolved = _resolve_request(master_rows, market, query)
+    if resolved:
+        return resolved
+
+    symbol_hints, name_hints = _llm_symbol_hints(query, market)
+    probe_queries = [*symbol_hints, *name_hints]
+    for probe in probe_queries:
+        candidate = _resolve_request(master_rows, market, probe)
+        if not candidate:
+            continue
+        # Guardrail: only accept LLM-assisted resolve when deterministic score
+        # is still strong on the original user query.
+        rescored = {
+            **candidate,
+            "_score": _score_candidate(query, candidate, market),
+        }
+        if int(rescored["_score"]) >= 70:
+            return rescored
+    return None
 
 
 def _catalog_instrument_map(market: str) -> dict[str, dict[str, Any]]:
@@ -468,7 +570,7 @@ def _pending_requests(store: TraceMoneyStore, limit: int, query: str | None = No
         if bool(data.get("fulfilled")):
             continue
         status = str(data.get("status") or "queued")
-        if status not in {"queued", "retry", "pending"}:
+        if status not in {"queued", "retry", "pending", "needs_confirmation"}:
             continue
         out.append(doc)
     out.sort(key=lambda d: str((d.to_dict() or {}).get("last_requested_at") or ""))
@@ -513,7 +615,7 @@ def main() -> None:
         try:
             if market not in master_by_market:
                 master_by_market[market] = _load_symbol_master(store, market)
-            resolved = _resolve_request(master_by_market[market], market, query)
+            resolved = _resolve_request_with_llm_fallback(master_by_market[market], market, query)
             if not resolved:
                 ref.set(
                     {
