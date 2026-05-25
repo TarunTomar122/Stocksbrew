@@ -37,6 +37,8 @@ function AnomalyCard({ item, isTracked }: { item: AnomalyItem; isTracked: boolea
   const isUp = item.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
   const changeBg = isUp ? "#ecfdf5" : "#fef2f2";
+  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
+  const showBrief = brief && brief !== item.headline;
 
   return (
     <div className="group relative flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm">
@@ -79,7 +81,11 @@ function AnomalyCard({ item, isTracked }: { item: AnomalyItem; isTracked: boolea
         </div>
 
         {item.headline && (
-          <p className="text-[13px] leading-snug text-[#374151]">{item.headline}</p>
+          <p className="text-[13px] leading-snug font-medium text-[#111111]">{item.headline}</p>
+        )}
+
+        {showBrief && (
+          <p className="line-clamp-3 text-[12px] leading-snug text-[#6b7280]">{brief}</p>
         )}
 
         <div className="mt-auto">

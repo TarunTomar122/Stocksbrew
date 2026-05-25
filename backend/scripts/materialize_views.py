@@ -76,10 +76,32 @@ def materialize_views(
     all_instrument_ids = [instrument["instrument_id"] for instrument in instruments]
     selected_ids = set(instrument_ids or all_instrument_ids)
     selected_ids = {instrument_id.strip().upper() for instrument_id in selected_ids if instrument_id.strip()}
-    selected_instruments = [
-        instrument for instrument in instruments
-        if str(instrument.get("instrument_id", "")).upper() in selected_ids
-    ]
+    if instrument_ids is None:
+        selected_instruments = [
+            instrument for instrument in instruments
+            if str(instrument.get("instrument_id", "")).upper() in selected_ids
+        ]
+    else:
+        market_catalog = list_instruments(market, None)
+        by_id = {
+            str(instrument.get("instrument_id", "")).upper(): instrument
+            for instrument in market_catalog
+        }
+        selected_instruments = [
+            by_id[instrument_id]
+            for instrument_id in sorted(selected_ids)
+            if instrument_id in by_id
+        ]
+        missing = [instrument_id for instrument_id in sorted(selected_ids) if instrument_id not in by_id]
+        if missing:
+            refs = [store.db.collection("tm_instruments").document(instrument_id) for instrument_id in missing]
+            for doc in store.db.get_all(refs):
+                if not doc.exists:
+                    continue
+                row = doc.to_dict() or {}
+                if str(row.get("market") or "").upper() != market.upper():
+                    continue
+                selected_instruments.append(row)
     if dashboard_only:
         selected_instruments = []
 

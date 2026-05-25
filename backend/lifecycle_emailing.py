@@ -16,6 +16,41 @@ FROM_EMAIL = "yourtrace.online@gmail.com"
 FROM_NAME = "stocksbrew"
 APP_URL = os.environ.get("NEXT_PUBLIC_APP_URL", "https://www.stocksbrew.online").rstrip("/")
 EMAIL_PREVIEWS_DIR = Path(__file__).resolve().parent / "email_previews"
+PH_LAUNCH_TEMPLATE = "07_ph_personal_launch.html"
+PH_LAUNCH_SUBJECT = "I launched on Product Hunt today and would love your take"
+DEFAULT_PH_LAUNCH_URL = "https://www.producthunt.com/posts/stocksbrew"
+
+
+def load_email_preview(filename: str) -> str:
+    path = EMAIL_PREVIEWS_DIR / filename
+    return path.read_text(encoding="utf-8")
+
+
+def first_name_from_profile(*, display_name: str | None = None, email: str = "") -> str:
+    raw = str(display_name or "").strip()
+    if raw:
+        token = raw.split()[0].strip(".,")
+        if token:
+            return token[:1].upper() + token[1:]
+    local = str(email or "").split("@", 1)[0].strip()
+    if local:
+        token = local.replace(".", " ").replace("_", " ").split()[0]
+        cleaned = "".join(ch for ch in token if ch.isalpha())
+        if len(cleaned) >= 2:
+            return cleaned[:1].upper() + cleaned[1:].lower()
+    return "there"
+
+
+def email_ph_personal_launch(
+    *,
+    first_name: str,
+    product_hunt_url: str | None = None,
+) -> tuple[str, str]:
+    html = load_email_preview(PH_LAUNCH_TEMPLATE)
+    html = html.replace("{{first_name}}", first_name)
+    ph_url = str(product_hunt_url or os.environ.get("PH_LAUNCH_URL") or DEFAULT_PH_LAUNCH_URL).strip()
+    html = html.replace(DEFAULT_PH_LAUNCH_URL, ph_url)
+    return PH_LAUNCH_SUBJECT, html
 
 
 def now_iso() -> str:

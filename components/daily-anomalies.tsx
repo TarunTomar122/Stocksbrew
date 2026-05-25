@@ -33,6 +33,8 @@ function timeAgo(iso: string): string {
 function AnomalyCard({ item }: { item: AnomalyItem }) {
   const isUp = item.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
+  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
+  const showBrief = brief && brief !== item.headline;
 
   return (
     <Link
@@ -77,8 +79,14 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
 
       {/* Headline */}
       {item.headline && (
-        <p className="min-h-[36px] line-clamp-2 text-[13px] leading-snug text-[#374151]">
+        <p className="line-clamp-2 text-[13px] leading-snug text-[#111111]">
           {item.headline}
+        </p>
+      )}
+
+      {showBrief && (
+        <p className="line-clamp-2 text-[12px] leading-snug text-[#6b7280]">
+          {brief}
         </p>
       )}
 

@@ -9,6 +9,7 @@ import { TrackButton } from "@/components/track-button";
 import { StockRequestModal } from "@/components/stock-request-modal";
 import { ProBadge } from "@/components/pro-badge";
 import { useUser } from "@/lib/auth-context";
+import { captureEvent } from "@/lib/posthog";
 import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
 
@@ -200,6 +201,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   }, []);
 
   function navigateTo(entry: SearchEntry) {
+    captureEvent("stock_search_selected", {
+      ticker: entry.ticker,
+      instrument_id: entry.instrument_id,
+      market,
+      source: mobileSearchOpen ? "mobile_header" : "desktop_header",
+    });
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();
@@ -373,6 +380,10 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                         type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
+                          captureEvent("stock_request_clicked", {
+                            query: query.trim().toUpperCase(),
+                            source: "desktop_header",
+                          });
                           setOpen(false);
                           setRequestQuery(query.trim().toUpperCase());
                         }}
@@ -553,6 +564,10 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                 <button
                   type="button"
                   onClick={() => {
+                    captureEvent("stock_request_clicked", {
+                      query: query.trim().toUpperCase(),
+                      source: "mobile_header",
+                    });
                     setMobileSearchOpen(false);
                     setRequestQuery(query.trim().toUpperCase());
                   }}

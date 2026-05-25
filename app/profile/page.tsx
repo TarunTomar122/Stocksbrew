@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { ProfileSubscription } from "@/components/profile-subscription";
+import { ProfileFounderFeedback } from "@/components/profile-founder-feedback";
 import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceToggle } from "@/components/preference-toggle";
 
@@ -102,6 +103,8 @@ export default async function ProfilePage() {
             description="How often your Radar calls refresh"
             badge="Coming soon"
           />
+
+          <ProfileFounderFeedback />
         </section>
 
         {/* ─── Danger zone ─────────────────────────────────── */}

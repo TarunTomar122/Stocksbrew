@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { captureEvent } from "@/lib/posthog";
 
 const OUTCOMES = [
   { label: "What moved overnight and why" },
@@ -16,6 +17,7 @@ export function NewsletterSignup() {
     const trimmed = email.trim();
     if (!trimmed) return;
     setState("loading");
+    captureEvent("newsletter_signup_submitted", { source: "homepage" });
     try {
       const res = await fetch("/api/newsletter-signup", {
         method: "POST",
@@ -23,8 +25,13 @@ export function NewsletterSignup() {
         body: JSON.stringify({ email: trimmed, source: "homepage" }),
       });
       setState(res.ok ? "success" : "error");
+      captureEvent(res.ok ? "newsletter_signup_succeeded" : "newsletter_signup_failed", {
+        source: "homepage",
+        status: res.status,
+      });
     } catch {
       setState("error");
+      captureEvent("newsletter_signup_failed", { source: "homepage", error: "network" });
     }
   }
 

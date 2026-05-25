@@ -139,7 +139,7 @@ def _resolve_llm_config() -> tuple[str, str, str] | None:
     return api_key, model, llm_api_url()
 
 
-def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:
+def _llm_extract(posts: list[dict[str, Any]], *, timeout_seconds: int) -> dict[str, Any] | None:
     resolved = _resolve_llm_config()
     if not resolved:
         return None
@@ -164,7 +164,7 @@ def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:
             ],
             "response_format": json_response_format(),
         },
-        timeout=45,
+        timeout=max(45, int(timeout_seconds)),
     )
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"]
@@ -180,6 +180,7 @@ def main() -> None:
     parser.add_argument("--max-tickers", type=int, default=20)
     parser.add_argument("--max-top-posts", type=int, default=12)
     parser.add_argument("--timeout-seconds", type=int, default=12)
+    parser.add_argument("--llm-timeout-seconds", type=int, default=120)
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -198,7 +199,7 @@ def main() -> None:
 
     llm_data: dict[str, Any] | None = None
     try:
-        llm_data = _llm_extract(posts)
+        llm_data = _llm_extract(posts, timeout_seconds=args.llm_timeout_seconds)
     except Exception as exc:
         print({"stage": "reddit_llm_failed", "error": str(exc)})
 

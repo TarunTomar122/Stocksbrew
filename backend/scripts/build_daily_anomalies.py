@@ -25,6 +25,13 @@ def _to_float(value: Any) -> float | None:
     return None
 
 
+def _is_directionally_stale(text: str, direction: str) -> bool:
+    lower = f" {text.lower()} "
+    if direction == "up":
+        return any(term in lower for term in (" fell ", " drops ", " dropped ", " down ", " decline", " selloff", " pullback "))
+    return any(term in lower for term in (" rose ", " rallies ", " rallied ", " up ", " surge ", " breakout "))
+
+
 def _run_intelligence_fill_for_missing(
     *,
     market: str,
@@ -80,13 +87,24 @@ def _pick_row(
 
     instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
     ticker = str(instrument.get("ticker") or "").strip().upper()
+    direction = "up" if day_change_pct >= 0 else "down"
+    key_points = [str(p).strip() for p in ((intel_doc or {}).get("key_points") or []) if str(p).strip()][:4]
     headline = str((intel_doc or {}).get("headline") or "").strip() or None
     thesis = str((intel_doc or {}).get("thesis") or "").strip() or None
-    brief = str((intel_doc or {}).get("today_brief") or "").strip() or None
+    raw_brief = (
+        str(
+            (intel_doc or {}).get("today_brief")
+            or (intel_doc or {}).get("body")
+            or ""
+        ).strip()
+        or None
+    )
+    if raw_brief and _is_directionally_stale(raw_brief, direction):
+        raw_brief = None
+    brief = key_points[0] if key_points else raw_brief
     label = str((intel_doc or {}).get("overall_label") or "").strip() or None
     score = (intel_doc or {}).get("overall_score")
     overall_score = int(score) if isinstance(score, (int, float)) else None
-    key_points = [str(p).strip() for p in ((intel_doc or {}).get("key_points") or []) if str(p).strip()][:4]
     visual_summary = (intel_doc or {}).get("visual_summary")
     if not isinstance(visual_summary, dict):
         visual_summary = None
@@ -120,7 +138,7 @@ def _pick_row(
         "day_change_pct": day_change_pct,
         "day_change_abs": day_change_abs,
         "volume": volume,
-        "direction": "up" if day_change_pct >= 0 else "down",
+        "direction": direction,
         "headline": headline,
         "thesis": thesis,
         "today_brief": brief,

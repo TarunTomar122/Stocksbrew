@@ -64,6 +64,8 @@ function AnomalyRow({ item }: { item: AnomalyItem }) {
 
 function BiggestMoverCard({ item }: { item: AnomalyItem }) {
   const isUp = item.direction === "up";
+  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
+  const showBrief = brief && brief !== item.headline;
 
   return (
     <a
@@ -90,7 +92,10 @@ function BiggestMoverCard({ item }: { item: AnomalyItem }) {
         </span>
       </div>
       {item.headline && (
-        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2">{item.headline}</p>
+        <p className="text-[12px] font-medium text-[#111111] leading-snug line-clamp-2">{item.headline}</p>
+      )}
+      {showBrief && (
+        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-3">{brief}</p>
       )}
       {item.catalyst && (
         <span className="text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-[#f3f4f6] text-[#6b7280] w-fit">
