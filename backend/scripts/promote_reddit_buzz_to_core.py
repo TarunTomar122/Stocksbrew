@@ -15,6 +15,11 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.scripts.process_stock_requests import (
+    _load_symbol_master as _load_symbol_master_rows,
+    _resolve_request_with_llm_fallback as _resolve_with_llm_fallback,
+    _upsert_instrument as _upsert_resolved_instrument,
+)
 from backend.storage import TraceMoneyStore
 
 
@@ -91,16 +96,27 @@ def _resolve_instrument_ids(
     market: str,
     ticker_rows: list[dict[str, Any]],
     min_confidence: float,
-) -> tuple[list[str], list[str]]:
+    *,
+    llm_fallback: bool,
+) -> tuple[list[str], list[str], int]:
     resolved: list[str] = []
     unresolved: list[str] = []
+    llm_resolved_count = 0
     market_key = str(market).upper()
+    master_rows = _load_symbol_master_rows(store, market_key) if llm_fallback else []
     for row in ticker_rows:
         ticker = str(row.get("ticker") or "").strip().upper()
+        company_name = str(row.get("company_name") or "").strip()
         confidence = float(row.get("confidence") or 0.0)
         if confidence < min_confidence:
             unresolved.append(ticker)
             continue
+
+        # Guardrail: avoid promoting private-company chatter under a public ticker.
+        if ticker == "SPCE" and "space exploration technologies" in company_name.lower():
+            unresolved.append(ticker)
+            continue
+
         doc_id = f"{market_key}__{ticker}"
         sym_doc = store.db.collection("tm_symbol_master").document(doc_id).get()
         instrument_id = ""
@@ -118,11 +134,20 @@ def _resolve_instrument_ids(
             inst_doc = store.db.collection("tm_instruments").document(fallback_id).get()
             if inst_doc.exists:
                 instrument_id = fallback_id
+        if not instrument_id and llm_fallback:
+            query = company_name or ticker
+            resolved = _resolve_with_llm_fallback(master_rows, market_key, query)
+            if resolved:
+                upserted = _upsert_resolved_instrument(store, resolved)
+                candidate_id = str(upserted.get("instrument_id") or resolved.get("instrument_id") or "").strip().upper()
+                if candidate_id:
+                    instrument_id = candidate_id
+                    llm_resolved_count += 1
         if instrument_id:
             resolved.append(instrument_id)
         else:
             unresolved.append(ticker)
-    return resolved, unresolved
+    return resolved, unresolved, llm_resolved_count
 
 
 def _save_promoted_tickers(store: TraceMoneyStore, market: str, instrument_ids: list[str]) -> None:
@@ -202,6 +227,7 @@ def main() -> None:
     parser.add_argument("--min-confidence", type=float, default=0.55)
     parser.add_argument("--pause", type=float, default=0.35)
     parser.add_argument("--skip-backfill", action="store_true")
+    parser.add_argument("--skip-llm-fallback", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -222,11 +248,12 @@ def main() -> None:
         print({"stage": "noop", "reason": "no_eligible_tickers", "market": market})
         return
 
-    resolved_ids, unresolved = _resolve_instrument_ids(
+    resolved_ids, unresolved, llm_resolved_count = _resolve_instrument_ids(
         store,
         market,
         ticker_rows,
         min_confidence=max(0.0, min(1.0, args.min_confidence)),
+        llm_fallback=not bool(args.skip_llm_fallback),
     )
     current_overrides = store.get_price_core_overrides(market)
     current_set = set(current_overrides)
@@ -245,6 +272,7 @@ def main() -> None:
                 "market": market,
                 "snapshot_tickers": len(ticker_rows),
                 "resolved_ids": len(resolved_ids),
+                "llm_resolved_ids": llm_resolved_count,
                 "would_add_ids": len(would_add),
                 "override_total_after": len(current_overrides) + len(would_add),
                 "unresolved_tickers": unresolved[:20],
@@ -271,6 +299,7 @@ def main() -> None:
             "market": market,
             "snapshot_tickers": len(ticker_rows),
             "resolved_ids": len(resolved_ids),
+            "llm_resolved_ids": llm_resolved_count,
             "added_ids": len(added_ids),
             "override_total": total_override_count,
             "unresolved_tickers": unresolved[:20],

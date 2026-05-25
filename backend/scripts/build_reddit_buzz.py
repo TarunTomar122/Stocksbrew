@@ -19,6 +19,10 @@ from backend.llm_client import (
     parse_json_content,
     schema_system_prompt,
 )
+from backend.scripts.process_stock_requests import (
+    _load_symbol_master as _load_symbol_master_rows,
+    _resolve_request as _resolve_request_deterministic,
+)
 from backend.storage import TraceMoneyStore
 
 USER_AGENT = "tikrr-reddit-buzz/2.0"
@@ -130,6 +134,14 @@ def _heuristic_fallback(posts: list[dict[str, Any]], max_tickers: int) -> tuple[
     return tickers, "neutral", []
 
 
+def _normalize_name(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = re.sub(r"\b(inc|inc\.|corp|corporation|ltd|limited|holdings?|company|co|plc|class a|class b)\b", " ", text)
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def _resolve_llm_config() -> tuple[str, str, str] | None:
     """Return OpenAI credentials for Reddit ticker extraction."""
     api_key = llm_api_key()
@@ -217,6 +229,12 @@ def main() -> None:
     ]
 
     if llm_data and isinstance(llm_data.get("tickers"), dict):
+        symbol_master_rows = _load_symbol_master_rows(store, str(args.market).upper())
+        symbol_master_by_ticker = {
+            str(row.get("symbol") or "").strip().upper(): row
+            for row in symbol_master_rows
+            if str(row.get("symbol") or "").strip()
+        }
         tickers_payload: list[dict[str, Any]] = []
         for symbol, item in (llm_data.get("tickers") or {}).items():
             ticker = str(symbol or "").strip().upper()
@@ -224,6 +242,29 @@ def main() -> None:
                 continue
             if not isinstance(item, dict):
                 continue
+            company_name = str(item.get("company_name") or "").strip()
+            company_norm = _normalize_name(company_name)
+
+            # Hard guard for common private-company confusion (e.g. SpaceX -> SPCE).
+            if ticker == "SPCE" and "space exploration technologies" in company_norm:
+                continue
+
+            # Guardrail: if LLM supplies company name, ensure ticker mapping agrees with
+            # our deterministic resolver before exposing it on frontend.
+            if company_norm:
+                master_row = symbol_master_by_ticker.get(ticker)
+                if master_row:
+                    master_norm = _normalize_name(str(master_row.get("name") or ""))
+                    if master_norm and company_norm not in master_norm and master_norm not in company_norm:
+                        resolved = _resolve_request_deterministic(symbol_master_rows, str(args.market).upper(), company_name)
+                        resolved_symbol = str((resolved or {}).get("symbol") or "").strip().upper()
+                        if resolved_symbol and resolved_symbol != ticker:
+                            continue
+                else:
+                    resolved = _resolve_request_deterministic(symbol_master_rows, str(args.market).upper(), company_name)
+                    resolved_symbol = str((resolved or {}).get("symbol") or "").strip().upper()
+                    if resolved_symbol and resolved_symbol != ticker:
+                        continue
             tickers_payload.append(
                 {
                     "ticker": ticker,
@@ -231,7 +272,7 @@ def main() -> None:
                     "summary": str(item.get("context") or "").strip() or f"{ticker} is active in Reddit chatter.",
                     "mention_count": int(item.get("mentions") or 0),
                     "catalysts": [str(c).strip() for c in (item.get("catalysts") or []) if str(c).strip()][:4],
-                    "company_name": str(item.get("company_name") or "").strip(),
+                    "company_name": company_name,
                     "exchange_hint": str(item.get("exchange_hint") or "UNKNOWN").strip().upper()[:12],
                     "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0.0))),
                     "evidence_span": str(item.get("evidence_span") or "").strip()[:180],
