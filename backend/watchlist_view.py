@@ -318,6 +318,37 @@ def _event_is_current(date_label: str) -> bool:
     return -1 <= delta <= 45
 
 
+def _catalyst_merge_key(catalyst: dict[str, Any]) -> str:
+    """Dedupe earnings from facts + intel_pro on calendar date, not title shape."""
+    kind = str(catalyst.get("kind") or "").lower()
+    if kind != "earnings":
+        return f"{kind}|{str(catalyst.get('title') or '').strip().lower()}"
+    parsed = (
+        _parse_event_date(catalyst.get("date"))
+        or _parse_event_date(catalyst.get("date_label"))
+        or _parse_event_date(catalyst.get("window"))
+    )
+    if parsed is None:
+        title = str(catalyst.get("title") or "")
+        parts = title.split()
+        if len(parts) >= 3:
+            parsed = _parse_event_date(" ".join(parts[1:]))
+    if parsed is not None:
+        return f"earnings|{parsed.isoformat()}"
+    return f"earnings|{str(catalyst.get('title') or '').strip().lower()}"
+
+
+def _catalyst_richness(catalyst: dict[str, Any]) -> int:
+    score = 0
+    if catalyst.get("date"):
+        score += 4
+    if catalyst.get("date_label"):
+        score += 2
+    if catalyst.get("window"):
+        score += 2
+    return score
+
+
 def _catalyst_is_current(catalyst: dict[str, Any]) -> bool:
     if str(catalyst.get("kind") or "").lower() != "earnings":
         return True
@@ -533,27 +564,6 @@ def _row_attention(
             "suggested_action": "Read latest context",
             "action_tone": "neutral",
         }
-    intel_catalysts = [
-        catalyst for catalyst in (intel_pro.get("catalysts") or [])
-        if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
-    ]
-    facts_earnings = _facts_earnings_catalysts(facts)
-    merged_catalysts: list[dict[str, Any]] = []
-    seen_keys: set[str] = set()
-    for catalyst in [*facts_earnings, *intel_catalysts]:
-        key = "|".join(
-            [
-                str(catalyst.get("kind") or "").lower(),
-                str(catalyst.get("date") or ""),
-                str(catalyst.get("date_label") or ""),
-                str(catalyst.get("title") or ""),
-            ]
-        )
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        merged_catalysts.append(catalyst)
-
     return {
         "attention_score": 35,
         "attention_reason": f"{ticker} is calm. No major price, technical, alert, or news anomaly stood out.",
@@ -662,6 +672,18 @@ def _row_for_instrument(
     directive = raw_directive if isinstance(raw_directive, dict) else {}
     directive_text = str(directive.get("text") or "").strip()
     directive_rationale = str(directive.get("rationale") or "").strip()
+    intel_catalysts = [
+        catalyst for catalyst in (intel_pro.get("catalysts") or [])
+        if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
+    ]
+    facts_earnings = _facts_earnings_catalysts(facts)
+    merged_by_key: dict[str, dict[str, Any]] = {}
+    for catalyst in [*facts_earnings, *intel_catalysts]:
+        key = _catalyst_merge_key(catalyst)
+        prev = merged_by_key.get(key)
+        if prev is None or _catalyst_richness(catalyst) > _catalyst_richness(prev):
+            merged_by_key[key] = catalyst
+    merged_catalysts = list(merged_by_key.values())
 
     return {
         "instrument_id": instrument_id,

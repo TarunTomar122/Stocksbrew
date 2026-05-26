@@ -17,87 +17,115 @@ function formatGeneratedAt(value?: string): string | null {
   });
 }
 
+function formatRelative(iso?: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const mins = Math.round((Date.now() - then) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief }: Props) {
   const timestamp = formatGeneratedAt(generatedAt);
+  const relative = formatRelative(generatedAt);
   const noMajorNews = mode === "no_major_news";
 
-  const badge = noMajorNews ? "No major news today" : "Research started";
+  const eyebrow = noMajorNews ? "Fundamentals brief" : "Research in progress";
+  const subtitle = noMajorNews
+    ? "No major news today · switches to full coverage when fresh articles land"
+    : "News, fundamentals, and scorecard feed into your AI brief";
   const title = noMajorNews
-    ? `${ticker} brief is based on fundamentals today.`
-    : `We're researching ${ticker} now.`;
-  const body = noMajorNews
-    ? "We did not detect a major market-moving company update today, so this brief uses fundamentals, price action, and technical context. It automatically switches to full news-backed AI coverage when fresh coverage appears."
-    : "stocksbrew has kicked off a fresh research run: recent news, fundamentals, technicals, and scorecard data go into our AI model, then this tab becomes the full AI brief with stance, catalysts, risks, and sentiment.";
+    ? `${ticker} · fundamentals-based read`
+    : `Researching ${ticker}`;
+
+  const dotColor = noMajorNews ? "#9ca3af" : "#f59e0b";
 
   return (
-    <section
-      className={`overflow-hidden rounded-3xl p-5 md:p-6 ${
-        noMajorNews
-          ? "border border-[#bfdbfe] bg-[#eff6ff]"
-          : "border border-[#fed7aa] bg-[#fff7ed]"
-      }`}
-    >
-      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-        <div className="flex max-w-[680px] flex-col gap-2">
-          <span
-            className={`inline-flex w-fit items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${
-              noMajorNews ? "text-[#1d4ed8]" : "text-[#c2410c]"
-            }`}
-          >
-            {badge}
-          </span>
-          <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">{title}</h3>
-          <p className={`text-[13px] leading-relaxed ${noMajorNews ? "text-[#1e3a8a]" : "text-[#7c2d12]"}`}>
-            {body}
-          </p>
-          {noMajorNews && brief ? (
-            <p className="rounded-2xl bg-white px-3 py-2 text-[13px] leading-relaxed text-[#1e3a8a]">
-              {brief}
+    <section className="relative overflow-hidden rounded-[20px] border border-[#e5e7eb] bg-white px-6 py-6 md:px-7 md:py-7">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none font-semibold tracking-[-0.04em] text-[#111111] text-[100px] md:text-[120px] leading-none opacity-[0.04]"
+      >
+        {ticker}
+      </span>
+
+      <div className="relative z-10 flex flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 max-w-[640px] flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ background: dotColor }}
+                aria-hidden
+              />
+              <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-[#111111]">
+                {eyebrow}
+              </h3>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                {title}
+              </p>
+              <p className="text-[13px] leading-relaxed text-[#6b7280]">{subtitle}</p>
+            </div>
+
+            {noMajorNews && brief ? (
+              <p className="border-t border-[#f3f4f6] pt-4 text-[15px] leading-[1.65] text-[#111111]">
+                {brief}
+              </p>
+            ) : null}
+
+            {!noMajorNews && (
+              <p className="text-[14px] leading-relaxed text-[#6b7280]">
+                stocksbrew is pulling recent news, fundamentals, technicals, and scorecard
+                data into our model. This tab will show stance, catalysts, risks, and sentiment
+                when the run finishes.
+              </p>
+            )}
+          </div>
+
+          {(relative || timestamp) && (
+            <p className="shrink-0 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af] sm:text-right">
+              {relative ? `Updated ${relative}` : timestamp ? `Updated ${timestamp}` : null}
             </p>
-          ) : null}
+          )}
         </div>
 
-        {timestamp && (
-          <div className="rounded-2xl bg-white px-4 py-3 text-left md:text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af]">
-              {noMajorNews ? "Updated" : "Started"}
-            </p>
-            <p className="mt-1 text-[13px] font-semibold text-[#111111]">{timestamp}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-3">
-        {noMajorNews ? (
-          <>
-            <StatusStep done label="Fundamentals updated" />
-            <StatusStep done label="No major news detected" />
-            <StatusStep done={false} label="News-backed refresh pending" />
-          </>
-        ) : (
-          <>
-            <StatusStep done label="Added to Radar" />
-            <StatusStep done label="Research queued" />
-            <StatusStep done={false} label="AI brief ready" />
-          </>
-        )}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-[#f3f4f6] pt-4 text-[12px]">
+          {noMajorNews ? (
+            <>
+              <StatusInline done label="Fundamentals updated" />
+              <StatusInline done label="No major news detected" />
+              <StatusInline done={false} label="News-backed refresh pending" />
+            </>
+          ) : (
+            <>
+              <StatusInline done label="Added to Radar" />
+              <StatusInline done label="Research queued" />
+              <StatusInline done={false} label="AI brief ready" />
+            </>
+          )}
+        </div>
       </div>
     </section>
   );
 }
 
-function StatusStep({ done, label }: { done: boolean; label: string }) {
+function StatusInline({ done, label }: { done: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5">
+    <span className="inline-flex items-center gap-1.5">
       <span
-        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${
-          done ? "bg-[#10b981] text-white" : "bg-[#f3f4f6] text-[#9ca3af]"
-        }`}
+        className={`text-[11px] font-semibold ${done ? "text-[#10b981]" : "text-[#9ca3af]"}`}
         aria-hidden
       >
-        {done ? "✓" : "•"}
+        {done ? "✓" : "○"}
       </span>
-      <span className="text-[12px] font-semibold text-[#374151]">{label}</span>
-    </div>
+      <span className={`font-medium ${done ? "text-[#111111]" : "text-[#6b7280]"}`}>{label}</span>
+    </span>
   );
 }

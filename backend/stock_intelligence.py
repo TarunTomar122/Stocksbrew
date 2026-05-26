@@ -1949,6 +1949,7 @@ def build_stock_intelligence_docs(
     store: Any | None = None,
 ) -> list[dict[str, Any]]:
     articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
+    raw_articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
     instruments_by_ticker = {instrument["ticker"].upper(): instrument for instrument in instruments}
     instruments_by_id = {instrument["instrument_id"]: instrument for instrument in instruments}
     now_utc = datetime.now(timezone.utc)
@@ -1992,6 +1993,18 @@ def build_stock_intelligence_docs(
     )
 
     for article in articles:
+        # Keep a raw per-instrument map before quality gating so we can avoid
+        # false "no news" states when fresh but lower-confidence coverage exists.
+        for mention in article.entity_mentions:
+            if mention.get("type") != "stock":
+                continue
+            if str(mention.get("mention_role", "secondary")).lower() == "incidental":
+                continue
+            ticker = str(mention.get("ticker", "")).upper().strip()
+            instrument = instruments_by_ticker.get(ticker)
+            if instrument:
+                raw_articles_by_instrument[instrument["instrument_id"]].append(article)
+
         grouped_mode = str(getattr(article, "enrichment_source", "")).strip().lower() == "grouped_stock_llm"
         # Drop articles the enricher flagged as unscored - these are landing
         # pages / listing URLs that the LLM couldn't extract substance from.
@@ -2022,6 +2035,20 @@ def build_stock_intelligence_docs(
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]
         matched_articles = sorted(articles_by_instrument.get(instrument_id, []), key=lambda item: item.published_at, reverse=True)
+        if not matched_articles:
+            raw_matched_articles = sorted(
+                raw_articles_by_instrument.get(instrument_id, []),
+                key=lambda item: item.published_at,
+                reverse=True,
+            )
+            if raw_matched_articles:
+                logger.info(
+                    "stock_intel weak evidence fallback for %s - using %s raw matched articles",
+                    instrument_id,
+                    len(raw_matched_articles),
+                )
+                matched_articles = raw_matched_articles
+
         if not matched_articles:
             # Per-ticker articles (on-demand jobs) may not map cleanly
             # through the LLM entity-mention matching logic, especially for

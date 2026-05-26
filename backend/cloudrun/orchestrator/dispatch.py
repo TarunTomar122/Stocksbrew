@@ -299,6 +299,16 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    # Cost guardrails: cap intraday fanout server-side so a stale scheduler payload
+    # cannot explode Cloud Run executions/cost.
+    if args.lane == "price_core_intraday":
+        intraday_limit_cap = max(1, int(os.getenv("INTRADAY_LIMIT_CAP", "80")))
+        intraday_shard_min = max(1, int(os.getenv("INTRADAY_SHARD_SIZE_MIN", "40")))
+        intraday_parallel_cap = max(1, int(os.getenv("INTRADAY_MAX_PARALLEL_CAP", "2")))
+        args.limit = min(max(1, args.limit), intraday_limit_cap)
+        args.shard_size = max(args.shard_size, intraday_shard_min)
+        args.max_parallel = min(max(1, args.max_parallel), intraday_parallel_cap)
+
     if not args.project:
         raise ValueError("Missing --project (or GOOGLE_CLOUD_PROJECT)")
 
@@ -491,6 +501,14 @@ def main() -> None:
             extra_args=single_extra_args,
             client=RunJobsClient(project=args.project, region=args.region),
         )
+        if args.lane == "market_open_email":
+            # Ensure email payload reads freshly materialized Radar rows instead
+            # of potentially stale previous-day watchlist views.
+            summary["watchlist_refresh"] = _refresh_watchlist_views(
+                run_id=run_id,
+                no_llm=True,
+                subscribed_only=False,
+            )
 
     status = "success"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:

@@ -30,6 +30,17 @@ def _email_key(email: str) -> str:
     return hashlib.sha1(email.strip().lower().encode("utf-8")).hexdigest()[:16]
 
 
+def _view_is_fresh_for_today(view: dict[str, Any], *, today_key: str) -> bool:
+    built_at = str(view.get("built_at") or "").strip()
+    if not built_at:
+        return False
+    try:
+        dt = datetime.fromisoformat(built_at.replace("Z", "+00:00"))
+    except Exception:
+        return False
+    return dt.astimezone(timezone.utc).date().isoformat() == today_key
+
+
 def _already_sent(store: TraceMoneyStore, *, market: str, date_key: str, email: str) -> bool:
     doc_id = f"{market}__{date_key}__{_email_key(email)}"
     doc = store.db.collection("tm_market_open_email_log").document(doc_id).get()
@@ -129,7 +140,7 @@ def main() -> None:
             view = store.get_watchlist_view(uid) or {}
             rows = view.get("rows") if isinstance(view, dict) else []
             rows = rows if isinstance(rows, list) else []
-            if rows:
+            if rows and isinstance(view, dict) and _view_is_fresh_for_today(view, today_key=today):
                 brief = view.get("brief") if isinstance(view, dict) else None
                 events = view.get("event_radar") if isinstance(view, dict) else None
                 subject, html = email_pro_daily_digest(

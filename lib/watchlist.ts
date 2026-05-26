@@ -59,7 +59,11 @@ const DEV_UNLOCK_PRO =
 
 export function resolveIsSubscribed(doc: UserDoc | null | undefined): boolean {
   if (DEV_UNLOCK_PRO && doc) return true;
-  return Boolean(doc?.is_subscribed);
+  if (!doc) return false;
+  if (doc.is_subscribed) return true;
+  const status = String(doc.subscriptionStatus || "").trim().toLowerCase();
+  if (status === "active" || status === "trialing") return true;
+  return false;
 }
 
 export async function isSubscribed(uid: string | null | undefined): Promise<boolean> {

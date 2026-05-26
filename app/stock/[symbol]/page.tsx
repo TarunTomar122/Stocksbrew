@@ -115,6 +115,10 @@ function hasSentimentBreakdown(sentiment: SentimentBreakdown | null | undefined)
   return Boolean((sentiment?.lanes?.length ?? 0) > 0 || (sentiment?.sources_breakdown?.length ?? 0) > 0);
 }
 
+function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
+  return Boolean(String(intelligence?.directive?.text ?? "").trim());
+}
+
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
   const cookieMarket = getCurrentMarket();
@@ -307,17 +311,23 @@ export default async function StockPage({ params }: Props) {
 
   const aiSource = intelligence?.source ?? "";
   const aiCoverageType = intelligence?.coverage_type ?? "";
-  const isOnDemandFirstPass = aiCoverageType === "on_demand_no_news";
-  const isNoMajorNewsFallback = isOnDemandFirstPass;
+  const isNoMajorNewsTagged = aiCoverageType === "on_demand_no_news";
+  const hasNewsBackedBrief = hasDirectiveBrief(intelligence);
   const isFallbackBrief =
-    isOnDemandFirstPass ||
+    isNoMajorNewsTagged ||
     aiSource === "rules" ||
     aiCoverageType === "on_demand_fallback" ||
     intelligence?.data_quality?.freshness_status === "pending";
-  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsFallback));
-  const showSynthesis = hasAI && hasBriefText(intelligence) && (!isFallbackBrief || isNoMajorNewsFallback);
-  const showCards = hasAI && hasVisualCards(intelligence);
-  const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown);
+  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsTagged));
+  // Prefer full AI brief when directive/synthesis exists, even if coverage is tagged no-news.
+  const showNoMajorNewsPanel = hasAI && isNoMajorNewsTagged && !hasNewsBackedBrief;
+  const showFullNewsBrief =
+    hasAI &&
+    !showBriefStatus &&
+    (hasNewsBackedBrief || (hasBriefText(intelligence) && !isNoMajorNewsTagged));
+  const showSynthesis = showFullNewsBrief;
+  const showCards = hasAI && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
+  const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
 
   const earningsContent = earningsIntel ? (
     <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} />
@@ -332,7 +342,7 @@ export default async function StockPage({ params }: Props) {
             generatedAt={intelligence?.generated_at}
           />
         )}
-        {isNoMajorNewsFallback && (
+        {showNoMajorNewsPanel && (
           <AiBriefStatus
             ticker={stock.ticker}
             generatedAt={intelligence?.generated_at}
@@ -340,7 +350,7 @@ export default async function StockPage({ params }: Props) {
             brief={intelligence?.today_brief ?? intelligence?.body}
           />
         )}
-        {!showBriefStatus && (
+        {showFullNewsBrief && (
           <>
             <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
               Updated {formatRelative(intelligence?.generated_at) || "-"}
@@ -351,7 +361,7 @@ export default async function StockPage({ params }: Props) {
         {showSynthesis && <AiSynthesis intelligence={intelligence} />}
         {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
         {showSentiment && <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />}
-        {!showBriefStatus && intelligence?.data_quality && (
+        {(showFullNewsBrief || showNoMajorNewsPanel) && intelligence?.data_quality && (
           <DataQualityStrip quality={intelligence.data_quality} />
         )}
       </section>
