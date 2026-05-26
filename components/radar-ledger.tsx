@@ -311,7 +311,7 @@ function EmptyTabState({
         <p className="text-[13.5px] text-[#6b7280] leading-snug max-w-[640px]">{intro.copy}</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {cards.map((s) => (
           <SuggestionCard key={s.ticker} suggestion={s} />
         ))}
@@ -365,47 +365,47 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
     <>
       <Link
         href={`/stock/${encodeURIComponent(ticker)}`}
-        className="group flex items-center gap-2.5 rounded-xl border border-[#e5e7eb] bg-white p-3 transition-all hover:border-[#111111] hover:shadow-sm"
+        className="group flex h-full flex-col gap-2.5 rounded-xl border border-[#e5e7eb] bg-white p-3 transition-all hover:border-[#111111] hover:shadow-sm"
       >
-        <StockLogo ticker={ticker} market={market} size={32} />
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-              {ticker}
-            </span>
+        <div className="flex min-w-0 items-start gap-2.5">
+          <StockLogo ticker={ticker} market={market} size={32} className="shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="truncate text-[13px] font-semibold text-[#0a0a0a] transition-colors group-hover:text-[#0052ff]">
+                {ticker}
+              </span>
+              {typeof score === "number" && (
+                <span className={`shrink-0 text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}>
+                  {Math.round(score)}
+                </span>
+              )}
+            </div>
             {suggestion.sector && (
-              <span className="text-[10px] text-[#9ca3af] truncate">{suggestion.sector}</span>
+              <span className="truncate text-[10px] text-[#9ca3af]">{suggestion.sector}</span>
+            )}
+            {suggestion.reason && (
+              <span className="line-clamp-2 text-[11px] leading-snug text-[#6b7280]">
+                {suggestion.reason}
+              </span>
             )}
           </div>
-          {suggestion.reason && (
-            <span className="text-[11px] text-[#6b7280] leading-snug truncate">
-              {suggestion.reason}
-            </span>
-          )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {typeof score === "number" && (
-            <span className={`text-[14px] font-semibold tabular-nums ${scoreToneText(score)}`}>
-              {Math.round(score)}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={addAsHolding}
-            title="Add as holding"
-            className={`inline-flex items-center justify-center rounded-lg px-2 py-1 text-[10px] font-semibold transition-all ${
-              status === "done"
-                ? "bg-[#ecfdf5] text-[#047857]"
-                : status === "error"
-                ? "bg-[#fef2f2] text-[#b91c1c]"
-                : status === "loading"
-                ? "bg-[#f3f4f6] text-[#9ca3af]"
-                : "bg-[#f3f4f6] text-[#374151] hover:bg-[#111111] hover:text-white"
-            }`}
-          >
-            {status === "done" ? "✓ Added" : status === "loading" ? "…" : status === "error" ? "Retry" : "+ Hold"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={addAsHolding}
+          title="Add as holding"
+          className={`inline-flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-[10px] font-semibold transition-all ${
+            status === "done"
+              ? "bg-[#ecfdf5] text-[#047857]"
+              : status === "error"
+              ? "bg-[#fef2f2] text-[#b91c1c]"
+              : status === "loading"
+              ? "bg-[#f3f4f6] text-[#9ca3af]"
+              : "bg-[#f3f4f6] text-[#374151] hover:bg-[#111111] hover:text-white"
+          }`}
+        >
+          {status === "done" ? "✓ Added" : status === "loading" ? "…" : status === "error" ? "Retry" : "+ Hold"}
+        </button>
       </Link>
       <RadarAsyncModal
         open={modalOpen}

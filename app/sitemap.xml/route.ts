@@ -1,9 +1,11 @@
 import { allBlogPosts } from "@/lib/blog-data";
+import { COMPARISON_PAGES } from "@/lib/compare-data";
 import { listEarningsIntelForSitemap } from "@/lib/earnings-intel";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { listSectorContextDocs } from "@/lib/sector";
 import { getThematicScreens } from "@/lib/screens";
 import { allLearnPosts } from "@/lib/learn-data";
+import { USE_CASES } from "@/lib/use-cases-data";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -29,6 +31,9 @@ export async function GET() {
     ["/subscribe", "0.7", "weekly"],
     ["/about", "0.5", "monthly"],
     ["/learn", "0.8", "weekly"],
+    ["/guides", "0.85", "weekly"],
+    ["/compare", "0.85", "weekly"],
+    ["/use-cases", "0.85", "weekly"],
     ["/legal/terms", "0.3", "yearly"],
     ["/legal/privacy", "0.3", "yearly"],
     ["/legal/cookies", "0.3", "yearly"],
@@ -38,8 +43,17 @@ export async function GET() {
     ["/earnings-intel", "0.8", "daily"],
     ["/ipos", "0.8", "weekly"],
     ["/portfolio", "0.8", "weekly"],
+    ["/position-size-calculator", "0.8", "weekly"],
   ] as const) {
     entries.push(url(path, prio, freq));
+  }
+
+  for (const p of COMPARISON_PAGES) {
+    entries.push(url(`/compare/${p.slug}`, "0.75", "monthly"));
+  }
+
+  for (const u of USE_CASES) {
+    entries.push(url(`/use-cases/${u.slug}`, "0.75", "monthly"));
   }
 
   // Learn posts

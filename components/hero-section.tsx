@@ -127,7 +127,7 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
   const displayIndices = indices.slice(0, 5);
 
   return (
-    <section className="w-full overflow-hidden">
+    <section className="w-full overflow-hidden bg-white">
       <div className="flex flex-col items-center gap-12 md:gap-20 pt-10 md:pt-16 pb-10">
 
         {/* Headline block — centered, with scattered floating chips */}

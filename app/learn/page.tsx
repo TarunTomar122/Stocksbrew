@@ -139,6 +139,12 @@ export default function LearnPage() {
             <Link href="/blog/best-free-stock-alert-tools-2026" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
               Alert Tools
             </Link>
+            <Link href="/guides" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
+              Research Guide
+            </Link>
+            <Link href="/compare/stocksbrew-vs-tickertape" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
+              vs Tickertape
+            </Link>
             <Link href="/blog" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#111111] bg-[#111111] text-white text-[13px] font-medium hover:-translate-y-[1px] transition-transform">
               All Posts →
             </Link>

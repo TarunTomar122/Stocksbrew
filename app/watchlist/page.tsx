@@ -184,7 +184,7 @@ export default async function WatchlistPage() {
   }
 
   if (!isSubscribed && rows.length === 0) {
-    return <UnsubscribedState tracked={tracked} />;
+    return <UnsubscribedState tracked={tracked} searchIndex={searchIndex} />;
   }
   // Free users with rows get the full Radar — the only difference is the 3-stock
   // limit enforced at /api/track time, not at display time.
@@ -1987,19 +1987,65 @@ const STARTER_PICKS = [
   { ticker: "AMZN", market: "US", sector: "Consumer Cyclical", reason: "Cloud + retail flywheel, underappreciated margins." },
 ];
 
-function UnsubscribedState({ tracked }: { tracked: string[] }) {
+function UnsubscribedState({
+  tracked,
+  searchIndex,
+}: {
+  tracked: string[];
+  searchIndex: SearchEntry[];
+}) {
+  const trackedCount = tracked.length;
+  const atLimit = trackedCount >= 3;
+
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-10">
 
         {/* Header */}
-        <header className="flex flex-col gap-2">
-          <h1 className="text-[32px] md:text-[40px] font-semibold text-[#0a0a0a] tracking-[-0.03em] leading-none">
-            Radar
-          </h1>
-          <p className="text-[14px] text-[#6b7280] leading-snug">
-            Track up to 3 stocks free. Get AI directives, alerts, and daily briefings.
-          </p>
+        <header className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
+                stocksbrew · {todayMasthead()}
+              </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-[32px] md:text-[40px] font-semibold text-[#0a0a0a] tracking-[-0.03em] leading-none">
+                  Radar
+                </h1>
+                <Link
+                  href="/subscribe"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-semibold text-[#92400e] hover:border-[#f59e0b] transition-colors"
+                >
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
+                    <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#b45309"/>
+                  </svg>
+                  Free · {trackedCount}/3 stocks
+                </Link>
+              </div>
+              <p className="text-[12.5px] text-[#6b7280]">
+                Track up to 3 stocks free. Get AI directives, alerts, and daily briefings.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 self-start mt-2">
+              {atLimit ? (
+                <Link
+                  href="/subscribe"
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
+                >
+                  Upgrade to track more →
+                </Link>
+              ) : (
+                <RadarBatchEditModal
+                  searchIndex={searchIndex}
+                  initialItems={[]}
+                  isSubscribed={false}
+                  ctaLabel="Add a stock"
+                  enableImageUpload
+                />
+              )}
+            </div>
+          </div>
         </header>
 
         {/* Start here — pick your first stocks */}
@@ -2049,7 +2095,7 @@ function UnsubscribedState({ tracked }: { tracked: string[] }) {
           </ul>
 
           <p className="text-[11.5px] text-[#9ca3af] text-center">
-            Or search for any stock using the search bar above.
+            Or use <span className="font-semibold text-[#6b7280]">+ Add a stock</span> above to search any ticker.
           </p>
         </section>
 

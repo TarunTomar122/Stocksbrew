@@ -1,5 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/blog/stock-research-guide-hub",
+        destination: "/guides",
+        permanent: true,
+      },
+      {
+        source: "/blog/stocksbrew-vs-tickertape",
+        destination: "/compare/stocksbrew-vs-tickertape",
+        permanent: true,
+      },
+      {
+        source: "/blog/stock-research-use-cases",
+        destination: "/use-cases",
+        permanent: true,
+      },
+      {
+        source: "/blog/free-should-i-buy-stock-checker",
+        destination: "/should-i-buy",
+        permanent: true,
+      },
+    ];
+  },
   experimental: {
     serverActions: true,
   },

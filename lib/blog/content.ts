@@ -1537,6 +1537,8 @@ export const blogContent: Record<string, string> = {
         <p style="margin-top:12px; color:var(--text-dim);">At $9/mo vs $39.50/mo, stocksbrew is also the clear value play. You get AI-powered intelligence for less than a quarter of Finviz's price.</p>
       </div>
 
+      <p>Also see: <a href="/compare/stocksbrew-vs-tickertape">stocksbrew vs Tickertape</a> (US Radar vs Indian screeners) and the <a href="/guides">stock research guide</a>.</p>
+
       <div class="cta-section">
         <h3>Try stocksbrew Free</h3>
         <p>See what AI-powered market intelligence looks like. No credit card required.</p>

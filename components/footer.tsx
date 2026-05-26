@@ -45,6 +45,7 @@ const COLUMNS: Column[] = [
       { label: "Earnings Calendar", href: "/earnings" },
       { label: "Earnings Intel", href: "/earnings-intel" },
       { label: "IPO Calendar", href: "/ipos" },
+      { label: "Position Size Calculator", href: "/position-size-calculator" },
     ],
   },
   {

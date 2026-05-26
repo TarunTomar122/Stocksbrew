@@ -6,6 +6,7 @@ import { ProfileSubscription } from "@/components/profile-subscription";
 import { ProfileFounderFeedback } from "@/components/profile-founder-feedback";
 import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceToggle } from "@/components/preference-toggle";
+import { ProfileRadarHighlight } from "@/components/profile-radar-highlight";
 
 export const revalidate = 0;
 
@@ -34,6 +35,7 @@ export default async function ProfilePage() {
           day: "numeric",
         })
       : null;
+  const trackedCount = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks!.length : 0;
 
   return (
     <main className="flex-grow">
@@ -66,6 +68,8 @@ export default async function ProfilePage() {
               )}
             </div>
           </div>
+
+          <ProfileRadarHighlight trackedCount={trackedCount} />
 
           <ProfileSubscription
             isSubscribed={subscribed}

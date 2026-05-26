@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { allBlogPosts, type BlogPost } from "@/lib/blog-data";
 import { getBlogContent } from "@/lib/blog";
+import { getSeoMeta } from "@/lib/blog/seo-meta";
+import { ArticleSchema } from "@/components/seo/article-schema";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   intelligence: { bg: "bg-[#ecfdf5]", text: "text-[#10b981]" },
@@ -47,9 +49,20 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   const content = getBlogContent(slug);
+  const seo = getSeoMeta(slug);
 
   return (
     <main className="flex-grow">
+      {seo && (
+        <ArticleSchema
+          slug={slug}
+          title={post.title}
+          description={post.description}
+          datePublished={post.date}
+          author={seo.author}
+          faqs={seo.faqs}
+        />
+      )}
       <article className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-12 md:py-16">
         <Link
           href="/blog"

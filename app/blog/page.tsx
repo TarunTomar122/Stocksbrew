@@ -43,6 +43,18 @@ export default function BlogPage() {
           </p>
         </header>
 
+        <Link
+          href="/guides"
+          className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#111111] transition-colors"
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">Guides</span>
+            <span className="text-[16px] font-semibold text-[#111111]">Stock research guide</span>
+            <span className="text-[13px] text-[#6b7280]">Free tools, comparisons, tutorials, and a weekly workflow in one place.</span>
+          </div>
+          <span className="text-[13px] font-semibold text-[#111111] shrink-0">Open guide →</span>
+        </Link>
+
         <section className="flex flex-col gap-5">
           {allBlogPosts.map((post) => (
             <Link
