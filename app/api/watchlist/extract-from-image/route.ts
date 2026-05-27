@@ -10,6 +10,13 @@ function normalizeTicker(raw: string): string {
   return raw.trim().toUpperCase().replace(/[^A-Z.]/g, "");
 }
 
+function toMaybeNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
@@ -28,13 +35,15 @@ export async function POST(req: NextRequest) {
 
   const model = process.env.TRACE_MONEY_LLM_MODEL || DEFAULT_MODEL;
   const system = [
-    "Extract stock tickers from a brokerage/watchlist screenshot.",
-    "Return strict JSON only: {\"tickers\":[\"AAPL\",\"MSFT\"]}.",
+    "Extract stock positions from a brokerage/watchlist screenshot.",
+    "Return strict JSON only:",
+    "{\"positions\":[{\"ticker\":\"AAPL\",\"quantity\":10,\"market_value\":1850,\"average_cost\":150}]}",
     "Rules:",
-    "- US equity symbols only.",
+    "- US/IN equity symbols only.",
     "- Uppercase 1-5 letters (allow BRK.B).",
     "- No words like BUY/SELL/USD/OPEN/CLOSE/TOTAL.",
-    "- Max 30 symbols.",
+    "- quantity/market_value/average_cost can be null if not visible.",
+    "- Max 30 positions.",
   ].join("\n");
 
   const payload = {
@@ -46,7 +55,7 @@ export async function POST(req: NextRequest) {
       {
         role: "user",
         content: [
-          { type: "text", text: "Extract tickers from this image." },
+          { type: "text", text: "Extract positions from this image." },
           { type: "image_url", image_url: { url: imageDataUrl } },
         ],
       },
@@ -75,15 +84,50 @@ export async function POST(req: NextRequest) {
     if (lines[lines.length - 1] === "```") lines.pop();
     raw = lines.join("\n").trim();
   }
+  let positions: Array<{
+    ticker: string;
+    quantity?: number | null;
+    market_value?: number | null;
+    average_cost?: number | null;
+  }> = [];
   let tickers: string[] = [];
   try {
     const parsed = JSON.parse(raw);
-    tickers = Array.isArray(parsed?.tickers) ? parsed.tickers.map((t: unknown) => String(t)) : [];
+    positions = Array.isArray(parsed?.positions)
+      ? parsed.positions
+          .filter((p: unknown) => p && typeof p === "object")
+          .map((p: unknown) => {
+            const row = p as Record<string, unknown>;
+            return {
+              ticker: String(row.ticker || ""),
+              quantity: toMaybeNumber(row.quantity),
+              market_value: toMaybeNumber(row.market_value),
+              average_cost: toMaybeNumber(row.average_cost),
+            };
+          })
+      : [];
+    tickers = Array.isArray(parsed?.tickers)
+      ? parsed.tickers.map((t: unknown) => String(t))
+      : positions.map((p) => p.ticker);
   } catch {
     return NextResponse.json({ error: "invalid_model_output" }, { status: 502 });
   }
 
   const normalized = [...new Set(tickers.map(normalizeTicker).filter((t) => /^[A-Z]{1,5}(\.[A-Z])?$/.test(t)))].slice(0, 30);
+  const byTickerHolding = new Map<
+    string,
+    { quantity?: number | null; market_value?: number | null; average_cost?: number | null; source: "screenshot" }
+  >();
+  for (const position of positions.slice(0, 30)) {
+    const ticker = normalizeTicker(position.ticker);
+    if (!/^[A-Z]{1,5}(\.[A-Z])?$/.test(ticker)) continue;
+    byTickerHolding.set(ticker, {
+      quantity: position.quantity ?? null,
+      market_value: position.market_value ?? null,
+      average_cost: position.average_cost ?? null,
+      source: "screenshot",
+    });
+  }
   const index = await getSearchIndex(market);
   const byTicker = new Map(index.map((e) => [String(e.ticker).toUpperCase(), e]));
 
@@ -95,9 +139,15 @@ export async function POST(req: NextRequest) {
         instrument_id: found.instrument_id,
         ticker: found.ticker,
         name: found.name,
+        holding: byTickerHolding.get(t),
       };
     })
     .filter(Boolean);
 
-  return NextResponse.json({ ok: true, tickers: normalized, matches });
+  return NextResponse.json({
+    ok: true,
+    tickers: normalized,
+    positions: normalized.map((ticker) => ({ ticker, ...(byTickerHolding.get(ticker) || {}) })),
+    matches,
+  });
 }

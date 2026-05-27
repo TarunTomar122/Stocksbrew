@@ -77,6 +77,25 @@ export type WatchlistRow = {
   ai_directive_rationale?: string;
   coverage_status: "ready" | "score_pending";
   has_intel_pro: boolean;
+  holding_status?: "known" | "unknown" | "watchlist";
+  directive_v2?: {
+    title: string;
+    detail?: string;
+    priority: "high" | "medium" | "low";
+    trigger?: string;
+    holding_status: "known" | "unknown" | "watchlist";
+  };
+  holding?: {
+    quantity?: number | null;
+    market_value?: number | null;
+    average_cost?: number | null;
+    computed_market_value?: number | null;
+    portfolio_weight_pct?: number | null;
+    cost_basis?: number | null;
+    unrealized_gain_pct?: number | null;
+    source?: string;
+    updated_at?: string;
+  };
 };
 
 export type WatchlistBrief = {
@@ -141,7 +160,24 @@ export type WatchlistView = {
   rows: WatchlistRow[];
   pulse: WatchlistPulse;
   brief: WatchlistBrief;
-  portfolio?: Record<string, unknown>;
+  portfolio?: {
+    position_aware?: boolean;
+    total_entered_value?: number | null;
+    concentration?: {
+      top1_pct?: number;
+      top3_pct?: number;
+      hhi?: number;
+      risk_label?: "low" | "medium" | "high";
+    };
+    position_risks?: Array<{
+      kind: string;
+      severity: string;
+      ticker?: string;
+      headline: string;
+      body: string;
+    }>;
+    [key: string]: unknown;
+  };
   attention_items?: Record<string, unknown>[];
   suggestions?: Record<string, unknown>[];
   risk_summary?: Record<string, unknown>;
@@ -692,6 +728,7 @@ async function loadAlertsByInstrument(uid: string): Promise<Record<string, Recor
 function rowFromDocs(
   instrumentId: string,
   positionType: "holding" | "watchlist",
+  holdingRaw: Record<string, unknown> | null,
   latest: Record<string, unknown>,
   instrument: Record<string, unknown>,
   intel: Record<string, unknown>,
@@ -715,6 +752,20 @@ function rowFromDocs(
   const price = toNumber(quote.current);
   const factsCompact = compactFacts(facts);
   const mentionCompact = mentionSummary(mentionStats);
+  const holdingPayload: WatchlistRow["holding"] =
+    positionType === "holding" && holdingRaw
+      ? {
+          quantity: toNumber(holdingRaw.quantity),
+          market_value: toNumber(holdingRaw.market_value),
+          average_cost: toNumber(holdingRaw.average_cost),
+          computed_market_value:
+            toNumber(holdingRaw.quantity) !== null && price !== null
+              ? (toNumber(holdingRaw.quantity) as number) * price
+              : toNumber(holdingRaw.market_value),
+          source: typeof holdingRaw.source === "string" ? holdingRaw.source : "manual",
+          updated_at: typeof holdingRaw.updated_at === "string" ? holdingRaw.updated_at : undefined,
+        }
+      : undefined;
   const targetUpside = targetUpsidePct(price, facts, intel);
   const attention = rowAttention(
     positionType,
@@ -807,12 +858,14 @@ function rowFromDocs(
     ...attention,
     coverage_status: Object.keys(intel).length > 0 ? "ready" : "score_pending",
     has_intel_pro: Object.keys(intel).length > 0,
+    holding: holdingPayload,
   };
 }
 
 async function buildRows(
   ids: string[],
   positions: Record<string, unknown>,
+  holdingsMap: Record<string, Record<string, unknown>>,
   universes: ActiveUniverses,
   alertsByInstrument: Record<string, Record<string, unknown>[]>,
 ): Promise<WatchlistRow[]> {
@@ -865,6 +918,7 @@ async function buildRows(
     const row = rowFromDocs(
       id,
       positionTypeFor(id, positions),
+      holdingsMap[id] ?? null,
       latest,
       instrumentsById.get(id) || {},
       intelById.get(id) || {},
@@ -880,6 +934,36 @@ async function buildRows(
 }
 
 function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
+  const holdingRows = rows.filter((r) => r.position_type === "holding");
+  const allHoldingsWeighted =
+    holdingRows.length > 0 &&
+    holdingRows.every(
+      (r) =>
+        typeof r.holding?.portfolio_weight_pct === "number" &&
+        (r.holding.portfolio_weight_pct as number) > 0,
+    );
+
+  if (allHoldingsWeighted) {
+    // Dollar-weighted: only holdings contribute — this is where the money actually is.
+    const bySector = new Map<string, { value: number; count: number }>();
+    for (const row of holdingRows) {
+      const sector = row.sector_label || row.market || "Unknown";
+      const weight = row.holding!.portfolio_weight_pct as number;
+      const prev = bySector.get(sector) ?? { value: 0, count: 0 };
+      bySector.set(sector, { value: prev.value + weight, count: prev.count + 1 });
+    }
+    const total = [...bySector.values()].reduce((s, v) => s + v.value, 0) || 1;
+    return [...bySector.entries()]
+      .sort((a, b) => b[1].value - a[1].value)
+      .map(([sector, { value, count }]) => ({
+        sector,
+        count,
+        weight_pct: Math.round((value / total) * 1000) / 10,
+        weight_basis: "value",
+      }));
+  }
+
+  // Fallback: equal-weight count across all rows.
   const counts = new Map<string, number>();
   for (const row of rows) {
     const sector = row.sector_label || row.market || "Unknown";
@@ -894,7 +978,25 @@ function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
     }));
 }
 
-function averageScore(rows: WatchlistRow[], key: keyof WatchlistRow["scores"]): number | null {
+function averageScore(
+  rows: WatchlistRow[],
+  key: keyof WatchlistRow["scores"],
+  positionWeights?: Map<string, number>,
+): number | null {
+  if (positionWeights && positionWeights.size > 0) {
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const row of rows) {
+      const score = row.scores[key];
+      const w = positionWeights.get(row.instrument_id) ?? 0;
+      if (typeof score === "number" && w > 0) {
+        weightedSum += score * w;
+        totalWeight += w;
+      }
+    }
+    if (totalWeight === 0) return null;
+    return Math.round((weightedSum / totalWeight) * 10) / 10;
+  }
   const values = rows
     .map((row) => row.scores[key])
     .filter((value): value is number => typeof value === "number");
@@ -1064,8 +1166,39 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
   if (!rows.length) {
     return { summary: "No Radar stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
   }
+
+  // ── Step 1: Position weights (all-or-none) ─────────────────────────────────
+  // Only enable dollar-weighting when EVERY holding has quantity > 0.
+  // A partial set would produce misleading weights, so fall back to equal-weight.
+  const holdingRows = rows.filter((r) => r.position_type === "holding");
+  const holdingsWithValues = holdingRows.filter((r) => {
+    const qty = toNumber(r.holding?.quantity);
+    return r.holding != null && qty != null && qty > 0;
+  });
+  const positionAware = holdingRows.length > 0 && holdingsWithValues.length === holdingRows.length;
+  const totalEnteredValue = positionAware
+    ? holdingsWithValues.reduce((sum, r) => {
+        const val = toNumber(r.holding?.computed_market_value) ?? toNumber(r.holding?.market_value) ?? 0;
+        return sum + val;
+      }, 0)
+    : 0;
+
+  // Stamp portfolio_weight_pct early so sectorClusters + averageScore can read it.
+  const positionWeights = new Map<string, number>();
+  if (positionAware && totalEnteredValue > 0) {
+    for (const row of holdingsWithValues) {
+      const val = (toNumber(row.holding?.computed_market_value) ?? toNumber(row.holding?.market_value)) ?? 0;
+      const pct = (val / totalEnteredValue) * 100;
+      if (row.holding) row.holding.portfolio_weight_pct = pct;
+      positionWeights.set(row.instrument_id, pct);
+    }
+  }
+
+  // ── Step 2: Sector clusters + scores (now read the stamped weights) ─────────
   const clusters = sectorClusters(rows);
   const dominant = clusters[0];
+  const weights = positionWeights.size > 0 ? positionWeights : undefined;
+
   const riskFlags: Array<Record<string, unknown>> = [];
   if (dominant && Number(dominant.weight_pct) >= 50) {
     riskFlags.push({
@@ -1112,9 +1245,10 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
       headline: `${row.ticker} has ${(row.target_upside_pct ?? 0) >= 0 ? "+" : ""}${row.target_upside_pct?.toFixed(1)}% target runway`,
       body: `On your watch list · score ${row.scores.overall}; consider adding at good entry points while runway holds.`,
     }));
+
   const summaryParts: string[] = [];
   if (dominant) summaryParts.push(`${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`);
-  const avgOverall = averageScore(rows, "overall");
+  const avgOverall = averageScore(rows, "overall", weights);
   if (avgOverall !== null) summaryParts.push(`Average stocksbrew score is ${avgOverall}.`);
   if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
   if (opportunities.length) {
@@ -1123,19 +1257,52 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
     );
   }
 
+  // ── Step 3: Concentration + position-level risk flags ──────────────────────
+  const top1Value = holdingsWithValues.reduce((max, r) => {
+    const val = toNumber(r.holding?.computed_market_value) ?? toNumber(r.holding?.market_value) ?? 0;
+    return val > max ? val : max;
+  }, 0);
+  const top1Pct = totalEnteredValue > 0 ? (top1Value / totalEnteredValue) * 100 : null;
+
+  const positionRisks: Array<Record<string, unknown>> = [];
+  if (positionAware && totalEnteredValue > 0) {
+    for (const row of [...holdingsWithValues].sort((a, b) => {
+      const av = (toNumber(a.holding?.computed_market_value) ?? toNumber(a.holding?.market_value)) ?? 0;
+      const bv = (toNumber(b.holding?.computed_market_value) ?? toNumber(b.holding?.market_value)) ?? 0;
+      return bv - av;
+    })) {
+      const val = (toNumber(row.holding?.computed_market_value) ?? toNumber(row.holding?.market_value)) ?? 0;
+      const weightPct = (val / totalEnteredValue) * 100;
+      if (weightPct < 35) break;
+      positionRisks.push({
+        ticker: row.ticker,
+        severity: weightPct >= 55 ? "high" : "medium",
+        headline: `${row.ticker} is ${weightPct.toFixed(0)}% of your entered value`,
+        body: `Heavy concentration — a significant move in ${row.ticker} has an outsized impact on your overall portfolio.`,
+      });
+    }
+  }
+
   return {
     summary: summaryParts.join(" ") || "Radar diagnosis is ready.",
     clusters,
     factor_tilt: {
-      overall: averageScore(rows, "overall"),
-      valuation: averageScore(rows, "valuation"),
-      growth: averageScore(rows, "growth"),
-      quality: averageScore(rows, "quality"),
-      momentum: averageScore(rows, "momentum"),
+      overall: averageScore(rows, "overall", weights),
+      valuation: averageScore(rows, "valuation", weights),
+      growth: averageScore(rows, "growth", weights),
+      quality: averageScore(rows, "quality", weights),
+      momentum: averageScore(rows, "momentum", weights),
     },
     risk_flags: riskFlags.slice(0, 6),
     opportunities: opportunities.slice(0, 6),
     suggestions: await screenSuggestions(rows),
+    position_aware: positionAware,
+    total_entered_value: totalEnteredValue > 0 ? totalEnteredValue : null,
+    concentration: {
+      top1_pct: top1Pct,
+      risk_label: top1Pct !== null ? (top1Pct >= 50 ? "high" : top1Pct >= 30 ? "medium" : "low") : null,
+    },
+    position_risks: positionRisks,
   };
 }
 
@@ -1525,8 +1692,11 @@ export async function buildWatchlistView(
   const alertsByInstrument = await loadAlertsByInstrument(uid);
   const previous = previousView ?? null;
 
+  const userSnap = await adminFirestore.collection("users").doc(uid).get();
+  const holdingsMap = (userSnap.exists ? (userSnap.data()?.watchlist_holdings as Record<string, Record<string, unknown>> | null) : null) ?? {};
+
   const ids = isSubscribed ? (trackedStocks || []) : (trackedStocks || []).slice(0, FREE_WATCHLIST_ROW_CAP);
-  const rows = applyRowDeltas(await buildRows(ids, positions, universes, alertsByInstrument), previous);
+  const rows = applyRowDeltas(await buildRows(ids, positions, holdingsMap, universes, alertsByInstrument), previous);
   rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
   const pulse = pulseFromRows(rows);
   const portfolio = await portfolioDiagnostics(rows);

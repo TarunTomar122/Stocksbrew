@@ -830,7 +830,9 @@ def build_no_news_intelligence_doc(
 
 PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You produce structured intelligence cards for a premium market app dashboard. Think Bloomberg Terminal meets Morning Brew - each card is a discrete, punchy insight.
 
-You get the user's watchlist with price moves, headlines, sentiment, catalysts, sectors, analyst data, and news. Your job is to generate content for FOUR distinct intelligence cards. Each card must be self-contained and cover different ground.
+You get the user's watchlist with price moves, headlines, sentiment, catalysts, sectors, analyst data, and news. Each stock has a `position_type` ("holding" = real money in it, "watchlist" = tracking only) and optionally a `portfolio_weight_pct` (% of the user's entered portfolio value). When portfolio_weight_pct is present for all holdings, use it to weight your risk assessment — a 30% holding with bad news is 10× more urgent than a 3% one. Prioritize movers, signals, and risk language based on actual dollar exposure, not equal weight. If portfolio weights are absent, treat all stocks equally.
+
+Your job is to generate content for FOUR distinct intelligence cards. Each card must be self-contained and cover different ground.
 
 **narrative**: 2-3 sentences summarizing the single most important story across the entire portfolio today. Not "stocks are up/down" - the THEME. What's driving the market, what changed, what matters for THIS portfolio. Write like a sharp newsletter opener. Max 50 words. Don't mention specific prices or percentages - the user sees those on the tiles. Focus on the WHY.
 
@@ -972,7 +974,7 @@ PORTFOLIO_BRIEF_SCHEMA = {
     },
 }
 
-PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-01-portfolio-brief-v13"
+PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-27-portfolio-brief-v14"
 
 
 def generate_portfolio_brief(
@@ -1007,6 +1009,8 @@ def generate_portfolio_brief(
             "ticker": doc.get("symbol", ""),
             "name": doc.get("name", ""),
             "sector": doc.get("sector", ""),
+            "position_type": doc.get("position_type", "watchlist"),
+            "portfolio_weight_pct": doc.get("portfolio_weight_pct"),
             "price_current": price.get("current", 0),
             "price_change_pct": price.get("changePct", 0),
             "volume_vs_avg": volume_vs_avg,

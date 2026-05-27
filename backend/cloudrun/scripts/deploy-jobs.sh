@@ -132,33 +132,74 @@ deploy_job() {
   gcloud "${deploy_args[@]}"
 }
 
-echo "Ensuring artifact registry..."
-ensure_repo
+# ---------------------------------------------------------------------------
+# Job registry: short-name -> "full-job-name memory cpu timeout"
+# Usage:
+#   bash deploy-jobs.sh                         # build image + deploy ALL jobs
+#   bash deploy-jobs.sh daily-postclose         # build image + deploy one job
+#   bash deploy-jobs.sh daily-postclose tracked-open-briefs  # deploy two jobs
+#   SKIP_BUILD=1 bash deploy-jobs.sh daily-postclose        # skip image build
+# ---------------------------------------------------------------------------
+declare -A JOB_REGISTRY
+JOB_REGISTRY[dispatch]="${DISPATCH_JOB_NAME} 1Gi 1 1200s"
+JOB_REGISTRY[tracked-news-prep]="${TRACKED_NEWS_PREP_JOB_NAME} 2Gi 2 2400s"
+JOB_REGISTRY[price-core-open]="${PRICE_CORE_OPEN_JOB_NAME} 2Gi 2 1800s"
+JOB_REGISTRY[tracked-open-briefs]="${TRACKED_OPEN_BRIEFS_JOB_NAME} 3Gi 2 2400s"
+JOB_REGISTRY[price-core-intraday]="${PRICE_CORE_INTRADAY_JOB_NAME} 2Gi 2 1800s"
+JOB_REGISTRY[open-anomalies]="${OPEN_ANOMALIES_JOB_NAME} 2Gi 2 2400s"
+JOB_REGISTRY[reddit-buzz]="${REDDIT_BUZZ_JOB_NAME} 1Gi 1 1200s"
+JOB_REGISTRY[market-open-email]="${MARKET_OPEN_EMAIL_JOB_NAME} 2Gi 1 3600s"
+JOB_REGISTRY[daily-postclose]="${DAILY_POSTCLOSE_JOB_NAME} 3Gi 2 5400s"
+JOB_REGISTRY[on-demand-news]="${ON_DEMAND_NEWS_JOB_NAME} 2Gi 1 1800s"
+JOB_REGISTRY[stock-requests]="${STOCK_REQUESTS_JOB_NAME} 2Gi 1 3600s"
+JOB_REGISTRY[earnings-intel]="${EARNINGS_INTEL_JOB_NAME} 3Gi 2 3600s"
 
-echo "Building runner image ${IMAGE_URI}..."
-build_image
+TARGET_JOBS=("$@")
 
-echo "Updating firebase secret ${FIREBASE_SECRET_NAME}..."
-upsert_secret
-echo "Verifying/updating OpenAI secret ${OPENAI_SECRET_NAME}..."
-upsert_optional_openai_secret
-if [[ -n "${BREVO_API_KEY:-}" ]]; then
-  echo "Updating Brevo secret ${BREVO_SECRET_NAME}..."
-  upsert_optional_brevo_secret
+# Validate any specified job names up front so we fail fast before building.
+for key in "${TARGET_JOBS[@]}"; do
+  if [[ -z "${JOB_REGISTRY[$key]:-}" ]]; then
+    echo "Unknown job: '${key}'"
+    echo "Known jobs: ${!JOB_REGISTRY[*]}"
+    exit 1
+  fi
+done
+
+if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
+  echo "SKIP_BUILD=1 — skipping image build and secret updates."
+else
+  echo "Ensuring artifact registry..."
+  ensure_repo
+
+  echo "Building runner image ${IMAGE_URI}..."
+  build_image
+
+  echo "Updating firebase secret ${FIREBASE_SECRET_NAME}..."
+  upsert_secret
+  echo "Verifying/updating OpenAI secret ${OPENAI_SECRET_NAME}..."
+  upsert_optional_openai_secret
+  if [[ -n "${BREVO_API_KEY:-}" ]]; then
+    echo "Updating Brevo secret ${BREVO_SECRET_NAME}..."
+    upsert_optional_brevo_secret
+  fi
 fi
 
-echo "Deploying jobs..."
-deploy_job "${DISPATCH_JOB_NAME}" "1Gi" "1" "1200s"
-deploy_job "${TRACKED_NEWS_PREP_JOB_NAME}" "2Gi" "2" "2400s"
-deploy_job "${PRICE_CORE_OPEN_JOB_NAME}" "2Gi" "2" "1800s"
-deploy_job "${TRACKED_OPEN_BRIEFS_JOB_NAME}" "3Gi" "2" "2400s"
-deploy_job "${PRICE_CORE_INTRADAY_JOB_NAME}" "2Gi" "2" "1800s"
-deploy_job "${OPEN_ANOMALIES_JOB_NAME}" "2Gi" "2" "2400s"
-deploy_job "${REDDIT_BUZZ_JOB_NAME}" "1Gi" "1" "1200s"
-deploy_job "${MARKET_OPEN_EMAIL_JOB_NAME}" "2Gi" "1" "3600s"
-deploy_job "${DAILY_POSTCLOSE_JOB_NAME}" "3Gi" "2" "5400s"
-deploy_job "${ON_DEMAND_NEWS_JOB_NAME}" "2Gi" "1" "1800s"
-deploy_job "${STOCK_REQUESTS_JOB_NAME}" "2Gi" "1" "3600s"
-deploy_job "${EARNINGS_INTEL_JOB_NAME}" "3Gi" "2" "3600s"
+run_deploy() {
+  local key="$1"
+  read -r job_name memory cpu timeout <<< "${JOB_REGISTRY[$key]}"
+  deploy_job "${job_name}" "${memory}" "${cpu}" "${timeout}"
+}
 
-echo "Done. Jobs deployed: ${DISPATCH_JOB_NAME}, ${TRACKED_NEWS_PREP_JOB_NAME}, ${PRICE_CORE_OPEN_JOB_NAME}, ${TRACKED_OPEN_BRIEFS_JOB_NAME}, ${PRICE_CORE_INTRADAY_JOB_NAME}, ${OPEN_ANOMALIES_JOB_NAME}, ${REDDIT_BUZZ_JOB_NAME}, ${MARKET_OPEN_EMAIL_JOB_NAME}, ${DAILY_POSTCLOSE_JOB_NAME}, ${ON_DEMAND_NEWS_JOB_NAME}, ${STOCK_REQUESTS_JOB_NAME}, ${EARNINGS_INTEL_JOB_NAME}"
+if [[ ${#TARGET_JOBS[@]} -eq 0 ]]; then
+  echo "Deploying all jobs..."
+  for key in "${!JOB_REGISTRY[@]}"; do
+    run_deploy "${key}"
+  done
+  echo "Done. All jobs deployed."
+else
+  echo "Deploying: ${TARGET_JOBS[*]}..."
+  for key in "${TARGET_JOBS[@]}"; do
+    run_deploy "${key}"
+  done
+  echo "Done. Deployed: ${TARGET_JOBS[*]}"
+fi

@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import type { WatchlistRow } from "@/lib/watchlist-view";
+
+type DirectiveV2 = NonNullable<WatchlistRow["directive_v2"]>;
+type HoldingPatch = Partial<NonNullable<WatchlistRow["holding"]>>;
 
 type Tab = "holdings" | "watching";
 
@@ -87,15 +90,72 @@ function groupSummary(rows: WatchlistRow[]): {
   totalAbs: number | null;
   currency: string;
 } {
-  const pcts = rows.map((r) => num(r.day_change_pct)).filter((n): n is number => n !== null);
+  // Dollar-weighted % when every row has portfolio_weight_pct stamped (all-or-none).
+  const allWeighted =
+    rows.length > 0 &&
+    rows.every(
+      (r) =>
+        typeof r.holding?.portfolio_weight_pct === "number" &&
+        (r.holding.portfolio_weight_pct as number) > 0,
+    );
+
+  let avgPct: number | null;
+  if (allWeighted) {
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const r of rows) {
+      const pct = num(r.day_change_pct);
+      const w = r.holding!.portfolio_weight_pct as number;
+      if (pct !== null && w > 0) {
+        weightedSum += pct * w;
+        totalWeight += w;
+      }
+    }
+    avgPct = totalWeight > 0 ? weightedSum / totalWeight : null;
+  } else {
+    const pcts = rows.map((r) => num(r.day_change_pct)).filter((n): n is number => n !== null);
+    avgPct = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
+  }
+
+  // Absolute dollar change is always summed — that's the real P&L number regardless of weighting.
   const absRows = rows.filter((r) => num(r.day_change_abs) !== null);
-  const avgPct = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
   const totalAbs = absRows.length
     ? absRows.reduce((s, r) => s + (num(r.day_change_abs) ?? 0), 0)
     : null;
   const currency = rows.find((r) => r.currency)?.currency ?? "USD";
   return { avgPct, totalAbs, currency };
 }
+
+function fmtShares(qty: number | null | undefined): string {
+  if (qty === null || qty === undefined || !Number.isFinite(qty)) return "—";
+  if (qty >= 1000) return qty.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (Number.isInteger(qty)) return String(qty);
+  return qty.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtHoldingValue(row: WatchlistRow): string {
+  const h = row.holding;
+  if (!h) return "-";
+  const val = num(h.market_value) ?? num(h.computed_market_value);
+  if (val !== null) {
+    return `${row.currency === "INR" ? "₹" : "$"}${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  }
+  const qty = num(h.quantity);
+  if (qty !== null && row.price !== null) {
+    return `${row.currency === "INR" ? "₹" : "$"}${(qty * row.price).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  }
+  if (qty !== null) return `${qty} sh`;
+  return "-";
+}
+
+const PRIORITY_BADGE: Record<
+  DirectiveV2["priority"],
+  { label: string; bg: string; fg: string }
+> = {
+  high: { label: "High", bg: "#fef2f2", fg: "#b91c1c" },
+  medium: { label: "Medium", bg: "#fef3c7", fg: "#92400e" },
+  low: { label: "Low", bg: "#f3f4f6", fg: "#4b5563" },
+};
 
 const STANCE_CHIP: Record<
   string,
@@ -127,27 +187,298 @@ function rsiExtremeFromRow(row: WatchlistRow): {
   return { label: `RSI${suffix}`, tone: "oversold" };
 }
 
+function mergeHoldingPatch(row: WatchlistRow, patch?: HoldingPatch): WatchlistRow {
+  if (!patch) return row;
+  return {
+    ...row,
+    holding: {
+      ...row.holding,
+      ...patch,
+    },
+  };
+}
+
+function PriorityBadge({ priority }: { priority: DirectiveV2["priority"] }) {
+  const meta = PRIORITY_BADGE[priority] ?? PRIORITY_BADGE.medium;
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em]"
+      style={{ background: meta.bg, color: meta.fg }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+function TriggerChip({ trigger }: { trigger: string }) {
+  const label = trigger.trim();
+  if (!label) return null;
+  return (
+    <span className="inline-flex max-w-[120px] shrink-0 items-center truncate rounded bg-[#f3f4f6] px-1.5 py-0.5 text-[9px] font-medium text-[#6b7280]">
+      {label.length > 18 ? `${label.slice(0, 16)}…` : label}
+    </span>
+  );
+}
+
+function SizeUnknownBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded bg-[#fef3c7] px-1.5 py-0.5 text-[9px] font-semibold text-[#92400e]">
+      Size unknown
+    </span>
+  );
+}
+
+function DirectiveDisplay({
+  row,
+  compact = false,
+}: {
+  row: WatchlistRow;
+  compact?: boolean;
+}) {
+  const d2 = row.directive_v2;
+  const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
+  const stanceMeta = STANCE_CHIP[stance];
+
+  if (d2?.title) {
+    const showSizeUnknown =
+      d2.holding_status === "unknown" && row.position_type === "holding";
+
+    if (compact) {
+      return (
+        <div className="mt-0.5 flex flex-col gap-0.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] font-semibold text-[#111111] leading-snug line-clamp-1">
+              {d2.title}
+            </span>
+            <PriorityBadge priority={d2.priority} />
+            {showSizeUnknown && <SizeUnknownBadge />}
+          </div>
+          {d2.detail && (
+            <span className="text-[9px] text-[#9ca3af] leading-snug line-clamp-1">{d2.detail}</span>
+          )}
+          {d2.trigger && (
+            <div className="flex flex-wrap items-center gap-1">
+              <TriggerChip trigger={d2.trigger} />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[12px] font-semibold text-[#111111] leading-snug">{d2.title}</span>
+          <PriorityBadge priority={d2.priority} />
+          {d2.trigger && <TriggerChip trigger={d2.trigger} />}
+          {showSizeUnknown && <SizeUnknownBadge />}
+        </div>
+        {d2.detail && (
+          <p className="text-[10px] leading-snug text-[#9ca3af] line-clamp-2">{d2.detail}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (stanceMeta) {
+    return (
+      <span
+        className={`inline-flex w-fit items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em] ${
+          compact ? "mt-0.5 rounded px-1.5 py-0.5 text-[9px]" : ""
+        }`}
+        style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
+      >
+        <span
+          aria-hidden
+          className={`rounded-full ${compact ? "h-1 w-1" : "h-1.5 w-1.5"}`}
+          style={{ background: stanceMeta.dot }}
+        />
+        {stanceMeta.label}
+      </span>
+    );
+  }
+
+  return compact ? null : <span className="text-[11px] text-[#9ca3af]">—</span>;
+}
+
+type SharesEditHandlers = {
+  onSharesSaved: (instrumentId: string, patch: HoldingPatch) => void;
+  bulkEditing: boolean;
+};
+
+function InlineSharesCell({
+  row,
+  onSharesSaved,
+  bulkEditing,
+}: { row: WatchlistRow } & SharesEditHandlers) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const quantity = num(row.holding?.quantity);
+  const display = fmtShares(quantity);
+
+  useEffect(() => {
+    setDraft(quantity !== null ? String(quantity) : "");
+    setError(null);
+  }, [quantity, row.instrument_id]);
+
+  function commitDraft() {
+    const trimmed = draft.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed.replace(/,/g, ""));
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
+      setError("Invalid");
+      return;
+    }
+    setError(null);
+    onSharesSaved(row.instrument_id, { quantity: parsed });
+  }
+
+  if (!bulkEditing) {
+    return <span className={`text-[13px] font-semibold tabular-nums ${display === "—" ? "text-[#9ca3af]" : "text-[#111111]"}`}>{display}</span>;
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <input
+        ref={inputRef}
+        type="number"
+        min="0"
+        step="0.0001"
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setError(null);
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commitDraft();
+            inputRef.current?.blur();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            setDraft(quantity !== null ? String(quantity) : "");
+            setError(null);
+            inputRef.current?.blur();
+          }
+        }}
+        aria-label={`Shares for ${row.ticker}`}
+        className={`w-[84px] rounded border px-1.5 py-0.5 text-right text-[12px] font-semibold tabular-nums outline-none ${
+          error ? "border-[#fca5a5] bg-[#fef2f2]" : "border-[#d1d5db] bg-white focus:border-[#111111]"
+        }`}
+      />
+      {error && <span className="text-[9px] font-medium text-[#ef4444]">{error}</span>}
+    </div>
+  );
+}
+
 // -----------------------------------------------------------------------------
 // main component
 // -----------------------------------------------------------------------------
 
 export function RadarLedger({ holdings, watching, suggestions = [], activeTab, onTabChange }: Props) {
+  const router = useRouter();
   const [internalTab, setInternalTab] = useState<Tab>(
     holdings.length === 0 && watching.length > 0 ? "watching" : "holdings",
   );
+  const [holdingPatches, setHoldingPatches] = useState<Record<string, HoldingPatch>>({});
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const controlled = activeTab !== undefined;
   const tab = controlled ? activeTab : internalTab;
   const setTab = (t: Tab) => {
     if (controlled) onTabChange?.(t);
     else setInternalTab(t);
   };
-  const rows = tab === "holdings" ? holdings : watching;
+  const sourceRows = tab === "holdings" ? holdings : watching;
+  const rows = sourceRows.map((row) => mergeHoldingPatch(row, holdingPatches[row.instrument_id]));
+
+  useEffect(() => {
+    if (tab !== "holdings" && bulkEditing) {
+      setBulkEditing(false);
+      setHoldingPatches({});
+      setBulkError(null);
+    }
+  }, [tab, bulkEditing]);
+
+  function applyHoldingPatch(instrumentId: string, patch: HoldingPatch) {
+    setHoldingPatches((prev) => ({
+      ...prev,
+      [instrumentId]: { ...prev[instrumentId], ...patch },
+    }));
+  }
+
+  function cancelBulkEdits() {
+    setHoldingPatches({});
+    setBulkEditing(false);
+    setBulkError(null);
+  }
+
+  async function saveBulkHoldingEdits() {
+    if (bulkSaving) return;
+
+    // All-or-none: every holding must have shares > 0. Partial data produces
+    // misleading portfolio weights so we block the save and tell the user which are missing.
+    const missingTickers = holdings
+      .map((row) => ({ row, patched: mergeHoldingPatch(row, holdingPatches[row.instrument_id]) }))
+      .filter(({ patched }) => {
+        const qty = num(patched.holding?.quantity);
+        return qty === null || qty <= 0;
+      })
+      .map(({ row }) => row.ticker);
+    if (missingTickers.length > 0) {
+      setBulkError(`Enter shares > 0 for all holdings before saving: ${missingTickers.join(", ")}`);
+      return;
+    }
+
+    setBulkSaving(true);
+    setBulkError(null);
+    try {
+      const items = [
+        ...holdings.map((row) => {
+          const patched = mergeHoldingPatch(row, holdingPatches[row.instrument_id]);
+          return {
+            instrument_id: patched.instrument_id,
+            position_type: "holding",
+            holding: {
+              quantity: num(patched.holding?.quantity),
+              market_value: num(patched.holding?.market_value),
+              average_cost: num(patched.holding?.average_cost),
+              currency: patched.currency,
+              source: "manual",
+            },
+          };
+        }),
+        ...watching.map((row) => ({
+          instrument_id: row.instrument_id,
+          position_type: "watchlist",
+        })),
+      ];
+      const res = await fetch("/api/watchlist/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) throw new Error("bulk_save_failed");
+      setHoldingPatches({});
+      setBulkEditing(false);
+      triggerRadarBackgroundRefresh(router);
+    } catch {
+      setBulkError("Couldn’t save updates. Try again.");
+    } finally {
+      setBulkSaving(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
       {/* Tab pills — only when uncontrolled */}
       {!controlled && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
           <TabButton
             active={tab === "holdings"}
             onClick={() => setTab("holdings")}
@@ -160,34 +491,82 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
             label="Watching"
             count={watching.length}
           />
+          </div>
         </div>
       )}
-
       {/* Ledger */}
       {rows.length === 0 ? (
         <EmptyTabState tab={tab} suggestions={suggestions} />
       ) : (
         <>
+          {bulkError && (
+            <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-[11px] font-medium text-[#b91c1c]">
+              {bulkError}
+            </div>
+          )}
           {/* ── Mobile card list (< md) ── */}
           <div className="md:hidden rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
-            <DailySummary rows={rows} label={tab === "holdings" ? "Holdings" : "Watching"} />
+            <DailySummary
+              rows={rows}
+              label={tab === "holdings" ? "Holdings" : "Watching"}
+              editSlot={tab === "holdings" && holdings.length > 0 ? (
+                bulkEditing ? (
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-50">Cancel</button>
+                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-[#111111] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
+                      {bulkSaving && <span className="h-2 w-2 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#374151] hover:bg-[#f9fafb]">Edit holdings</button>
+                )
+              ) : undefined}
+            />
             <div className="max-h-[560px] overflow-y-auto">
               {rows.map((row, i) => (
-                <MobileRow key={row.instrument_id} row={row} hasBorder={i > 0} />
+                <MobileRow
+                  key={row.instrument_id}
+                  row={row}
+                  hasBorder={i > 0}
+                  showHoldingValues={tab === "holdings"}
+                />
               ))}
             </div>
           </div>
 
           {/* ── Desktop table (≥ md) ── */}
           <div className="hidden md:block rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
-            <DailySummary rows={rows} label={tab === "holdings" ? "Holdings" : "Watching"} />
+            <DailySummary
+              rows={rows}
+              label={tab === "holdings" ? "Holdings" : "Watching"}
+              editSlot={tab === "holdings" && holdings.length > 0 ? (
+                bulkEditing ? (
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-50">Cancel</button>
+                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-[#111111] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
+                      {bulkSaving && <span className="h-2 w-2 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#374151] hover:bg-[#f9fafb]">Edit holdings</button>
+                )
+              ) : undefined}
+            />
             <div className="overflow-x-auto overflow-y-auto max-h-[540px]">
-              <table className="w-full min-w-[720px] border-collapse text-[13px]">
+              <table className="w-full min-w-[800px] border-collapse text-[13px]">
                 <thead className="sticky top-0 z-10 bg-white">
                   <tr className="border-b border-[#f3f4f6] text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
                     <th className="px-4 py-3 font-semibold">Ticker</th>
                     <th className="px-3 py-3 text-right font-semibold">Price</th>
                     <th className="px-3 py-3 text-right font-semibold">Change</th>
+                    {tab === "holdings" && (
+                      <>
+                        <th className="px-3 py-3 text-right font-semibold">Shares</th>
+                        <th className="px-3 py-3 text-right font-semibold">Value</th>
+                      </>
+                    )}
                     <th className="px-3 py-3 text-right font-semibold">Runway</th>
                     <th className="px-4 py-3 font-semibold">Directive</th>
                     <th className="px-3 py-3 w-8" />
@@ -195,7 +574,14 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <LedgerRow key={row.instrument_id} row={row} />
+                    <LedgerRow
+                      key={row.instrument_id}
+                      row={row}
+                      showHoldingValue={tab === "holdings"}
+                      showShares={tab === "holdings"}
+                      onSharesSaved={applyHoldingPatch}
+                      bulkEditing={bulkEditing}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -207,28 +593,33 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
   );
 }
 
-function DailySummary({ rows, label }: { rows: WatchlistRow[]; label: string }) {
+function DailySummary({ rows, label, editSlot }: { rows: WatchlistRow[]; label: string; editSlot?: ReactNode }) {
   const { avgPct, totalAbs, currency } = groupSummary(rows);
-  if (avgPct === null) return null;
-  const positive = avgPct >= 0;
+  if (avgPct === null && !editSlot) return null;
+  const positive = (avgPct ?? 0) >= 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-3">
-      <span className="text-[12px] font-medium text-[#9ca3af]">{label} · today</span>
-      <div className="flex flex-col items-end gap-0.5">
-        <span
-          className={`text-[14px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
-        >
-          {fmtSignedPct(avgPct)}
-        </span>
-        {totalAbs !== null && (
-          <span
-            className={`text-[12px] tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
-          >
-            {fmtSignedAbs(totalAbs, currency)}
-          </span>
-        )}
+    <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="text-[12px] font-medium text-[#9ca3af]">{label} · today</span>
+        {editSlot}
       </div>
+      {avgPct !== null && (
+        <div className="flex flex-col items-end gap-0.5">
+          <span
+            className={`text-[14px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
+          >
+            {fmtSignedPct(avgPct)}
+          </span>
+          {totalAbs !== null && (
+            <span
+              className={`text-[12px] tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
+            >
+              {fmtSignedAbs(totalAbs, currency)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -421,16 +812,24 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 // MobileRow — 2-col card for small screens
 // -----------------------------------------------------------------------------
 
-function MobileRow({ row, hasBorder }: { row: WatchlistRow; hasBorder: boolean }) {
+function MobileRow({
+  row,
+  hasBorder,
+  showHoldingValues,
+}: {
+  row: WatchlistRow;
+  hasBorder: boolean;
+  showHoldingValues?: boolean;
+}) {
   const router = useRouter();
   const market = row.market === "IN" ? "IN" : "US";
   const dayChange = row.day_change_pct;
   const positive = (dayChange ?? 0) >= 0;
-  const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
-  const stanceMeta = STANCE_CHIP[stance];
   const rsi = rsiExtremeFromRow(row);
   const cats = (row.catalysts ?? []) as Array<Record<string, unknown>>;
   const href = `/stock/${encodeURIComponent(row.ticker)}`;
+  const shareQty = num(row.holding?.quantity);
+  const sharesKnown = shareQty !== null;
 
   return (
     <div
@@ -470,22 +869,24 @@ function MobileRow({ row, hasBorder }: { row: WatchlistRow; hasBorder: boolean }
               })}
             </div>
           )}
-          {/* Directive chip below name */}
-          {stanceMeta && (
-            <span
-              className="mt-0.5 inline-flex w-fit items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em]"
-              style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
-            >
-              <span aria-hidden className="h-1 w-1 rounded-full" style={{ background: stanceMeta.dot }} />
-              {stanceMeta.label}
-            </span>
-          )}
+          {/* Directive below name */}
+          <DirectiveDisplay row={row} compact />
         </div>
       </div>
 
       {/* RIGHT: price + % change + menu */}
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col items-end gap-0.5">
+          {showHoldingValues && sharesKnown && (
+            <span className="text-[11px] font-semibold tabular-nums text-[#6b7280]">
+              {fmtShares(shareQty)} sh
+            </span>
+          )}
+          {showHoldingValues && row.holding && (
+            <span className="text-[11px] font-semibold tabular-nums text-[#6b7280]">
+              {fmtHoldingValue(row)}
+            </span>
+          )}
           <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
             {fmtPrice(row.price, row.currency)}
           </span>
@@ -505,7 +906,17 @@ function MobileRow({ row, hasBorder }: { row: WatchlistRow; hasBorder: boolean }
 // LedgerRow — desktop table row (fully clickable + options menu)
 // -----------------------------------------------------------------------------
 
-function LedgerRow({ row }: { row: WatchlistRow }) {
+function LedgerRow({
+  row,
+  showHoldingValue,
+  showShares,
+  onSharesSaved,
+  bulkEditing,
+}: {
+  row: WatchlistRow;
+  showHoldingValue?: boolean;
+  showShares?: boolean;
+} & SharesEditHandlers) {
   const router = useRouter();
   const dayChange = row.day_change_pct;
   const positive = (dayChange ?? 0) >= 0;
@@ -513,8 +924,6 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
   const rsi = rsiExtremeFromRow(row);
   const runway = num(row.target_upside_pct);
   const cats = (row.catalysts ?? []) as Array<Record<string, unknown>>;
-  const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
-  const stanceMeta = STANCE_CHIP[stance];
   const href = `/stock/${encodeURIComponent(row.ticker)}`;
 
   return (
@@ -585,23 +994,25 @@ function LedgerRow({ row }: { row: WatchlistRow }) {
           )}
         </div>
       </td>
+      {showShares && (
+        <td className="px-3 py-3 text-right">
+          <InlineSharesCell row={row} onSharesSaved={onSharesSaved} bulkEditing={bulkEditing} />
+        </td>
+      )}
+      {showHoldingValue && (
+        <td className="px-3 py-3 text-right">
+          <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
+            {fmtHoldingValue(row)}
+          </span>
+        </td>
+      )}
       <td className="px-3 py-3 text-right">
         <span className={`text-[14px] font-semibold tabular-nums ${runwayToneText(runway)}`}>
           {fmtRunwayPct(runway)}
         </span>
       </td>
       <td className="px-4 py-3">
-        {stanceMeta ? (
-          <span
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em]"
-            style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
-          >
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: stanceMeta.dot }} />
-            {stanceMeta.label}
-          </span>
-        ) : (
-          <span className="text-[11px] text-[#9ca3af]">—</span>
-        )}
+        <DirectiveDisplay row={row} />
       </td>
       <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
         <RowMenu row={row} />

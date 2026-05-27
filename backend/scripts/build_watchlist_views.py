@@ -180,6 +180,7 @@ def main() -> None:
             [str(t) for t in tracked],
             is_subscribed=bool(user.get("is_subscribed")),
             positions=user.get("watchlist_positions") or {},
+            holdings=user.get("watchlist_holdings") or {},
             active_universes=active_universes,
             include_llm_brief=not args.no_llm,
         )

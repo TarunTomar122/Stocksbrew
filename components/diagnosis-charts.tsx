@@ -38,7 +38,7 @@ export function DiagnosisSectorChart({ sectors }: { sectors: SectorSlice[] }) {
   return (
     <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
       <h3 className="text-[13px] font-semibold text-[#111111] mb-4">Sector allocation</h3>
-      <div className="flex flex-col md:flex-row items-center gap-5">
+      <div className="flex flex-col items-center gap-5">
         <div className="w-44 h-44 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>

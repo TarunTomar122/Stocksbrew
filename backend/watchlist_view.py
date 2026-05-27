@@ -70,6 +70,31 @@ def _round(value: float | None, digits: int = 2) -> float | None:
     return round(value, digits) if isinstance(value, (int, float)) else None
 
 
+def _normalize_holding(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {}
+    quantity = _safe_float(raw.get("quantity"))
+    market_value = _safe_float(raw.get("market_value"))
+    average_cost = _safe_float(raw.get("average_cost"))
+    if quantity is not None and quantity < 0:
+        quantity = None
+    if market_value is not None and market_value < 0:
+        market_value = None
+    if average_cost is not None and average_cost < 0:
+        average_cost = None
+    currency = str(raw.get("currency") or "").strip().upper()
+    source = str(raw.get("source") or "unknown").strip().lower() or "unknown"
+    updated_at = str(raw.get("updated_at") or "").strip()
+    return {
+        "quantity": quantity,
+        "market_value": market_value,
+        "average_cost": average_cost,
+        "currency": currency,
+        "source": source,
+        "updated_at": updated_at,
+    }
+
+
 def _signed_pct(value: float | None) -> str:
     if value is None:
         return "-"
@@ -573,6 +598,76 @@ def _row_attention(
     }
 
 
+def _holding_status(position_type: str, holding_payload: dict[str, Any] | None) -> str:
+    if position_type != "holding":
+        return "watchlist"
+    if not isinstance(holding_payload, dict):
+        return "unknown"
+    quantity = _safe_float(holding_payload.get("quantity"))
+    market_value = _safe_float(holding_payload.get("market_value"))
+    computed_value = _safe_float(holding_payload.get("computed_market_value"))
+    if (quantity is not None and quantity > 0) or (market_value is not None and market_value > 0) or (computed_value is not None and computed_value > 0):
+        return "known"
+    return "unknown"
+
+
+def _directive_v2(row: dict[str, Any]) -> dict[str, Any]:
+    ai = (row.get("ai_directive") or {}) if isinstance(row.get("ai_directive"), dict) else {}
+    stance = str(ai.get("stance") or "watch").lower()
+    text = str(ai.get("text") or row.get("ai_directive_text") or "").strip()
+    trigger = str(ai.get("trigger_value") or "").strip() or None
+    confidence = str(ai.get("confidence") or "low").lower()
+    holding = row.get("holding") if isinstance(row.get("holding"), dict) else {}
+    holding_status = _holding_status(str(row.get("position_type") or "watchlist"), holding)
+    weight = _safe_float((holding or {}).get("portfolio_weight_pct")) or 0.0
+    score = _safe_float((row.get("scores") or {}).get("overall")) or 50.0
+    day_change = _safe_float(row.get("day_change_pct")) or 0.0
+
+    priority = "low"
+    if stance in {"trim", "avoid"}:
+        priority = "high" if weight >= 10 or confidence == "high" else "medium"
+    elif stance in {"accumulate"}:
+        priority = "high" if confidence == "high" and day_change <= -2 else "medium"
+    elif stance in {"watch"}:
+        priority = "medium" if abs(day_change) >= 3 or score < 50 else "low"
+    elif stance in {"hold"}:
+        priority = "medium" if weight >= 20 and score < 55 else "low"
+
+    if holding_status == "unknown" and row.get("position_type") == "holding" and priority == "high":
+        priority = "medium"
+
+    if text:
+        title = text
+    elif stance == "trim":
+        title = "Trim exposure"
+    elif stance == "avoid":
+        title = "Avoid adding"
+    elif stance == "accumulate":
+        title = "Accumulate on weakness"
+    elif stance == "hold":
+        title = "Hold position"
+    else:
+        title = "Keep on watch"
+
+    details: list[str] = []
+    if holding_status == "known" and weight > 0:
+        details.append(f"{weight:.1f}% portfolio weight")
+    elif holding_status == "unknown" and row.get("position_type") == "holding":
+        details.append("position size unknown")
+    if score < 50:
+        details.append(f"low score ({score:.0f})")
+    if abs(day_change) >= 3:
+        details.append(f"move {day_change:+.1f}% today")
+
+    return {
+        "title": title[:140],
+        "detail": "; ".join(details)[:180] if details else None,
+        "priority": priority,
+        "trigger": trigger,
+        "holding_status": holding_status,
+    }
+
+
 def _previous_rows_by_id(previous_view: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     rows = (previous_view or {}).get("rows") or []
     return {
@@ -638,6 +733,7 @@ def _apply_row_deltas(rows: list[dict[str, Any]], previous_view: dict[str, Any] 
 def _row_for_instrument(
     instrument_id: str,
     position_type: str,
+    holding_raw: dict[str, Any] | None,
     latest: dict[str, Any],
     intel_pro: dict[str, Any],
     stock_intel: dict[str, Any],
@@ -662,6 +758,20 @@ def _row_for_instrument(
     price = _safe_float(quote.get("current"))
     mention_summary = _mention_summary(mention_stats)
     target_upside = _target_upside_pct(price, facts, intel_pro)
+    holding_in = _normalize_holding(holding_raw)
+    quantity = _safe_float(holding_in.get("quantity"))
+    entered_market_value = _safe_float(holding_in.get("market_value"))
+    average_cost = _safe_float(holding_in.get("average_cost"))
+    computed_market_value = quantity * price if quantity is not None and price is not None else None
+    effective_market_value = computed_market_value if computed_market_value is not None else entered_market_value
+    cost_basis = quantity * average_cost if quantity is not None and average_cost is not None else None
+    unrealized_gain_pct = None
+    if (
+        computed_market_value is not None
+        and cost_basis is not None
+        and cost_basis > 0
+    ):
+        unrealized_gain_pct = ((computed_market_value - cost_basis) / cost_basis) * 100.0
     micro, vibe = _row_microcopy(
         ticker,
         day_change,
@@ -685,7 +795,20 @@ def _row_for_instrument(
             merged_by_key[key] = catalyst
     merged_catalysts = list(merged_by_key.values())
 
-    return {
+    holding_payload = {
+        "quantity": quantity,
+        "market_value": entered_market_value,
+        "average_cost": average_cost,
+        "computed_market_value": _round(computed_market_value, 2),
+        "portfolio_weight_pct": None,
+        "cost_basis": _round(cost_basis, 2),
+        "unrealized_gain_pct": _round(unrealized_gain_pct, 2),
+        "source": str(holding_in.get("source") or "unknown"),
+        "updated_at": str(holding_in.get("updated_at") or "") or None,
+        "_effective_market_value": _round(effective_market_value, 2),
+    } if position_type == "holding" else None
+
+    row = {
         "instrument_id": instrument_id,
         "ticker": ticker,
         "position_type": position_type,
@@ -747,7 +870,11 @@ def _row_for_instrument(
         ),
         "coverage_status": "ready" if intel_pro else "score_pending",
         "has_intel_pro": bool(intel_pro),
+        "holding": holding_payload,
     }
+    row["holding_status"] = _holding_status(position_type, holding_payload)
+    row["directive_v2"] = _directive_v2(row)
+    return row
 
 
 def _load_user_alerts(store: TraceMoneyStore, uid: str) -> dict[str, list[dict[str, Any]]]:
@@ -832,10 +959,13 @@ def _portfolio_payload_for_row(row: dict[str, Any]) -> dict[str, Any]:
         if isinstance(event, dict) and _event_is_current(str(event.get("date_label") or ""))
     ]
     technicals = row.get("technicals") or {}
+    holding = row.get("holding") if isinstance(row.get("holding"), dict) else {}
     return {
         "symbol": row.get("ticker", ""),
         "name": row.get("ticker", ""),
         "sector": row.get("sector_label") or row.get("market", ""),
+        "position_type": row.get("position_type", "watchlist"),
+        "portfolio_weight_pct": _safe_float((holding or {}).get("portfolio_weight_pct")),
         "price": price,
         "bottomLine": (row.get("brief_tile") or {}).get("micro", ""),
         "premiumSignals": row.get("premium_signals") or [],
@@ -971,14 +1101,124 @@ def _build_portfolio_brief(
     return result
 
 
+def _apply_position_weights(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    # All-or-none: only stamp weights when EVERY holding has a resolvable market value.
+    holdings = [row for row in rows if row.get("position_type") == "holding" and isinstance(row.get("holding"), dict)]
+    resolved: list[tuple[dict[str, Any], float]] = []
+    for row in holdings:
+        val = _holding_market_value(row.get("holding") if isinstance(row.get("holding"), dict) else None)
+        if val is not None:
+            resolved.append((row, val))
+
+    all_covered = bool(holdings) and len(resolved) == len(holdings)
+    if not all_covered:
+        for row in holdings:
+            row_holding = row.get("holding") or {}
+            row_holding["portfolio_weight_pct"] = None
+            row["holding"] = row_holding
+        return {
+            "position_aware": False,
+            "total_entered_value": None,
+            "value_coverage_count": len(resolved),
+        }
+
+    total_value = sum(v for _, v in resolved)
+    if total_value <= 0:
+        for row in holdings:
+            row_holding = row.get("holding") or {}
+            row_holding["portfolio_weight_pct"] = None
+            row["holding"] = row_holding
+        return {
+            "position_aware": False,
+            "total_entered_value": None,
+            "value_coverage_count": 0,
+        }
+
+    for row, raw_value in resolved:
+        row_holding = row.get("holding") or {}
+        row_holding["portfolio_weight_pct"] = _round((raw_value / total_value) * 100.0, 2)
+        row["holding"] = row_holding
+    return {
+        "position_aware": True,
+        "total_entered_value": _round(total_value, 2),
+        "value_coverage_count": len(resolved),
+    }
+
+
+def _boost_attention_for_position(rows: list[dict[str, Any]]) -> None:
+    for row in rows:
+        if row.get("position_type") != "holding":
+            continue
+        holding = row.get("holding") if isinstance(row.get("holding"), dict) else {}
+        weight = _safe_float((holding or {}).get("portfolio_weight_pct")) or 0.0
+        if weight <= 0:
+            continue
+        score = _safe_float((row.get("scores") or {}).get("overall")) or 50.0
+        day_change = _safe_float(row.get("day_change_pct")) or 0.0
+        stance = str(((row.get("ai_directive") or {}).get("stance") or "")).lower()
+        negative_signal = score < 55 or day_change <= -2.0 or stance in {"trim", "avoid"}
+        if not negative_signal:
+            continue
+        current_attention = _safe_float(row.get("attention_score")) or 0.0
+        boost = min(18.0, weight * 0.35)
+        row["attention_score"] = round(current_attention + boost, 1)
+        reason = str(row.get("attention_reason") or "").strip()
+        suffix = f"Large holding ({weight:.1f}% portfolio) with weak signal."
+        row["attention_reason"] = f"{reason} {suffix}".strip() if reason else suffix
+
+
+def _holding_market_value(holding: dict[str, Any] | None) -> float | None:
+    """Resolve market value from a holding dict, trying all known field names."""
+    if not holding:
+        return None
+    for field in ("computed_market_value", "_effective_market_value", "market_value"):
+        v = _safe_float(holding.get(field))
+        if v is not None and v > 0:
+            return v
+    return None
+
+
 def _sector_counts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    counts: dict[str, int] = {}
+    # All-or-none: only use dollar-weighting when EVERY holding has a market value.
+    # A partial set would give misleading sector weights, so fall back to count.
+    holding_rows = [r for r in rows if r.get("position_type") == "holding"]
+    all_have_value = bool(holding_rows) and all(
+        _holding_market_value(r.get("holding") if isinstance(r.get("holding"), dict) else None) is not None
+        for r in holding_rows
+    )
+
+    by_sector_count: dict[str, int] = {}
+    if all_have_value:
+        by_sector_value: dict[str, float] = {}
+        for row in holding_rows:
+            sector = str(row.get("sector_label") or row.get("market") or "Unknown")
+            by_sector_count[sector] = by_sector_count.get(sector, 0) + 1
+            val = _holding_market_value(row.get("holding") if isinstance(row.get("holding"), dict) else None) or 0.0
+            by_sector_value[sector] = by_sector_value.get(sector, 0.0) + val
+        total = sum(by_sector_value.values()) or 1.0
+        return [
+            {
+                "sector": sector,
+                "count": by_sector_count.get(sector, 0),
+                "value": _round(value, 2),
+                "weight_pct": _round((value / total) * 100.0, 1),
+                "weight_basis": "value",
+            }
+            for sector, value in sorted(by_sector_value.items(), key=lambda item: item[1], reverse=True)
+        ]
+
+    # Fall back to count-weighted across all rows.
     for row in rows:
         sector = str(row.get("sector_label") or row.get("market") or "Unknown")
-        counts[sector] = counts.get(sector, 0) + 1
+        by_sector_count[sector] = by_sector_count.get(sector, 0) + 1
     return [
-        {"sector": sector, "count": count, "weight_pct": round(count / max(len(rows), 1) * 100, 1)}
-        for sector, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
+        {
+            "sector": sector,
+            "count": count,
+            "weight_pct": round(count / max(len(rows), 1) * 100, 1),
+            "weight_basis": "count",
+        }
+        for sector, count in sorted(by_sector_count.items(), key=lambda item: item[1], reverse=True)
     ]
 
 
@@ -991,6 +1231,29 @@ def _average_score(rows: list[dict[str, Any]], key: str) -> float | None:
     if not values:
         return None
     return round(sum(values) / len(values), 1)
+
+
+def _weighted_average_score(rows: list[dict[str, Any]], key: str) -> float | None:
+    """Dollar-weighted average when ALL holdings have portfolio_weight_pct, else equal-weight fallback."""
+    holding_rows = [r for r in rows if r.get("position_type") == "holding"]
+    all_weighted = bool(holding_rows) and all(
+        _safe_float((r.get("holding") or {}).get("portfolio_weight_pct")) is not None
+        and (_safe_float((r.get("holding") or {}).get("portfolio_weight_pct")) or 0.0) > 0
+        for r in holding_rows
+    )
+    if not all_weighted:
+        return _average_score(rows, key)
+    weighted_sum = 0.0
+    total_weight = 0.0
+    for r in holding_rows:
+        score = _safe_float((r.get("scores") or {}).get(key))
+        w = _safe_float((r.get("holding") or {}).get("portfolio_weight_pct")) or 0.0
+        if score is not None and w > 0:
+            weighted_sum += score * w
+            total_weight += w
+    if total_weight == 0:
+        return _average_score(rows, key)
+    return round(weighted_sum / total_weight, 1)
 
 
 def _load_reddit_buzz_by_market(store: TraceMoneyStore, markets: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
@@ -1189,6 +1452,7 @@ def _screen_suggestions(
 def _portfolio_diagnostics(
     rows: list[dict[str, Any]],
     store: TraceMoneyStore,
+    position_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not rows:
         return {
@@ -1277,15 +1541,82 @@ def _portfolio_diagnostics(
             "have strong analyst runway for entry."
         )
 
+    position_meta = position_meta or {}
+    holdings_with_weight = []
+    for row in rows:
+        if row.get("position_type") != "holding":
+            continue
+        holding = row.get("holding") if isinstance(row.get("holding"), dict) else {}
+        weight = _safe_float((holding or {}).get("portfolio_weight_pct"))
+        if weight is None:
+            continue
+        holdings_with_weight.append((row, weight))
+    holdings_with_weight.sort(key=lambda item: item[1], reverse=True)
+    top1 = holdings_with_weight[0][1] if holdings_with_weight else 0.0
+    top3 = sum(weight for _, weight in holdings_with_weight[:3]) if holdings_with_weight else 0.0
+    hhi = sum((weight / 100.0) ** 2 for _, weight in holdings_with_weight) if holdings_with_weight else 0.0
+    if top1 >= 35 or top3 >= 75 or hhi >= 0.22:
+        concentration_label = "high"
+    elif top1 >= 25 or top3 >= 60 or hhi >= 0.14:
+        concentration_label = "medium"
+    else:
+        concentration_label = "low"
+
+    position_risks: list[dict[str, Any]] = []
+    if holdings_with_weight and top1 >= 30:
+        top_row = holdings_with_weight[0][0]
+        position_risks.append({
+            "kind": "single_position_concentration",
+            "severity": "high",
+            "ticker": top_row.get("ticker"),
+            "headline": f"{top_row.get('ticker')} is {top1:.1f}% of entered holdings",
+            "body": "One position dominates your entered portfolio value; review sizing risk.",
+        })
+    if holdings_with_weight and top3 >= 65:
+        position_risks.append({
+            "kind": "top3_concentration",
+            "severity": "medium" if top3 < 75 else "high",
+            "headline": f"Top 3 holdings are {top3:.1f}% of entered value",
+            "body": "Concentration across a few names can amplify drawdowns if one thesis breaks.",
+        })
+    for row, weight in holdings_with_weight[:5]:
+        stance = str(((row.get("ai_directive") or {}).get("stance") or "")).lower()
+        overall = _safe_float((row.get("scores") or {}).get("overall")) or 50.0
+        if weight >= 15 and stance in {"trim", "avoid"}:
+            position_risks.append({
+                "kind": "large_position_negative_directive",
+                "severity": "high" if weight >= 25 else "medium",
+                "ticker": row.get("ticker"),
+                "headline": f"{row.get('ticker')} is large ({weight:.1f}%) with {stance} directive",
+                "body": "The highest-impact directive is on a large position; prioritize this review first.",
+            })
+        elif weight >= 15 and overall < 50:
+            position_risks.append({
+                "kind": "large_position_low_score",
+                "severity": "medium",
+                "ticker": row.get("ticker"),
+                "headline": f"{row.get('ticker')} is large ({weight:.1f}%) with low score {overall:.0f}",
+                "body": "Large allocation and weak factor stack can materially affect portfolio outcomes.",
+            })
+
     return {
         "summary": " ".join(summary_parts) or "Watchlist diagnosis is ready.",
+        "position_aware": bool(position_meta.get("position_aware")),
+        "total_entered_value": position_meta.get("total_entered_value"),
+        "concentration": {
+            "top1_pct": _round(top1, 2),
+            "top3_pct": _round(top3, 2),
+            "hhi": _round(hhi, 4),
+            "risk_label": concentration_label,
+        },
+        "position_risks": position_risks[:8],
         "clusters": clusters,
         "factor_tilt": {
-            "overall": _average_score(rows, "overall"),
-            "valuation": _average_score(rows, "valuation"),
-            "growth": _average_score(rows, "growth"),
-            "quality": _average_score(rows, "quality"),
-            "momentum": _average_score(rows, "momentum"),
+            "overall": _weighted_average_score(rows, "overall"),
+            "valuation": _weighted_average_score(rows, "valuation"),
+            "growth": _weighted_average_score(rows, "growth"),
+            "quality": _weighted_average_score(rows, "quality"),
+            "momentum": _weighted_average_score(rows, "momentum"),
         },
         "risk_flags": risk_flags[:6],
         "opportunities": opportunities[:6],
@@ -1516,6 +1847,7 @@ def build_watchlist_view(
     *,
     is_subscribed: bool = False,
     positions: dict[str, Any] | None = None,
+    holdings: dict[str, Any] | None = None,
     active_universes: dict[str, str] | None = None,
     include_llm_brief: bool = True,
 ) -> dict[str, Any]:
@@ -1555,6 +1887,7 @@ def build_watchlist_view(
         row = _row_for_instrument(
             instrument_id,
             _position_type(instrument_id, positions),
+            (holdings or {}).get(instrument_id) if isinstance(holdings, dict) else None,
             latest_by_id.get(instrument_id) or {},
             intel_by_id.get(instrument_id) or {},
             stock_intel_by_id.get(instrument_id) or {},
@@ -1566,10 +1899,19 @@ def build_watchlist_view(
         if row:
             rows.append(row)
 
+    position_meta = _apply_position_weights(rows)
+    _boost_attention_for_position(rows)
+    for row in rows:
+        holding_payload = row.get("holding") if isinstance(row.get("holding"), dict) else None
+        row["holding_status"] = _holding_status(str(row.get("position_type") or "watchlist"), holding_payload)
+        row["directive_v2"] = _directive_v2(row)
     rows = _apply_row_deltas(rows, previous_view)
+    for row in rows:
+        if isinstance(row.get("holding"), dict):
+            row["holding"].pop("_effective_market_value", None)
     rows.sort(key=lambda r: r.get("attention_score") or 0, reverse=True)
     pulse = _pulse_headline(rows)
-    portfolio = _portfolio_diagnostics(rows, store)
+    portfolio = _portfolio_diagnostics(rows, store, position_meta=position_meta)
     suggestions = portfolio.get("suggestions") or []
     event_radar = _event_radar(rows, portfolio)
     holdings_count = len([row for row in rows if row.get("position_type") == "holding"])

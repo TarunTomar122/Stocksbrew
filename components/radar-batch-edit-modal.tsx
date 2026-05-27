@@ -10,11 +10,18 @@ import type { SearchEntry } from "@/lib/search";
 
 type PositionType = "holding" | "watchlist";
 
+type StagedHolding = {
+  quantity?: number | null;
+  market_value?: number | null;
+  average_cost?: number | null;
+};
+
 type StagedItem = {
   instrument_id: string;
   ticker: string;
   name: string;
   position_type: PositionType;
+  holding?: StagedHolding;
 };
 
 type Props = {
@@ -119,7 +126,25 @@ export function RadarBatchEditModal({
   }
 
   function setPosition(instrumentId: string, positionType: PositionType) {
-    setItems((prev) => prev.map((i) => (i.instrument_id === instrumentId ? { ...i, position_type: positionType } : i)));
+    setItems((prev) =>
+      prev.map((i) =>
+        i.instrument_id === instrumentId
+          ? { ...i, position_type: positionType, holding: positionType === "watchlist" ? undefined : i.holding }
+          : i,
+      ),
+    );
+  }
+
+  function updateHolding(instrumentId: string, field: keyof StagedHolding, rawValue: string) {
+    const parsed = rawValue.trim() === "" ? null : Number(rawValue);
+    const value = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+    setItems((prev) =>
+      prev.map((i) =>
+        i.instrument_id === instrumentId
+          ? { ...i, holding: { ...(i.holding ?? {}), [field]: value } }
+          : i,
+      ),
+    );
   }
 
   async function onSubmit() {
@@ -142,7 +167,13 @@ export function RadarBatchEditModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({ instrument_id: i.instrument_id, position_type: i.position_type })),
+          items: items.map((i) => ({
+            instrument_id: i.instrument_id,
+            position_type: i.position_type,
+            ...(i.position_type === "holding" && i.holding
+              ? { holding: { ...i.holding, source: "manual" } }
+              : {}),
+          })),
         }),
       });
 
@@ -188,27 +219,52 @@ export function RadarBatchEditModal({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "extract_failed");
       const matches = Array.isArray(data?.matches) ? data.matches : [];
+      const positions = Array.isArray(data?.positions) ? data.positions : [];
       if (matches.length === 0) {
         setExtractError("No valid US tickers found in screenshot.");
         return;
       }
+      const withAmounts = matches.filter((m: Record<string, unknown>) => {
+        const h = (m?.holding as Record<string, unknown> | undefined) || undefined;
+        return Boolean(h && (h.quantity != null || h.market_value != null));
+      }).length;
       setItems((prev) => {
         const byId = new Map(prev.map((i) => [i.instrument_id, i]));
         for (const m of matches) {
           const instrumentId = String(m?.instrument_id || "");
           if (!instrumentId) continue;
+          const h = m?.holding as Record<string, unknown> | undefined;
+          const holding: StagedHolding | undefined = h
+            ? {
+                quantity: typeof h.quantity === "number" ? h.quantity : null,
+                market_value: typeof h.market_value === "number" ? h.market_value : null,
+                average_cost: typeof h.average_cost === "number" ? h.average_cost : null,
+              }
+            : undefined;
+          const hasHoldingValues = holding && (holding.quantity != null || holding.market_value != null);
           if (!byId.has(instrumentId)) {
             byId.set(instrumentId, {
               instrument_id: instrumentId,
               ticker: String(m?.ticker || instrumentId.replace(/^US_/, "")),
               name: String(m?.name || ""),
-              position_type: "watchlist",
+              position_type: hasHoldingValues ? "holding" : "watchlist",
+              holding: hasHoldingValues ? holding : undefined,
             });
+          } else {
+            const existing = byId.get(instrumentId)!;
+            if (hasHoldingValues && existing.position_type !== "holding") {
+              byId.set(instrumentId, { ...existing, position_type: "holding", holding });
+            }
           }
         }
         return [...byId.values()];
       });
-      setExtractInfo(`Added ${matches.length} ticker${matches.length > 1 ? "s" : ""} from screenshot.`);
+      const tickerCount = matches.length;
+      setExtractInfo(
+        withAmounts > 0
+          ? `Found ${tickerCount} ticker${tickerCount > 1 ? "s" : ""}, ${withAmounts} with amounts.`
+          : `Added ${tickerCount} ticker${tickerCount > 1 ? "s" : ""} from screenshot.`,
+      );
     } catch (e) {
       console.error(e);
       setExtractError("Couldn’t read screenshot. Use search below.");
@@ -329,37 +385,64 @@ export function RadarBatchEditModal({
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
                     return (
-                      <li key={item.instrument_id} className={`flex items-center gap-2.5 px-4 py-3 transition-colors ${isNew ? "bg-[#f0fdf4]" : ""}`}>
-                        <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <p className="truncate text-[13px] font-semibold text-[#111111]">{item.ticker}</p>
-                            {isNew && (
-                              <span className="shrink-0 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-[#16a34a]">New</span>
-                            )}
+                      <li key={item.instrument_id} className={`flex flex-col gap-2 px-4 py-3 transition-colors ${isNew ? "bg-[#f0fdf4]" : ""}`}>
+                        <div className="flex items-center gap-2.5">
+                          <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-[13px] font-semibold text-[#111111]">{item.ticker}</p>
+                              {isNew && (
+                                <span className="shrink-0 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-[#16a34a]">New</span>
+                              )}
+                            </div>
+                            <p className="truncate text-[11px] text-[#9ca3af]">{item.name}</p>
                           </div>
-                          <p className="truncate text-[11px] text-[#9ca3af]">{item.name}</p>
-                        </div>
-                        <div className="shrink-0 flex items-center rounded-full border border-[#e5e7eb] bg-[#f9fafb] p-0.5">
+                          <div className="shrink-0 flex items-center rounded-full border border-[#e5e7eb] bg-[#f9fafb] p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setPosition(item.instrument_id, "holding")}
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
+                            >Hold</button>
+                            <button
+                              type="button"
+                              onClick={() => setPosition(item.instrument_id, "watchlist")}
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
+                            >Watch</button>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setPosition(item.instrument_id, "holding")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
-                          >Hold</button>
-                          <button
-                            type="button"
-                            onClick={() => setPosition(item.instrument_id, "watchlist")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
-                          >Watch</button>
+                            onClick={() => remove(item.instrument_id)}
+                            className="shrink-0 rounded-full p-1.5 text-[#d1d5db] hover:text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+                            aria-label={`Remove ${item.ticker}`}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => remove(item.instrument_id)}
-                          className="shrink-0 rounded-full p-1.5 text-[#d1d5db] hover:text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
-                          aria-label={`Remove ${item.ticker}`}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                        </button>
+                        {item.position_type === "holding" && (
+                          <div className="flex items-center gap-3 pl-10">
+                            <HoldingInput
+                              label="Shares"
+                              value={item.holding?.quantity ?? null}
+                              onChange={(v) => updateHolding(item.instrument_id, "quantity", v)}
+                              placeholder="0"
+                            />
+                            <HoldingInput
+                              label="Value"
+                              value={item.holding?.market_value ?? null}
+                              onChange={(v) => updateHolding(item.instrument_id, "market_value", v)}
+                              placeholder="$0"
+                              prefix="$"
+                            />
+                            <HoldingInput
+                              label="Avg cost"
+                              value={item.holding?.average_cost ?? null}
+                              onChange={(v) => updateHolding(item.instrument_id, "average_cost", v)}
+                              placeholder="$0"
+                              prefix="$"
+                              optional
+                            />
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -459,6 +542,44 @@ export function RadarBatchEditModal({
         status={modalStatus}
       />
     </>
+  );
+}
+
+function HoldingInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  prefix,
+  optional,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (raw: string) => void;
+  placeholder: string;
+  prefix?: string;
+  optional?: boolean;
+}) {
+  return (
+    <label className="flex flex-col gap-1 flex-1 min-w-0">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+        {label}
+        {optional && <span className="ml-0.5 text-[#d1d5db]">(opt)</span>}
+      </span>
+      <div className="flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-1.5 focus-within:border-[#111111] transition-colors">
+        {prefix && <span className="text-[12px] text-[#9ca3af] shrink-0">{prefix}</span>}
+        <input
+          type="number"
+          inputMode="decimal"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-transparent text-[13px] text-[#111111] placeholder:text-[#d1d5db] outline-none focus:outline-none focus:ring-0 tabular-nums"
+          min="0"
+          step="any"
+        />
+      </div>
+    </label>
   );
 }
 

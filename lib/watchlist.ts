@@ -10,6 +10,17 @@ export type UserDoc = {
   is_subscribed?: boolean;
   tracked_stocks?: string[];
   watchlist_positions?: Record<string, "holding" | "watchlist">;
+  watchlist_holdings?: Record<
+    string,
+    {
+      quantity?: number | null;
+      market_value?: number | null;
+      average_cost?: number | null;
+      currency?: "USD" | "INR" | string;
+      source?: "manual" | "screenshot" | "unknown";
+      updated_at?: string;
+    }
+  >;
   watchlist_updated_at?: string;
   watchlist_version?: number;
   radar_v1?: {

@@ -15,6 +15,13 @@ type PositionType = "holding" | "watchlist";
 type BatchItem = {
   instrument_id: string;
   position_type: PositionType;
+  holding?: {
+    quantity?: number | null;
+    market_value?: number | null;
+    average_cost?: number | null;
+    currency?: string;
+    source?: "manual" | "screenshot" | "unknown";
+  };
 };
 
 type BatchLogLevel = "info" | "warn" | "error";
@@ -30,17 +37,76 @@ function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
   return instrumentId.startsWith("IN_") ? "IN" : "US";
 }
 
-function normalizeItems(rawItems: unknown): BatchItem[] {
-  if (!Array.isArray(rawItems)) return [];
-  const dedup = new Map<string, PositionType>();
+function normalizeHoldingNumber(value: unknown, max: number): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > max) return undefined;
+  return n;
+}
+
+function normalizeHolding(raw: unknown): BatchItem["holding"] | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const quantity = normalizeHoldingNumber(obj.quantity, 1_000_000_000);
+  const marketValue = normalizeHoldingNumber(obj.market_value, 1_000_000_000_000);
+  const averageCost = normalizeHoldingNumber(obj.average_cost, 1_000_000_000);
+  const currencyRaw = typeof obj.currency === "string" ? obj.currency.trim().toUpperCase() : "";
+  const sourceRaw = typeof obj.source === "string" ? obj.source.trim().toLowerCase() : "";
+  const source: "manual" | "screenshot" | "unknown" =
+    sourceRaw === "manual" || sourceRaw === "screenshot" || sourceRaw === "unknown"
+      ? sourceRaw
+      : "unknown";
+  const currency = currencyRaw || undefined;
+
+  if (quantity === undefined && marketValue === undefined && averageCost === undefined && !currencyRaw) {
+    return undefined;
+  }
+  return {
+    quantity,
+    market_value: marketValue,
+    average_cost: averageCost,
+    currency,
+    source,
+  };
+}
+
+function holdingHasInvalidNumbers(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  const obj = raw as Record<string, unknown>;
+  const checks: Array<[unknown, number]> = [
+    [obj.quantity, 1_000_000_000],
+    [obj.market_value, 1_000_000_000_000],
+    [obj.average_cost, 1_000_000_000],
+  ];
+  for (const [value, max] of checks) {
+    if (value === undefined || value === null || value === "") continue;
+    const n = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(n) || n < 0 || n > max) return true;
+  }
+  return false;
+}
+
+function normalizeItems(rawItems: unknown): { items: BatchItem[]; hasInvalidHolding: boolean } {
+  if (!Array.isArray(rawItems)) return { items: [], hasInvalidHolding: false };
+  let hasInvalidHolding = false;
+  const dedup = new Map<string, BatchItem>();
   for (const raw of rawItems) {
     const item = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
     const instrumentId = typeof item?.instrument_id === "string" ? item.instrument_id.trim().toUpperCase() : "";
     if (!INSTRUMENT_ID_RE.test(instrumentId)) continue;
+    if (holdingHasInvalidNumbers(item?.holding)) {
+      hasInvalidHolding = true;
+      continue;
+    }
     const positionType: PositionType = item?.position_type === "holding" ? "holding" : "watchlist";
-    dedup.set(instrumentId, positionType);
+    dedup.set(instrumentId, {
+      instrument_id: instrumentId,
+      position_type: positionType,
+      holding: normalizeHolding(item?.holding),
+    });
   }
-  return [...dedup.entries()].map(([instrument_id, position_type]) => ({ instrument_id, position_type }));
+  return { items: [...dedup.values()], hasInvalidHolding };
 }
 
 export async function POST(req: NextRequest) {
@@ -51,7 +117,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const items = normalizeItems(body?.items);
+  const normalized = normalizeItems(body?.items);
+  const items = normalized.items;
+  if (normalized.hasInvalidHolding) {
+    return NextResponse.json({ error: "invalid_holding_values" }, { status: 400 });
+  }
   if (items.length === 0) {
     return NextResponse.json({ error: "empty_items" }, { status: 400 });
   }
@@ -78,6 +148,21 @@ export async function POST(req: NextRequest) {
 
   const nextTracked = items.map((i) => i.instrument_id);
   const nextPositions = Object.fromEntries(items.map((i) => [i.instrument_id, i.position_type])) as Record<string, PositionType>;
+  const nextHoldings = Object.fromEntries(
+    items
+      .filter((i) => i.position_type === "holding" && i.holding)
+      .map((i) => [
+        i.instrument_id,
+        {
+          quantity: i.holding?.quantity ?? null,
+          market_value: i.holding?.market_value ?? null,
+          average_cost: i.holding?.average_cost ?? null,
+          currency: i.holding?.currency || (marketFromInstrumentId(i.instrument_id) === "IN" ? "INR" : "USD"),
+          source: i.holding?.source || "unknown",
+          updated_at: mutationToken,
+        },
+      ]),
+  );
 
   let sourceVersion = Number(existing.watchlist_version ?? 0);
   let addedIds: string[] = [];
@@ -104,6 +189,7 @@ export async function POST(req: NextRequest) {
       {
         tracked_stocks: nextTracked,
         watchlist_positions: nextPositions,
+        watchlist_holdings: nextHoldings,
         watchlist_updated_at: mutationToken,
         watchlist_version: sourceVersion,
         last_tracked_at: new Date().toISOString(),
@@ -146,6 +232,13 @@ export async function POST(req: NextRequest) {
       added_count: addedIds.length,
       removed_count: removedIds.length,
       total_count: nextTracked.length,
+      holdings_count: Object.keys(nextHoldings).length,
+      position_aware_count: Object.values(nextHoldings).filter(
+        (h) =>
+          typeof h === "object" &&
+          h !== null &&
+          ((typeof h.quantity === "number" && h.quantity > 0) || (typeof h.market_value === "number" && h.market_value > 0)),
+      ).length,
     });
   });
 

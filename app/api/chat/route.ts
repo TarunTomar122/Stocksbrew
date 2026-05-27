@@ -166,7 +166,17 @@ function compactRowsForPrompt(
     day_change_pct: number | null;
     scores: { overall: number | null } | null;
     ai_directive?: { stance?: string; text?: string; trigger_value?: string };
+    directive_v2?: { title?: string; priority?: string; trigger?: string; holding_status?: string };
     brief_tile?: { micro?: string };
+    holding?: {
+      quantity?: number | null;
+      market_value?: number | null;
+      computed_market_value?: number | null;
+      portfolio_weight_pct?: number | null;
+      average_cost?: number | null;
+      unrealized_gain_pct?: number | null;
+      source?: string;
+    };
   }>,
 ) {
   return rows.map((r) => ({
@@ -180,6 +190,25 @@ function compactRowsForPrompt(
     directive: r.ai_directive?.text?.slice(0, 120),
     trigger: r.ai_directive?.trigger_value,
     micro: r.brief_tile?.micro?.slice(0, 80),
+    d2: r.directive_v2
+      ? {
+          t: r.directive_v2.title?.slice(0, 80),
+          p: r.directive_v2.priority,
+          tr: r.directive_v2.trigger,
+          hs: r.directive_v2.holding_status,
+        }
+      : undefined,
+    holding: r.holding
+      ? {
+          q: r.holding.quantity ?? null,
+          mv: r.holding.market_value ?? null,
+          cmv: r.holding.computed_market_value ?? null,
+          w: r.holding.portfolio_weight_pct ?? null,
+          ac: r.holding.average_cost ?? null,
+          ug: r.holding.unrealized_gain_pct ?? null,
+          src: r.holding.source ?? null,
+        }
+      : undefined,
   }));
 }
 
@@ -242,6 +271,10 @@ async function buildRadarContext(uid: string) {
     userDoc?.watchlist_positions && typeof userDoc.watchlist_positions === "object"
       ? userDoc.watchlist_positions
       : {};
+  const watchlistHoldings =
+    userDoc?.watchlist_holdings && typeof userDoc.watchlist_holdings === "object"
+      ? userDoc.watchlist_holdings
+      : {};
   const radar = userDoc?.radar_v1 || {};
   const materializedRows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
 
@@ -274,6 +307,11 @@ async function buildRadarContext(uid: string) {
         ...materialized,
         position_type:
           watchlistPositions[instrumentId] === "holding" ? ("holding" as const) : ("watchlist" as const),
+        holding:
+          watchlistPositions[instrumentId] === "holding"
+            ? (materialized.holding ??
+              ((watchlistHoldings[instrumentId] as Record<string, unknown> | undefined) || undefined))
+            : undefined,
       };
     }
     const fallback = searchByInstrumentId.get(instrumentId);
@@ -292,6 +330,10 @@ async function buildRadarContext(uid: string) {
       scores: { overall: null, verdict: null },
       ai_directive: undefined,
       brief_tile: { micro: "Syncing analysis.", vibe: "wild" as const },
+      holding:
+        watchlistPositions[instrumentId] === "holding"
+          ? ((watchlistHoldings[instrumentId] as Record<string, unknown> | undefined) || undefined)
+          : undefined,
     };
   });
 
@@ -310,6 +352,8 @@ async function buildRadarContext(uid: string) {
     brief_tile: "brief_tile" in r ? r.brief_tile : undefined,
     attention_score: "attention_score" in r ? r.attention_score : undefined,
     suggested_action: "suggested_action" in r ? r.suggested_action : undefined,
+    directive_v2: "directive_v2" in r ? r.directive_v2 : undefined,
+    holding: "holding" in r ? r.holding : undefined,
   }));
   const trackedTickerSet = new Set(mappedRows.map((r) => r.ticker.toUpperCase()));
 
@@ -390,6 +434,8 @@ Rules:
 - Never repeat the same directive sentence from previous turns.
 - If research_payload is present, ground claims in it and include 2 source links in markdown.
 - Never invent numeric growth forecasts. Use ranges only when present in data.
+- If holdings are present, prioritize highest portfolio weights first and mention impact on entered portfolio value.
+- Do not imply full brokerage sync; treat holdings as user-entered and potentially partial.
 - If user asks market ideas (ignore radar), provide exactly 5 stocks with this format per stock:
   1) Ticker + thesis
   2) Risk (1 line)
@@ -405,6 +451,7 @@ ${JSON.stringify({
   tracked_tickers: trackedTickers,
   add_candidates_not_on_radar: radarContext.add_candidates_not_on_radar,
   rows_compact: compactRowsForPrompt(radarContext.rows),
+  portfolio_meta: radarContext.portfolio,
   pulse: radarContext.pulse,
   brief: radarContext.brief,
 })}

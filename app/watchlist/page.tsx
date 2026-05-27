@@ -66,6 +66,11 @@ export default async function WatchlistPage() {
     userDoc?.watchlist_positions && typeof userDoc.watchlist_positions === "object"
       ? (userDoc.watchlist_positions as Record<string, "holding" | "watchlist">)
       : {};
+  // watchlist_holdings is the source of truth for share quantities — always fresher than the view.
+  const watchlistHoldings =
+    userDoc?.watchlist_holdings && typeof userDoc.watchlist_holdings === "object"
+      ? (userDoc.watchlist_holdings as Record<string, { quantity?: number | null; market_value?: number | null; average_cost?: number | null; source?: string; updated_at?: string }>)
+      : {};
   const searchByInstrumentId = new Map(searchIndex.map((entry) => [entry.instrument_id, entry] as const));
   const trackedSet = new Set(tracked);
   const materializedById = new Map(
@@ -77,11 +82,27 @@ export default async function WatchlistPage() {
   const rows = tracked
     .map((instrumentId) => {
       const materialized = materializedById.get(instrumentId);
+      const profileHolding = watchlistHoldings[instrumentId];
+      // Merge holding from user profile — it's updated synchronously on save, so always current.
+      // Preserve portfolio_weight_pct from the materialized row so computePillarAverages
+      // can dollar-weight scores even when the profile override is active.
+      const holdingOverride: WatchlistRow["holding"] =
+        watchlistPositions[instrumentId] === "holding" && profileHolding
+          ? {
+              quantity: profileHolding.quantity ?? null,
+              market_value: profileHolding.market_value ?? null,
+              average_cost: profileHolding.average_cost ?? null,
+              source: profileHolding.source,
+              updated_at: profileHolding.updated_at,
+              portfolio_weight_pct: (materialized?.holding?.portfolio_weight_pct as number | null | undefined) ?? null,
+            }
+          : undefined;
       if (materialized) {
         return {
           ...materialized,
-          // Position comes from user profile, not stale materialized payload.
+          // Position and holding come from user profile, not stale materialized payload.
           position_type: watchlistPositions[instrumentId] === "holding" ? "holding" : "watchlist",
+          holding: holdingOverride ?? materialized.holding,
         } as WatchlistRow;
       }
       const fallback = searchByInstrumentId.get(instrumentId);
@@ -258,6 +279,10 @@ export default async function WatchlistPage() {
   const activityEvents = buildActivityEvents(eventRadar, brief);
   const changesData = buildChangesData(changes);
 
+  const positionAware = Boolean(portfolio.position_aware);
+  const holdingsWithValues = holdings.filter((r) => r.holding && (r.holding.quantity != null || r.holding.market_value != null));
+  const totalEnteredValue = num(portfolio.total_entered_value);
+
   const chatTickers = rows.map((r) => r.ticker).filter(Boolean);
   const chatStarters: RadarChatStarter[] = [
     { label: "How's my radar today?", message: "How is my radar looking today?" },
@@ -277,14 +302,21 @@ export default async function WatchlistPage() {
           },
         ]
       : []),
-    ...(chatTickers[0]
+    ...(positionAware && holdingsWithValues.length > 0
       ? [
           {
-            label: `News on ${chatTickers[0]}`,
-            message: `Any breaking news on ${chatTickers[0]} I should know about?`,
+            label: "Which holding matters most?",
+            message: "Which of my holdings matters most today and why?",
           },
         ]
-      : []),
+      : chatTickers[0]
+        ? [
+            {
+              label: `News on ${chatTickers[0]}`,
+              message: `Any breaking news on ${chatTickers[0]} I should know about?`,
+            },
+          ]
+        : []),
   ].slice(0, 4);
 
   return (
@@ -336,6 +368,7 @@ export default async function WatchlistPage() {
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
           refreshing={false}
+          portfolio={portfolio}
         />
 
         {SHOW_SCENARIO_LAB && (
@@ -433,6 +466,13 @@ function HeaderStrip({
                 name: searchByInstrumentId.get(r.instrument_id)?.name || r.ticker,
                 position_type:
                   watchlistPositions[r.instrument_id] === "holding" ? "holding" : "watchlist",
+                holding: r.holding
+                  ? {
+                      quantity: r.holding.quantity ?? null,
+                      market_value: r.holding.market_value ?? null,
+                      average_cost: r.holding.average_cost ?? null,
+                    }
+                  : undefined,
               }))}
               isSubscribed={isSubscribed}
               ctaLabel="Add a stock"
@@ -578,6 +618,21 @@ function TodaySection({
         </p>
       )}
 
+      {/* Blind spot — something worth watching that isn't in your book */}
+      {brief?.blind_spot_title && (
+        <div className="flex items-start gap-3 rounded-xl border border-dashed border-[#fde68a] bg-[#fffbeb] px-4 py-3">
+          <span aria-hidden className="mt-0.5 text-[16px]">👁️</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#92400e]">
+              Blind spot
+            </span>
+            <p className="text-[13px] text-[#78350f] leading-snug">
+              {brief.blind_spot_title}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Primary directive — feature card with ticker header */}
       {topDirective && (
         <div className="flex flex-col gap-3">
@@ -637,6 +692,19 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
   const dayChange = row.day_change_pct ?? 0;
   const positive = dayChange >= 0;
   const symbol = row.currency === "INR" ? "₹" : "$";
+  const upside = row.target_upside_pct;
+  const attention = row.attention_score;
+  const attentionKind = row.attention_kind;
+  const attentionColor =
+    attentionKind === "move"
+      ? "bg-[#fef3c7] text-[#92400e]"
+      : attentionKind === "risk"
+      ? "bg-[#fef2f2] text-[#991b1b]"
+      : attentionKind === "opportunity"
+      ? "bg-[#ecfdf5] text-[#065f46]"
+      : attentionKind === "news"
+      ? "bg-[#eff6ff] text-[#1e3a8a]"
+      : "bg-[#f3f4f6] text-[#6b7280]";
   const priceStr =
     typeof row.price === "number"
       ? `${symbol}${row.price.toLocaleString(undefined, {
@@ -661,10 +729,23 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
           <span className="text-[18px] font-semibold tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
             {row.ticker}
           </span>
+          {attention !== undefined && attention !== null && (
+            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase ${attentionColor}`}>
+              <span aria-hidden className="h-1 w-1 rounded-full bg-current opacity-60" />
+              {attention}
+            </span>
+          )}
           <span className="text-[12px] text-[#9ca3af] truncate max-w-[260px]">
             {row.sector_label || ""}
           </span>
-          <PositionPill type={row.position_type} />
+          {upside !== null && upside !== undefined ? (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
+              <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
+              +{upside.toFixed(0)}% upside
+            </span>
+          ) : (
+            <PositionPill type={row.position_type} />
+          )}
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-[13px] font-semibold tabular-nums text-[#0a0a0a]">
@@ -712,6 +793,19 @@ function SecondaryDirectiveCard({
   const market = row.market === "IN" ? "IN" : "US";
   const dayChange = row.day_change_pct ?? 0;
   const positive = dayChange >= 0;
+  const upside = row.target_upside_pct;
+  const attention = row.attention_score;
+  const attentionKind = row.attention_kind;
+  const attentionColor =
+    attentionKind === "move"
+      ? "bg-[#fef3c7] text-[#92400e]"
+      : attentionKind === "risk"
+      ? "bg-[#fef2f2] text-[#991b1b]"
+      : attentionKind === "opportunity"
+      ? "bg-[#ecfdf5] text-[#065f46]"
+      : attentionKind === "news"
+      ? "bg-[#eff6ff] text-[#1e3a8a]"
+      : "bg-[#f3f4f6] text-[#6b7280]";
   return (
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
@@ -724,16 +818,24 @@ function SecondaryDirectiveCard({
         >
           {meta.label}
         </span>
-        {typeof row.day_change_pct === "number" && (
-          <span
-            className={`text-[11px] font-semibold tabular-nums ${
-              positive ? "text-[#047857]" : "text-[#b91c1c]"
-            }`}
-          >
-            {positive ? "+" : ""}
-            {dayChange.toFixed(2)}%
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {attention !== undefined && attention !== null && (
+            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase ${attentionColor}`}>
+              <span aria-hidden className="h-1 w-1 rounded-full bg-current opacity-60" />
+              {attention}
+            </span>
+          )}
+          {typeof row.day_change_pct === "number" && (
+            <span
+              className={`text-[11px] font-semibold tabular-nums ${
+                positive ? "text-[#047857]" : "text-[#b91c1c]"
+              }`}
+            >
+              {positive ? "+" : ""}
+              {dayChange.toFixed(2)}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2.5">
@@ -743,7 +845,14 @@ function SecondaryDirectiveCard({
             <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
               {row.ticker}
             </span>
-            <PositionPill type={row.position_type} />
+            {upside !== null && upside !== undefined ? (
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
+                <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
+                +{upside.toFixed(0)}% upside
+              </span>
+            ) : (
+              <PositionPill type={row.position_type} />
+            )}
           </div>
           <div className="flex items-baseline gap-1.5">
             {typeof row.price === "number" && (
@@ -853,6 +962,7 @@ function YourBookSection({
   isSubscribed,
   trackedCount,
   refreshing,
+  portfolio,
 }: {
   holdings: WatchlistRow[];
   watching: WatchlistRow[];
@@ -863,6 +973,7 @@ function YourBookSection({
   isSubscribed: boolean;
   trackedCount: number;
   refreshing?: boolean;
+  portfolio?: Dict;
 }) {
   // Flatten suggestion dicts to the shape RadarLedger expects.
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -896,6 +1007,8 @@ function YourBookSection({
         meta={`${holdings.length} held · ${watching.length} watching`}
         refreshing={refreshing}
       />
+
+      <PositionAwareState holdings={holdings} portfolio={portfolio} />
 
       <YourBookLayout
         holdings={holdings}
@@ -951,6 +1064,131 @@ function YourBookSection({
         ) : undefined}
       />
     </section>
+  );
+}
+
+function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[]; portfolio?: Dict }) {
+  if (!portfolio) return null;
+  const totalHoldings = holdings.length;
+  if (totalHoldings === 0) return null;
+
+  const holdingsWithPosition = holdings.filter(
+    (r) => r.holding && (r.holding.quantity != null || r.holding.market_value != null),
+  );
+  const enteredCount = holdingsWithPosition.length;
+  const state: "none" | "partial" | "full" =
+    enteredCount === 0 ? "none" : enteredCount < totalHoldings ? "partial" : "full";
+
+  const positionAware = Boolean(portfolio.position_aware);
+  const totalEntered = num(portfolio.total_entered_value);
+  const concentration = asDict(portfolio.concentration);
+  const positionRisks = asArray(portfolio.position_risks);
+  const top1Pct = num(concentration.top1_pct);
+  const riskLabel = text(concentration.risk_label);
+
+  if (state === "none") {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-3">
+        <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--outline)]" />
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[12px] font-semibold text-[var(--on-surface)]">
+            Add share counts to unlock position-weighted analysis
+          </p>
+          <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
+            Without size, Radar ranks by signal strength — not by how much each holding actually moves your portfolio.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "partial") {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
+        <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#f59e0b]" />
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[12px] font-semibold text-[#92400e]">
+            {enteredCount} of {totalHoldings} holdings have shares entered
+          </p>
+          <p className="text-[11px] text-[#b45309] leading-snug">
+            Fill in all holdings to enable dollar-weighted scores, sector allocation, and position-aware risk flags.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Full / position-aware state
+  const riskColor =
+    riskLabel === "high"
+      ? "text-[#dc2626]"
+      : riskLabel === "medium"
+      ? "text-[#b45309]"
+      : "text-[#047857]";
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3">
+      {/* Header row */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span aria-hidden className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
+          <span className="text-[11px] font-semibold tracking-[0.07em] uppercase text-[#047857]">
+            Position-aware
+          </span>
+        </div>
+        {totalEntered !== null && totalEntered > 0 && (
+          <span className="text-[12px] font-semibold tabular-nums text-[var(--on-surface)]">
+            ${totalEntered.toLocaleString(undefined, { maximumFractionDigits: 0 })} tracked
+          </span>
+        )}
+        {top1Pct !== null && (
+          <span className="text-[12px] tabular-nums text-[var(--on-surface-variant)]">
+            Largest position{" "}
+            <span className="font-semibold text-[var(--on-surface)]">{top1Pct.toFixed(1)}%</span>
+            {riskLabel && (
+              <span className={`ml-1 font-medium ${riskColor}`}>· {riskLabel} concentration</span>
+            )}
+          </span>
+        )}
+      </div>
+
+      {/* Confirmation copy */}
+      {positionAware && (
+        <p className="text-[11px] text-[#047857] leading-snug">
+          Scores, sector allocation, and risk flags now reflect your actual dollar weights — not just stock count.
+        </p>
+      )}
+
+      {/* Position risk flags */}
+      {positionRisks.length > 0 && (
+        <div className="flex flex-col gap-2 pt-1 border-t border-[#bbf7d0]">
+          {positionRisks.slice(0, 2).map((risk, i) => (
+            <div key={`pos-risk-${i}`} className="flex items-start gap-2.5">
+              <span
+                aria-hidden
+                className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${
+                  text(risk.severity) === "high"
+                    ? "bg-[#ef4444]"
+                    : text(risk.severity) === "medium"
+                    ? "bg-[#f59e0b]"
+                    : "bg-[#9ca3af]"
+                }`}
+              />
+              <div className="min-w-0">
+                <span className="text-[12px] font-semibold text-[var(--on-surface)]">
+                  {text(risk.headline)}
+                </span>
+                {text(risk.body) && (
+                  <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
+                    {text(risk.body)}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1228,6 +1466,8 @@ function DiagnosisSection({
   const risks = asArray(portfolio.risk_flags).slice(0, 4);
   const opportunities = asArray(portfolio.opportunities).slice(0, 3);
   const summary = scrubLegacyBrand(text(portfolio.summary));
+  const concentration = asDict(portfolio.concentration);
+  const positionRisks = asArray(portfolio.position_risks).slice(0, 4);
 
   // prefer backend factor_tilt, fallback to computed averages from rows
   const overall = num(factorTilt.overall) ?? pillarAverages.overall;
@@ -1282,7 +1522,7 @@ function DiagnosisSection({
 
       {/* Sector pie + factor radar — visual at a glance */}
       {clusters.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           <DiagnosisSectorChart
             sectors={clusters.map((c) => ({
               sector: (c.sector as string) || "Unknown",
@@ -1521,6 +1761,109 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                   <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-4 mt-auto">
                     {body}
                   </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PositionRisksBlock({
+  positionRisks,
+  concentration,
+}: {
+  positionRisks: Dict[];
+  concentration: Dict;
+}) {
+  const top1Pct = num(concentration.top1_pct);
+  const top3Pct = num(concentration.top3_pct);
+  const hhi = num(concentration.hhi);
+  const riskLabel = text(concentration.risk_label);
+  const hasConcentration = top1Pct !== null || top3Pct !== null || hhi !== null;
+  const hasRisks = positionRisks.length > 0;
+
+  if (!hasConcentration && !hasRisks) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef3c7] text-[14px]">
+          📊
+        </span>
+        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#b45309]">
+          Position analysis
+        </span>
+      </div>
+
+      {hasConcentration && (
+        <div className="flex flex-wrap items-center gap-2">
+          {top1Pct !== null && (
+            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+              Top-1: {top1Pct.toFixed(1)}%
+            </span>
+          )}
+          {top3Pct !== null && (
+            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+              Top-3: {top3Pct.toFixed(1)}%
+            </span>
+          )}
+          {hhi !== null && (
+            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+              HHI: {hhi.toFixed(3)}
+            </span>
+          )}
+          {riskLabel && (
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                riskLabel === "high"
+                  ? "bg-[#fef2f2] text-[#991b1b]"
+                  : riskLabel === "medium"
+                  ? "bg-[#fffbeb] text-[#92400e]"
+                  : "bg-[#ecfdf5] text-[#065f46]"
+              }`}
+            >
+              {riskLabel} risk
+            </span>
+          )}
+        </div>
+      )}
+
+      {hasRisks && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {positionRisks.map((risk, i) => {
+            const severity = text(risk.severity).toLowerCase();
+            const tone = severityTone(severity);
+            const headline = text(risk.headline);
+            const body = text(risk.body);
+            const ticker = text(risk.ticker);
+            const kindLabel = text(risk.kind).replaceAll("_", " ");
+            return (
+              <div
+                key={`posrisk-${i}`}
+                className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-[#111111] truncate">
+                    {ticker || kindLabel || "Position risk"}
+                  </span>
+                  {severity && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase shrink-0"
+                      style={{ background: tone.chipBg, color: tone.chipFg }}
+                    >
+                      <span aria-hidden className="h-1 w-1 rounded-full bg-white/80" />
+                      {severity}
+                    </span>
+                  )}
+                </div>
+                {headline && (
+                  <p className="text-[13px] font-medium text-[#111111] leading-snug">{headline}</p>
+                )}
+                {body && (
+                  <p className="text-[11.5px] text-[#6b7280] leading-snug line-clamp-3 mt-auto">{body}</p>
                 )}
               </div>
             );
@@ -2167,20 +2510,40 @@ type PillarAverages = {
 
 function computePillarAverages(rows: WatchlistRow[]): PillarAverages {
   const keys = ["overall", "valuation", "growth", "quality", "momentum"] as const;
-  const out: PillarAverages = {
-    overall: null,
-    valuation: null,
-    growth: null,
-    quality: null,
-    momentum: null,
-  };
+  const out: PillarAverages = { overall: null, valuation: null, growth: null, quality: null, momentum: null };
+
+  // Dollar-weight when ALL holdings have portfolio_weight_pct > 0.
+  // Partial coverage would skew results, so it's all-or-none.
+  const holdingRows = rows.filter((r) => r.position_type === "holding");
+  const positionAware =
+    holdingRows.length > 0 &&
+    holdingRows.every(
+      (r) =>
+        typeof r.holding?.portfolio_weight_pct === "number" &&
+        (r.holding.portfolio_weight_pct as number) > 0,
+    );
+
   for (const key of keys) {
-    const values: number[] = [];
-    for (const r of rows) {
-      const v = r.scores?.[key];
-      if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+    if (positionAware) {
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (const r of holdingRows) {
+        const score = r.scores?.[key];
+        const w = r.holding!.portfolio_weight_pct as number;
+        if (typeof score === "number" && Number.isFinite(score) && w > 0) {
+          weightedSum += score * w;
+          totalWeight += w;
+        }
+      }
+      out[key] = totalWeight > 0 ? weightedSum / totalWeight : null;
+    } else {
+      const values: number[] = [];
+      for (const r of rows) {
+        const v = r.scores?.[key];
+        if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+      }
+      out[key] = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
     }
-    out[key] = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
   }
   return out;
 }
