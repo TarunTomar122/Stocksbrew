@@ -23,6 +23,7 @@ from typing import Any
 from backend.instrument_universe import list_instruments
 from backend.landing_metrics import build_stock_technical_doc
 from backend.llm_enrichment import OpenAIArticleEnricher
+from backend.news_av import fetch_av_news_for_tickers
 from backend.news_pipeline import collect_per_ticker_articles
 from backend.pipeline_logging import configure_pipeline_logging
 from backend.scripts.build_context_intelligence import main as build_context_intelligence_main
@@ -341,6 +342,7 @@ def main() -> None:
     )
     parser.add_argument("--enrich-only", action="store_true", help="Fetch + enrich news only, skip brief synthesis")
     parser.add_argument("--synthesis-only", action="store_true", help="Build briefs from existing enrichments only")
+    parser.add_argument("--skip-av", action="store_true", help="Skip Alpha Vantage news augmentation (fall back to RSS only)")
     parser.add_argument(
         "--synthesis-lookback-hours",
         type=int,
@@ -549,6 +551,49 @@ def main() -> None:
             )
             print("[per-stock] enrich-only mode complete (brief synthesis skipped)")
             return
+
+    # ---------------------------------------------------------------------------
+    # Alpha Vantage augmentation (additive — never replaces RSS articles)
+    # AV articles have pre-computed per-ticker sentiment in entity_mentions and
+    # skip LLM enrichment. If AV fails for any reason, enriched_articles is
+    # unchanged and the pipeline continues with RSS-only coverage.
+    # ---------------------------------------------------------------------------
+    if not args.synthesis_only and not getattr(args, "skip_av", False):
+        us_tickers = [
+            str(inst.get("ticker") or "").strip().upper()
+            for inst in instruments
+            if str(inst.get("ticker") or "").strip()
+        ]
+        try:
+            av_articles = fetch_av_news_for_tickers(
+                us_tickers,
+                market=args.market,
+                min_relevance=0.3,
+            )
+            if av_articles:
+                before = len(enriched_articles)
+                existing_urls = {
+                    str(getattr(a, "url", "") or "").strip()
+                    for a in enriched_articles
+                }
+                new_av = [a for a in av_articles if a.url not in existing_urls]
+                enriched_articles = enriched_articles + new_av
+                print(
+                    f"[per-stock] av augmentation added {len(new_av)} articles "
+                    f"({len(av_articles) - len(new_av)} dupes dropped, "
+                    f"total {len(enriched_articles)} was {before})"
+                )
+                logger.info(
+                    "per_stock_intelligence av_augmentation added=%s dupes=%s total=%s",
+                    len(new_av),
+                    len(av_articles) - len(new_av),
+                    len(enriched_articles),
+                )
+            else:
+                print("[per-stock] av augmentation returned no articles (quota/rate-limit?) — continuing with RSS only")
+        except Exception as av_exc:
+            print(f"[per-stock] av augmentation failed ({av_exc}) — continuing with RSS only")
+            logger.warning("per_stock_intelligence av_augmentation_failed error=%s", av_exc)
 
     docs = build_stock_intelligence_docs(
         args.market,
