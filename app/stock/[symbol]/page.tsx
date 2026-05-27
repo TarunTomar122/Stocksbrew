@@ -13,6 +13,7 @@ import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
 import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { StockPageTabs } from "@/components/stock-page-tabs";
+import { StockScrollRail } from "@/components/stock-scroll-rail";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
 import { ProLockOverlay } from "@/components/pro-lock-overlay";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
@@ -209,6 +210,14 @@ export default async function StockPage({ params }: Props) {
   ) ?? null;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
+  // If the on-demand job says "complete" but no intelligence doc was produced
+  // (e.g. the stock was uncovered), treat it as "no_brief" so we don't show
+  // a misleading "Brief ready — refresh" card to the user.
+  const resolvedOnDemandStatus =
+    !intelligence && onDemandJob?.status === "complete"
+      ? "no_brief"
+      : onDemandJob?.status;
+
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
   // Trend card inputs - 50D/200D MA and beta come from Yahoo's `.info`
@@ -371,7 +380,7 @@ export default async function StockPage({ params }: Props) {
         instrumentId={stock.instrument_id}
         isSubscribed={subscribed}
         isTracked={isTracked}
-        onDemandStatus={onDemandJob?.status}
+        onDemandStatus={resolvedOnDemandStatus}
         onDemandError={onDemandJob?.error}
       />
     )
@@ -391,7 +400,7 @@ export default async function StockPage({ params }: Props) {
         ticker={stock.ticker}
       />
       <div className="mx-auto w-full max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-6 md:px-10 lg:px-16 md:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4 sm:gap-6 lg:gap-14">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start gap-4 sm:gap-6 lg:gap-14">
           <StockSideRail
             stock={stock}
             intelPro={intelPro}
@@ -404,14 +413,16 @@ export default async function StockPage({ params }: Props) {
             market={market}
             redditTickerContext={redditTickerContext}
           />
-          <StockPageTabs
-            overview={overviewContent}
-            analyst={analystContent}
-            fundamentals={fundamentalsContent}
-            earnings={earningsContent}
-            ai={aiContent}
-            isSubscribed={subscribed}
-          />
+          <StockScrollRail>
+            <StockPageTabs
+              overview={overviewContent}
+              analyst={analystContent}
+              fundamentals={fundamentalsContent}
+              earnings={earningsContent}
+              ai={aiContent}
+              isSubscribed={subscribed}
+            />
+          </StockScrollRail>
         </div>
       </div>
     </main>

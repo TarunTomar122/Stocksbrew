@@ -228,38 +228,74 @@ function SizeUnknownBadge() {
   );
 }
 
+type StanceChipMeta = { label: string; bg: string; fg: string; dot: string };
+
+function StanceChip({ meta, size = "sm" }: { meta: StanceChipMeta; size?: "xs" | "sm" }) {
+  const cls = size === "xs"
+    ? "px-1.5 py-0.5 text-[9px] gap-1"
+    : "px-2 py-0.5 text-[10px] gap-1.5";
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded font-semibold tracking-[0.04em] uppercase ${cls}`}
+      style={{ background: meta.bg, color: meta.fg }}
+    >
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: meta.dot }}
+        aria-hidden
+      />
+      {meta.label}
+    </span>
+  );
+}
+
 function DirectiveDisplay({
   row,
   compact = false,
+  anyHoldingKnown = false,
 }: {
   row: WatchlistRow;
   compact?: boolean;
+  anyHoldingKnown?: boolean;
 }) {
   const d2 = row.directive_v2;
   const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
   const stanceMeta = STANCE_CHIP[stance];
 
   if (d2?.title) {
+    // Use live holding data — directive_v2.holding_status can be stale from
+    // a cached backend view run before the user entered their shares.
+    const rowHoldingKnown =
+      (row.holding?.quantity ?? 0) > 0 ||
+      (row.holding?.market_value ?? 0) > 0 ||
+      (row.holding?.computed_market_value ?? 0) > 0;
     const showSizeUnknown =
-      d2.holding_status === "unknown" && row.position_type === "holding";
+      anyHoldingKnown && !rowHoldingKnown && row.position_type === "holding";
+    const detail = !showSizeUnknown && d2.detail
+      ? d2.detail.replace(/;?\s*position size unknown/gi, "").replace(/^;\s*/, "").trim() || null
+      : d2.detail || null;
+
+    // Resolve stance chip — prefer ai_directive.stance, fall back to parsing d2.title
+    const chipMeta = stanceMeta ?? (() => {
+      const t = d2.title.toLowerCase();
+      if (t.startsWith("accumulate")) return STANCE_CHIP.accumulate;
+      if (t.startsWith("trim")) return STANCE_CHIP.trim;
+      if (t.startsWith("avoid")) return STANCE_CHIP.avoid;
+      if (t.startsWith("hold")) return STANCE_CHIP.hold;
+      return STANCE_CHIP.watch;
+    })();
 
     if (compact) {
       return (
         <div className="mt-0.5 flex flex-col gap-0.5 min-w-0">
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-[10px] font-semibold text-[#111111] leading-snug line-clamp-1">
-              {d2.title}
-            </span>
-            <PriorityBadge priority={d2.priority} />
+            <StanceChip meta={chipMeta} size="xs" />
+            {d2.priority === "high" && <PriorityBadge priority={d2.priority} />}
+            {d2.trigger && <TriggerChip trigger={d2.trigger} />}
             {showSizeUnknown && <SizeUnknownBadge />}
           </div>
-          {d2.detail && (
-            <span className="text-[9px] text-[#9ca3af] leading-snug line-clamp-1">{d2.detail}</span>
-          )}
-          {d2.trigger && (
-            <div className="flex flex-wrap items-center gap-1">
-              <TriggerChip trigger={d2.trigger} />
-            </div>
+          {detail && (
+            <span className="text-[9px] text-[#9ca3af] leading-snug line-clamp-1">{detail}</span>
           )}
         </div>
       );
@@ -268,13 +304,13 @@ function DirectiveDisplay({
     return (
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[12px] font-semibold text-[#111111] leading-snug">{d2.title}</span>
-          <PriorityBadge priority={d2.priority} />
+          <StanceChip meta={chipMeta} />
+          {d2.priority === "high" && <PriorityBadge priority={d2.priority} />}
           {d2.trigger && <TriggerChip trigger={d2.trigger} />}
           {showSizeUnknown && <SizeUnknownBadge />}
         </div>
-        {d2.detail && (
-          <p className="text-[10px] leading-snug text-[#9ca3af] line-clamp-2">{d2.detail}</p>
+        {detail && (
+          <p className="text-[10px] leading-snug text-[#9ca3af] line-clamp-2">{detail}</p>
         )}
       </div>
     );
@@ -395,6 +431,18 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
   };
   const sourceRows = tab === "holdings" ? holdings : watching;
   const rows = sourceRows.map((row) => mergeHoldingPatch(row, holdingPatches[row.instrument_id]));
+
+  // Derive live holding-known status from actual holding data, not the cached
+  // directive_v2.holding_status which may be stale from before shares were entered.
+  const holdingIsKnown = (r: WatchlistRow) =>
+    (r.holding?.quantity ?? 0) > 0 ||
+    (r.holding?.market_value ?? 0) > 0 ||
+    (r.holding?.computed_market_value ?? 0) > 0;
+
+  // Only show "Size unknown" badge when the portfolio has a mix — at least one
+  // holding with a known size so the badge is a meaningful "fill this in" signal
+  // rather than noise on every single row.
+  const anyHoldingKnown = holdings.some(holdingIsKnown);
 
   useEffect(() => {
     if (tab !== "holdings" && bulkEditing) {
@@ -530,6 +578,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                   row={row}
                   hasBorder={i > 0}
                   showHoldingValues={tab === "holdings"}
+                  anyHoldingKnown={anyHoldingKnown}
                 />
               ))}
             </div>
@@ -581,6 +630,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                       showShares={tab === "holdings"}
                       onSharesSaved={applyHoldingPatch}
                       bulkEditing={bulkEditing}
+                      anyHoldingKnown={anyHoldingKnown}
                     />
                   ))}
                 </tbody>
@@ -816,10 +866,12 @@ function MobileRow({
   row,
   hasBorder,
   showHoldingValues,
+  anyHoldingKnown,
 }: {
   row: WatchlistRow;
   hasBorder: boolean;
   showHoldingValues?: boolean;
+  anyHoldingKnown?: boolean;
 }) {
   const router = useRouter();
   const market = row.market === "IN" ? "IN" : "US";
@@ -870,7 +922,7 @@ function MobileRow({
             </div>
           )}
           {/* Directive below name */}
-          <DirectiveDisplay row={row} compact />
+          <DirectiveDisplay row={row} compact anyHoldingKnown={anyHoldingKnown} />
         </div>
       </div>
 
@@ -912,10 +964,12 @@ function LedgerRow({
   showShares,
   onSharesSaved,
   bulkEditing,
+  anyHoldingKnown,
 }: {
   row: WatchlistRow;
   showHoldingValue?: boolean;
   showShares?: boolean;
+  anyHoldingKnown?: boolean;
 } & SharesEditHandlers) {
   const router = useRouter();
   const dayChange = row.day_change_pct;
@@ -1012,7 +1066,7 @@ function LedgerRow({
         </span>
       </td>
       <td className="px-4 py-3">
-        <DirectiveDisplay row={row} />
+        <DirectiveDisplay row={row} anyHoldingKnown={anyHoldingKnown} />
       </td>
       <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
         <RowMenu row={row} />

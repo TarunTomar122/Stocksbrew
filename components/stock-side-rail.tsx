@@ -133,7 +133,7 @@ export function StockSideRail({
 
   return (
     <aside className="w-full lg:max-w-[340px]">
-      <div className="lg:sticky lg:top-20 flex flex-col gap-4">
+      <div className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto flex flex-col gap-4">
       {/* Identity card */}
       <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-5">
         <div className="flex items-start gap-3">
