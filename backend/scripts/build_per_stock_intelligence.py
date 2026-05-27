@@ -24,6 +24,8 @@ from backend.instrument_universe import list_instruments
 from backend.landing_metrics import build_stock_technical_doc
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_av import fetch_av_news_for_tickers
+from backend.news_finnhub import fetch_finnhub_news_for_tickers
+from backend.news_marketaux import fetch_marketaux_news_for_tickers
 from backend.news_pipeline import collect_per_ticker_articles
 from backend.pipeline_logging import configure_pipeline_logging
 from backend.scripts.build_context_intelligence import main as build_context_intelligence_main
@@ -594,6 +596,55 @@ def main() -> None:
         except Exception as av_exc:
             print(f"[per-stock] av augmentation failed ({av_exc}) — continuing with RSS only")
             logger.warning("per_stock_intelligence av_augmentation_failed error=%s", av_exc)
+
+    # ---------------------------------------------------------------------------
+    # Finnhub augmentation (per-ticker, additive)
+    # One API call per tracked ticker (60 req/min free).  Only runs for US market
+    # and only for the tracked-stocks subset so call count stays manageable.
+    # Falls back gracefully — never blocks the pipeline.
+    # ---------------------------------------------------------------------------
+    if not args.synthesis_only and args.market == "US":
+        tracked_tickers = [
+            str(inst.get("ticker") or "").strip().upper()
+            for inst in instruments
+            if str(inst.get("ticker") or "").strip()
+        ]
+        try:
+            fh_articles = fetch_finnhub_news_for_tickers(tracked_tickers, market=args.market)
+            if fh_articles:
+                existing_urls = {str(getattr(a, "url", "") or "").strip() for a in enriched_articles}
+                new_fh = [a for a in fh_articles if a.url not in existing_urls]
+                enriched_articles = enriched_articles + new_fh
+                print(f"[per-stock] finnhub augmentation added {len(new_fh)} articles ({len(fh_articles)-len(new_fh)} dupes dropped)")
+            else:
+                print("[per-stock] finnhub augmentation returned no articles — continuing without")
+        except Exception as fh_exc:
+            print(f"[per-stock] finnhub augmentation failed ({fh_exc}) — continuing without")
+            logger.warning("per_stock_intelligence finnhub_augmentation_failed error=%s", fh_exc)
+
+    # ---------------------------------------------------------------------------
+    # Marketaux augmentation (batched, additive)
+    # 100 req/day free.  Batches all tickers in a few calls.  Entity-tagged
+    # articles with per-ticker sentiment — same pattern as AV.
+    # ---------------------------------------------------------------------------
+    if not args.synthesis_only:
+        all_tickers = [
+            str(inst.get("ticker") or "").strip().upper()
+            for inst in instruments
+            if str(inst.get("ticker") or "").strip()
+        ]
+        try:
+            mx_articles = fetch_marketaux_news_for_tickers(all_tickers, market=args.market)
+            if mx_articles:
+                existing_urls = {str(getattr(a, "url", "") or "").strip() for a in enriched_articles}
+                new_mx = [a for a in mx_articles if a.url not in existing_urls]
+                enriched_articles = enriched_articles + new_mx
+                print(f"[per-stock] marketaux augmentation added {len(new_mx)} articles ({len(mx_articles)-len(new_mx)} dupes dropped)")
+            else:
+                print("[per-stock] marketaux augmentation returned no articles — continuing without")
+        except Exception as mx_exc:
+            print(f"[per-stock] marketaux augmentation failed ({mx_exc}) — continuing without")
+            logger.warning("per_stock_intelligence marketaux_augmentation_failed error=%s", mx_exc)
 
     docs = build_stock_intelligence_docs(
         args.market,

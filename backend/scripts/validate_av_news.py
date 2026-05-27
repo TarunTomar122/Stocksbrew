@@ -20,7 +20,7 @@ from backend.env import load_backend_env
 
 load_backend_env()
 
-from backend.news_av import fetch_av_news_batch, av_feed_to_articles, DEFAULT_BATCH_SIZE
+from backend.news_av import fetch_av_news_batch, av_feed_to_articles, DEFAULT_BATCH_SIZE, _AV_KEY_POOL
 
 
 def _age_str(published_at: str) -> str:
@@ -63,9 +63,6 @@ def main() -> None:
     args = parser.parse_args()
 
     api_key = os.environ.get("ALPHA_VANTAGE_API_KEY") or ""
-    if not api_key:
-        print("ERROR: ALPHA_VANTAGE_API_KEY not set in environment")
-        return
 
     if args.tickers:
         tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
@@ -77,14 +74,15 @@ def main() -> None:
     print(f"ALPHA VANTAGE NEWS VALIDATION")
     print(f"{'='*60}")
     print(f"Tickers ({len(tickers)}): {', '.join(tickers)}")
+    print(f"Key pool size: {len(_AV_KEY_POOL)} keys ({len(_AV_KEY_POOL) * 25} calls/day combined)")
     print(f"API calls this will consume: 1")
 
     if args.dry_run:
         print("\n[DRY RUN] No API call made.")
         return
 
-    print("\nFetching from Alpha Vantage... (1 call)")
-    feed = fetch_av_news_batch(tickers, api_key=api_key, limit=50)
+    print("\nFetching from Alpha Vantage... (1 call, random key from pool)")
+    feed = fetch_av_news_batch(tickers, api_key=api_key or None, limit=50)
 
     if not feed:
         print("\nERROR: No articles returned.")

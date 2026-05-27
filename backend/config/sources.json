@@ -5,7 +5,9 @@
       "id": "nse-announcements",
       "name": "NSE Corporate Announcements",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.nseindia.com/",
       "feed_url": "https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml",
       "verification_url": "https://www.nseindia.com/static/rss-feed",
@@ -13,9 +15,17 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official NSE RSS feed listed on the NSE RSS page.",
-      "coverage_modes": ["market", "stock"],
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["corporate_results", "corporate_actions", "management", "governance"],
+      "signal_types": [
+        "corporate_results",
+        "corporate_actions",
+        "management",
+        "governance"
+      ],
       "source_tier": "official",
       "max_items": 15,
       "max_age_hours": 24
@@ -24,7 +34,9 @@
       "id": "nse-circulars",
       "name": "NSE Circulars",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.nseindia.com/",
       "feed_url": "https://nsearchives.nseindia.com/content/RSS/Circulars.xml",
       "verification_url": "https://www.nseindia.com/static/rss-feed",
@@ -32,9 +44,15 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official NSE RSS feed listed on the NSE RSS page.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["regulation", "exchange_ops", "compliance"],
+      "signal_types": [
+        "regulation",
+        "exchange_ops",
+        "compliance"
+      ],
       "source_tier": "official",
       "max_items": 8,
       "max_age_hours": 72
@@ -43,7 +61,9 @@
       "id": "bse-notices",
       "name": "BSE Notices",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.bseindia.com/",
       "feed_url": "https://www.bseindia.com/data/xml/notices.xml",
       "verification_url": "https://www.bseindia.com/rss-feed.html",
@@ -51,9 +71,15 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official BSE notices feed listed on the BSE RSS page.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["regulation", "exchange_ops", "compliance"],
+      "signal_types": [
+        "regulation",
+        "exchange_ops",
+        "compliance"
+      ],
       "source_tier": "official",
       "max_items": 8,
       "max_age_hours": 72
@@ -62,7 +88,9 @@
       "id": "bse-announcements",
       "name": "BSE Corporate Announcements",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.bseindia.com/",
       "feed_url": "https://www.bseindia.com/data/xml/announcements.xml",
       "verification_url": "https://www.bseindia.com/rss-feed.html",
@@ -70,9 +98,17 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official BSE corporate announcement feed listed on the BSE RSS page.",
-      "coverage_modes": ["market", "stock"],
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["corporate_results", "corporate_actions", "management", "governance"],
+      "signal_types": [
+        "corporate_results",
+        "corporate_actions",
+        "management",
+        "governance"
+      ],
       "source_tier": "official",
       "max_items": 20,
       "max_age_hours": 24
@@ -81,7 +117,9 @@
       "id": "nse-financial-results",
       "name": "NSE Financial Results",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.nseindia.com/",
       "feed_url": "https://nsearchives.nseindia.com/content/RSS/Financial_Results.xml",
       "verification_url": "https://www.nseindia.com/static/rss-feed",
@@ -89,9 +127,14 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official NSE RSS feed listed on the NSE RSS page.",
-      "coverage_modes": ["stock"],
+      "coverage_modes": [
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["earnings", "corporate_results"],
+      "signal_types": [
+        "earnings",
+        "corporate_results"
+      ],
       "source_tier": "official",
       "max_items": 10,
       "max_age_hours": 72
@@ -100,7 +143,9 @@
       "id": "nse-board-meetings",
       "name": "NSE Board Meetings",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.nseindia.com/",
       "feed_url": "https://nsearchives.nseindia.com/content/RSS/Board_Meetings.xml",
       "verification_url": "https://www.nseindia.com/static/rss-feed",
@@ -108,9 +153,14 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official NSE RSS feed listed on the NSE RSS page.",
-      "coverage_modes": ["stock"],
+      "coverage_modes": [
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["corporate_actions", "management"],
+      "signal_types": [
+        "corporate_actions",
+        "management"
+      ],
       "source_tier": "official",
       "max_items": 10,
       "max_age_hours": 72
@@ -119,7 +169,9 @@
       "id": "bse-financial-results",
       "name": "BSE Financial Results",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.bseindia.com/",
       "feed_url": "https://www.bseindia.com/Data/XML/FinancialResultsFeed.xml",
       "verification_url": "https://www.bseindia.com/rss-feed.html",
@@ -127,9 +179,14 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official BSE RSS feed listed on the BSE RSS page.",
-      "coverage_modes": ["stock"],
+      "coverage_modes": [
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["earnings", "corporate_results"],
+      "signal_types": [
+        "earnings",
+        "corporate_results"
+      ],
       "source_tier": "official",
       "max_items": 10,
       "max_age_hours": 72
@@ -138,7 +195,9 @@
       "id": "bse-board-meetings",
       "name": "BSE Board Meetings",
       "kind": "exchange",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.bseindia.com/",
       "feed_url": "https://www.bseindia.com/Data/XML/BoardMeetingsFeed.xml",
       "verification_url": "https://www.bseindia.com/rss-feed.html",
@@ -146,9 +205,14 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official BSE RSS feed listed on the BSE RSS page.",
-      "coverage_modes": ["stock"],
+      "coverage_modes": [
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["corporate_actions", "management"],
+      "signal_types": [
+        "corporate_actions",
+        "management"
+      ],
       "source_tier": "official",
       "max_items": 10,
       "max_age_hours": 72
@@ -157,7 +221,9 @@
       "id": "livemint-markets",
       "name": "Mint Markets",
       "kind": "publisher",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.livemint.com/market",
       "feed_url": "https://www.livemint.com/rss/markets",
       "verification_url": "https://www.livemint.com/rss/markets",
@@ -165,9 +231,27 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Feed is live and parseable with high daily market-news volume.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["banking", "information-technology", "pharma-healthcare", "energy", "autos", "metals", "consumer"],
-      "signal_types": ["market_news", "earnings", "ratings", "macro", "ipo"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "banking",
+        "information-technology",
+        "pharma-healthcare",
+        "energy",
+        "autos",
+        "metals",
+        "consumer"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ratings",
+        "macro",
+        "ipo"
+      ],
       "source_tier": "publisher",
       "max_items": 30,
       "max_age_hours": 48
@@ -176,7 +260,9 @@
       "id": "economic-times-markets",
       "name": "Economic Times Markets",
       "kind": "publisher",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://economictimes.indiatimes.com/markets",
       "feed_url": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
       "verification_url": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
@@ -184,9 +270,27 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Feed is live and parseable with high daily market-news volume.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["banking", "information-technology", "pharma-healthcare", "energy", "autos", "metals", "consumer"],
-      "signal_types": ["market_news", "earnings", "ratings", "macro", "ipo"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "banking",
+        "information-technology",
+        "pharma-healthcare",
+        "energy",
+        "autos",
+        "metals",
+        "consumer"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ratings",
+        "macro",
+        "ipo"
+      ],
       "source_tier": "publisher",
       "max_items": 35,
       "max_age_hours": 48
@@ -195,7 +299,9 @@
       "id": "businessline-markets",
       "name": "The Hindu BusinessLine Markets",
       "kind": "publisher",
-      "market_codes": ["IN"],
+      "market_codes": [
+        "IN"
+      ],
       "homepage_url": "https://www.thehindubusinessline.com/markets/",
       "feed_url": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
       "verification_url": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
@@ -203,9 +309,28 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Feed is live and parseable with high daily Indian market-news volume.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["banking", "information-technology", "pharma-healthcare", "energy", "autos", "metals", "consumer", "capital-goods"],
-      "signal_types": ["market_news", "earnings", "ipo", "macro", "ratings"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "banking",
+        "information-technology",
+        "pharma-healthcare",
+        "energy",
+        "autos",
+        "metals",
+        "consumer",
+        "capital-goods"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ipo",
+        "macro",
+        "ratings"
+      ],
       "source_tier": "publisher",
       "max_items": 35,
       "max_age_hours": 72
@@ -214,7 +339,9 @@
       "id": "sec-press-releases",
       "name": "SEC Press Releases",
       "kind": "regulator",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.sec.gov/news/pressreleases",
       "feed_url": "https://www.sec.gov/news/pressreleases.rss",
       "verification_url": "https://www.sec.gov/news/pressreleases.rss",
@@ -222,9 +349,16 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official SEC RSS feed.",
-      "coverage_modes": ["market", "stock"],
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
       "sector_tags": [],
-      "signal_types": ["regulation", "enforcement", "filings"],
+      "signal_types": [
+        "regulation",
+        "enforcement",
+        "filings"
+      ],
       "source_tier": "official",
       "max_items": 20,
       "max_age_hours": 168
@@ -233,7 +367,9 @@
       "id": "fed-press-releases",
       "name": "Federal Reserve Press Releases",
       "kind": "regulator",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.federalreserve.gov/newsevents/pressreleases.htm",
       "feed_url": "https://www.federalreserve.gov/feeds/press_all.xml",
       "verification_url": "https://www.federalreserve.gov/feeds/press_all.xml",
@@ -241,9 +377,15 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Official Federal Reserve RSS feed.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["rates", "macro", "policy"],
+      "signal_types": [
+        "rates",
+        "macro",
+        "policy"
+      ],
       "source_tier": "official",
       "max_items": 15,
       "max_age_hours": 168
@@ -252,7 +394,9 @@
       "id": "nasdaq-markets",
       "name": "Nasdaq Markets News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.nasdaq.com/news-and-insights/topic/markets",
       "feed_url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets",
       "verification_url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets",
@@ -260,9 +404,26 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Live Nasdaq RSS category feed with fresh daily US market coverage.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "macro", "rates", "regulation"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "rates",
+        "regulation"
+      ],
       "source_tier": "publisher",
       "max_items": 25,
       "max_age_hours": 24
@@ -271,7 +432,9 @@
       "id": "nasdaq-stocks",
       "name": "Nasdaq Stocks News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.nasdaq.com/news-and-insights/topic/stocks",
       "feed_url": "https://www.nasdaq.com/feed/rssoutbound?category=Stocks",
       "verification_url": "https://www.nasdaq.com/feed/rssoutbound?category=Stocks",
@@ -279,9 +442,24 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Live Nasdaq RSS category feed focused on US stocks and movers.",
-      "coverage_modes": ["stock", "sector"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "ratings", "earnings"],
+      "coverage_modes": [
+        "stock",
+        "sector"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "ratings",
+        "earnings"
+      ],
       "source_tier": "publisher",
       "max_items": 25,
       "max_age_hours": 24
@@ -290,7 +468,9 @@
       "id": "nasdaq-earnings",
       "name": "Nasdaq Earnings News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.nasdaq.com/news-and-insights/topic/earnings",
       "feed_url": "https://www.nasdaq.com/feed/rssoutbound?category=Earnings",
       "verification_url": "https://www.nasdaq.com/feed/rssoutbound?category=Earnings",
@@ -298,9 +478,23 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Live Nasdaq RSS category feed for earnings-driven US equity coverage.",
-      "coverage_modes": ["stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["earnings", "corporate_actions", "market_news"],
+      "coverage_modes": [
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "earnings",
+        "corporate_actions",
+        "market_news"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 48
@@ -309,7 +503,9 @@
       "id": "nasdaq-ipos",
       "name": "Nasdaq IPO News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.nasdaq.com/news-and-insights/topic/ipos",
       "feed_url": "https://www.nasdaq.com/feed/rssoutbound?category=IPOs",
       "verification_url": "https://www.nasdaq.com/feed/rssoutbound?category=IPOs",
@@ -317,9 +513,21 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Live Nasdaq RSS category feed for IPO and listing coverage.",
-      "coverage_modes": ["market", "stock"],
-      "sector_tags": ["big-tech", "financials", "healthcare", "consumer", "industrials"],
-      "signal_types": ["ipo", "market_news"],
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "financials",
+        "healthcare",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "ipo",
+        "market_news"
+      ],
       "source_tier": "publisher",
       "max_items": 15,
       "max_age_hours": 168
@@ -328,7 +536,9 @@
       "id": "seekingalpha-market-currents",
       "name": "Seeking Alpha Breaking News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://seekingalpha.com/market-news",
       "feed_url": "https://seekingalpha.com/market_currents.xml",
       "verification_url": "https://seekingalpha.com/market_currents.xml",
@@ -336,9 +546,26 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Live Seeking Alpha breaking-news RSS feed with fresh US market items.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "earnings", "ratings", "corporate_actions"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ratings",
+        "corporate_actions"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 24
@@ -347,7 +574,9 @@
       "id": "seekingalpha-wall-street-breakfast",
       "name": "Seeking Alpha Wall Street Breakfast",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://seekingalpha.com/tag/wall-st-breakfast",
       "feed_url": "https://seekingalpha.com/tag/wall-st-breakfast.xml",
       "verification_url": "https://seekingalpha.com/tag/wall-st-breakfast.xml",
@@ -355,9 +584,24 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Live Seeking Alpha daily market-brief RSS feed.",
-      "coverage_modes": ["market", "sector"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "macro", "rates"],
+      "coverage_modes": [
+        "market",
+        "sector"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "rates"
+      ],
       "source_tier": "publisher",
       "max_items": 12,
       "max_age_hours": 48
@@ -366,7 +610,9 @@
       "id": "foxbusiness-markets",
       "name": "Fox Business Markets",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.foxbusiness.com/markets",
       "feed_url": "https://moxie.foxbusiness.com/google-publisher/markets.xml",
       "verification_url": "https://www.foxbusiness.com/fox-business-rss-feed",
@@ -374,56 +620,105 @@
       "usage_status": "enabled",
       "enabled_by_default": false,
       "licensing_notes": "Live feed, but currently less fresh than Nasdaq and Seeking Alpha so it is not in the default ingest.",
-      "coverage_modes": ["market", "stock"],
-      "sector_tags": ["big-tech", "financials", "energy", "consumer", "industrials"],
-      "signal_types": ["market_news", "macro", "ratings"],
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "ratings"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 120
     },
     {
-      "id": "marketwatch-marketpulse",
-      "name": "MarketWatch MarketPulse",
+      "id": "marketwatch-top-stories",
+      "name": "MarketWatch Top Stories",
       "kind": "publisher",
-      "market_codes": ["US"],
-      "homepage_url": "https://www.marketwatch.com/column/market-pulse",
-      "feed_url": "https://feeds.content.dowjones.io/public/rss/mw_marketpulse",
-      "verification_url": "https://feeds.content.dowjones.io/public/rss/mw_marketpulse",
-      "verified_at": "2026-03-23",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.marketwatch.com/",
+      "feed_url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+      "verification_url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+      "verified_at": "2026-05-27",
       "usage_status": "enabled",
-      "enabled_by_default": false,
-      "licensing_notes": "Feed is reachable but currently stale for daily market use, so it is not in the default ingest.",
-      "coverage_modes": ["market", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials"],
-      "signal_types": ["market_news", "earnings", "macro", "ratings"],
+      "enabled_by_default": true,
+      "licensing_notes": "MarketWatch/Dow Jones public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "macro",
+        "ratings"
+      ],
       "source_tier": "publisher",
-      "max_items": 20,
-      "max_age_hours": 48
+      "max_items": 15,
+      "max_age_hours": 24
     },
     {
       "id": "investing-stock-market-news",
       "name": "Investing.com Stock Market News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.investing.com/news/stock-market-news",
       "feed_url": "https://www.investing.com/rss/news_25.rss",
       "verification_url": "https://www.investing.com/rss/news_25.rss",
       "verified_at": "2026-03-23",
-      "usage_status": "disabled",
-      "enabled_by_default": false,
+      "usage_status": "enabled",
+      "enabled_by_default": true,
       "licensing_notes": "Feed is live and parseable.",
-      "coverage_modes": ["market", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials"],
-      "signal_types": ["market_news", "earnings", "macro", "ratings"],
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "macro",
+        "ratings"
+      ],
       "source_tier": "publisher",
-      "max_items": 40,
+      "max_items": 20,
       "max_age_hours": 24
     },
     {
       "id": "cnbc-top-news",
       "name": "CNBC Top News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.cnbc.com/",
       "feed_url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
       "verification_url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
@@ -431,9 +726,15 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "CNBC public RSS category feed.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["market_news", "macro", "geopolitics"],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "geopolitics"
+      ],
       "source_tier": "publisher",
       "max_items": 25,
       "max_age_hours": 24
@@ -442,7 +743,9 @@
       "id": "cnbc-markets",
       "name": "CNBC Markets",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.cnbc.com/investing/",
       "feed_url": "https://www.cnbc.com/id/15839069/device/rss/rss.html",
       "verification_url": "https://www.cnbc.com/id/15839069/device/rss/rss.html",
@@ -450,9 +753,25 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "CNBC public RSS category feed.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "ratings", "earnings"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "ratings",
+        "earnings"
+      ],
       "source_tier": "publisher",
       "max_items": 25,
       "max_age_hours": 24
@@ -461,7 +780,9 @@
       "id": "cnbc-economy",
       "name": "CNBC Economy",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.cnbc.com/economy/",
       "feed_url": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
       "verification_url": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
@@ -469,9 +790,15 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "CNBC public RSS category feed.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["macro", "rates", "policy"],
+      "signal_types": [
+        "macro",
+        "rates",
+        "policy"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 24
@@ -480,7 +807,9 @@
       "id": "cnbc-finance",
       "name": "CNBC Finance",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.cnbc.com/finance/",
       "feed_url": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
       "verification_url": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
@@ -488,9 +817,18 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "CNBC public RSS category feed.",
-      "coverage_modes": ["market", "sector"],
-      "sector_tags": ["financials"],
-      "signal_types": ["market_news", "banking", "regulation"],
+      "coverage_modes": [
+        "market",
+        "sector"
+      ],
+      "sector_tags": [
+        "financials"
+      ],
+      "signal_types": [
+        "market_news",
+        "banking",
+        "regulation"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 24
@@ -499,7 +837,9 @@
       "id": "yahoo-finance-headlines",
       "name": "Yahoo Finance Headlines",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://finance.yahoo.com/",
       "feed_url": "https://finance.yahoo.com/news/rssindex",
       "verification_url": "https://finance.yahoo.com/news/rssindex",
@@ -507,9 +847,26 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Yahoo Finance public RSS index.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "earnings", "macro", "ratings"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "macro",
+        "ratings"
+      ],
       "source_tier": "publisher",
       "max_items": 30,
       "max_age_hours": 24
@@ -518,7 +875,9 @@
       "id": "benzinga-news",
       "name": "Benzinga News",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.benzinga.com/",
       "feed_url": "https://www.benzinga.com/feed",
       "verification_url": "https://www.benzinga.com/feed",
@@ -526,9 +885,26 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Benzinga public RSS feed.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "ratings", "earnings", "options"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "ratings",
+        "earnings",
+        "options"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 24
@@ -537,7 +913,9 @@
       "id": "motley-fool",
       "name": "Motley Fool",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.fool.com/",
       "feed_url": "https://www.fool.com/feeds/index.aspx",
       "verification_url": "https://www.fool.com/feeds/index.aspx",
@@ -545,9 +923,25 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Motley Fool public RSS feed.",
-      "coverage_modes": ["market", "sector", "stock"],
-      "sector_tags": ["big-tech", "semiconductors", "financials", "energy", "consumer", "industrials", "healthcare"],
-      "signal_types": ["market_news", "ratings", "analysis"],
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "ratings",
+        "analysis"
+      ],
       "source_tier": "publisher",
       "max_items": 25,
       "max_age_hours": 48
@@ -556,7 +950,9 @@
       "id": "npr-economy",
       "name": "NPR Economy",
       "kind": "publisher",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "https://www.npr.org/sections/economy/",
       "feed_url": "https://feeds.npr.org/1017/rss.xml",
       "verification_url": "https://feeds.npr.org/1017/rss.xml",
@@ -564,18 +960,201 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "NPR public RSS feed.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["macro", "policy", "market_news"],
+      "signal_types": [
+        "macro",
+        "policy",
+        "market_news"
+      ],
       "source_tier": "publisher",
       "max_items": 15,
       "max_age_hours": 48
     },
     {
+      "id": "pr-newswire",
+      "name": "PR Newswire",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.prnewswire.com/",
+      "feed_url": "https://www.prnewswire.com/rss/news-releases-list.rss",
+      "verification_url": "https://www.prnewswire.com/rss/news-releases-list.rss",
+      "verified_at": "2026-05-27",
+      "usage_status": "disabled",
+      "enabled_by_default": false,
+      "licensing_notes": "PR Newswire public RSS feed of press releases.",
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "corporate_actions",
+        "earnings",
+        "ipo",
+        "market_news"
+      ],
+      "source_tier": "official",
+      "max_items": 20,
+      "max_age_hours": 24
+    },
+    {
+      "id": "ft-markets",
+      "name": "Financial Times Markets",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.ft.com/markets",
+      "feed_url": "https://www.ft.com/markets?format=rss",
+      "verification_url": "https://www.ft.com/markets?format=rss",
+      "verified_at": "2026-05-27",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "Financial Times public RSS feed. Headlines visible; full articles behind paywall.",
+      "coverage_modes": [
+        "market",
+        "sector"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "ratings",
+        "earnings"
+      ],
+      "source_tier": "publisher",
+      "max_items": 15,
+      "max_age_hours": 24
+    },
+    {
+      "id": "techcrunch",
+      "name": "TechCrunch",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://techcrunch.com/",
+      "feed_url": "https://techcrunch.com/feed/",
+      "verification_url": "https://techcrunch.com/feed/",
+      "verified_at": "2026-05-27",
+      "usage_status": "disabled",
+      "enabled_by_default": false,
+      "licensing_notes": "TechCrunch public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors"
+      ],
+      "signal_types": [
+        "market_news",
+        "ipo",
+        "corporate_actions"
+      ],
+      "source_tier": "publisher",
+      "max_items": 15,
+      "max_age_hours": 48
+    },
+    {
+      "id": "forbes-business",
+      "name": "Forbes Business",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.forbes.com/business/",
+      "feed_url": "https://www.forbes.com/business/feed/",
+      "verification_url": "https://www.forbes.com/business/feed/",
+      "verified_at": "2026-05-27",
+      "usage_status": "disabled",
+      "enabled_by_default": false,
+      "licensing_notes": "Forbes public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "financials",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "market_news",
+        "analysis",
+        "ratings"
+      ],
+      "source_tier": "publisher",
+      "max_items": 15,
+      "max_age_hours": 48
+    },
+    {
+      "id": "business-insider-markets",
+      "name": "Business Insider Markets",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://markets.businessinsider.com/",
+      "feed_url": "https://markets.businessinsider.com/rss/news",
+      "verification_url": "https://markets.businessinsider.com/rss/news",
+      "verified_at": "2026-05-27",
+      "usage_status": "disabled",
+      "enabled_by_default": false,
+      "licensing_notes": "Business Insider Markets public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ratings",
+        "macro"
+      ],
+      "source_tier": "publisher",
+      "max_items": 15,
+      "max_age_hours": 24
+    },
+    {
       "id": "curated-market-macro-us",
       "name": "Curated US Market & Macro",
       "kind": "curated",
-      "market_codes": ["US"],
+      "market_codes": [
+        "US"
+      ],
       "homepage_url": "",
       "feed_url": "",
       "verification_url": "",
@@ -583,14 +1162,157 @@
       "usage_status": "enabled",
       "enabled_by_default": true,
       "licensing_notes": "Hand-curated URLs; each publisher's terms apply.",
-      "coverage_modes": ["market"],
+      "coverage_modes": [
+        "market"
+      ],
       "sector_tags": [],
-      "signal_types": ["market_news", "macro", "policy"],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "policy"
+      ],
       "source_tier": "publisher",
       "max_items": 20,
       "max_age_hours": 48,
       "lane": "broad",
       "urls_file": "market_macro_us.json"
+    },
+    {
+      "id": "guardian-business",
+      "name": "The Guardian Business",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.theguardian.com/uk/business",
+      "feed_url": "https://www.theguardian.com/uk/business/rss",
+      "verification_url": "https://www.theguardian.com/uk/business/rss",
+      "verified_at": "2026-05-27",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "The Guardian public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "sector"
+      ],
+      "sector_tags": [
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "corporate_actions",
+        "ratings"
+      ],
+      "source_tier": "publisher",
+      "max_items": 20,
+      "max_age_hours": 24
+    },
+    {
+      "id": "guardian-technology",
+      "name": "The Guardian Technology",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.theguardian.com/uk/technology",
+      "feed_url": "https://www.theguardian.com/uk/technology/rss",
+      "verification_url": "https://www.theguardian.com/uk/technology/rss",
+      "verified_at": "2026-05-27",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "The Guardian public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors"
+      ],
+      "signal_types": [
+        "market_news",
+        "corporate_actions",
+        "ipo"
+      ],
+      "source_tier": "publisher",
+      "max_items": 15,
+      "max_age_hours": 48
+    },
+    {
+      "id": "bbc-business",
+      "name": "BBC Business",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.bbc.com/news/business",
+      "feed_url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "verification_url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "verified_at": "2026-05-27",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "BBC public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "sector"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "energy",
+        "financials"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "corporate_actions"
+      ],
+      "source_tier": "publisher",
+      "max_items": 20,
+      "max_age_hours": 24
+    },
+    {
+      "id": "sec-edgar-8k",
+      "name": "SEC EDGAR 8-K Filings",
+      "kind": "exchange",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.sec.gov/cgi-bin/browse-edgar",
+      "feed_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom",
+      "verification_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&output=atom",
+      "verified_at": "2026-05-27",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "Official SEC EDGAR public Atom feed. No API key required. Include User-Agent header per SEC policy.",
+      "coverage_modes": [
+        "market",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials",
+        "healthcare"
+      ],
+      "signal_types": [
+        "earnings",
+        "corporate_actions",
+        "management",
+        "governance",
+        "regulation"
+      ],
+      "source_tier": "official",
+      "max_items": 40,
+      "max_age_hours": 24
     }
   ]
 }

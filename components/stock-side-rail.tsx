@@ -132,7 +132,8 @@ export function StockSideRail({
   const visibleTimeline = (timeline ?? []).filter((event) => !isSystemTimelineEvent(event));
 
   return (
-    <aside className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2 lg:-mr-2 flex flex-col gap-4 w-full lg:max-w-[340px] scrollbar-hide">
+    <aside className="w-full lg:max-w-[340px]">
+      <div className="lg:sticky lg:top-20 flex flex-col gap-4">
       {/* Identity card */}
       <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-5">
         <div className="flex items-start gap-3">
@@ -317,6 +318,7 @@ export function StockSideRail({
           )}
         </div>
       )}
+      </div>
     </aside>
   );
 }

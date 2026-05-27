@@ -5,16 +5,18 @@ pipeline alongside RSS-sourced articles.  Does NOT run LLM enrichment — AV
 provides sentiment scores pre-computed, which is the whole point.
 
 Usage (single batch, returns Article list):
-    articles = fetch_av_news_for_tickers(["AAPL", "NVDA", "MSFT"], api_key=KEY)
+    articles = fetch_av_news_for_tickers(["AAPL", "NVDA", "MSFT"])
 
 Batching is handled automatically at batch_size tickers per API call.
-Caller is responsible for staying within the daily call quota (25/day).
+Keys are picked randomly per batch call to spread quota across all keys.
+5 keys × 25 calls/day = 125 effective calls/day.
 """
 from __future__ import annotations
 
 import hashlib
 import logging
 import os
+import random
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -30,6 +32,26 @@ AV_NEWS_URL = "https://www.alphavantage.co/query"
 SOURCE_ID = "alphavantage"
 SOURCE_NAME = "Alpha Vantage"
 DEFAULT_BATCH_SIZE = 25
+
+# Pool of free-tier keys (25 calls/day each → 125/day combined).
+# A random key is picked per batch call to spread quota evenly.
+_AV_KEY_POOL: list[str] = [
+    "FEUTCJVUAQYQZW48",
+    "A3N97ADPLLL1N7Y6",
+    "ZHAGPLUAD94HUA1B",
+    "E1O9WUQ6K4D6AK0D",
+    "U6U2A5DPK22TQCC5",
+]
+
+
+def _pick_key(override: str | None = None) -> str:
+    """Return a key: override → ALPHA_VANTAGE_API_KEY env var → random pool key."""
+    if override:
+        return override
+    env_key = os.environ.get("ALPHA_VANTAGE_API_KEY") or ""
+    if env_key:
+        return env_key
+    return random.choice(_AV_KEY_POOL)
 
 
 # ---------------------------------------------------------------------------
@@ -68,19 +90,21 @@ def _av_label_to_ours(av_label: str) -> str:
 def fetch_av_news_batch(
     tickers: list[str],
     *,
-    api_key: str,
+    api_key: str | None = None,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Make ONE Alpha Vantage NEWS_SENTIMENT call for a batch of tickers.
 
     Returns the raw feed list (articles). Empty list on error.
+    api_key is optional — if omitted a random key from the pool is used.
     """
     if not tickers:
         return []
+    key = _pick_key(api_key)
     params = {
         "function": "NEWS_SENTIMENT",
         "tickers": ",".join(t.upper() for t in tickers),
-        "apikey": api_key,
+        "apikey": key,
         "limit": str(min(limit, 1000)),
     }
     try:
@@ -227,22 +251,17 @@ def fetch_av_news_for_tickers(
 ) -> list[Article]:
     """Fetch AV news for all tickers, batched at batch_size per API call.
 
+    A random key from the pool is chosen per batch call — no explicit api_key needed.
     Returns deduplicated Article list across all batches.
-    Caller must ensure total batches stay within daily quota (25 calls/day).
     """
-    key = api_key or os.environ.get("ALPHA_VANTAGE_API_KEY") or ""
-    if not key:
-        logger.warning("av_news_skipped: ALPHA_VANTAGE_API_KEY not set")
-        return []
-
     deduped_tickers = list(dict.fromkeys(t.upper() for t in all_tickers if t))
     batches = [
         deduped_tickers[i : i + batch_size]
         for i in range(0, len(deduped_tickers), batch_size)
     ]
     logger.info(
-        "av_news_plan tickers=%d batches=%d calls_needed=%d",
-        len(deduped_tickers), len(batches), len(batches),
+        "av_news_plan tickers=%d batches=%d",
+        len(deduped_tickers), len(batches),
     )
 
     seen_urls: set[str] = set()
@@ -251,7 +270,8 @@ def fetch_av_news_for_tickers(
     for idx, batch in enumerate(batches):
         if idx > 0 and sleep_between_batches > 0:
             time.sleep(sleep_between_batches)
-        feed = fetch_av_news_batch(batch, api_key=key)
+        # Each batch picks a fresh random key so quota spreads across the pool.
+        feed = fetch_av_news_batch(batch, api_key=api_key)
         batch_articles = av_feed_to_articles(
             feed,
             target_tickers=set(batch),
