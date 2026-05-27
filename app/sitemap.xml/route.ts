@@ -2,6 +2,7 @@ import { getMarketSnapshot } from "@/lib/firestore";
 import { listSectorContextDocs } from "@/lib/sector";
 import { getThematicScreens } from "@/lib/screens";
 import { allLearnPosts } from "@/lib/learn-data";
+import { allBlogPosts } from "@/lib/blog-data";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -33,8 +34,14 @@ export async function GET() {
     ["/earnings", "0.8", "weekly"],
     ["/ipos", "0.8", "weekly"],
     ["/portfolio", "0.8", "weekly"],
+    ["/blog", "0.8", "weekly"],
   ] as const) {
     entries.push(url(path, prio, freq));
+  }
+
+  // Blog posts
+  for (const p of allBlogPosts) {
+    entries.push(url(`/blog/${p.slug}`, "0.6", "monthly"));
   }
 
   // Learn posts
