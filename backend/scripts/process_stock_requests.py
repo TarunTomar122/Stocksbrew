@@ -16,7 +16,7 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -45,6 +45,11 @@ SUFFIX_RE = re.compile(
 PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+STALE_RUNNING_TTL_MINUTES = 20
+INVALID_REQUEST_TOKENS = {
+    "TO", "IT", "IN", "ON", "AT", "IS", "ARE",
+    "HTTPS", "HTTP", "WWW", "COM", "DIV", "HREF",
+}
 
 SYMBOL_HINT_PROMPT = """You map user stock requests to likely US stock tickers.
 
@@ -321,7 +326,63 @@ def _resolve_request_with_llm_fallback(
         }
         if int(rescored["_score"]) >= 70:
             return rescored
+
+    # Name-first salvage path: if query is a company name, allow a slightly
+    # lower score only when the top candidate is clearly ahead and exchange-safe.
+    if len(normalize_name(query)) >= 5:
+        provider_rows = _search_provider_candidates(query, market)
+        if provider_rows:
+            ranked = sorted(
+                ({**row, "_score": _score_candidate(query, row, market)} for row in provider_rows),
+                key=lambda row: row["_score"],
+                reverse=True,
+            )
+            top = ranked[0] if ranked else None
+            second = ranked[1] if len(ranked) > 1 else None
+            if top and int(top.get("_score") or 0) >= 65 and (not second or int(top.get("_score") or 0) - int(second.get("_score") or 0) >= 20):
+                return top
     return None
+
+
+def _looks_like_junk_request(query: str) -> bool:
+    q = str(query or "").strip().upper()
+    if not q:
+        return True
+    if q in INVALID_REQUEST_TOKENS:
+        return True
+    if "/" in q or ":" in q:
+        return True
+    if q.endswith(".COM") or q.endswith(".NET") or q.endswith(".ORG"):
+        return True
+    return False
+
+
+def _reset_stale_running_requests(store: TraceMoneyStore, *, ttl_minutes: int) -> int:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=max(1, ttl_minutes))
+    docs = store.db.collection("stock_requests").where("status", "==", "running").stream()
+    reset = 0
+    for doc in docs:
+        data = doc.to_dict() or {}
+        updated_raw = str(data.get("updated_at") or data.get("last_requested_at") or "").strip()
+        stale = True
+        if updated_raw:
+            try:
+                dt = datetime.fromisoformat(updated_raw.replace("Z", "+00:00"))
+                stale = dt < cutoff
+            except Exception:
+                stale = True
+        if not stale:
+            continue
+        doc.reference.set(
+            {
+                "status": "retry",
+                "resolve_error": "stale_running_recovered",
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        reset += 1
+    return reset
 
 
 def _catalog_instrument_map(market: str) -> dict[str, dict[str, Any]]:
@@ -587,6 +648,9 @@ def main() -> None:
     args = parser.parse_args()
 
     store = TraceMoneyStore()
+    recovered = _reset_stale_running_requests(store, ttl_minutes=STALE_RUNNING_TTL_MINUTES)
+    if recovered:
+        print(f"[stock-requests] recovered_stale_running={recovered}")
     query = str(args.query or "").strip().upper()
     jobs = _pending_requests(store, args.limit, query=query or None)
     if not jobs:
@@ -609,6 +673,19 @@ def main() -> None:
             continue
         if args.dry_run:
             print(f"  [dry] {ref.id} query={query} market={market}")
+            continue
+
+        if _looks_like_junk_request(query):
+            ref.set(
+                {
+                    "status": "ignored",
+                    "fulfilled": False,
+                    "resolve_error": "junk_query_filtered",
+                    "updated_at": _now(),
+                },
+                merge=True,
+            )
+            print(f"  [ignored] {query}: junk_query_filtered")
             continue
 
         ref.set({"status": "running", "updated_at": _now()}, merge=True)

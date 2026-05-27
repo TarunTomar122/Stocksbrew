@@ -60,6 +60,15 @@ export default async function DevAnalyticsPage() {
       </section>
 
       <section className="mt-8">
+        <SectionTitle>Coverage</SectionTitle>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+          {firestore.coverage.map((metric) => (
+            <MetricCard key={metric.label} {...metric} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8">
         <SectionTitle>Subscription health</SectionTitle>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
           {firestore.health.map((metric) => (

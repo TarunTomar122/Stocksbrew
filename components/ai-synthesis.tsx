@@ -17,7 +17,7 @@ function sentimentMeta(label: string): { dot: string; tone: string; chipBg: stri
   return { dot: "#9ca3af", tone: "text-[#6b7280]", chipBg: "#f3f4f6", chipFg: "#374151" };
 }
 
-function Block({
+function SynthesisBlock({
   emoji,
   iconBg,
   eyebrow,
@@ -29,10 +29,10 @@ function Block({
   body: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-3">
+    <div className="flex flex-col gap-3 p-5 lg:p-6">
       <div className="flex items-center gap-3">
         <span
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[18px]"
           style={{ background: iconBg }}
           aria-hidden
         >
@@ -155,25 +155,27 @@ export function AiSynthesis({ intelligence, timeline }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Block
+      <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden divide-y divide-[#f3f4f6]">
+        <SynthesisBlock
           emoji="📰"
           iconBg="#eff6ff"
           eyebrow="What the news is saying"
           body={whatChanged}
         />
-        <Block
-          emoji="🎯"
-          iconBg="#fef3c7"
-          eyebrow="Why it matters for the stock"
-          body={whyItMatters}
-        />
-        <Block
-          emoji="🔭"
-          iconBg="#ecfdf5"
-          eyebrow="Watch for next"
-          body={whatToWatch}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-[#f3f4f6] divide-y md:divide-y-0">
+          <SynthesisBlock
+            emoji="🎯"
+            iconBg="#fef3c7"
+            eyebrow="Why it matters for the stock"
+            body={whyItMatters}
+          />
+          <SynthesisBlock
+            emoji="🔭"
+            iconBg="#ecfdf5"
+            eyebrow="Watch for next"
+            body={whatToWatch}
+          />
+        </div>
       </div>
     </section>
   );

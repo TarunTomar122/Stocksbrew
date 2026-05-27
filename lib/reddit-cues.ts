@@ -102,11 +102,11 @@ function normalizeSnapshot(raw: Record<string, unknown>, market: "US" | "IN"): R
   const tickers: RedditTicker[] = Array.isArray(rawTickers)
     ? rawTickers
         .map((item) => normalizeTicker(item))
-        .filter((item): item is RedditTicker => Boolean(item))
+        .filter((item): item is RedditTicker => Boolean(item && item.mention_count > 0))
     : rawTickers && typeof rawTickers === "object"
     ? Object.entries(rawTickers)
         .map(([ticker, value]) => normalizeTicker(value, ticker))
-        .filter((item): item is RedditTicker => Boolean(item))
+        .filter((item): item is RedditTicker => Boolean(item && item.mention_count > 0))
     : [];
 
   return {

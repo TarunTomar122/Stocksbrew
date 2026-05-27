@@ -64,6 +64,17 @@ export async function getPriceUniverse(market: "US" | "IN" = "US"): Promise<stri
   return resolveUniverse(data, market, "price");
 }
 
+export async function getActiveUniverses(): Promise<Record<"US_ai" | "IN_ai" | "US_price" | "IN_price", string>> {
+  const data = await _getUniverseConfig();
+  const usUniverse = requireUniverse(data, "US_universe");
+  return {
+    US_ai: usUniverse,
+    US_price: usUniverse,
+    IN_ai: requireUniverse(data, "IN_ai_universe"),
+    IN_price: requireUniverse(data, "IN_price_universe"),
+  };
+}
+
 // ─── Materialized dashboard view ─────────────────────────────────────────────
 
 async function getDashboardViewUncached(market: "US" | "IN" = "US"): Promise<DashboardView | null> {

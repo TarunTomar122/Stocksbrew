@@ -76,6 +76,11 @@ upsert_secret() {
 
 upsert_optional_openai_secret() {
   if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    if ! gcloud secrets describe "${OPENAI_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
+      echo "Missing OPENAI_API_KEY and secret ${OPENAI_SECRET_NAME} does not exist."
+      echo "Set OPENAI_API_KEY once or create secret ${OPENAI_SECRET_NAME} before deploy."
+      exit 1
+    fi
     return
   fi
   if ! gcloud secrets describe "${OPENAI_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
@@ -112,13 +117,9 @@ deploy_job() {
     --max-retries=1
     --parallelism=1
     --tasks=1
-    --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SECRET_NAME}:latest"
+    --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SECRET_NAME}:latest,OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest"
     --set-env-vars="GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_REGION=${GOOGLE_CLOUD_REGION},OPENAI_MODEL=${OPENAI_MODEL},INTRADAY_LIMIT_CAP=${INTRADAY_LIMIT_CAP},INTRADAY_SHARD_SIZE_MIN=${INTRADAY_SHARD_SIZE_MIN},INTRADAY_MAX_PARALLEL_CAP=${INTRADAY_MAX_PARALLEL_CAP},TRACKED_NEWS_PREP_JOB_NAME=${TRACKED_NEWS_PREP_JOB_NAME},PRICE_CORE_OPEN_JOB_NAME=${PRICE_CORE_OPEN_JOB_NAME},TRACKED_OPEN_BRIEFS_JOB_NAME=${TRACKED_OPEN_BRIEFS_JOB_NAME},PRICE_CORE_INTRADAY_JOB_NAME=${PRICE_CORE_INTRADAY_JOB_NAME},OPEN_ANOMALIES_JOB_NAME=${OPEN_ANOMALIES_JOB_NAME},REDDIT_BUZZ_JOB_NAME=${REDDIT_BUZZ_JOB_NAME},MARKET_OPEN_EMAIL_JOB_NAME=${MARKET_OPEN_EMAIL_JOB_NAME},DAILY_POSTCLOSE_JOB_NAME=${DAILY_POSTCLOSE_JOB_NAME},ON_DEMAND_NEWS_JOB_NAME=${ON_DEMAND_NEWS_JOB_NAME},STOCK_REQUESTS_JOB_NAME=${STOCK_REQUESTS_JOB_NAME},EARNINGS_INTEL_JOB_NAME=${EARNINGS_INTEL_JOB_NAME}"
   )
-
-  if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-    deploy_args+=(--set-secrets="OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest")
-  fi
 
   if [[ -n "${BREVO_API_KEY:-}" ]]; then
     deploy_args+=(--set-secrets="BREVO_API_KEY=${BREVO_SECRET_NAME}:latest")
@@ -139,10 +140,8 @@ build_image
 
 echo "Updating firebase secret ${FIREBASE_SECRET_NAME}..."
 upsert_secret
-if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-  echo "Updating OpenAI secret ${OPENAI_SECRET_NAME}..."
-  upsert_optional_openai_secret
-fi
+echo "Verifying/updating OpenAI secret ${OPENAI_SECRET_NAME}..."
+upsert_optional_openai_secret
 if [[ -n "${BREVO_API_KEY:-}" ]]; then
   echo "Updating Brevo secret ${BREVO_SECRET_NAME}..."
   upsert_optional_brevo_secret

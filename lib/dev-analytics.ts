@@ -3,6 +3,7 @@ import {
   classifyBilling,
   isBillingBackedPro,
 } from "@/lib/billing-state";
+import { getActiveUniverses, getPriceCoreOverrides } from "@/lib/firestore";
 
 export type Metric = {
   label: string;
@@ -46,6 +47,7 @@ export type LifecycleRow = {
 
 export type DevAnalyticsSnapshot = {
   metrics: Metric[];
+  coverage: Metric[];
   health: Metric[];
   users: UserRow[];
   recentFeedback: FeedbackRow[];
@@ -79,6 +81,27 @@ function daysAgo(iso: unknown): number | null {
   return Math.floor((Date.now() - t) / (1000 * 60 * 60 * 24));
 }
 
+async function loadUniverseInstrumentIds(market: "US" | "IN", universeId: string): Promise<string[]> {
+  if (!universeId) return [];
+  try {
+    const snap = await adminFirestore
+      .collection("tm_instruments")
+      .where("market", "==", market)
+      .where("universes", "array-contains", universeId)
+      .get();
+    return snap.docs.map((doc) => doc.id);
+  } catch {
+    const snap = await adminFirestore.collection("tm_instruments").where("market", "==", market).get();
+    return snap.docs
+      .filter((doc) => {
+        const data = doc.data() as Record<string, unknown>;
+        const universes = Array.isArray(data.universes) ? data.universes : [];
+        return universes.some((raw) => String(raw || "").trim() === universeId);
+      })
+      .map((doc) => doc.id);
+  }
+}
+
 export async function loadDevAnalytics(): Promise<DevAnalyticsSnapshot> {
   const [usersSnap, feedbackSnap, stockRequestsSnap, lifecycleSnap] = await Promise.all([
     adminFirestore.collection("users").get(),
@@ -103,8 +126,26 @@ export async function loadDevAnalytics(): Promise<DevAnalyticsSnapshot> {
   let processing = 0;
   let freeWithRadar = 0;
   let signedUpNoRadar = 0;
-  const aiTrackedIds = new Set<string>();
+  const aiTrackedIdsUS = new Set<string>();
+  const aiTrackedIdsIN = new Set<string>();
   const users: UserRow[] = [];
+  const activeUniverses = await getActiveUniverses();
+
+  const priceUniverseUS = activeUniverses.US_price;
+  const aiUniverseUS = activeUniverses.US_ai;
+  const priceUniverseIN = activeUniverses.IN_price;
+  const aiUniverseIN = activeUniverses.IN_ai;
+
+  const [priceUniverseUsIds, aiUniverseUsIds, priceUniverseInIds, aiUniverseInIds, priceCoreOverridesUS, priceCoreOverridesIN] = await Promise.all([
+    loadUniverseInstrumentIds("US", priceUniverseUS),
+    loadUniverseInstrumentIds("US", aiUniverseUS),
+    priceUniverseIN ? loadUniverseInstrumentIds("IN", priceUniverseIN) : Promise.resolve([] as string[]),
+    aiUniverseIN ? loadUniverseInstrumentIds("IN", aiUniverseIN) : Promise.resolve([] as string[]),
+    getPriceCoreOverrides("US"),
+    getPriceCoreOverrides("IN"),
+  ]);
+
+  const aiUniverseUsCount = aiUniverseUsIds.length;
 
   for (const doc of usersSnap.docs) {
     totalUsers += 1;
@@ -148,7 +189,9 @@ export async function loadDevAnalytics(): Promise<DevAnalyticsSnapshot> {
 
     for (const item of tracked) {
       const instrumentId = String(item ?? "").trim().toUpperCase();
-      if (instrumentId) aiTrackedIds.add(instrumentId);
+      if (!instrumentId) continue;
+      if (instrumentId.startsWith("US_")) aiTrackedIdsUS.add(instrumentId);
+      if (instrumentId.startsWith("IN_")) aiTrackedIdsIN.add(instrumentId);
     }
 
     let flag: string | null = null;
@@ -178,6 +221,13 @@ export async function loadDevAnalytics(): Promise<DevAnalyticsSnapshot> {
     if (planOrder !== planOrderB) return planOrder - planOrderB;
     return b.tracked - a.tracked;
   });
+
+  // Runtime truth: price refresh runs over active price universe + overrides.
+  const dailyPriceRefreshUsSet = new Set<string>(priceUniverseUsIds);
+  for (const id of priceCoreOverridesUS) dailyPriceRefreshUsSet.add(id);
+  const dailyPriceRefreshInSet = new Set<string>(priceUniverseInIds);
+  for (const id of priceCoreOverridesIN) dailyPriceRefreshInSet.add(id);
+  const inLaunchPaused = String(activeUniverses.IN_ai || "").trim().toLowerCase() === "in_ai_launch";
 
   const recentFeedback: FeedbackRow[] = feedbackSnap.docs
     .map((doc) => {
@@ -250,10 +300,47 @@ export async function loadDevAnalytics(): Promise<DevAnalyticsSnapshot> {
       note: "Cancelled/expired or Pro flag cleared",
       tone: churnedBilling ? "warn" : "default",
     },
-    { label: "Unique tracked tickers", value: aiTrackedIds.size },
+    { label: "Unique tracked tickers", value: aiTrackedIdsUS.size + aiTrackedIdsIN.size },
     { label: "Feedback messages", value: feedbackSnap.size },
     { label: "Stock requests", value: stockRequestsSnap.size },
     { label: "New users (7d)", value: newUsers7d },
+  ];
+
+  const coverage: Metric[] = [
+    {
+      label: "Daily prices refresh · US",
+      value: dailyPriceRefreshUsSet.size,
+      note: `${priceUniverseUS} + price_core_overrides`,
+      tone: "good",
+    },
+    {
+      label: "Post-close fundamentals refresh · US",
+      value: dailyPriceRefreshUsSet.size,
+      note: "Weekdays only, same set as price refresh",
+      tone: "good",
+    },
+    {
+      label: "AI briefs · US",
+      value: aiTrackedIdsUS.size,
+      note: "Subscribed users' tracked stocks only",
+      tone: "good",
+    },
+    {
+      label: "Daily prices refresh · IN",
+      value: inLaunchPaused ? "—" : dailyPriceRefreshInSet.size,
+      note: inLaunchPaused
+        ? "India is on hold (launch tier disabled)"
+        : `${priceUniverseIN || "not configured"} + price_core_overrides`,
+      tone: inLaunchPaused ? "warn" : "good",
+    },
+    {
+      label: "AI briefs · IN",
+      value: inLaunchPaused ? "—" : aiTrackedIdsIN.size,
+      note: inLaunchPaused
+        ? "India is on hold (launch tier disabled)"
+        : "Subscribed users' tracked stocks only",
+      tone: inLaunchPaused ? "warn" : "default",
+    },
   ];
 
   const health: Metric[] = [
@@ -265,6 +352,7 @@ export async function loadDevAnalytics(): Promise<DevAnalyticsSnapshot> {
 
   return {
     metrics,
+    coverage,
     health,
     users,
     recentFeedback,

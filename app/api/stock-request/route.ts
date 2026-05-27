@@ -4,6 +4,31 @@ import { getSessionUser } from "@/lib/auth-server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getApp } from "firebase-admin/app";
 
+const INVALID_REQUEST_TOKENS = new Set([
+  "TO",
+  "IT",
+  "IN",
+  "ON",
+  "AT",
+  "IS",
+  "ARE",
+  "HTTPS",
+  "HTTP",
+  "WWW",
+  "COM",
+  "DIV",
+  "HREF",
+]);
+
+function isLikelyJunkRequest(query: string): boolean {
+  if (!query) return true;
+  if (INVALID_REQUEST_TOKENS.has(query)) return true;
+  // Block obvious URL/domain-like and noisy tokens.
+  if (query.includes("/") || query.includes(":")) return true;
+  if (query.endsWith(".COM") || query.endsWith(".NET") || query.endsWith(".ORG")) return true;
+  return false;
+}
+
 async function triggerStockRequestProcessing(query: string): Promise<void> {
   const project = process.env.GOOGLE_CLOUD_PROJECT?.trim();
   const region = process.env.GOOGLE_CLOUD_REGION?.trim() || "us-central1";
@@ -70,6 +95,9 @@ export async function POST(req: NextRequest) {
 
   if (!query || query.length > 20) {
     return NextResponse.json({ error: "Invalid query" }, { status: 400 });
+  }
+  if (isLikelyJunkRequest(query)) {
+    return NextResponse.json({ error: "Query does not look like a stock symbol or company name" }, { status: 400 });
   }
 
   const session = await getSessionUser();

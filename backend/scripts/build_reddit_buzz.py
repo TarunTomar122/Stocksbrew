@@ -258,12 +258,16 @@ def main() -> None:
             # Hard guard for common private-company confusion (e.g. SpaceX -> SPCE).
             if ticker == "SPCE" and "space exploration technologies" in company_norm:
                 continue
+            mention_count = int(item.get("mentions") or 0)
+            if mention_count <= 0:
+                continue
+
             tickers_payload.append(
                 {
                     "ticker": ticker,
                     "sentiment": str(item.get("sentiment") or "neutral"),
                     "summary": str(item.get("context") or "").strip() or f"{ticker} is active in Reddit chatter.",
-                    "mention_count": int(item.get("mentions") or 0),
+                    "mention_count": mention_count,
                     "catalysts": [str(c).strip() for c in (item.get("catalysts") or []) if str(c).strip()][:4],
                     "company_name": company_name,
                     "exchange_hint": str(item.get("exchange_hint") or "UNKNOWN").strip().upper()[:12],

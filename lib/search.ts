@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getHomeView } from "@/lib/home-view";
 
@@ -10,9 +9,9 @@ export type SearchEntry = {
   day_change_pct?: number;
 };
 
-export const getSearchIndex = cache(async (
-  market: "US" | "IN" = "US",
-): Promise<SearchEntry[]> => {
+export async function getSearchIndex(
+  market: "US" | "IN" = "US"
+): Promise<SearchEntry[]> {
   const searchDoc = await adminFirestore.collection("tm_search_index").doc(market).get();
   if (searchDoc.exists) {
     const data = searchDoc.data() as { entries?: Record<string, Partial<SearchEntry>> };
@@ -40,4 +39,4 @@ export const getSearchIndex = cache(async (
     price: r.price?.current,
     day_change_pct: r.price?.changePct,
   }));
-});
+}

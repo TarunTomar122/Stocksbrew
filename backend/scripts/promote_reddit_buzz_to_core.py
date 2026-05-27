@@ -217,6 +217,35 @@ def _run_backfill(market: str, universe: str, instrument_ids: list[str], max_bac
         subprocess.run(cmd, check=True)
 
 
+def _upsert_search_index_for_ids(store: TraceMoneyStore, market: str, instrument_ids: list[str]) -> int:
+    ids = [str(iid or "").strip().upper() for iid in instrument_ids if str(iid or "").strip()]
+    if not ids:
+        return 0
+    by_id = {row.get("instrument_id"): row for row in store.list_instruments(market, ids)}
+    latest = store.get_latest_prices(ids)
+    entries: list[dict[str, Any]] = []
+    for iid in ids:
+        instrument = by_id.get(iid)
+        if not isinstance(instrument, dict):
+            continue
+        ticker = str(instrument.get("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+        quote = (latest.get(iid) or {}).get("quote") or {}
+        entries.append(
+            {
+                "instrument_id": iid,
+                "ticker": ticker,
+                "name": str(instrument.get("name") or ticker).strip(),
+                "exchange": str(instrument.get("exchange") or "").strip(),
+                "price": quote.get("current"),
+                "day_change_pct": quote.get("day_change_pct"),
+                "updated_at": (latest.get(iid) or {}).get("updated_at"),
+            }
+        )
+    return store.save_search_index_entries(market, entries)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Promote Reddit buzz tickers into price_core_overrides")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -282,6 +311,7 @@ def main() -> None:
         return
 
     added_ids, total_override_count = _update_overrides(store, market, resolved_ids, max_add=args.max_add)
+    search_saved = _upsert_search_index_for_ids(store, market, resolved_ids)
     if added_ids:
         _save_promoted_tickers(store, market, added_ids)
 
@@ -301,6 +331,7 @@ def main() -> None:
             "resolved_ids": len(resolved_ids),
             "llm_resolved_ids": llm_resolved_count,
             "added_ids": len(added_ids),
+            "search_index_upserts": search_saved,
             "override_total": total_override_count,
             "unresolved_tickers": unresolved[:20],
             "backfill_ran": bool(added_ids and not args.skip_backfill),
