@@ -21,6 +21,15 @@ type Suggestion = {
   why?: string;
   score?: number | null;
   market?: string;
+  sources?: string[];
+};
+
+// Source pills shown on suggestion cards so users see which signals flagged the stock.
+const SOURCE_PILL: Record<string, { label: string; bg: string; fg: string }> = {
+  heat:    { label: "Heat",    bg: "#fff7ed", fg: "#c2410c" },
+  reddit:  { label: "Reddit",  bg: "#f5f3ff", fg: "#7c3aed" },
+  anomaly: { label: "Anomaly", bg: "#eff6ff", fg: "#1d4ed8" },
+  screen:  { label: "Screen",  bg: "#ecfdf5", fg: "#047857" },
 };
 
 type Props = {
@@ -824,7 +833,28 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             {suggestion.sector && (
               <span className="truncate text-[10px] text-[#9ca3af]">{suggestion.sector}</span>
             )}
-            {suggestion.reason && (
+            {suggestion.sources && suggestion.sources.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                {suggestion.sources.slice(0, 3).map((s) => {
+                  const meta = SOURCE_PILL[s] ?? { label: s, bg: "#f3f4f6", fg: "#6b7280" };
+                  return (
+                    <span
+                      key={s}
+                      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em] uppercase"
+                      style={{ background: meta.bg, color: meta.fg }}
+                    >
+                      {meta.label}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {suggestion.why && (
+              <span className="line-clamp-2 text-[11px] leading-snug text-[#374151]">
+                {suggestion.why}
+              </span>
+            )}
+            {!suggestion.why && suggestion.reason && (
               <span className="line-clamp-2 text-[11px] leading-snug text-[#6b7280]">
                 {suggestion.reason}
               </span>

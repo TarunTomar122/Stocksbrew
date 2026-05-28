@@ -62,6 +62,34 @@ function heatScoreColor(score: number): string {
   return "#9ca3af";
 }
 
+type DriverMeta = { label: string; color: string; bg: string };
+const DRIVER_META: Record<string, DriverMeta> = {
+  "Momentum score":      { label: "Momentum",     color: "#0052ff", bg: "#eff6ff" },
+  "News velocity":       { label: "News",         color: "#7c3aed", bg: "#f5f3ff" },
+  "Upcoming catalyst":   { label: "Catalyst",     color: "#b45309", bg: "#fffbeb" },
+  "Stretched RSI":       { label: "Stretched",    color: "#c2410c", bg: "#fff7ed" },
+  "Price breakout":      { label: "Breakout",     color: "#047857", bg: "#ecfdf5" },
+  "Washed-out quality":  { label: "Washed-out",   color: "#475569", bg: "#f8fafc" },
+};
+
+function driverMeta(key?: string | null): DriverMeta | null {
+  if (!key) return null;
+  return DRIVER_META[key] ?? { label: key, color: "#6b7280", bg: "#f3f4f6" };
+}
+
+function DriverTag({ driver }: { driver?: string | null }) {
+  const meta = driverMeta(driver);
+  if (!meta) return <span className="text-[12px] text-[#d1d5db]">-</span>;
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.04em] uppercase"
+      style={{ background: meta.bg, color: meta.color }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
 function rsiMeta(state?: string): { label: string; color: string; bg: string } | null {
   switch ((state ?? "").toLowerCase()) {
     case "overbought":
@@ -77,7 +105,6 @@ function rsiMeta(state?: string): { label: string; color: string; bg: string } |
 
 function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: string[]; isSubscribed: boolean }) {
   const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
-  const pct = fmtPct(row.day_change_pct);
 
   return (
     <div className="flex items-center gap-2.5 py-2.5 border-t border-[#f3f4f6] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-[#f8f9fa] transition-colors">
@@ -92,16 +119,7 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
           )}
         </div>
       </a>
-      {pct ? (
-        <span
-          className="shrink-0 inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-          style={{ background: pct.positive ? "#ecfdf5" : "#fef2f2", color: pct.positive ? "#10b981" : "#ef4444" }}
-        >
-          {pct.positive ? "▲" : "▼"} {pct.text}
-        </span>
-      ) : (
-        <span className="text-[12px] text-[#d1d5db]">-</span>
-      )}
+      <DriverTag driver={row.primary_driver} />
       <TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.includes(row.instrument_id)} isSubscribed={isSubscribed} variant="icon" />
     </div>
   );
@@ -112,7 +130,7 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
 // Column widths - must match TableHeader exactly
 const COL_RSI    = "w-[160px]";
 const COL_HEAT   = "w-[48px]";
-const COL_CHANGE = "w-[80px]";
+const COL_DRIVER = "w-[112px]";
 const COL_TRACK  = "w-8";
 
 function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: HeatRow; trackedIds: string[]; isSubscribed: boolean; showReason?: boolean }) {
@@ -168,18 +186,9 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
         </span>
       </div>
 
-      {/* Change */}
-      <div className={`${COL_CHANGE} shrink-0 flex justify-end`}>
-        {pct ? (
-          <span
-            className="inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-semibold tabular-nums"
-            style={{ background: pct.positive ? "#ecfdf5" : "#fef2f2", color: pct.positive ? "#10b981" : "#ef4444" }}
-          >
-            {pct.positive ? "▲" : "▼"} {pct.text}
-          </span>
-        ) : (
-          <span className="text-[12px] text-[#d1d5db]">-</span>
-        )}
+      {/* Driver — stable, doesn't flip intraday */}
+      <div className={`${COL_DRIVER} shrink-0 flex justify-end`}>
+        <DriverTag driver={row.primary_driver} />
       </div>
 
       {/* Track */}
@@ -414,8 +423,8 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
           <div className={`${COL_HEAT} hidden sm:flex shrink-0 justify-end`}>
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Heat</span>
           </div>
-          <div className={`${COL_CHANGE} shrink-0 flex justify-end`}>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Change</span>
+          <div className={`${COL_DRIVER} shrink-0 flex justify-end`}>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Driver</span>
           </div>
           <div className={`${COL_TRACK} shrink-0`} />
         </div>

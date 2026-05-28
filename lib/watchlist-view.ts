@@ -1008,6 +1008,8 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
   const tracked = new Set(rows.map((row) => row.instrument_id));
   const suggested = new Set<string>();
   const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))];
+  // Fall back to US when the user has no rows yet — otherwise suggestions never appear.
+  const effectiveMarkets = markets.length > 0 ? markets : ["US"];
   const preferred = ["quality_compounders", "cheap_growth", "oversold_quality", "smart_money", "tikrr_top"];
   const suggestions: Array<Record<string, unknown>> = [];
   const avgGrowth = averageScore(rows, "growth");
@@ -1020,13 +1022,16 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
   const dominantWeight = toNumber(dominant.weight_pct) ?? 0;
 
   const screenDocs = await adminFirestore.getAll(
-    ...markets.map((market) => adminFirestore.collection("tm_thematic_screens").doc(market)),
+    ...effectiveMarkets.map((market) => adminFirestore.collection("tm_thematic_screens").doc(market)),
   );
   const redditDocs = await adminFirestore.getAll(
-    ...markets.map((market) => adminFirestore.collection("reddit_snapshots").doc(`${market}__latest`)),
+    ...effectiveMarkets.map((market) => adminFirestore.collection("reddit_snapshots").doc(`${market}__latest`)),
   );
   const anomalyDocs = await adminFirestore.getAll(
-    ...markets.map((market) => adminFirestore.collection("tm_daily_anomalies").doc(`${market}__latest`)),
+    ...effectiveMarkets.map((market) => adminFirestore.collection("tm_daily_anomalies").doc(`${market}__latest`)),
+  );
+  const heatDocs = await adminFirestore.getAll(
+    ...effectiveMarkets.map((market) => adminFirestore.collection("tm_heat_list").doc(market)),
   );
   const redditByMarket = new Map<string, Map<string, Record<string, unknown>>>();
   for (const doc of redditDocs) {
@@ -1062,7 +1067,55 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
     anomalyByMarket.set(market, map);
   }
 
-  const candidates: Array<Record<string, unknown>> = [];
+  // Dedupe candidates by instrument_id across all signal sources (screens,
+  // heat, anomalies, reddit). When the same ticker shows up in multiple
+  // sources, merge the source tags and stack the personalization_score so
+  // multi-source hits float to the top.
+  const candidateMap = new Map<string, Record<string, unknown>>();
+  function mergeCandidate(next: Record<string, unknown>): void {
+    const id = String(next.instrument_id || "");
+    if (!id) return;
+    const existing = candidateMap.get(id);
+    if (!existing) {
+      candidateMap.set(id, { ...next, sources: Array.from(new Set([...(((next.sources as string[]) || []))])) });
+      return;
+    }
+    const mergedSources = new Set<string>([
+      ...(((existing.sources as string[]) || [])),
+      ...(((next.sources as string[]) || [])),
+    ]);
+    const existingScore = toNumber(existing.personalization_score) ?? 0;
+    const nextScore = toNumber(next.personalization_score) ?? 0;
+    // Multi-source bonus: each additional source adds 8 points so signals stack
+    const multiSourceBonus = mergedSources.size > 1 ? (mergedSources.size - 1) * 8 : 0;
+    const mergedScore = Math.max(existingScore, nextScore) + multiSourceBonus;
+    candidateMap.set(id, {
+      ...existing,
+      // Prefer richer fields from whichever source supplied them
+      name: existing.name || next.name,
+      sector: existing.sector || next.sector,
+      score: existing.score ?? next.score,
+      reason: existing.reason || next.reason,
+      why: existing.why || next.why,
+      sources: Array.from(mergedSources),
+      personalization_score: Math.round(mergedScore * 10) / 10,
+      reddit_mentions: Math.max(
+        toNumber(existing.reddit_mentions) ?? 0,
+        toNumber(next.reddit_mentions) ?? 0,
+      ),
+      reddit_summary: existing.reddit_summary || next.reddit_summary,
+      anomaly_move_pct: existing.anomaly_move_pct ?? next.anomaly_move_pct,
+      anomaly_headline: existing.anomaly_headline || next.anomaly_headline,
+      heat_score: existing.heat_score ?? next.heat_score,
+      heat_reason: existing.heat_reason || next.heat_reason,
+      heat_driver: existing.heat_driver || next.heat_driver,
+      personalization_reasons: [
+        ...(((existing.personalization_reasons as string[]) || [])),
+        ...(((next.personalization_reasons as string[]) || [])),
+      ].slice(0, 3),
+    });
+  }
+
   for (const doc of screenDocs) {
     const market = doc.id as "US" | "IN";
     const screens = ((doc.exists ? doc.data()?.screens : []) || []) as Array<Record<string, unknown>>;
@@ -1122,7 +1175,7 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
         const rankBonus = Math.max(0, 8 - rank);
         const personalizationScore =
           25 + overallScore * 0.45 + screenBias + rankBonus + weaknessFit + sectorFit + redditBoost + anomalyBoost;
-        candidates.push({
+        mergeCandidate({
           instrument_id: instrumentId,
           ticker,
           name: item.name,
@@ -1132,6 +1185,7 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
           score: item.overall_score,
           match_score: item.match_score,
           sector,
+          sources: ["screen"],
           personalization_score: Math.round(personalizationScore * 10) / 10,
           reddit_mentions: redditMentions,
           reddit_summary: redditSummary ? redditSummary.slice(0, 140) : "",
@@ -1142,11 +1196,125 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
       });
     }
   }
+
+  // ── Source 2: Heat list — stocks the market is paying unusual attention to.
+  // Pull top heat rows (already sorted descending by heat_score in the doc).
+  for (const doc of heatDocs) {
+    if (!doc.exists) continue;
+    const market = doc.id as "US" | "IN";
+    const heatRows = (doc.data()?.rows || []) as Array<Record<string, unknown>>;
+    heatRows.slice(0, 25).forEach((item, rank) => {
+      const instrumentId = String(item.instrument_id || "");
+      if (!instrumentId || tracked.has(instrumentId)) return;
+      const ticker = String(item.ticker || "").toUpperCase();
+      if (!ticker) return;
+      const heatScore = toNumber(item.heat_score) ?? 0;
+      const rankBonus = Math.max(0, 12 - rank);
+      // Heat score is already 0-100, weight it strongly. Range 25-55.
+      const personalizationScore = 28 + heatScore * 0.27 + rankBonus;
+      mergeCandidate({
+        instrument_id: instrumentId,
+        ticker,
+        name: item.name,
+        market,
+        reason: "Heat list",
+        why: String(item.reason_sentence || "").slice(0, 200) || undefined,
+        score: toNumber(item.overall_score) ?? null,
+        sector: String(item.sector || ""),
+        sources: ["heat"],
+        personalization_score: Math.round(personalizationScore * 10) / 10,
+        heat_score: heatScore,
+        heat_reason: String(item.reason_sentence || "").slice(0, 200),
+        heat_driver: String(item.primary_driver || ""),
+      });
+    });
+  }
+
+  // ── Source 3: Daily anomalies — sharp, unusual moves on a single day.
+  for (const doc of anomalyDocs) {
+    if (!doc.exists) continue;
+    const market = doc.id.split("__")[0] as "US" | "IN";
+    const anomalyRows = (doc.data()?.anomalies || []) as Array<Record<string, unknown>>;
+    anomalyRows.slice(0, 15).forEach((item, rank) => {
+      const instrumentId = String(item.instrument_id || "");
+      if (!instrumentId || tracked.has(instrumentId)) return;
+      const ticker = String(item.ticker || item.symbol || "").toUpperCase();
+      if (!ticker) return;
+      const move = Math.abs(toNumber(item.day_change_pct) ?? 0);
+      const rankBonus = Math.max(0, 10 - rank);
+      // Anomaly moves are typically 3-30%; scale to give clear separation.
+      const personalizationScore = 26 + Math.min(28, move * 1.4) + rankBonus;
+      mergeCandidate({
+        instrument_id: instrumentId,
+        ticker,
+        name: item.name,
+        market,
+        reason: "Daily anomaly",
+        why: String(item.headline || "").slice(0, 200) || undefined,
+        score: toNumber(item.overall_score) ?? null,
+        sector: String(item.sector || ""),
+        sources: ["anomaly"],
+        personalization_score: Math.round(personalizationScore * 10) / 10,
+        anomaly_move_pct: toNumber(item.day_change_pct),
+        anomaly_headline: String(item.headline || "").slice(0, 200),
+      });
+    });
+  }
+
+  // ── Source 4: Reddit buzz — top tickers by mentions in the last 24h.
+  for (const doc of redditDocs) {
+    if (!doc.exists) continue;
+    const market = doc.id.split("__")[0] as "US" | "IN";
+    const tickersRaw = doc.data()?.tickers;
+    const entries: Array<[string, Record<string, unknown>]> = [];
+    if (tickersRaw && typeof tickersRaw === "object" && !Array.isArray(tickersRaw)) {
+      for (const [ticker, payload] of Object.entries(tickersRaw as Record<string, unknown>)) {
+        entries.push([String(ticker).toUpperCase(), (payload || {}) as Record<string, unknown>]);
+      }
+    } else if (Array.isArray(tickersRaw)) {
+      for (const item of tickersRaw) {
+        const t = String((item as Record<string, unknown>)?.ticker || "").toUpperCase();
+        if (t) entries.push([t, (item || {}) as Record<string, unknown>]);
+      }
+    }
+    entries.sort(
+      (a, b) => (toNumber(b[1].mentions) ?? 0) - (toNumber(a[1].mentions) ?? 0),
+    );
+    entries.slice(0, 15).forEach(([ticker, item], rank) => {
+      const instrumentId = String(item.instrument_id || `${market}_${ticker}`);
+      if (!instrumentId || tracked.has(instrumentId)) return;
+      const mentions = Math.round(toNumber(item.mentions) ?? 0);
+      if (mentions < 3) return; // skip noise — need at least 3 mentions to count
+      const rankBonus = Math.max(0, 8 - rank);
+      const personalizationScore = 24 + Math.min(20, mentions * 1.5) + rankBonus;
+      mergeCandidate({
+        instrument_id: instrumentId,
+        ticker,
+        name: item.name,
+        market,
+        reason: "Reddit buzz",
+        why: String(item.summary || item.context || "").slice(0, 200) || undefined,
+        score: null,
+        sector: String(item.sector || ""),
+        sources: ["reddit"],
+        personalization_score: Math.round(personalizationScore * 10) / 10,
+        reddit_mentions: mentions,
+        reddit_summary: String(item.summary || item.context || "").slice(0, 200),
+      });
+    });
+  }
+
+  const candidates = Array.from(candidateMap.values());
   candidates.sort((a, b) => (toNumber(b.personalization_score) ?? 0) - (toNumber(a.personalization_score) ?? 0));
+
+  // Take top 8 to give the LLM rewriter some room to pick the best 6.
+  const topCandidates: Array<Record<string, unknown>> = [];
   for (const candidate of candidates) {
     const instrumentId = String(candidate.instrument_id || "");
     if (!instrumentId || suggested.has(instrumentId)) continue;
     suggested.add(instrumentId);
+
+    // Build a fallback `why` by joining signal bits — used when LLM rewrite is unavailable.
     const reasons = Array.isArray(candidate.personalization_reasons)
       ? candidate.personalization_reasons.map((v) => String(v)).filter(Boolean)
       : [];
@@ -1154,12 +1322,122 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
     const mentions = Math.round(toNumber(candidate.reddit_mentions) ?? 0);
     if (mentions > 0) summaryBits.push(`Reddit buzz ${mentions} mentions`);
     const anomalyMove = toNumber(candidate.anomaly_move_pct);
-    if (anomalyMove !== null) summaryBits.push(`anomaly move ${anomalyMove >= 0 ? "+" : ""}${anomalyMove.toFixed(1)}%`);
-    if (summaryBits.length) candidate.why = summaryBits.slice(0, 3).join("; ");
-    suggestions.push(candidate);
-    if (suggestions.length >= 6) break;
+    if (anomalyMove !== null) summaryBits.push(`${anomalyMove >= 0 ? "+" : ""}${anomalyMove.toFixed(1)}% anomaly move`);
+    const heatDriver = String(candidate.heat_driver || "").trim();
+    if (heatDriver) summaryBits.push(`heat: ${heatDriver.toLowerCase()}`);
+    // If `why` is still empty (e.g. anomaly-only candidate with no headline), fill from bits.
+    if (!candidate.why && summaryBits.length) {
+      candidate.why = summaryBits.slice(0, 3).join("; ");
+    }
+    topCandidates.push(candidate);
+    if (topCandidates.length >= 8) break;
   }
-  return suggestions;
+
+  // LLM rewrite: generate one short personalized "why" line per top candidate
+  // in a single batched call. Fail gracefully — if the LLM is unavailable, the
+  // existing rule-based `why` text already populated above stays.
+  if (topCandidates.length > 0) {
+    try {
+      const rewritten = await rewriteSuggestionWhys(topCandidates, {
+        avgGrowth, avgQuality, avgValuation, avgMomentum, dominantSector,
+      });
+      for (const c of topCandidates) {
+        const id = String(c.instrument_id || "");
+        const fresh = rewritten[id];
+        if (fresh && fresh.trim()) c.why = fresh.trim();
+      }
+    } catch (err) {
+      console.warn("[radar-suggestions] LLM rewrite failed, using rule-based whys:", err);
+    }
+  }
+
+  return topCandidates.slice(0, 6);
+}
+
+// LLM-rewrite the `why` line for each top candidate in a single batched call.
+// Returns a map keyed by instrument_id. Empty map on any failure (caller keeps
+// the rule-based `why`).
+async function rewriteSuggestionWhys(
+  candidates: Array<Record<string, unknown>>,
+  ctx: {
+    avgGrowth: number | null;
+    avgQuality: number | null;
+    avgValuation: number | null;
+    avgMomentum: number | null;
+    dominantSector: string;
+  },
+): Promise<Record<string, string>> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey || candidates.length === 0) return {};
+
+  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  const compact = candidates.map((c) => ({
+    id: String(c.instrument_id || ""),
+    ticker: c.ticker,
+    sector: c.sector || null,
+    score: c.score ?? null,
+    sources: c.sources || [],
+    raw_why: c.why || null,
+    reddit_mentions: toNumber(c.reddit_mentions) ?? 0,
+    anomaly_move_pct: toNumber(c.anomaly_move_pct),
+    heat_driver: c.heat_driver || null,
+  }));
+
+  const radarSummary = {
+    avg_growth: ctx.avgGrowth,
+    avg_quality: ctx.avgQuality,
+    avg_valuation: ctx.avgValuation,
+    avg_momentum: ctx.avgMomentum,
+    dominant_sector: ctx.dominantSector || null,
+  };
+
+  const SYSTEM_PROMPT = `You write one-line stock suggestion rationales for a financial app's Radar page.
+
+You receive (a) a user's current Radar profile (avg pillar scores, dominant sector) and (b) a list of candidate stocks with their raw signal data (reddit buzz, anomaly move, heat list driver, screen hook).
+
+For each candidate, write a SINGLE sentence (8-16 words) explaining why this stock could fit THIS user's Radar. Be specific to the signal:
+- If multi-source (sources length > 1) — lead with that ("Showing up in heat + reddit").
+- If anomaly_move_pct — mention the move size and direction.
+- If reddit_mentions >= 5 — mention the buzz.
+- If heat_driver — mention the driver (momentum, breakout, etc).
+- If only a screen match — translate the raw_why into something concrete.
+
+Rules:
+- NO marketing fluff ("must-buy", "explosive"). Plain, factual, conversational.
+- NEVER invent numbers, dates, or peer comparisons that aren't in the input.
+- If you can't say something useful, return the raw_why unchanged.
+- Return JSON: { "rationales": { "<instrument_id>": "<sentence>", ... } }`;
+
+  const payload = {
+    radar_profile: radarSummary,
+    candidates: compact,
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        max_completion_tokens: 700,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: JSON.stringify(payload) },
+        ],
+      }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== "string") return {};
+    const parsed = JSON.parse(content);
+    const out = parsed?.rationales;
+    return out && typeof out === "object" ? (out as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
 }
 
 async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string, unknown>> {
