@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { EarningsIntelDoc, EarningsIntelScenario } from "@/lib/earnings-intel";
+import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
 
 function formatEventDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00.000Z`);
@@ -9,22 +10,14 @@ function formatEventDate(iso: string): string {
 
 type CaseName = EarningsIntelScenario["case"];
 
-const CASE_ORDER: CaseName[] = ["bull", "base", "bear"];
-
 const CASE_META: Record<CaseName, { label: string; color: string; soft: string; text: string }> = {
   bull: { label: "Bull", color: "#10b981", soft: "#ecfdf5", text: "#047857" },
   base: { label: "Base", color: "#0052ff", soft: "#eff6ff", text: "#1d4ed8" },
   bear: { label: "Bear", color: "#ef4444", soft: "#fef2f2", text: "#b91c1c" },
 };
 
-function orderedScenarios(scenarios: EarningsIntelScenario[] | undefined) {
-  const byCase = new Map<CaseName, EarningsIntelScenario>();
-  for (const s of scenarios ?? []) {
-    if (!byCase.has(s.case)) byCase.set(s.case, s);
-  }
-  return CASE_ORDER.map((c) => byCase.get(c)).filter(
-    (s): s is EarningsIntelScenario => Boolean(s),
-  );
+function orderedScenarios(doc: EarningsIntelDoc): EarningsIntelScenario[] {
+  return mergeIntelScenarios(doc);
 }
 
 function leadCase(scenarios: EarningsIntelScenario[]) {
@@ -53,7 +46,7 @@ type Props = {
 
 export function StockEarningsTab({ doc, ticker }: Props) {
   const confidence = doc.report?.confidence?.score_0_100;
-  const scenarios = orderedScenarios(doc.report?.scenarios_30_90d);
+  const scenarios = orderedScenarios(doc);
   const lead = leadCase(scenarios);
   const totalPct = scenarios.reduce((sum, s) => sum + Math.max(0, s.probability_pct), 0) || 1;
   const facts = factItems(doc.report?.facts);
@@ -130,7 +123,7 @@ export function StockEarningsTab({ doc, ticker }: Props) {
                   className="h-full"
                   style={{
                     width: `${(Math.max(0, s.probability_pct) / totalPct) * 100}%`,
-                    background: CASE_META[s.case].color,
+                    background: lead?.case === s.case ? CASE_META[s.case].color : "#d1d5db",
                   }}
                   aria-label={`${CASE_META[s.case].label} ${Math.round(s.probability_pct)}%`}
                 />
@@ -151,8 +144,14 @@ export function StockEarningsTab({ doc, ticker }: Props) {
                     }}
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: meta.text }}>
-                        <span className="inline-block h-2 w-2 rounded-full" style={{ background: meta.color }} />
+                      <span
+                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide"
+                        style={{ color: isLead ? meta.text : "#6b7280" }}
+                      >
+                        <span
+                          className="inline-block h-2 w-2 rounded-full"
+                          style={{ background: isLead ? meta.color : "#d1d5db" }}
+                        />
                         {meta.label}
                       </span>
                       <span className="text-lg font-semibold tabular-nums text-[#111111]">

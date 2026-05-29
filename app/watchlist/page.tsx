@@ -383,21 +383,7 @@ export default async function WatchlistPage() {
           watchlistPositions={watchlistPositions}
         />
 
-        {/* ── § 01 · TODAY ──────────────────────────────────────────────── */}
-        <TodaySection
-          brief={brief}
-          topDirective={topDirective}
-          secondaryDirectives={secondaryDirectives}
-          suggestions={suggestions}
-          trendingMovers={trendingMovers}
-          trendingBuzz={trendingBuzz}
-          marketEvents={marketWideEvents}
-          earningsTickers={earningsTickers}
-          refreshing={isTodayRefreshing}
-          trackedIds={new Set(tracked)}
-        />
-
-        {/* ── § 02 · YOUR BOOK ──────────────────────────────────────────── */}
+        {/* ── § 01 · YOUR BOOK ──────────────────────────────────────────── */}
         <YourBookSection
           holdings={holdings}
           watching={watching}
@@ -409,6 +395,20 @@ export default async function WatchlistPage() {
           trackedCount={tracked.length}
           refreshing={false}
           portfolio={portfolio}
+        />
+
+        {/* ── § 02 · TODAY ──────────────────────────────────────────────── */}
+        <TodaySection
+          brief={brief}
+          topDirective={topDirective}
+          secondaryDirectives={secondaryDirectives}
+          suggestions={suggestions}
+          trendingMovers={trendingMovers}
+          trendingBuzz={trendingBuzz}
+          marketEvents={marketWideEvents}
+          earningsTickers={earningsTickers}
+          refreshing={isTodayRefreshing}
+          trackedIds={new Set(tracked)}
         />
 
         {SHOW_SCENARIO_LAB && (
@@ -610,7 +610,7 @@ function todayMasthead(): string {
 }
 
 // =============================================================================
-// § 01 · TODAY
+// § 02 · TODAY
 // =============================================================================
 
 const FALLBACK_EXPLORE_SUGGESTIONS: Dict[] = [
@@ -660,7 +660,7 @@ function TodaySection({
 
   return (
     <section className="flex flex-col gap-6">
-      <SectionOpener number="01" title="Today" refreshing={refreshing} />
+      <SectionOpener number="02" title="Today" refreshing={refreshing} />
 
       <TodayMarketEvents events={marketEvents} />
 
@@ -1122,7 +1122,7 @@ function ExploreDirectiveCard({
 }
 
 // =============================================================================
-// § 02 · YOUR BOOK — ledger + Up Next/Alerts rail
+// § 01 · YOUR BOOK — ledger + Up Next/Alerts rail
 // =============================================================================
 
 type UpNextItem = {
@@ -1183,7 +1183,7 @@ function YourBookSection({
   return (
     <section className="flex flex-col gap-6">
       <SectionOpener
-        number="02"
+        number="01"
         title="Your book"
         meta={`${holdings.length} held · ${watching.length} watching`}
         refreshing={refreshing}

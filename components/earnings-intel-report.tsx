@@ -4,6 +4,7 @@ import { EarningsIntelShare } from "@/components/earnings-intel-share";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { EarningsIntelDoc, EarningsIntelScenario } from "@/lib/earnings-intel";
+import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
 import type { StockSummary } from "@/lib/stock";
 import { currencySymbolFor } from "@/lib/utils";
 
@@ -83,34 +84,56 @@ const INTERP_ITEMS: {
   { key: "fundamental_implication", label: "Fundamental takeaway", icon: "insights" },
 ];
 
-function scenarioStyle(caseName: EarningsIntelScenario["case"]) {
+function scenarioStyle(caseName: EarningsIntelScenario["case"], isLead: boolean) {
+  const labels: Record<EarningsIntelScenario["case"], string> = {
+    bull: "Bull",
+    base: "Base",
+    bear: "Bear",
+  };
+  const icons: Record<EarningsIntelScenario["case"], string> = {
+    bull: "trending_up",
+    base: "balance",
+    bear: "trending_down",
+  };
+
+  if (!isLead) {
+    return {
+      card: "bg-[#fafafa] border-[#e5e7eb]",
+      chip: "bg-[#f3f4f6] text-[#6b7280]",
+      bar: "bg-[#d1d5db]",
+      icon: icons[caseName],
+      iconFg: "text-[#9ca3af]",
+      label: labels[caseName],
+    };
+  }
+
   switch (caseName) {
     case "bull":
       return {
         card: "bg-[#ecfdf5] border-[#d1fae5]",
         chip: "bg-[#10b981] text-white",
         bar: "bg-[#10b981]",
-        icon: "trending_up",
+        icon: icons.bull,
         iconFg: "text-[#10b981]",
-        label: "Bull",
+        label: labels.bull,
       };
     case "bear":
       return {
         card: "bg-[#fef2f2] border-[#fecaca]",
         chip: "bg-[#ef4444] text-white",
         bar: "bg-[#ef4444]",
-        icon: "trending_down",
+        icon: icons.bear,
         iconFg: "text-[#ef4444]",
-        label: "Bear",
+        label: labels.bear,
       };
     default:
       return {
         card: "bg-[#eff6ff] border-[#bfdbfe]",
         chip: "bg-[#0052ff] text-white",
         bar: "bg-[#0052ff]",
-        icon: "balance",
+        icon: icons.base,
         iconFg: "text-[#0052ff]",
-        label: "Base",
+        label: labels.base,
       };
   }
 }
@@ -186,7 +209,11 @@ export function EarningsIntelReport({
   tier,
 }: Props) {
   const currency = currencySymbolFor(stock?.currency ?? market);
-  const scenarios = doc.report?.scenarios_30_90d || [];
+  const scenarios = mergeIntelScenarios(doc, stock?.day_change_pct);
+  const leadScenarioCase =
+    scenarios.length > 0
+      ? [...scenarios].sort((a, b) => b.probability_pct - a.probability_pct)[0]?.case
+      : null;
   const confidence = doc.report?.confidence?.score_0_100 ?? null;
   const confidenceReason = doc.report?.confidence?.reason?.trim();
   const monitorList = doc.report?.decision_guide?.key_monitor_list || [];
@@ -382,7 +409,8 @@ export function EarningsIntelReport({
             <SectionHeading icon="alt_route">Next 30–90 days</SectionHeading>
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
               {orderedScenarios(scenarios).map((s) => {
-                const style = scenarioStyle(s.case);
+                const isLead = s.case === leadScenarioCase;
+                const style = scenarioStyle(s.case, isLead);
                 const prob = Math.min(100, Math.max(0, s.probability_pct));
                 return (
                   <div key={s.case} className={`flex flex-col rounded-2xl border p-5 ${style.card}`}>

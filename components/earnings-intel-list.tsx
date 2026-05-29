@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
+import { resolveIntelScenarios } from "@/lib/earnings-scenario-weights";
 import type { StockSummary } from "@/lib/stock";
 
 function formatDate(iso: string): string {
@@ -16,7 +17,7 @@ function confidenceLabel(score: number) {
 }
 
 function topScenario(doc: EarningsIntelDoc) {
-  const scenarios = doc.report?.scenarios_30_90d ?? [];
+  const scenarios = resolveIntelScenarios(doc) ?? [];
   if (!scenarios.length) return null;
   return [...scenarios].sort((a, b) => b.probability_pct - a.probability_pct)[0];
 }

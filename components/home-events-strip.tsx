@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
+import { EarningsScenarioBar } from "@/components/earnings-scenario-bar";
 import type { MarketEvent } from "@/lib/market-events-shared";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
@@ -95,6 +96,7 @@ export function HomeEventsStrip({ events }: { events: MarketEvent[] }) {
                 <p className="text-[13px] font-medium leading-snug text-[#111111] line-clamp-3 group-hover:text-[#0052ff]">
                   {event.title}
                 </p>
+                <EarningsScenarioBar scenarios={event.scenarios} compact className="mt-auto pt-1" />
               </Link>
             </div>
           );

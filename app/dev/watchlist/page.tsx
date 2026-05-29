@@ -232,17 +232,17 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
               trackedCount={tracked.length} searchIndex={searchIndex}
               watchlistPositions={watchlistPositions}
             />
-            <TodaySection
-              brief={brief} topDirective={topDirective}
-              secondaryDirectives={secondaryDirectives} suggestions={suggestions}
-              marketEvents={marketWideEvents}
-              trackedIds={new Set(tracked)}
-            />
             <YourBookSection
               holdings={holdings} watching={watching} upNext={upNext}
               earningsReadyThisWeek={earningsReadyThisWeek} bookEvents={yourBookEvents}
               suggestions={suggestions} isSubscribed={true}
               trackedCount={tracked.length} portfolio={portfolio}
+            />
+            <TodaySection
+              brief={brief} topDirective={topDirective}
+              secondaryDirectives={secondaryDirectives} suggestions={suggestions}
+              marketEvents={marketWideEvents}
+              trackedIds={new Set(tracked)}
             />
             <DiagnosisSection
               portfolio={portfolio} pillarAverages={pillarAverages}

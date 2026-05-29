@@ -1,5 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
+import { resolveEventScenarios } from "@/lib/earnings-scenario-weights";
 import { getLatestPrices } from "@/lib/firestore";
 import {
   sortEventsByReportDate,
@@ -29,6 +31,24 @@ export type MarketEventsDoc = {
   events: MarketEvent[];
   counts_by_kind: Record<string, number>;
 };
+
+async function attachScenarios(
+  events: MarketEvent[],
+  market: "US" | "IN",
+): Promise<MarketEvent[]> {
+  const ids = [...new Set(events.map((e) => e.instrument_id).filter(Boolean))];
+  if (ids.length === 0) return events;
+
+  const intelDocs = await getLatestEarningsIntelForInstruments(market, ids);
+  const byInstrument = new Map(intelDocs.map((doc) => [doc.instrument_id, doc]));
+
+  return events.map((event) => {
+    const doc = byInstrument.get(event.instrument_id);
+    const scenarios = resolveEventScenarios(event, doc?.report);
+    if (!scenarios?.length) return event;
+    return { ...event, scenarios };
+  });
+}
 
 async function attachQuotes(events: MarketEvent[]): Promise<MarketEvent[]> {
   const ids = [...new Set(events.map((e) => e.instrument_id).filter(Boolean))];
@@ -80,7 +100,8 @@ async function getMarketEventsUncached(
     .get();
   if (!doc.exists) return null;
   const filtered = earningsOnly(doc.data() as MarketEventsDoc);
-  const events = sortEventsByReportDate(await attachQuotes(filtered.events));
+  const quoted = await attachQuotes(filtered.events);
+  const events = sortEventsByReportDate(await attachScenarios(quoted, market));
   return { ...filtered, events };
 }
 

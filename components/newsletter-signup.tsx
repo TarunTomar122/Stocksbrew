@@ -36,11 +36,11 @@ export function NewsletterSignup() {
   }
 
   return (
-    <section className="w-full min-w-0 max-w-full -mx-4 sm:mx-0 rounded-none sm:rounded-2xl border-x-0 sm:border-x border-outline-variant/30 bg-surface-container-lowest shadow-card overflow-hidden">
-      <div className="px-4 sm:px-8 md:px-11 py-8 sm:py-9 md:py-12 flex flex-col items-center gap-6 sm:gap-8 md:gap-10 text-center">
+    <section className="w-full rounded-2xl border border-outline-variant/30 bg-surface-container-lowest shadow-card overflow-hidden">
+      <div className="px-5 sm:px-8 md:px-11 py-9 md:py-12 flex flex-col items-center gap-8 md:gap-10 text-center">
 
         {/* Copy */}
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 max-w-lg">
+        <div className="flex flex-col items-center gap-4 max-w-lg">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/35 bg-surface-container-low px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-on-surface-variant">
             <span className="relative inline-flex h-1.5 w-1.5" aria-hidden>
               <span className="absolute inline-flex h-full w-full rounded-full bg-signal-bullish opacity-75 animate-ping" />
@@ -48,15 +48,15 @@ export function NewsletterSignup() {
             </span>
             Free every weekday
           </span>
-          <div className="flex w-full flex-col gap-2 md:gap-2.5">
-            <h2 className="font-headline text-[1.5rem] sm:text-[1.75rem] md:text-[2rem] font-semibold text-on-surface tracking-[-0.025em] leading-[1.15] text-balance">
+          <div className="flex flex-col gap-2 md:gap-2.5">
+            <h2 className="font-headline text-[1.625rem] sm:text-[1.75rem] md:text-[2rem] font-semibold text-on-surface tracking-[-0.025em] leading-[1.15]">
               The market today, in plain English.
             </h2>
             <p className="text-sm md:text-[15px] leading-relaxed text-on-surface-variant">
               3 minutes every morning. Free.
             </p>
           </div>
-          <div className="flex w-full max-w-sm flex-col items-center gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 sm:gap-y-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-2 sm:gap-x-8 sm:gap-y-2">
             {OUTCOMES.map((item) => (
               <span key={item.label} className="inline-flex items-center gap-1.5 text-[13px] text-on-surface-variant">
                 <svg width="12" height="12" viewBox="0 0 10 10" fill="none" className="shrink-0 text-signal-bullish" aria-hidden>
@@ -69,9 +69,9 @@ export function NewsletterSignup() {
         </div>
 
         {/* Form / confirmation */}
-        <div className="w-full min-w-0 max-w-md sm:max-w-xl border-t border-outline-variant/20 pt-6 sm:pt-8 md:pt-9 flex flex-col items-stretch">
+        <div className="w-full max-w-xl border-t border-outline-variant/20 pt-8 md:pt-9 flex flex-col items-stretch">
           {state === "success" ? (
-            <div className="flex flex-col items-center gap-4 rounded-xl border border-outline-variant/30 bg-surface px-5 py-8 sm:px-6 md:px-8 md:py-9 text-center">
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-outline-variant/30 bg-surface px-6 py-8 md:px-8 md:py-9 text-center">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container-low border border-outline-variant/25">
                 <svg width="20" height="20" viewBox="0 0 18 18" fill="none" className="text-signal-bullish shrink-0" aria-hidden>
                   <path d="M3 9l4.5 4.5L15 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -85,20 +85,20 @@ export function NewsletterSignup() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="flex w-full min-w-0 flex-col gap-3 items-stretch text-center">
-              <div className="flex w-full min-w-0 flex-col gap-2.5 sm:flex-row sm:items-stretch sm:gap-3 sm:justify-center">
+            <form onSubmit={handleSubmit} className="flex w-full flex-col gap-3 text-left sm:text-center items-stretch">
+              <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:items-stretch sm:gap-3 sm:justify-center">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
                   required
-                  className="h-11 w-full min-w-0 flex-1 rounded-xl border border-outline-variant/35 bg-surface px-4 text-[16px] sm:text-[14px] text-on-surface placeholder:text-on-surface-variant/50 outline-none ring-0 focus:outline-none focus:ring-0 focus:border-on-surface/35 focus:bg-surface disabled:opacity-60 transition-colors"
+                  className="box-border min-h-[52px] h-[52px] sm:min-h-0 sm:h-11 w-full min-w-0 flex-1 rounded-xl border border-outline-variant/35 bg-surface px-4 text-[16px] sm:text-[14px] leading-normal text-on-surface placeholder:text-on-surface-variant/50 outline-none ring-0 focus:outline-none focus:ring-0 focus:border-on-surface/35 focus:bg-surface disabled:opacity-60 transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={state === "loading"}
-                  className="h-11 w-full min-w-0 shrink-0 rounded-xl bg-inverse-surface px-6 text-[14px] font-semibold text-inverse-on-surface hover:opacity-[0.92] disabled:opacity-60 transition-opacity sm:h-auto sm:min-h-[44px] sm:w-auto sm:min-w-[164px]"
+                  className="min-h-[52px] h-[52px] sm:min-h-[44px] sm:h-auto w-full shrink-0 rounded-xl bg-inverse-surface px-6 text-[14px] font-semibold text-inverse-on-surface hover:opacity-[0.92] disabled:opacity-60 transition-opacity sm:w-auto sm:min-w-[164px]"
                 >
                   {state === "loading" ? "Subscribing..." : "Get the daily brief"}
                 </button>

@@ -23,6 +23,12 @@ export type MarketEvent = {
   reddit_sentiment?: string | null;
   event_date?: string | null;
   generated_at?: string | null;
+  scenarios?: MarketEventScenario[];
+};
+
+export type MarketEventScenario = {
+  case: "bull" | "base" | "bear";
+  probability_pct: number;
 };
 
 function parseEventDate(value: string | null | undefined): number {

@@ -622,7 +622,7 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
 }
 
 // =============================================================================
-// § 01 · TODAY
+// § 02 · TODAY
 // =============================================================================
 
 export function TodaySection({ brief, topDirective, secondaryDirectives, suggestions, marketEvents = [], refreshing, trackedIds = new Set() }: {
@@ -645,7 +645,7 @@ export function TodaySection({ brief, topDirective, secondaryDirectives, suggest
   const exploreSuggestions = (suggestions.length > 0 ? suggestions : FALLBACK_EXPLORE_SUGGESTIONS).slice(0, fillCount);
   return (
     <section className="flex flex-col gap-6">
-      <SectionOpener number="01" title="Today" refreshing={refreshing} />
+      <SectionOpener number="02" title="Today" refreshing={refreshing} />
       <TodayMarketEvents events={marketEvents} />
       {brief?.narrative && (
         <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">{brief.narrative}</p>
@@ -837,7 +837,7 @@ function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: D
 }
 
 // =============================================================================
-// § 02 · YOUR BOOK
+// § 01 · YOUR BOOK
 // =============================================================================
 
 export function YourBookSection({ holdings, watching, upNext, earningsReadyThisWeek, bookEvents, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
@@ -862,7 +862,7 @@ export function YourBookSection({ holdings, watching, upNext, earningsReadyThisW
     : null;
   return (
     <section className="flex flex-col gap-6">
-      <SectionOpener number="02" title="Your book" meta={`${holdings.length} held · ${watching.length} watching`} refreshing={refreshing} />
+      <SectionOpener number="01" title="Your book" meta={`${holdings.length} held · ${watching.length} watching`} refreshing={refreshing} />
       <PositionAwareState holdings={holdings} portfolio={portfolio} />
       <YourBookLayout
         holdings={holdings} watching={watching} suggestions={suggestionList}

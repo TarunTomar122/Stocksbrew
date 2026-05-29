@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
+import { EarningsScenarioBar } from "@/components/earnings-scenario-bar";
 import { groupEventsByReportDate, type MarketEvent } from "@/lib/market-events-shared";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
@@ -69,6 +70,8 @@ function EventCard({ event }: { event: MarketEvent }) {
           {hook}
         </p>
       )}
+
+      <EarningsScenarioBar scenarios={event.scenarios} className="mt-auto pt-1" />
     </>
   );
 
