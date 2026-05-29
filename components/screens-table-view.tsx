@@ -26,11 +26,6 @@ function getCopy(screen: ThematicScreen) {
   };
 }
 
-function fmtPct(v: number | null | undefined): { text: string; positive: boolean } | null {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  return { text: `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`, positive: v >= 0 };
-}
-
 function scoreColor(v: number | null | undefined): string {
   if (typeof v !== "number" || !Number.isFinite(v) || v === 0) return "text-[#d1d5db]";
   if (v >= 70) return "text-[#047857]";
@@ -68,7 +63,7 @@ function PillarScore({ value }: { value: number | null | undefined }) {
 
 // ─── Sorting ─────────────────────────────────────────────────────────────────
 
-type SortKey = "company" | "score" | "valuation" | "growth" | "quality" | "momentum" | "dayChange";
+type SortKey = "company" | "score" | "valuation" | "growth" | "quality" | "momentum";
 type SortDir = "asc" | "desc";
 type SortState = { key: SortKey; dir: SortDir } | null;
 
@@ -87,8 +82,6 @@ function sortValue(row: ScreenMatchRow, key: SortKey): number | string | null {
       return p.quality ?? null;
     case "momentum":
       return p.momentum ?? null;
-    case "dayChange":
-      return row.day_change_pct ?? null;
   }
 }
 
@@ -174,7 +167,6 @@ function TableHeader({
       <div className="hidden md:flex w-[40px] shrink-0 justify-center">
         {col("momentum", "Mom", "justify-center")}
       </div>
-      <div className="w-[72px] shrink-0 flex justify-end">{col("dayChange", "Day chg", "justify-end")}</div>
     </div>
   );
 }
@@ -192,7 +184,6 @@ function ScreenTableRow({
   market: "US" | "IN";
   screenId: string;
 }) {
-  const pct = fmtPct(row.day_change_pct);
   const pillars = row.pillar_scores ?? {};
 
   return (
@@ -235,21 +226,6 @@ function ScreenTableRow({
       </div>
       <div className="hidden md:flex w-[40px] shrink-0 justify-center">
         <PillarScore value={pillars.momentum} />
-      </div>
-
-      {/* Day change */}
-      <div className="w-[72px] shrink-0 text-right">
-        {pct ? (
-          <span
-            className={`text-[13px] font-semibold tabular-nums ${
-              pct.positive ? "text-[#10b981]" : "text-[#ef4444]"
-            }`}
-          >
-            {pct.positive ? "▲" : "▼"} {pct.text.replace(/[+-]/, "")}
-          </span>
-        ) : (
-          <span className="text-[12px] text-[#d1d5db]">-</span>
-        )}
       </div>
     </Link>
   );
