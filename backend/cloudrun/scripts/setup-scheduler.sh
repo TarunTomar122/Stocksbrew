@@ -30,6 +30,9 @@ CRON_OPEN_PRICE="${CRON_OPEN_PRICE:-30 13 * * 1-5}"       # 7:00 PM IST
 CRON_OPEN_BRIEFS="${CRON_OPEN_BRIEFS:-35 13 * * 1-5}"     # 7:05 PM IST
 CRON_OPEN_ANOMALIES="${CRON_OPEN_ANOMALIES:-38 13 * * 1-5}" # 7:08 PM IST
 CRON_REDDIT_BUZZ="${CRON_REDDIT_BUZZ:-20 13 * * 1-5}"     # 6:50 PM IST
+CRON_ZONE_BRIEFS="${CRON_ZONE_BRIEFS:-0 14 * * 1-5}"     # 7:30 PM IST (after open_anomalies + reddit_buzz are fresh)
+CRON_MARKET_EVENTS_OPEN="${CRON_MARKET_EVENTS_OPEN:-10 14 * * 1-5}" # 7:40 PM IST (after anomalies + reddit + zone briefs)
+CRON_MARKET_EVENTS_CLOSE="${CRON_MARKET_EVENTS_CLOSE:-0 21 * * 1-5}" # 2:30 AM IST (after close anomalies/reddit + earnings intel)
 CRON_CLOSE_ANOMALIES="${CRON_CLOSE_ANOMALIES:-20 20 * * 1-5}" # 1:50 AM IST (post-close)
 CRON_CLOSE_REDDIT_BUZZ="${CRON_CLOSE_REDDIT_BUZZ:-25 20 * * 1-5}" # 1:55 AM IST (post-close)
 CRON_OPEN_EMAILS="${CRON_OPEN_EMAILS:-42 13 * * 1-5}"     # 7:12 PM IST (after open pipeline + anomalies)
@@ -93,6 +96,8 @@ printf '%s\n' "$(mk_body price_core_open "${extra_universe},\"--session-phase\",
 printf '%s\n' "$(mk_body tracked_open_briefs "${extra_universe},\"--session-phase\",\"open_check\"")" > "${tmp_dir}/open_briefs.json"
 printf '%s\n' "$(mk_body open_anomalies "${extra_universe}")" > "${tmp_dir}/open_anomalies.json"
 printf '%s\n' "$(mk_body reddit_buzz "${extra_universe}")" > "${tmp_dir}/reddit_buzz.json"
+printf '%s\n' "$(mk_body zone_briefs "${extra_universe}")" > "${tmp_dir}/zone_briefs.json"
+printf '%s\n' "$(mk_body market_events "${extra_universe}")" > "${tmp_dir}/market_events.json"
 printf '%s\n' "$(mk_body open_anomalies "${extra_universe}")" > "${tmp_dir}/close_anomalies.json"
 printf '%s\n' "$(mk_body reddit_buzz "${extra_universe}")" > "${tmp_dir}/close_reddit_buzz.json"
 printf '%s\n' "$(mk_body market_open_email "${extra_universe}")" > "${tmp_dir}/open_emails.json"
@@ -106,6 +111,9 @@ upsert_job "tikrr-open-price" "${CRON_OPEN_PRICE}" "${tmp_dir}/open_price.json"
 upsert_job "tikrr-open-briefs" "${CRON_OPEN_BRIEFS}" "${tmp_dir}/open_briefs.json"
 upsert_job "tikrr-open-anomalies" "${CRON_OPEN_ANOMALIES}" "${tmp_dir}/open_anomalies.json"
 upsert_job "tikrr-reddit-buzz" "${CRON_REDDIT_BUZZ}" "${tmp_dir}/reddit_buzz.json"
+upsert_job "tikrr-zone-briefs" "${CRON_ZONE_BRIEFS}" "${tmp_dir}/zone_briefs.json"
+upsert_job "tikrr-market-events-open" "${CRON_MARKET_EVENTS_OPEN}" "${tmp_dir}/market_events.json"
+upsert_job "tikrr-market-events-close" "${CRON_MARKET_EVENTS_CLOSE}" "${tmp_dir}/market_events.json"
 upsert_job "tikrr-close-anomalies" "${CRON_CLOSE_ANOMALIES}" "${tmp_dir}/close_anomalies.json"
 upsert_job "tikrr-close-reddit-buzz" "${CRON_CLOSE_REDDIT_BUZZ}" "${tmp_dir}/close_reddit_buzz.json"
 upsert_job "tikrr-open-emails" "${CRON_OPEN_EMAILS}" "${tmp_dir}/open_emails.json"

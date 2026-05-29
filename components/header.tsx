@@ -23,12 +23,13 @@ type Props = {
 const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean }[] = [
   { href: "/heat",      label: "Hot Stocks",       icon: "local_fire_department" },
   { href: "/screens",   label: "Screens",          icon: "tune" },
+  { href: "/events",    label: "Events",           icon: "bolt" },
   { href: "/anomalies", label: "Market Anomalies", icon: "trending_up", pro: true },
   { href: "/watchlist", label: "Radar",            icon: "radar" },
 ];
 
 /** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */
-const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/anomalies", "/watchlist"] as const;
+const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/events", "/anomalies", "/watchlist"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
@@ -303,30 +304,32 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                     }`}
                   >
                     <span
-                      className="material-symbols-outlined"
+                      className="material-symbols-outlined shrink-0"
                       style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}
                       aria-hidden
                     >
                       {item.icon}
                     </span>
-                    {item.label}
-                    {item.beta && (
-                      <span
-                        className={`ml-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
-                          active
-                            ? "bg-white/20 text-white"
-                            : "bg-[#fef3c7] text-[#b45309]"
-                        }`}
-                      >
-                        Beta
-                      </span>
-                    )}
                     {item.pro && !isSubscribed && (
                       <ProBadge
                         isSubscribed={isSubscribed}
                         className={active ? "bg-white/15 text-white border-white/30" : ""}
                       />
                     )}
+                    <span className="inline-flex items-center gap-1">
+                      {item.label}
+                      {item.beta && (
+                        <span
+                          className={`ml-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
+                            active
+                              ? "bg-white/20 text-white"
+                              : "bg-[#fef3c7] text-[#b45309]"
+                          }`}
+                        >
+                          Beta
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 );
               })}

@@ -199,6 +199,8 @@ export type StockSummary = {
   exchange?: string;
   sector?: string;
   industry?: string;
+  country?: string;
+  description?: string;
   currency?: string;
   logo_url?: string;
   index_memberships?: string[];
@@ -322,6 +324,8 @@ export async function getStockSummary(
         exchange: instrument.exchange,
         sector: instrument.sector,
         industry: instrument.industry,
+        country: instrument.country,
+        description: instrument.description,
         currency: instrument.currency,
         logo_url: instrument.logo_url,
         index_memberships: instrument.index_memberships,
@@ -365,6 +369,8 @@ export async function getStockSummary(
         exchange: instrument.exchange,
         sector: instrument.sector,
         industry: instrument.industry,
+        country: instrument.country,
+        description: instrument.description,
         currency: instrument.currency,
         logo_url: instrument.logo_url,
         index_memberships: instrument.index_memberships,

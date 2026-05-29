@@ -28,6 +28,8 @@ import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
 import { getThematicScreens } from "@/lib/screens";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getMarketEvents } from "@/lib/market-events";
+import { HomeEventsStrip } from "@/components/home-events-strip";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -400,6 +402,13 @@ async function HomeAnomaliesStream() {
   );
 }
 
+async function HomeEventsStream() {
+  const market = getCurrentMarket();
+  const data = await getMarketEvents(market).catch(() => null);
+  if (!data || data.events.length === 0) return null;
+  return <HomeEventsStrip events={data.events} />;
+}
+
 async function HomeRedditStream() {
   const market = getCurrentMarket();
   const [data, core] = await Promise.all([
@@ -434,6 +443,10 @@ export default function HomePage() {
           }
         >
           <HomeHeroStream />
+        </Suspense>
+
+        <Suspense fallback={<HomeSignalStreamFallback title="events" />}>
+          <HomeEventsStream />
         </Suspense>
 
         <Suspense fallback={<HomeSignalStreamFallback title="anomalies" />}>

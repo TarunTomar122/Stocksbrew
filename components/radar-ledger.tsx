@@ -586,7 +586,6 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                   key={row.instrument_id}
                   row={row}
                   hasBorder={i > 0}
-                  showHoldingValues={tab === "holdings"}
                   anyHoldingKnown={anyHoldingKnown}
                 />
               ))}
@@ -895,12 +894,10 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 function MobileRow({
   row,
   hasBorder,
-  showHoldingValues,
   anyHoldingKnown,
 }: {
   row: WatchlistRow;
   hasBorder: boolean;
-  showHoldingValues?: boolean;
   anyHoldingKnown?: boolean;
 }) {
   const router = useRouter();
@@ -910,8 +907,6 @@ function MobileRow({
   const rsi = rsiExtremeFromRow(row);
   const cats = (row.catalysts ?? []) as Array<Record<string, unknown>>;
   const href = `/stock/${encodeURIComponent(row.ticker)}`;
-  const shareQty = num(row.holding?.quantity);
-  const sharesKnown = shareQty !== null;
 
   return (
     <div
@@ -959,16 +954,6 @@ function MobileRow({
       {/* RIGHT: price + % change + menu */}
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col items-end gap-0.5">
-          {showHoldingValues && sharesKnown && (
-            <span className="text-[11px] font-semibold tabular-nums text-[#6b7280]">
-              {fmtShares(shareQty)} sh
-            </span>
-          )}
-          {showHoldingValues && row.holding && (
-            <span className="text-[11px] font-semibold tabular-nums text-[#6b7280]">
-              {fmtHoldingValue(row)}
-            </span>
-          )}
           <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
             {fmtPrice(row.price, row.currency)}
           </span>

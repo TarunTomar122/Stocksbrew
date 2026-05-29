@@ -5,12 +5,14 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
 import { scrubLegacyBrand } from "@/lib/brand";
 import { getWatchlistView } from "@/lib/watchlist-view";
+import { getTrendingSignals, type TrendingSignal } from "@/lib/trending-signals";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { RadarLedger } from "@/components/radar-ledger";
-import { RadarActivity } from "@/components/radar-activity";
+import { BookEventsPanel, TodayMarketEvents } from "@/components/radar-activity";
+import { partitionActivityEvents, type RadarActivityEvent } from "@/lib/activity-events";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { TrackButton } from "@/components/track-button";
 import { YourBookLayout } from "@/components/your-book-layout";
@@ -145,7 +147,6 @@ export default async function WatchlistPage() {
   const pulse = ((watchlistView?.pulse || radar.pulse) ?? null) as WatchlistPulse | null;
   const portfolio = ((watchlistView?.portfolio || radar.portfolio) ?? {}) as Dict;
   const eventRadar = ((watchlistView?.event_radar || radar.event_radar) ?? []) as Dict[];
-  const changes = ((watchlistView?.changes || radar.changes) ?? {}) as Dict;
   const builtAt =
     typeof watchlistView?.built_at === "string"
       ? watchlistView.built_at
@@ -156,7 +157,6 @@ export default async function WatchlistPage() {
   const viewSourceVersion = Number(watchlistView?.source_version ?? 0);
   const todayVersionApplied = Number(watchlistView?.today_version_applied ?? viewSourceVersion);
   const diagnosisVersionApplied = Number(watchlistView?.diagnosis_version_applied ?? viewSourceVersion);
-  const activityVersionApplied = Number(watchlistView?.activity_version_applied ?? viewSourceVersion);
   const hasVersionLag =
     Number.isFinite(userSourceVersion) &&
     Number.isFinite(viewSourceVersion) &&
@@ -175,11 +175,6 @@ export default async function WatchlistPage() {
     Number.isFinite(diagnosisVersionApplied) &&
     diagnosisVersionApplied > 0 &&
     diagnosisVersionApplied < userSourceVersion;
-  const isActivityRefreshing =
-    hasVersionLag &&
-    Number.isFinite(activityVersionApplied) &&
-    activityVersionApplied > 0 &&
-    activityVersionApplied < userSourceVersion;
 
   if (watchlistView && radar && Array.isArray((radar as Dict).rows)) {
     const materializedRows = (watchlistView.rows || []).map((r) => String(r.ticker || r.instrument_id || ""));
@@ -271,13 +266,54 @@ export default async function WatchlistPage() {
     earningsReadyThisWeek = filterEarningsIntelThisWeek([...usDocs, ...inDocs]);
   }
 
+  // Which suggested/blind-spot names just reported? Suggestions are NOT tracked,
+  // so the tracked-row earnings fetch above never covers them. Pull this-week
+  // earnings intel for the suggestion pool so the explore cards can flag a fresh
+  // print instead of treating every name identically.
+  const earningsTickers = new Set<string>();
+  {
+    const suggIdsByMarket = { US: [] as string[], IN: [] as string[] };
+    for (const s of suggestions) {
+      const ticker = String(s.ticker ?? "").trim().toUpperCase();
+      if (!ticker) continue;
+      const m = String(s.market ?? "US") === "IN" ? "IN" : "US";
+      suggIdsByMarket[m].push(`${m}_${ticker}`);
+    }
+    if (suggIdsByMarket.US.length || suggIdsByMarket.IN.length) {
+      const [usSugg, inSugg] = await Promise.all([
+        suggIdsByMarket.US.length
+          ? getLatestEarningsIntelForInstruments("US", suggIdsByMarket.US).catch(() => [] as EarningsIntelDoc[])
+          : Promise.resolve([] as EarningsIntelDoc[]),
+        suggIdsByMarket.IN.length
+          ? getLatestEarningsIntelForInstruments("IN", suggIdsByMarket.IN).catch(() => [] as EarningsIntelDoc[])
+          : Promise.resolve([] as EarningsIntelDoc[]),
+      ]);
+      for (const doc of filterEarningsIntelThisWeek([...usSugg, ...inSugg])) {
+        const t = String(doc.ticker ?? "").trim().toUpperCase();
+        if (t) earningsTickers.add(t);
+      }
+    }
+  }
+
+  // Live "what's moving / what's loud" rail, read straight from the anomaly +
+  // reddit snapshots so it surfaces big movers and Reddit buzz even when the
+  // precomputed view doc is stale. Excludes names already in the user's book.
+  const userMarkets = Array.from(
+    new Set(rows.map((r) => (r.market === "IN" ? "IN" : "US"))),
+  ) as Array<"US" | "IN">;
+  const { movers: trendingMovers, buzz: trendingBuzz } = await getTrendingSignals(
+    userMarkets.length > 0 ? userMarkets : (["US"] as Array<"US" | "IN">),
+    new Set(tracked),
+  ).catch(() => ({ movers: [] as TrendingSignal[], buzz: [] as TrendingSignal[] }));
+
   // ── portfolio score + pillar averages ───────────────────────────────────────
   const pillarAverages = computePillarAverages(rows);
   const factorTilt = asDict(portfolio.factor_tilt);
 
-  // ── activity / changes data ─────────────────────────────────────────────────
+  // ── activity events ─────────────────────────────────────────────────────────
   const activityEvents = buildActivityEvents(eventRadar, brief);
-  const changesData = buildChangesData(changes);
+  const { yourBook: yourBookEvents, marketWide: marketWideEvents } =
+    partitionActivityEvents(activityEvents);
 
   const positionAware = Boolean(portfolio.position_aware);
   const holdingsWithValues = holdings.filter((r) => r.holding && (r.holding.quantity != null || r.holding.market_value != null));
@@ -353,6 +389,10 @@ export default async function WatchlistPage() {
           topDirective={topDirective}
           secondaryDirectives={secondaryDirectives}
           suggestions={suggestions}
+          trendingMovers={trendingMovers}
+          trendingBuzz={trendingBuzz}
+          marketEvents={marketWideEvents}
+          earningsTickers={earningsTickers}
           refreshing={isTodayRefreshing}
           trackedIds={new Set(tracked)}
         />
@@ -363,7 +403,7 @@ export default async function WatchlistPage() {
           watching={watching}
           upNext={upNext}
           earningsReadyThisWeek={earningsReadyThisWeek}
-          alerts={flatAlerts}
+          bookEvents={yourBookEvents}
           suggestions={suggestions}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
@@ -385,9 +425,6 @@ export default async function WatchlistPage() {
           isSubscribed={isSubscribed}
           refreshing={isDiagnosisRefreshing}
         />
-
-        {/* ── § 04 · ACTIVITY ───────────────────────────────────────────── */}
-        <RadarActivity events={activityEvents} changes={changesData} refreshing={isActivityRefreshing} />
       </RadarWorkspace>
     </main>
   );
@@ -588,6 +625,10 @@ function TodaySection({
   topDirective,
   secondaryDirectives,
   suggestions,
+  trendingMovers = [],
+  trendingBuzz = [],
+  marketEvents = [],
+  earningsTickers = new Set(),
   refreshing,
   trackedIds = new Set(),
 }: {
@@ -595,11 +636,21 @@ function TodaySection({
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
   suggestions: Dict[];
+  trendingMovers?: TrendingSignal[];
+  trendingBuzz?: TrendingSignal[];
+  marketEvents?: RadarActivityEvent[];
+  earningsTickers?: Set<string>;
   refreshing?: boolean;
   trackedIds?: Set<string>;
 }) {
+  const hasTrending = trendingMovers.length > 0 || trendingBuzz.length > 0;
   // If we have no directives at all, fall back to brief-only display
-  if (!topDirective && (!brief?.narrative || !brief.narrative.trim())) {
+  if (
+    !topDirective &&
+    (!brief?.narrative || !brief.narrative.trim()) &&
+    marketEvents.length === 0 &&
+    !hasTrending
+  ) {
     return null;
   }
 
@@ -611,27 +662,55 @@ function TodaySection({
     <section className="flex flex-col gap-6">
       <SectionOpener number="01" title="Today" refreshing={refreshing} />
 
-      {/* Tone lede (the macro one-liner) */}
+      <TodayMarketEvents events={marketEvents} />
+
+      {/* The read — macro narrative as a confident editorial standfirst. */}
       {brief?.narrative && (
-        <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">
+        <p className="text-[17px] md:text-[19px] text-[#1f2937] leading-[1.65] tracking-[-0.01em] max-w-[760px]">
           {brief.narrative}
         </p>
       )}
 
-      {/* Blind spot — something worth watching that isn't in your book */}
-      {brief?.blind_spot_title && (
-        <div className="flex items-start gap-3 rounded-xl border border-dashed border-[#fde68a] bg-[#fffbeb] px-4 py-3">
-          <span aria-hidden className="mt-0.5 text-[16px]">👁️</span>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#92400e]">
-              Blind spot
-            </span>
-            <p className="text-[13px] text-[#78350f] leading-snug">
-              {brief.blind_spot_title}
-            </p>
+      {/* Moving & buzzing now — live anomaly movers + Reddit buzz pulled straight
+          from the signal snapshots, so the Radar always has "this went crazy
+          today" / "Reddit is loud about this" energy regardless of view freshness. */}
+      {(() => {
+        const seen = new Set<string>();
+        const trending = [...trendingMovers, ...trendingBuzz]
+          .filter((s) => {
+            if (!s.ticker || seen.has(s.instrument_id)) return false;
+            seen.add(s.instrument_id);
+            return true;
+          })
+          .slice(0, 8);
+        if (trending.length === 0) return null;
+        return (
+          <div className="mb-4 flex flex-col gap-3 md:mb-6">
+            <div className="flex items-center gap-2">
+              <span aria-hidden className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f97316] opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f97316]" />
+              </span>
+              <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9a3412]">
+                Moving &amp; buzzing now
+              </span>
+              <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+                {trending.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {trending.map((s) => (
+                <ExploreDirectiveCard
+                  key={`trend-${s.instrument_id}`}
+                  suggestion={s as unknown as Dict}
+                  isTracked={trackedIds.has(s.instrument_id)}
+                  earningsTickers={earningsTickers}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Primary directive — feature card with ticker header */}
       {topDirective && (
@@ -659,6 +738,7 @@ function TodaySection({
                 key={String(s.ticker)}
                 suggestion={s}
                 isTracked={trackedIds.has(instrumentId)}
+                earningsTickers={earningsTickers}
               />
             );
           })}
@@ -882,20 +962,121 @@ function SecondaryDirectiveCard({
   );
 }
 
-function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: Dict; isTracked?: boolean }) {
+// Differentiate explore/suggestion cards by *why* they surfaced, instead of a
+// uniform "Explore" chip. Earnings > anomaly > reddit buzz > heat > generic.
+function suggestionTag(
+  suggestion: Dict,
+  earningsTickers: Set<string>,
+): { label: string; bg: string; fg: string; dot: string } {
+  const ticker = String(suggestion.ticker ?? "").trim().toUpperCase();
+  const sources = Array.isArray(suggestion.sources)
+    ? (suggestion.sources as unknown[]).map((v) => String(v))
+    : [];
+  const anomalyMove = typeof suggestion.anomaly_move_pct === "number" ? suggestion.anomaly_move_pct : null;
+  const redditMentions = typeof suggestion.reddit_mentions === "number" ? suggestion.reddit_mentions : 0;
+
+  if (ticker && earningsTickers.has(ticker)) {
+    return { label: "Just reported", bg: "#fef3c7", fg: "#92400e", dot: "#f59e0b" };
+  }
+  if (sources.includes("anomaly") || anomalyMove !== null) {
+    const up = (anomalyMove ?? 0) >= 0;
+    return {
+      label: anomalyMove !== null ? `${up ? "+" : ""}${anomalyMove.toFixed(1)}% today` : "On the move",
+      bg: up ? "#ecfdf5" : "#fef2f2",
+      fg: up ? "#065f46" : "#991b1b",
+      dot: up ? "#10b981" : "#ef4444",
+    };
+  }
+  if (sources.includes("reddit") || redditMentions >= 3) {
+    const sentiment = String(suggestion.reddit_sentiment ?? "").toLowerCase();
+    const mood = sentiment === "bullish" ? "bull" : sentiment === "bearish" ? "bear" : "";
+    const count = redditMentions > 0 ? ` · ${redditMentions}` : "";
+    return {
+      label: `Reddit${mood ? ` ${mood}` : " buzz"}${count}`,
+      bg: "#fff7ed",
+      fg: "#9a3412",
+      dot: "#f97316",
+    };
+  }
+  if (sources.includes("heat")) {
+    return { label: "Heat list", bg: "#fef2f2", fg: "#9f1239", dot: "#fb7185" };
+  }
+  return { label: "Explore", bg: "#f3f4f6", fg: "#6b7280", dot: "#9ca3af" };
+}
+
+function ExploreDirectiveCard({
+  suggestion,
+  isTracked = false,
+  earningsTickers = new Set(),
+  gapLabel = "",
+}: {
+  suggestion: Dict;
+  isTracked?: boolean;
+  earningsTickers?: Set<string>;
+  gapLabel?: string;
+}) {
   const ticker = String(suggestion.ticker ?? "");
   const market = String(suggestion.market ?? "US") === "IN" ? "IN" : "US";
   const instrumentId = `${market}_${ticker}`;
   const sector = String(suggestion.sector ?? suggestion.name ?? "");
   const why = String(suggestion.why ?? suggestion.reason ?? "");
   const score = typeof suggestion.score === "number" ? suggestion.score : null;
+  const tag = suggestionTag(suggestion, earningsTickers);
+  const price = typeof suggestion.price === "number" ? suggestion.price : null;
+  const dayChange =
+    typeof suggestion.day_change_pct === "number"
+      ? suggestion.day_change_pct
+      : typeof suggestion.anomaly_move_pct === "number"
+      ? suggestion.anomaly_move_pct
+      : null;
+  const showQuote = price !== null || dayChange !== null;
+  const positive = (dayChange ?? 0) >= 0;
+  const currency = market === "IN" ? "₹" : "$";
+  const priceStr =
+    price !== null
+      ? `${currency}${price.toLocaleString(undefined, {
+          minimumFractionDigits: price >= 1000 ? 0 : 2,
+          maximumFractionDigits: price >= 1000 ? 0 : 2,
+        })}`
+      : null;
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-4 transition-all hover:border-[#111111] hover:bg-white hover:shadow-sm flex flex-col gap-3">
-      {/* "Explore" badge top-left + score */}
+      {/* Price + day move (or signal tag) + score */}
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase bg-[#f3f4f6] text-[#6b7280]">
-          Explore
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          {showQuote ? (
+            <div className="flex items-baseline gap-1.5">
+              {priceStr && (
+                <span className="text-[12px] font-semibold tabular-nums text-[#0a0a0a]">
+                  {priceStr}
+                </span>
+              )}
+              {dayChange !== null && (
+                <span
+                  className={`text-[11px] font-semibold tabular-nums ${
+                    positive ? "text-[#047857]" : "text-[#b91c1c]"
+                  }`}
+                >
+                  {positive ? "+" : ""}
+                  {dayChange.toFixed(2)}%
+                </span>
+              )}
+            </div>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase"
+              style={{ background: tag.bg, color: tag.fg }}
+            >
+              <span aria-hidden className="h-1 w-1 rounded-full" style={{ background: tag.dot }} />
+              {tag.label}
+            </span>
+          )}
+          {gapLabel && (
+            <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#fef3c7] text-[#92400e]">
+              {gapLabel}
+            </span>
+          )}
+        </div>
         {score !== null && (
           <span className={`text-[11px] font-semibold tabular-nums ${
             score >= 80 ? "text-[#10b981]" : score >= 60 ? "text-[#374151]" : "text-[#9ca3af]"
@@ -957,7 +1138,7 @@ function YourBookSection({
   watching,
   upNext,
   earningsReadyThisWeek,
-  alerts,
+  bookEvents,
   suggestions,
   isSubscribed,
   trackedCount,
@@ -968,7 +1149,7 @@ function YourBookSection({
   watching: WatchlistRow[];
   upNext: UpNextItem[];
   earningsReadyThisWeek: EarningsIntelDoc[];
-  alerts: FlatAlert[];
+  bookEvents: RadarActivityEvent[];
   suggestions: Dict[];
   isSubscribed: boolean;
   trackedCount: number;
@@ -1020,7 +1201,7 @@ function YourBookSection({
             <RadarEarningsReadyBanner docs={earningsReadyThisWeek} />
           ) : null
         }
-        alertsSlot={<AlertsPanel alerts={alerts} />}
+        alertsSlot={<BookEventsPanel events={bookEvents} />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             {/* Subtle gradient glow */}
@@ -1079,12 +1260,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
   const state: "none" | "partial" | "full" =
     enteredCount === 0 ? "none" : enteredCount < totalHoldings ? "partial" : "full";
 
-  const positionAware = Boolean(portfolio.position_aware);
-  const totalEntered = num(portfolio.total_entered_value);
-  const concentration = asDict(portfolio.concentration);
   const positionRisks = asArray(portfolio.position_risks);
-  const top1Pct = num(concentration.top1_pct);
-  const riskLabel = text(concentration.risk_label);
 
   if (state === "none") {
     return (
@@ -1118,76 +1294,37 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
     );
   }
 
-  // Full / position-aware state
-  const riskColor =
-    riskLabel === "high"
-      ? "text-[#dc2626]"
-      : riskLabel === "medium"
-      ? "text-[#b45309]"
-      : "text-[#047857]";
+  // Full / position-aware state. The old green "Position-aware · largest position
+  // X%" strip carried no actionable signal, so we only surface real position risk
+  // flags when present and render nothing otherwise.
+  if (positionRisks.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3">
-      {/* Header row */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <span aria-hidden className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
-          <span className="text-[11px] font-semibold tracking-[0.07em] uppercase text-[#047857]">
-            Position-aware
-          </span>
-        </div>
-        {totalEntered !== null && totalEntered > 0 && (
-          <span className="text-[12px] font-semibold tabular-nums text-[var(--on-surface)]">
-            ${totalEntered.toLocaleString(undefined, { maximumFractionDigits: 0 })} tracked
-          </span>
-        )}
-        {top1Pct !== null && (
-          <span className="text-[12px] tabular-nums text-[var(--on-surface-variant)]">
-            Largest position{" "}
-            <span className="font-semibold text-[var(--on-surface)]">{top1Pct.toFixed(1)}%</span>
-            {riskLabel && (
-              <span className={`ml-1 font-medium ${riskColor}`}>· {riskLabel} concentration</span>
+    <div className="flex flex-col gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3">
+      {positionRisks.slice(0, 2).map((risk, i) => (
+        <div key={`pos-risk-${i}`} className="flex items-start gap-2.5">
+          <span
+            aria-hidden
+            className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${
+              text(risk.severity) === "high"
+                ? "bg-[#ef4444]"
+                : text(risk.severity) === "medium"
+                ? "bg-[#f59e0b]"
+                : "bg-[#9ca3af]"
+            }`}
+          />
+          <div className="min-w-0">
+            <span className="text-[12px] font-semibold text-[var(--on-surface)]">
+              {text(risk.headline)}
+            </span>
+            {text(risk.body) && (
+              <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
+                {text(risk.body)}
+              </p>
             )}
-          </span>
-        )}
-      </div>
-
-      {/* Confirmation copy */}
-      {positionAware && (
-        <p className="text-[11px] text-[#047857] leading-snug">
-          Scores, sector allocation, and risk flags now reflect your actual dollar weights — not just stock count.
-        </p>
-      )}
-
-      {/* Position risk flags */}
-      {positionRisks.length > 0 && (
-        <div className="flex flex-col gap-2 pt-1 border-t border-[#bbf7d0]">
-          {positionRisks.slice(0, 2).map((risk, i) => (
-            <div key={`pos-risk-${i}`} className="flex items-start gap-2.5">
-              <span
-                aria-hidden
-                className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${
-                  text(risk.severity) === "high"
-                    ? "bg-[#ef4444]"
-                    : text(risk.severity) === "medium"
-                    ? "bg-[#f59e0b]"
-                    : "bg-[#9ca3af]"
-                }`}
-              />
-              <div className="min-w-0">
-                <span className="text-[12px] font-semibold text-[var(--on-surface)]">
-                  {text(risk.headline)}
-                </span>
-                {text(risk.body) && (
-                  <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
-                    {text(risk.body)}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -1241,65 +1378,6 @@ function UpNextPanel({ items }: { items: UpNextItem[] }) {
             </li>
           ))}
         </ul>
-      )}
-    </div>
-  );
-}
-
-function AlertsPanel({ alerts }: { alerts: FlatAlert[] }) {
-  const shown = alerts.slice(0, 5);
-  return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[14px]"
-          >
-            🔔
-          </span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#991b1b]">
-            Alerts
-          </span>
-        </div>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
-          {alerts.length}
-        </span>
-      </div>
-      {alerts.length === 0 ? (
-        <p className="text-[12px] italic text-[#9ca3af]">No active alerts.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-[#f3f4f6]">
-          {shown.map((f, i) => {
-            const toneColor =
-              f.tone === "bull" ? "#10b981" : f.tone === "bear" ? "#ef4444" : "#f59e0b";
-            return (
-              <li key={`alert-${i}`} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0">
-                <span
-                  aria-hidden
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: toneColor }}
-                />
-                <div className="flex flex-col min-w-0 flex-1">
-                  <Link
-                    href={`/stock/${encodeURIComponent(f.ticker)}`}
-                    className="text-[12px] font-semibold text-[#0a0a0a] hover:text-[#0052ff] transition-colors"
-                  >
-                    {f.ticker}
-                  </Link>
-                  <span className="text-[11px] text-[#6b7280] leading-snug truncate">
-                    {f.message}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {alerts.length > shown.length && (
-        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
-          +{alerts.length - shown.length} more
-        </span>
       )}
     </div>
   );
@@ -1962,6 +2040,20 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
   );
 }
 
+// Color-code the suggestion category ("Oversold Quality", "Cheap Growth",
+// "Smart Money Favorites", …) so the descriptor reads as a tab beside the
+// ticker instead of a stacked grey line.
+function reasonChip(reason: string): { bg: string; fg: string } {
+  const r = reason.toLowerCase();
+  if (r.includes("smart money") || r.includes("favorite"))
+    return { bg: "#f5f3ff", fg: "#6d28d9" };
+  if (r.includes("momentum")) return { bg: "#fff7ed", fg: "#c2410c" };
+  if (r.includes("quality")) return { bg: "#eff6ff", fg: "#1d4ed8" };
+  if (r.includes("growth")) return { bg: "#ecfdf5", fg: "#047857" };
+  if (r.includes("value") || r.includes("cheap")) return { bg: "#f0fdfa", fg: "#0f766e" };
+  return { bg: "#f3f4f6", fg: "#4b5563" };
+}
+
 function StocksToCheckOut({
   suggestions,
   tracked,
@@ -2009,15 +2101,26 @@ function StocksToCheckOut({
                   className="flex items-center gap-3 flex-1 min-w-0 group"
                 >
                   {ticker && <StockLogo ticker={ticker} market={market} size={32} />}
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-                      {ticker || "Suggestion"}
-                    </span>
-                    {reason && (
-                      <span className="text-[11.5px] text-[#4b5563] truncate">{reason}</span>
-                    )}
+                  <div className="flex flex-col min-w-0 flex-1 gap-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                        {ticker || "Suggestion"}
+                      </span>
+                      {reason &&
+                        (() => {
+                          const chip = reasonChip(reason);
+                          return (
+                            <span
+                              className="inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] whitespace-nowrap"
+                              style={{ backgroundColor: chip.bg, color: chip.fg }}
+                            >
+                              {reason}
+                            </span>
+                          );
+                        })()}
+                    </div>
                     {why && (
-                      <span className="text-[11.5px] text-[#6b7280] truncate mt-0.5">{why}</span>
+                      <span className="text-[11.5px] text-[#6b7280] truncate">{why}</span>
                     )}
                   </div>
                 </Link>
@@ -2800,11 +2903,15 @@ function flattenAlerts(rows: WatchlistRow[]): FlatAlert[] {
 }
 
 type ActivityEvent = {
+  title: string;
+  body: string;
   sentence: string;
   event_type: string;
   scope: string;
   direction: string;
   symbol: string;
+  urgency: number;
+  evidence: string[];
 };
 
 function buildActivityEvents(
@@ -2841,42 +2948,34 @@ function buildActivityEvents(
       const body = text(event.body);
       const sentence = [title, body].filter(Boolean).join(" · ") || "Tracked-stock update.";
       const scopeGuess = text(event.scope) || (text(event.ticker) ? "stock" : "market");
+      const evidence = (Array.isArray(event.evidence) ? event.evidence : [])
+        .map((e) => text(e))
+        .filter(Boolean)
+        .slice(0, 3);
       return {
+        title: title || sentence,
+        body,
         sentence,
         event_type: text(event.kind) || "event",
         direction: text(event.tone) || text(event.direction) || "neutral",
         symbol: text(event.ticker) || text(event.symbol),
         scope: scopeGuess,
+        urgency: num(event.urgency) ?? 0,
+        evidence,
       };
     });
   }
   return (brief?.essential_events ?? []).slice(0, 12).map((item) => ({
+    title: item.sentence,
+    body: "",
     sentence: item.sentence,
     event_type: item.event_type,
     direction: item.direction,
     symbol: item.symbol,
     scope: item.scope,
+    urgency: 50,
+    evidence: [],
   }));
-}
-
-function buildChangesData(changes: Dict) {
-  const hasPrevious = Boolean(changes.has_previous);
-  const changedCount = num(changes.changed_count) ?? 0;
-  const scoreChanges = asArray(changes.score_changes).map((item) => ({
-    ticker: text(item.ticker),
-    sentence: text(item.sentence),
-    delta: num(item.delta),
-  }));
-  const newTickers = Array.isArray(changes.new_tickers)
-    ? changes.new_tickers.map((item) => String(item)).filter(Boolean)
-    : [];
-  return {
-    summary: text(changes.summary),
-    hasPrevious,
-    changedCount,
-    scoreChanges,
-    newTickers,
-  };
 }
 
 function extractRunwayPct(item: Dict, headline: string): number | null {

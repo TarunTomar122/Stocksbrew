@@ -62,6 +62,34 @@ function heatScoreColor(score: number): string {
   return "#9ca3af";
 }
 
+type DriverMeta = { label: string; color: string; bg: string };
+const DRIVER_META: Record<string, DriverMeta> = {
+  "Momentum score":      { label: "Momentum",     color: "#0052ff", bg: "#eff6ff" },
+  "News velocity":       { label: "News",         color: "#7c3aed", bg: "#f5f3ff" },
+  "Upcoming catalyst":   { label: "Catalyst",     color: "#b45309", bg: "#fffbeb" },
+  "Stretched RSI":       { label: "Stretched",    color: "#c2410c", bg: "#fff7ed" },
+  "Price breakout":      { label: "Breakout",     color: "#047857", bg: "#ecfdf5" },
+  "Washed-out quality":  { label: "Washed-out",   color: "#475569", bg: "#f8fafc" },
+};
+
+function driverMeta(key?: string | null): DriverMeta | null {
+  if (!key) return null;
+  return DRIVER_META[key] ?? { label: key, color: "#6b7280", bg: "#f3f4f6" };
+}
+
+function DriverTag({ driver }: { driver?: string | null }) {
+  const meta = driverMeta(driver);
+  if (!meta) return null;
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.04em] uppercase"
+      style={{ background: meta.bg, color: meta.color }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
 function rsiMeta(state?: string): { label: string; color: string; bg: string } | null {
   switch ((state ?? "").toLowerCase()) {
     case "overbought":
@@ -91,6 +119,7 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
           )}
         </div>
       </a>
+      <DriverTag driver={row.primary_driver} />
       <TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.includes(row.instrument_id)} isSubscribed={isSubscribed} variant="icon" />
     </div>
   );

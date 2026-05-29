@@ -14,6 +14,7 @@ const COLUMNS: Column[] = [
       { label: "Markets", href: "/" },
       { label: "Market Heat", href: "/heat" },
       { label: "Market Anomalies", href: "/anomalies" },
+      { label: "Events", href: "/events" },
       { label: "Screens", href: "/screens" },
       { label: "News", href: "/news" },
       { label: "Radar", href: "/watchlist" },

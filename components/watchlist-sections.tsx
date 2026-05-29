@@ -4,7 +4,8 @@ import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { RadarLedger } from "@/components/radar-ledger";
-import { RadarActivity } from "@/components/radar-activity";
+import { BookEventsPanel, TodayMarketEvents } from "@/components/radar-activity";
+import type { RadarActivityEvent } from "@/lib/activity-events";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { TrackButton } from "@/components/track-button";
 import { YourBookLayout } from "@/components/your-book-layout";
@@ -39,11 +40,15 @@ export type FlatAlert = {
 };
 
 export type ActivityEvent = {
+  title: string;
+  body: string;
   sentence: string;
   event_type: string;
   scope: string;
   direction: string;
   symbol: string;
+  urgency: number;
+  evidence: string[];
 };
 
 export type UpNextItem = {
@@ -400,11 +405,29 @@ export function buildActivityEvents(eventRadar: Dict[], brief: WatchlistBrief | 
       const body = text(event.body);
       const sentence = [title, body].filter(Boolean).join(" · ") || "Tracked-stock update.";
       const scopeGuess = text(event.scope) || (text(event.ticker) ? "stock" : "market");
-      return { sentence, event_type: text(event.kind) || "event", direction: text(event.tone) || text(event.direction) || "neutral", symbol: text(event.ticker) || text(event.symbol), scope: scopeGuess };
+      return {
+        title: title || sentence,
+        body,
+        sentence,
+        event_type: text(event.kind) || "event",
+        direction: text(event.tone) || text(event.direction) || "neutral",
+        symbol: text(event.ticker) || text(event.symbol),
+        scope: scopeGuess,
+        urgency: num(event.urgency) ?? 0,
+        evidence: (Array.isArray(event.evidence) ? event.evidence : []).map((e) => text(e)).filter(Boolean).slice(0, 3),
+      };
     });
   }
   return (brief?.essential_events ?? []).slice(0, 12).map((item) => ({
-    sentence: item.sentence, event_type: item.event_type, direction: item.direction, symbol: item.symbol, scope: item.scope,
+    title: item.sentence,
+    body: "",
+    sentence: item.sentence,
+    event_type: item.event_type,
+    direction: item.direction,
+    symbol: item.symbol,
+    scope: item.scope,
+    urgency: 50,
+    evidence: [],
   }));
 }
 
@@ -602,18 +625,28 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
 // § 01 · TODAY
 // =============================================================================
 
-export function TodaySection({ brief, topDirective, secondaryDirectives, suggestions, refreshing, trackedIds = new Set() }: {
+export function TodaySection({ brief, topDirective, secondaryDirectives, suggestions, marketEvents = [], refreshing, trackedIds = new Set() }: {
   brief: WatchlistBrief | null;
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
-  suggestions: Dict[]; refreshing?: boolean; trackedIds?: Set<string>;
+  suggestions: Dict[];
+  marketEvents?: RadarActivityEvent[];
+  refreshing?: boolean;
+  trackedIds?: Set<string>;
 }) {
-  if (!topDirective && (!brief?.narrative || !brief.narrative.trim())) return null;
+  if (
+    !topDirective &&
+    (!brief?.narrative || !brief.narrative.trim()) &&
+    marketEvents.length === 0
+  ) {
+    return null;
+  }
   const fillCount = Math.max(0, 4 - secondaryDirectives.length);
   const exploreSuggestions = (suggestions.length > 0 ? suggestions : FALLBACK_EXPLORE_SUGGESTIONS).slice(0, fillCount);
   return (
     <section className="flex flex-col gap-6">
       <SectionOpener number="01" title="Today" refreshing={refreshing} />
+      <TodayMarketEvents events={marketEvents} />
       {brief?.narrative && (
         <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">{brief.narrative}</p>
       )}
@@ -807,9 +840,9 @@ function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: D
 // § 02 · YOUR BOOK
 // =============================================================================
 
-export function YourBookSection({ holdings, watching, upNext, earningsReadyThisWeek, alerts, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
+export function YourBookSection({ holdings, watching, upNext, earningsReadyThisWeek, bookEvents, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
   holdings: WatchlistRow[]; watching: WatchlistRow[]; upNext: UpNextItem[];
-  earningsReadyThisWeek: EarningsIntelDoc[]; alerts: FlatAlert[]; suggestions: Dict[];
+  earningsReadyThisWeek: EarningsIntelDoc[]; bookEvents: RadarActivityEvent[]; suggestions: Dict[];
   isSubscribed: boolean; trackedCount: number; refreshing?: boolean; portfolio?: Dict;
 }) {
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -835,7 +868,7 @@ export function YourBookSection({ holdings, watching, upNext, earningsReadyThisW
         holdings={holdings} watching={watching} suggestions={suggestionList}
         upNextSlot={<UpNextPanel items={upNext} />}
         earningsReadySlot={earningsReadyThisWeek.length > 0 ? <RadarEarningsReadyBanner docs={earningsReadyThisWeek} /> : null}
-        alertsSlot={<AlertsPanel alerts={alerts} />}
+        alertsSlot={<BookEventsPanel events={bookEvents} />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(129,140,248,0.25)_0%,transparent_55%)]" />
@@ -973,42 +1006,6 @@ function UpNextPanel({ items }: { items: UpNextItem[] }) {
             </li>
           ))}
         </ul>
-      )}
-    </div>
-  );
-}
-
-function AlertsPanel({ alerts }: { alerts: FlatAlert[] }) {
-  const shown = alerts.slice(0, 5);
-  return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[14px]">🔔</span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#991b1b]">Alerts</span>
-        </div>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">{alerts.length}</span>
-      </div>
-      {alerts.length === 0 ? (
-        <p className="text-[12px] italic text-[#9ca3af]">No active alerts.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-[#f3f4f6]">
-          {shown.map((f, i) => {
-            const toneColor = f.tone === "bull" ? "#10b981" : f.tone === "bear" ? "#ef4444" : "#f59e0b";
-            return (
-              <li key={`alert-${i}`} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0">
-                <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: toneColor }} />
-                <div className="flex flex-col min-w-0 flex-1">
-                  <Link href={`/stock/${encodeURIComponent(f.ticker)}`} className="text-[12px] font-semibold text-[#0a0a0a] hover:text-[#0052ff] transition-colors">{f.ticker}</Link>
-                  <span className="text-[11px] text-[#6b7280] leading-snug truncate">{f.message}</span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {alerts.length > shown.length && (
-        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">+{alerts.length - shown.length} more</span>
       )}
     </div>
   );

@@ -25,12 +25,37 @@ from backend.llm_client import (
     require_llm_api_key,
     schema_system_prompt,
 )
+from backend.instrument_universe import list_instruments
 from backend.storage import TraceMoneyStore
 
 
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 
-EARNINGS_INTEL_SYSTEM_PROMPT_V1 = """You are a strict equity earnings analyst.
+GROUNDING_CONTRACT = """NON-NEGOTIABLE GROUNDING RULES (read payload.timing and payload.reported_actuals first):
+
+TENSE / TIMING:
+- payload.timing.status tells you if this print already happened ("reported") or is "upcoming".
+- If status is "reported", the earnings call is in the PAST. Write about it in past tense.
+  NEVER tell the reader to "await", "watch for", or "wait for" THIS earnings call - it already happened.
+- A trigger or catalyst must be a FUTURE event (next-quarter guidance, a product/customer ramp,
+  a contract booking, a margin inflection, a named upcoming date) - NEVER the print that just occurred.
+
+ACTUALS:
+- If payload.reported_actuals.available is true, the beat/miss is REAL: compare reported_eps to estimated_eps
+  and use eps_surprise_pct / surprise_label. State the actual reported number, not the estimate.
+- If payload.reported_actuals.available is false, the actual result is NOT in yet. Say so plainly.
+  Do NOT present the estimate (eps_estimate) as if it were the reported result, and do NOT claim a beat or miss.
+
+ANTI-GIMMICK:
+- Ban vague, recyclable filler: "watch next year's guidance", "monitor the earnings call",
+  "keep an eye on the stock", "stay tuned". Every line must reference a concrete, payload-grounded number,
+  date, contract, segment, or risk - or it must be cut.
+- Scenarios and the decision guide must be ACTIONABLE: a specific condition the reader can check in the
+  next 30-90 days, not a restatement of the print that already happened.
+
+"""
+
+EARNINGS_INTEL_SYSTEM_PROMPT_V1 = GROUNDING_CONTRACT + """You are a strict equity earnings analyst.
 You write institutional-grade post-earnings intelligence.
 
 Rules:
@@ -42,7 +67,7 @@ Rules:
 - Do not invent price levels, probability splits, or threshold numbers not present or directly derivable from payload.
 - Do not restate the same idea across sections.
 - Avoid fluff words: "exceptional", "robust", "strong", "solid", "bullish outlook" unless paired with a numeric reason.
-- For scenarios, use 30-90 day reasoning grounded in catalysts and risk.
+- For scenarios, use 30-90 day reasoning grounded in FORWARD catalysts and risk (not the print that already happened).
 - Include explicit invalidation conditions for bull and bear views.
 
 Critical style contract for interpretation:
@@ -65,7 +90,7 @@ Decision guide must be specific:
 - key_monitor_list: max 4 bullets, each concrete and measurable/date-linked where possible.
 """
 
-EARNINGS_INTEL_SYSTEM_PROMPT_V2 = """You are a buy-side PM note writer.
+EARNINGS_INTEL_SYSTEM_PROMPT_V2 = GROUNDING_CONTRACT + """You are a buy-side PM note writer.
 Your job is not to summarize; your job is to help decide.
 
 Hard constraints:
@@ -85,7 +110,7 @@ Decision guide contract:
 - key_monitor_list: max 4, each measurable.
 """
 
-EARNINGS_INTEL_SYSTEM_PROMPT_V3 = """You are writing an earnings trade card for serious retail investors.
+EARNINGS_INTEL_SYSTEM_PROMPT_V3 = GROUNDING_CONTRACT + """You are writing an earnings trade card for serious retail investors.
 Every line must earn its place.
 
 Rules:
@@ -246,11 +271,38 @@ def _pick_earnings_event(
     return rows[0][1]
 
 
+def _universe_instruments_by_ticker(
+    store: TraceMoneyStore,
+    market: str,
+    universe_id: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Map ticker -> instrument row for our calendar universe.
+
+    "Our calendar universe" is tm_instruments for the market - the exact same
+    set the frontend earnings calendar filters against via tm_search_index
+    (both are 531 US tickers and identical). When a universe_id is supplied we
+    scope further to just that universe's instruments.
+
+    The earnings calendar in tm_earnings_events holds the full Alpha Vantage
+    feed (thousands of tickers), so this map is what keeps --all-recent from
+    spending LLM calls on - and crashing _resolve_instrument against - stocks
+    we don't actually cover.
+    """
+    rows = list_instruments(market, universe_id) if universe_id else store.list_instruments(market)
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        ticker = str(row.get("ticker") or row.get("symbol") or "").upper().strip()
+        if ticker and ticker not in out:
+            out[ticker] = row
+    return out
+
+
 def _list_recent_events(
     store: TraceMoneyStore,
     market: str,
     recent_days: int,
     max_events: int,
+    allowed_tickers: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     today = datetime.now(timezone.utc).date()
     out: list[tuple[datetime.date, dict[str, Any]]] = []
@@ -261,6 +313,13 @@ def _list_recent_events(
     )
     for doc in query:
         payload = doc.to_dict() or {}
+        # Scope to our universe BEFORE the recency/cap filter. Without this the
+        # max_events cap would just grab the most-recent global AV tickers
+        # (mostly stocks we don't cover) instead of our stocks that reported.
+        if allowed_tickers is not None:
+            ticker = str(payload.get("ticker") or "").upper().strip()
+            if ticker not in allowed_tickers:
+                continue
         event_date = _as_date(str(payload.get("event_date") or ""))
         if not event_date:
             continue
@@ -447,6 +506,71 @@ def _build_doc_id(market: str, instrument_id: str, event_date: str) -> str:
     return f"{market.upper()}__{instrument_id}__{event_date}"
 
 
+def _event_timing(event_date: str) -> dict[str, Any]:
+    """Is this print already in the past, and how stale is it?
+
+    The calendar event_date IS the report date. Without this marker the model
+    treated a call that already happened as an upcoming trigger ("await the
+    Q1 call") and parroted the estimate as the result. Here we state plainly
+    whether the print has happened and how many days ago.
+    """
+    parsed = _as_date(event_date)
+    today = datetime.now(timezone.utc).date()
+    if parsed is None:
+        return {"status": "unknown", "event_date": event_date or None}
+    delta = (today - parsed).days
+    if delta >= 0:
+        return {
+            "status": "reported",
+            "event_date": event_date,
+            "days_since_report": delta,
+            "note": (
+                "This earnings print has ALREADY happened. Write in past tense "
+                "about what was reported. Do NOT frame this call as an upcoming "
+                "event or a future trigger."
+            ),
+        }
+    return {
+        "status": "upcoming",
+        "event_date": event_date,
+        "days_until_report": abs(delta),
+        "note": "This print has not happened yet; frame it as upcoming.",
+    }
+
+
+def _reported_actuals(event: dict[str, Any]) -> dict[str, Any]:
+    """Actual reported numbers merged onto the event by sync_earnings_actuals.
+
+    Returns an explicit `available` flag so the prompt can branch: when actuals
+    are present the model must use reported_eps vs estimated_eps (a real
+    beat/miss); when absent it must say the actual result is not yet captured
+    rather than dressing up the estimate as the result.
+    """
+    reported_eps = _safe_float(event.get("reported_eps"))
+    if reported_eps is None:
+        return {
+            "available": False,
+            "note": (
+                "Actual reported EPS is NOT captured yet. Do not state a beat or "
+                "miss and do not present the estimate as the reported result."
+            ),
+        }
+    estimated_eps = _safe_float(event.get("estimated_eps"))
+    if estimated_eps is None:
+        estimated_eps = _safe_float(event.get("eps_estimate"))
+    return {
+        "available": True,
+        "reported_eps": reported_eps,
+        "estimated_eps": estimated_eps,
+        "eps_surprise": _safe_float(event.get("eps_surprise")),
+        "eps_surprise_pct": _safe_float(event.get("eps_surprise_pct")),
+        "surprise_label": event.get("surprise_label"),
+        "reported_date": event.get("actuals_reported_date") or event.get("event_date"),
+        "fiscal_date_ending": event.get("actuals_fiscal_date_ending")
+        or event.get("fiscal_date_ending"),
+    }
+
+
 def _build_input_payload(
     store: TraceMoneyStore,
     market: str,
@@ -474,6 +598,8 @@ def _build_input_payload(
     recent_news = _recent_news_context(store, market, active_ai_universe, instrument_id)
     reddit = _reddit_context(store, market, ticker)
     event_date = str((event or {}).get("event_date") or "")
+    timing = _event_timing(event_date)
+    reported_actuals = _reported_actuals(event or {})
 
     return {
         "as_of_utc": _utc_now(),
@@ -481,6 +607,8 @@ def _build_input_payload(
         "ticker": ticker.upper(),
         "instrument_id": instrument_id,
         "company_name": instrument.get("name"),
+        "timing": timing,
+        "reported_actuals": reported_actuals,
         "earnings_event": event or {},
         "latest_price": latest.get("quote") or {},
         "price_reaction_window": _reaction_metrics(history, event_date),
@@ -521,7 +649,15 @@ def main() -> None:
     parser.add_argument("--event-date", default="", help="Optional earnings event date YYYY-MM-DD")
     parser.add_argument("--model", default="", help="Override OpenAI model")
     parser.add_argument("--prompt-variant", choices=["v1", "v2", "v3"], default="v1")
-    parser.add_argument("--all-recent", action="store_true", help="Process all recent earnings events in market")
+    parser.add_argument(
+        "--universe",
+        default="",
+        help=(
+            "Optional universe id to scope --all-recent. Defaults to the whole "
+            "market's tm_instruments (our calendar universe)."
+        ),
+    )
+    parser.add_argument("--all-recent", action="store_true", help="Process all recent earnings events in our calendar universe")
     parser.add_argument("--recent-days", type=int, default=3, help="When --all-recent, include event_date within this many days back")
     parser.add_argument("--max-events", type=int, default=20, help="When --all-recent, cap processed events")
     parser.add_argument("--dry-run", action="store_true", help="Build and print payload/result without Firestore write")
@@ -530,6 +666,12 @@ def main() -> None:
 
     store = TraceMoneyStore()
     model_name = args.model.strip() or llm_model(OPENAI_DEFAULT_MODEL)
+    # Build the ticker -> instrument map for our calendar universe once, up front.
+    # This both scopes --all-recent to stocks we cover and lets the loop resolve
+    # instruments without re-scanning all of tm_instruments per ticker.
+    universe_by_ticker = _universe_instruments_by_ticker(
+        store, args.market, args.universe.strip() or None
+    )
     events_to_process: list[dict[str, Any]] = []
     if args.all_recent:
         events_to_process = _list_recent_events(
@@ -537,6 +679,7 @@ def main() -> None:
             market=args.market,
             recent_days=args.recent_days,
             max_events=args.max_events,
+            allowed_tickers=set(universe_by_ticker.keys()),
         )
         if not events_to_process:
             print(json.dumps({"status": "noop", "reason": "no_recent_events"}))
@@ -551,11 +694,20 @@ def main() -> None:
         events_to_process = [event]
 
     results: list[dict[str, Any]] = []
+    skipped: list[str] = []
     for event in events_to_process:
         ticker = str(event.get("ticker") or args.ticker).upper().strip()
         if not ticker:
             continue
-        instrument = _resolve_instrument(store, args.market, ticker)
+        # Prefer the prebuilt universe map; fall back to a direct lookup for an
+        # explicit single --ticker that may sit outside the default universe.
+        instrument = universe_by_ticker.get(ticker)
+        if instrument is None:
+            try:
+                instrument = _resolve_instrument(store, args.market, ticker)
+            except ValueError:
+                skipped.append(ticker)
+                continue
         payload = _build_input_payload(store, args.market, ticker, instrument, event)
         synthesis = _llm_synthesize(payload, model_name=model_name, prompt_variant=args.prompt_variant)
         synthesis = _sanitize_decision_guide(synthesis, payload)
@@ -573,6 +725,8 @@ def main() -> None:
             "prompt_variant": args.prompt_variant,
             "inputs": {
                 "earnings_event": payload.get("earnings_event"),
+                "timing": payload.get("timing"),
+                "reported_actuals": payload.get("reported_actuals"),
                 "price_reaction_window": payload.get("price_reaction_window"),
                 "post_earnings_news_count": len(payload.get("post_earnings_news") or []),
                 "reddit_present": bool(payload.get("reddit_buzz")),
@@ -585,9 +739,15 @@ def main() -> None:
         results.append(report)
 
     if args.dry_run or not args.write:
-        print(json.dumps(results[0] if len(results) == 1 else {"count": len(results), "items": results}, indent=2, ensure_ascii=True))
+        print(json.dumps(results[0] if len(results) == 1 else {"count": len(results), "skipped": skipped, "items": results}, indent=2, ensure_ascii=True))
         return
-    print(json.dumps({"status": "ok", "count": len(results), "doc_ids": [item["doc_id"] for item in results]}, ensure_ascii=True))
+    print(json.dumps({
+        "status": "ok",
+        "count": len(results),
+        "skipped": skipped,
+        "doc_ids": [item["doc_id"] for item in results],
+        "instrument_ids": [item["instrument_id"] for item in results if item.get("instrument_id")],
+    }, ensure_ascii=True))
 
 
 if __name__ == "__main__":

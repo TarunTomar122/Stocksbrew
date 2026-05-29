@@ -390,6 +390,33 @@ def main() -> None:
             instrument for instrument in instruments
             if str(instrument.get("instrument_id") or "").strip().upper() in allowed
         ]
+        # Earnings reporters (and other explicit refreshes) may sit OUTSIDE the
+        # active AI universe and the paid-tracked set - e.g. a stock nobody is
+        # watching that just reported. The union above won't contain them, so
+        # load their instrument metadata directly and add them in. Without this
+        # a requested id outside the universe silently produces no brief.
+        present = {
+            str(instrument.get("instrument_id") or "").strip().upper()
+            for instrument in instruments
+        }
+        missing_ids = [rid for rid in requested_ids if rid not in present]
+        if missing_ids:
+            extra_rows = store.list_instruments(args.market, missing_ids)
+            extra_by_id = {
+                str(row.get("instrument_id") or "").strip().upper(): row
+                for row in extra_rows
+                if isinstance(row, dict)
+            }
+            for rid in missing_ids:
+                row = extra_by_id.get(rid)
+                if row:
+                    instruments.append(row)
+                else:
+                    logger.warning(
+                        "per_stock_intelligence requested id has no instrument metadata market=%s id=%s",
+                        args.market,
+                        rid,
+                    )
     if not instruments:
         print(f"[per-stock] no instruments selected for {args.market} / {universe_id}; exiting")
         return

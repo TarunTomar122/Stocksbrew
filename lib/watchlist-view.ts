@@ -180,6 +180,7 @@ export type WatchlistView = {
   };
   attention_items?: Record<string, unknown>[];
   suggestions?: Record<string, unknown>[];
+  blind_spot_suggestions?: Record<string, unknown>[];
   risk_summary?: Record<string, unknown>;
   event_radar?: Record<string, unknown>[];
   changes?: Record<string, unknown>;
@@ -1004,14 +1005,26 @@ function averageScore(
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 }
 
-async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<string, unknown>>> {
+type SuggestionContext = {
+  avgGrowth: number | null;
+  avgQuality: number | null;
+  avgValuation: number | null;
+  avgMomentum: number | null;
+  dominantSector: string;
+};
+
+// Gather + score the full deduped candidate pool from every signal source
+// (screens, heat, anomalies, reddit). Returns candidates sorted descending by
+// personalization_score so both the top-suggestions and the blind-spot fill can
+// draw from the same scored pool without re-reading Firestore.
+async function gatherSuggestionCandidates(
+  rows: WatchlistRow[],
+): Promise<{ candidates: Array<Record<string, unknown>>; ctx: SuggestionContext }> {
   const tracked = new Set(rows.map((row) => row.instrument_id));
-  const suggested = new Set<string>();
   const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))];
   // Fall back to US when the user has no rows yet — otherwise suggestions never appear.
   const effectiveMarkets = markets.length > 0 ? markets : ["US"];
   const preferred = ["quality_compounders", "cheap_growth", "oversold_quality", "smart_money", "tikrr_top"];
-  const suggestions: Array<Record<string, unknown>> = [];
   const avgGrowth = averageScore(rows, "growth");
   const avgQuality = averageScore(rows, "quality");
   const avgValuation = averageScore(rows, "valuation");
@@ -1124,7 +1137,7 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
       const matches = (screen?.matches || []) as Array<Record<string, unknown>>;
       matches.forEach((item, rank) => {
         const instrumentId = String(item.instrument_id || "");
-        if (!instrumentId || tracked.has(instrumentId) || suggested.has(instrumentId)) return;
+        if (!instrumentId || tracked.has(instrumentId)) return;
         const ticker = String(item.ticker || "").toUpperCase();
         if (!ticker) return;
         const overallScore = toNumber(item.overall_score) ?? 0;
@@ -1165,7 +1178,7 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
           }
         }
         const redditItem = redditByMarket.get(String(market).toUpperCase())?.get(ticker) || {};
-        const redditMentions = Math.max(0, Math.round(toNumber(redditItem.mentions) ?? 0));
+        const redditMentions = Math.max(0, Math.round(toNumber(redditItem.mention_count ?? redditItem.mentions) ?? 0));
         const redditSummary = String(redditItem.summary || redditItem.context || "");
         const redditBoost = Math.min(12, redditMentions * 2);
         const anomalyItem = anomalyByMarket.get(String(market).toUpperCase())?.get(ticker) || {};
@@ -1278,19 +1291,21 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
       }
     }
     entries.sort(
-      (a, b) => (toNumber(b[1].mentions) ?? 0) - (toNumber(a[1].mentions) ?? 0),
+      (a, b) =>
+        (toNumber(b[1].mention_count ?? b[1].mentions) ?? 0) -
+        (toNumber(a[1].mention_count ?? a[1].mentions) ?? 0),
     );
     entries.slice(0, 15).forEach(([ticker, item], rank) => {
       const instrumentId = String(item.instrument_id || `${market}_${ticker}`);
       if (!instrumentId || tracked.has(instrumentId)) return;
-      const mentions = Math.round(toNumber(item.mentions) ?? 0);
+      const mentions = Math.round(toNumber(item.mention_count ?? item.mentions) ?? 0);
       if (mentions < 3) return; // skip noise — need at least 3 mentions to count
       const rankBonus = Math.max(0, 8 - rank);
       const personalizationScore = 24 + Math.min(20, mentions * 1.5) + rankBonus;
       mergeCandidate({
         instrument_id: instrumentId,
         ticker,
-        name: item.name,
+        name: item.company_name || item.name,
         market,
         reason: "Reddit buzz",
         why: String(item.summary || item.context || "").slice(0, 200) || undefined,
@@ -1307,6 +1322,20 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
   const candidates = Array.from(candidateMap.values());
   candidates.sort((a, b) => (toNumber(b.personalization_score) ?? 0) - (toNumber(a.personalization_score) ?? 0));
 
+  return {
+    candidates,
+    ctx: { avgGrowth, avgQuality, avgValuation, avgMomentum, dominantSector },
+  };
+}
+
+// Pick the top 6 suggestions from the scored pool and LLM-rewrite their `why`
+// lines. Kept separate from gathering so the blind-spot fill can reuse the same
+// candidate pool.
+async function finalizeSuggestions(
+  candidates: Array<Record<string, unknown>>,
+  ctx: SuggestionContext,
+): Promise<Array<Record<string, unknown>>> {
+  const suggested = new Set<string>();
   // Take top 8 to give the LLM rewriter some room to pick the best 6.
   const topCandidates: Array<Record<string, unknown>> = [];
   for (const candidate of candidates) {
@@ -1338,9 +1367,7 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
   // existing rule-based `why` text already populated above stays.
   if (topCandidates.length > 0) {
     try {
-      const rewritten = await rewriteSuggestionWhys(topCandidates, {
-        avgGrowth, avgQuality, avgValuation, avgMomentum, dominantSector,
-      });
+      const rewritten = await rewriteSuggestionWhys(topCandidates, ctx);
       for (const c of topCandidates) {
         const id = String(c.instrument_id || "");
         const fresh = rewritten[id];
@@ -1352,6 +1379,98 @@ async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<str
   }
 
   return topCandidates.slice(0, 6);
+}
+
+async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<string, unknown>>> {
+  const { candidates, ctx } = await gatherSuggestionCandidates(rows);
+  return finalizeSuggestions(candidates, ctx);
+}
+
+// Broad sector buckets used to detect what the user has *no* exposure to. Keyword
+// matching keeps it robust across the differing sector vocabularies that screens,
+// anomalies, reddit, and intel docs each use ("Financials" vs "Financial Services").
+export const SECTOR_BUCKETS: Array<{ label: string; pattern: RegExp }> = [
+  { label: "Energy", pattern: /energy|oil|gas|petroleum|refin/i },
+  { label: "Financials", pattern: /financ|bank|insur|capital market|asset manage|brokerage|payment/i },
+  { label: "Healthcare", pattern: /health|pharma|biotech|medical|life scien|drug|therapeutic/i },
+  { label: "Technology", pattern: /tech|software|semiconduct|hardware|electronic|internet|cloud|it serv/i },
+  { label: "Communication", pattern: /communicat|media|telecom|entertainment|broadcast|advertis|social/i },
+  { label: "Consumer", pattern: /consumer|retail|apparel|restaurant|auto|e-commerce|leisure|hospitality|food|beverage|household|staple|luxury/i },
+  { label: "Industrials", pattern: /industrial|aerospace|defen[sc]e|machinery|transport|airline|logistic|construct|manufactur|railroad/i },
+  { label: "Materials", pattern: /material|chemical|metal|mining|steel|paper|gold|copper|cement/i },
+  { label: "Utilities", pattern: /utilit|electric util|water util|power/i },
+  { label: "Real Estate", pattern: /real estate|reit|propert/i },
+];
+
+export function sectorBucket(sector: string): string | null {
+  const raw = String(sector || "").trim();
+  if (!raw) return null;
+  for (const bucket of SECTOR_BUCKETS) {
+    if (bucket.pattern.test(raw)) return bucket.label;
+  }
+  return null;
+}
+
+// Turn the "blind spot" into concrete, addable names: pick top-scored candidates
+// from broad sectors the user currently has ZERO tracked exposure to. Diversifies
+// across the gap sectors first (one per bucket) before backfilling, so 4 cards
+// span the actual gaps rather than piling into a single hot name.
+export function blindSpotSuggestions(
+  rows: Array<{ sector_label?: string }>,
+  candidates: Array<Record<string, unknown>>,
+  limit = 4,
+): Array<Record<string, unknown>> {
+  if (rows.length === 0) return [];
+  const covered = new Set<string>();
+  for (const row of rows) {
+    const bucket = sectorBucket(row.sector_label || "");
+    if (bucket) covered.add(bucket);
+  }
+  // If the user already spans most of the market, there is no meaningful gap.
+  const uncovered = new Set(
+    SECTOR_BUCKETS.map((b) => b.label).filter((label) => !covered.has(label)),
+  );
+  if (uncovered.size === 0) return [];
+
+  // Bucket the (already score-sorted) candidate pool by their gap sector.
+  const byBucket = new Map<string, Array<Record<string, unknown>>>();
+  for (const candidate of candidates) {
+    const bucket = sectorBucket(String(candidate.sector || ""));
+    if (!bucket || !uncovered.has(bucket)) continue;
+    (byBucket.get(bucket) ?? byBucket.set(bucket, []).get(bucket)!).push({
+      ...candidate,
+      blind_spot_sector: bucket,
+    });
+  }
+  if (byBucket.size === 0) return [];
+
+  // Round-robin across gap buckets (highest-scored first within each) so the
+  // cards diversify before doubling up on any one sector.
+  const orderedBuckets = [...byBucket.entries()].sort(
+    (a, b) =>
+      (toNumber(b[1][0]?.personalization_score) ?? 0) -
+      (toNumber(a[1][0]?.personalization_score) ?? 0),
+  );
+  const out: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  let depth = 0;
+  while (out.length < limit) {
+    let advanced = false;
+    for (const [, pool] of orderedBuckets) {
+      const candidate = pool[depth];
+      if (!candidate) continue;
+      advanced = true;
+      const id = String(candidate.instrument_id || "");
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        out.push(candidate);
+        if (out.length >= limit) break;
+      }
+    }
+    if (!advanced) break;
+    depth += 1;
+  }
+  return out;
 }
 
 // LLM-rewrite the `why` line for each top candidate in a single batched call.
@@ -1978,7 +2097,9 @@ export async function buildWatchlistView(
   rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
   const pulse = pulseFromRows(rows);
   const portfolio = await portfolioDiagnostics(rows);
-  const suggestions = await screenSuggestions(rows);
+  const { candidates: suggestionCandidates, ctx: suggestionCtx } = await gatherSuggestionCandidates(rows);
+  const suggestions = await finalizeSuggestions(suggestionCandidates, suggestionCtx);
+  const blindSpotFill = blindSpotSuggestions(rows, suggestionCandidates);
   const holdingsCount = rows.filter((row) => row.position_type === "holding").length;
   const watchlistCount = rows.length - holdingsCount;
 
@@ -1994,6 +2115,7 @@ export async function buildWatchlistView(
     portfolio,
     attention_items: attentionItems(rows),
     suggestions,
+    blind_spot_suggestions: blindSpotFill,
     risk_summary: riskSummary(rows, portfolio),
     event_radar: eventRadar(rows, portfolio),
     changes: changeSummary(rows, previous),
