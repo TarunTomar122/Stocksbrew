@@ -81,3 +81,56 @@ export function groupEventsByReportDate(
     events: groupEvents,
   }));
 }
+
+function parseUtcDateKey(dateKey: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const d = new Date(`${dateKey}T12:00:00.000Z`);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+export function formatUpcomingSectionLabel(dateKey: string, ref = new Date()): string {
+  if (dateKey === "unknown") return "Date unknown";
+  const event = parseUtcDateKey(dateKey);
+  if (!event) return dateKey;
+  const today = new Date(
+    Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate()),
+  );
+  const compare = new Date(event);
+  compare.setUTCHours(0, 0, 0, 0);
+  const diffDays = Math.round((compare.getTime() - today.getTime()) / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays > 1 && diffDays <= 7) return `In ${diffDays} days`;
+  return event.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+export function sortEventsByUpcomingDate(events: MarketEvent[]): MarketEvent[] {
+  return [...events].sort((a, b) => {
+    const dateDiff = parseEventDate(a.event_date) - parseEventDate(b.event_date);
+    if (dateDiff !== 0) return dateDiff;
+    return (b.urgency ?? 0) - (a.urgency ?? 0);
+  });
+}
+
+export function groupUpcomingByReportDate(
+  events: MarketEvent[],
+  ref = new Date(),
+): { dateKey: string; label: string; events: MarketEvent[] }[] {
+  const sorted = sortEventsByUpcomingDate(events);
+  const groups = new Map<string, MarketEvent[]>();
+  for (const event of sorted) {
+    const key = event.event_date?.trim() || "unknown";
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(event);
+    else groups.set(key, [event]);
+  }
+  return [...groups.entries()].map(([dateKey, groupEvents]) => ({
+    dateKey,
+    label: formatUpcomingSectionLabel(dateKey, ref),
+    events: groupEvents,
+  }));
+}

@@ -28,7 +28,6 @@ export async function GET() {
     ["/news", "0.9", "hourly"],
     ["/screens", "0.9", "daily"],
     ["/blog", "0.7", "weekly"],
-    ["/watchlist", "0.7", "daily"],
     ["/subscribe", "0.7", "weekly"],
     ["/about", "0.5", "monthly"],
     ["/learn", "0.8", "weekly"],
@@ -94,11 +93,17 @@ export async function GET() {
           const sym = String(r.symbol ?? "").toUpperCase();
           if (!sym || seen.has(sym)) continue;
           seen.add(sym);
-          entries.push(url(`/stock/${encodeURIComponent(sym)}`, "0.8", "daily"));
+          entries.push(
+            url(`/stock/${encodeURIComponent(sym)}`, "0.8", "daily"),
+          );
         }
-      } catch { /* market may not exist */ }
+      } catch {
+        /* market may not exist */
+      }
     }
-  } catch { /* Firestore may be unreachable */ }
+  } catch {
+    /* Firestore may be unreachable */
+  }
 
   // Sector pages
   try {
@@ -110,11 +115,17 @@ export async function GET() {
           const id = String(d.sector_id ?? "").trim();
           if (!id || secSeen.has(id)) continue;
           secSeen.add(id);
-          entries.push(url(`/sector/${encodeURIComponent(id)}`, "0.7", "daily"));
+          entries.push(
+            url(`/sector/${encodeURIComponent(id)}`, "0.7", "daily"),
+          );
         }
-      } catch { /* market may not exist */ }
+      } catch {
+        /* market may not exist */
+      }
     }
-  } catch { /* Firestore may be unreachable */ }
+  } catch {
+    /* Firestore may be unreachable */
+  }
 
   // Screen pages
   try {
@@ -126,11 +137,17 @@ export async function GET() {
         for (const s of doc.screens) {
           if (!s.id || scrSeen.has(s.id)) continue;
           scrSeen.add(s.id);
-          entries.push(url(`/screens/${encodeURIComponent(s.id)}`, "0.7", "daily"));
+          entries.push(
+            url(`/screens/${encodeURIComponent(s.id)}`, "0.7", "daily"),
+          );
         }
-      } catch { /* market may not exist */ }
+      } catch {
+        /* market may not exist */
+      }
     }
-  } catch { /* Firestore may be unreachable */ }
+  } catch {
+    /* Firestore may be unreachable */
+  }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>`;
 

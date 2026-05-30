@@ -19,7 +19,6 @@ type Props = {
   holdings: import("@/lib/watchlist-view").WatchlistRow[];
   watching: import("@/lib/watchlist-view").WatchlistRow[];
   suggestions: Suggestion[];
-  upNextSlot: React.ReactNode;
   earningsReadySlot?: React.ReactNode;
   alertsSlot: React.ReactNode;
   belowLedgerSlot?: React.ReactNode;
@@ -29,7 +28,6 @@ export function YourBookLayout({
   holdings,
   watching,
   suggestions,
-  upNextSlot,
   earningsReadySlot,
   alertsSlot,
   belowLedgerSlot,
@@ -56,10 +54,10 @@ export function YourBookLayout({
         />
       </div>
 
-      {/* 2-col grid: table (fluid) + right rail (fixed) — tops aligned */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
+      {/* Table scroll stays in left column; rail never clips on mid-size desktops */}
+      <div className="grid w-full min-w-0 grid-cols-1 gap-5 items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
         {/* Left col: ledger + optional below-ledger slot */}
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <RadarLedger
             holdings={holdings}
             watching={watching}
@@ -71,8 +69,7 @@ export function YourBookLayout({
         </div>
 
         {/* Right rail */}
-        <div className="flex flex-col gap-4">
-          {upNextSlot}
+        <div className="flex min-w-0 w-full flex-col gap-4">
           {earningsReadySlot}
           {alertsSlot}
         </div>

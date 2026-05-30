@@ -531,7 +531,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 w-full flex-col gap-4">
       {/* Tab pills — only when uncontrolled */}
       {!controlled && (
         <div className="flex items-center justify-between gap-2">
@@ -593,7 +593,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
           </div>
 
           {/* ── Desktop table (≥ md) ── */}
-          <div className="hidden md:block rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+          <div className="hidden md:block min-w-0 w-full rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
             <DailySummary
               rows={rows}
               label={tab === "holdings" ? "Holdings" : "Watching"}
@@ -611,8 +611,8 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                 )
               ) : undefined}
             />
-            <div className="overflow-x-auto overflow-y-auto max-h-[540px]">
-              <table className="w-full min-w-[800px] border-collapse text-[13px]">
+            <div className="min-w-0 overflow-x-auto overflow-y-auto max-h-[540px]">
+              <table className="w-full min-w-[720px] border-collapse text-[13px] xl:min-w-[800px]">
                 <thead className="sticky top-0 z-10 bg-white">
                   <tr className="border-b border-[#f3f4f6] text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
                     <th className="px-4 py-3 font-semibold">Ticker</th>

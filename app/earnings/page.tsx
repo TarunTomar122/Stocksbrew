@@ -6,17 +6,23 @@ import { getCurrentMarket } from "@/lib/market";
 
 export const metadata: Metadata = {
   title: "Earnings Calendar | stocksbrew",
-  description: "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
+  description:
+    "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
+  alternates: { canonical: "/earnings" },
   openGraph: {
     title: "Earnings Calendar | stocksbrew",
-    description: "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
+    description:
+      "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
+    url: "https://www.stocksbrew.online/earnings",
   },
 };
 
 export default async function EarningsPage() {
   const market = getCurrentMarket();
   const searchIndex = await getSearchIndex(market).catch(() => []);
-  const universeTickers = new Set(searchIndex.map((e) => e.ticker.toUpperCase()));
+  const universeTickers = new Set(
+    searchIndex.map((e) => e.ticker.toUpperCase()),
+  );
 
   return (
     <main className="flex-grow">
@@ -29,7 +35,9 @@ export default async function EarningsPage() {
             Earnings Calendar
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
-            See which companies in our top 500 universe are reporting earnings this month. Covers pre-market, after-close, and during-market reports with EPS estimates at a glance.
+            See which companies are reporting earnings
+            this month. Covers pre-market, after-close, and during-market
+            reports with EPS estimates at a glance.
           </p>
         </header>
 
@@ -38,7 +46,14 @@ export default async function EarningsPage() {
         {/* Cross-link to Blog */}
         <div className="w-full max-w-[960px] rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-6 text-center">
           <p className="text-[14px] text-[#6b7280] mb-3">
-            New to earnings tracking? Read our guide on <Link href="/blog/earnings-calendar-for-my-watchlist" className="text-[#0052ff] font-medium hover:underline">how to never miss earnings again</Link>.
+            New to earnings tracking? Read our guide on{" "}
+            <Link
+              href="/blog/earnings-calendar-for-my-watchlist"
+              className="text-[#0052ff] font-medium hover:underline"
+            >
+              how to never miss earnings again
+            </Link>
+            .
           </p>
         </div>
       </div>

@@ -51,14 +51,6 @@ export type ActivityEvent = {
   evidence: string[];
 };
 
-export type UpNextItem = {
-  ticker: string;
-  title: string;
-  window: string;
-  urgency: "high" | "med" | "low" | "";
-  isEarnings?: boolean;
-};
-
 export type TapeItem = {
   ticker: string;
   body: string;
@@ -232,127 +224,6 @@ export function byAttention(a: WatchlistRow, b: WatchlistRow): number {
   const d = radarSignalCount(b) - radarSignalCount(a);
   if (d !== 0) return d;
   return Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0);
-}
-
-const MONTH_TO_INDEX: Record<string, number> = {
-  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
-};
-
-function parseEarningsIsoDate(catalyst: Dict, title: string, window: string): string | null {
-  const candidates = [
-    text(catalyst.date), text(catalyst.date_label), text(catalyst.window),
-    title.replace(/^earnings\s+/i, "").trim(), window,
-  ].filter(Boolean);
-  for (const raw of candidates) {
-    const iso = raw.split("T", 1)[0];
-    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  }
-  for (const raw of candidates) {
-    const textVal = raw.toLowerCase().replaceAll(",", " ").replaceAll("amc", "").replaceAll("bmo", "")
-      .replaceAll("after close", "").replaceAll("before open", "").replace(/\s+/g, " ").trim();
-    const parts = textVal.split(" ").filter(Boolean);
-    if (parts.length < 2) continue;
-    const month = MONTH_TO_INDEX[parts[0].slice(0, 3)];
-    const day = Number(parts[1]);
-    if (month === undefined || !Number.isFinite(day)) continue;
-    const now = new Date();
-    let year = now.getUTCFullYear();
-    if (parts.length >= 3) { const parsedYear = Number(parts[2]); if (Number.isFinite(parsedYear)) year = parsedYear; }
-    let eventDate = new Date(Date.UTC(year, month, day));
-    if (parts.length < 3) {
-      const todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-      const deltaDays = Math.round((eventDate.getTime() - todayTs) / 86_400_000);
-      if (deltaDays < -180) eventDate = new Date(Date.UTC(year + 1, month, day));
-      else if (deltaDays > 180) eventDate = new Date(Date.UTC(year - 1, month, day));
-    }
-    return eventDate.toISOString().slice(0, 10);
-  }
-  return null;
-}
-
-function earningsUpNextKey(ticker: string, title: string, window: string, catalyst: Dict): string {
-  const iso = parseEarningsIsoDate(catalyst, title, window);
-  if (iso) return `${ticker}|earnings|${iso}`;
-  const fallback = title.replace(/^earnings\s+/i, "").trim() || window;
-  return `${ticker}|earnings|${fallback.toLowerCase()}`;
-}
-
-function dedupeUpNextItems(items: UpNextItem[], catalystByIndex: Dict[]): UpNextItem[] {
-  const urgencyRank: Record<string, number> = { high: 3, med: 2, low: 1, "": 0 };
-  const byKey = new Map<string, UpNextItem>();
-  items.forEach((item, index) => {
-    const key = item.isEarnings
-      ? earningsUpNextKey(item.ticker, item.title, item.window, catalystByIndex[index] ?? {})
-      : `${item.ticker}|${item.title}|${item.window}`;
-    const prev = byKey.get(key);
-    if (!prev) { byKey.set(key, item); return; }
-    const prevSoon = prev.window.toLowerCase() === "soon";
-    const nextSoon = item.window.toLowerCase() === "soon";
-    let chosen = prev;
-    if (prevSoon && !nextSoon) chosen = item;
-    else if (!prevSoon && nextSoon) chosen = prev;
-    else if ((urgencyRank[item.urgency] ?? 0) > (urgencyRank[prev.urgency] ?? 0)) chosen = item;
-    else if (!prevSoon && !nextSoon && item.title.length > prev.title.length) chosen = item;
-    const other = chosen === item ? prev : item;
-    byKey.set(key, { ...chosen, title: chosen.title.length >= other.title.length ? chosen.title : other.title });
-  });
-  return [...byKey.values()];
-}
-
-export function buildUpNext(rows: WatchlistRow[]): UpNextItem[] {
-  const isCurrentEventWindow = (raw: string): boolean => {
-    const textVal = raw.trim();
-    if (!textVal) return false;
-    const iso = textVal.split("T", 1)[0];
-    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-      const now = new Date();
-      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      const eventDate = new Date(`${iso}T00:00:00.000Z`);
-      const delta = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
-      return delta >= -1 && delta <= 45;
-    }
-    const parts = textVal.toLowerCase().replaceAll(",", " ").replaceAll("amc", "").replaceAll("bmo", "")
-      .replaceAll("after close", "").replaceAll("before open", "").split(/\s+/).filter(Boolean);
-    if (parts.length < 2) return false;
-    const month = MONTH_TO_INDEX[parts[0].slice(0, 3)];
-    const day = Number(parts[1]);
-    if (month === undefined || !Number.isFinite(day)) return false;
-    const now = new Date();
-    let year = now.getUTCFullYear();
-    if (parts.length >= 3) { const parsedYear = Number(parts[2]); if (Number.isFinite(parsedYear)) year = parsedYear; }
-    let eventDate = new Date(Date.UTC(year, month, day));
-    if (parts.length < 3) {
-      const todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-      const deltaDays = Math.round((eventDate.getTime() - todayTs) / 86_400_000);
-      if (deltaDays < -180) eventDate = new Date(Date.UTC(year + 1, month, day));
-      else if (deltaDays > 180) eventDate = new Date(Date.UTC(year - 1, month, day));
-    }
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const delta = Math.round((eventDate.getTime() - today.getTime()) / 86_400_000);
-    return delta >= -1 && delta <= 45;
-  };
-  const out: UpNextItem[] = [];
-  const catalystsForOut: Dict[] = [];
-  for (const r of rows) {
-    for (const c of (r.catalysts ?? []) as Dict[]) {
-      const title = text(c.title ?? c.kind);
-      if (!title) continue;
-      const kind = text(c.kind).toLowerCase();
-      if (kind === "earnings") {
-        const windowCandidate = text(c.date) || text(c.date_label) || text(c.window) || title.replace(/^earnings\s+/i, "");
-        if (!isCurrentEventWindow(windowCandidate)) continue;
-      }
-      const window = text(c.window) || text(c.date_label) || "soon";
-      const urgency = text(c.urgency).toLowerCase() as UpNextItem["urgency"];
-      out.push({ ticker: r.ticker, title, window, urgency, isEarnings: kind === "earnings" });
-      catalystsForOut.push(c);
-    }
-  }
-  const deduped = dedupeUpNextItems(out, catalystsForOut);
-  const urgencyRank: Record<string, number> = { high: 3, med: 2, low: 1, "": 0 };
-  deduped.sort((a, b) => (urgencyRank[b.urgency] ?? 0) - (urgencyRank[a.urgency] ?? 0));
-  return deduped.slice(0, 10);
 }
 
 export function flattenAlerts(rows: WatchlistRow[]): FlatAlert[] {
@@ -840,8 +711,8 @@ function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: D
 // § 01 · YOUR BOOK
 // =============================================================================
 
-export function YourBookSection({ holdings, watching, upNext, earningsReadyThisWeek, bookEvents, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
-  holdings: WatchlistRow[]; watching: WatchlistRow[]; upNext: UpNextItem[];
+export function YourBookSection({ holdings, watching, earningsReadyThisWeek, bookEvents, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
+  holdings: WatchlistRow[]; watching: WatchlistRow[];
   earningsReadyThisWeek: EarningsIntelDoc[]; bookEvents: RadarActivityEvent[]; suggestions: Dict[];
   isSubscribed: boolean; trackedCount: number; refreshing?: boolean; portfolio?: Dict;
 }) {
@@ -864,9 +735,9 @@ export function YourBookSection({ holdings, watching, upNext, earningsReadyThisW
     <section className="flex flex-col gap-6">
       <SectionOpener number="01" title="Your book" meta={`${holdings.length} held · ${watching.length} watching`} refreshing={refreshing} />
       <PositionAwareState holdings={holdings} portfolio={portfolio} />
+      <div className="min-w-0 w-full">
       <YourBookLayout
         holdings={holdings} watching={watching} suggestions={suggestionList}
-        upNextSlot={<UpNextPanel items={upNext} />}
         earningsReadySlot={earningsReadyThisWeek.length > 0 ? <RadarEarningsReadyBanner docs={earningsReadyThisWeek} /> : null}
         alertsSlot={<BookEventsPanel events={bookEvents} />}
         belowLedgerSlot={atLimit ? (
@@ -900,6 +771,7 @@ export function YourBookSection({ holdings, watching, upNext, earningsReadyThisW
           </div>
         ) : undefined}
       />
+      </div>
     </section>
   );
 }
@@ -972,40 +844,6 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
             </div>
           ))}
         </div>
-      )}
-    </div>
-  );
-}
-
-function UpNextPanel({ items }: { items: UpNextItem[] }) {
-  return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#eff6ff] text-[14px]">⏰</span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#1e3a8a]">Up Next</span>
-        </div>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">{items.length}</span>
-      </div>
-      {items.length === 0 ? (
-        <p className="text-[12px] italic text-[#9ca3af]">Nothing scheduled on tracked names.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-[#f3f4f6]">
-          {items.slice(0, 4).map((item, i) => (
-            <li key={`up-${i}`} className="py-2.5 first:pt-0 last:pb-0">
-              <Link href={`/stock/${encodeURIComponent(item.ticker)}`} className="flex items-start gap-2.5 group">
-                <StockLogo ticker={item.ticker} market="US" size={28} />
-                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">{item.ticker}</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">{item.window}</span>
-                  </div>
-                  <span className="text-[11.5px] text-[#6b7280] leading-snug">{item.title}</span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
       )}
     </div>
   );

@@ -2,6 +2,15 @@ import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
   title: "Cookie policy · stocksbrew",
+  description:
+    "What cookies stocksbrew uses, why we use them, and how to manage them. No tracking ads.",
+  alternates: { canonical: "/legal/cookies" },
+  openGraph: {
+    title: "Cookie policy · stocksbrew",
+    description:
+      "What cookies stocksbrew uses, why we use them, and how to manage them.",
+    url: "https://www.stocksbrew.online/legal/cookies",
+  },
 };
 
 export default function CookiesPage() {

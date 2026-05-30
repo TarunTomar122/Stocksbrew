@@ -11,6 +11,7 @@ import { DataQualityStrip } from "@/components/data-quality-strip";
 import { PeersRow } from "@/components/peers-row";
 import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
+import { PreEarningsSetupCard } from "@/components/pre-earnings-setup-card";
 import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { StockPageTabs } from "@/components/stock-page-tabs";
 import { StockScrollRail } from "@/components/stock-scroll-rail";
@@ -46,6 +47,7 @@ import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
+import { getPreEarningsIntelUpcoming } from "@/lib/pre-earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 60;
@@ -182,6 +184,7 @@ export default async function StockPage({ params }: Props) {
     redditSnapshot,
     onDemandJob,
     earningsIntel,
+    preEarningsIntel,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -198,6 +201,7 @@ export default async function StockPage({ params }: Props) {
     getRedditCues(market).catch(() => null),
     getOnDemandNewsJob(stock.instrument_id).catch(() => null),
     getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null),
+    getPreEarningsIntelUpcoming(market, stock.instrument_id).catch(() => null),
   ]);
   const redditTickerContext = resolveRedditContextForSymbol(redditSnapshot, stock.ticker);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
@@ -248,6 +252,11 @@ export default async function StockPage({ params }: Props) {
   const overviewContent = (
     <section className="flex flex-col gap-10">
       {anomaly && <AnomalyBanner anomaly={anomaly} />}
+      {subscribed && preEarningsIntel ? (
+        <a href="#stock-section-earnings" className="block scroll-mt-32">
+          <PreEarningsSetupCard doc={preEarningsIntel} ticker={stock.ticker} compact />
+        </a>
+      ) : null}
       <SignalDeck
         facts={stockFacts}
         intelPro={intelPro}
@@ -338,9 +347,27 @@ export default async function StockPage({ params }: Props) {
   const showCards = hasAI && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
   const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
 
-  const earningsContent = earningsIntel ? (
-    <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} />
-  ) : null;
+  const hasEarningsContent = Boolean(preEarningsIntel || earningsIntel);
+  const earningsContent = !hasEarningsContent ? null : subscribed ? (
+    <div className="flex flex-col gap-10">
+      {preEarningsIntel ? (
+        <PreEarningsSetupCard doc={preEarningsIntel} ticker={stock.ticker} />
+      ) : null}
+      {preEarningsIntel && earningsIntel ? (
+        <div className="flex flex-col gap-2 pt-4 border-t-2 border-[#e5e7eb]">
+          <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+            After the print
+          </p>
+        </div>
+      ) : null}
+      {earningsIntel ? <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} /> : null}
+    </div>
+  ) : (
+    <PremiumTabLock
+      title="Earnings intel is Pro-only"
+      description="Unlock pre-earnings setups and post-earnings reads: expected EPS, likely stock move, and what to do."
+    />
+  );
 
   const aiContent = subscribed ? (
     hasAI ? (

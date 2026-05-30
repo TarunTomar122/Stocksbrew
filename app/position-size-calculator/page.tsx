@@ -5,10 +5,12 @@ export const metadata: Metadata = {
   title: "Position Size Calculator | stocksbrew",
   description:
     "Free position size calculator for stocks. Compute shares, dollar risk, portfolio allocation, and risk/reward ratio based on your account size and stop-loss.",
+  alternates: { canonical: "/position-size-calculator" },
   openGraph: {
     title: "Position Size Calculator | stocksbrew",
     description:
       "Free position size calculator for stocks. Compute shares, dollar risk, portfolio allocation, and risk/reward ratio based on your account size and stop-loss.",
+    url: "https://www.stocksbrew.online/position-size-calculator",
   },
 };
 
@@ -24,7 +26,8 @@ export default function PositionSizeCalculatorPage() {
             Position Size Calculator
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
-            Compute the right position size for any trade based on your account size, risk tolerance, and stop-loss level. No sign-up required.
+            Compute the right position size for any trade based on your account
+            size, risk tolerance, and stop-loss level. No sign-up required.
           </p>
         </header>
 

@@ -136,7 +136,7 @@ export function StockPageTabs({
         >
           {visible.map((t) => {
             const isActive = active === t.key;
-            const locked = !isSubscribed && t.key === "ai";
+            const locked = !isSubscribed && (t.key === "ai" || t.key === "earnings");
             const baseLabel = t.label;
             const baseNarrow = t.narrowLabel ?? t.label;
             return (

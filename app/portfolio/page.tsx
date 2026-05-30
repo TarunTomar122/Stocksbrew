@@ -8,10 +8,12 @@ export const metadata = {
   title: "Portfolio Analyzer | stocksbrew",
   description:
     "Analyze your stock portfolio for free. Paste tickers, search, or upload a screenshot to get sector allocation, factor tilt, risk flags, and opportunities.",
+  alternates: { canonical: "/portfolio" },
   openGraph: {
     title: "Free Portfolio Analyzer | stocksbrew",
     description:
       "Get a full breakdown of your portfolio's sector allocation, factor tilt, risk flags, and opportunities for free.",
+    url: "https://www.stocksbrew.online/portfolio",
   },
 };
 

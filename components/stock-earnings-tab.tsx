@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { EarningsIntelDoc, EarningsIntelScenario } from "@/lib/earnings-intel";
 import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
+import { cleanEarningsProse } from "@/lib/pre-earnings-intel-shared";
 
 function formatEventDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00.000Z`);
@@ -56,26 +57,24 @@ export function StockEarningsTab({ doc, ticker }: Props) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-[#6b7280]">
-          <span className="font-semibold text-[#111111]">Post-earnings brief</span>
-          <span className="text-[#d1d5db]">·</span>
-          <span>Earnings {formatEventDate(doc.event_date)}</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#6b7280]">
+          <span className="font-semibold text-[#111111]">After earnings</span>
+          <span>Reported {formatEventDate(doc.event_date)}</span>
           {confidence != null && Number.isFinite(confidence) ? (
-            <>
-              <span className="text-[#d1d5db]">·</span>
-              <span className="tabular-nums font-semibold text-[#111111]">
-                {Math.round(confidence)} confidence
-              </span>
-            </>
+            <span className="tabular-nums font-semibold text-[#111111]">
+              {Math.round(confidence)}% confidence
+            </span>
           ) : null}
         </div>
 
         <div className="flex flex-col gap-3">
           <h3 className="text-xl md:text-2xl font-semibold tracking-tight text-[#111111] leading-snug">
-            {doc.report?.headline || `${ticker} earnings update`}
+            {cleanEarningsProse(doc.report?.headline || `${ticker} earnings update`)}
           </h3>
           <p className="text-base leading-relaxed text-[#374151]">
-            {doc.report?.summary || "Open the full report for facts, scenarios, and what to do next."}
+            {cleanEarningsProse(
+              doc.report?.summary || "What happened, what it means, and what to do next.",
+            )}
           </p>
         </div>
 
@@ -94,7 +93,7 @@ export function StockEarningsTab({ doc, ticker }: Props) {
                     {f.label}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed text-[#374151]">{f.value}</p>
+                <p className="text-sm leading-relaxed text-[#374151]">{cleanEarningsProse(f.value)}</p>
               </div>
             ))}
           </div>
@@ -173,7 +172,9 @@ export function StockEarningsTab({ doc, ticker }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-widest text-[#9ca3af]">
                   If you hold
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-[#374151]">{holders}</p>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-[#111111]">
+                  {cleanEarningsProse(holders)}
+                </p>
               </div>
             ) : null}
             {watchers ? (
@@ -181,7 +182,9 @@ export function StockEarningsTab({ doc, ticker }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-widest text-[#9ca3af]">
                   If you&apos;re watching
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-[#374151]">{watchers}</p>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-[#111111]">
+                  {cleanEarningsProse(watchers)}
+                </p>
               </div>
             ) : null}
           </div>

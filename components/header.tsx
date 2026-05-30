@@ -310,12 +310,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                     >
                       {item.icon}
                     </span>
-                    {item.pro && !isSubscribed && (
-                      <ProBadge
-                        isSubscribed={isSubscribed}
-                        className={active ? "bg-white/15 text-white border-white/30" : ""}
-                      />
-                    )}
                     <span className="inline-flex items-center gap-1">
                       {item.label}
                       {item.beta && (
@@ -330,6 +324,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                         </span>
                       )}
                     </span>
+                    {item.pro && !isSubscribed && (
+                      <ProBadge
+                        isSubscribed={isSubscribed}
+                        className={active ? "bg-white/15 text-white border-white/30" : ""}
+                      />
+                    )}
                   </Link>
                 );
               })}

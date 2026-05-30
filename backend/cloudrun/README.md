@@ -28,6 +28,8 @@ export FIREBASE_SERVICE_ACCOUNT_JSON="$(cat /abs/path/firebase-service-account.j
 export SERVICE_ACCOUNT_EMAIL="tikrr-runner@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
 export OPENAI_API_KEY="sk-..."
 export OPENAI_MODEL="gpt-4.1-mini"  # cheap default
+# Tavily: set in .env.local or export; deploy-jobs syncs to tikrr-tavily-api-key for all runners
+export TAVILY_API_KEY="tvly-..."
 ```
 
 For scheduler setup:

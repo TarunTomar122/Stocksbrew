@@ -4,6 +4,8 @@ Allow: /
 Disallow: /api/
 Disallow: /profile
 Disallow: /watchlist
+Disallow: /onboarding
+Disallow: /dev/
 Disallow: /_next/
 
 Sitemap: https://www.stocksbrew.online/sitemap.xml

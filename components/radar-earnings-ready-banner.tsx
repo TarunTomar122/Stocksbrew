@@ -18,8 +18,8 @@ export function RadarEarningsReadyBanner({ docs }: Props) {
   const count = docs.length;
 
   return (
-    <div className="rounded-2xl border border-[#e9d5ff] bg-gradient-to-br from-[#faf5ff] to-[#eff6ff] p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
+    <div className="min-w-0 w-full rounded-2xl border border-[#e9d5ff] bg-gradient-to-br from-[#faf5ff] to-[#eff6ff] p-4 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <span
             aria-hidden

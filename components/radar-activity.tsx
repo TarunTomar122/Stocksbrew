@@ -110,7 +110,7 @@ export function BookEventsPanel({ events }: { events: EventItem[] }) {
   const rest = events.slice(3);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+    <div className="flex min-w-0 w-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span

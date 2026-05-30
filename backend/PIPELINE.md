@@ -22,7 +22,8 @@ No legacy fallback to `US` / `IN`.
 | **Prices** | `sync_price_snapshots` | ~500 (`us_core_155`) | ~166 (`in_core_150`) | Market windows (open + intraday cap 80) | `tm_price` |
 | **Fundamentals** | `sync_stock_metrics` (Finviz scrape) | ~500 | ~166 | Every 5 days | `tm_stock_metrics` |
 | **AI briefs + news** | `build_per_stock_intelligence` | 100–500 base + UNION(subscribed tracked) | 150 base + tracked | Daily pre-market | `tm_stock_intelligence`, `tm_articles` |
-| **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_stock_intelligence` |
+| **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_earnings_intel` |
+| **Pre-earnings intel** | `build_pre_earnings_intel` | US universe + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
 | **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Pre-market + on-demand | `tm_watchlist_views` |
 | **On-demand news** | `process_on_demand_news_jobs` | any newly tracked stock | any | Triggered by `/api/track` | `tm_on_demand_news_jobs` |
 

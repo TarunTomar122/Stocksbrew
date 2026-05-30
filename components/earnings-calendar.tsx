@@ -202,7 +202,7 @@ export function EarningsCalendar({ universeTickers }: { universeTickers?: Set<st
                 }`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${universeOnly ? "bg-[#10b981]" : "bg-[#d1d5db]"}`} />
-                Our 500
+                Covered
               </button>
             )}
           </div>

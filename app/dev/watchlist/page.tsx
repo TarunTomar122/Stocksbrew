@@ -7,7 +7,7 @@ import { DevWatchlistPicker } from "@/components/dev-watchlist-picker";
 import { partitionActivityEvents } from "@/lib/activity-events";
 import {
   HeaderStrip, TodaySection, YourBookSection, DiagnosisSection,
-  buildTapeItems, flattenAlerts, buildUpNext, rowDirective, directiveUrgency,
+  buildTapeItems, flattenAlerts, rowDirective, directiveUrgency,
   buildActivityEvents, computePillarAverages, byAttention,
   formatRelative, asDict, tapeStyles,
 } from "@/components/watchlist-sections";
@@ -173,8 +173,6 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
   const watching = rows.filter((r) => r.position_type !== "holding").sort(byAttention);
 
   // Up next
-  const upNext = buildUpNext(rows);
-
   // Earnings
   let earningsReadyThisWeek: EarningsIntelDoc[] = [];
   if (rows.length > 0) {
@@ -233,7 +231,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
               watchlistPositions={watchlistPositions}
             />
             <YourBookSection
-              holdings={holdings} watching={watching} upNext={upNext}
+              holdings={holdings} watching={watching}
               earningsReadyThisWeek={earningsReadyThisWeek} bookEvents={yourBookEvents}
               suggestions={suggestions} isSubscribed={true}
               trackedCount={tracked.length} portfolio={portfolio}
