@@ -20,7 +20,7 @@ type Props = {
   watching: import("@/lib/watchlist-view").WatchlistRow[];
   suggestions: Suggestion[];
   earningsReadySlot?: React.ReactNode;
-  alertsSlot: React.ReactNode;
+  bookEventsSlot?: React.ReactNode;
   belowLedgerSlot?: React.ReactNode;
 };
 
@@ -29,7 +29,7 @@ export function YourBookLayout({
   watching,
   suggestions,
   earningsReadySlot,
-  alertsSlot,
+  bookEventsSlot,
   belowLedgerSlot,
 }: Props) {
   const [tab, setTab] = useState<Tab>(
@@ -55,7 +55,11 @@ export function YourBookLayout({
       </div>
 
       {/* Table scroll stays in left column; rail never clips on mid-size desktops */}
-      <div className="grid w-full min-w-0 grid-cols-1 gap-5 items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
+      <div
+        className={`grid w-full min-w-0 grid-cols-1 gap-5 items-start ${
+          earningsReadySlot ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,280px)]" : ""
+        }`}
+      >
         {/* Left col: ledger + optional below-ledger slot */}
         <div className="flex min-w-0 flex-col gap-4">
           <RadarLedger
@@ -68,12 +72,13 @@ export function YourBookLayout({
           {belowLedgerSlot}
         </div>
 
-        {/* Right rail */}
-        <div className="flex min-w-0 w-full flex-col gap-4">
-          {earningsReadySlot}
-          {alertsSlot}
-        </div>
+        {/* Right rail — earnings banners only */}
+        {earningsReadySlot ? (
+          <div className="flex min-w-0 w-full flex-col gap-4">{earningsReadySlot}</div>
+        ) : null}
       </div>
+
+      {bookEventsSlot ? <div className="min-w-0 w-full">{bookEventsSlot}</div> : null}
     </div>
   );
 }

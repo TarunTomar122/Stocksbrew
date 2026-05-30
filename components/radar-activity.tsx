@@ -105,12 +105,19 @@ function BookEventCompactRow({ event }: { event: EventItem }) {
   );
 }
 
-export function BookEventsPanel({ events }: { events: EventItem[] }) {
-  const headline = events.slice(0, 3);
-  const rest = events.slice(3);
+export function BookEventsPanel({
+  events,
+  layout = "rail",
+}: {
+  events: EventItem[];
+  layout?: "rail" | "full";
+}) {
+  const headlineCount = layout === "full" ? 6 : 3;
+  const headline = events.slice(0, headlineCount);
+  const rest = events.slice(headlineCount);
 
   return (
-    <div className="flex min-w-0 w-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+    <div className="flex min-w-0 w-full flex-col gap-3 p-0 sm:p-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
@@ -133,13 +140,25 @@ export function BookEventsPanel({ events }: { events: EventItem[] }) {
         </p>
       ) : (
         <>
-          <div className="flex flex-col gap-2.5">
+          <div
+            className={
+              layout === "full"
+                ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                : "flex flex-col gap-2.5"
+            }
+          >
             {headline.map((event, i) => (
               <BookEventCard key={`book-${i}-${event.symbol || event.event_type}`} event={event} />
             ))}
           </div>
           {rest.length > 0 && (
-            <ul className="flex flex-col">
+            <ul
+              className={
+                layout === "full"
+                  ? "grid grid-cols-1 gap-0 border-t border-[#f3f4f6] pt-3 sm:grid-cols-2 lg:grid-cols-3"
+                  : "flex flex-col"
+              }
+            >
               {rest.map((event, i) => (
                 <BookEventCompactRow
                   key={`book-rest-${i}-${event.symbol || event.event_type}`}

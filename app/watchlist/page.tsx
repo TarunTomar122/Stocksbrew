@@ -5,7 +5,6 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
 import { scrubLegacyBrand } from "@/lib/brand";
 import { getWatchlistView } from "@/lib/watchlist-view";
-import { getTrendingSignals, type TrendingSignal } from "@/lib/trending-signals";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
@@ -306,17 +305,6 @@ export default async function WatchlistPage() {
     }
   }
 
-  // Live "what's moving / what's loud" rail, read straight from the anomaly +
-  // reddit snapshots so it surfaces big movers and Reddit buzz even when the
-  // precomputed view doc is stale. Excludes names already in the user's book.
-  const userMarkets = Array.from(
-    new Set(rows.map((r) => (r.market === "IN" ? "IN" : "US"))),
-  ) as Array<"US" | "IN">;
-  const { movers: trendingMovers, buzz: trendingBuzz } = await getTrendingSignals(
-    userMarkets.length > 0 ? userMarkets : (["US"] as Array<"US" | "IN">),
-    new Set(tracked),
-  ).catch(() => ({ movers: [] as TrendingSignal[], buzz: [] as TrendingSignal[] }));
-
   // ── portfolio score + pillar averages ───────────────────────────────────────
   const pillarAverages = computePillarAverages(rows);
   const factorTilt = asDict(portfolio.factor_tilt);
@@ -414,8 +402,6 @@ export default async function WatchlistPage() {
           topDirective={topDirective}
           secondaryDirectives={secondaryDirectives}
           suggestions={suggestions}
-          trendingMovers={trendingMovers}
-          trendingBuzz={trendingBuzz}
           marketEvents={marketWideEvents}
           earningsTickers={earningsTickers}
           refreshing={isTodayRefreshing}
@@ -636,8 +622,6 @@ function TodaySection({
   topDirective,
   secondaryDirectives,
   suggestions,
-  trendingMovers = [],
-  trendingBuzz = [],
   marketEvents = [],
   earningsTickers = new Set(),
   refreshing,
@@ -647,20 +631,15 @@ function TodaySection({
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
   suggestions: Dict[];
-  trendingMovers?: TrendingSignal[];
-  trendingBuzz?: TrendingSignal[];
   marketEvents?: RadarActivityEvent[];
   earningsTickers?: Set<string>;
   refreshing?: boolean;
   trackedIds?: Set<string>;
 }) {
-  const hasTrending = trendingMovers.length > 0 || trendingBuzz.length > 0;
-  // If we have no directives at all, fall back to brief-only display
   if (
     !topDirective &&
     (!brief?.narrative || !brief.narrative.trim()) &&
-    marketEvents.length === 0 &&
-    !hasTrending
+    marketEvents.length === 0
   ) {
     return null;
   }
@@ -681,47 +660,6 @@ function TodaySection({
           {brief.narrative}
         </p>
       )}
-
-      {/* Moving & buzzing now — live anomaly movers + Reddit buzz pulled straight
-          from the signal snapshots, so the Radar always has "this went crazy
-          today" / "Reddit is loud about this" energy regardless of view freshness. */}
-      {(() => {
-        const seen = new Set<string>();
-        const trending = [...trendingMovers, ...trendingBuzz]
-          .filter((s) => {
-            if (!s.ticker || seen.has(s.instrument_id)) return false;
-            seen.add(s.instrument_id);
-            return true;
-          })
-          .slice(0, 8);
-        if (trending.length === 0) return null;
-        return (
-          <div className="mb-4 flex flex-col gap-3 md:mb-6">
-            <div className="flex items-center gap-2">
-              <span aria-hidden className="relative flex h-2 w-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f97316] opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f97316]" />
-              </span>
-              <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9a3412]">
-                Moving &amp; buzzing now
-              </span>
-              <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
-                {trending.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {trending.map((s) => (
-                <ExploreDirectiveCard
-                  key={`trend-${s.instrument_id}`}
-                  suggestion={s as unknown as Dict}
-                  isTracked={trackedIds.has(s.instrument_id)}
-                  earningsTickers={earningsTickers}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Primary directive — feature card with ticker header */}
       {topDirective && (
@@ -1211,7 +1149,7 @@ function YourBookSection({
             </div>
           ) : null
         }
-        alertsSlot={<BookEventsPanel events={bookEvents} />}
+        bookEventsSlot={<BookEventsPanel events={bookEvents} layout="full" />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             {/* Subtle gradient glow */}

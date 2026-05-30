@@ -739,7 +739,7 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, boo
       <YourBookLayout
         holdings={holdings} watching={watching} suggestions={suggestionList}
         earningsReadySlot={earningsReadyThisWeek.length > 0 ? <RadarEarningsReadyBanner docs={earningsReadyThisWeek} /> : null}
-        alertsSlot={<BookEventsPanel events={bookEvents} />}
+        bookEventsSlot={<BookEventsPanel events={bookEvents} layout="full" />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(129,140,248,0.25)_0%,transparent_55%)]" />
