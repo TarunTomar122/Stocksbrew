@@ -14,7 +14,6 @@ import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { RadarEarningsReadyBanner } from "@/components/radar-earnings-ready-banner";
 import { BuildingStateRefresher } from "@/components/building-state-refresher";
 import { scrubLegacyBrand } from "@/lib/brand";
-import type { SearchEntry } from "@/lib/search";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { PortfolioExposure, PortfolioScenario } from "@/lib/portfolio-scenarios";
 
@@ -432,12 +431,11 @@ export function LiveTape({ items }: { items: TapeItem[] }) {
 // HEADER STRIP
 // =============================================================================
 
-export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, trackedCount, searchIndex, watchlistPositions }: {
+export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, trackedCount, watchlistPositions }: {
   rows: WatchlistRow[]; builtAt?: string; pulse: WatchlistPulse | null;
   tapeItems: TapeItem[]; isSubscribed: boolean; trackedCount: number;
-  searchIndex: SearchEntry[]; watchlistPositions: Record<string, "holding" | "watchlist">;
+  watchlistPositions: Record<string, "holding" | "watchlist">;
 }) {
-  const searchByInstrumentId = new Map(searchIndex.map((entry) => [entry.instrument_id, entry] as const));
   const atLimit = !isSubscribed && rows.length >= 3;
   return (
     <header className="flex flex-col gap-4">
@@ -472,10 +470,10 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
             </Link>
           ) : (
             <RadarBatchEditModal
-              searchIndex={searchIndex} isSubscribed={isSubscribed}
+              isSubscribed={isSubscribed}
               initialItems={rows.map((r) => ({
                 instrument_id: r.instrument_id, ticker: r.ticker,
-                name: searchByInstrumentId.get(r.instrument_id)?.name || r.ticker,
+                name: r.ticker,
                 position_type: watchlistPositions[r.instrument_id] === "holding" ? "holding" : "watchlist",
                 holding: r.holding ? {
                   quantity: r.holding.quantity ?? null, market_value: r.holding.market_value ?? null,
@@ -802,8 +800,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
   }
   if (state === "partial") {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
-        <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#f59e0b]" />
+      <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <p className="text-[12px] font-semibold text-[#92400e]">{enteredCount} of {totalHoldings} holdings have shares entered</p>
           <p className="text-[11px] text-[#b45309] leading-snug">Fill in all holdings to enable dollar-weighted scores, sector allocation, and position-aware risk flags.</p>

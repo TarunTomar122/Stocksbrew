@@ -60,6 +60,9 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
 
 
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
+    # `limit` only caps the ranked runtime core. Price-core overrides are the
+    # extended high-priority coverage set and must be included for every
+    # price-core phase, including intraday.
     ranked = _rank_instruments(store, market, universe_id, limit)
     ids: list[str] = []
     seen: set[str] = set()
@@ -270,6 +273,8 @@ def main() -> None:
             "reddit_buzz",
             "zone_briefs",
             "market_events",
+            "data_health",
+            "stock_facts",
             "market_open_email",
             "earnings_intel",
             "pre_earnings_intel",
@@ -293,9 +298,11 @@ def main() -> None:
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--on-demand-broad-cap", type=int, default=0)
     parser.add_argument("--query", default="")
+    parser.add_argument("--prioritize-query", default="")
     parser.add_argument("--recent-days", type=int, default=3)
     parser.add_argument("--upcoming-days", type=int, default=7)
     parser.add_argument("--max-events", type=int, default=20)
+    parser.add_argument("--skip-if-fresh-hours", type=int, default=0)
     parser.add_argument("--model", default="")
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
@@ -332,6 +339,8 @@ def main() -> None:
         "reddit_buzz": os.getenv("REDDIT_BUZZ_JOB_NAME", "tikrr-reddit-buzz"),
         "zone_briefs": os.getenv("ZONE_BRIEFS_JOB_NAME", "tikrr-zone-briefs"),
         "market_events": os.getenv("MARKET_EVENTS_JOB_NAME", "tikrr-market-events"),
+        "data_health": os.getenv("DATA_HEALTH_JOB_NAME", "tikrr-data-health"),
+        "stock_facts": os.getenv("STOCK_FACTS_JOB_NAME", "tikrr-stock-facts"),
         "market_open_email": os.getenv("MARKET_OPEN_EMAIL_JOB_NAME", "tikrr-market-open-email"),
         "earnings_intel": os.getenv("EARNINGS_INTEL_JOB_NAME", "tikrr-earnings-intel"),
         "pre_earnings_intel": os.getenv(
@@ -400,7 +409,11 @@ def main() -> None:
                 store=store,
             )
             summary["home_refresh"] = home_refresh
-        should_refresh_watchlists = args.refresh_watchlists or args.lane in {"price_core_open", "price_core_intraday"}
+        # Price-core lanes own prices plus shared home/dashboard materialization.
+        # User watchlists are rebuilt by tracked_open_briefs and market_open_email
+        # shortly after open, and by post-close/on-demand flows. Rebuilding them
+        # here duplicates broad per-user work without adding coverage.
+        should_refresh_watchlists = args.refresh_watchlists
         if should_refresh_watchlists:
             summary["watchlist_refresh"] = _refresh_watchlist_views(
                 run_id=run_id,
@@ -488,10 +501,13 @@ def main() -> None:
                 str(args.on_demand_broad_cap),
             ]
         elif args.lane == "stock_requests":
-            single_extra_args = ["--limit", str(args.limit)]
+            single_extra_args = ["--limit", str(max(1, args.limit))]
             query = str(args.query or "").strip().upper()
+            prioritize = str(args.prioritize_query or "").strip().upper()
             if query:
                 single_extra_args.extend(["--query", query])
+            if prioritize:
+                single_extra_args.extend(["--prioritize-query", prioritize])
         elif args.lane == "earnings_intel":
             single_extra_args = [
                 "--recent-days",
@@ -519,6 +535,15 @@ def main() -> None:
             ]
         elif args.lane == "market_events":
             single_extra_args = ["--limit", str(max(1, args.limit))]
+            if args.skip_if_fresh_hours > 0:
+                single_extra_args.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
+        elif args.lane == "stock_facts":
+            single_extra_args = [
+                "--limit",
+                str(max(0, args.limit)),
+                "--max-workers",
+                str(max(1, args.max_workers)),
+            ]
         summary = _run_single_job_lane(
             lane=args.lane,
             market=args.market,
@@ -546,6 +571,8 @@ def main() -> None:
         "reddit_buzz",
         "zone_briefs",
         "market_events",
+        "data_health",
+        "stock_facts",
         "market_open_email",
         "earnings_intel",
         "pre_earnings_intel",

@@ -42,10 +42,10 @@ import {
   type StockIntelligenceDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
-import { getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
+import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
-import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
 import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
 import { getPreEarningsIntelUpcoming } from "@/lib/pre-earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -180,8 +180,8 @@ export default async function StockPage({ params }: Props) {
     stockFacts,
     marketMovers,
     priceCoreOverrides,
-    anomaliesDoc,
-    redditSnapshot,
+    anomaly,
+    redditTickerContext,
     onDemandJob,
     earningsIntel,
     preEarningsIntel,
@@ -197,21 +197,17 @@ export default async function StockPage({ params }: Props) {
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
     getPriceCoreOverrides(market).catch(() => [] as string[]),
-    getDailyAnomalies(market).catch(() => null),
-    getRedditCues(market).catch(() => null),
+    getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
+    getRedditContextForTicker(market, stock.ticker).catch(() => null),
     getOnDemandNewsJob(stock.instrument_id).catch(() => null),
     getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null),
     getPreEarningsIntelUpcoming(market, stock.instrument_id).catch(() => null),
   ]);
-  const redditTickerContext = resolveRedditContextForSymbol(redditSnapshot, stock.ticker);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);
   const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
   const isHighFrequencyEligible = inPriorityCohort || inExtendedOverrides;
   const showPriorityNotice = priorityIds.length > 0 && !isHighFrequencyEligible;
-  const anomaly = anomaliesDoc?.anomalies.find(
-    (a) => a.ticker?.toUpperCase() === stock.ticker.toUpperCase(),
-  ) ?? null;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
   // If the on-demand job says "complete" but no intelligence doc was produced

@@ -7,6 +7,7 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
+import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
 import { sendTransactionalEmail, buildFirstRadarItemEmail, firstNameFromEmail } from "@/lib/brevo";
 
 import { FieldValue } from "firebase-admin/firestore";
@@ -253,6 +254,20 @@ export async function POST(req: NextRequest) {
       uid: session.uid,
       instrument_id: instrumentId,
     });
+    if (queued) {
+      await triggerDispatchLane({
+        lane: "on_demand_news",
+        market: marketFromInstrumentId(instrumentId),
+        limit: 3,
+        extraArgs: ["--per-stock-cap", "6"],
+      }).catch((error) => {
+        trackApiLog(traceId, "warn", "on_demand_news_dispatch_failed", {
+          uid: session.uid,
+          instrument_id: instrumentId,
+          error: String(error),
+        });
+      });
+    }
 
     if (current.length === 0 && isSubscribed && session.email) {
       maybeFireFirstRadarItemEmail(traceId, session.uid, session.email).catch(() => undefined);

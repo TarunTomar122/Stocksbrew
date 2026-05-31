@@ -6,6 +6,7 @@
     "backend:build-news-intel": "python3 -m backend.scripts.build_news_intelligence --market US --universe us_core_155 --max-articles 18",
     "backend:build-news-intel:100": "python3 -m backend.scripts.build_news_intelligence --market US --universe us_core_100 --max-articles 48",
     "backend:build-divergence": "python3 -m backend.scripts.build_divergence --market US",
+    "backend:audit-data-health": "python3 -m backend.scripts.audit_data_health --market US",
     "backend:refresh-radar-profiles": "python3 -m backend.scripts.refresh_user_radar_profiles --no-llm",
     "backend:repair-watchlist-positions": "python3 -m backend.scripts.repair_watchlist_position_fields",
     "backend:build-per-stock:us": "python3 -m backend.scripts.build_per_stock_intelligence --market US --universe us_core_155",

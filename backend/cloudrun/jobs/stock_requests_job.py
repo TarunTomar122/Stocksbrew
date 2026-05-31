@@ -13,6 +13,7 @@ def main() -> None:
     parser.add_argument("--universe", required=True)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--query", default="")
+    parser.add_argument("--prioritize-query", default="")
     args = parser.parse_args()
 
     cmd = [
@@ -25,8 +26,11 @@ def main() -> None:
         str(max(1, args.limit)),
     ]
     query = str(args.query or "").strip().upper()
+    prioritize = str(args.prioritize_query or "").strip().upper()
     if query:
         cmd.extend(["--query", query])
+    if prioritize:
+        cmd.extend(["--prioritize-query", prioritize])
 
     print(
         {

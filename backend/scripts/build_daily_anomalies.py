@@ -19,6 +19,59 @@ def _today_utc() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
+def _ticker_context_doc_id(market: str, ticker: str) -> str:
+    return f"{market.upper()}__{str(ticker or '').strip().upper()}"
+
+
+def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict[str, Any]) -> None:
+    """Write per-ticker anomaly docs so stock pages avoid the full anomalies feed."""
+    market_key = market.upper()
+    rows = [row for row in (payload.get("anomalies") or []) if isinstance(row, dict)]
+    current_tickers = sorted({str(row.get("ticker") or "").strip().upper() for row in rows if row.get("ticker")})
+    index_ref = store.db.collection("tm_daily_anomaly_ticker_index").document(market_key)
+    previous = index_ref.get()
+    previous_tickers = []
+    if previous.exists:
+        previous_data = previous.to_dict() or {}
+        previous_tickers = [
+            str(ticker or "").strip().upper()
+            for ticker in (previous_data.get("tickers") or [])
+            if str(ticker or "").strip()
+        ]
+
+    batch = store.db.batch()
+    collection = store.db.collection("tm_daily_anomaly_tickers")
+    for row in rows:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+        batch.set(
+            collection.document(_ticker_context_doc_id(market_key, ticker)),
+            {
+                "market": market_key,
+                "ticker": ticker,
+                "generated_at": payload.get("generated_at"),
+                "enriched_at": payload.get("enriched_at"),
+                "date": payload.get("date"),
+                "summary": payload.get("summary"),
+                "anomaly": row,
+            },
+        )
+    for ticker in sorted(set(previous_tickers) - set(current_tickers)):
+        batch.delete(collection.document(_ticker_context_doc_id(market_key, ticker)))
+    batch.set(
+        index_ref,
+        {
+            "market": market_key,
+            "generated_at": payload.get("generated_at"),
+            "date": payload.get("date"),
+            "tickers": current_tickers,
+            "count": len(current_tickers),
+        },
+    )
+    batch.commit()
+
+
 def _to_float(value: Any) -> float | None:
     if isinstance(value, (int, float)):
         return float(value)
@@ -264,6 +317,7 @@ def main() -> None:
         "universe_id": universe_id,
     }
     store.db.collection("tm_daily_anomalies").document(f"{args.market}__latest").set(payload)
+    _write_ticker_read_models(store, args.market, payload)
     store.save_stage_watermark(
         market=args.market,
         stage_key="build_daily_anomalies",

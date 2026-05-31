@@ -11,13 +11,26 @@ export type HomeView = {
   ai_universe_id?: string;
   dashboard?: DashboardView | null;
   market_snapshot_rows?: SnapshotRow[];
+  market_snapshot_row_count?: number;
   thematic_screens?: ThematicScreensDoc | null;
   news?: NewsArticle[];
   updated_at?: string;
 };
 
+export type HomeNewsView = {
+  market: "US" | "IN";
+  universe_id?: string;
+  ai_universe_id?: string;
+  news?: NewsArticle[];
+  news_count?: number;
+  updated_at?: string;
+};
+
 async function getHomeViewUncached(market: "US" | "IN" = "US"): Promise<HomeView | null> {
-  const doc = await adminFirestore.collection("tm_home_view").doc(market).get();
+  const compactDoc = await adminFirestore.collection("tm_home_view_core").doc(market).get();
+  const doc = compactDoc.exists
+    ? compactDoc
+    : await adminFirestore.collection("tm_home_view").doc(market).get();
   if (!doc.exists) return null;
   const data = doc.data() as HomeView;
   return {
@@ -28,12 +41,36 @@ async function getHomeViewUncached(market: "US" | "IN" = "US"): Promise<HomeView
   };
 }
 
+async function getHomeNewsUncached(market: "US" | "IN" = "US"): Promise<HomeNewsView | null> {
+  const compactDoc = await adminFirestore.collection("tm_home_news").doc(market).get();
+  const doc = compactDoc.exists
+    ? compactDoc
+    : await adminFirestore.collection("tm_home_view").doc(market).get();
+  if (!doc.exists) return null;
+  const data = doc.data() as HomeNewsView;
+  return {
+    ...data,
+    market,
+    news: Array.isArray(data.news) ? data.news : [],
+  };
+}
+
 const getHomeViewCached = unstable_cache(
   getHomeViewUncached,
   ["home-view"],
   { revalidate: 60 },
 );
 
+const getHomeNewsCached = unstable_cache(
+  getHomeNewsUncached,
+  ["home-news"],
+  { revalidate: 60 },
+);
+
 export async function getHomeView(market: "US" | "IN" = "US"): Promise<HomeView | null> {
   return getHomeViewCached(market);
+}
+
+export async function getHomeNews(market: "US" | "IN" = "US"): Promise<HomeNewsView | null> {
+  return getHomeNewsCached(market);
 }

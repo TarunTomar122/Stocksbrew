@@ -6,7 +6,6 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getInstruments, getLatestPrices } from "@/lib/firestore";
 import type { PreEarningsCardQuote } from "@/lib/pre-earnings-intel-shared";
 import { listUpcomingPreEarningsIntel } from "@/lib/pre-earnings-intel";
-import { getSearchIndex } from "@/lib/search";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 120;
@@ -29,11 +28,7 @@ export default async function UpcomingEventsPage() {
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
 
-  const searchIndex = await getSearchIndex(market).catch(() => []);
-  const universeTickers = new Set(searchIndex.map((e) => e.ticker.toUpperCase()));
-  const namesByTicker = new Map(searchIndex.map((e) => [e.ticker.toUpperCase(), e.name]));
-
-  const upcoming = await listUpcomingPreEarningsIntel(market, 7, universeTickers).catch(() => []);
+  const upcoming = await listUpcomingPreEarningsIntel(market, 7).catch(() => []);
 
   const instrumentIds = [...new Set(upcoming.map((d) => d.instrument_id).filter(Boolean))];
   const [instruments, prices] = await Promise.all([
@@ -41,10 +36,13 @@ export default async function UpcomingEventsPage() {
     instrumentIds.length ? getLatestPrices(instrumentIds) : Promise.resolve(new Map()),
   ]);
 
+  const namesByTicker = new Map<string, string>();
   const quoteByInstrumentId = new Map<string, PreEarningsCardQuote>();
   for (const id of instrumentIds) {
     const instrument = instruments.get(id);
     const latest = prices.get(id);
+    const ticker = String(instrument?.ticker || id.split("_").slice(1).join("_")).toUpperCase();
+    namesByTicker.set(ticker, String(instrument?.name || ticker));
     const sector =
       String(instrument?.sector || instrument?.industry || "").trim() || undefined;
     const price = latest?.quote?.current;

@@ -198,6 +198,40 @@ export async function getWatchlistView(uid: string): Promise<WatchlistView | nul
   return doc.data() as WatchlistView;
 }
 
+export async function overlayLatestPrices(rows: WatchlistRow[]): Promise<WatchlistRow[]> {
+  const ids = rows.map((row) => row.instrument_id).filter(Boolean);
+  if (ids.length === 0) return rows;
+  const latestById = await getDocsById<Record<string, unknown>>(
+    adminFirestore.collection("tm_latest_prices"),
+    ids,
+  );
+  return rows.map((row) => {
+    const latest = latestById.get(row.instrument_id);
+    const quote = (latest?.quote as Record<string, unknown> | undefined) || {};
+    const price = toNumber(quote.current);
+    const dayChangePct = toNumber(quote.day_change_pct);
+    const dayChangeAbs = toNumber(quote.day_change_abs);
+    if (price === null && dayChangePct === null && dayChangeAbs === null) {
+      return row;
+    }
+    const holding =
+      row.holding && price !== null && toNumber(row.holding.quantity) !== null
+        ? {
+            ...row.holding,
+            computed_market_value: (toNumber(row.holding.quantity) as number) * price,
+          }
+        : row.holding;
+    return {
+      ...row,
+      currency: typeof latest?.currency === "string" ? latest.currency : row.currency,
+      price: price ?? row.price,
+      day_change_pct: dayChangePct ?? row.day_change_pct,
+      day_change_abs: dayChangeAbs ?? row.day_change_abs,
+      holding,
+    };
+  });
+}
+
 // -----------------------------------------------------------------------------
 // Builder (called on track/untrack to keep the view fresh)
 // -----------------------------------------------------------------------------
@@ -253,11 +287,14 @@ async function getDocsById<T>(
   ids: string[],
 ): Promise<Map<string, T>> {
   if (ids.length === 0) return new Map();
-  const refs = ids.map((id) => collection.doc(id));
-  const snaps = await adminFirestore.getAll(...refs);
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
   const out = new Map<string, T>();
-  for (const snap of snaps) {
-    if (snap.exists) out.set(snap.id, snap.data() as T);
+  for (let start = 0; start < uniqueIds.length; start += 100) {
+    const refs = uniqueIds.slice(start, start + 100).map((id) => collection.doc(id));
+    const snaps = await adminFirestore.getAll(...refs);
+    for (const snap of snaps) {
+      if (snap.exists) out.set(snap.id, snap.data() as T);
+    }
   }
   return out;
 }

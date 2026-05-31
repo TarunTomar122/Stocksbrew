@@ -24,6 +24,33 @@ def _today_utc() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
+def _parse_iso(value: str) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _latest_feed_fresh(store: TraceMoneyStore, market: str, max_age_hours: int) -> tuple[bool, dict[str, Any]]:
+    if max_age_hours <= 0:
+        return False, {}
+    snap = store.db.collection("tm_market_events").document(f"{market}__latest").get()
+    if not snap.exists:
+        return False, {}
+    data = snap.to_dict() or {}
+    generated_at = _parse_iso(str(data.get("generated_at") or ""))
+    if generated_at is None:
+        return False, data
+    age_hours = (datetime.now(timezone.utc) - generated_at).total_seconds() / 3600.0
+    return age_hours < float(max_age_hours), {"age_hours": round(age_hours, 2), **data}
+
+
 def _to_float(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
@@ -327,9 +354,41 @@ def main() -> None:
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--limit", type=int, default=40)
     parser.add_argument("--earnings-cap", type=int, default=12)
+    parser.add_argument(
+        "--skip-if-fresh-hours",
+        type=int,
+        default=0,
+        help="No-op when tm_market_events/{MARKET}__latest is newer than this many hours.",
+    )
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
+    is_fresh, existing = _latest_feed_fresh(store, args.market, args.skip_if_fresh_hours)
+    if is_fresh:
+        payload = {
+            "status": "skipped_fresh",
+            "market": args.market,
+            "max_age_hours": args.skip_if_fresh_hours,
+            "existing_generated_at": existing.get("generated_at"),
+            "existing_age_hours": existing.get("age_hours"),
+            "existing_event_count": existing.get("event_count"),
+        }
+        print(payload)
+        return
+
+    if args.dry_run:
+        payload = {
+            "status": "dry_run",
+            "market": args.market,
+            "would_build": True,
+            "max_age_hours": args.skip_if_fresh_hours,
+            "existing_generated_at": existing.get("generated_at"),
+            "existing_age_hours": existing.get("age_hours"),
+        }
+        print(payload)
+        return
+
     payload = build_for_market(store, args.market, args.limit, args.earnings_cap)
 
     universe_id = store.get_active_price_universe(args.market) or ""

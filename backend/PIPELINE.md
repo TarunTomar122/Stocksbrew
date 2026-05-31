@@ -10,43 +10,47 @@ python3 -m backend.scripts.run_pipeline --markets US --session-phase auto
 
 `tm_config/active_universes` must include:
 
-- `US_universe` (single canonical US universe)
+- `US_universe` (current US runtime namespace; today this is `us_core_100`)
 - `IN_price_universe`, `IN_ai_universe` (legacy IN split, unchanged)
 
 No legacy fallback to `US` / `IN`.
+
+See `docs/stock-universes.md` before changing universe IDs. The product tiers
+are `search_catalog`, `coverage_catalog`, `runtime_core`, and
+`tracked_universe`; legacy IDs like `us_core_100` and `us_core_155` are storage
+names, not product concepts.
 
 ## Stock counts by pipeline stage
 
 | Stage | Script | US | IN | Frequency | Firestore collection |
 |-------|--------|----|----|-----------|----------------------|
-| **Prices** | `sync_price_snapshots` | ~500 (`us_core_155`) | ~166 (`in_core_150`) | Market windows (open + intraday cap 80) | `tm_price` |
-| **Fundamentals** | `sync_stock_metrics` (Finviz scrape) | ~500 | ~166 | Every 5 days | `tm_stock_metrics` |
-| **AI briefs + news** | `build_per_stock_intelligence` | 100–500 base + UNION(subscribed tracked) | 150 base + tracked | Daily pre-market | `tm_stock_intelligence`, `tm_articles` |
+| **Prices** | `sync_price_snapshots` | active runtime universe + priority/override lanes | ~166 (`in_core_150`) | Market windows; limit caps ranked runtime core, then priority overrides are appended | `tm_latest_prices`, `market_price_snapshots` |
+| **Fundamentals** | `sync_stock_metrics` (Finviz scrape) | coverage catalog / selected refresh set | ~166 | Every 5 days | `tm_stock_metrics` |
+| **AI briefs + news** | tracked Cloud Run lanes + `build_per_stock_intelligence` | runtime core + UNION(subscribed tracked) | AI universe + tracked | Daily/pre-open/on-demand | `tm_news_runs`, `tm_stock_intelligence` |
 | **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_earnings_intel` |
 | **Pre-earnings intel** | `build_pre_earnings_intel` | US universe + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
 | **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Pre-market + on-demand | `tm_watchlist_views` |
-| **On-demand news** | `process_on_demand_news_jobs` | any newly tracked stock | any | Triggered by `/api/track` | `tm_on_demand_news_jobs` |
+| **On-demand news** | `process_on_demand_news_jobs` | any newly tracked stock | any | Queued by tracking flows; currently processed by scheduled polling | `tm_on_demand_news_jobs` |
 
 **Tracked stocks in radar right now:** ~30–40 unique instruments across all subscribed users (union of `users/{uid}.tracked_stocks` where `is_subscribed=true`). Grows as user base grows.
 
 ## Universe hierarchy
 
 ```
-us_core_100   (100 hand-curated stocks)
-     ↓ expand_universe.py
-us_core_155   (500 stocks — the active price + fundamentals universe)
-     +
-UNION(subscribed users' tracked_stocks)
-     =
-AI enrichment scope
+search_catalog      broad searchable/requestable catalog
+coverage_catalog    500-ish slower baseline data tier; historical ID us_core_155
+runtime_core        100-ish frequent product tier; historical ID us_core_100
+tracked_universe    dynamic UNION(users.tracked_stocks)
 ```
 
-The 100/155/500 naming is historical. The Firestore key `US_universe` now points to whichever universe is active.
+The 100/155/500 naming is historical. The Firestore key `US_universe` currently
+points to the active US runtime namespace, not necessarily the whole coverage
+catalog.
 
 ## AI enrichment scope detail
 
 `build_per_stock_intelligence.py` pulls:
-1. All stocks in the base AI universe (100–500 depending on `tm_config/active_universes`)
+1. All stocks in the base AI universe selected by `tm_config/active_universes`
 2. Plus every stock in any paid subscriber's `tracked_stocks` array — `_subscribed_tracked_ids()` function
 
 Only subscribed users' tracked stocks get AI briefs. Free-tier users get briefs only for stocks that happen to be in the base universe anyway.
@@ -95,3 +99,4 @@ SKIP_BUILD=1 bash backend/cloudrun/scripts/deploy-jobs.sh daily-postclose
 | `on-demand-news` | tikrr-on-demand-news | 2Gi | 1 | 1800s |
 | `stock-requests` | tikrr-stock-requests | 2Gi | 1 | 3600s |
 | `earnings-intel` | tikrr-earnings-intel | 3Gi | 2 | 3600s |
+| `data-health` | tikrr-data-health | 512Mi | 1 | 300s |

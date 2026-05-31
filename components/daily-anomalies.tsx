@@ -4,6 +4,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
 
 type Props = {
   anomalies: AnomalyItem[];
@@ -20,14 +21,6 @@ function fmtPrice(v: number): string {
 
 function fmtPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "just now";
-  if (hours === 1) return "1h ago";
-  return `${hours}h ago`;
 }
 
 function AnomalyCard({ item }: { item: AnomalyItem }) {
@@ -108,6 +101,7 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
   const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
   const visible = anomalies.slice(0, visibleLimit);
   const lockedCount = Math.max(0, Math.min(anomalies.length, maxCards) - visible.length);
+  const freshness = freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS);
 
   const ups = anomalies.filter((a) => a.direction === "up");
   const downs = anomalies.filter((a) => a.direction === "down");
@@ -132,7 +126,8 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
             </span>
           </div>
           <p className="text-[12px] text-[#9ca3af]">
-            {summary} · {timeAgo(generatedAt)}
+            {summary} · <span className={freshness.toneClass}>{freshness.label}</span>
+            {freshness.relative ? ` · ${freshness.relative}` : ""}
           </p>
         </div>
 

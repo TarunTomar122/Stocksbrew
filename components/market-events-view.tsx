@@ -7,6 +7,7 @@ import {
   groupEventsByReportDate,
   type MarketEvent,
 } from "@/lib/market-events-shared";
+import { freshnessInfo } from "@/lib/freshness";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
   if (!Number.isFinite(v)) return "—";
@@ -122,16 +123,7 @@ export function MarketEventsView({
   generatedAt: string;
   afterHeader?: React.ReactNode;
 }) {
-  const relative = (() => {
-    const t = Date.parse(generatedAt || "");
-    if (!Number.isFinite(t)) return "";
-    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.round(hrs / 24)}d ago`;
-  })();
+  const freshness = freshnessInfo(generatedAt, { agingHours: 24, staleHours: 72 });
 
   const sections = groupEventsByReportDate(events);
   const hasReported = events.length > 0;
@@ -143,9 +135,10 @@ export function MarketEventsView({
           <h1 className="text-[32px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[40px]">
             Earnings
           </h1>
-          {relative && hasReported ? (
-            <span className="text-[12px] font-medium text-[#9ca3af]">
-              Updated {relative}
+          {hasReported ? (
+            <span className={`text-[12px] font-medium ${freshness.toneClass}`}>
+              {freshness.label}
+              {freshness.relative ? ` · ${freshness.relative}` : ""}
             </span>
           ) : null}
         </div>

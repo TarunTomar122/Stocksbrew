@@ -28,6 +28,9 @@ export async function batchGetRefs<T>(
 }
 
 // ─── Active universe ──────────────────────────────────────────────────────────
+// Universe IDs are legacy Firestore namespaces. In product language, US_universe
+// is the current runtime_core, not the full search_catalog or coverage_catalog.
+// See docs/stock-universes.md before changing this contract.
 // Both functions are wrapped in React.cache so the Firestore config doc is read
 // exactly once per server-render request regardless of how many lib functions
 // call them. Without this, each of getStockIntelligenceDoc / getInstrumentViewDoc

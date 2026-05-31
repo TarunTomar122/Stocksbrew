@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { FieldValue } from "firebase-admin/firestore";
-import { getApp } from "firebase-admin/app";
+import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
 
 const INVALID_REQUEST_TOKENS = new Set([
   "TO",
@@ -29,64 +29,17 @@ function isLikelyJunkRequest(query: string): boolean {
   return false;
 }
 
+const STOCK_REQUEST_BATCH_LIMIT = 20;
+
 async function triggerStockRequestProcessing(query: string): Promise<void> {
-  const project = process.env.GOOGLE_CLOUD_PROJECT?.trim();
-  const region = process.env.GOOGLE_CLOUD_REGION?.trim() || "us-central1";
-  const dispatchJob = process.env.DISPATCH_JOB_NAME?.trim() || "tikrr-dispatch";
-  if (!project) {
-    throw new Error("GOOGLE_CLOUD_PROJECT missing");
-  }
-
-  const app = getApp();
-  const credential = app.options.credential as { getAccessToken?: () => Promise<{ access_token?: string }> };
-  if (!credential?.getAccessToken) {
-    throw new Error("Firebase admin credential cannot mint access token");
-  }
-  const tokenResp = await credential.getAccessToken();
-  const token = tokenResp?.access_token;
-  if (!token) {
-    throw new Error("Google access token unavailable");
-  }
-
-  const url = `https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/${dispatchJob}:run`;
-  const body = {
-    overrides: {
-      containerOverrides: [
-        {
-          args: [
-            "-m",
-            "backend.cloudrun.orchestrator.dispatch",
-            "--lane",
-            "stock_requests",
-            "--market",
-            "US",
-            "--project",
-            project,
-            "--region",
-            region,
-            "--limit",
-            "1",
-            "--query",
-            query,
-          ],
-        },
-      ],
-    },
-  };
-
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
+  // Drain the queue in one run (prioritize this ticker). A single --query run
+  // only processed one doc and left Pro backlogs stuck for days.
+  await triggerDispatchLane({
+    lane: "stock_requests",
+    market: "US",
+    limit: STOCK_REQUEST_BATCH_LIMIT,
+    extraArgs: ["--prioritize-query", query],
   });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`dispatch jobs.run failed (${resp.status}): ${text.slice(0, 400)}`);
-  }
 }
 
 export async function POST(req: NextRequest) {

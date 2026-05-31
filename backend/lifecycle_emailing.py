@@ -251,6 +251,49 @@ def email_pro_directive_change(
     return subject, html
 
 
+def email_stock_request_backlog_cleared(
+    *,
+    first_name: str,
+    fulfilled_count: int,
+    sample_tickers: list[str],
+) -> tuple[str, str]:
+    subject = "Your stock requests are live on stocksbrew"
+    samples = ", ".join(sample_tickers[:12])
+    if len(sample_tickers) > 12:
+        samples += f", and {len(sample_tickers) - 12} more"
+    events_url = f"{APP_URL}/events"
+    upcoming_url = f"{APP_URL}/upcoming-events"
+    lines = [
+        f"Hi {first_name},",
+        "Thanks for being a Pro member and for your patience while we worked through your stock requests.",
+        f"We have published {fulfilled_count} of the names you asked for. You can search for them on stocksbrew, open each stock page, and add them to Radar like any other ticker.",
+    ]
+    if samples:
+        lines.append(f"Includes: {samples}.")
+    lines.extend(
+        [
+            "Two newer pages you may like for earnings season:",
+            (
+                f"<a href=\"{events_url}\" style=\"color:#0052ff;font-weight:600\">Events</a>: "
+                "fresh post-earnings reports and scenario odds for stocks that just reported."
+            ),
+            (
+                f"<a href=\"{upcoming_url}\" style=\"color:#0052ff;font-weight:600\">Upcoming events</a>: "
+                "AI pre-earnings setups for names reporting in the next 7 days."
+            ),
+            "If anything still does not show up, reply with the ticker and we will fix it quickly.",
+        ]
+    )
+    html = _card(
+        title="Your requests are ready",
+        lines=lines,
+        cta_label="Open Radar",
+        cta_url=f"{APP_URL}/watchlist",
+        kicker="Thanks for helping us grow coverage",
+    )
+    return subject, html
+
+
 def email_stock_request_ready(*, ticker: str, company_name: str | None = None) -> tuple[str, str]:
     display = (company_name or ticker).strip()
     subject = f"{ticker} is now live on stocksbrew"

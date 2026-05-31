@@ -24,6 +24,9 @@ SCHED_JOBS=(
   tikrr-open-briefs
   tikrr-open-anomalies
   tikrr-reddit-buzz
+  tikrr-zone-briefs
+  tikrr-market-events-open
+  tikrr-market-events-close
   tikrr-close-anomalies
   tikrr-close-reddit-buzz
   tikrr-open-emails
@@ -46,12 +49,24 @@ for job in "${SCHED_JOBS[@]}"; do
   fi
 done
 
-# 2) Reduce job-level retries for heavy jobs.
+# 2) Reduce job-level retries. Workers write progress to Firestore, so recovery
+# should be explicit/idempotent instead of replaying a partially completed task.
 RUN_JOBS=(
   tikrr-dispatch
-  tikrr-price-core-intraday
+  tikrr-tracked-news-prep
   tikrr-price-core-open
+  tikrr-tracked-open-briefs
+  tikrr-price-core-intraday
+  tikrr-open-anomalies
+  tikrr-reddit-buzz
+  tikrr-market-open-email
   tikrr-daily-postclose
+  tikrr-on-demand-news
+  tikrr-stock-requests
+  tikrr-earnings-intel
+  tikrr-pre-earnings-intel
+  tikrr-zone-briefs
+  tikrr-market-events
 )
 
 for job in "${RUN_JOBS[@]}"; do
@@ -64,8 +79,10 @@ for job in "${RUN_JOBS[@]}"; do
   fi
 done
 
-# 3) Lower intraday fanout (keep same schedule, cheaper burst).
-# Update through setup script env so cron body carries lower limit/higher shard.
+# 3) Lower intraday fanout burst without dropping extended coverage.
+# LIMIT caps only the ranked runtime core. The dispatcher still appends
+# price_core_overrides for every price-core phase, including intraday.
+# SHARD_SIZE/MAX_PARALLEL reduce child job count and concurrency.
 if [[ -f backend/cloudrun/scripts/setup-scheduler.sh ]]; then
   echo "- updating scheduler payload knobs: LIMIT=80 SHARD_SIZE=40 MAX_PARALLEL=2"
   GOOGLE_CLOUD_PROJECT="$PROJECT" \

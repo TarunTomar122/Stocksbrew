@@ -13,6 +13,7 @@ def main() -> None:
     parser.add_argument("--universe", default="")
     parser.add_argument("--limit", type=int, default=40)
     parser.add_argument("--earnings-cap", type=int, default=12)
+    parser.add_argument("--skip-if-fresh-hours", type=int, default=0)
     args = parser.parse_args()
 
     cmd = [
@@ -26,6 +27,8 @@ def main() -> None:
         "--earnings-cap",
         str(max(0, args.earnings_cap)),
     ]
+    if args.skip_if_fresh_hours > 0:
+        cmd.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
     print({"run_id": args.run_id, "lane": args.lane, "cmd": " ".join(cmd)})
     subprocess.run(cmd, check=True)
 

@@ -5,7 +5,6 @@ import { getMarketEvents } from "@/lib/market-events";
 import { getCurrentMarket } from "@/lib/market";
 import { getSessionUser } from "@/lib/auth-server";
 import { listUpcomingPreEarningsIntel } from "@/lib/pre-earnings-intel";
-import { getSearchIndex } from "@/lib/search";
 import { MarketEventsView } from "@/components/market-events-view";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
@@ -35,14 +34,9 @@ export default async function EventsPage() {
     : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
 
-  const searchIndex = await getSearchIndex(market).catch(() => []);
-  const universeTickers = new Set(
-    searchIndex.map((e) => e.ticker.toUpperCase()),
-  );
-
   const [data, upcoming] = await Promise.all([
     getMarketEvents(market).catch(() => null),
-    listUpcomingPreEarningsIntel(market, 7, universeTickers).catch(() => []),
+    listUpcomingPreEarningsIntel(market, 7).catch(() => []),
   ]);
   const hasReported = (data?.events.length ?? 0) > 0;
   const isEmpty = !hasReported && upcoming.length === 0;

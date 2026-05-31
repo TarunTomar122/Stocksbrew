@@ -11,15 +11,24 @@ Flow:
 """
 from __future__ import annotations
 
+import os
+
+# Parallel workers call subprocess (fork) while Firestore uses gRPC in other threads.
+os.environ.setdefault("GRPC_ENABLE_FORK_SUPPORT", "true")
+
 import argparse
 import json
 import re
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
 import requests
+from google.cloud import firestore
 
 from backend.instrument_universe import list_instruments
 from backend.lifecycle_emailing import email_stock_request_ready, send_email
@@ -46,6 +55,7 @@ PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 STALE_RUNNING_TTL_MINUTES = 20
+RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending", "needs_confirmation"}
 INVALID_REQUEST_TOKENS = {
     "TO", "IT", "IN", "ON", "AT", "IS", "ARE",
     "HTTPS", "HTTP", "WWW", "COM", "DIV", "HREF",
@@ -619,23 +629,208 @@ def _materialize_home(store: TraceMoneyStore, market: str) -> None:
     )
 
 
-def _pending_requests(store: TraceMoneyStore, limit: int, query: str | None = None) -> list[Any]:
+def _subscribed_requester_emails(store: TraceMoneyStore) -> set[str]:
+    emails: set[str] = set()
+    for user in store.list_subscribed_users():
+        if not bool(user.get("is_subscribed")):
+            continue
+        for field in ("email", "email_lower"):
+            raw = str(user.get(field) or "").strip().lower()
+            if raw:
+                emails.add(raw)
+    return emails
+
+
+def _requester_emails(data: dict[str, Any]) -> set[str]:
+    emails = {
+        str(e).strip().lower()
+        for e in (data.get("requester_emails") or [])
+        if str(e).strip()
+    }
+    legacy = str(data.get("requester_email") or "").strip().lower()
+    if legacy:
+        emails.add(legacy)
+    return emails
+
+
+def _pending_requests(
+    store: TraceMoneyStore,
+    limit: int,
+    *,
+    query: str | None = None,
+    prioritize_query: str | None = None,
+    requester_email: str | None = None,
+    pro_emails: set[str] | None = None,
+) -> list[Any]:
     if query:
         doc = store.db.collection("stock_requests").document(query.strip().upper()).get()
         docs = [doc] if doc.exists else []
     else:
         docs = list(store.db.collection("stock_requests").stream())
+    requester = (requester_email or "").strip().lower()
     out = []
     for doc in docs:
         data = doc.to_dict() or {}
         if bool(data.get("fulfilled")):
             continue
         status = str(data.get("status") or "queued")
-        if status not in {"queued", "retry", "pending", "needs_confirmation"}:
+        if status not in RUNNABLE_REQUEST_STATUSES:
+            continue
+        if requester and requester not in _requester_emails(data):
             continue
         out.append(doc)
-    out.sort(key=lambda d: str((d.to_dict() or {}).get("last_requested_at") or ""))
-    return out[:limit]
+
+    prioritize = (prioritize_query or "").strip().upper()
+    subscribed = pro_emails or set()
+
+    def _sort_key(doc: Any) -> tuple[int, int, str]:
+        data = doc.to_dict() or {}
+        doc_id = str(doc.id or "").upper()
+        is_priority = 0 if prioritize and doc_id == prioritize else 1
+        is_pro = 0 if _requester_emails(data) & subscribed else 1
+        ts = str(data.get("last_requested_at") or data.get("requested_at") or "")
+        return (is_priority, is_pro, ts)
+
+    out.sort(key=_sort_key)
+    return out[: max(1, limit)]
+
+
+def _claim_request(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str, Any] | None:
+    """Atomically claim a request so concurrent Cloud Run triggers do not
+    process or email the same query twice."""
+
+    @firestore.transactional
+    def _txn(tx: Any) -> dict[str, Any] | None:
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            return None
+        data = snap.to_dict() or {}
+        if bool(data.get("fulfilled")):
+            return None
+        status = str(data.get("status") or "queued")
+        if status not in RUNNABLE_REQUEST_STATUSES:
+            return None
+        tx.set(
+            ref,
+            {
+                "status": "running",
+                "processing_claim_id": claim_id,
+                "processing_started_at": _now(),
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        return data
+
+    return _txn(store.db.transaction())
+
+
+def _process_one_request(
+    *,
+    store: TraceMoneyStore,
+    ref: Any,
+    data: dict[str, Any],
+    default_market: str,
+    master_by_market: dict[str, list[dict[str, Any]]],
+    master_lock: threading.Lock,
+    promote_lock: threading.Lock,
+    markets_to_materialize: set[str],
+    markets_lock: threading.Lock,
+    dry_run: bool,
+    to_email: str,
+    skip_ready_email: bool,
+) -> str:
+    query = str(data.get("query") or ref.id).strip()
+    market = str(data.get("market") or default_market).strip().upper()
+    emails = [str(e).strip().lower() for e in (data.get("requester_emails") or []) if str(e).strip()]
+    if to_email:
+        emails = [to_email.strip().lower()]
+
+    if not query:
+        return "skip"
+    if dry_run:
+        print(f"  [dry] {ref.id} query={query} market={market}")
+        return "dry"
+
+    if _looks_like_junk_request(query):
+        ref.set(
+            {
+                "status": "ignored",
+                "fulfilled": False,
+                "resolve_error": "junk_query_filtered",
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        print(f"  [ignored] {query}: junk_query_filtered")
+        return "ignored"
+
+    try:
+        with master_lock:
+            if market not in master_by_market:
+                master_by_market[market] = _load_symbol_master(store, market)
+            master = master_by_market[market]
+        resolved = _resolve_request_with_llm_fallback(master, market, query)
+        if not resolved:
+            ref.set(
+                {
+                    "status": "needs_confirmation",
+                    "fulfilled": False,
+                    "resolve_error": "no_deterministic_match",
+                    "updated_at": _now(),
+                },
+                merge=True,
+            )
+            print(f"  [needs_confirmation] {query}")
+            return "needs_confirmation"
+
+        instrument = _upsert_instrument(store, resolved)
+        with promote_lock:
+            _promote_instrument(store, instrument)
+        _sync_price_for_one(store, instrument)
+        _upsert_search_index_entry(store, instrument)
+        _backfill_single_instrument(store, instrument)
+        _queue_news_job(store, instrument)
+        with markets_lock:
+            markets_to_materialize.add(market)
+
+        sent = 0
+        if not skip_ready_email:
+            sent = _send_ready_email(
+                emails=emails,
+                ticker=str(instrument.get("ticker") or query).upper(),
+                company_name=str(instrument.get("name") or query),
+            )
+
+        ref.set(
+            {
+                "status": "fulfilled",
+                "fulfilled": True,
+                "fulfilled_at": _now(),
+                "market": market,
+                "resolved_symbol": str(instrument.get("ticker") or "").upper(),
+                "resolved_instrument_id": str(instrument.get("instrument_id") or "").upper(),
+                "resolve_score": int(resolved.get("_score") or 0),
+                "email_sent_count": sent,
+                "updated_at": _now(),
+                "resolve_error": "",
+            },
+            merge=True,
+        )
+        print(f"  [ok] {query} -> {instrument.get('instrument_id')} email_sent={sent}")
+        return "ok"
+    except Exception as exc:
+        ref.set(
+            {
+                "status": "retry",
+                "fulfilled": False,
+                "resolve_error": str(exc),
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        print(f"  [fail] {query}: {exc}")
+        return "fail"
 
 
 def main() -> None:
@@ -643,7 +838,28 @@ def main() -> None:
     parser.add_argument("--market", default="US", choices=["US", "IN"])
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--query", default="", help="Process only this request query (doc id)")
+    parser.add_argument(
+        "--prioritize-query",
+        default="",
+        help="Process up to --limit pending requests; run this query first",
+    )
     parser.add_argument("--to-email", default="", help="Override send target for testing")
+    parser.add_argument(
+        "--requester-email",
+        default="",
+        help="Only process requests from this email (for backlog clears)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel workers (each request still claims atomically)",
+    )
+    parser.add_argument(
+        "--skip-ready-email",
+        action="store_true",
+        help="Do not send per-ticker ready emails (use for batch backlog)",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -652,100 +868,80 @@ def main() -> None:
     if recovered:
         print(f"[stock-requests] recovered_stale_running={recovered}")
     query = str(args.query or "").strip().upper()
-    jobs = _pending_requests(store, args.limit, query=query or None)
+    prioritize = str(args.prioritize_query or "").strip().upper()
+    requester_email = str(args.requester_email or "").strip().lower()
+    pro_emails = _subscribed_requester_emails(store)
+    jobs = _pending_requests(
+        store,
+        args.limit,
+        query=query or None,
+        prioritize_query=prioritize or None,
+        requester_email=requester_email or None,
+        pro_emails=pro_emails,
+    )
     if not jobs:
         print("No pending stock requests.")
         return
 
-    print(f"[stock-requests] processing={len(jobs)} market={args.market}")
+    workers = max(1, min(args.workers, len(jobs), 8))
+    print(
+        f"[stock-requests] processing={len(jobs)} market={args.market} workers={workers}"
+        f" prioritize={prioritize or '-'} requester={requester_email or '-'}"
+        f" pro_requesters={len(pro_emails)}"
+    )
     master_by_market: dict[str, list[dict[str, Any]]] = {}
+    master_lock = threading.Lock()
+    promote_lock = threading.Lock()
+    markets_to_materialize: set[str] = set()
+    markets_lock = threading.Lock()
 
-    for job in jobs:
+    def _run_claimed(job: Any) -> str:
         ref = job.reference
-        data = job.to_dict() or {}
-        query = str(data.get("query") or ref.id).strip()
-        market = str(data.get("market") or args.market).strip().upper()
-        emails = [str(e).strip().lower() for e in (data.get("requester_emails") or []) if str(e).strip()]
-        if args.to_email:
-            emails = [args.to_email.strip().lower()]
+        claim_id = uuid4().hex
+        data = _claim_request(store, ref, claim_id)
+        if not data:
+            print(f"  [skip] {ref.id}: already_claimed")
+            return "skip"
+        return _process_one_request(
+            store=store,
+            ref=ref,
+            data=data,
+            default_market=args.market,
+            master_by_market=master_by_market,
+            master_lock=master_lock,
+            promote_lock=promote_lock,
+            markets_to_materialize=markets_to_materialize,
+            markets_lock=markets_lock,
+            dry_run=args.dry_run,
+            to_email=str(args.to_email or ""),
+            skip_ready_email=bool(args.skip_ready_email),
+        )
 
-        if not query:
-            continue
-        if args.dry_run:
-            print(f"  [dry] {ref.id} query={query} market={market}")
-            continue
+    counts: dict[str, int] = {}
+    if workers == 1:
+        for job in jobs:
+            outcome = _run_claimed(job)
+            counts[outcome] = counts.get(outcome, 0) + 1
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_run_claimed, job) for job in jobs]
+            for fut in as_completed(futures):
+                try:
+                    outcome = fut.result()
+                except Exception as exc:
+                    outcome = "fail"
+                    print(f"  [fail] worker: {exc}")
+                counts[outcome] = counts.get(outcome, 0) + 1
 
-        if _looks_like_junk_request(query):
-            ref.set(
-                {
-                    "status": "ignored",
-                    "fulfilled": False,
-                    "resolve_error": "junk_query_filtered",
-                    "updated_at": _now(),
-                },
-                merge=True,
-            )
-            print(f"  [ignored] {query}: junk_query_filtered")
-            continue
+    if not args.dry_run:
+        for market in sorted(markets_to_materialize):
+            try:
+                _materialize_home(store, market)
+                print(f"[stock-requests] materialized_home market={market}")
+            except Exception as exc:
+                print(f"[stock-requests] materialize_home_failed market={market}: {exc}")
 
-        ref.set({"status": "running", "updated_at": _now()}, merge=True)
-        try:
-            if market not in master_by_market:
-                master_by_market[market] = _load_symbol_master(store, market)
-            resolved = _resolve_request_with_llm_fallback(master_by_market[market], market, query)
-            if not resolved:
-                ref.set(
-                    {
-                        "status": "needs_confirmation",
-                        "fulfilled": False,
-                        "resolve_error": "no_deterministic_match",
-                        "updated_at": _now(),
-                    },
-                    merge=True,
-                )
-                print(f"  [needs_confirmation] {query}")
-                continue
-
-            instrument = _upsert_instrument(store, resolved)
-            _promote_instrument(store, instrument)
-            _sync_price_for_one(store, instrument)
-            _upsert_search_index_entry(store, instrument)
-            _backfill_single_instrument(store, instrument)
-            _queue_news_job(store, instrument)
-            _materialize_home(store, market)
-            sent = _send_ready_email(
-                emails=emails,
-                ticker=str(instrument.get("ticker") or query).upper(),
-                company_name=str(instrument.get("name") or query),
-            )
-
-            ref.set(
-                {
-                    "status": "fulfilled",
-                    "fulfilled": True,
-                    "fulfilled_at": _now(),
-                    "market": market,
-                    "resolved_symbol": str(instrument.get("ticker") or "").upper(),
-                    "resolved_instrument_id": str(instrument.get("instrument_id") or "").upper(),
-                    "resolve_score": int(resolved.get("_score") or 0),
-                    "email_sent_count": sent,
-                    "updated_at": _now(),
-                    "resolve_error": "",
-                },
-                merge=True,
-            )
-            print(f"  [ok] {query} -> {instrument.get('instrument_id')} email_sent={sent}")
-        except Exception as exc:
-            ref.set(
-                {
-                    "status": "retry",
-                    "fulfilled": False,
-                    "resolve_error": str(exc),
-                    "updated_at": _now(),
-                },
-                merge=True,
-            )
-            print(f"  [fail] {query}: {exc}")
+    print(f"[stock-requests] done {counts}")
 
 
 if __name__ == "__main__":

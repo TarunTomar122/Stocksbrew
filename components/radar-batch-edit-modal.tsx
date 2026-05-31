@@ -25,7 +25,7 @@ type StagedItem = {
 };
 
 type Props = {
-  searchIndex: SearchEntry[];
+  initialSearchIndex?: SearchEntry[];
   initialItems: StagedItem[];
   isSubscribed: boolean;
   freeLimit?: number;
@@ -35,7 +35,7 @@ type Props = {
 };
 
 export function RadarBatchEditModal({
-  searchIndex,
+  initialSearchIndex = [],
   initialItems,
   isSubscribed,
   freeLimit = 3,
@@ -46,6 +46,10 @@ export function RadarBatchEditModal({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(initialSearchIndex);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchRequested, setSearchRequested] = useState(initialSearchIndex.length > 0);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [items, setItems] = useState<StagedItem[]>(() => [...initialItems]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +71,40 @@ export function RadarBatchEditModal({
     setExtractInfo(null);
     setExtractError(null);
   }, [open, initialItems]);
+
+  useEffect(() => {
+    if (!open || searchIndex.length > 0 || searchLoading || searchRequested) return;
+    let cancelled = false;
+    setSearchRequested(true);
+    setSearchLoading(true);
+    setSearchError(null);
+    fetch("/api/search-index?market=US")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("search_index_failed"))))
+      .then((data) => {
+        if (cancelled) return;
+        const entries = Array.isArray(data?.entries) ? data.entries : [];
+        setSearchIndex(
+          entries
+            .map((entry: Partial<SearchEntry>) => ({
+              instrument_id: String(entry.instrument_id || "").toUpperCase(),
+              ticker: String(entry.ticker || "").toUpperCase(),
+              name: String(entry.name || entry.ticker || "").trim(),
+              price: typeof entry.price === "number" ? entry.price : undefined,
+              day_change_pct: typeof entry.day_change_pct === "number" ? entry.day_change_pct : undefined,
+            }))
+            .filter((entry: SearchEntry) => entry.instrument_id && entry.ticker),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSearchError("Could not load stock search. Try screenshot upload or reopen.");
+      })
+      .finally(() => {
+        if (!cancelled) setSearchLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, searchIndex.length, searchLoading, searchRequested]);
 
   const existingIds = useMemo(() => new Set(items.map((i) => i.instrument_id)), [items]);
 
@@ -459,7 +497,15 @@ export function RadarBatchEditModal({
               {query.trim().length > 0 && (
                 <div className="absolute inset-0 bg-white overflow-y-auto no-scrollbar">
                   <ul className="divide-y divide-[#f3f4f6]">
-                    {results.length === 0 ? (
+                    {searchLoading ? (
+                      <li className="px-4 py-8 text-[13px] text-[#6b7280] text-center">
+                        Loading stock search...
+                      </li>
+                    ) : searchError ? (
+                      <li className="px-4 py-8 text-[13px] text-[#ef4444] text-center">
+                        {searchError}
+                      </li>
+                    ) : results.length === 0 ? (
                       <li className="px-4 py-8 text-[13px] text-[#6b7280] text-center">
                         No matches for <span className="font-semibold text-[#111111]">{query.trim().toUpperCase()}</span>
                       </li>

@@ -5,7 +5,7 @@ import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { tavily } from "@tavily/core";
 import { getUserDoc } from "@/lib/watchlist";
 import { getWatchlistView, type WatchlistRow } from "@/lib/watchlist-view";
-import { getSearchIndex } from "@/lib/search";
+import { getInstrumentLabels, resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { getStockIntelligenceDoc, getStockIntelPro } from "@/lib/stock";
 
 export const maxDuration = 60;
@@ -33,8 +33,7 @@ async function resolveInstrumentId(ticker: string, market: "US" | "IN"): Promise
   if (normalized.startsWith("US_") || normalized.startsWith("IN_")) {
     return normalized;
   }
-  const index = await getSearchIndex(market);
-  const match = index.find((entry) => entry.ticker === normalized);
+  const match = await resolveInstrumentByTicker(normalized, market).catch(() => null);
   return match?.instrument_id ?? `${market}_${normalized}`;
 }
 
@@ -286,19 +285,9 @@ async function buildRadarContext(uid: string) {
   );
 
   const needsSearchFallback = tracked.some((id) => !materializedById.has(id));
-  const searchByInstrumentId = new Map<string, { ticker: string; name: string }>();
-  if (needsSearchFallback) {
-    const [usIndex, inIndex] = await Promise.all([
-      getSearchIndex("US").catch(() => []),
-      getSearchIndex("IN").catch(() => []),
-    ]);
-    for (const entry of [...usIndex, ...inIndex]) {
-      searchByInstrumentId.set(entry.instrument_id, {
-        ticker: entry.ticker,
-        name: entry.name,
-      });
-    }
-  }
+  const instrumentLabels = needsSearchFallback
+    ? await getInstrumentLabels(tracked.filter((id) => !materializedById.has(id))).catch(() => new Map())
+    : new Map<string, { ticker: string; name: string }>();
 
   const rows = tracked.map((instrumentId) => {
     const materialized = materializedById.get(instrumentId);
@@ -314,7 +303,7 @@ async function buildRadarContext(uid: string) {
             : undefined,
       };
     }
-    const fallback = searchByInstrumentId.get(instrumentId);
+    const fallback = instrumentLabels.get(instrumentId);
     const ticker = fallback?.ticker || instrumentId.split("_").slice(1).join("_");
     const market = instrumentId.startsWith("IN_") ? ("IN" as const) : ("US" as const);
     return {

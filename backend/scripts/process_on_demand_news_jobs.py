@@ -12,6 +12,9 @@ import logging
 import traceback
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
+
+from google.cloud import firestore
 
 from backend.instrument_universe import get_instrument
 from backend.llm_enrichment import OpenAIArticleEnricher
@@ -106,6 +109,51 @@ def _queued_jobs(store: TraceMoneyStore, limit: int) -> list[Any]:
     return runnable[:limit]
 
 
+def _is_runnable_job(data: dict[str, Any], now: datetime) -> bool:
+    status = str(data.get("status") or "").strip().lower()
+    attempts = int(data.get("attempts") or 0)
+    if status in {"queued", "retry"}:
+        return True
+    if status not in RETRYABLE_TERMINAL_STATUSES or attempts >= MAX_RETRY_ATTEMPTS:
+        return False
+    updated_at = _parse_iso(str(data.get("updated_at") or data.get("finished_at") or ""))
+    if not updated_at:
+        return False
+    age_mins = (now - updated_at).total_seconds() / 60.0
+    return age_mins >= RETRY_COOLDOWN_MINUTES
+
+
+def _claim_job(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str, Any] | None:
+    """Atomically claim an on-demand job so overlapping scheduler/manual
+    executions do not fetch and enrich the same ticker twice."""
+
+    @firestore.transactional
+    def _txn(tx: Any) -> dict[str, Any] | None:
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            return None
+        data = snap.to_dict() or {}
+        if not _is_runnable_job(data, datetime.now(timezone.utc)):
+            return None
+        attempts = int(data.get("attempts") or 0) + 1
+        tx.set(
+            ref,
+            {
+                "status": "running",
+                "attempts": attempts,
+                "processing_claim_id": claim_id,
+                "started_at": _now(),
+                "updated_at": _now(),
+                "error": "",
+            },
+            merge=True,
+        )
+        data["attempts"] = attempts
+        return data
+
+    return _txn(store.db.transaction())
+
+
 def process_job(
     store: TraceMoneyStore,
     job_doc: Any,
@@ -114,24 +162,18 @@ def process_job(
     broad_cap: int,
 ) -> str:
     ref = job_doc.reference
-    job = job_doc.to_dict() or {}
+    job = _claim_job(store, ref, uuid4().hex)
+    if not job:
+        return "already_claimed"
     instrument_id = str(job.get("instrument_id") or job_doc.id).strip()
     market = str(job.get("market") or instrument_id.split("_", 1)[0] or "US").upper()
     universe_id = str(job.get("universe_id") or store.get_active_ai_universe(market) or "").strip()
-    attempts = int(job.get("attempts") or 0) + 1
+    attempts = int(job.get("attempts") or 1)
     run_per_stock_cap = per_stock_cap
     run_broad_cap = broad_cap
     if attempts >= 2:
         run_per_stock_cap = max(run_per_stock_cap, 10)
         run_broad_cap = max(run_broad_cap, 30)
-
-    ref.set({
-        "status": "running",
-        "attempts": attempts,
-        "started_at": _now(),
-        "updated_at": _now(),
-        "error": "",
-    }, merge=True)
 
     logger.info(
         "on_demand_job start job_id=%s instrument_id=%s market=%s universe=%s attempt=%s",
@@ -228,6 +270,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--per-stock-cap", type=int, default=6)
     parser.add_argument("--broad-cap", type=int, default=0)
+    parser.add_argument("--dry-run", action="store_true", help="List runnable jobs without claiming or processing them")
     args = parser.parse_args()
 
     configure_pipeline_logging()
@@ -241,7 +284,13 @@ def main() -> None:
 
     logger.info("on_demand_job batch size=%s", len(jobs))
     for job in jobs:
-        instrument_id = (job.to_dict() or {}).get("instrument_id") or job.id
+        data = job.to_dict() or {}
+        instrument_id = data.get("instrument_id") or job.id
+        if args.dry_run:
+            market = data.get("market") or str(instrument_id).split("_", 1)[0] or "US"
+            status = data.get("status") or "queued"
+            print(f"  [dry] {job.id} instrument_id={instrument_id} market={market} status={status}")
+            continue
         try:
             status = process_job(
                 store,

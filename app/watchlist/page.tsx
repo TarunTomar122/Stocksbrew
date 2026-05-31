@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
 import { scrubLegacyBrand } from "@/lib/brand";
-import { getWatchlistView } from "@/lib/watchlist-view";
+import { getWatchlistView, overlayLatestPrices } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
@@ -22,7 +22,7 @@ import { RadarEarningsReadyBanner } from "@/components/radar-earnings-ready-bann
 import { RadarEarningsUpcomingBanner } from "@/components/radar-earnings-upcoming-banner";
 import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-workspace";
 import { BuildingStateRefresher } from "@/components/building-state-refresher";
-import { getSearchIndex, type SearchEntry } from "@/lib/search";
+import { getInstruments } from "@/lib/firestore";
 import {
   filterEarningsIntelThisWeek,
   getLatestEarningsIntelForInstruments,
@@ -59,7 +59,6 @@ export default async function WatchlistPage() {
   const userDoc = await getUserDoc(session.uid);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const searchIndex = await getSearchIndex("US").catch(() => [] as SearchEntry[]);
   const watchlistView = await getWatchlistView(session.uid).catch(() => null);
   const portfolioExposure = SHOW_SCENARIO_LAB
     ? await getPortfolioExposure(session.uid).catch(() => null)
@@ -78,15 +77,18 @@ export default async function WatchlistPage() {
     userDoc?.watchlist_holdings && typeof userDoc.watchlist_holdings === "object"
       ? (userDoc.watchlist_holdings as Record<string, { quantity?: number | null; market_value?: number | null; average_cost?: number | null; source?: string; updated_at?: string }>)
       : {};
-  const searchByInstrumentId = new Map(searchIndex.map((entry) => [entry.instrument_id, entry] as const));
   const trackedSet = new Set(tracked);
   const materializedById = new Map(
     materializedRows
       .filter((row) => trackedSet.has(row.instrument_id))
       .map((row) => [row.instrument_id, row] as const),
   );
+  const missingMaterializedIds = tracked.filter((instrumentId) => !materializedById.has(instrumentId));
+  const fallbackInstruments = missingMaterializedIds.length
+    ? await getInstruments(missingMaterializedIds).catch(() => new Map())
+    : new Map();
   // Build rows from profile truth first so holdings/watching updates are instant.
-  const rows = tracked
+  const rowsBase = tracked
     .map((instrumentId) => {
       const materialized = materializedById.get(instrumentId);
       const profileHolding = watchlistHoldings[instrumentId];
@@ -112,7 +114,7 @@ export default async function WatchlistPage() {
           holding: holdingOverride ?? materialized.holding,
         } as WatchlistRow;
       }
-      const fallback = searchByInstrumentId.get(instrumentId);
+      const fallback = fallbackInstruments.get(instrumentId);
       const ticker = fallback?.ticker || instrumentId.split("_").slice(1).join("_");
       const market = instrumentId.startsWith("IN_") ? "IN" : "US";
       return {
@@ -147,6 +149,10 @@ export default async function WatchlistPage() {
       } as WatchlistRow;
     })
     .filter((row): row is WatchlistRow => Boolean(row));
+  // Keep Radar prices fresh without rebuilding the whole per-user watchlist
+  // view on every price tick. Price jobs update tm_latest_prices; this page
+  // overlays those quote fields at read time.
+  const rows = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
   const suggestions = (watchlistView?.suggestions || radar.suggestions || []) as Dict[];
   const brief = ((watchlistView?.brief || radar.brief) ?? null) as WatchlistBrief | null;
   const pulse = ((watchlistView?.pulse || radar.pulse) ?? null) as WatchlistPulse | null;
@@ -205,7 +211,7 @@ export default async function WatchlistPage() {
   }
 
   if (!isSubscribed && rows.length === 0) {
-    return <UnsubscribedState tracked={tracked} searchIndex={searchIndex} />;
+    return <UnsubscribedState tracked={tracked} />;
   }
   // Free users with rows get the full Radar — the only difference is the 3-stock
   // limit enforced at /api/track time, not at display time.
@@ -222,7 +228,6 @@ export default async function WatchlistPage() {
           <EmptyState
             suggestions={suggestions}
             trackedIds={new Set(tracked)}
-            searchIndex={searchIndex}
             isSubscribed={isSubscribed}
           />
         </div>
@@ -378,7 +383,6 @@ export default async function WatchlistPage() {
           tapeItems={tapeItems}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
-          searchIndex={searchIndex}
           watchlistPositions={watchlistPositions}
         />
 
@@ -438,7 +442,6 @@ function HeaderStrip({
   tapeItems,
   isSubscribed,
   trackedCount,
-  searchIndex,
   watchlistPositions,
 }: {
   rows: WatchlistRow[];
@@ -447,10 +450,8 @@ function HeaderStrip({
   tapeItems: TapeItem[];
   isSubscribed: boolean;
   trackedCount: number;
-  searchIndex: SearchEntry[];
   watchlistPositions: Record<string, "holding" | "watchlist">;
 }) {
-  const searchByInstrumentId = new Map(searchIndex.map((entry) => [entry.instrument_id, entry] as const));
   // Use visible rows (have price data) — ghost Firestore entries shouldn't block the user
   const atLimit = !isSubscribed && rows.length >= 3;
   return (
@@ -493,11 +494,10 @@ function HeaderStrip({
             </Link>
           ) : (
             <RadarBatchEditModal
-              searchIndex={searchIndex}
               initialItems={rows.map((r) => ({
                 instrument_id: r.instrument_id,
                 ticker: r.ticker,
-                name: searchByInstrumentId.get(r.instrument_id)?.name || r.ticker,
+                name: r.ticker,
                 position_type:
                   watchlistPositions[r.instrument_id] === "holding" ? "holding" : "watchlist",
                 holding: r.holding
@@ -1229,8 +1229,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
 
   if (state === "partial") {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
-        <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#f59e0b]" />
+      <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <p className="text-[12px] font-semibold text-[#92400e]">
             {enteredCount} of {totalHoldings} holdings have shares entered
@@ -2169,12 +2168,10 @@ const POPULAR_FALLBACK: Array<{ ticker: string; sector: string; reason: string }
 function EmptyState({
   suggestions = [],
   trackedIds = new Set(),
-  searchIndex,
   isSubscribed,
 }: {
   suggestions?: Dict[];
   trackedIds?: Set<string>;
-  searchIndex: SearchEntry[];
   isSubscribed: boolean;
 }) {
   const cards =
@@ -2209,7 +2206,6 @@ function EmptyState({
           </div>
         </div>
         <RadarBatchEditModal
-          searchIndex={searchIndex}
           initialItems={[]}
           isSubscribed={isSubscribed}
           ctaLabel="Add stocks"
@@ -2330,10 +2326,8 @@ const STARTER_PICKS = [
 
 function UnsubscribedState({
   tracked,
-  searchIndex,
 }: {
   tracked: string[];
-  searchIndex: SearchEntry[];
 }) {
   const trackedCount = tracked.length;
   const atLimit = trackedCount >= 3;
@@ -2378,7 +2372,6 @@ function UnsubscribedState({
                 </Link>
               ) : (
                 <RadarBatchEditModal
-                  searchIndex={searchIndex}
                   initialItems={[]}
                   isSubscribed={false}
                   ctaLabel="Add a stock"

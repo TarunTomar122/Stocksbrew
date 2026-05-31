@@ -47,10 +47,12 @@ async function HeatContentStream() {
   let data: HeatList | null = null;
   let divergence: DivergenceList | null = null;
   try {
-    [data, divergence] = await Promise.all([
+    const [rawHeat, divergenceDoc] = await Promise.all([
       getHeatList(market),
       getDivergenceList(market),
     ]);
+    data = rawHeat;
+    divergence = divergenceDoc;
   } catch (err) {
     console.error("[heat] load failed:", err);
   }

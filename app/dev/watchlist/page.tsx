@@ -227,7 +227,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
             <HeaderStrip
               rows={rows} builtAt={builtAt} pulse={pulse}
               tapeItems={tapeItems} isSubscribed={true}
-              trackedCount={tracked.length} searchIndex={searchIndex}
+              trackedCount={tracked.length}
               watchlistPositions={watchlistPositions}
             />
             <YourBookSection

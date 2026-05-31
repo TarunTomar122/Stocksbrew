@@ -18,7 +18,7 @@ import {
 import { getSessionUser } from "@/lib/auth-server";
 import type { MarketMoversDoc, SnapshotRow } from "@/lib/types";
 import type { NewsArticle } from "@/lib/news";
-import { getHomeView } from "@/lib/home-view";
+import { getHomeNews, getHomeView } from "@/lib/home-view";
 import { getNewsFeed } from "@/lib/news";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
@@ -218,8 +218,8 @@ const loadHomeCore = cache(async () => {
 
 const loadHomeSupplemental = cache(async () => {
   const market = getCurrentMarket();
-  const homeView = await getHomeView(market).catch(() => null);
-  let news: NewsArticle[] = homeView?.news ?? [];
+  const homeNews = await getHomeNews(market).catch(() => null);
+  let news: NewsArticle[] = homeNews?.news ?? [];
   if (news.length === 0) {
     news = await getNewsFeed(market, 30).catch(() => []);
   }

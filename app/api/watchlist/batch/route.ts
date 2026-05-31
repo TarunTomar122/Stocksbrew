@@ -7,6 +7,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
+import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
@@ -242,8 +243,24 @@ export async function POST(req: NextRequest) {
     });
   });
 
+  let queuedOnDemandCount = 0;
   for (const instrumentId of addedIds) {
-    await maybeQueueOnDemandNews(session.uid, instrumentId).catch(() => false);
+    const queued = await maybeQueueOnDemandNews(session.uid, instrumentId).catch(() => false);
+    if (queued) queuedOnDemandCount += 1;
+  }
+  if (queuedOnDemandCount > 0) {
+    await triggerDispatchLane({
+      lane: "on_demand_news",
+      market: "US",
+      limit: Math.min(Math.max(queuedOnDemandCount, 3), 12),
+      extraArgs: ["--per-stock-cap", "6"],
+    }).catch((error) => {
+      batchLog(traceId, "warn", "on_demand_news_dispatch_failed", {
+        uid: session.uid,
+        queued_count: queuedOnDemandCount,
+        error: String(error),
+      });
+    });
   }
 
   await adminFirestore
@@ -272,6 +289,7 @@ export async function POST(req: NextRequest) {
     next_count: nextTracked.length,
     added_count: addedIds.length,
     removed_count: removedIds.length,
+    on_demand_news_queued_count: queuedOnDemandCount,
   });
 
   return NextResponse.json({
@@ -280,6 +298,7 @@ export async function POST(req: NextRequest) {
     tracked_count: nextTracked.length,
     added_count: addedIds.length,
     removed_count: removedIds.length,
+    on_demand_news_queued_count: queuedOnDemandCount,
     refresh_queued: true,
   });
 }
