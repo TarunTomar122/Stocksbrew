@@ -34,6 +34,7 @@ export type UserDoc = {
     pulse?: Record<string, unknown>;
     portfolio?: Record<string, unknown>;
     event_radar?: Array<Record<string, unknown>>;
+    today_setup?: Record<string, unknown>;
     changes?: Record<string, unknown>;
   };
   created_at?: string;

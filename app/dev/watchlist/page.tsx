@@ -12,7 +12,7 @@ import {
   formatRelative, asDict, tapeStyles,
 } from "@/components/watchlist-sections";
 import type { Dict } from "@/components/watchlist-sections";
-import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
+import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { SearchEntry } from "@/lib/search";
@@ -153,6 +153,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
   const pulse = ((watchlistView?.pulse || radar.pulse) ?? null) as WatchlistPulse | null;
   const portfolio = ((watchlistView?.portfolio || radar.portfolio) ?? {}) as Dict;
   const eventRadar = ((watchlistView?.event_radar || radar.event_radar) ?? []) as Dict[];
+  const todaySetup = ((watchlistView?.today_setup || radar.today_setup) ?? null) as WatchlistTodaySetup | null;
   const changes = ((watchlistView?.changes || radar.changes) ?? {}) as Dict;
   const builtAt = typeof watchlistView?.built_at === "string" ? watchlistView.built_at : typeof radar.built_at === "string" ? radar.built_at : undefined;
 
@@ -237,7 +238,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
               trackedCount={tracked.length} portfolio={portfolio}
             />
             <TodaySection
-              brief={brief} topDirective={topDirective}
+              brief={brief} todaySetup={todaySetup} topDirective={topDirective}
               secondaryDirectives={secondaryDirectives} suggestions={suggestions}
               marketEvents={marketWideEvents}
               trackedIds={new Set(tracked)}

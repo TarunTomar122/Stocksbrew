@@ -116,6 +116,7 @@ def main() -> None:
             market_rows,
             radar_brief=view.get("brief") if isinstance(view.get("brief"), dict) else None,
             radar_events=view.get("event_radar") if isinstance(view.get("event_radar"), list) else None,
+            radar_today_setup=view.get("today_setup") if isinstance(view.get("today_setup"), dict) else None,
         ),
         email_pro_earnings_setup(
             earnings_doc or {},

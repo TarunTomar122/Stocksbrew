@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
+import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
@@ -494,8 +494,9 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
 // § 02 · TODAY
 // =============================================================================
 
-export function TodaySection({ brief, topDirective, secondaryDirectives, suggestions, marketEvents = [], refreshing, trackedIds = new Set() }: {
+export function TodaySection({ brief, todaySetup, topDirective, secondaryDirectives, suggestions, marketEvents = [], refreshing, trackedIds = new Set() }: {
   brief: WatchlistBrief | null;
+  todaySetup: WatchlistTodaySetup | null;
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
   suggestions: Dict[];
@@ -505,6 +506,7 @@ export function TodaySection({ brief, topDirective, secondaryDirectives, suggest
 }) {
   if (
     !topDirective &&
+    !todaySetup?.headline &&
     (!brief?.narrative || !brief.narrative.trim()) &&
     marketEvents.length === 0
   ) {
@@ -515,6 +517,7 @@ export function TodaySection({ brief, topDirective, secondaryDirectives, suggest
   return (
     <section className="flex flex-col gap-6">
       <SectionOpener number="02" title="Today" refreshing={refreshing} />
+      {todaySetup && todaySetup.signals.length > 0 && <PreopenSetupCard setup={todaySetup} />}
       <TodayMarketEvents events={marketEvents} />
       {brief?.narrative && (
         <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">{brief.narrative}</p>
@@ -547,6 +550,69 @@ export function TodaySection({ brief, topDirective, secondaryDirectives, suggest
         </div>
       )}
     </section>
+  );
+}
+
+function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
+  const signals = Array.isArray(setup.signals) ? setup.signals.slice(0, 2) : [];
+  const threads = Array.isArray(setup.market_threads) ? setup.market_threads.slice(0, 3) : [];
+  const compact = (value: string, limit: number) => {
+    const clean = value.trim();
+    if (clean.length <= limit) return clean;
+    const head = clean.slice(0, limit - 1);
+    const lastSpace = head.lastIndexOf(" ");
+    const trimmed = (lastSpace > 24 ? head.slice(0, lastSpace) : head).trim();
+    return `${trimmed || clean.slice(0, limit - 1)}…`;
+  };
+  const titleWithoutTicker = (ticker: string, title: string) => {
+    const prefix = `${ticker.toUpperCase()} `;
+    return title.toUpperCase().startsWith(prefix) ? title.slice(prefix.length).trim() : title;
+  };
+  if (!signals.length && !threads.length && !setup.headline.trim()) return null;
+  return (
+    <div className="rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-5 py-5 md:px-6 md:py-6 shadow-[0_1px_0_rgba(0,82,255,0.06)]">
+      <div className="flex flex-col gap-2">
+        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#5b6f99]">Before open</span>
+        <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">{setup.headline}</h3>
+        {setup.body && !signals.length ? <p className="max-w-[900px] text-[15px] leading-[1.65] text-[#374151]">{compact(setup.body, 160)}</p> : null}
+      </div>
+      {threads.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {threads.map((thread) => (
+            <span key={thread} className="inline-flex items-center rounded-full border border-[#dbe7ff] bg-white px-3 py-1 text-[11px] font-medium text-[#35538a]">
+              {compact(thread, 72)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {signals.length > 0 ? (
+        <div className="mt-5 overflow-hidden rounded-[20px] border border-[#dbe7ff] bg-white">
+          {signals.map((signal, idx) => {
+            const evidence = signal.evidence?.filter(Boolean).slice(0, 2) || [];
+            return (
+              <div
+                key={`${signal.ticker}-${signal.kind}-${idx}`}
+                className={`px-4 py-4 md:px-5 ${idx > 0 ? "border-t border-[#eef4ff]" : ""}`}
+              >
+                <div className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)] md:items-start">
+                  <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-1">
+                    <span className="text-[16px] font-semibold text-[#0a0a0a]">{signal.ticker}</span>
+                    <PositionPill type={signal.position_type} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[16px] font-semibold leading-snug text-[#111827]">{titleWithoutTicker(signal.ticker, signal.title)}</p>
+                    <p className="mt-1.5 text-[14px] leading-[1.55] text-[#4b5563]">{signal.why_it_matters}</p>
+                    {evidence.length ? (
+                      <p className="mt-2 text-[12px] text-[#6b7280]">{evidence.map((item) => compact(item, 64)).join(" · ")}</p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

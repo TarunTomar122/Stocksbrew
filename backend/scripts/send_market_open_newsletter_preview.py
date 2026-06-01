@@ -237,6 +237,7 @@ def main() -> None:
             market_rows,
             radar_brief=radar_brief,
             radar_events=radar_events,
+            radar_today_setup=view.get("today_setup") if isinstance(view.get("today_setup"), dict) else None,
         )
 
     if args.dry_run:

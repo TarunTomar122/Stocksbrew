@@ -147,6 +147,24 @@ export type WatchlistPulse = {
   };
 };
 
+export type WatchlistTodaySetup = {
+  headline: string;
+  body: string;
+  signals: Array<{
+    ticker: string;
+    position_type: "holding" | "watchlist" | string;
+    kind: string;
+    tone: "positive" | "negative" | "neutral" | string;
+    urgency: number;
+    title: string;
+    why_it_matters: string;
+    action: string;
+    evidence: string[];
+  }>;
+  market_threads?: string[];
+  generated_at?: string;
+};
+
 export type WatchlistView = {
   uid: string;
   source_version?: number;
@@ -183,6 +201,7 @@ export type WatchlistView = {
   blind_spot_suggestions?: Record<string, unknown>[];
   risk_summary?: Record<string, unknown>;
   event_radar?: Record<string, unknown>[];
+  today_setup?: WatchlistTodaySetup;
   changes?: Record<string, unknown>;
   built_at: string;
   updated_at?: string;

@@ -143,6 +143,7 @@ def run_market_open_newsletters(*, market: str = "US", limit: int = 0, dry_run: 
                     market_rows,
                     radar_brief=brief if isinstance(brief, dict) else None,
                     radar_events=events if isinstance(events, list) else None,
+                    radar_today_setup=view.get("today_setup") if isinstance(view.get("today_setup"), dict) else None,
                 )
                 mode = "personalized"
 

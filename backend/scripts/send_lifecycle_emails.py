@@ -290,7 +290,13 @@ def _process_pro_daily_digest(store: TraceMoneyStore, cache: RunCache, *, dry_ru
         if len(rows) == 0:
             continue
         market_rows = store.get_market_price_snapshot("US")
-        subject, body = email_pro_daily_digest(rows, market_rows)
+        subject, body = email_pro_daily_digest(
+            rows,
+            market_rows,
+            radar_brief=view.get("brief") if isinstance(view.get("brief"), dict) else None,
+            radar_events=view.get("event_radar") if isinstance(view.get("event_radar"), list) else None,
+            radar_today_setup=view.get("today_setup") if isinstance(view.get("today_setup"), dict) else None,
+        )
         ok = True if dry_run else send_email(email, subject, body)
         if ok:
             if not dry_run:

@@ -125,6 +125,14 @@ def _price_universe(market: str, active_universes: dict[str, str]) -> str:
     return value
 
 
+def _ai_universe(market: str, active_universes: dict[str, str]) -> str:
+    key = f"{market}_ai"
+    value = str(active_universes.get(key) or "").strip()
+    if not value:
+        raise ValueError(f"Missing active universe key: {key}")
+    return value
+
+
 def _first_metric_summary(intel_pro: dict[str, Any], pillar: str) -> str:
     metrics = ((intel_pro.get("pillars") or {}).get(pillar) or {}).get("metrics") or []
     for metric in metrics:
@@ -734,6 +742,7 @@ def _row_for_instrument(
     instrument_id: str,
     position_type: str,
     holding_raw: dict[str, Any] | None,
+    instrument_meta: dict[str, Any],
     latest: dict[str, Any],
     intel_pro: dict[str, Any],
     stock_intel: dict[str, Any],
@@ -782,6 +791,11 @@ def _row_for_instrument(
     directive = raw_directive if isinstance(raw_directive, dict) else {}
     directive_text = str(directive.get("text") or "").strip()
     directive_rationale = str(directive.get("rationale") or "").strip()
+    instrument_peers = [
+        str(peer_id).strip()
+        for peer_id in (instrument_meta.get("peer_ids") or [])
+        if str(peer_id).strip()
+    ]
     intel_catalysts = [
         catalyst for catalyst in (intel_pro.get("catalysts") or [])
         if isinstance(catalyst, dict) and _catalyst_is_current(catalyst)
@@ -815,6 +829,11 @@ def _row_for_instrument(
         "market": market,
         "sector_label": intel_pro.get("sector_label", ""),
         "industry_label": intel_pro.get("industry_label", ""),
+        "instrument_name": instrument_meta.get("name") or latest.get("name") or "",
+        "instrument_sector": instrument_meta.get("sector") or "",
+        "instrument_industry": instrument_meta.get("industry") or "",
+        "peer_ids": instrument_peers,
+        "peer_tickers": [peer_id.split("_", 1)[-1] for peer_id in instrument_peers if "_" in peer_id],
         "currency": latest.get("currency", "USD" if market == "US" else "INR"),
         "price": price,
         "day_change_pct": day_change,
@@ -1302,6 +1321,1070 @@ def _load_anomalies_by_market(store: TraceMoneyStore, markets: list[str]) -> dic
             mapped[ticker] = item
         by_market[market_key] = mapped
     return by_market
+
+
+def _load_market_context_by_market(
+    store: TraceMoneyStore,
+    active_universes: dict[str, str],
+    markets: list[str],
+) -> dict[str, dict[str, Any]]:
+    by_market: dict[str, dict[str, Any]] = {}
+    for market in markets:
+        market_key = str(market).upper()
+        universe = _price_universe(market_key, active_universes)
+        payload = store.get_market_context_doc(market_key, universe) or {}
+        if payload:
+            by_market[market_key] = payload
+    return by_market
+
+
+def _load_sector_context_by_market(
+    store: TraceMoneyStore,
+    active_universes: dict[str, str],
+    markets: list[str],
+) -> dict[str, dict[str, dict[str, Any]]]:
+    by_market: dict[str, dict[str, dict[str, Any]]] = {}
+    for market in markets:
+        market_key = str(market).upper()
+        universe = _price_universe(market_key, active_universes)
+        docs = store.list_sector_context_docs(market_key, universe)
+        by_label: dict[str, dict[str, Any]] = {}
+        for doc in docs:
+            label = str(doc.get("sector_label") or "").strip().lower()
+            if label:
+                by_label[label] = doc
+        by_market[market_key] = by_label
+    return by_market
+
+
+def _load_recent_enrichments_by_market(
+    store: TraceMoneyStore,
+    active_universes: dict[str, str],
+    markets: list[str],
+    *,
+    limit: int = 60,
+) -> dict[str, list[dict[str, Any]]]:
+    by_market: dict[str, list[dict[str, Any]]] = {}
+    for market in markets:
+        market_key = str(market).upper()
+        universe = _ai_universe(market_key, active_universes)
+        collection = store.db.collection("tm_news_runs").document(f"{market_key}__{universe}").collection("enrichments")
+        try:
+            snaps = collection.order_by("published_at", direction="DESCENDING").limit(limit).stream()
+        except Exception:
+            snaps = collection.limit(limit).stream()
+        rows = []
+        for snap in snaps:
+            payload = snap.to_dict() or {}
+            if isinstance(payload, dict):
+                rows.append(payload)
+        by_market[market_key] = rows
+    return by_market
+
+
+def _load_ticker_read_models(
+    store: TraceMoneyStore,
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    anomaly_refs = []
+    reddit_refs = []
+    earnings_refs = []
+    row_ids: list[str] = []
+    for row in rows:
+        instrument_id = str(row.get("instrument_id") or "").strip()
+        ticker = str(row.get("ticker") or "").strip().upper()
+        market = str(row.get("market") or "").strip().upper()
+        if not instrument_id or not ticker or market not in {"US", "IN"}:
+            continue
+        row_ids.append(instrument_id)
+        anomaly_refs.append(store.db.collection("tm_daily_anomaly_tickers").document(f"{market}__{ticker}"))
+        reddit_refs.append(store.db.collection("reddit_ticker_contexts").document(f"{market}__{ticker}"))
+        earnings_refs.append(store.db.collection("tm_pre_earnings_intel").document(f"{market}__{instrument_id}__upcoming"))
+
+    anomaly_docs: dict[str, dict[str, Any]] = {}
+    reddit_docs: dict[str, dict[str, Any]] = {}
+    earnings_docs: dict[str, dict[str, Any]] = {}
+    if row_ids:
+        for instrument_id, snap in zip(row_ids, store.db.get_all(anomaly_refs), strict=False):
+            if snap.exists:
+                anomaly_docs[instrument_id] = snap.to_dict() or {}
+        for instrument_id, snap in zip(row_ids, store.db.get_all(reddit_refs), strict=False):
+            if snap.exists:
+                reddit_docs[instrument_id] = snap.to_dict() or {}
+        for instrument_id, snap in zip(row_ids, store.db.get_all(earnings_refs), strict=False):
+            if snap.exists:
+                earnings_docs[instrument_id] = snap.to_dict() or {}
+    return anomaly_docs, reddit_docs, earnings_docs
+
+
+THEME_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "ai_infra": ("ai infrastructure", "ai budget", "ai workloads", "ai server", "data center", "datacenter", "gpu", "accelerator"),
+    "semis": ("semiconductor", "chip", "chips", "foundry", "wafer", "memory"),
+    "cloud_software": ("cloud", "saas", "subscription", "enterprise software", "workflow", "platform"),
+    "cybersecurity": ("cybersecurity", "security", "identity", "zero trust", "threat", "endpoint"),
+    "ev": ("electric vehicle", "electric vehicles", "battery", "autonomous driving"),
+    "space": ("spacex", "space", "satellite", "launch"),
+    "adtech": ("advertising", "ads", "ad spend", "digital ad"),
+    "consumer_internet": ("ecommerce", "travel", "marketplace", "consumer app"),
+}
+
+THEME_LEADERS: dict[str, tuple[str, ...]] = {
+    "ai_infra": ("NVDA", "AMD", "SMCI", "AVGO", "MRVL", "MU", "ARM", "DELL", "ORCL", "MSFT"),
+    "semis": ("NVDA", "AMD", "AVGO", "MRVL", "MU", "ARM", "QCOM", "TSM", "INTC"),
+    "cloud_software": ("MSFT", "NOW", "ORCL", "PLTR", "SNOW", "CRM"),
+    "cybersecurity": ("PANW", "CRWD", "ZS", "OKTA", "S"),
+    "ev": ("TSLA", "RIVN", "LI", "NIO"),
+    "space": ("RKLB", "SPCE"),
+    "consumer_internet": ("AMZN", "META", "GOOGL", "ABNB"),
+}
+
+THEME_LABELS: dict[str, str] = {
+    "ai_infra": "AI infra",
+    "semis": "semi",
+    "cloud_software": "cloud software",
+    "cybersecurity": "cybersecurity",
+    "ev": "EV",
+    "space": "space",
+    "consumer_internet": "consumer internet",
+}
+
+LEADER_BENEFICIARY_BASKETS: dict[str, tuple[str, ...]] = {
+    "NVDA": ("SMCI", "DELL", "AVGO", "MRVL", "MU", "AMD", "ARM", "TSM", "GLW", "NBIS", "PLTR", "MSFT"),
+    "AMD": ("SMCI", "DELL", "AVGO", "MRVL", "MU", "ARM", "TSM", "NVDA", "GLW"),
+    "AVGO": ("MRVL", "NVDA", "AMD", "ARM", "MU", "TSM", "QCOM"),
+    "MRVL": ("AVGO", "NVDA", "AMD", "MU", "ARM", "TSM"),
+    "MU": ("NVDA", "AVGO", "MRVL", "ARM", "AMD", "TSM", "INTC", "QCOM"),
+    "ARM": ("NVDA", "AMD", "AVGO", "MRVL", "MU", "QCOM", "TSM", "INTC"),
+    "TSM": ("NVDA", "AMD", "AVGO", "MRVL", "MU", "ARM", "QCOM", "INTC"),
+    "DELL": ("SMCI", "NVDA", "AVGO", "AMD", "MRVL", "MU", "GLW", "NBIS", "PLTR", "MSFT"),
+    "SMCI": ("NVDA", "DELL", "AVGO", "AMD", "MRVL", "MU", "GLW"),
+    "MSFT": ("NVDA", "AMD", "AVGO", "PLTR", "NBIS", "DELL", "SMCI", "GOOGL", "META", "AMZN"),
+    "ORCL": ("MSFT", "SMCI", "DELL", "NVDA", "AMD", "PLTR", "NBIS"),
+    "NOW": ("MSFT", "PLTR", "AMZN", "GOOGL", "META", "NBIS"),
+    "PLTR": ("MSFT", "NVDA", "AMD", "DELL", "SMCI", "NBIS"),
+    "META": ("NVDA", "AMD", "GOOGL", "AMZN", "MSFT"),
+    "AMZN": ("GOOGL", "META", "MSFT", "NVDA"),
+    "GOOGL": ("META", "AMZN", "MSFT", "NVDA"),
+}
+
+LOW_SIGNAL_PREOPEN_TITLE_TERMS: tuple[str, ...] = (
+    "better value option",
+    "brilliant buys",
+    "top performing",
+    "top stocks",
+    "stock to watch",
+    "stocks to watch",
+    "should you buy",
+    "worth watching",
+    "buy them both",
+    "best stocks",
+    "buying back shares hand over fist",
+)
+
+NON_OPERATIONAL_PREOPEN_TERMS: tuple[str, ...] = (
+    "pay package",
+    "ceo pay",
+    "billion-dollar payday",
+    "trillion-dollar club",
+    "market capitalization target",
+    "compensation package",
+    "stock split",
+)
+
+
+def _theme_tags_from_text(*parts: Any) -> set[str]:
+    text = " ".join(str(part or "") for part in parts).strip().lower()
+    tags: set[str] = set()
+    if not text:
+        return tags
+    for tag, needles in THEME_KEYWORDS.items():
+        if any(needle in text for needle in needles):
+            tags.add(tag)
+    return tags
+
+
+def _row_theme_tags(row: dict[str, Any]) -> set[str]:
+    tags: set[str] = set()
+    sector = str(row.get("sector_label") or "").strip().lower()
+    industry = str(row.get("industry_label") or "").strip().lower()
+    text_tags = _theme_tags_from_text(
+        row.get("ai_directive_text"),
+        row.get("ai_directive_rationale"),
+        row.get("attention_reason"),
+    )
+    if "software" in industry or "internet" in industry:
+        tags.add("cloud_software")
+    if "semiconductor" in industry:
+        tags.add("semis")
+    if "computer hardware" in industry or "electronic components" in industry or "software - infrastructure" in industry:
+        tags.add("ai_infra")
+    if "cyber" in industry or "security" in industry:
+        tags.add("cybersecurity")
+    if "auto" in industry or "vehicle" in industry:
+        tags.add("ev")
+    if "aerospace" in industry or "space" in industry:
+        tags.add("space")
+    if "internet retail" in industry or "travel services" in industry or "internet content" in industry:
+        tags.add("consumer_internet")
+    if "technology" in sector and ("ai_infra" in text_tags or "semis" in text_tags):
+        tags.update({"ai_infra", "semis"})
+    if "communication services" in sector and "consumer_internet" in text_tags:
+        tags.add("consumer_internet")
+    tags.update(text_tags - {"ev"})
+    return tags
+
+
+def _clean_signal_text(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip()
+
+
+def _clip_signal_text(value: Any, limit: int) -> str:
+    text = _clean_signal_text(value)
+    if len(text) <= limit:
+        return text
+    trimmed = text[: limit - 1].rsplit(" ", 1)[0].strip()
+    return (trimmed or text[: limit - 1]).rstrip(" ,.:;-") + "…"
+
+
+def _stock_mentions(article: dict[str, Any]) -> list[dict[str, Any]]:
+    mentions: list[dict[str, Any]] = []
+    for mention in article.get("entity_mentions") or []:
+        if not isinstance(mention, dict):
+            continue
+        if str(mention.get("type") or "").strip().lower() != "stock":
+            continue
+        if str(mention.get("mention_role") or "secondary").strip().lower() == "incidental":
+            continue
+        ticker = _clean_signal_text(mention.get("ticker")).upper()
+        if not ticker:
+            continue
+        mentions.append(mention)
+    return mentions
+
+
+def _is_low_signal_event_article(article: dict[str, Any], mentions: list[dict[str, Any]]) -> bool:
+    title = _clean_signal_text(article.get("title")).lower()
+    if not title:
+        return True
+    if " vs " in title or " versus " in title:
+        return True
+    if any(term in title for term in LOW_SIGNAL_PREOPEN_TITLE_TERMS):
+        return True
+    article_text = " ".join(
+        [
+            title,
+            _clean_signal_text(article.get("summary")).lower(),
+            " ".join(_clean_signal_text(mention.get("what_happened")).lower() for mention in mentions),
+            " ".join(_clean_signal_text(mention.get("why_it_matters")).lower() for mention in mentions),
+        ]
+    )
+    if any(term in article_text for term in NON_OPERATIONAL_PREOPEN_TERMS):
+        return True
+    primary_count = sum(1 for mention in mentions if str(mention.get("mention_role") or "").strip().lower() == "primary")
+    return primary_count >= 4
+
+
+def _event_tagline(article: dict[str, Any], mention: dict[str, Any] | None = None) -> str:
+    event_text = " ".join(
+        filter(
+            None,
+            [
+                _clean_signal_text((mention or {}).get("what_happened")),
+                _clean_signal_text((mention or {}).get("why_it_matters")),
+                _clean_signal_text(article.get("title")),
+                _clean_signal_text(article.get("summary")),
+            ],
+        )
+    ).lower()
+    return _event_tagline_from_text(event_text)
+
+
+def _event_tagline_from_text(event_text: str) -> str:
+    event_text = _clean_signal_text(event_text).lower()
+    if "launch" in event_text or "unveil" in event_text or "introduced" in event_text:
+        return "new product signal"
+    if "guidance" in event_text or "earnings" in event_text or "revenue" in event_text:
+        return "earnings and demand signal"
+    if "investment" in event_text or "deal" in event_text or "contract" in event_text or "acquisition" in event_text:
+        return "deal signal"
+    if "buyback" in event_text or "repurchase" in event_text:
+        return "capital return signal"
+    if "price target" in event_text or "upside" in event_text:
+        return "analyst reset"
+    if "pay package" in event_text or "market cap target" in event_text or "ceo" in event_text:
+        return "expectations reset"
+    if "ai" in event_text and ("server" in event_text or "chip" in event_text or "data center" in event_text):
+        return "AI demand signal"
+    return "fresh market signal"
+
+
+def _mention_quality_score(article: dict[str, Any], mention: dict[str, Any]) -> int:
+    score = 0
+    role = _clean_signal_text(mention.get("mention_role")).lower()
+    if role == "primary":
+        score += 120
+    elif role == "secondary":
+        score += 60
+    text = " ".join(
+        [
+            _clean_signal_text(article.get("title")),
+            _clean_signal_text(article.get("summary")),
+            _clean_signal_text(mention.get("what_happened")),
+            _clean_signal_text(mention.get("why_it_matters")),
+            " ".join(_clean_signal_text(point) for point in (mention.get("entity_key_points") or [])),
+        ]
+    ).lower()
+    if any(token in text for token in ("launch", "unveil", "introduced", "guidance", "earnings", "revenue", "contract", "deal", "investment", "buyback", "demand", "orders", "backlog")):
+        score += 35
+    if any(char.isdigit() for char in text):
+        score += 10
+    if any(token in text for token in NON_OPERATIONAL_PREOPEN_TERMS):
+        score -= 80
+    if any(token in text for token in LOW_SIGNAL_PREOPEN_TITLE_TERMS):
+        score -= 120
+    return score
+
+
+def _format_event_body(base: str, beneficiaries: list[str] | None = None) -> str:
+    body = _clip_signal_text(base, 150)
+    if beneficiaries:
+        suffix = f" That can matter for {', '.join(beneficiaries)} on your Radar."
+        if len(body) + len(suffix) > 220:
+            allowed = max(40, 220 - len(suffix))
+            body = _clip_signal_text(body, allowed)
+        body = f"{body}{suffix}"
+    return body[:220]
+
+
+def _beneficiary_verb(tone: str | None) -> str:
+    normalized = _clean_signal_text(tone).lower()
+    if normalized == "positive":
+        return "could lift"
+    if normalized == "negative":
+        return "could pressure"
+    return "could move"
+
+
+def _beneficiary_score(
+    source_row: dict[str, Any] | None,
+    candidate_row: dict[str, Any],
+    source_tags: set[str],
+    candidate_tags: set[str],
+) -> int:
+    score = 0
+    candidate_id = _clean_signal_text(candidate_row.get("instrument_id"))
+    candidate_ticker = _clean_signal_text(candidate_row.get("ticker")).upper()
+    source_peer_ids = {_clean_signal_text(v) for v in ((source_row or {}).get("peer_ids") or []) if _clean_signal_text(v)}
+    source_peer_tickers = {_clean_signal_text(v).upper() for v in ((source_row or {}).get("peer_tickers") or []) if _clean_signal_text(v)}
+    if candidate_id and candidate_id in source_peer_ids:
+        score += 140
+    if candidate_ticker and candidate_ticker in source_peer_tickers:
+        score += 120
+    candidate_peer_tickers = {_clean_signal_text(v).upper() for v in (candidate_row.get("peer_tickers") or []) if _clean_signal_text(v)}
+    source_ticker = _clean_signal_text((source_row or {}).get("ticker")).upper()
+    if source_ticker and source_ticker in candidate_peer_tickers:
+        score += 90
+
+    source_industry = _clean_signal_text((source_row or {}).get("instrument_industry") or (source_row or {}).get("industry_label")).lower()
+    candidate_industry = _clean_signal_text(candidate_row.get("instrument_industry") or candidate_row.get("industry_label")).lower()
+    if source_industry and candidate_industry and source_industry == candidate_industry:
+        score += 80
+    elif source_industry and candidate_industry and any(
+        token in candidate_industry for token in source_industry.split()
+        if len(token) >= 5
+    ):
+        score += 35
+
+    source_sector = _clean_signal_text((source_row or {}).get("instrument_sector") or (source_row or {}).get("sector_label")).lower()
+    candidate_sector = _clean_signal_text(candidate_row.get("instrument_sector") or candidate_row.get("sector_label")).lower()
+    if source_sector and candidate_sector and source_sector == candidate_sector:
+        score += 20
+
+    shared_tags = source_tags.intersection(candidate_tags)
+    score += 18 * len(shared_tags)
+    if "semis" in shared_tags:
+        score += 22
+    if "ai_infra" in shared_tags:
+        score += 18
+    if "cloud_software" in shared_tags:
+        score += 12
+
+    attention = int(_safe_float(candidate_row.get("attention_score")) or 0)
+    score += min(18, max(0, attention // 8))
+    return score
+
+
+def _preferred_basket_targets(source_ticker: str, tracked_market_tickers: set[str]) -> list[str]:
+    ordered = LEADER_BENEFICIARY_BASKETS.get(source_ticker) or ()
+    return [ticker for ticker in ordered if ticker in tracked_market_tickers and ticker != source_ticker]
+
+
+def _preopen_signal_rank(item: dict[str, Any]) -> tuple[int, int]:
+    kind = _clean_signal_text(item.get("kind")).lower()
+    title = _clean_signal_text(item.get("title")).lower()
+    score = 0
+    if kind == "event_readthrough":
+        score += 60
+    elif kind == "leader_basket":
+        score += 50
+    elif kind == "event_catalyst":
+        score += 42
+    elif kind == "preopen_catalyst":
+        score += 34
+    elif kind == "theme_beneficiary":
+        score += 24
+    elif kind == "theme_spillover":
+        score += 16
+    elif kind == "sector_theme":
+        score += 12
+    if "new product signal" in title:
+        score += 18
+    if "deal signal" in title or "ai demand signal" in title or "earnings and demand signal" in title:
+        score += 14
+    if "capital return signal" in title:
+        score += 6
+    if "analyst reset" in title:
+        score -= 10
+    if "expectations reset" in title:
+        score -= 14
+    return score, int(_safe_float(item.get("urgency")) or 0)
+
+
+def _leader_basket_signals(
+    rows_by_market_ticker: dict[tuple[str, str], dict[str, Any]],
+    row_theme_map: dict[tuple[str, str], set[str]],
+    anomaly_by_market: dict[str, dict[str, dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    signals: list[dict[str, Any]] = []
+    for market_key, anomalies in anomaly_by_market.items():
+        tracked_market_tickers = {
+            ticker
+            for (row_market, ticker), _row in rows_by_market_ticker.items()
+            if row_market == market_key
+        }
+        if not tracked_market_tickers:
+            continue
+        for leader_ticker, ordered_targets in LEADER_BENEFICIARY_BASKETS.items():
+            if leader_ticker not in anomalies:
+                continue
+            item = anomalies.get(leader_ticker) or {}
+            move = _safe_float(item.get("day_change_pct"))
+            headline = _clean_signal_text(item.get("headline"))
+            brief = _clean_signal_text(item.get("today_brief") or item.get("thesis"))
+            catalyst = _clean_signal_text(item.get("catalyst"))
+            if move is None and not headline and not brief and not catalyst:
+                continue
+            if move is not None and abs(move) < 4 and not catalyst:
+                continue
+            source_row = rows_by_market_ticker.get((market_key, leader_ticker))
+            source_tags = set(row_theme_map.get((market_key, leader_ticker), set()))
+            source_tags.update(_theme_tags_from_text(headline, brief, catalyst))
+            ranked_targets: list[tuple[int, str]] = []
+            for idx, candidate_ticker in enumerate(ordered_targets):
+                if candidate_ticker not in tracked_market_tickers or candidate_ticker == leader_ticker:
+                    continue
+                candidate_row = rows_by_market_ticker.get((market_key, candidate_ticker))
+                if not candidate_row:
+                    continue
+                score = _beneficiary_score(
+                    source_row,
+                    candidate_row,
+                    source_tags,
+                    row_theme_map.get((market_key, candidate_ticker), set()),
+                ) + 220 - idx * 10
+                ranked_targets.append((score, candidate_ticker))
+            beneficiaries = [ticker for _score, ticker in sorted(ranked_targets, reverse=True)[:3]]
+            if not beneficiaries:
+                continue
+            signal_text = " ".join(part for part in [headline, brief, catalyst] if part).strip()
+            tone = "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral"
+            signals.append(
+                {
+                    "ticker": leader_ticker,
+                    "position_type": "market",
+                    "kind": "leader_basket",
+                    "tone": tone,
+                    "urgency": int(min(92, 84 + abs(move or 0))),
+                    "title": f"{leader_ticker} {_event_tagline_from_text(signal_text)} {_beneficiary_verb(tone)} {', '.join(beneficiaries[:2])}",
+                    "why_it_matters": _format_event_body(brief or headline or catalyst, beneficiaries),
+                    "action": f"Check {', '.join(beneficiaries)} for follow-through after the open",
+                    "evidence": [value for value in [f"{move:+.1f}% move" if move is not None else "", catalyst or headline] if value][:2],
+                }
+            )
+    return signals
+
+
+def _direct_event_signals(
+    rows: list[dict[str, Any]],
+    enrichments_by_market: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    rows_by_market_ticker: dict[tuple[str, str], dict[str, Any]] = {}
+    row_theme_map: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        market_key = _clean_signal_text(row.get("market")).upper()
+        ticker = _clean_signal_text(row.get("ticker")).upper()
+        if market_key and ticker:
+            rows_by_market_ticker[(market_key, ticker)] = row
+            row_theme_map[(market_key, ticker)] = _row_theme_tags(row)
+
+    event_signals: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for market_key, articles in enrichments_by_market.items():
+        tracked_market_tickers = {
+            ticker
+            for (row_market, ticker), _row in rows_by_market_ticker.items()
+            if row_market == market_key
+        }
+        if not tracked_market_tickers:
+            continue
+        for article in articles:
+            mentions = _stock_mentions(article)
+            if not mentions or _is_low_signal_event_article(article, mentions):
+                continue
+            primary_mentions = [
+                mention
+                for mention in mentions
+                if str(mention.get("mention_role") or "").strip().lower() == "primary"
+            ]
+            secondary_mentions = [
+                mention
+                for mention in mentions
+                if str(mention.get("mention_role") or "").strip().lower() == "secondary"
+            ]
+            tracked_secondary = [
+                mention for mention in secondary_mentions if _clean_signal_text(mention.get("ticker")).upper() in tracked_market_tickers
+            ]
+            tracked_primary = [
+                mention for mention in primary_mentions if _clean_signal_text(mention.get("ticker")).upper() in tracked_market_tickers
+            ]
+            published_at = _clean_signal_text(article.get("published_at"))
+            article_title = _clean_signal_text(article.get("title"))
+            article_summary = _clean_signal_text(article.get("summary"))
+            article_tags = _theme_tags_from_text(
+                article_title,
+                article_summary,
+                *[_clean_signal_text(mention.get("what_happened")) for mention in mentions],
+                *[_clean_signal_text(mention.get("why_it_matters")) for mention in mentions],
+            )
+
+            source_mention = None
+            if primary_mentions:
+                external_primary = [
+                    mention for mention in primary_mentions if _clean_signal_text(mention.get("ticker")).upper() not in tracked_market_tickers
+                ]
+                source_mention = external_primary[0] if external_primary else primary_mentions[0]
+
+            if source_mention is not None:
+                source_ticker = _clean_signal_text(source_mention.get("ticker")).upper()
+                source_label = source_ticker or article_title or "Market event"
+                source_row = rows_by_market_ticker.get((market_key, source_ticker))
+                source_tags = set(article_tags)
+                source_tags.update(row_theme_map.get((market_key, source_ticker), set()))
+                basket_targets = _preferred_basket_targets(source_ticker, tracked_market_tickers)
+                ranked_candidates: list[tuple[int, str, str]] = []
+                beneficiaries: list[str] = []
+                beneficiary_lines: list[str] = []
+                for mention in tracked_secondary:
+                    ticker = _clean_signal_text(mention.get("ticker")).upper()
+                    if not ticker or ticker in beneficiaries:
+                        continue
+                    candidate_row = rows_by_market_ticker.get((market_key, ticker))
+                    if not candidate_row:
+                        continue
+                    score = _beneficiary_score(
+                        source_row,
+                        candidate_row,
+                        source_tags,
+                        row_theme_map.get((market_key, ticker), set()),
+                    )
+                    if ticker in basket_targets:
+                        score += 200 - basket_targets.index(ticker) * 10
+                    why = _clean_signal_text(mention.get("why_it_matters")) or _clean_signal_text(mention.get("what_happened"))
+                    ranked_candidates.append((score, ticker, why))
+                for idx, ticker in enumerate(basket_targets):
+                    candidate_row = rows_by_market_ticker.get((market_key, ticker))
+                    if not candidate_row:
+                        continue
+                    score = _beneficiary_score(
+                        source_row,
+                        candidate_row,
+                        source_tags,
+                        row_theme_map.get((market_key, ticker), set()),
+                    ) + 260 - idx * 12
+                    ranked_candidates.append((score, ticker, ""))
+                for _score, ticker, why in sorted(ranked_candidates, reverse=True):
+                    if ticker in beneficiaries:
+                        continue
+                    beneficiaries.append(ticker)
+                    if why:
+                        beneficiary_lines.append(f"{ticker}: {why}")
+                    if len(beneficiaries) >= 3:
+                        break
+                if not beneficiaries:
+                    if not basket_targets:
+                        continue
+                key = f"direct:{market_key}:{source_label}:{','.join(beneficiaries)}"
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                source_event = _clean_signal_text(source_mention.get("what_happened")) or article_title
+                source_tagline = _event_tagline(article, source_mention)
+                evidence = [value for value in [source_event, published_at[:10] if published_at else ""] if value][:2]
+                body = _format_event_body(" ".join(beneficiary_lines[:2]).strip() or article_summary or source_event, beneficiaries)
+                event_signals.append(
+                    {
+                        "ticker": source_ticker or beneficiaries[0],
+                        "position_type": "market",
+                        "kind": "event_readthrough",
+                        "tone": str(source_mention.get("sentiment_label") or "neutral").strip().lower(),
+                        "urgency": 95 if source_ticker in {"NVDA", "AMD", "AVGO", "TSM", "MU", "MSFT", "AMZN", "META", "GOOGL"} else 91,
+                        "title": f"{source_label} {source_tagline} {_beneficiary_verb(str(source_mention.get('sentiment_label') or 'neutral'))} {', '.join(beneficiaries[:2])}",
+                        "why_it_matters": body,
+                        "action": f"Check {', '.join(beneficiaries[:3])} for read-through after the open",
+                        "evidence": evidence,
+                    }
+                )
+                continue
+
+            if tracked_primary and not primary_mentions:
+                # Unreachable today because tracked_primary comes from primary_mentions,
+                # but kept to avoid silently widening this branch later.
+                continue
+
+            if tracked_primary and not tracked_secondary:
+                beneficiary = max(tracked_primary, key=lambda mention: _mention_quality_score(article, mention))
+                ticker = _clean_signal_text(beneficiary.get("ticker")).upper()
+                why = _clean_signal_text(beneficiary.get("why_it_matters")) or _clean_signal_text(beneficiary.get("what_happened"))
+                if not ticker or not why:
+                    continue
+                source_row = rows_by_market_ticker.get((market_key, ticker))
+                beneficiary_targets: list[str] = []
+                candidate_tags = set(article_tags)
+                candidate_tags.update(row_theme_map.get((market_key, ticker), set()))
+                if candidate_tags:
+                    ranked_candidates: list[tuple[int, str]] = []
+                    for candidate_ticker in tracked_market_tickers:
+                        if candidate_ticker == ticker:
+                            continue
+                        candidate_row = rows_by_market_ticker.get((market_key, candidate_ticker))
+                        if not candidate_row:
+                            continue
+                        candidate_row_tags = row_theme_map.get((market_key, candidate_ticker), set())
+                        if not candidate_tags.intersection(candidate_row_tags):
+                            continue
+                        score = _beneficiary_score(source_row, candidate_row, candidate_tags, candidate_row_tags)
+                        ranked_candidates.append((score, candidate_ticker))
+                    for _score, candidate_ticker in sorted(ranked_candidates, reverse=True):
+                        if candidate_ticker in beneficiary_targets:
+                            continue
+                        beneficiary_targets.append(candidate_ticker)
+                        if len(beneficiary_targets) >= 3:
+                            break
+                key = f"macro:{market_key}:{ticker}:{article_title}"
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                event_text = _clean_signal_text(beneficiary.get("what_happened")) or article_title
+                evidence = [value for value in [_clip_signal_text(event_text, 120), published_at[:10] if published_at else ""] if value][:2]
+                if beneficiary_targets:
+                    event_signals.append(
+                        {
+                            "ticker": ticker,
+                            "position_type": "market",
+                            "kind": "event_readthrough",
+                            "tone": str(beneficiary.get("sentiment_label") or "neutral").strip().lower(),
+                            "urgency": 90,
+                            "title": f"{ticker} {_event_tagline(article, beneficiary)} {_beneficiary_verb(str(beneficiary.get('sentiment_label') or 'neutral'))} {', '.join(beneficiary_targets[:2])}",
+                            "why_it_matters": _format_event_body(why, beneficiary_targets),
+                            "action": f"Check {', '.join(beneficiary_targets[:3])} for follow-through after the open",
+                            "evidence": evidence,
+                        }
+                    )
+                else:
+                    event_signals.append(
+                        {
+                            "ticker": ticker,
+                            "position_type": "market",
+                            "kind": "event_catalyst",
+                            "tone": str(beneficiary.get("sentiment_label") or "neutral").strip().lower(),
+                            "urgency": 86,
+                            "title": f"{ticker} has a fresh pre-open event to price in",
+                            "why_it_matters": why[:220],
+                            "action": f"Keep {ticker} on the first read after the open",
+                            "evidence": evidence,
+                        }
+                    )
+    return event_signals
+
+
+def _today_setup(
+    rows: list[dict[str, Any]],
+    anomaly_by_id: dict[str, dict[str, Any]],
+    reddit_by_id: dict[str, dict[str, Any]],
+    earnings_by_id: dict[str, dict[str, Any]],
+    anomaly_by_market: dict[str, dict[str, dict[str, Any]]],
+    reddit_by_market: dict[str, dict[str, dict[str, Any]]],
+    market_context_by_market: dict[str, dict[str, Any]],
+    sector_context_by_market: dict[str, dict[str, dict[str, Any]]],
+    enrichments_by_market: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    signals: list[dict[str, Any]] = []
+    market_threads: list[str] = []
+    tracked_tickers = {str(row.get("ticker") or "").strip().upper() for row in rows if row.get("ticker")}
+    rows_by_market_sector: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    rows_by_market_ticker: dict[tuple[str, str], dict[str, Any]] = {}
+    row_theme_map: dict[str, set[str]] = {}
+    row_theme_by_market_ticker: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        market_key = str(row.get("market") or "").strip().upper()
+        ticker = str(row.get("ticker") or "").strip().upper()
+        sector_key = str(row.get("sector_label") or "").strip().lower()
+        if market_key and sector_key:
+            rows_by_market_sector.setdefault((market_key, sector_key), []).append(row)
+        if market_key and ticker:
+            rows_by_market_ticker[(market_key, ticker)] = row
+            row_theme_by_market_ticker[(market_key, ticker)] = _row_theme_tags(row)
+        instrument_id = str(row.get("instrument_id") or "").strip()
+        if instrument_id:
+            row_theme_map[instrument_id] = row_theme_by_market_ticker.get((market_key, ticker), _row_theme_tags(row))
+
+    for row in rows:
+        instrument_id = str(row.get("instrument_id") or "").strip()
+        ticker = str(row.get("ticker") or "").strip().upper()
+        position_type = str(row.get("position_type") or "watchlist").strip().lower()
+        directive = (row.get("directive_v2") or {}) if isinstance(row.get("directive_v2"), dict) else {}
+        action = str(directive.get("title") or row.get("suggested_action") or "Review in Radar").strip()
+
+        anomaly_doc = anomaly_by_id.get(instrument_id) or {}
+        anomaly = anomaly_doc.get("anomaly") if isinstance(anomaly_doc.get("anomaly"), dict) else {}
+        if anomaly:
+            move = _safe_float(anomaly.get("day_change_pct"))
+            catalyst = str(anomaly.get("catalyst") or "").strip()
+            headline_raw = str(anomaly.get("headline") or "").strip()
+            brief_raw = str(anomaly.get("today_brief") or anomaly.get("thesis") or "").strip()
+            headline = headline_raw if ticker and ticker in headline_raw.upper() else f"{ticker} is in today's anomaly feed"
+            why = brief_raw if ticker and ticker in brief_raw.upper() else ""
+            if not why:
+                move_text = f"{move:+.1f}% move" if move is not None else "material move"
+                why = f"{ticker} is already showing a {move_text} ahead of today's session."
+                if catalyst:
+                    why += f" Catalyst: {catalyst}"
+            evidence = []
+            if move is not None:
+                evidence.append(f"{move:+.1f}% move")
+            if catalyst:
+                evidence.append(catalyst)
+            for point in (anomaly.get("key_points") or [])[:2]:
+                if str(point or "").strip():
+                    evidence.append(str(point).strip())
+            signals.append(
+                {
+                    "ticker": ticker,
+                    "position_type": position_type,
+                    "kind": "preopen_catalyst",
+                    "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
+                    "urgency": int(min(98, 72 + abs(move or 0) * 3)),
+                    "title": headline[:140],
+                    "why_it_matters": why[:220] if why else f"{ticker} is already moving hard enough to matter for today's setup.",
+                    "action": action[:120],
+                    "evidence": evidence[:3],
+                }
+            )
+
+        reddit_doc = reddit_by_id.get(instrument_id) or {}
+        cue = reddit_doc.get("cue") if isinstance(reddit_doc.get("cue"), dict) else {}
+        mentions = int(_safe_float(cue.get("mention_count") or cue.get("mentions")) or 0)
+        if cue and mentions > 0:
+            summary = str(cue.get("summary") or cue.get("context") or "").strip()
+            sentiment = str(cue.get("sentiment") or "neutral").strip().lower()
+            catalysts = [str(v).strip() for v in (cue.get("catalysts") or []) if str(v).strip()]
+            if mentions >= 2 or catalysts:
+                top_posts = reddit_doc.get("top_posts") or []
+                if isinstance(top_posts, list):
+                    for post in top_posts[:1]:
+                        if isinstance(post, dict):
+                            title = str(post.get("title") or "").strip()
+                            if title:
+                                market_threads.append(title[:120])
+                signals.append(
+                    {
+                        "ticker": ticker,
+                        "position_type": position_type,
+                        "kind": "retail_buzz",
+                        "tone": "positive" if sentiment == "bullish" else "negative" if sentiment == "bearish" else "neutral",
+                        "urgency": int(min(90, 54 + mentions * 7)),
+                        "title": f"{ticker} has fresh retail buzz before the open",
+                        "why_it_matters": (summary or f"Retail attention on {ticker} is elevated heading into today's session.")[:220],
+                        "action": action[:120],
+                        "evidence": [f"{mentions} Reddit mentions", *catalysts[:2]],
+                    }
+                )
+
+        earnings_doc = earnings_by_id.get(instrument_id) or {}
+        if earnings_doc:
+            event_date = str(earnings_doc.get("event_date") or "").strip()
+            report = earnings_doc.get("report") if isinstance(earnings_doc.get("report"), dict) else {}
+            setup = report.get("setup") if isinstance(report.get("setup"), dict) else {}
+            decision = report.get("decision_guide") if isinstance(report.get("decision_guide"), dict) else {}
+            headline = str(report.get("headline") or "").strip() or f"{ticker} earnings setup is live"
+            summary = str(report.get("summary") or "").strip()
+            days_until = int(_safe_float(earnings_doc.get("days_until")) or 99)
+            audience_line = str(
+                decision.get("for_holders") if position_type == "holding" else decision.get("for_watchers")
+                or ""
+            ).strip()
+            why = audience_line or summary or str(setup.get("pre_earnings_positioning") or "").strip()
+            evidence = [event_date] if event_date else []
+            confidence = _safe_float(((report.get("confidence") or {}).get("score_0_100")))
+            if confidence is not None:
+                evidence.append(f"confidence {int(confidence)}/100")
+            signals.append(
+                {
+                    "ticker": ticker,
+                    "position_type": position_type,
+                    "kind": "earnings_setup",
+                    "tone": "neutral",
+                    "urgency": int(min(96, 92 - max(0, days_until) * 7)),
+                    "title": headline[:140],
+                    "why_it_matters": why[:220] if why else f"{ticker} reports soon and needs a pre-open read.",
+                    "action": f"Open {ticker} earnings setup",
+                    "evidence": evidence[:3],
+                }
+            )
+
+    direct_event_signals = _direct_event_signals(rows, enrichments_by_market)
+    signals.extend(direct_event_signals)
+    existing_event_tickers = {
+        _clean_signal_text(item.get("ticker")).upper()
+        for item in direct_event_signals
+        if _clean_signal_text(item.get("ticker"))
+    }
+    basket_signals = [
+        item
+        for item in _leader_basket_signals(rows_by_market_ticker, row_theme_by_market_ticker, anomaly_by_market)
+        if _clean_signal_text(item.get("ticker")).upper() not in existing_event_tickers
+    ]
+    basket_signals.sort(key=_preopen_signal_rank, reverse=True)
+    signals.extend(basket_signals[:2])
+    cross_signals: list[dict[str, Any]] = []
+    theme_groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        instrument_id = str(row.get("instrument_id") or "").strip()
+        market_key = str(row.get("market") or "").strip().upper()
+        for tag in row_theme_map.get(instrument_id, set()):
+            theme_groups.setdefault((market_key, tag), []).append(row)
+
+    for (market_key, sector_key), sector_rows in rows_by_market_sector.items():
+        sector_label = str(sector_rows[0].get("sector_label") or "").strip() or sector_key.title()
+        affected = [str(row.get("ticker") or "").strip().upper() for row in sector_rows if row.get("ticker")]
+        if not affected:
+            continue
+
+        broad_anomalies = anomaly_by_market.get(market_key) or {}
+        for broad_ticker, item in broad_anomalies.items():
+            if broad_ticker in tracked_tickers:
+                continue
+            if str(item.get("sector") or "").strip().lower() != sector_key:
+                continue
+            move = _safe_float(item.get("day_change_pct"))
+            why = str(item.get("today_brief") or item.get("thesis") or "").strip()
+            catalyst = str(item.get("catalyst") or "").strip()
+            if not why:
+                continue
+            cross_signals.append(
+                {
+                    "ticker": broad_ticker,
+                    "position_type": "market",
+                    "kind": "theme_spillover",
+                    "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
+                    "urgency": int(min(94, 76 + abs(move or 0) * 2.5)),
+                    "title": f"{broad_ticker} may set the tone for your {sector_label} names",
+                    "why_it_matters": f"{why[:150]} This could spill into {', '.join(affected[:3])} on your Radar.",
+                    "action": f"Watch {', '.join(affected[:3])} for follow-through after the open",
+                    "evidence": [f"{move:+.1f}% move" if move is not None else sector_label, catalyst][:2],
+                }
+            )
+            break
+
+        sector_context = (sector_context_by_market.get(market_key) or {}).get(sector_key) or {}
+        sector_visual = sector_context.get("visual_summary") if isinstance(sector_context.get("visual_summary"), dict) else {}
+        sector_change = str(sector_visual.get("what_changed") or sector_context.get("today_brief") or "").strip()
+        sector_watch = str(sector_visual.get("what_to_watch") or "").strip()
+        if len(affected) >= 2 and sector_change:
+            cross_signals.append(
+                {
+                    "ticker": sector_label,
+                    "position_type": "market",
+                    "kind": "sector_theme",
+                    "tone": "neutral",
+                    "urgency": 70,
+                    "title": f"{sector_label} is a live theme across your Radar",
+                    "why_it_matters": f"{sector_change[:150]} This theme runs through {', '.join(affected[:3])}.",
+                    "action": sector_watch[:120] if sector_watch else f"Review {', '.join(affected[:3])} together, not one by one",
+                    "evidence": [f"{len(affected)} tracked names in {sector_label}"],
+                }
+            )
+
+    for market_key, market_context in market_context_by_market.items():
+        visual = market_context.get("visual_summary") if isinstance(market_context.get("visual_summary"), dict) else {}
+        for line in (
+            str(market_context.get("today_brief") or "").strip(),
+            str(visual.get("what_changed") or "").strip(),
+            str(visual.get("what_to_watch") or "").strip(),
+        ):
+            if line:
+                market_threads.append(line[:120])
+        reddit_snapshot = reddit_by_market.get(market_key) or {}
+        for item in reddit_snapshot.values():
+            summary = str(item.get("summary") or item.get("context") or "").strip()
+            if summary:
+                market_threads.append(summary[:120])
+                break
+
+    for (market_key, tag), tagged_rows in theme_groups.items():
+        affected = []
+        seen_affected: set[str] = set()
+        for row in tagged_rows:
+            ticker = str(row.get("ticker") or "").strip().upper()
+            if not ticker or ticker in seen_affected:
+                continue
+            seen_affected.add(ticker)
+            affected.append(ticker)
+        if len(affected) < 2:
+            continue
+        candidate: dict[str, Any] | None = None
+        candidate_ticker = ""
+        preferred_leaders = set(THEME_LEADERS.get(tag) or ())
+        for broad_ticker, item in (anomaly_by_market.get(market_key) or {}).items():
+            tags = _theme_tags_from_text(item.get("headline"), item.get("today_brief"), item.get("thesis"), item.get("catalyst"))
+            if broad_ticker in preferred_leaders and tag in tags:
+                candidate = item
+                candidate_ticker = broad_ticker
+                break
+        if candidate is None:
+            for broad_ticker, item in (anomaly_by_market.get(market_key) or {}).items():
+                tags = _theme_tags_from_text(item.get("headline"), item.get("today_brief"), item.get("thesis"), item.get("catalyst"))
+                if tag in tags:
+                    candidate = item
+                    candidate_ticker = broad_ticker
+                    break
+        if candidate is None:
+            for broad_ticker, item in (reddit_by_market.get(market_key) or {}).items():
+                tags = _theme_tags_from_text(item.get("summary"), item.get("context"), *(item.get("catalysts") or []))
+                if broad_ticker in preferred_leaders and tag in tags:
+                    candidate = item
+                    candidate_ticker = broad_ticker
+                    break
+        if candidate is None:
+            for broad_ticker, item in (reddit_by_market.get(market_key) or {}).items():
+                tags = _theme_tags_from_text(item.get("summary"), item.get("context"), *(item.get("catalysts") or []))
+                if tag in tags:
+                    candidate = item
+                    candidate_ticker = broad_ticker
+                    break
+        if candidate is None:
+            continue
+        beneficiary_targets = [ticker for ticker in affected if ticker != candidate_ticker][:3]
+        if not beneficiary_targets:
+            continue
+        why = str(candidate.get("today_brief") or candidate.get("thesis") or candidate.get("summary") or candidate.get("context") or "").strip()
+        if not why:
+            continue
+        move = _safe_float(candidate.get("day_change_pct"))
+        catalyst = str(candidate.get("catalyst") or "").strip()
+        display_tag = THEME_LABELS.get(tag, tag.replace("_", " "))
+        cross_signals.append(
+            {
+                "ticker": candidate_ticker or tag,
+                "position_type": "market",
+                "kind": "theme_beneficiary",
+                "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
+                "urgency": int(min(96, 82 + abs(move or 0) * 2.5)),
+                "title": f"{candidate_ticker or tag.upper()} could influence your {display_tag} names",
+                "why_it_matters": f"{why[:150]} That can matter for {', '.join(beneficiary_targets)} on your Radar.",
+                "action": f"Check {', '.join(beneficiary_targets)} for theme follow-through after the open",
+                "evidence": [f"{move:+.1f}% move" if move is not None else display_tag, catalyst][:2],
+            }
+        )
+
+    priority = {"event_readthrough": 6, "leader_basket": 5, "event_catalyst": 4, "macro_readthrough": 3, "theme_beneficiary": 3, "theme_spillover": 2, "sector_theme": 1}
+    best_cross: dict[str, dict[str, Any]] = {}
+    for item in cross_signals:
+        ticker = str(item.get("ticker") or "")
+        existing = best_cross.get(ticker)
+        if existing is None:
+            best_cross[ticker] = item
+            continue
+        existing_rank = priority.get(str(existing.get("kind") or ""), 0)
+        item_rank = priority.get(str(item.get("kind") or ""), 0)
+        if item_rank > existing_rank or (
+            item_rank == existing_rank and int(item.get("urgency") or 0) > int(existing.get("urgency") or 0)
+        ):
+            best_cross[ticker] = item
+    deduped_cross = list(best_cross.values())
+
+    signals.extend(deduped_cross)
+    signals.sort(key=lambda item: int(item.get("urgency") or 0), reverse=True)
+    direct_kinds = {"event_readthrough", "leader_basket", "event_catalyst", "macro_readthrough"}
+    direct_top = sorted(
+        [item for item in signals if str(item.get("kind") or "") in direct_kinds],
+        key=_preopen_signal_rank,
+        reverse=True,
+    )[:2]
+    used_direct_tickers = {str(item.get("ticker") or "") for item in direct_top}
+    remaining = [
+        item
+        for item in signals
+        if item not in direct_top and str(item.get("ticker") or "") not in used_direct_tickers
+    ]
+    trimmed = [*direct_top, *remaining[: max(0, 6 - len(direct_top))]]
+    unique_threads: list[str] = []
+    seen_threads: set[str] = set()
+    for line in market_threads:
+        if line.lower() in seen_threads:
+            continue
+        seen_threads.add(line.lower())
+        unique_threads.append(line)
+    top = trimmed[:3]
+    if trimmed:
+        cross_top = [
+            item
+            for item in trimmed
+            if str(item.get("kind") or "") in {"event_readthrough", "leader_basket", "event_catalyst", "macro_readthrough", "theme_spillover", "sector_theme", "theme_beneficiary"}
+        ]
+        if cross_top:
+            direct_cross_top = [
+                item for item in cross_top
+                if str(item.get("kind") or "") in {"event_readthrough", "leader_basket", "event_catalyst", "macro_readthrough"}
+            ]
+            if direct_cross_top:
+                visible_direct_count = min(len(direct_top), 2)
+                headline = f"{visible_direct_count} market event{'s' if visible_direct_count != 1 else ''} could move names on your Radar today"
+            else:
+                headline = f"{len(cross_top)} broader market theme{'s' if len(cross_top) != 1 else ''} may hit your Radar today"
+            body_source = direct_top[:2] if direct_cross_top else cross_top[:2]
+            body = " ".join(str(item.get("why_it_matters") or "").strip() for item in body_source if str(item.get("why_it_matters") or "").strip())[:520]
+        else:
+            headline = (
+                f"{len(top)} pre-open catalyst{'s' if len(top) != 1 else ''} matter for your Radar today"
+                if len(top) > 1
+                else f"{top[0].get('ticker') or 'A tracked name'} has the key pre-open setup today"
+            )
+            body = " ".join(
+                f"{item.get('ticker')}: {str(item.get('why_it_matters') or '').strip()}"
+                for item in top
+                if str(item.get("why_it_matters") or "").strip()
+            )[:520]
+    else:
+        headline = "No fresh pre-open catalyst stood above the noise"
+        body = "Your tracked names do not have a clear overnight catalyst yet, so today's plan stays price- and directive-led."
+    return {
+        "headline": headline,
+        "body": body,
+        "signals": trimmed,
+        "market_threads": unique_threads[:3],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def _screen_suggestions(
@@ -1869,6 +2952,22 @@ def build_watchlist_view(
     facts_by_id = store.get_stock_facts_batch(ids)
     technical_by_id = store.get_latest_stock_technicals_batch(ids)
     mention_by_id = store.get_mention_stats_batch(ids)
+    instrument_meta_by_id = {
+        instrument_id: (doc.to_dict() or {})
+        for instrument_id, doc in (
+            (
+                instrument_id,
+                snap,
+            )
+            for instrument_id, snap in zip(
+                ids,
+                store.db.get_all([store.db.collection("tm_instruments").document(instrument_id) for instrument_id in ids]),
+                strict=False,
+            )
+        )
+        if doc.exists
+    }
+    markets = sorted({_market_from_instrument_id(instrument_id) for instrument_id in ids if _market_from_instrument_id(instrument_id)})
 
     intel_by_id: dict[str, dict[str, Any]] = {}
     stock_intel_by_id: dict[str, dict[str, Any]] = {}
@@ -1888,6 +2987,7 @@ def build_watchlist_view(
             instrument_id,
             _position_type(instrument_id, positions),
             (holdings or {}).get(instrument_id) if isinstance(holdings, dict) else None,
+            instrument_meta_by_id.get(instrument_id) or {},
             latest_by_id.get(instrument_id) or {},
             intel_by_id.get(instrument_id) or {},
             stock_intel_by_id.get(instrument_id) or {},
@@ -1914,6 +3014,23 @@ def build_watchlist_view(
     portfolio = _portfolio_diagnostics(rows, store, position_meta=position_meta)
     suggestions = portfolio.get("suggestions") or []
     event_radar = _event_radar(rows, portfolio)
+    anomaly_by_id, reddit_by_id, earnings_by_id = _load_ticker_read_models(store, rows)
+    anomaly_by_market = _load_anomalies_by_market(store, markets)
+    reddit_by_market = _load_reddit_buzz_by_market(store, markets)
+    market_context_by_market = _load_market_context_by_market(store, active_universes, markets)
+    sector_context_by_market = _load_sector_context_by_market(store, active_universes, markets)
+    enrichments_by_market = _load_recent_enrichments_by_market(store, active_universes, markets)
+    today_setup = _today_setup(
+        rows,
+        anomaly_by_id,
+        reddit_by_id,
+        earnings_by_id,
+        anomaly_by_market,
+        reddit_by_market,
+        market_context_by_market,
+        sector_context_by_market,
+        enrichments_by_market,
+    )
     holdings_count = len([row for row in rows if row.get("position_type") == "holding"])
 
     return {
@@ -1930,6 +3047,7 @@ def build_watchlist_view(
         "suggestions": suggestions,
         "risk_summary": _risk_summary(rows, portfolio),
         "event_radar": event_radar,
+        "today_setup": today_setup,
         "changes": _change_summary(rows, previous_view),
         "built_at": datetime.now(timezone.utc).isoformat(),
     }

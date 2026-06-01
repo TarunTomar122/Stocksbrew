@@ -482,6 +482,7 @@ def email_pro_daily_digest(
     *,
     radar_brief: dict[str, Any] | None = None,
     radar_events: list[dict[str, Any]] | None = None,
+    radar_today_setup: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     def _num(v: Any) -> float:
         try:
@@ -510,6 +511,15 @@ def email_pro_daily_digest(
 
     def _clean_sentence(text: str) -> str:
         return " ".join(str(text or "").split()).strip()
+
+    def _compact_sentence(text: str, limit: int) -> str:
+        cleaned = _clean_sentence(text)
+        if len(cleaned) <= limit:
+            return cleaned
+        head = cleaned[: limit - 1]
+        last_space = head.rfind(" ")
+        trimmed = (head[:last_space] if last_space > 24 else head).strip()
+        return f"{trimmed or head}…"
 
     def _is_weak_line(text: str) -> bool:
         t = _clean_sentence(text).lower()
@@ -755,6 +765,51 @@ def email_pro_daily_digest(
             f"{rows_html}"
         )
 
+    preopen_html = ""
+    if isinstance(radar_today_setup, dict):
+        setup_headline = _clean_sentence(str(radar_today_setup.get("headline") or ""))
+        setup_body = _clean_sentence(str(radar_today_setup.get("body") or ""))
+        setup_signals = radar_today_setup.get("signals") or []
+        setup_rows = []
+        if isinstance(setup_signals, list):
+            for item in setup_signals[:3]:
+                if not isinstance(item, dict):
+                    continue
+                ticker = _clean_sentence(str(item.get("ticker") or ""))
+                title = _clean_sentence(str(item.get("title") or ""))
+                title_prefix = f"{ticker} " if ticker else ""
+                if title and title_prefix and title.upper().startswith(title_prefix.upper()):
+                    title = title[len(title_prefix):].strip()
+                body = _clean_sentence(str(item.get("why_it_matters") or ""))
+                evidence = item.get("evidence") or []
+                evidence_line = ""
+                if isinstance(evidence, list):
+                    evidence_line = " · ".join(_compact_sentence(str(v), 46) for v in evidence[:2] if _clean_sentence(str(v)))
+                line_body = _compact_sentence(body, 118) if body else ""
+                if title or line_body:
+                    setup_rows.append(
+                        "<tr><td style='padding:0 32px 10px 32px'>"
+                        "<div style='background:#f8fbff;border:1px solid #dbe7ff;border-radius:12px;padding:14px 16px'>"
+                        f"<div style='font-size:13px;font-weight:700;color:#111827;margin-bottom:4px'>{_esc(ticker)}</div>"
+                        f"<div style='font-size:13px;font-weight:600;color:#1f2937;line-height:1.4'>{_esc(_compact_sentence(title, 54))}</div>"
+                        + (f"<div style='margin-top:5px;font-size:13px;color:#4b5563;line-height:1.5'>{_esc(line_body)}</div>" if line_body else "")
+                        + (f"<div style='margin-top:6px;font-size:11px;color:#6b7280'>{_esc(evidence_line)}</div>" if evidence_line else "")
+                        + "</div></td></tr>"
+                    )
+        if setup_headline or setup_rows:
+            preopen_html = (
+                "<tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>"
+                "<tr><td style='padding:14px 32px 8px 32px'><div style='font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:0.12em;text-transform:uppercase'>Before open</div></td></tr>"
+                + (
+                    f"<tr><td style='padding:0 32px 10px 32px'><div style='font-size:15px;font-weight:700;color:#111827'>{_esc(setup_headline)}</div>"
+                    + (f"<div style='margin-top:6px;font-size:13px;color:#4b5563;line-height:1.55'>{_esc(_compact_sentence(setup_body, 160))}</div>" if setup_body and not setup_rows else "")
+                    + "</td></tr>"
+                    if setup_headline or setup_body
+                    else ""
+                )
+                + "".join(setup_rows)
+            )
+
     if hold_top and watch_top:
         intro = "Here's what moved across your holdings and watchlist, plus three wildcard movers from your Radar."
     elif watch_top:
@@ -778,6 +833,7 @@ def email_pro_daily_digest(
         <div style='font-size:30px;font-weight:800;color:#111111;line-height:1.15;letter-spacing:-0.03em;margin-bottom:8px'>Your Radar today</div>
         <div style='font-size:15px;color:#6b7280;line-height:1.6'>{intro}</div></td></tr>
       <tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>
+      {preopen_html}
       {sections_html}
       {events_html}
       <tr><td style='padding:24px 32px 32px 32px'><a href='{APP_URL}/watchlist' style='display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:13px 28px;border-radius:999px;letter-spacing:-0.01em'>Open Radar &rarr;</a>
