@@ -23,12 +23,18 @@ def main() -> None:
     parser.add_argument("--chunk-workers", type=int, default=4)
     args = parser.parse_args()
 
-    common = ["--market", args.market, "--universe", args.universe]
+    # `build_daily_anomalies` accepts `--universe`; the others below take only
+    # `--market` + `--ai-universe` / `--price-universe`. Passing `--universe`
+    # to them fails argparse and silently kills the heat/divergence/sentiment
+    # refresh — see the open-anomalies job logs prior to this fix.
     _run([
         sys.executable,
         "-m",
         "backend.scripts.build_daily_anomalies",
-        *common,
+        "--market",
+        args.market,
+        "--universe",
+        args.universe,
         "--threshold-pct",
         str(args.threshold_pct),
         "--limit",
@@ -39,9 +45,11 @@ def main() -> None:
         "--chunk-workers",
         str(args.chunk_workers),
     ])
-    _run([sys.executable, "-m", "backend.scripts.build_heat_list", *common, "--ai-universe", args.universe, "--price-universe", args.universe])
-    _run([sys.executable, "-m", "backend.scripts.build_divergence", *common, "--ai-universe", args.universe, "--price-universe", args.universe])
-    _run([sys.executable, "-m", "backend.scripts.build_sentiment_flip", *common, "--ai-universe", args.universe, "--price-universe", args.universe])
+    market_only = ["--market", args.market]
+    universe_pair = ["--ai-universe", args.universe, "--price-universe", args.universe]
+    _run([sys.executable, "-m", "backend.scripts.build_heat_list", *market_only, *universe_pair])
+    _run([sys.executable, "-m", "backend.scripts.build_divergence", *market_only, *universe_pair])
+    _run([sys.executable, "-m", "backend.scripts.build_sentiment_flip", *market_only, *universe_pair])
 
 
 if __name__ == "__main__":

@@ -15,6 +15,11 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.scripts.process_stock_requests import (
+    _load_symbol_master as _load_symbol_master_rows,
+    _resolve_request_with_llm_fallback as _resolve_with_llm_fallback,
+    _upsert_instrument as _upsert_resolved_instrument,
+)
 from backend.storage import TraceMoneyStore
 
 
@@ -46,11 +51,19 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _extract_tickers(payload: dict[str, Any], min_mentions: int) -> list[str]:
+def _normalize_name(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = re.sub(r"\b(inc|inc\.|corp|corporation|ltd|limited|holdings?|company|co|plc|class a|class b)\b", " ", text)
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _extract_tickers(payload: dict[str, Any], min_mentions: int) -> list[dict[str, Any]]:
     rows = payload.get("tickers") or []
     if not isinstance(rows, list):
         return []
-    out: list[str] = []
+    out: list[dict[str, Any]] = []
     seen: set[str] = set()
     for row in rows:
         if not isinstance(row, dict):
@@ -66,31 +79,75 @@ def _extract_tickers(payload: dict[str, Any], min_mentions: int) -> list[str]:
         if ticker in seen:
             continue
         seen.add(ticker)
-        out.append(ticker)
+        out.append(
+            {
+                "ticker": ticker,
+                "mention_count": mentions,
+                "company_name": str(row.get("company_name") or "").strip(),
+                "exchange_hint": str(row.get("exchange_hint") or "").strip().upper(),
+                "confidence": float(row.get("confidence") or 0.0),
+            }
+        )
     return out
 
 
-def _resolve_instrument_ids(store: TraceMoneyStore, market: str, tickers: list[str]) -> tuple[list[str], list[str]]:
+def _resolve_instrument_ids(
+    store: TraceMoneyStore,
+    market: str,
+    ticker_rows: list[dict[str, Any]],
+    min_confidence: float,
+    *,
+    llm_fallback: bool,
+) -> tuple[list[str], list[str], int]:
     resolved: list[str] = []
     unresolved: list[str] = []
+    llm_resolved_count = 0
     market_key = str(market).upper()
-    for ticker in tickers:
+    master_rows = _load_symbol_master_rows(store, market_key) if llm_fallback else []
+    for row in ticker_rows:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        company_name = str(row.get("company_name") or "").strip()
+        confidence = float(row.get("confidence") or 0.0)
+        if confidence < min_confidence:
+            unresolved.append(ticker)
+            continue
+
+        # Guardrail: avoid promoting private-company chatter under a public ticker.
+        if ticker == "SPCE" and "space exploration technologies" in company_name.lower():
+            unresolved.append(ticker)
+            continue
+
         doc_id = f"{market_key}__{ticker}"
         sym_doc = store.db.collection("tm_symbol_master").document(doc_id).get()
         instrument_id = ""
         if sym_doc.exists:
             payload = sym_doc.to_dict() or {}
-            instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+            master_name = _normalize_name(str(payload.get("name") or ""))
+            llm_name = _normalize_name(str(row.get("company_name") or ""))
+            name_ok = True
+            if llm_name and master_name:
+                name_ok = llm_name == master_name or llm_name in master_name or master_name in llm_name
+            if name_ok:
+                instrument_id = str(payload.get("instrument_id") or "").strip().upper()
         if not instrument_id:
             fallback_id = f"{market_key}_{ticker}"
             inst_doc = store.db.collection("tm_instruments").document(fallback_id).get()
             if inst_doc.exists:
                 instrument_id = fallback_id
+        if not instrument_id and llm_fallback:
+            query = company_name or ticker
+            resolved = _resolve_with_llm_fallback(master_rows, market_key, query)
+            if resolved:
+                upserted = _upsert_resolved_instrument(store, resolved)
+                candidate_id = str(upserted.get("instrument_id") or resolved.get("instrument_id") or "").strip().upper()
+                if candidate_id:
+                    instrument_id = candidate_id
+                    llm_resolved_count += 1
         if instrument_id:
             resolved.append(instrument_id)
         else:
             unresolved.append(ticker)
-    return resolved, unresolved
+    return resolved, unresolved, llm_resolved_count
 
 
 def _save_promoted_tickers(store: TraceMoneyStore, market: str, instrument_ids: list[str]) -> None:
@@ -160,15 +217,46 @@ def _run_backfill(market: str, universe: str, instrument_ids: list[str], max_bac
         subprocess.run(cmd, check=True)
 
 
+def _upsert_search_index_for_ids(store: TraceMoneyStore, market: str, instrument_ids: list[str]) -> int:
+    ids = [str(iid or "").strip().upper() for iid in instrument_ids if str(iid or "").strip()]
+    if not ids:
+        return 0
+    by_id = {row.get("instrument_id"): row for row in store.list_instruments(market, ids)}
+    latest = store.get_latest_prices(ids)
+    entries: list[dict[str, Any]] = []
+    for iid in ids:
+        instrument = by_id.get(iid)
+        if not isinstance(instrument, dict):
+            continue
+        ticker = str(instrument.get("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+        quote = (latest.get(iid) or {}).get("quote") or {}
+        entries.append(
+            {
+                "instrument_id": iid,
+                "ticker": ticker,
+                "name": str(instrument.get("name") or ticker).strip(),
+                "exchange": str(instrument.get("exchange") or "").strip(),
+                "price": quote.get("current"),
+                "day_change_pct": quote.get("day_change_pct"),
+                "updated_at": (latest.get(iid) or {}).get("updated_at"),
+            }
+        )
+    return store.save_search_index_entries(market, entries)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Promote Reddit buzz tickers into price_core_overrides")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default="")
-    parser.add_argument("--min-mentions", type=int, default=2)
+    parser.add_argument("--min-mentions", type=int, default=1)
     parser.add_argument("--max-add", type=int, default=8)
     parser.add_argument("--max-backfill", type=int, default=6)
+    parser.add_argument("--min-confidence", type=float, default=0.55)
     parser.add_argument("--pause", type=float, default=0.35)
     parser.add_argument("--skip-backfill", action="store_true")
+    parser.add_argument("--skip-llm-fallback", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -184,12 +272,18 @@ def main() -> None:
         return
 
     payload = snap_doc.to_dict() or {}
-    tickers = _extract_tickers(payload, min_mentions=max(1, args.min_mentions))
-    if not tickers:
+    ticker_rows = _extract_tickers(payload, min_mentions=max(1, args.min_mentions))
+    if not ticker_rows:
         print({"stage": "noop", "reason": "no_eligible_tickers", "market": market})
         return
 
-    resolved_ids, unresolved = _resolve_instrument_ids(store, market, tickers)
+    resolved_ids, unresolved, llm_resolved_count = _resolve_instrument_ids(
+        store,
+        market,
+        ticker_rows,
+        min_confidence=max(0.0, min(1.0, args.min_confidence)),
+        llm_fallback=not bool(args.skip_llm_fallback),
+    )
     current_overrides = store.get_price_core_overrides(market)
     current_set = set(current_overrides)
     would_add: list[str] = []
@@ -205,8 +299,9 @@ def main() -> None:
         print(
             {
                 "market": market,
-                "snapshot_tickers": len(tickers),
+                "snapshot_tickers": len(ticker_rows),
                 "resolved_ids": len(resolved_ids),
+                "llm_resolved_ids": llm_resolved_count,
                 "would_add_ids": len(would_add),
                 "override_total_after": len(current_overrides) + len(would_add),
                 "unresolved_tickers": unresolved[:20],
@@ -216,6 +311,7 @@ def main() -> None:
         return
 
     added_ids, total_override_count = _update_overrides(store, market, resolved_ids, max_add=args.max_add)
+    search_saved = _upsert_search_index_for_ids(store, market, resolved_ids)
     if added_ids:
         _save_promoted_tickers(store, market, added_ids)
 
@@ -231,9 +327,11 @@ def main() -> None:
     print(
         {
             "market": market,
-            "snapshot_tickers": len(tickers),
+            "snapshot_tickers": len(ticker_rows),
             "resolved_ids": len(resolved_ids),
+            "llm_resolved_ids": llm_resolved_count,
             "added_ids": len(added_ids),
+            "search_index_upserts": search_saved,
             "override_total": total_override_count,
             "unresolved_tickers": unresolved[:20],
             "backfill_ran": bool(added_ids and not args.skip_backfill),

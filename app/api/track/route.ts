@@ -6,7 +6,10 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
-import { rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
+import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
+import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
+import { logEmailSend } from "@/lib/email-log";
+import { sendTransactionalEmail, buildFirstRadarItemEmail, firstNameFromEmail } from "@/lib/brevo";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -31,72 +34,67 @@ function trackApiLog(
   else console.log(line);
 }
 
-const ON_DEMAND_QUEUE_DEDUPE_MS = 90 * 1000;
-const WATCHLIST_REFRESH_DEDUPE_MS = 45 * 1000;
 
-async function shouldRunImmediateRefresh(uid: string, sourceVersion: number): Promise<boolean> {
-  const ref = adminFirestore.collection("tm_watchlist_view_refresh_control").doc(uid);
-  const nowIso = new Date().toISOString();
-  let shouldRun = false;
-  await adminFirestore.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const current = snap.exists ? (snap.data() || {}) : {};
-    const lastVersion = Number(current.last_source_version ?? 0);
-    const lastRequestedAtRaw = String(current.last_requested_at ?? "");
-    const lastRequestedAt = Date.parse(lastRequestedAtRaw);
-    const recentlyRequested =
-      Number.isFinite(lastRequestedAt) && Date.now() - lastRequestedAt < WATCHLIST_REFRESH_DEDUPE_MS;
-    if (lastVersion >= sourceVersion && recentlyRequested) {
-      tx.set(
-        ref,
-        {
-          last_seen_version: sourceVersion,
-          updated_at: nowIso,
-        },
-        { merge: true },
-      );
-      shouldRun = false;
-      return;
-    }
-    tx.set(
-      ref,
+async function maybeFireFirstRadarItemEmail(
+  traceId: string,
+  uid: string,
+  email: string,
+): Promise<void> {
+  const dedupeKey = `first_radar_item:${uid}`;
+  const logRef = adminFirestore.collection("tm_lifecycle_email_log").doc(dedupeKey);
+  const existing = await logRef.get();
+  if (existing.exists) {
+    trackApiLog(traceId, "info", "first_radar_item_email_already_sent", { uid });
+    return;
+  }
+  const firstName = firstNameFromEmail(email);
+  const { subject, html } = buildFirstRadarItemEmail(firstName);
+  const sent = await sendTransactionalEmail(email, subject, html);
+  if (sent) {
+    await logRef.set({ uid, email, sent_at: new Date().toISOString() });
+    await logEmailSend({
+      uid,
+      email,
+      emailType: "subscriber_first_radar",
+      dedupeKey,
+      subject,
+      triggerType: "track_post",
+      meta: { source: "first_radar_item" },
+    }).catch(() => undefined);
+    await recordLifecycleEvent({
+      uid,
+      email,
+      type: "first_radar_item_email_sent",
+      payload: { dedup_key: dedupeKey },
+    }).catch(() => undefined);
+    trackApiLog(traceId, "info", "first_radar_item_email_sent", { uid, email });
+  } else {
+    trackApiLog(traceId, "warn", "first_radar_item_email_failed", { uid, email });
+  }
+}
+
+async function queueWatchlistRefresh(
+  traceId: string,
+  uid: string,
+  sourceVersion: number,
+  requestedBy: "track_post" | "track_delete" | "track_post_skipped",
+): Promise<void> {
+  await adminFirestore
+    .collection("tm_watchlist_view_refresh_control")
+    .doc(uid)
+    .set(
       {
         last_source_version: sourceVersion,
-        last_requested_at: nowIso,
-        updated_at: nowIso,
+        last_requested_at: new Date().toISOString(),
+        requested_by: requestedBy,
+        updated_at: new Date().toISOString(),
       },
       { merge: true },
     );
-    shouldRun = true;
-  });
-  return shouldRun;
-}
-
-async function refreshUserRadarNow(traceId: string, uid: string, sourceVersion: number): Promise<void> {
-  const shouldRun = await shouldRunImmediateRefresh(uid, sourceVersion);
-  if (!shouldRun) {
-    trackApiLog(traceId, "info", "watchlist_refresh_deduped", {
-      uid,
-      source_version: sourceVersion,
-    });
-    return;
-  }
-  const fresh = await getUserDoc(uid);
-  const tracked = Array.isArray(fresh?.tracked_stocks) ? fresh.tracked_stocks : [];
-  const isSubscribed = resolveIsSubscribed(fresh);
-  const positions =
-    fresh?.watchlist_positions && typeof fresh.watchlist_positions === "object"
-      ? fresh.watchlist_positions
-      : {};
-  await rebuildAndSaveWatchlistView(uid, tracked, positions, isSubscribed, sourceVersion, {
-    preserveBriefIfFallback: true,
-    preserveDirectivesIfMissing: true,
-    preserveActivityIfThin: true,
-  });
-  trackApiLog(traceId, "info", "watchlist_refresh_ok", {
+  trackApiLog(traceId, "info", "watchlist_refresh_queued", {
     uid,
     source_version: sourceVersion,
-    tracked_count: tracked.length,
+    requested_by: requestedBy,
   });
 }
 
@@ -117,44 +115,6 @@ async function parseTrackPayload(req: NextRequest): Promise<{
   } catch {
     return null;
   }
-}
-
-async function maybeQueueOnDemandNews(uid: string, instrumentId: string): Promise<boolean> {
-  const coveredSnap = await adminFirestore.collection("tm_tracked_instruments").doc(instrumentId).get();
-  const coveredCount = coveredSnap.exists ? Number(coveredSnap.data()?.tracked_count ?? 0) : 0;
-  if (Number.isFinite(coveredCount) && coveredCount > 0) return false;
-
-  const ref = adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId);
-  let queued = false;
-  await adminFirestore.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const existing = snap.exists ? snap.data() : null;
-    const status = String(existing?.status || "");
-    const updatedAtRaw = String(existing?.updated_at || "");
-    const updatedAt = Date.parse(updatedAtRaw);
-    const recentlyQueued =
-      status === "queued" &&
-      Number.isFinite(updatedAt) &&
-      Date.now() - updatedAt < ON_DEMAND_QUEUE_DEDUPE_MS;
-    if (status === "running" || recentlyQueued) {
-      tx.set(ref, {
-        requested_by: FieldValue.arrayUnion(uid),
-        requested_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
-      return;
-    }
-    tx.set(ref, {
-      instrument_id: instrumentId,
-      market: instrumentId.startsWith("IN_") ? "IN" : "US",
-      status: "queued",
-      requested_by: FieldValue.arrayUnion(uid),
-      requested_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { merge: true });
-    queued = true;
-  });
-  return queued;
 }
 
 function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
@@ -239,7 +199,26 @@ export async function POST(req: NextRequest) {
     )
       ? { ...(userData.watchlist_positions as Record<string, "holding" | "watchlist">) }
       : {};
+    const holdings = (
+      userData?.watchlist_holdings &&
+      typeof userData.watchlist_holdings === "object" &&
+      !Array.isArray(userData.watchlist_holdings)
+    )
+      ? { ...(userData.watchlist_holdings as Record<string, Record<string, unknown>>) }
+      : {};
     positions[instrumentId] = positionType;
+    if (positionType !== "holding") {
+      delete holdings[instrumentId];
+    } else if (!holdings[instrumentId]) {
+      holdings[instrumentId] = {
+        quantity: null,
+        market_value: null,
+        average_cost: null,
+        currency: instrumentId.startsWith("IN_") ? "INR" : "USD",
+        source: "unknown",
+        updated_at: mutationToken,
+      };
+    }
     wasAlreadyTrackedInTxn = alreadyTracked;
     sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
     tx.set(
@@ -247,6 +226,7 @@ export async function POST(req: NextRequest) {
       {
         tracked_stocks: alreadyTracked ? tracked : [...tracked, instrumentId],
         watchlist_positions: positions,
+        watchlist_holdings: holdings,
         watchlist_updated_at: mutationToken,
         watchlist_version: sourceVersion,
         last_tracked_at: new Date().toISOString(),
@@ -284,25 +264,41 @@ export async function POST(req: NextRequest) {
       uid: session.uid,
       instrument_id: instrumentId,
     });
-  }
-  if (!skipRefresh) {
-    await refreshUserRadarNow(traceId, session.uid, sourceVersion).catch((error) => {
-      trackApiLog(traceId, "warn", "watchlist_refresh_failed", {
-        uid: session.uid,
-        instrument_id: instrumentId,
-        error: String(error),
+    if (queued) {
+      await triggerDispatchLane({
+        lane: "on_demand_news",
+        market: marketFromInstrumentId(instrumentId),
+        limit: 3,
+        extraArgs: ["--per-stock-cap", "6"],
+      }).catch((error) => {
+        trackApiLog(traceId, "warn", "on_demand_news_dispatch_failed", {
+          uid: session.uid,
+          instrument_id: instrumentId,
+          error: String(error),
+        });
       });
-    });
-  } else {
-    trackApiLog(traceId, "info", "watchlist_refresh_skipped_by_client", {
+    }
+
+    if (current.length === 0 && isSubscribed && session.email) {
+      maybeFireFirstRadarItemEmail(traceId, session.uid, session.email).catch(() => undefined);
+    }
+  }
+  await queueWatchlistRefresh(
+    traceId,
+    session.uid,
+    sourceVersion,
+    skipRefresh ? "track_post_skipped" : "track_post",
+  ).catch((error) => {
+    trackApiLog(traceId, "warn", "watchlist_refresh_queue_failed", {
       uid: session.uid,
       instrument_id: instrumentId,
       source_version: sourceVersion,
+      error: String(error),
     });
-  }
+  });
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, refresh_queued: true });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -351,13 +347,22 @@ export async function DELETE(req: NextRequest) {
     )
       ? { ...(userData.watchlist_positions as Record<string, "holding" | "watchlist">) }
       : {};
+    const holdings = (
+      userData?.watchlist_holdings &&
+      typeof userData.watchlist_holdings === "object" &&
+      !Array.isArray(userData.watchlist_holdings)
+    )
+      ? { ...(userData.watchlist_holdings as Record<string, Record<string, unknown>>) }
+      : {};
     delete positions[instrumentId];
+    delete holdings[instrumentId];
     sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
     tx.set(
       userRef,
       {
         tracked_stocks: FieldValue.arrayRemove(instrumentId),
         watchlist_positions: positions,
+        watchlist_holdings: holdings,
         watchlist_updated_at: mutationToken,
         watchlist_version: sourceVersion,
       },
@@ -388,14 +393,15 @@ export async function DELETE(req: NextRequest) {
     watchlist_version: sourceVersion,
     was_tracked: wasTrackedInTxn,
   });
-  await refreshUserRadarNow(traceId, session.uid, sourceVersion).catch((error) => {
-    trackApiLog(traceId, "warn", "watchlist_refresh_failed", {
+  await queueWatchlistRefresh(traceId, session.uid, sourceVersion, "track_delete").catch((error) => {
+    trackApiLog(traceId, "warn", "watchlist_refresh_queue_failed", {
       uid: session.uid,
       instrument_id: instrumentId,
+      source_version: sourceVersion,
       error: String(error),
     });
   });
 
   trackApiLog(traceId, "info", "delete_untrack_ok", { uid: session.uid, instrument_id: instrumentId });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, refresh_queued: true });
 }

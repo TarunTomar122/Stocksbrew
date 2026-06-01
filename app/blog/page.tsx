@@ -4,16 +4,19 @@ import { allBlogPosts } from "@/lib/blog-data";
 
 export const metadata: Metadata = {
   title: "Blog",
-  description: "Insights on market intelligence, AI-powered analysis, and smarter investing. From the makers of tikrr.online.",
+  description:
+    "Practical notes on stock calls, watchlists, risk-aware investing, and tools from the makers of stocksbrew.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Blog - Market Intelligence Insights · tikrr",
-    description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
-    url: "https://www.tikrr.online/blog",
+    title: "Blog · Stock calls & investing · stocksbrew",
+    description:
+      "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",
+    url: "https://www.stocksbrew.online/blog",
   },
   twitter: {
-    title: "Blog - Market Intelligence Insights · tikrr",
-    description: "Insights on market intelligence, AI-powered analysis, and smarter investing.",
+    title: "Blog · Stock calls & investing · stocksbrew",
+    description:
+      "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",
   },
 };
 
@@ -36,9 +39,21 @@ export default function BlogPage() {
             Notes from the desk.
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Insights on market intelligence, AI-powered analysis, and smarter investing. No jargon, no hype, just what works.
+            Notes on personalized stock calls, cutting through noise, and investing with clearer risk and opportunity framing. No jargon, no hype.
           </p>
         </header>
+
+        <Link
+          href="/guides"
+          className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#111111] transition-colors"
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">Guides</span>
+            <span className="text-[16px] font-semibold text-[#111111]">Stock research guide</span>
+            <span className="text-[13px] text-[#6b7280]">Free tools, comparisons, tutorials, and a weekly workflow in one place.</span>
+          </div>
+          <span className="text-[13px] font-semibold text-[#111111] shrink-0">Open guide →</span>
+        </Link>
 
         <section className="flex flex-col gap-5">
           {allBlogPosts.map((post) => (

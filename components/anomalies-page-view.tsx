@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
+import { TrackButton } from "@/components/track-button";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -20,30 +22,19 @@ function fmtPrice(v: number): string {
   return v.toFixed(2);
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 // ─── Anomaly card ─────────────────────────────────────────────────────────────
 
-function AnomalyCard({ item }: { item: AnomalyItem }) {
+function AnomalyCard({ item, isTracked }: { item: AnomalyItem; isTracked: boolean }) {
   const isUp = item.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
   const changeBg = isUp ? "#ecfdf5" : "#fef2f2";
+  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
+  const showBrief = brief && brief !== item.headline;
 
   return (
-    <Link
-      href={`/stock/${encodeURIComponent(item.ticker)}`}
-      className="group flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
-    >
+    <div className="group relative flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
+        <Link href={`/stock/${encodeURIComponent(item.ticker)}`} className="flex items-center gap-2.5 min-w-0">
           <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={36} />
           <div className="flex flex-col min-w-0">
             <span className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em] group-hover:text-[#0052ff] transition-colors">
@@ -51,38 +42,52 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
             </span>
             <span className="text-[11px] text-[#9ca3af] truncate max-w-[120px]">{item.name}</span>
           </div>
+        </Link>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className="inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums"
+            style={{ background: changeBg, color: changeColor }}
+          >
+            {isUp ? "▲" : "▼"} {fmtPct(item.day_change_pct)}
+          </span>
+          <TrackButton
+            ticker={item.ticker}
+            instrumentId={item.instrument_id}
+            isTracked={isTracked}
+            variant="icon"
+          />
         </div>
-        <span
-          className="shrink-0 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums"
-          style={{ background: changeBg, color: changeColor }}
-        >
-          {isUp ? "▲" : "▼"} {fmtPct(item.day_change_pct)}
-        </span>
       </div>
 
-      <div className="flex items-baseline gap-2">
-        <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
-          ${fmtPrice(item.price)}
-        </span>
-        {item.day_change_abs != null && (
-          <span className="text-[11px] font-medium tabular-nums" style={{ color: changeColor }}>
-            {isUp ? "+" : ""}{item.day_change_abs.toFixed(2)}
+      <Link href={`/stock/${encodeURIComponent(item.ticker)}`} className="flex flex-col gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
+            ${fmtPrice(item.price)}
           </span>
-        )}
-      </div>
+          {item.day_change_abs != null && (
+            <span className="text-[11px] font-medium tabular-nums" style={{ color: changeColor }}>
+              {isUp ? "+" : ""}{item.day_change_abs.toFixed(2)}
+            </span>
+          )}
+        </div>
 
-      {item.headline && (
-        <p className="text-[13px] leading-snug text-[#374151]">{item.headline}</p>
-      )}
-
-      <div className="mt-auto">
-        {item.catalyst && item.catalyst.length <= 48 && (
-          <span className="inline-flex items-center rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280]">
-            {item.catalyst}
-          </span>
+        {item.headline && (
+          <p className="text-[13px] leading-snug font-medium text-[#111111]">{item.headline}</p>
         )}
-      </div>
-    </Link>
+
+        {showBrief && (
+          <p className="line-clamp-3 text-[12px] leading-snug text-[#6b7280]">{brief}</p>
+        )}
+
+        <div className="mt-auto">
+          {item.catalyst && item.catalyst.length <= 48 && (
+            <span className="inline-flex items-center rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-medium text-[#6b7280]">
+              {item.catalyst}
+            </span>
+          )}
+        </div>
+      </Link>
+    </div>
   );
 }
 
@@ -106,45 +111,53 @@ function UpvoteArrow({ color }: { color: string }) {
   );
 }
 
-function RedditCard({ item }: { item: RedditTicker }) {
+function RedditCard({ item, isTracked }: { item: RedditTicker; isTracked: boolean }) {
   const meta = getSentimentMeta(item.sentiment);
   const topCatalyst = item.catalysts?.[0] ?? null;
+  const instrumentId = `US_${item.ticker}`;
 
   return (
-    <Link
-      href={`/stock/${encodeURIComponent(item.ticker)}`}
-      className="group flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-[#f9fafb] p-4 transition-all hover:border-[#111111] hover:shadow-sm"
-    >
+    <div className="group relative flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-[#f9fafb] p-4 transition-all hover:border-[#111111] hover:shadow-sm">
       <div className="flex items-center gap-2 min-w-0">
-        <StockLogo ticker={item.ticker} market="US" size={28} />
-        <span className="text-[13px] font-bold text-[#111111] tracking-[-0.01em]">{item.ticker}</span>
-        <div className="flex items-center gap-1" style={{ color: meta.color }}>
-          <UpvoteArrow color={meta.color} />
-          <span className="text-[12px] font-bold tabular-nums">{item.mention_count}</span>
-        </div>
-        <span className="ml-auto shrink-0 text-[11px] font-bold" style={{ color: meta.color }}>
-          {meta.label}
-        </span>
+        <Link href={`/stock/${encodeURIComponent(item.ticker)}`} className="flex items-center gap-2 min-w-0 flex-1">
+          <StockLogo ticker={item.ticker} market="US" size={28} />
+          <span className="text-[13px] font-bold text-[#111111] tracking-[-0.01em]">{item.ticker}</span>
+          <div className="flex items-center gap-1" style={{ color: meta.color }}>
+            <UpvoteArrow color={meta.color} />
+            <span className="text-[12px] font-bold tabular-nums">{item.mention_count}</span>
+          </div>
+          <span className="text-[11px] font-bold" style={{ color: meta.color }}>
+            {meta.label}
+          </span>
+        </Link>
+        <TrackButton
+          ticker={item.ticker}
+          instrumentId={instrumentId}
+          isTracked={isTracked}
+          variant="icon"
+        />
       </div>
 
-      {item.summary && (
-        <p className="text-[13px] font-medium leading-snug text-[#374151]">
-          {item.summary}
-        </p>
-      )}
+      <Link href={`/stock/${encodeURIComponent(item.ticker)}`} className="flex flex-col gap-3">
+        {item.summary && (
+          <p className="text-[13px] font-medium leading-snug text-[#374151]">
+            {item.summary}
+          </p>
+        )}
 
-      {topCatalyst && (
-        <div className="mt-auto pt-1">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold"
-            style={{ background: "#f3f4f6", color: meta.color }}
-          >
-            <span className="h-1 w-1 rounded-full shrink-0" style={{ background: meta.color }} />
-            {topCatalyst}
-          </span>
-        </div>
-      )}
-    </Link>
+        {topCatalyst && (
+          <div className="mt-auto pt-1">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold"
+              style={{ background: "#f3f4f6", color: meta.color }}
+            >
+              <span className="h-1 w-1 rounded-full shrink-0" style={{ background: meta.color }} />
+              {topCatalyst}
+            </span>
+          </div>
+        )}
+      </Link>
+    </div>
   );
 }
 
@@ -208,12 +221,14 @@ export function AnomaliesPageView({
   generatedAt,
   reddit,
   isSubscribed = false,
+  trackedIds = new Set(),
 }: {
   anomalies: AnomalyItem[];
   summary: string;
   generatedAt: string;
   reddit: RedditSnapshot | null;
   isSubscribed?: boolean;
+  trackedIds?: Set<string>;
 }) {
   const [tab, setTab] = useState<Tab>("anomalies");
 
@@ -224,6 +239,8 @@ export function AnomaliesPageView({
   const visibleReddit = (reddit?.tickers ?? []).slice(0, freeLimit);
   const lockedAnomalyCount = Math.max(0, anomalies.length - visibleAnomalies.length);
   const lockedRedditCount = Math.max(0, redditCount - visibleReddit.length);
+  const anomaliesFreshness = freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS);
+  const redditFreshness = freshnessInfo(reddit?.generated_at, MARKET_FEED_FRESHNESS);
 
   // On mobile, show only the active tab. On desktop, show both stacked.
   const showAnomalies = tab === "anomalies";
@@ -250,7 +267,8 @@ export function AnomaliesPageView({
               {lockedAnomalyCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
             <p className="text-[12px] text-[#9ca3af]">
-              {summary} · {timeAgo(generatedAt)}
+              {summary} · <span className={anomaliesFreshness.toneClass}>{anomaliesFreshness.label}</span>
+              {anomaliesFreshness.relative ? ` · ${anomaliesFreshness.relative}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -265,7 +283,7 @@ export function AnomaliesPageView({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {visibleAnomalies.map((item) => (
-            <AnomalyCard key={item.ticker} item={item} />
+            <AnomalyCard key={item.ticker} item={item} isTracked={trackedIds.has(item.instrument_id)} />
           ))}
           {!isSubscribed && lockedAnomalyCount > 0 && (
             <Link
@@ -288,12 +306,13 @@ export function AnomaliesPageView({
               {lockedRedditCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
             <p className="text-[12px] text-[#9ca3af]">
-              {reddit!.post_count} posts scanned · {timeAgo(reddit!.generated_at)}
+              {reddit!.post_count} posts scanned · <span className={redditFreshness.toneClass}>{redditFreshness.label}</span>
+              {redditFreshness.relative ? ` · ${redditFreshness.relative}` : ""}
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {visibleReddit.map((item) => (
-              <RedditCard key={item.ticker} item={item} />
+              <RedditCard key={item.ticker} item={item} isTracked={trackedIds.has(`US_${item.ticker}`)} />
             ))}
             {!isSubscribed && lockedRedditCount > 0 && (
               <Link

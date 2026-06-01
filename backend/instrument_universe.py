@@ -10,6 +10,10 @@ from backend.env import backend_dir
 
 UNIVERSE_PATH = backend_dir() / "config" / "instrument_universe.json"
 
+# Universe IDs in the JSON are stable storage identifiers, not product tier
+# names. See docs/stock-universes.md for the current search/coverage/runtime/
+# tracked tier model before adding or repointing a universe.
+
 
 @lru_cache(maxsize=1)
 def load_instrument_catalog() -> dict[str, Any]:

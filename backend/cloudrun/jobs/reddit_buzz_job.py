@@ -14,7 +14,8 @@ def main() -> None:
     parser.add_argument("--posts-per-subreddit", type=int, default=25)
     parser.add_argument("--max-tickers", type=int, default=20)
     parser.add_argument("--max-top-posts", type=int, default=12)
-    parser.add_argument("--promote-min-mentions", type=int, default=2)
+    parser.add_argument("--promote-min-mentions", type=int, default=1)
+    parser.add_argument("--promote-min-confidence", type=float, default=0.55)
     parser.add_argument("--promote-max-add", type=int, default=8)
     parser.add_argument("--promote-max-backfill", type=int, default=6)
     parser.add_argument("--skip-promotion", action="store_true")
@@ -51,6 +52,8 @@ def main() -> None:
         args.universe,
         "--min-mentions",
         str(args.promote_min_mentions),
+        "--min-confidence",
+        str(max(0.0, min(1.0, args.promote_min_confidence))),
         "--max-add",
         str(args.promote_max_add),
         "--max-backfill",

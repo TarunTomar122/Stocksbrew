@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { posthog } from "@/lib/posthog";
+import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 
 type Variant = "pill" | "icon";
@@ -21,6 +22,8 @@ type Props = {
   tier?: "ai_launch" | "ai_personal" | "free";
   isSubscribed?: boolean;
   variant?: Variant;
+  /** When tracked, render a static label instead of a button (no accidental remove). */
+  trackedAsBadge?: boolean;
 };
 
 // Single source of truth for the radar / sign-in / subscribe flow used by every
@@ -33,6 +36,7 @@ export function TrackButton({
   isSubscribed,
   isTracked,
   variant = "pill",
+  trackedAsBadge = false,
 }: Props) {
   const router = useRouter();
   const { user, loading } = useUser();
@@ -45,6 +49,10 @@ export function TrackButton({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
+
+  function triggerBackgroundRefresh() {
+    triggerRadarBackgroundRefresh(router);
+  }
 
   useEffect(() => {
     setLocalTracked(isTracked);
@@ -81,7 +89,7 @@ export function TrackButton({
           setLocalTracked(false);
           setModalStatus("success");
           posthog.capture("radar_remove_clicked", { instrument_id: instrumentId, ticker });
-          router.refresh();
+          triggerBackgroundRefresh();
         } finally {
           setPendingOp(null);
           setTimeout(() => setModalOpen(false), 900);
@@ -146,7 +154,7 @@ export function TrackButton({
           position_type: positionType,
         });
         setOpen(false);
-        router.refresh();
+        triggerBackgroundRefresh();
       } finally {
         setPendingOp(null);
         setTimeout(() => setModalOpen(false), 900);
@@ -159,6 +167,40 @@ export function TrackButton({
       return <span className="inline-block h-5 w-5" aria-hidden />;
     }
     return null;
+  }
+
+  const trackedPillClass =
+    "inline-flex h-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#111111] bg-white px-4 text-[13px] font-semibold tracking-tight text-[#111111]";
+
+  if (trackedAsBadge && localTracked && user) {
+    if (variant === "icon") {
+      return (
+        <span
+          className="shrink-0 text-[#0052ff]"
+          aria-label={`${ticker} is on your Radar`}
+          title="On your Radar"
+        >
+          <svg
+            width="18"
+            height="20"
+            viewBox="0 0 16 18"
+            fill="currentColor"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M2 1.5h12v15l-6-4-6 4v-15z" />
+          </svg>
+        </span>
+      );
+    }
+    return (
+      <span className={trackedPillClass} aria-label={`${ticker} is on your Radar`}>
+        In Radar ✓
+      </span>
+    );
   }
 
   const label = !user
@@ -216,7 +258,7 @@ export function TrackButton({
             type="button"
             onClick={onPrimaryClick}
             disabled={pending}
-            className={`inline-flex items-center justify-center h-[40px] px-4 rounded-full text-[13px] font-semibold tracking-tight transition-transform disabled:opacity-60 ${
+            className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap h-[40px] px-4 rounded-full text-[13px] font-semibold tracking-tight transition-transform disabled:opacity-60 ${
               localTracked
                 ? "bg-white text-[#111111] border border-[#111111] hover:-translate-y-[1px] active:translate-y-0"
                 : "bg-[#111111] text-white hover:-translate-y-[1px] active:translate-y-0"
@@ -244,7 +286,7 @@ export function TrackButton({
       <RadarAsyncModal
         open={modalOpen}
         title={modalTitle}
-        subtitle="Applying your update and refreshing Radar..."
+        subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
     </>
@@ -328,7 +370,7 @@ function TrackModal({
             Add {ticker} to Radar
           </h2>
           <p className="text-[13px] text-[#6b7280] leading-relaxed">
-            Tell tikrr how to monitor this stock. You can move it later.
+            Tell stocksbrew how to monitor this stock. You can move it later.
           </p>
         </div>
 

@@ -20,12 +20,14 @@ from backend.llm_client import (
     parse_json_content,
     schema_system_prompt,
 )
+from backend.landing_metrics import _extract_series, _to_float, build_stock_technical_doc
+from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.models import Article
 
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-04-21-stock-brief-v7-fundamentals"
+STOCK_BRIEF_CACHE_VERSION = "2026-05-29-stock-brief-v11-earnings-actuals"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -76,6 +78,160 @@ def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
     block["weak_metrics"] = block["weak_metrics"][:6]
     return block
 
+
+def _avg_volume_from_history(history_points: list[dict[str, Any]]) -> float | None:
+    volumes: list[float] = []
+    for row in history_points:
+        quote = row.get("quote") or {}
+        value = _to_float(quote.get("volume"))
+        if value is not None and value > 0:
+            volumes.append(value)
+    if not volumes:
+        return None
+    return sum(volumes) / len(volumes)
+
+
+def _return_over_sessions(closes: list[float], sessions: int) -> float | None:
+    if len(closes) < sessions + 1:
+        return None
+    start = closes[-(sessions + 1)]
+    end = closes[-1]
+    if start <= 0:
+        return None
+    return round((end - start) / start * 100.0, 2)
+
+
+def _recent_session_prices(
+    history_points: list[dict[str, Any]],
+    latest_price_doc: dict[str, Any] | None,
+    *,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    rows: list[tuple[str, float, float | None]] = []
+    for row in history_points:
+        quote = row.get("quote") or {}
+        close = _to_float(quote.get("current"))
+        if close is None:
+            continue
+        ts = str(row.get("captured_at") or row.get("timestamp") or row.get("as_of_date") or "")
+        day_change = _to_float(quote.get("day_change_pct"))
+        rows.append((ts, close, day_change))
+
+    if latest_price_doc:
+        quote = latest_price_doc.get("quote") or {}
+        close = _to_float(quote.get("current"))
+        if close is not None:
+            ts = str(latest_price_doc.get("captured_at") or latest_price_doc.get("as_of_date") or "")
+            day_change = _to_float(quote.get("day_change_pct"))
+            rows.append((ts, close, day_change))
+
+    rows.sort(key=lambda item: item[0])
+    dedup: dict[str, tuple[float, float | None]] = {}
+    for ts, close, day_change in rows:
+        key = ts[:10] if ts else str(close)
+        dedup[key] = (close, day_change)
+
+    recent: list[dict[str, Any]] = []
+    for date_key, (close, day_change) in list(dedup.items())[-limit:]:
+        entry: dict[str, Any] = {"date": date_key, "close": round(close, 4)}
+        if day_change is not None:
+            entry["day_change_pct"] = round(day_change, 2)
+        recent.append(entry)
+    return recent
+
+
+def _comparative_day_change_context(
+    instrument: dict[str, Any],
+    instrument_id: str,
+    latest_prices_by_id: dict[str, dict[str, Any]],
+    instruments_by_id: dict[str, dict[str, Any]],
+    market_day_change_values: list[float],
+) -> tuple[float, float | None, float | None]:
+    quote = (latest_prices_by_id.get(instrument_id, {}) or {}).get("quote", {})
+    self_day_change = _to_float((quote or {}).get("day_change_pct")) or 0.0
+
+    market_median = (
+        sum(market_day_change_values) / len(market_day_change_values)
+        if market_day_change_values
+        else None
+    )
+    vs_market = round(self_day_change - market_median, 4) if market_median is not None else None
+
+    instrument_sector = str(instrument.get("sector", "")).strip().lower()
+    sector_values: list[float] = []
+    for peer_id, payload in latest_prices_by_id.items():
+        peer = instruments_by_id.get(peer_id)
+        if not peer:
+            continue
+        if str(peer.get("sector", "")).strip().lower() != instrument_sector:
+            continue
+        peer_quote = (payload.get("quote") or {}) if isinstance(payload, dict) else {}
+        peer_change = _to_float(peer_quote.get("day_change_pct"))
+        if peer_change is not None:
+            sector_values.append(peer_change)
+    sector_median = sum(sector_values) / len(sector_values) if sector_values else None
+    vs_sector = round(self_day_change - sector_median, 4) if sector_median is not None else None
+    return self_day_change, vs_market, vs_sector
+
+
+def _summarize_price_context(
+    latest_price_doc: dict[str, Any] | None,
+    technical_doc: dict[str, Any] | None,
+    history_points: list[dict[str, Any]] | None,
+    *,
+    vs_market_day_change_pct: float | None = None,
+    vs_sector_day_change_pct: float | None = None,
+) -> dict[str, Any] | None:
+    if not latest_price_doc:
+        return None
+
+    quote = latest_price_doc.get("quote") or {}
+    current = _to_float(quote.get("current"))
+    day_change = _to_float(quote.get("day_change_pct"))
+    volume = _to_float(quote.get("volume"))
+    history = list(history_points or [])
+    avg_volume = _avg_volume_from_history(history)
+    volume_vs_avg: float | str = "unknown"
+    if volume is not None and avg_volume and avg_volume > 0:
+        volume_vs_avg = round(volume / avg_volume, 2)
+
+    closes, _ = _extract_series(history, latest_price_doc)
+    returns: dict[str, float | None] = {
+        "week_1_pct": _return_over_sessions(closes, 5),
+        "month_1_pct": _return_over_sessions(closes, 21),
+        "month_3_pct": _return_over_sessions(closes, 63),
+    }
+
+    rsi_block = (technical_doc or {}).get("rsi_14") or {}
+    distance = (technical_doc or {}).get("distance") or {}
+    moving_averages = (technical_doc or {}).get("moving_averages") or {}
+
+    block: dict[str, Any] = {
+        "current_price": current,
+        "day_change_pct": day_change,
+        "vs_market_day_change_pct": vs_market_day_change_pct,
+        "vs_sector_day_change_pct": vs_sector_day_change_pct,
+        "volume_vs_avg": volume_vs_avg,
+        "rsi_14": {
+            "value": rsi_block.get("value"),
+            "state": rsi_block.get("state"),
+        },
+        "from_52w_high_pct": distance.get("from_52w_high_pct"),
+        "from_52w_low_pct": distance.get("from_52w_low_pct"),
+        "ma_position": {
+            "sma_20": moving_averages.get("price_vs_sma_20"),
+            "sma_50": moving_averages.get("price_vs_sma_50"),
+            "sma_200": moving_averages.get("price_vs_sma_200"),
+        },
+        "trend": _derive_trend(technical_doc),
+        "returns": returns,
+        "recent_sessions": _recent_session_prices(history, latest_price_doc, limit=5),
+    }
+    if not any(value is not None for value in (current, day_change)):
+        return None
+    return block
+
+
 STOCK_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. Smart but easy to read.
 
 The user sees the price chart already. Don't describe price moves. Tell them what it MEANS.
@@ -86,7 +242,7 @@ Fields to write:
 
 - **headline**: Under 12 words. An insight, not a price move. BAD: "NVDA rises on earnings." GOOD: "Data-center demand is outpacing bull-case estimates."
 
-- **body**: 2-3 short sentences. Use \\n\\n for paragraph breaks if needed. What does this mean for someone holding the stock? What's the implication the headlines miss? Never open with "[Company] has seen..." - lead with the insight.
+- **body**: A simple, factual 2-3 sentence NEWS OVERVIEW of what is actually happening with this stock RIGHT NOW. Ground every sentence in the dated `recent_news` items (and `reddit_buzz` if present). Plain English, current, no jargon. If `recent_news` is empty or every item is more than ~4 days older than `today`, say coverage has gone quiet and briefly note the last real development. Do NOT narrate the price. Never open with "[Company] has seen..." - lead with the actual development.
 
 - **key_findings**: 2-4 short, punchy takeaways. Each one a different insight the user wouldn't get from the chart. Frame facts as implications: not "analyst set $200 target" but "Street consensus is 15% above current price - the market hasn't caught up to the upgrade cycle yet."
 
@@ -138,6 +294,29 @@ FUNDAMENTALS - USE THEM:
 - Drivers and risk_cards should weave fundamentals + news: "label: Margin expansion outpaces peers / detail: Operating margin sits in the sector's top quartile while revenue still compounds at 16% YoY."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
+
+PRICE CONTEXT - USE IT:
+- The user payload may include a `price_context` block with day change vs market/sector, RSI, 52-week distance, MA position, volume vs average, multi-week returns, and recent session closes.
+- Use it to interpret news vs setup: bullish news after a big run = trim into strength, not accumulate. Quiet news while coiled above support = accumulation.
+- Do NOT narrate the chart back ("stock is up 2% today"). Use price context for setup_state, directive trigger levels, and tension with fundamentals/news.
+- Anchor directive trigger prices to levels in price_context when sensible (recent closes, MAs, analyst targets).
+
+RECENCY - THIS IS CRITICAL:
+- Today's date is in the payload as `today`. The payload includes `recent_news`: an array of the freshest articles, each with its own `date`, `title`, and `summary`.
+- The `body` overview must describe what is happening NOW, anchored to `recent_news`. Only treat something as "recent"/"this week" if its `date` is within ~4 days of `today`.
+- NEVER reference a date that is not present in `recent_news`. NEVER invent "as of <month>" phrasing. If the freshest item is old, say coverage has quieted rather than implying fresh activity.
+
+REDDIT BUZZ - USE AS A SENTIMENT SIGNAL, NOT FACT:
+- The payload may include `reddit_buzz` with retail `sentiment`, a `context` blurb, `mentions` count, and `catalysts`. This is crowd chatter, not verified reporting.
+- You may use it to color the overview ("retail buzz is spiking, leaning bullish") and to inform the directive's confidence. NEVER quote a Reddit claim as fact and NEVER invent a number or event from it. If it conflicts with the news, trust the news.
+
+EARNINGS - RESPECT THE TIMING:
+- The payload may include an `earnings` block. Read its `status` and act accordingly. If there is NO `earnings` block, this stock is between prints - do NOT mention earnings at all, and do NOT write any "watch earnings" directive.
+- status == "reported": earnings ALREADY happened on `event_date` (`days_since_report` days ago). NEVER frame earnings as upcoming or say "watch for earnings". If `reported_eps` is present it is the ACTUAL reported number - cite it (and `surprise_label`/`eps_surprise_pct` for the beat/miss vs estimate). If only `eps_estimate` is present, the actual result is not captured yet, so do NOT state a beat/miss or present the estimate as the result. If `reported_highlights` is present, ground your overview in those actuals (`reported_vs_expected`, `guidance_signal`, `price_reaction`, `what_changed`) - they are real reported results, not speculation.
+  - If `lead` is true (just reported, within ~5 days): the print is THE story. Lead the `body` overview with the result + guidance, and the `directive` must reflect a POST-earnings stance (e.g. "Hold through guidance digestion", "Trim into post-earnings strength", "Re-rate on raised guidance") - never a pre-earnings watch.
+  - If `lead` is false (reported but older): mention the result only as backdrop ("since its <month> beat...") and let current news lead the overview.
+- status == "upcoming": earnings reports in `days_until` days on `event_date`. You MAY frame it as a near-term catalyst and the directive may be a watch (e.g. "Watch earnings <date>"). Use the `event_date` exactly - never invent a different date.
+- Only the `earnings` block (and `recent_news`) may anchor an earnings reference. Never reuse an earnings date from anywhere else.
 
 EVIDENCE DISCIPLINE - THIS IS CRITICAL:
 - Every driver, catalyst_card, and risk_card MUST be grounded in a specific fact from the evidence OR fundamentals block. If neither supports it, don't write it.
@@ -274,9 +453,13 @@ def _llm_synthesize_brief(
     current_price: float | None = None,
     analyst_target: float | None = None,
     fundamentals: dict[str, Any] | None = None,
+    price_context: dict[str, Any] | None = None,
+    recent_news: list[dict[str, Any]] | None = None,
+    reddit: dict[str, Any] | None = None,
+    earnings: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
-    """Call MiMo to generate a synthesized stock brief. Returns None on failure."""
+    """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
     api_key = llm_api_key()
     if not api_key:
         return None
@@ -299,6 +482,14 @@ def _llm_synthesize_brief(
         "analyst_target": analyst_target,
         "fundamentals": fundamentals,
     }
+    if recent_news:
+        payload["recent_news"] = recent_news
+    if reddit:
+        payload["reddit_buzz"] = reddit
+    if earnings:
+        payload["earnings"] = earnings
+    if price_context:
+        payload["price_context"] = price_context
 
     # Check cache
     cache_key = None
@@ -665,7 +856,9 @@ def build_no_news_intelligence_doc(
 
 PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You produce structured intelligence cards for a premium market app dashboard. Think Bloomberg Terminal meets Morning Brew - each card is a discrete, punchy insight.
 
-You get the user's watchlist with price moves, headlines, sentiment, catalysts, sectors, analyst data, and news. Your job is to generate content for FOUR distinct intelligence cards. Each card must be self-contained and cover different ground.
+You get the user's watchlist with price moves, headlines, sentiment, catalysts, sectors, analyst data, and news. Each stock has a `position_type` ("holding" = real money in it, "watchlist" = tracking only) and optionally a `portfolio_weight_pct` (% of the user's entered portfolio value). When portfolio_weight_pct is present for all holdings, use it to weight your risk assessment — a 30% holding with bad news is 10× more urgent than a 3% one. Prioritize movers, signals, and risk language based on actual dollar exposure, not equal weight. If portfolio weights are absent, treat all stocks equally.
+
+Your job is to generate content for FOUR distinct intelligence cards. Each card must be self-contained and cover different ground.
 
 **narrative**: 2-3 sentences summarizing the single most important story across the entire portfolio today. Not "stocks are up/down" - the THEME. What's driving the market, what changed, what matters for THIS portfolio. Write like a sharp newsletter opener. Max 50 words. Don't mention specific prices or percentages - the user sees those on the tiles. Focus on the WHY.
 
@@ -807,7 +1000,7 @@ PORTFOLIO_BRIEF_SCHEMA = {
     },
 }
 
-PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-01-portfolio-brief-v13"
+PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-27-portfolio-brief-v14"
 
 
 def generate_portfolio_brief(
@@ -842,6 +1035,8 @@ def generate_portfolio_brief(
             "ticker": doc.get("symbol", ""),
             "name": doc.get("name", ""),
             "sector": doc.get("sector", ""),
+            "position_type": doc.get("position_type", "watchlist"),
+            "portfolio_weight_pct": doc.get("portfolio_weight_pct"),
             "price_current": price.get("current", 0),
             "price_change_pct": price.get("changePct", 0),
             "volume_vs_avg": volume_vs_avg,
@@ -1776,6 +1971,223 @@ def _build_body(
     return body[:500]
 
 
+def _load_reddit_by_ticker(store: Any, market: str) -> dict[str, dict[str, Any]]:
+    """Read reddit_snapshots/{market}__latest once, keyed by upper ticker.
+
+    Handles both the dict-keyed and list shapes the snapshot has used. Returns a
+    compact per-ticker payload (sentiment / context / mentions / catalysts) so
+    the brief can fold in retail chatter without re-reading Firestore per stock.
+    """
+    doc = store.db.collection("reddit_snapshots").document(f"{market}__latest").get()
+    if not doc.exists:
+        return {}
+    data = doc.to_dict() or {}
+    tickers = data.get("tickers")
+    out: dict[str, dict[str, Any]] = {}
+
+    def _norm(raw: dict[str, Any]) -> dict[str, Any] | None:
+        context = str(raw.get("context") or raw.get("summary") or "").strip()[:240]
+        sentiment = raw.get("sentiment")
+        mentions = raw.get("mention_count")
+        if mentions is None:
+            mentions = raw.get("mentions")
+        catalysts = [str(v).strip() for v in (raw.get("catalysts") or [])[:4] if str(v).strip()]
+        if not (context or sentiment or catalysts):
+            return None
+        payload: dict[str, Any] = {}
+        if sentiment:
+            payload["sentiment"] = sentiment
+        if mentions is not None:
+            try:
+                payload["mentions"] = int(float(mentions))
+            except Exception:
+                pass
+        if context:
+            payload["context"] = context
+        if catalysts:
+            payload["catalysts"] = catalysts
+        return payload
+
+    if isinstance(tickers, dict):
+        for key, entry in tickers.items():
+            if isinstance(entry, dict):
+                norm = _norm(entry)
+                if norm:
+                    out[str(key).upper()] = norm
+    elif isinstance(tickers, list):
+        for row in tickers:
+            if not isinstance(row, dict):
+                continue
+            ticker = str(row.get("ticker") or "").upper().strip()
+            if not ticker:
+                continue
+            norm = _norm(row)
+            if norm:
+                out[ticker] = norm
+    return out
+
+
+# Earnings relevance windows (calendar days), tuned with product input:
+# - LEAD: the print is THE story; overview + directive driven by results.
+# - CONTEXT: earnings stays as backdrop context but news leads.
+# - PRE: start framing the next earnings as an upcoming catalyst.
+EARNINGS_LEAD_DAYS = 5
+EARNINGS_CONTEXT_DAYS = 14
+EARNINGS_PRE_DAYS = 14
+
+
+def _load_earnings_by_instrument(
+    store: Any,
+    market: str,
+    instruments: list[dict[str, Any]],
+    now_utc: datetime,
+) -> dict[str, dict[str, Any]]:
+    """Build a per-instrument earnings-context block for the brief.
+
+    Combines two sources we already maintain:
+    - tm_earnings_events  -> the calendar (last reported date, next date, EPS est.)
+    - tm_earnings_intel/{__latest} -> compact post-earnings highlights, if built
+
+    Returns {instrument_id: earnings_block}. Only instruments where earnings is
+    currently relevant (within the pre/lead/context windows) get an entry, so a
+    stock in the "dead zone" between prints contributes nothing and the brief
+    won't manufacture an earnings angle. Status priority: a fresh print (<=LEAD)
+    always leads; otherwise an imminent earnings (<=PRE) takes precedence;
+    otherwise a still-recent print (<=CONTEXT) is backdrop.
+    """
+    if store is None or not instruments:
+        return {}
+
+    today = now_utc.date()
+    ticker_to_id = {
+        str(inst.get("ticker") or "").upper().strip(): inst.get("instrument_id")
+        for inst in instruments
+        if str(inst.get("ticker") or "").strip() and inst.get("instrument_id")
+    }
+    if not ticker_to_id:
+        return {}
+
+    # Bounded calendar scan: only events that could matter for the windows.
+    lo = (today - timedelta(days=EARNINGS_CONTEXT_DAYS + 2)).isoformat()
+    hi = (today + timedelta(days=EARNINGS_PRE_DAYS + 2)).isoformat()
+    by_ticker: dict[str, dict[str, Any]] = {}
+    try:
+        query = (
+            store.db.collection("tm_earnings_events")
+            .where("market", "==", market.upper())
+            .where("event_date", ">=", lo)
+            .where("event_date", "<=", hi)
+            .stream()
+        )
+        for doc in query:
+            payload = doc.to_dict() or {}
+            ticker = str(payload.get("ticker") or "").upper().strip()
+            if ticker not in ticker_to_id:
+                continue
+            ev_iso = str(payload.get("event_date") or "")[:10]
+            try:
+                ev_date = datetime.strptime(ev_iso, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            row = by_ticker.setdefault(ticker, {"past": None, "future": None})
+            if ev_date <= today:
+                if row["past"] is None or ev_date > row["past"][0]:
+                    row["past"] = (ev_date, payload)
+            else:
+                if row["future"] is None or ev_date < row["future"][0]:
+                    row["future"] = (ev_date, payload)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("earnings calendar scan failed market=%s: %s", market, exc)
+        return {}
+
+    # Decide status/window per ticker first, so we only fetch intel for the
+    # subset that actually reported recently.
+    blocks: dict[str, dict[str, Any]] = {}
+    reported_ids: list[str] = []
+    for ticker, instrument_id in ticker_to_id.items():
+        row = by_ticker.get(ticker)
+        if not row:
+            continue
+        past = row.get("past")
+        future = row.get("future")
+        days_since = (today - past[0]).days if past else None
+        days_until = (future[0] - today).days if future else None
+
+        if days_since is not None and days_since <= EARNINGS_LEAD_DAYS:
+            status, lead = "reported", True
+        elif days_until is not None and days_until <= EARNINGS_PRE_DAYS:
+            status, lead = "upcoming", False
+        elif days_since is not None and days_since <= EARNINGS_CONTEXT_DAYS:
+            status, lead = "reported", False
+        else:
+            continue
+
+        block: dict[str, Any] = {"status": status, "lead": lead}
+        if status == "reported":
+            event_payload = past[1] or {}
+            block["event_date"] = past[0].isoformat()
+            block["days_since_report"] = days_since
+            est = event_payload.get("eps_estimate")
+            if est is not None:
+                block["eps_estimate"] = est
+            # Real reported numbers, if sync_earnings_actuals enriched the event.
+            # Without these the brief would fall back to repeating the estimate
+            # as if it were the result. Surface them so the overview cites the
+            # actual beat/miss instead of fabricating one.
+            reported_eps = event_payload.get("reported_eps")
+            if reported_eps is not None:
+                block["reported_eps"] = reported_eps
+                surprise_pct = event_payload.get("eps_surprise_pct")
+                if surprise_pct is not None:
+                    block["eps_surprise_pct"] = surprise_pct
+                label = event_payload.get("surprise_label")
+                if label:
+                    block["surprise_label"] = label
+            reported_ids.append(instrument_id)
+        else:
+            block["event_date"] = future[0].isoformat()
+            block["days_until"] = days_until
+            est = (future[1] or {}).get("eps_estimate")
+            if est is not None:
+                block["eps_estimate"] = est
+        blocks[instrument_id] = block
+
+    # Attach compact post-earnings highlights for reported stocks that have an
+    # earnings-intel doc, so the overview can cite actual results/guidance.
+    if reported_ids:
+        try:
+            refs = [
+                store.db.collection("tm_earnings_intel").document(
+                    f"{market.upper()}__{instrument_id}__latest"
+                )
+                for instrument_id in reported_ids
+            ]
+            for snap in store.db.get_all(refs):
+                if not snap.exists:
+                    continue
+                data = snap.to_dict() or {}
+                instrument_id = str(data.get("instrument_id") or "").strip()
+                block = blocks.get(instrument_id)
+                if not block:
+                    continue
+                report = data.get("report") or {}
+                facts = report.get("facts") or {}
+                interp = report.get("interpretation") or {}
+                highlights = {
+                    "reported_vs_expected": str(facts.get("reported_vs_expected") or "")[:240],
+                    "guidance_signal": str(facts.get("guidance_signal") or "")[:240],
+                    "price_reaction": str(facts.get("price_reaction") or "")[:240],
+                    "what_changed": str(interp.get("what_changed") or "")[:240],
+                }
+                highlights = {k: v for k, v in highlights.items() if v}
+                if highlights:
+                    block["reported_highlights"] = highlights
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("earnings intel highlights load failed market=%s: %s", market, exc)
+
+    return blocks
+
+
 def build_stock_intelligence_docs(
     market: str,
     universe_id: str,
@@ -1784,12 +2196,14 @@ def build_stock_intelligence_docs(
     store: Any | None = None,
 ) -> list[dict[str, Any]]:
     articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
+    raw_articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
     instruments_by_ticker = {instrument["ticker"].upper(): instrument for instrument in instruments}
     instruments_by_id = {instrument["instrument_id"]: instrument for instrument in instruments}
     now_utc = datetime.now(timezone.utc)
 
     latest_prices_by_id: dict[str, dict[str, Any]] = {}
     intel_pro_by_id: dict[str, dict[str, Any]] = {}
+    technicals_by_id: dict[str, dict[str, Any]] = {}
     if store is not None:
         try:
             latest_prices_by_id = store.get_latest_prices(list(instruments_by_id.keys()))
@@ -1801,6 +2215,28 @@ def build_stock_intelligence_docs(
                     intel_pro_by_id[doc["instrument_id"]] = doc
         except Exception:
             intel_pro_by_id = {}
+        try:
+            technicals_by_id = store.get_latest_stock_technicals_batch(list(instruments_by_id.keys()))
+        except Exception:
+            technicals_by_id = {}
+
+    # Reddit buzz, loaded once per run and keyed by upper-cased ticker. Used to
+    # give the brief retail-sentiment context alongside the news evidence.
+    reddit_by_ticker: dict[str, dict[str, Any]] = {}
+    if store is not None:
+        try:
+            reddit_by_ticker = _load_reddit_by_ticker(store, market)
+        except Exception:
+            reddit_by_ticker = {}
+
+    # Earnings context (calendar + post-earnings intel), keyed by instrument_id.
+    # Only stocks currently inside the pre/lead/context windows appear here.
+    earnings_by_id: dict[str, dict[str, Any]] = {}
+    if store is not None:
+        try:
+            earnings_by_id = _load_earnings_by_instrument(store, market, instruments, now_utc)
+        except Exception:
+            earnings_by_id = {}
 
     market_day_change_values: list[float] = []
     for instrument_id, payload in latest_prices_by_id.items():
@@ -1822,6 +2258,18 @@ def build_stock_intelligence_docs(
     )
 
     for article in articles:
+        # Keep a raw per-instrument map before quality gating so we can avoid
+        # false "no news" states when fresh but lower-confidence coverage exists.
+        for mention in article.entity_mentions:
+            if mention.get("type") != "stock":
+                continue
+            if str(mention.get("mention_role", "secondary")).lower() == "incidental":
+                continue
+            ticker = str(mention.get("ticker", "")).upper().strip()
+            instrument = instruments_by_ticker.get(ticker)
+            if instrument:
+                raw_articles_by_instrument[instrument["instrument_id"]].append(article)
+
         grouped_mode = str(getattr(article, "enrichment_source", "")).strip().lower() == "grouped_stock_llm"
         # Drop articles the enricher flagged as unscored - these are landing
         # pages / listing URLs that the LLM couldn't extract substance from.
@@ -1853,6 +2301,20 @@ def build_stock_intelligence_docs(
         instrument_id = instrument["instrument_id"]
         matched_articles = sorted(articles_by_instrument.get(instrument_id, []), key=lambda item: item.published_at, reverse=True)
         if not matched_articles:
+            raw_matched_articles = sorted(
+                raw_articles_by_instrument.get(instrument_id, []),
+                key=lambda item: item.published_at,
+                reverse=True,
+            )
+            if raw_matched_articles:
+                logger.info(
+                    "stock_intel weak evidence fallback for %s - using %s raw matched articles",
+                    instrument_id,
+                    len(raw_matched_articles),
+                )
+                matched_articles = raw_matched_articles
+
+        if not matched_articles:
             # Per-ticker articles (on-demand jobs) may not map cleanly
             # through the LLM entity-mention matching logic, especially for
             # stocks outside the current AI universe. Use all available
@@ -1877,7 +2339,7 @@ def build_stock_intelligence_docs(
                 )
                 if no_news_doc:
                     no_news_doc["coverage_type"] = "on_demand_no_news"
-                    no_news_doc["source"] = "mimo"
+                    no_news_doc["source"] = LLM_BRIEF_SOURCE
                     docs.append(no_news_doc)
                 continue
         primary_articles = [
@@ -1991,11 +2453,69 @@ def build_stock_intelligence_docs(
         )
 
         # Get current price for directive generation
-        latest_quote = (latest_prices_by_id.get(instrument_id, {}) or {}).get("quote", {})
+        latest_price_doc = latest_prices_by_id.get(instrument_id)
+        latest_quote = (latest_price_doc or {}).get("quote", {})
         try:
             current_price = float((latest_quote or {}).get("current", 0.0)) or None
         except Exception:
             current_price = None
+
+        history_points: list[dict[str, Any]] = []
+        if store is not None:
+            try:
+                history_points = store.get_price_history(instrument_id, limit=65)
+            except Exception:
+                history_points = []
+
+        technical_doc = technicals_by_id.get(instrument_id)
+        if not technical_doc and latest_price_doc and history_points:
+            technical_doc = build_stock_technical_doc(
+                instrument=instrument,
+                latest_price=latest_price_doc,
+                history_points=history_points,
+                as_of_date=now_utc.date().isoformat(),
+            )
+
+        self_day_change, vs_market, vs_sector = _comparative_day_change_context(
+            instrument,
+            instrument_id,
+            latest_prices_by_id,
+            instruments_by_id,
+            market_day_change_values,
+        )
+        price_context = _summarize_price_context(
+            latest_price_doc,
+            technical_doc,
+            history_points,
+            vs_market_day_change_pct=vs_market,
+            vs_sector_day_change_pct=vs_sector,
+        )
+
+        _, analyst_target, _ = _extract_analyst_from_intel_pro(
+            intel_pro_by_id.get(instrument_id),
+            current_price,
+        )
+
+        # Dated, freshest-first news the model anchors the overview to. Keeping
+        # the publish date on each item is what kills the "stale date" problem -
+        # the LLM can no longer mistake an 8-day-old story for today's news.
+        recent_news: list[dict[str, Any]] = []
+        for article in ranked_articles:
+            published_dt = _parse_iso(article.published_at)
+            age_days = (now_utc - published_dt).total_seconds() / 86400.0
+            if age_days > 5:
+                continue
+            summary = _best_evidence(article, instrument["ticker"])[0] or _clean_title(article.title)
+            recent_news.append({
+                "date": published_dt.date().isoformat(),
+                "title": _clean_title(article.title),
+                "summary": str(summary)[:240],
+            })
+            if len(recent_news) >= 6:
+                break
+
+        reddit_ctx = reddit_by_ticker.get(str(instrument["ticker"]).upper())
+        earnings_ctx = earnings_by_id.get(instrument_id)
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
@@ -2011,8 +2531,12 @@ def build_stock_intelligence_docs(
             catalyst=catalyst,
             risk=risk,
             current_price=current_price,
-            analyst_target=None,
+            analyst_target=analyst_target,
             fundamentals=fundamentals_block,
+            price_context=price_context,
+            recent_news=recent_news,
+            reddit=reddit_ctx,
+            earnings=earnings_ctx,
             store=store,
         )
 
@@ -2192,13 +2716,16 @@ def build_stock_intelligence_docs(
 
         # Comparative context against market and sector peers.
         instrument_sector = str(instrument.get("sector", "")).strip().lower()
-        self_day_change = 0.0
-        quote = (latest_prices_by_id.get(instrument_id, {}) or {}).get("quote", {})
-        try:
-            self_day_change = float((quote or {}).get("day_change_pct", 0.0))
-        except Exception:
-            self_day_change = 0.0
-
+        sorted_market = sorted(market_day_change_values) if market_day_change_values else []
+        percentile = 50
+        if sorted_market:
+            below = sum(1 for value in sorted_market if value <= self_day_change)
+            percentile = int(round((below / len(sorted_market)) * 100))
+        market_median = (
+            sum(market_day_change_values) / len(market_day_change_values)
+            if market_day_change_values
+            else 0.0
+        )
         sector_values: list[float] = []
         for peer_id, payload in latest_prices_by_id.items():
             peer = instruments_by_id.get(peer_id)
@@ -2207,18 +2734,10 @@ def build_stock_intelligence_docs(
             if str(peer.get("sector", "")).strip().lower() != instrument_sector:
                 continue
             peer_quote = (payload.get("quote") or {}) if isinstance(payload, dict) else {}
-            try:
-                sector_values.append(float(peer_quote.get("day_change_pct", 0.0)))
-            except Exception:
-                continue
-
-        market_median = sum(market_day_change_values) / len(market_day_change_values) if market_day_change_values else 0.0
+            peer_change = _to_float(peer_quote.get("day_change_pct"))
+            if peer_change is not None:
+                sector_values.append(peer_change)
         sector_median = sum(sector_values) / len(sector_values) if sector_values else 0.0
-        sorted_market = sorted(market_day_change_values) if market_day_change_values else []
-        percentile = 50
-        if sorted_market:
-            below = sum(1 for value in sorted_market if value <= self_day_change)
-            percentile = int(round((below / len(sorted_market)) * 100))
 
         docs.append({
             "instrument_id": instrument_id,

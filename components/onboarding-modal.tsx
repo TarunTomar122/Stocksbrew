@@ -39,7 +39,7 @@ function DirectiveSlide() {
         </div>
       </div>
       <p className="text-[13px] text-[#6b7280] leading-relaxed text-center">
-        tikrr reads the news and filings twice a day and writes you a plain take on what it means - so you don't have to piece it together yourself.
+        stocksbrew reads fundamentals, news, Reddit, and earnings, then gives you a clear call on what to do so you do not have to piece it together yourself.
       </p>
     </div>
   );
@@ -137,7 +137,7 @@ function RadarSlide() {
         </ul>
       </div>
       <p className="text-[13px] text-[#6b7280] leading-relaxed text-center">
-        Add the stocks you follow and tikrr shows you what moved, what's loud in the news, and what needs your attention - without you having to check 10 tabs.
+        Add the stocks you follow and stocksbrew shows you what moved, what's loud in the news, and what needs your attention - without you having to check 10 tabs.
       </p>
     </div>
   );
@@ -205,7 +205,7 @@ export function OnboardingModal({ onClose }: Props) {
           <div className="flex items-center gap-3 bg-[#f3f4f6] border-b border-[#e5e7eb] px-6 py-3">
             <span className="text-[20px]">👋</span>
             <div>
-              <p className="text-[14px] font-semibold text-[#111111]">Welcome to tikrr!</p>
+              <p className="text-[14px] font-semibold text-[#111111]">Welcome to stocksbrew!</p>
               <p className="text-[12px] text-[#6b7280]">Here's what you can do - quick 30-second tour.</p>
             </div>
           </div>

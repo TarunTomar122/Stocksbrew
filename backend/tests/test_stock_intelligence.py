@@ -3,7 +3,10 @@ from __future__ import annotations
 import unittest
 
 from backend.models import Article
-from backend.stock_intelligence import build_stock_intelligence_docs
+from backend.stock_intelligence import (
+    _summarize_price_context,
+    build_stock_intelligence_docs,
+)
 
 
 class StockIntelligenceTest(unittest.TestCase):
@@ -115,6 +118,61 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(nvda["overall_label"], "bullish")
         self.assertEqual(nvda["related_instrument_ids"], ["US_AMD"])
         self.assertEqual(amd["news_count"], 1)
+
+    def test_summarize_price_context(self) -> None:
+        latest = {
+            "captured_at": "2026-05-20T20:00:00+00:00",
+            "quote": {
+                "current": 110.0,
+                "day_change_pct": 2.5,
+                "volume": 200.0,
+            },
+        }
+        history = [
+            {
+                "captured_at": "2026-05-15T20:00:00+00:00",
+                "quote": {"current": 100.0, "day_change_pct": -1.0, "volume": 100.0},
+            },
+            {
+                "captured_at": "2026-05-16T20:00:00+00:00",
+                "quote": {"current": 102.0, "day_change_pct": 2.0, "volume": 100.0},
+            },
+            {
+                "captured_at": "2026-05-17T20:00:00+00:00",
+                "quote": {"current": 104.0, "day_change_pct": 1.9, "volume": 100.0},
+            },
+            {
+                "captured_at": "2026-05-18T20:00:00+00:00",
+                "quote": {"current": 106.0, "day_change_pct": 1.9, "volume": 100.0},
+            },
+            {
+                "captured_at": "2026-05-19T20:00:00+00:00",
+                "quote": {"current": 108.0, "day_change_pct": 1.9, "volume": 100.0},
+            },
+        ]
+        technical = {
+            "rsi_14": {"value": 68.0, "state": "neutral"},
+            "distance": {"from_52w_high_pct": -8.0, "from_52w_low_pct": 42.0},
+            "moving_averages": {
+                "price_vs_sma_20": "above",
+                "price_vs_sma_50": "above",
+                "price_vs_sma_200": "above",
+            },
+        }
+        block = _summarize_price_context(
+            latest,
+            technical,
+            history,
+            vs_market_day_change_pct=1.8,
+            vs_sector_day_change_pct=0.6,
+        )
+        assert block is not None
+        self.assertEqual(block["current_price"], 110.0)
+        self.assertEqual(block["day_change_pct"], 2.5)
+        self.assertEqual(block["vs_market_day_change_pct"], 1.8)
+        self.assertEqual(block["volume_vs_avg"], 2.0)
+        self.assertEqual(len(block["recent_sessions"]), 5)
+        self.assertEqual(block["returns"]["week_1_pct"], 10.0)
 
 
 if __name__ == "__main__":

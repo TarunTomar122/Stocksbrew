@@ -32,20 +32,29 @@ export function TierCTA({
 
   if (tier === "ai_launch") {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3">
-        <span className="text-[13px] font-medium text-[#065f46]">
+      <div className="flex flex-col items-start gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <span className="min-w-0 text-[13px] font-medium leading-relaxed text-[#065f46]">
           {isSubscribed
-            ? "Launch list - full AI tab, twice daily."
+            ? "Launch list - full AI tab with personalized calls."
             : "Free launch list - full AI tab on select stocks only. Upgrade for more."}
         </span>
         {user && isSubscribed && (
-          <TrackButton
-            ticker={ticker}
-            instrumentId={instrumentId}
-            tier={tier}
-            isSubscribed={isSubscribed}
-            isTracked={isTracked}
-          />
+          <div
+            className={
+              isTracked
+                ? "shrink-0 self-end sm:self-auto"
+                : "w-full shrink-0 sm:w-auto [&>div]:w-full sm:[&>div]:w-auto [&_button]:w-full sm:[&_button]:w-auto"
+            }
+          >
+            <TrackButton
+              ticker={ticker}
+              instrumentId={instrumentId}
+              tier={tier}
+              isSubscribed={isSubscribed}
+              isTracked={isTracked}
+              trackedAsBadge={isTracked}
+            />
+          </div>
         )}
       </div>
     );
@@ -57,13 +66,14 @@ export function TierCTA({
         <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#1e3a8a]">
           On your Radar - updates with each run.
         </span>
-        <div className="self-end sm:self-auto">
+        <div className={isTracked ? "shrink-0 self-end sm:self-auto" : "self-end sm:self-auto"}>
           <TrackButton
             ticker={ticker}
             instrumentId={instrumentId}
             tier={tier}
             isSubscribed={isSubscribed}
             isTracked={isTracked}
+            trackedAsBadge={isTracked}
           />
         </div>
       </div>
@@ -131,7 +141,7 @@ export function TierCTA({
   return (
     <CtaCard
       title={`Add ${ticker} to Radar`}
-      body="Holding = you own it. Watching = on your list. We’ll brief both twice daily."
+      body="Holding = you own it. Watching = on your list. You get personalized calls and alerts on both."
       action={
         <TrackButton
           ticker={ticker}

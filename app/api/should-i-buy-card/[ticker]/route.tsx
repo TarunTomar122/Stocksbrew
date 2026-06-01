@@ -250,7 +250,7 @@ export async function GET(
           {/* Footer */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: "#9ca3af", letterSpacing: "-0.01em" }}>
-              tikrr.online/should-i-buy/{ticker}
+              www.stocksbrew.online/should-i-buy/{ticker}
             </span>
             <span style={{ fontSize: 13, color: "#d1d5db" }}>Not investment advice</span>
           </div>

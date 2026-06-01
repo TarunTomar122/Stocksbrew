@@ -46,6 +46,7 @@ def main() -> None:
         uid = str(user.get("uid") or "")
         tracked = user.get("tracked_stocks") or []
         positions = user.get("watchlist_positions") or {}
+        holdings = user.get("watchlist_holdings") or {}
         if not uid or not isinstance(tracked, list):
             skipped += 1
             continue
@@ -68,6 +69,7 @@ def main() -> None:
             uid,
             [str(t) for t in tracked],
             positions=positions,
+            holdings=holdings,
             active_universes=active_universes,
             include_llm_brief=not args.no_llm,
         )

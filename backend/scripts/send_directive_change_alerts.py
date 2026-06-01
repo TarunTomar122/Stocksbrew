@@ -8,19 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from backend.email_runtime import log_email_send, parse_iso
 
 from backend.lifecycle_emailing import email_pro_directive_change, now_iso, send_email
 from backend.storage import TraceMoneyStore
-
-
-def _parse_iso(value: Any) -> datetime | None:
-    s = str(value or "").strip()
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except Exception:
-        return None
 
 
 def _email_opted_in(user: dict[str, Any], pref_key: str) -> bool:
@@ -36,7 +27,7 @@ def _sent_recent(store: TraceMoneyStore, uid: str, template: str, hours: int) ->
         .stream()
     )
     for doc in docs:
-        created = _parse_iso((doc.to_dict() or {}).get("created_at"))
+        created = parse_iso((doc.to_dict() or {}).get("created_at"))
         if created and created >= cutoff:
             return True
     return False
@@ -121,6 +112,21 @@ def main() -> None:
                 email,
                 dedupe_key,
                 {
+                    "ticker": ticker,
+                    "position_type": position_type,
+                    "prev_stance": prev_stance,
+                    "new_stance": new_stance,
+                },
+            )
+            log_email_send(
+                store,
+                uid=uid,
+                email=email,
+                email_type="pro_directive_change",
+                dedupe_key=dedupe_key,
+                subject=subject,
+                trigger_type="directive_change",
+                meta={
                     "ticker": ticker,
                     "position_type": position_type,
                     "prev_stance": prev_stance,

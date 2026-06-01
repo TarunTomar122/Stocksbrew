@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { allBlogPosts, type BlogPost } from "@/lib/blog-data";
 import { getBlogContent } from "@/lib/blog";
+import { getSeoMeta } from "@/lib/blog/seo-meta";
+import { ArticleSchema } from "@/components/seo/article-schema";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   intelligence: { bg: "bg-[#ecfdf5]", text: "text-[#10b981]" },
@@ -28,14 +30,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: post.description,
     alternates: { canonical: `/blog/${slug}` },
     openGraph: {
-      title: `${post.title} · tikrr Blog`,
+      title: `${post.title} · stocksbrew Blog`,
       description: post.description,
-      url: `https://www.tikrr.online/blog/${slug}`,
+      url: `https://www.stocksbrew.online/blog/${slug}`,
       type: "article",
       publishedTime: post.date,
     },
     twitter: {
-      title: `${post.title} · tikrr Blog`,
+      title: `${post.title} · stocksbrew Blog`,
       description: post.description,
     },
   };
@@ -47,9 +49,20 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   const content = getBlogContent(slug);
+  const seo = getSeoMeta(slug);
 
   return (
     <main className="flex-grow">
+      {seo && (
+        <ArticleSchema
+          slug={slug}
+          title={post.title}
+          description={post.description}
+          datePublished={post.date}
+          author={seo.author}
+          faqs={seo.faqs}
+        />
+      )}
       <article className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-12 md:py-16">
         <Link
           href="/blog"
@@ -113,16 +126,16 @@ export default async function BlogPostPage({ params }: Props) {
         <footer className="mt-16 pt-8 border-t border-[#e5e7eb] flex flex-col gap-6">
           <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
             <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
-              Get AI Market Intelligence
+              Know what to do with your stocks
             </h3>
             <p className="text-[14px] text-[#6b7280] mb-5">
-              tikrr delivers twice-daily AI briefs, watchlist radar, and smart alerts. Free tier available.
+              Personalized buy, hold, and sell calls from fundamentals, news, Reddit, and earnings. Set triggers and get emailed in buy or sell zones. Free for 3 stocks.
             </p>
             <a
-              href="https://tikrr.online"
+              href="https://www.stocksbrew.online"
               className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
             >
-              Try tikrr Free →
+              Try stocksbrew Free →
             </a>
           </div>
 

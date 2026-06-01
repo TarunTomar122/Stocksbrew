@@ -23,12 +23,22 @@ downstream stages when their inputs were refreshed in the same pass.
 # See what would run without changing Firestore.
 python3 -m backend.scripts.run_pipeline --dry-run
 
+# See which frontend data surfaces are stale without mutating anything.
+python3 -m backend.scripts.audit_data_health --market US --dry-run
+
 # Actually run only stale/due stages for US (current focus).
 python3 -m backend.scripts.run_pipeline
 
+# Write one cheap ops snapshot to tm_data_health/US.
+python3 -m backend.scripts.audit_data_health --market US
+
+# Refresh stale stock-detail fundamentals/facts. This is normally scheduled
+# weekly through the Cloud Run `stock_facts` lane.
+python3 -m backend.scripts.sync_stock_facts --market US --limit 0 --max-workers 4 --pause 0.25
+
 # Optional: override universes or force one stale-looking stage.
 python3 -m backend.scripts.run_pipeline \
-  --us-universe us_core_155 \
+  --us-universe us_core_100 \
   --force US:build_heat_list
 ```
 
@@ -36,8 +46,8 @@ The conservative default policy is (US-first operations):
 - prices use `--session-phase auto` by default. The runner maps the current
   local market time to `pre_open`, `open_check`, `mid_check`, `close_check`,
   or `post_close`; each phase runs at most once per market day
-- US should use one broad universe (`us_core_155`) so market,
-  sector, heat, search, and AI all read the same namespace
+- US currently uses `US_universe` as the runtime namespace. This is not the
+  whole searchable/coverage catalog; see `docs/stock-universes.md`.
 - weekends are skipped automatically for price snapshots unless you force a
   stage or pass an explicit `--session-phase`
 - technicals, breadth, screens, alerts, heat/divergence wait for a fresh price
@@ -49,7 +59,8 @@ The conservative default policy is (US-first operations):
 - `build_watchlist_views` runs once globally after market views/alerts change
 
 Universe contract (canonical, US):
-- `US_universe` = single broad US namespace used for price/scores/views/AI
+- `US_universe` = active runtime namespace used by product views and active
+  AI/news reads
 - paid tracked stocks are unioned into AI generation at runtime
 
 To intentionally run a price phase outside its normal window:
@@ -64,7 +75,7 @@ Set universes to whatever is active for the environment first:
 
 ```bash
 MARKET=US
-UNIVERSE=us_core_155
+UNIVERSE=us_core_100
 
 # 1 — refresh raw market data
 python3 -m backend.scripts.sync_price_snapshots         --market "$MARKET" --universe "$UNIVERSE" --session-phase manual
@@ -151,9 +162,15 @@ prefix can run in parallel.
 | 9 | `build_user_alert_flags` | technicals + prices | `tm_user_alert_flags` | Alert dots on stock pages + watchlist |
 | 10 | `build_watchlist_views` | user prefs + intel | `tm_watchlist_views/{user}` | Personal watchlist view |
 | 11 | `build_snapshot` | many | `tm_snapshots/{snapshot_id}` | Snapshot archive (rollback / audit) |
-| 12 | `build_heat_list` | intel_pro + technicals + prices + mention_stats | `tm_heat_list/{market}` | `/heat` → "Hot Stocks" tab |
+| 12 | `build_heat_list` | intel_pro + technicals + prices + mention_stats | `tm_heat_list/{market}` and compact `tm_heat_list_view/{market}` | `/heat` → "Hot Stocks" tab |
 | 13 | `build_divergence` | enrichments + prices | `tm_divergence/{market}` | `/heat` → "Divergences" tab |
 | 14 | `build_sentiment_flip` | enrichments | `tm_sentiment_flip/{market}` | `/heat` → "Sentiment Flip" tab |
+| 15 | `build_earnings_intel --all-recent` | `tm_earnings_events`, prices, facts, technicals, stock_intel_pro, stock_intelligence, reddit | `tm_earnings_intel/{market}__{instrument}__{event_date}`, `{market}__{instrument}__latest` | Pro earnings-intel pages + Radar earnings deep-links |
+
+Open anomaly and Reddit jobs also maintain targeted stock-detail read models:
+`tm_daily_anomaly_tickers/{market}__{ticker}` and
+`reddit_ticker_contexts/{market}__{ticker}`. Keep those writes with the full
+feed writes; stock pages use them to avoid reading the full public feed docs.
 
 ---
 
@@ -218,6 +235,7 @@ build_per_stock_intelligence ───────┬─→ materialize_views
 | `/heat` "Hot Stocks" empty | `tm_heat_list/{market}` missing or rows empty | Re-run `build_heat_list` (depends on intel_pro + technicals being current) |
 | `/heat` RSI column shows "—" | Finviz scrape was rate-limited or skipped | Re-run `build_stock_technicals` — console prints `RSI resolved: N/M`. Lower `--finviz-workers` to 2 if 429s persist |
 | `/heat` "Divergences" empty | No recent enrichments, or no price moves above the threshold | Verify `tm_news_runs/{ns}/enrichments` has today's data and `day_change_pct` exists on prices |
+| Earnings-intel page redirects to stock page | No `tm_earnings_intel/...__latest` doc exists yet for that ticker | Run `build_earnings_intel --ticker <TICKER> --write` or schedule `--all-recent` lane |
 | `/heat` "Sentiment Flip" empty | <14 days of enrichment history accumulated, or no qualifying flips | Wait — needs 14 days of news data to detect flips |
 
 ---

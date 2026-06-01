@@ -11,13 +11,13 @@ def backend_dir() -> Path:
 
 
 def load_backend_env() -> None:
-    env_paths = [
-        backend_dir() / ".env",
-        backend_dir().parent / ".env",
-    ]
-    for env_path in env_paths:
+    root = backend_dir().parent
+    for env_path in (backend_dir() / ".env", root / ".env"):
         if env_path.exists():
             load_dotenv(env_path, override=False)
+    local_env = root / ".env.local"
+    if local_env.exists():
+        load_dotenv(local_env, override=True)
 
 
 def resolve_backend_path(value: str) -> str:

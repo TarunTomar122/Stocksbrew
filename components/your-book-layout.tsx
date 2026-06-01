@@ -19,11 +19,19 @@ type Props = {
   holdings: import("@/lib/watchlist-view").WatchlistRow[];
   watching: import("@/lib/watchlist-view").WatchlistRow[];
   suggestions: Suggestion[];
-  upNextSlot: React.ReactNode;
-  alertsSlot: React.ReactNode;
+  earningsReadySlot?: React.ReactNode;
+  bookEventsSlot?: React.ReactNode;
+  belowLedgerSlot?: React.ReactNode;
 };
 
-export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, alertsSlot }: Props) {
+export function YourBookLayout({
+  holdings,
+  watching,
+  suggestions,
+  earningsReadySlot,
+  bookEventsSlot,
+  belowLedgerSlot,
+}: Props) {
   const [tab, setTab] = useState<Tab>(
     holdings.length === 0 && watching.length > 0 ? "watching" : "holdings",
   );
@@ -46,23 +54,31 @@ export function YourBookLayout({ holdings, watching, suggestions, upNextSlot, al
         />
       </div>
 
-      {/* 2-col grid: table (fluid) + right rail (fixed) — tops aligned */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
-        {/* Controlled ledger (no internal tab pills) */}
-        <RadarLedger
-          holdings={holdings}
-          watching={watching}
-          suggestions={suggestions}
-          activeTab={tab}
-          onTabChange={setTab}
-        />
-
-        {/* Right rail */}
-        <div className="flex flex-col gap-4">
-          {upNextSlot}
-          {alertsSlot}
+      {/* Table scroll stays in left column; rail never clips on mid-size desktops */}
+      <div
+        className={`grid w-full min-w-0 grid-cols-1 gap-5 items-start ${
+          earningsReadySlot ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,280px)]" : ""
+        }`}
+      >
+        {/* Left col: ledger + optional below-ledger slot */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <RadarLedger
+            holdings={holdings}
+            watching={watching}
+            suggestions={suggestions}
+            activeTab={tab}
+            onTabChange={setTab}
+          />
+          {belowLedgerSlot}
         </div>
+
+        {/* Right rail — earnings banners only */}
+        {earningsReadySlot ? (
+          <div className="flex min-w-0 w-full flex-col gap-4">{earningsReadySlot}</div>
+        ) : null}
       </div>
+
+      {bookEventsSlot ? <div className="min-w-0 w-full">{bookEventsSlot}</div> : null}
     </div>
   );
 }

@@ -119,9 +119,9 @@ SCREEN_DEFINITIONS: list[dict[str, Any]] = [
         # overall score, which already weighs all four pillars. Kept first in
         # the list so it lands as the default tab on the landing page.
         "id": "tikrr_top",
-        "title": "Top tikrr Score",
+        "title": "Top stocksbrew Score",
         "tagline": "Our highest composite-score picks across all four pillars.",
-        "hook": "The 10 stocks with the best overall tikrr score right now.",
+        "hook": "The 10 stocks with the best overall stocksbrew score right now.",
     },
     {
         "id": "quality_compounders",

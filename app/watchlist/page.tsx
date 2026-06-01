@@ -3,18 +3,42 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
-import { getWatchlistView } from "@/lib/watchlist-view";
-import type { WatchlistBrief, WatchlistRow, WatchlistPulse } from "@/lib/watchlist-view";
+import { scrubLegacyBrand } from "@/lib/brand";
+import { getWatchlistView, overlayLatestPrices } from "@/lib/watchlist-view";
+import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { RadarLedger } from "@/components/radar-ledger";
-import { RadarActivity } from "@/components/radar-activity";
+import { BookEventsPanel, TodayMarketEvents } from "@/components/radar-activity";
+import { partitionActivityEvents, type RadarActivityEvent } from "@/lib/activity-events";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { TrackButton } from "@/components/track-button";
 import { YourBookLayout } from "@/components/your-book-layout";
 import { DiagnosisSectorChart, DiagnosisFactorRadar } from "@/components/diagnosis-charts";
 import { RadarUpdatingBanner } from "@/components/radar-updating-banner";
+import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
+import { RadarEarningsReadyBanner } from "@/components/radar-earnings-ready-banner";
+import { RadarEarningsUpcomingBanner } from "@/components/radar-earnings-upcoming-banner";
+import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-workspace";
+import { BuildingStateRefresher } from "@/components/building-state-refresher";
+import { getInstruments } from "@/lib/firestore";
+import {
+  filterEarningsIntelThisWeek,
+  getLatestEarningsIntelForInstruments,
+  type EarningsIntelDoc,
+} from "@/lib/earnings-intel";
+import { getPreEarningsIntelForInstruments } from "@/lib/pre-earnings-intel";
+import {
+  filterPreEarningsWithinDays,
+  type PreEarningsIntelDoc,
+} from "@/lib/pre-earnings-intel-shared";
+import {
+  getPortfolioExposure,
+  getPortfolioScenario,
+  type PortfolioExposure,
+  type PortfolioScenario,
+} from "@/lib/portfolio-scenarios";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +50,7 @@ type Dict = Record<string, unknown>;
 
 export default async function WatchlistPage() {
   const SHOW_TEST_UPDATING_BANNER = false;
-  const UPDATE_BANNER_WINDOW_MS = 90 * 1000;
+  const SHOW_SCENARIO_LAB = false;
   const session = await getSessionUser();
   if (!session) {
     return <DemoRadar />;
@@ -36,28 +60,133 @@ export default async function WatchlistPage() {
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
   const watchlistView = await getWatchlistView(session.uid).catch(() => null);
+  const portfolioExposure = SHOW_SCENARIO_LAB
+    ? await getPortfolioExposure(session.uid).catch(() => null)
+    : null;
+  const nvdaScenario = SHOW_SCENARIO_LAB
+    ? await getPortfolioScenario(session.uid).catch(() => null)
+    : null;
   const radar = userDoc?.radar_v1 || {};
-  const rows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
+  const materializedRows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
+  const watchlistPositions =
+    userDoc?.watchlist_positions && typeof userDoc.watchlist_positions === "object"
+      ? (userDoc.watchlist_positions as Record<string, "holding" | "watchlist">)
+      : {};
+  // watchlist_holdings is the source of truth for share quantities — always fresher than the view.
+  const watchlistHoldings =
+    userDoc?.watchlist_holdings && typeof userDoc.watchlist_holdings === "object"
+      ? (userDoc.watchlist_holdings as Record<string, { quantity?: number | null; market_value?: number | null; average_cost?: number | null; source?: string; updated_at?: string }>)
+      : {};
+  const trackedSet = new Set(tracked);
+  const materializedById = new Map(
+    materializedRows
+      .filter((row) => trackedSet.has(row.instrument_id))
+      .map((row) => [row.instrument_id, row] as const),
+  );
+  const missingMaterializedIds = tracked.filter((instrumentId) => !materializedById.has(instrumentId));
+  const fallbackInstruments = missingMaterializedIds.length
+    ? await getInstruments(missingMaterializedIds).catch(() => new Map())
+    : new Map();
+  // Build rows from profile truth first so holdings/watching updates are instant.
+  const rowsBase = tracked
+    .map((instrumentId) => {
+      const materialized = materializedById.get(instrumentId);
+      const profileHolding = watchlistHoldings[instrumentId];
+      // Merge holding from user profile — it's updated synchronously on save, so always current.
+      // Preserve portfolio_weight_pct from the materialized row so computePillarAverages
+      // can dollar-weight scores even when the profile override is active.
+      const holdingOverride: WatchlistRow["holding"] =
+        watchlistPositions[instrumentId] === "holding" && profileHolding
+          ? {
+              quantity: profileHolding.quantity ?? null,
+              market_value: profileHolding.market_value ?? null,
+              average_cost: profileHolding.average_cost ?? null,
+              source: profileHolding.source,
+              updated_at: profileHolding.updated_at,
+              portfolio_weight_pct: (materialized?.holding?.portfolio_weight_pct as number | null | undefined) ?? null,
+            }
+          : undefined;
+      if (materialized) {
+        return {
+          ...materialized,
+          // Position and holding come from user profile, not stale materialized payload.
+          position_type: watchlistPositions[instrumentId] === "holding" ? "holding" : "watchlist",
+          holding: holdingOverride ?? materialized.holding,
+        } as WatchlistRow;
+      }
+      const fallback = fallbackInstruments.get(instrumentId);
+      const ticker = fallback?.ticker || instrumentId.split("_").slice(1).join("_");
+      const market = instrumentId.startsWith("IN_") ? "IN" : "US";
+      return {
+        instrument_id: instrumentId,
+        ticker,
+        logo_url: null,
+        position_type: watchlistPositions[instrumentId] === "holding" ? "holding" : "watchlist",
+        market,
+        sector_label: "",
+        industry_label: "",
+        currency: market === "IN" ? "INR" : "USD",
+        price: null,
+        day_change_pct: null,
+        day_change_abs: null,
+        scores: {
+          overall: null,
+          verdict: null,
+          valuation: null,
+          growth: null,
+          quality: null,
+          momentum: null,
+        },
+        alerts: [],
+        catalysts: [],
+        brief_tile: {
+          micro: "Price and analysis are syncing.",
+          vibe: "wild",
+          source: "rules",
+        },
+        coverage_status: "score_pending",
+        has_intel_pro: false,
+      } as WatchlistRow;
+    })
+    .filter((row): row is WatchlistRow => Boolean(row));
+  // Keep Radar prices fresh without rebuilding the whole per-user watchlist
+  // view on every price tick. Price jobs update tm_latest_prices; this page
+  // overlays those quote fields at read time.
+  const rows = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
   const suggestions = (watchlistView?.suggestions || radar.suggestions || []) as Dict[];
   const brief = ((watchlistView?.brief || radar.brief) ?? null) as WatchlistBrief | null;
   const pulse = ((watchlistView?.pulse || radar.pulse) ?? null) as WatchlistPulse | null;
   const portfolio = ((watchlistView?.portfolio || radar.portfolio) ?? {}) as Dict;
   const eventRadar = ((watchlistView?.event_radar || radar.event_radar) ?? []) as Dict[];
-  const changes = ((watchlistView?.changes || radar.changes) ?? {}) as Dict;
+  const todaySetup = ((watchlistView?.today_setup || (radar as Dict).today_setup) ?? null) as WatchlistTodaySetup | null;
   const builtAt =
     typeof watchlistView?.built_at === "string"
       ? watchlistView.built_at
       : typeof radar.built_at === "string"
       ? radar.built_at
       : undefined;
-  const watchlistUpdatedAt =
-    typeof userDoc?.watchlist_updated_at === "string" ? userDoc.watchlist_updated_at : undefined;
-  const pendingCount = Math.max(0, tracked.length - rows.length);
-  const watchlistUpdatedMs = watchlistUpdatedAt ? Date.parse(watchlistUpdatedAt) : NaN;
-  const shouldShowUpdatingBanner =
-    pendingCount > 0 &&
-    Number.isFinite(watchlistUpdatedMs) &&
-    Date.now() - watchlistUpdatedMs < UPDATE_BANNER_WINDOW_MS;
+  const userSourceVersion = Number(userDoc?.watchlist_version ?? 0);
+  const viewSourceVersion = Number(watchlistView?.source_version ?? 0);
+  const todayVersionApplied = Number(watchlistView?.today_version_applied ?? viewSourceVersion);
+  const diagnosisVersionApplied = Number(watchlistView?.diagnosis_version_applied ?? viewSourceVersion);
+  const hasVersionLag =
+    Number.isFinite(userSourceVersion) &&
+    Number.isFinite(viewSourceVersion) &&
+    userSourceVersion > 0 &&
+    viewSourceVersion > 0 &&
+    viewSourceVersion < userSourceVersion;
+  const pendingCount = hasVersionLag ? rows.filter((row) => row.price === null).length : 0;
+  const shouldShowUpdatingBanner = hasVersionLag;
+  const isTodayRefreshing =
+    hasVersionLag &&
+    Number.isFinite(todayVersionApplied) &&
+    todayVersionApplied > 0 &&
+    todayVersionApplied < userSourceVersion;
+  const isDiagnosisRefreshing =
+    hasVersionLag &&
+    Number.isFinite(diagnosisVersionApplied) &&
+    diagnosisVersionApplied > 0 &&
+    diagnosisVersionApplied < userSourceVersion;
 
   if (watchlistView && radar && Array.isArray((radar as Dict).rows)) {
     const materializedRows = (watchlistView.rows || []).map((r) => String(r.ticker || r.instrument_id || ""));
@@ -88,11 +217,20 @@ export default async function WatchlistPage() {
   // Free users with rows get the full Radar — the only difference is the 3-stock
   // limit enforced at /api/track time, not at display time.
   if (rows.length === 0) {
+    // Stocks have been added but the radar hasn't finished building yet — show a
+    // "we're on it" loading state instead of the empty onboarding screen.
+    if (tracked.length > 0) {
+      return <BuildingState trackedCount={tracked.length} />;
+    }
     return (
       <main className="flex-grow">
-        <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
+        <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
           <BareHeader rowsCount={tracked.length} builtAt={builtAt} />
-          <EmptyState suggestions={suggestions} />
+          <EmptyState
+            suggestions={suggestions}
+            trackedIds={new Set(tracked)}
+            isSubscribed={isSubscribed}
+          />
         </div>
       </main>
     );
@@ -118,21 +256,118 @@ export default async function WatchlistPage() {
   const holdings = rows.filter((r) => r.position_type === "holding").sort(byAttention);
   const watching = rows.filter((r) => r.position_type !== "holding").sort(byAttention);
 
-  // ── up-next (forward catalysts across all rows) ─────────────────────────────
-  const upNext = buildUpNext(rows);
+  let earningsReadyThisWeek: EarningsIntelDoc[] = [];
+  let earningsUpcomingThisWeek: PreEarningsIntelDoc[] = [];
+  if (rows.length > 0) {
+    const idsByMarket = { US: [] as string[], IN: [] as string[] };
+    for (const row of rows) {
+      const m = row.market === "IN" ? "IN" : "US";
+      idsByMarket[m].push(row.instrument_id);
+    }
+    const [usDocs, inDocs, usPre, inPre] = await Promise.all([
+      idsByMarket.US.length
+        ? getLatestEarningsIntelForInstruments("US", idsByMarket.US).catch(() => [] as EarningsIntelDoc[])
+        : Promise.resolve([] as EarningsIntelDoc[]),
+      idsByMarket.IN.length
+        ? getLatestEarningsIntelForInstruments("IN", idsByMarket.IN).catch(() => [] as EarningsIntelDoc[])
+        : Promise.resolve([] as EarningsIntelDoc[]),
+      idsByMarket.US.length
+        ? getPreEarningsIntelForInstruments("US", idsByMarket.US).catch(() => [] as PreEarningsIntelDoc[])
+        : Promise.resolve([] as PreEarningsIntelDoc[]),
+      idsByMarket.IN.length
+        ? getPreEarningsIntelForInstruments("IN", idsByMarket.IN).catch(() => [] as PreEarningsIntelDoc[])
+        : Promise.resolve([] as PreEarningsIntelDoc[]),
+    ]);
+    earningsReadyThisWeek = filterEarningsIntelThisWeek([...usDocs, ...inDocs]);
+    earningsUpcomingThisWeek = filterPreEarningsWithinDays([...usPre, ...inPre]);
+  }
+
+  // Which suggested/blind-spot names just reported? Suggestions are NOT tracked,
+  // so the tracked-row earnings fetch above never covers them. Pull this-week
+  // earnings intel for the suggestion pool so the explore cards can flag a fresh
+  // print instead of treating every name identically.
+  const earningsTickers = new Set<string>();
+  {
+    const suggIdsByMarket = { US: [] as string[], IN: [] as string[] };
+    for (const s of suggestions) {
+      const ticker = String(s.ticker ?? "").trim().toUpperCase();
+      if (!ticker) continue;
+      const m = String(s.market ?? "US") === "IN" ? "IN" : "US";
+      suggIdsByMarket[m].push(`${m}_${ticker}`);
+    }
+    if (suggIdsByMarket.US.length || suggIdsByMarket.IN.length) {
+      const [usSugg, inSugg] = await Promise.all([
+        suggIdsByMarket.US.length
+          ? getLatestEarningsIntelForInstruments("US", suggIdsByMarket.US).catch(() => [] as EarningsIntelDoc[])
+          : Promise.resolve([] as EarningsIntelDoc[]),
+        suggIdsByMarket.IN.length
+          ? getLatestEarningsIntelForInstruments("IN", suggIdsByMarket.IN).catch(() => [] as EarningsIntelDoc[])
+          : Promise.resolve([] as EarningsIntelDoc[]),
+      ]);
+      for (const doc of filterEarningsIntelThisWeek([...usSugg, ...inSugg])) {
+        const t = String(doc.ticker ?? "").trim().toUpperCase();
+        if (t) earningsTickers.add(t);
+      }
+    }
+  }
 
   // ── portfolio score + pillar averages ───────────────────────────────────────
   const pillarAverages = computePillarAverages(rows);
   const factorTilt = asDict(portfolio.factor_tilt);
 
-  // ── activity / changes data ─────────────────────────────────────────────────
+  // ── activity events ─────────────────────────────────────────────────────────
   const activityEvents = buildActivityEvents(eventRadar, brief);
-  const changesData = buildChangesData(changes);
+  const { yourBook: yourBookEvents, marketWide: marketWideEvents } =
+    partitionActivityEvents(activityEvents);
+
+  const positionAware = Boolean(portfolio.position_aware);
+  const holdingsWithValues = holdings.filter((r) => r.holding && (r.holding.quantity != null || r.holding.market_value != null));
+  const totalEnteredValue = num(portfolio.total_entered_value);
+
+  const chatTickers = rows.map((r) => r.ticker).filter(Boolean);
+  const chatStarters: RadarChatStarter[] = [
+    { label: "How's my radar today?", message: "How is my radar looking today?" },
+    ...(topDirective
+      ? [
+          {
+            label: `Why ${topDirective.row.ticker}?`,
+            message: `Why is ${topDirective.row.ticker} ${topDirective.directive.stance ?? "on my radar"}? Summarize the directive.`,
+          },
+        ]
+      : []),
+    ...(chatTickers.length > 0
+      ? [
+          {
+            label: "Biggest risk in my book",
+            message: "What's the biggest risk across my current holdings and watchlist?",
+          },
+        ]
+      : []),
+    ...(positionAware && holdingsWithValues.length > 0
+      ? [
+          {
+            label: "Which holding matters most?",
+            message: "Which of my holdings matters most today and why?",
+          },
+        ]
+      : chatTickers[0]
+        ? [
+            {
+              label: `News on ${chatTickers[0]}`,
+              message: `Any breaking news on ${chatTickers[0]} I should know about?`,
+            },
+          ]
+        : []),
+  ].slice(0, 4);
 
   return (
-    <main className="flex-grow bg-white">
+    <main className="flex flex-grow flex-col bg-white">
       <style>{tapeStyles}</style>
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-12 px-3 sm:px-6 md:px-20 lg:px-32 py-6 lg:py-10">
+      <RadarWorkspace
+        trackedCount={tracked.length}
+        tickers={chatTickers}
+        starters={chatStarters}
+      >
         {/* ── UPDATING NOTICE — auto-polls via router.refresh() until rebuild lands */}
         {(shouldShowUpdatingBanner || SHOW_TEST_UPDATING_BANNER) && (
           <RadarUpdatingBanner
@@ -142,26 +377,46 @@ export default async function WatchlistPage() {
         )}
 
         {/* ── HEADER STRIP ──────────────────────────────────────────────── */}
-        <HeaderStrip rows={rows} builtAt={builtAt} pulse={pulse} tapeItems={tapeItems} isSubscribed={isSubscribed} trackedCount={tracked.length} />
-
-        {/* ── § 01 · TODAY ──────────────────────────────────────────────── */}
-        <TodaySection
-          brief={brief}
-          topDirective={topDirective}
-          secondaryDirectives={secondaryDirectives}
-          suggestions={suggestions}
+        <HeaderStrip
+          rows={rows}
+          builtAt={builtAt}
+          pulse={pulse}
+          tapeItems={tapeItems}
+          isSubscribed={isSubscribed}
+          trackedCount={tracked.length}
+          watchlistPositions={watchlistPositions}
         />
 
-        {/* ── § 02 · YOUR BOOK ──────────────────────────────────────────── */}
+        {/* ── § 01 · YOUR BOOK ──────────────────────────────────────────── */}
         <YourBookSection
           holdings={holdings}
           watching={watching}
-          upNext={upNext}
-          alerts={flatAlerts}
+          earningsReadyThisWeek={earningsReadyThisWeek}
+          earningsUpcomingThisWeek={earningsUpcomingThisWeek}
+          bookEvents={yourBookEvents}
           suggestions={suggestions}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
+          refreshing={false}
+          portfolio={portfolio}
         />
+
+        {/* ── § 02 · TODAY ──────────────────────────────────────────────── */}
+        <TodaySection
+          brief={brief}
+          todaySetup={todaySetup}
+          topDirective={topDirective}
+          secondaryDirectives={secondaryDirectives}
+          suggestions={suggestions}
+          marketEvents={marketWideEvents}
+          earningsTickers={earningsTickers}
+          refreshing={isTodayRefreshing}
+          trackedIds={new Set(tracked)}
+        />
+
+        {SHOW_SCENARIO_LAB && (
+          <ScenarioLabSection exposure={portfolioExposure} scenario={nvdaScenario} />
+        )}
 
         {/* ── § 03 · DIAGNOSIS ──────────────────────────────────────────── */}
         <DiagnosisSection
@@ -171,11 +426,9 @@ export default async function WatchlistPage() {
           suggestions={suggestions}
           tracked={tracked}
           isSubscribed={isSubscribed}
+          refreshing={isDiagnosisRefreshing}
         />
-
-        {/* ── § 04 · ACTIVITY ───────────────────────────────────────────── */}
-        <RadarActivity events={activityEvents} changes={changesData} />
-      </div>
+      </RadarWorkspace>
     </main>
   );
 }
@@ -191,6 +444,7 @@ function HeaderStrip({
   tapeItems,
   isSubscribed,
   trackedCount,
+  watchlistPositions,
 }: {
   rows: WatchlistRow[];
   builtAt?: string;
@@ -198,14 +452,16 @@ function HeaderStrip({
   tapeItems: TapeItem[];
   isSubscribed: boolean;
   trackedCount: number;
+  watchlistPositions: Record<string, "holding" | "watchlist">;
 }) {
-  const atLimit = !isSubscribed && trackedCount >= 3;
+  // Use visible rows (have price data) — ghost Firestore entries shouldn't block the user
+  const atLimit = !isSubscribed && rows.length >= 3;
   return (
     <header className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
-            tikrr · {todayMasthead()}
+            stocksbrew · {todayMasthead()}
           </span>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">
@@ -230,7 +486,7 @@ function HeaderStrip({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start">
+        <div className="flex items-center gap-2 self-start mt-2">
           {atLimit ? (
             <Link
               href="/subscribe"
@@ -239,13 +495,25 @@ function HeaderStrip({
               Upgrade to track more →
             </Link>
           ) : (
-            <Link
-              href="/"
-              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
-            >
-              <span aria-hidden>＋</span>
-              Add a stock
-            </Link>
+            <RadarBatchEditModal
+              initialItems={rows.map((r) => ({
+                instrument_id: r.instrument_id,
+                ticker: r.ticker,
+                name: r.ticker,
+                position_type:
+                  watchlistPositions[r.instrument_id] === "holding" ? "holding" : "watchlist",
+                holding: r.holding
+                  ? {
+                      quantity: r.holding.quantity ?? null,
+                      market_value: r.holding.market_value ?? null,
+                      average_cost: r.holding.average_cost ?? null,
+                    }
+                  : undefined,
+              }))}
+              isSubscribed={isSubscribed}
+              ctaLabel="Add a stock"
+              enableImageUpload
+            />
           )}
         </div>
       </div>
@@ -341,11 +609,11 @@ function todayMasthead(): string {
 }
 
 // =============================================================================
-// § 01 · TODAY
+// § 02 · TODAY
 // =============================================================================
 
 const FALLBACK_EXPLORE_SUGGESTIONS: Dict[] = [
-  { ticker: "NVDA", sector: "Semiconductors", why: "AI infra leader · top tikrr score", score: 90, market: "US" },
+  { ticker: "NVDA", sector: "Semiconductors", why: "AI infra leader · top stocksbrew score", score: 90, market: "US" },
   { ticker: "MSFT", sector: "Software", why: "Quality compounder · steady earnings", score: 82, market: "US" },
   { ticker: "META", sector: "Comm. Services", why: "Analyst runway +33% · momentum", score: 78, market: "US" },
   { ticker: "AAPL", sector: "Consumer Electronics", why: "Most-watched · durable free cash flow", score: 74, market: "US" },
@@ -353,17 +621,31 @@ const FALLBACK_EXPLORE_SUGGESTIONS: Dict[] = [
 
 function TodaySection({
   brief,
+  todaySetup,
   topDirective,
   secondaryDirectives,
   suggestions,
+  marketEvents = [],
+  earningsTickers = new Set(),
+  refreshing,
+  trackedIds = new Set(),
 }: {
   brief: WatchlistBrief | null;
+  todaySetup: WatchlistTodaySetup | null;
   topDirective: { row: WatchlistRow; directive: Directive } | null;
   secondaryDirectives: Array<{ row: WatchlistRow; directive: Directive }>;
   suggestions: Dict[];
+  marketEvents?: RadarActivityEvent[];
+  earningsTickers?: Set<string>;
+  refreshing?: boolean;
+  trackedIds?: Set<string>;
 }) {
-  // If we have no directives at all, fall back to brief-only display
-  if (!topDirective && (!brief?.narrative || !brief.narrative.trim())) {
+  if (
+    !topDirective &&
+    !todaySetup?.headline &&
+    (!brief?.narrative || !brief.narrative.trim()) &&
+    marketEvents.length === 0
+  ) {
     return null;
   }
 
@@ -373,11 +655,15 @@ function TodaySection({
 
   return (
     <section className="flex flex-col gap-6">
-      <SectionOpener number="01" title="Today" />
+      <SectionOpener number="02" title="Today" refreshing={refreshing} />
 
-      {/* Tone lede (the macro one-liner) */}
+      {todaySetup && todaySetup.signals.length > 0 && <PreopenSetupCard setup={todaySetup} />}
+
+      <TodayMarketEvents events={marketEvents} />
+
+      {/* The read — macro narrative as a confident editorial standfirst. */}
       {brief?.narrative && (
-        <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">
+        <p className="text-[17px] md:text-[19px] text-[#1f2937] leading-[1.65] tracking-[-0.01em] max-w-[760px]">
           {brief.narrative}
         </p>
       )}
@@ -396,16 +682,95 @@ function TodaySection({
 
       {/* Secondary directives + explore fill cards */}
       {(secondaryDirectives.length > 0 || exploreSuggestions.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {secondaryDirectives.map(({ row, directive }) => (
             <SecondaryDirectiveCard key={row.instrument_id} row={row} directive={directive} />
           ))}
-          {exploreSuggestions.map((s) => (
-            <ExploreDirectiveCard key={String(s.ticker)} suggestion={s} />
-          ))}
+          {exploreSuggestions.map((s) => {
+            const market = String(s.market ?? "US") === "IN" ? "IN" : "US";
+            const instrumentId = `${market}_${String(s.ticker)}`;
+            return (
+              <ExploreDirectiveCard
+                key={String(s.ticker)}
+                suggestion={s}
+                isTracked={trackedIds.has(instrumentId)}
+                earningsTickers={earningsTickers}
+              />
+            );
+          })}
         </div>
       )}
     </section>
+  );
+}
+
+function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
+  const signals = Array.isArray(setup.signals) ? setup.signals.slice(0, 2) : [];
+  const threads = Array.isArray(setup.market_threads) ? setup.market_threads.slice(0, 3) : [];
+  const compact = (value: string, limit: number) => {
+    const clean = value.trim();
+    if (clean.length <= limit) return clean;
+    const head = clean.slice(0, limit - 1);
+    const lastSpace = head.lastIndexOf(" ");
+    const trimmed = (lastSpace > 24 ? head.slice(0, lastSpace) : head).trim();
+    return `${trimmed || clean.slice(0, limit - 1)}…`;
+  };
+  const titleWithoutTicker = (ticker: string, title: string) => {
+    const prefix = `${ticker.toUpperCase()} `;
+    return title.toUpperCase().startsWith(prefix) ? title.slice(prefix.length).trim() : title;
+  };
+  if (!signals.length && !threads.length && !setup.headline.trim()) return null;
+  return (
+    <div className="rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-5 py-5 md:px-6 md:py-6 shadow-[0_1px_0_rgba(0,82,255,0.06)]">
+      <div className="flex flex-col gap-2">
+        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#5b6f99]">Before open</span>
+        <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">{setup.headline}</h3>
+        {setup.body && !signals.length ? (
+          <p className="max-w-[900px] text-[15px] leading-[1.65] text-[#374151]">{compact(setup.body, 160)}</p>
+        ) : null}
+      </div>
+
+      {threads.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {threads.map((thread) => (
+            <span
+              key={thread}
+              className="inline-flex items-center rounded-full border border-[#dbe7ff] bg-white px-3 py-1 text-[11px] font-medium text-[#35538a]"
+            >
+              {compact(thread, 72)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {signals.length > 0 ? (
+        <div className="mt-5 overflow-hidden rounded-[20px] border border-[#dbe7ff] bg-white">
+          {signals.map((signal, idx) => {
+            const evidence = signal.evidence?.filter(Boolean).slice(0, 2) || [];
+            return (
+              <div
+                key={`${signal.ticker}-${signal.kind}-${idx}`}
+                className={`px-4 py-4 md:px-5 ${idx > 0 ? "border-t border-[#eef4ff]" : ""}`}
+              >
+                <div className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)] md:items-start">
+                  <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-1">
+                    <span className="text-[16px] font-semibold text-[#0a0a0a]">{signal.ticker}</span>
+                    <PositionPill type={signal.position_type} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[16px] font-semibold leading-snug text-[#111827]">{titleWithoutTicker(signal.ticker, signal.title)}</p>
+                    <p className="mt-1.5 text-[14px] leading-[1.55] text-[#4b5563]">{signal.why_it_matters}</p>
+                    {evidence.length ? (
+                      <p className="mt-2 text-[12px] text-[#6b7280]">{evidence.map((item) => compact(item, 64)).join(" · ")}</p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -433,6 +798,19 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
   const dayChange = row.day_change_pct ?? 0;
   const positive = dayChange >= 0;
   const symbol = row.currency === "INR" ? "₹" : "$";
+  const upside = row.target_upside_pct;
+  const attention = row.attention_score;
+  const attentionKind = row.attention_kind;
+  const attentionColor =
+    attentionKind === "move"
+      ? "bg-[#fef3c7] text-[#92400e]"
+      : attentionKind === "risk"
+      ? "bg-[#fef2f2] text-[#991b1b]"
+      : attentionKind === "opportunity"
+      ? "bg-[#ecfdf5] text-[#065f46]"
+      : attentionKind === "news"
+      ? "bg-[#eff6ff] text-[#1e3a8a]"
+      : "bg-[#f3f4f6] text-[#6b7280]";
   const priceStr =
     typeof row.price === "number"
       ? `${symbol}${row.price.toLocaleString(undefined, {
@@ -441,9 +819,10 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
         })}`
       : "—";
   return (
+    <div className="flex items-center gap-2 self-start">
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="group inline-flex items-center gap-3 self-start"
+      className="group inline-flex items-center gap-3"
     >
       <StockLogo
         ticker={row.ticker}
@@ -456,10 +835,23 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
           <span className="text-[18px] font-semibold tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
             {row.ticker}
           </span>
+          {attention !== undefined && attention !== null && (
+            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase ${attentionColor}`}>
+              <span aria-hidden className="h-1 w-1 rounded-full bg-current opacity-60" />
+              {attention}
+            </span>
+          )}
           <span className="text-[12px] text-[#9ca3af] truncate max-w-[260px]">
             {row.sector_label || ""}
           </span>
-          <PositionPill type={row.position_type} />
+          {upside !== null && upside !== undefined ? (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
+              <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
+              +{upside.toFixed(0)}% upside
+            </span>
+          ) : (
+            <PositionPill type={row.position_type} />
+          )}
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-[13px] font-semibold tabular-nums text-[#0a0a0a]">
@@ -481,6 +873,7 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
         </div>
       </div>
     </Link>
+    </div>
   );
 }
 
@@ -506,10 +899,23 @@ function SecondaryDirectiveCard({
   const market = row.market === "IN" ? "IN" : "US";
   const dayChange = row.day_change_pct ?? 0;
   const positive = dayChange >= 0;
+  const upside = row.target_upside_pct;
+  const attention = row.attention_score;
+  const attentionKind = row.attention_kind;
+  const attentionColor =
+    attentionKind === "move"
+      ? "bg-[#fef3c7] text-[#92400e]"
+      : attentionKind === "risk"
+      ? "bg-[#fef2f2] text-[#991b1b]"
+      : attentionKind === "opportunity"
+      ? "bg-[#ecfdf5] text-[#065f46]"
+      : attentionKind === "news"
+      ? "bg-[#eff6ff] text-[#1e3a8a]"
+      : "bg-[#f3f4f6] text-[#6b7280]";
   return (
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="group relative overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm flex flex-col gap-3"
+      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
       <div className="flex items-center justify-between gap-2">
         <span
@@ -518,16 +924,24 @@ function SecondaryDirectiveCard({
         >
           {meta.label}
         </span>
-        {typeof row.day_change_pct === "number" && (
-          <span
-            className={`text-[11px] font-semibold tabular-nums ${
-              positive ? "text-[#047857]" : "text-[#b91c1c]"
-            }`}
-          >
-            {positive ? "+" : ""}
-            {dayChange.toFixed(2)}%
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {attention !== undefined && attention !== null && (
+            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase ${attentionColor}`}>
+              <span aria-hidden className="h-1 w-1 rounded-full bg-current opacity-60" />
+              {attention}
+            </span>
+          )}
+          {typeof row.day_change_pct === "number" && (
+            <span
+              className={`text-[11px] font-semibold tabular-nums ${
+                positive ? "text-[#047857]" : "text-[#b91c1c]"
+              }`}
+            >
+              {positive ? "+" : ""}
+              {dayChange.toFixed(2)}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2.5">
@@ -537,7 +951,14 @@ function SecondaryDirectiveCard({
             <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
               {row.ticker}
             </span>
-            <PositionPill type={row.position_type} />
+            {upside !== null && upside !== undefined ? (
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
+                <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
+                +{upside.toFixed(0)}% upside
+              </span>
+            ) : (
+              <PositionPill type={row.position_type} />
+            )}
           </div>
           <div className="flex items-baseline gap-1.5">
             {typeof row.price === "number" && (
@@ -567,22 +988,121 @@ function SecondaryDirectiveCard({
   );
 }
 
-function ExploreDirectiveCard({ suggestion }: { suggestion: Dict }) {
+// Differentiate explore/suggestion cards by *why* they surfaced, instead of a
+// uniform "Explore" chip. Earnings > anomaly > reddit buzz > heat > generic.
+function suggestionTag(
+  suggestion: Dict,
+  earningsTickers: Set<string>,
+): { label: string; bg: string; fg: string; dot: string } {
+  const ticker = String(suggestion.ticker ?? "").trim().toUpperCase();
+  const sources = Array.isArray(suggestion.sources)
+    ? (suggestion.sources as unknown[]).map((v) => String(v))
+    : [];
+  const anomalyMove = typeof suggestion.anomaly_move_pct === "number" ? suggestion.anomaly_move_pct : null;
+  const redditMentions = typeof suggestion.reddit_mentions === "number" ? suggestion.reddit_mentions : 0;
+
+  if (ticker && earningsTickers.has(ticker)) {
+    return { label: "Just reported", bg: "#fef3c7", fg: "#92400e", dot: "#f59e0b" };
+  }
+  if (sources.includes("anomaly") || anomalyMove !== null) {
+    const up = (anomalyMove ?? 0) >= 0;
+    return {
+      label: anomalyMove !== null ? `${up ? "+" : ""}${anomalyMove.toFixed(1)}% today` : "On the move",
+      bg: up ? "#ecfdf5" : "#fef2f2",
+      fg: up ? "#065f46" : "#991b1b",
+      dot: up ? "#10b981" : "#ef4444",
+    };
+  }
+  if (sources.includes("reddit") || redditMentions >= 3) {
+    const sentiment = String(suggestion.reddit_sentiment ?? "").toLowerCase();
+    const mood = sentiment === "bullish" ? "bull" : sentiment === "bearish" ? "bear" : "";
+    const count = redditMentions > 0 ? ` · ${redditMentions}` : "";
+    return {
+      label: `Reddit${mood ? ` ${mood}` : " buzz"}${count}`,
+      bg: "#fff7ed",
+      fg: "#9a3412",
+      dot: "#f97316",
+    };
+  }
+  if (sources.includes("heat")) {
+    return { label: "Heat list", bg: "#fef2f2", fg: "#9f1239", dot: "#fb7185" };
+  }
+  return { label: "Explore", bg: "#f3f4f6", fg: "#6b7280", dot: "#9ca3af" };
+}
+
+function ExploreDirectiveCard({
+  suggestion,
+  isTracked = false,
+  earningsTickers = new Set(),
+  gapLabel = "",
+}: {
+  suggestion: Dict;
+  isTracked?: boolean;
+  earningsTickers?: Set<string>;
+  gapLabel?: string;
+}) {
   const ticker = String(suggestion.ticker ?? "");
   const market = String(suggestion.market ?? "US") === "IN" ? "IN" : "US";
+  const instrumentId = `${market}_${ticker}`;
   const sector = String(suggestion.sector ?? suggestion.name ?? "");
   const why = String(suggestion.why ?? suggestion.reason ?? "");
   const score = typeof suggestion.score === "number" ? suggestion.score : null;
+  const tag = suggestionTag(suggestion, earningsTickers);
+  const price = typeof suggestion.price === "number" ? suggestion.price : null;
+  const dayChange =
+    typeof suggestion.day_change_pct === "number"
+      ? suggestion.day_change_pct
+      : typeof suggestion.anomaly_move_pct === "number"
+      ? suggestion.anomaly_move_pct
+      : null;
+  const showQuote = price !== null || dayChange !== null;
+  const positive = (dayChange ?? 0) >= 0;
+  const currency = market === "IN" ? "₹" : "$";
+  const priceStr =
+    price !== null
+      ? `${currency}${price.toLocaleString(undefined, {
+          minimumFractionDigits: price >= 1000 ? 0 : 2,
+          maximumFractionDigits: price >= 1000 ? 0 : 2,
+        })}`
+      : null;
   return (
-    <Link
-      href={`/stock/${encodeURIComponent(ticker)}`}
-      className="group relative overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-4 transition-all hover:border-[#111111] hover:bg-white hover:shadow-sm flex flex-col gap-3"
-    >
-      {/* "Explore" badge top-left */}
+    <div className="group relative overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-4 transition-all hover:border-[#111111] hover:bg-white hover:shadow-sm flex flex-col gap-3">
+      {/* Price + day move (or signal tag) + score */}
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase bg-[#f3f4f6] text-[#6b7280]">
-          Explore
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          {showQuote ? (
+            <div className="flex items-baseline gap-1.5">
+              {priceStr && (
+                <span className="text-[12px] font-semibold tabular-nums text-[#0a0a0a]">
+                  {priceStr}
+                </span>
+              )}
+              {dayChange !== null && (
+                <span
+                  className={`text-[11px] font-semibold tabular-nums ${
+                    positive ? "text-[#047857]" : "text-[#b91c1c]"
+                  }`}
+                >
+                  {positive ? "+" : ""}
+                  {dayChange.toFixed(2)}%
+                </span>
+              )}
+            </div>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase"
+              style={{ background: tag.bg, color: tag.fg }}
+            >
+              <span aria-hidden className="h-1 w-1 rounded-full" style={{ background: tag.dot }} />
+              {tag.label}
+            </span>
+          )}
+          {gapLabel && (
+            <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#fef3c7] text-[#92400e]">
+              {gapLabel}
+            </span>
+          )}
+        </div>
         {score !== null && (
           <span className={`text-[11px] font-semibold tabular-nums ${
             score >= 80 ? "text-[#10b981]" : score >= 60 ? "text-[#374151]" : "text-[#9ca3af]"
@@ -592,58 +1112,67 @@ function ExploreDirectiveCard({ suggestion }: { suggestion: Dict }) {
         )}
       </div>
 
+      {/* Logo + name row — links to detail; TrackButton at far right */}
       <div className="flex items-center gap-2.5">
-        <StockLogo ticker={ticker} market={market} size={32} />
-        <div className="flex flex-col min-w-0">
-          <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-            {ticker}
-          </span>
-          {sector && (
-            <span className="text-[11px] text-[#9ca3af] truncate max-w-[160px]">{sector}</span>
-          )}
-        </div>
+        <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex items-center gap-2.5 min-w-0 flex-1">
+          <StockLogo ticker={ticker} market={market} size={32} />
+          <div className="flex flex-col min-w-0">
+            <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+              {ticker}
+            </span>
+            {sector && (
+              <span className="text-[11px] text-[#9ca3af] truncate max-w-[130px]">{sector}</span>
+            )}
+          </div>
+        </Link>
+        <TrackButton
+          ticker={ticker}
+          instrumentId={instrumentId}
+          isTracked={isTracked}
+          variant="icon"
+        />
       </div>
 
-      {why && (
-        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2 mt-auto">
-          {why}
-        </p>
-      )}
-
-      <span className="text-[11px] font-semibold text-[#9ca3af] group-hover:text-[#0052ff] transition-colors">
-        Track to get directive →
-      </span>
-    </Link>
+      <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex flex-col gap-2 flex-1">
+        {why && (
+          <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2">
+            {why}
+          </p>
+        )}
+        <span className="text-[11px] font-semibold text-[#9ca3af] group-hover:text-[#0052ff] transition-colors mt-auto">
+          View analysis →
+        </span>
+      </Link>
+    </div>
   );
 }
 
 // =============================================================================
-// § 02 · YOUR BOOK — ledger + Up Next/Alerts rail
+// § 01 · YOUR BOOK — ledger + earnings / alerts rail
 // =============================================================================
-
-type UpNextItem = {
-  ticker: string;
-  title: string;
-  window: string;
-  urgency: "high" | "med" | "low" | "";
-};
 
 function YourBookSection({
   holdings,
   watching,
-  upNext,
-  alerts,
+  earningsReadyThisWeek,
+  earningsUpcomingThisWeek,
+  bookEvents,
   suggestions,
   isSubscribed,
   trackedCount,
+  refreshing,
+  portfolio,
 }: {
   holdings: WatchlistRow[];
   watching: WatchlistRow[];
-  upNext: UpNextItem[];
-  alerts: FlatAlert[];
+  earningsReadyThisWeek: EarningsIntelDoc[];
+  earningsUpcomingThisWeek: PreEarningsIntelDoc[];
+  bookEvents: RadarActivityEvent[];
   suggestions: Dict[];
   isSubscribed: boolean;
   trackedCount: number;
+  refreshing?: boolean;
+  portfolio?: Dict;
 }) {
   // Flatten suggestion dicts to the shape RadarLedger expects.
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -656,159 +1185,308 @@ function YourBookSection({
     market: text(item.market) || "US",
   }));
 
-  const atLimit = !isSubscribed && trackedCount >= 3;
+  // Use visible row count (has price data) so the number matches what the user actually sees in the table
+  const visibleCount = holdings.length + watching.length;
+  const atLimit = !isSubscribed && visibleCount >= 3;
+  // Show a "add more stocks" nudge when radar is sparse but not at the limit
+  const showAddMoreNudge = !atLimit && visibleCount > 0 && (isSubscribed ? visibleCount < 5 : visibleCount < 3);
+  const nudge = showAddMoreNudge
+    ? visibleCount === 1
+      ? { headline: "Add 1 more stock to unlock comparisons", body: "With 2+ stocks stocksbrew can compare scores, cluster your book, and surface which one deserves attention today." }
+      : visibleCount === 2
+      ? { headline: "One more stock and your Radar really kicks in", body: "Portfolio diagnosis, concentration risks, and daily directives all light up once you have 3 stocks tracked." }
+      : { headline: "Pro tip: 5+ stocks makes everything smarter", body: "The more you track, the better stocksbrew clusters your book, spots risks, and prioritises what to act on today." }
+    : null;
 
   return (
     <section className="flex flex-col gap-6">
       <SectionOpener
-        number="02"
+        number="01"
         title="Your book"
         meta={`${holdings.length} held · ${watching.length} watching`}
+        refreshing={refreshing}
       />
 
+      <PositionAwareState holdings={holdings} portfolio={portfolio} />
+
+      <div className="min-w-0 w-full">
       <YourBookLayout
         holdings={holdings}
         watching={watching}
         suggestions={suggestionList}
-        upNextSlot={<UpNextPanel items={upNext} />}
-        alertsSlot={<AlertsPanel alerts={alerts} />}
-      />
-
-      {atLimit && (
-        <div className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 text-[16px]">📊</span>
-            <div>
-              <p className="text-[13px] font-semibold text-[#111111]">
-                You&apos;re tracking {trackedCount}/3 stocks on the free plan
-              </p>
-              <p className="text-[12px] text-[#6b7280] mt-0.5 leading-relaxed">
-                Upgrade to Pro to track unlimited stocks — plus get alerts when something changes, earnings reminders, and deeper analysis across your whole book.
-              </p>
+        earningsReadySlot={
+          earningsUpcomingThisWeek.length > 0 || earningsReadyThisWeek.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {earningsUpcomingThisWeek.length > 0 ? (
+                <RadarEarningsUpcomingBanner docs={earningsUpcomingThisWeek} />
+              ) : null}
+              {earningsReadyThisWeek.length > 0 ? (
+                <RadarEarningsReadyBanner docs={earningsReadyThisWeek} />
+              ) : null}
             </div>
+          ) : null
+        }
+        bookEventsSlot={<BookEventsPanel events={bookEvents} layout="full" />}
+        belowLedgerSlot={atLimit ? (
+          <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Subtle gradient glow */}
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(129,140,248,0.25)_0%,transparent_55%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(16,185,129,0.15)_0%,transparent_55%)]" />
+
+            <div className="relative flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-white/60">
+                  Free · {visibleCount}/3 stocks
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#fef3c7]/15 border border-[#fcd34d]/30 px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#fcd34d]">
+                  🚀 Launch pricing
+                </span>
+              </div>
+              <p className="text-[15px] font-semibold text-white leading-snug">
+                You&apos;ve hit the limit. Unlock your full Radar.
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {[
+                  { icon: "trending_up", text: "Unlimited stocks" },
+                  { icon: "notifications", text: "RSI & breakout alerts" },
+                  { icon: "psychology", text: "AI verdict per stock" },
+                  { icon: "analytics", text: "Portfolio diagnosis" },
+                ].map(({ icon, text }) => (
+                  <span key={text} className="inline-flex items-center gap-1 text-[11px] text-white/55">
+                    <span className="material-symbols-outlined text-white/40" style={{ fontSize: 13, fontVariationSettings: "'wght' 500" }}>{icon}</span>
+                    {text}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <Link
+              href="/subscribe"
+              className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]"
+            >
+              Unlock Pro · $9/mo →
+            </Link>
           </div>
-          <Link
-            href="/subscribe"
-            className="shrink-0 inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap"
-          >
-            Upgrade to Pro →
-          </Link>
-        </div>
-      )}
+        ) : undefined}
+      />
+      </div>
     </section>
   );
 }
 
-function UpNextPanel({ items }: { items: UpNextItem[] }) {
+function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[]; portfolio?: Dict }) {
+  if (!portfolio) return null;
+  const totalHoldings = holdings.length;
+  if (totalHoldings === 0) return null;
+
+  const holdingsWithPosition = holdings.filter(
+    (r) => r.holding && (r.holding.quantity != null || r.holding.market_value != null),
+  );
+  const enteredCount = holdingsWithPosition.length;
+  const state: "none" | "partial" | "full" =
+    enteredCount === 0 ? "none" : enteredCount < totalHoldings ? "partial" : "full";
+
+  const positionRisks = asArray(portfolio.position_risks);
+
+  if (state === "none") {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-3">
+        <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--outline)]" />
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[12px] font-semibold text-[var(--on-surface)]">
+            Add share counts to unlock position-weighted analysis
+          </p>
+          <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
+            Without size, Radar ranks by signal strength — not by how much each holding actually moves your portfolio.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "partial") {
+    return (
+      <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[12px] font-semibold text-[#92400e]">
+            {enteredCount} of {totalHoldings} holdings have shares entered
+          </p>
+          <p className="text-[11px] text-[#b45309] leading-snug">
+            Fill in all holdings to enable dollar-weighted scores, sector allocation, and position-aware risk flags.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Full / position-aware state. The old green "Position-aware · largest position
+  // X%" strip carried no actionable signal, so we only surface real position risk
+  // flags when present and render nothing otherwise.
+  if (positionRisks.length === 0) return null;
+
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3">
+      {positionRisks.slice(0, 2).map((risk, i) => (
+        <div key={`pos-risk-${i}`} className="flex items-start gap-2.5">
           <span
             aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#eff6ff] text-[14px]"
-          >
-            ⏰
-          </span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#1e3a8a]">
-            Up Next
-          </span>
+            className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${
+              text(risk.severity) === "high"
+                ? "bg-[#ef4444]"
+                : text(risk.severity) === "medium"
+                ? "bg-[#f59e0b]"
+                : "bg-[#9ca3af]"
+            }`}
+          />
+          <div className="min-w-0">
+            <span className="text-[12px] font-semibold text-[var(--on-surface)]">
+              {text(risk.headline)}
+            </span>
+            {text(risk.body) && (
+              <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
+                {text(risk.body)}
+              </p>
+            )}
+          </div>
         </div>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
-          {items.length}
-        </span>
-      </div>
-      {items.length === 0 ? (
-        <p className="text-[12px] italic text-[#9ca3af]">
-          Nothing scheduled on tracked names.
-        </p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-[#f3f4f6]">
-          {items.slice(0, 4).map((item, i) => (
-            <li key={`up-${i}`} className="py-2.5 first:pt-0 last:pb-0">
-              <Link
-                href={`/stock/${encodeURIComponent(item.ticker)}`}
-                className="flex items-start gap-2.5 group"
-              >
-                <StockLogo ticker={item.ticker} market="US" size={28} />
-                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-                      {item.ticker}
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
-                      {item.window}
-                    </span>
-                  </div>
-                  <span className="text-[11.5px] text-[#6b7280] leading-snug">
-                    {item.title}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      ))}
     </div>
   );
 }
 
-function AlertsPanel({ alerts }: { alerts: FlatAlert[] }) {
-  const shown = alerts.slice(0, 5);
+// =============================================================================
+// § 02B · SCENARIO LAB — event what-if + rebalance ranges
+// =============================================================================
+
+function ScenarioLabSection({
+  exposure,
+  scenario,
+}: {
+  exposure: PortfolioExposure | null;
+  scenario: PortfolioScenario | null;
+}) {
+  const concentration = exposure?.concentration || {};
+  const topSectors = (exposure?.sector_weights || []).slice(0, 3);
+  const recos = (exposure?.weight_recommendations || []).slice(0, 4);
+  const cases = (scenario?.scenarios || []).slice(0, 2);
+
+  if (!exposure && !scenario) return null;
+
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[14px]"
-          >
-            🔔
+    <section className="flex flex-col gap-5">
+      <SectionOpener number="02B" title="Scenario lab" />
+
+      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-6 flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-4 text-[12px]">
+          <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 font-semibold text-[#111111]">
+            Top-3 concentration {num(concentration.top3_pct)?.toFixed(1) ?? "—"}%
           </span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#991b1b]">
-            Alerts
+          <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 font-semibold text-[#111111]">
+            HHI {num(concentration.hhi)?.toFixed(3) ?? "—"}
           </span>
+          <span className="rounded-full bg-[#ecfdf5] px-2.5 py-1 font-semibold text-[#065f46]">
+            Risk {text(concentration.risk_label || "unknown")}
+          </span>
+          {scenario?.generated_at ? (
+            <span className="text-[#9ca3af]">Scenario refreshed {formatRelative(scenario.generated_at)}</span>
+          ) : null}
         </div>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
-          {alerts.length}
-        </span>
-      </div>
-      {alerts.length === 0 ? (
-        <p className="text-[12px] italic text-[#9ca3af]">No active alerts.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-[#f3f4f6]">
-          {shown.map((f, i) => {
-            const toneColor =
-              f.tone === "bull" ? "#10b981" : f.tone === "bear" ? "#ef4444" : "#f59e0b";
-            return (
-              <li key={`alert-${i}`} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0">
-                <span
-                  aria-hidden
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: toneColor }}
-                />
-                <div className="flex flex-col min-w-0 flex-1">
-                  <Link
-                    href={`/stock/${encodeURIComponent(f.ticker)}`}
-                    className="text-[12px] font-semibold text-[#0a0a0a] hover:text-[#0052ff] transition-colors"
-                  >
-                    {f.ticker}
-                  </Link>
-                  <span className="text-[11px] text-[#6b7280] leading-snug truncate">
-                    {f.message}
-                  </span>
+
+        {topSectors.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            {topSectors.map((item, i) => (
+              <div key={`sector-${i}`} className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Sector exposure</div>
+                <div className="mt-1 text-[13px] font-semibold text-[#111111]">{text(item.sector || "Unknown")}</div>
+                <div className="text-[12px] text-[#6b7280]">{((num(item.weight) || 0) * 100).toFixed(1)}%</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {cases.length > 0 ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {cases.map((c, i) => {
+              const impacts = (c.impacts || []).slice(0, 5);
+              const actions = (c.actions || []).slice(0, 3);
+              const isBeat = text(c.case).toLowerCase() === "beat";
+              return (
+                <div key={`case-${i}`} className="rounded-xl border border-[#f3f4f6] p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
+                        {text(c.market_mood || "mixed")}
+                      </span>
+                      <span className="text-[15px] font-semibold text-[#111111]">
+                        {text(c.label || c.case || "Scenario")}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        isBeat ? "bg-[#ecfdf5] text-[#047857]" : "bg-[#fef2f2] text-[#991b1b]"
+                      }`}
+                    >
+                      {text(c.case || "case")}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    {impacts.map((impact, idx) => {
+                      const move = num(impact.estimated_move_pct);
+                      const up = (move || 0) >= 0;
+                      return (
+                        <div key={`impact-${idx}`} className="flex items-center justify-between gap-2 text-[12px]">
+                          <span className="font-semibold text-[#111111]">{text(impact.ticker || "—")}</span>
+                          <span className={up ? "text-[#047857] font-semibold" : "text-[#b91c1c] font-semibold"}>
+                            {move === null ? "—" : `${up ? "+" : ""}${move.toFixed(2)}%`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {actions.length > 0 ? (
+                    <div className="rounded-lg bg-[#fafafa] border border-[#f3f4f6] p-2.5 flex flex-col gap-1.5">
+                      {actions.map((a, idx) => (
+                        <p key={`action-${idx}`} className="text-[12px] leading-snug text-[#374151]">
+                          {a}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {alerts.length > shown.length && (
-        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
-          +{alerts.length - shown.length} more
-        </span>
-      )}
-    </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {recos.length > 0 ? (
+          <div className="rounded-xl border border-[#f3f4f6] p-4">
+            <h4 className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af] mb-2">Weight range guidance</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {recos.map((r, i) => {
+                const minW = (num(r.weight_target_range?.min) || 0) * 100;
+                const maxW = (num(r.weight_target_range?.max) || 0) * 100;
+                return (
+                  <div key={`reco-${i}`} className="flex items-center justify-between gap-2 rounded-lg border border-[#f3f4f6] px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-[#111111]">{text(r.ticker || "—")}</div>
+                      <div className="text-[11px] text-[#6b7280] truncate">{text(r.rebalance_note || "")}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[11px] font-semibold text-[#111111]">
+                        {minW.toFixed(1)}% - {maxW.toFixed(1)}%
+                      </div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-[#9ca3af]">{text(r.directive || "hold")}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -823,6 +1501,7 @@ function DiagnosisSection({
   suggestions,
   tracked,
   isSubscribed,
+  refreshing,
 }: {
   portfolio: Dict;
   pillarAverages: PillarAverages;
@@ -830,11 +1509,14 @@ function DiagnosisSection({
   suggestions: Dict[];
   tracked: string[];
   isSubscribed: boolean;
+  refreshing?: boolean;
 }) {
   const clusters = asArray(portfolio.clusters).slice(0, 5);
   const risks = asArray(portfolio.risk_flags).slice(0, 4);
   const opportunities = asArray(portfolio.opportunities).slice(0, 3);
-  const summary = text(portfolio.summary);
+  const summary = scrubLegacyBrand(text(portfolio.summary));
+  const concentration = asDict(portfolio.concentration);
+  const positionRisks = asArray(portfolio.position_risks).slice(0, 4);
 
   // prefer backend factor_tilt, fallback to computed averages from rows
   const overall = num(factorTilt.overall) ?? pillarAverages.overall;
@@ -848,7 +1530,7 @@ function DiagnosisSection({
 
   return (
     <section className="flex flex-col gap-8">
-      <SectionOpener number="03" title="Diagnosis" />
+      <SectionOpener number="03" title="Diagnosis" refreshing={refreshing} />
 
       {summary && (
         <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">
@@ -889,7 +1571,7 @@ function DiagnosisSection({
 
       {/* Sector pie + factor radar — visual at a glance */}
       {clusters.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           <DiagnosisSectorChart
             sectors={clusters.map((c) => ({
               sector: (c.sector as string) || "Unknown",
@@ -1032,23 +1714,49 @@ function ClustersBlock({ clusters }: { clusters: Dict[] }) {
 }
 
 function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
+  const isClear = risks.length === 0;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[14px]">
-          ⚠️
+        <span
+          aria-hidden
+          className={`inline-flex h-7 w-7 items-center justify-center rounded-lg text-[14px] ${
+            isClear ? "bg-[#ecfdf5] text-[#047857]" : "bg-[#fef2f2]"
+          }`}
+        >
+          {isClear ? "✓" : "⚠️"}
         </span>
-        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#b91c1c]">
+        <span
+          className={`text-[11px] font-semibold tracking-[0.1em] uppercase ${
+            isClear ? "text-[#047857]" : "text-[#b91c1c]"
+          }`}
+        >
           Risk flags
         </span>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
-          {risks.length}
-        </span>
+        {!isClear && (
+          <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+            {risks.length}
+          </span>
+        )}
       </div>
-      {risks.length === 0 ? (
-        <p className="text-[13px] text-[#6b7280] italic">No major risk flags.</p>
+      {isClear ? (
+        <div className="rounded-2xl border border-[#d1fae5] bg-[#f0fdf4] px-4 py-4 flex items-start gap-3">
+          <span aria-hidden className="text-[18px] leading-none mt-0.5">
+            😌
+          </span>
+          <div className="flex flex-col gap-1">
+            <p className="text-[14px] font-semibold text-[#065f46] tracking-[-0.01em]">
+              All clear
+            </p>
+            <p className="text-[13px] text-[#047857] leading-relaxed">
+              Nothing major flagged in your book right now. We&apos;ll surface concentration, stretched
+              technicals, and weak spots here when they show up.
+            </p>
+          </div>
+        </div>
       ) : (
-        <ul className="flex flex-col gap-2.5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {risks.map((risk, i) => {
             const severity = text(risk.severity).toLowerCase();
             const tone = severityTone(severity);
@@ -1058,12 +1766,12 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
             const kindLabel = text(risk.kind).replaceAll("_", " ");
             const title = ticker || kindLabel || "Risk";
             return (
-              <li
+              <div
                 key={`risk-${i}`}
-                className="rounded-xl border border-[#e5e7eb] bg-white px-4 py-3.5"
+                className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[14px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[14px] font-semibold text-[#0a0a0a] tracking-[-0.01em] min-w-0 truncate">
                     {ticker ? (
                       <Link
                         href={`/stock/${encodeURIComponent(ticker)}`}
@@ -1082,7 +1790,7 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                   </span>
                   {severity && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase"
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase shrink-0"
                       style={{ background: tone.chipBg, color: tone.chipFg }}
                     >
                       <span
@@ -1093,17 +1801,123 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                     </span>
                   )}
                 </div>
-                {(headline || body) && (
-                  <p className="text-[15px] leading-[1.6] mt-2 text-[#374151]">
+                {headline && (
+                  <p className="text-[14px] font-semibold text-[#111111] leading-snug">
                     {headline}
-                    {headline && body ? " — " : ""}
+                  </p>
+                )}
+                {body && (
+                  <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-4 mt-auto">
                     {body}
                   </p>
                 )}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PositionRisksBlock({
+  positionRisks,
+  concentration,
+}: {
+  positionRisks: Dict[];
+  concentration: Dict;
+}) {
+  const top1Pct = num(concentration.top1_pct);
+  const top3Pct = num(concentration.top3_pct);
+  const hhi = num(concentration.hhi);
+  const riskLabel = text(concentration.risk_label);
+  const hasConcentration = top1Pct !== null || top3Pct !== null || hhi !== null;
+  const hasRisks = positionRisks.length > 0;
+
+  if (!hasConcentration && !hasRisks) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef3c7] text-[14px]">
+          📊
+        </span>
+        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#b45309]">
+          Position analysis
+        </span>
+      </div>
+
+      {hasConcentration && (
+        <div className="flex flex-wrap items-center gap-2">
+          {top1Pct !== null && (
+            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+              Top-1: {top1Pct.toFixed(1)}%
+            </span>
+          )}
+          {top3Pct !== null && (
+            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+              Top-3: {top3Pct.toFixed(1)}%
+            </span>
+          )}
+          {hhi !== null && (
+            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+              HHI: {hhi.toFixed(3)}
+            </span>
+          )}
+          {riskLabel && (
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                riskLabel === "high"
+                  ? "bg-[#fef2f2] text-[#991b1b]"
+                  : riskLabel === "medium"
+                  ? "bg-[#fffbeb] text-[#92400e]"
+                  : "bg-[#ecfdf5] text-[#065f46]"
+              }`}
+            >
+              {riskLabel} risk
+            </span>
+          )}
+        </div>
+      )}
+
+      {hasRisks && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {positionRisks.map((risk, i) => {
+            const severity = text(risk.severity).toLowerCase();
+            const tone = severityTone(severity);
+            const headline = text(risk.headline);
+            const body = text(risk.body);
+            const ticker = text(risk.ticker);
+            const kindLabel = text(risk.kind).replaceAll("_", " ");
+            return (
+              <div
+                key={`posrisk-${i}`}
+                className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-[#111111] truncate">
+                    {ticker || kindLabel || "Position risk"}
+                  </span>
+                  {severity && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase shrink-0"
+                      style={{ background: tone.chipBg, color: tone.chipFg }}
+                    >
+                      <span aria-hidden className="h-1 w-1 rounded-full bg-white/80" />
+                      {severity}
+                    </span>
+                  )}
+                </div>
+                {headline && (
+                  <p className="text-[13px] font-medium text-[#111111] leading-snug">{headline}</p>
+                )}
+                {body && (
+                  <p className="text-[11.5px] text-[#6b7280] leading-snug line-clamp-3 mt-auto">{body}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -1112,19 +1926,28 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
 function OpportunitiesGrid({ items }: { items: Dict[] }) {
   return (
     <div className="flex flex-col gap-3 pt-2">
-      <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#ecfdf5] text-[14px]">
-          ✨
-        </span>
-        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#047857]">
-          Opportunities
-        </span>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
-          {items.length}
-        </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#ecfdf5] text-[14px]">
+            ✨
+          </span>
+          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#047857]">
+            Opportunities
+          </span>
+          <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+            {items.length}
+          </span>
+        </div>
+        {items.length > 0 && (
+          <p className="text-[13px] text-[#6b7280] leading-relaxed max-w-[720px]">
+            Watch list names with strong analyst runway. Consider adding at good entry points.
+          </p>
+        )}
       </div>
       {items.length === 0 ? (
-        <p className="text-[13px] text-[#6b7280] italic">No standout opportunities flagged today.</p>
+        <p className="text-[13px] text-[#6b7280] italic">
+          No watch list names with strong analyst runway right now.
+        </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {items.map((item, i) => {
@@ -1188,6 +2011,20 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
   );
 }
 
+// Color-code the suggestion category ("Oversold Quality", "Cheap Growth",
+// "Smart Money Favorites", …) so the descriptor reads as a tab beside the
+// ticker instead of a stacked grey line.
+function reasonChip(reason: string): { bg: string; fg: string } {
+  const r = reason.toLowerCase();
+  if (r.includes("smart money") || r.includes("favorite"))
+    return { bg: "#f5f3ff", fg: "#6d28d9" };
+  if (r.includes("momentum")) return { bg: "#fff7ed", fg: "#c2410c" };
+  if (r.includes("quality")) return { bg: "#eff6ff", fg: "#1d4ed8" };
+  if (r.includes("growth")) return { bg: "#ecfdf5", fg: "#047857" };
+  if (r.includes("value") || r.includes("cheap")) return { bg: "#f0fdfa", fg: "#0f766e" };
+  return { bg: "#f3f4f6", fg: "#4b5563" };
+}
+
 function StocksToCheckOut({
   suggestions,
   tracked,
@@ -1235,15 +2072,26 @@ function StocksToCheckOut({
                   className="flex items-center gap-3 flex-1 min-w-0 group"
                 >
                   {ticker && <StockLogo ticker={ticker} market={market} size={32} />}
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-                      {ticker || "Suggestion"}
-                    </span>
-                    {reason && (
-                      <span className="text-[11.5px] text-[#4b5563] truncate">{reason}</span>
-                    )}
+                  <div className="flex flex-col min-w-0 flex-1 gap-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                        {ticker || "Suggestion"}
+                      </span>
+                      {reason &&
+                        (() => {
+                          const chip = reasonChip(reason);
+                          return (
+                            <span
+                              className="inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] whitespace-nowrap"
+                              style={{ backgroundColor: chip.bg, color: chip.fg }}
+                            >
+                              {reason}
+                            </span>
+                          );
+                        })()}
+                    </div>
                     {why && (
-                      <span className="text-[11.5px] text-[#6b7280] truncate mt-0.5">{why}</span>
+                      <span className="text-[11.5px] text-[#6b7280] truncate">{why}</span>
                     )}
                   </div>
                 </Link>
@@ -1292,10 +2140,12 @@ function SectionOpener({
   number,
   title,
   meta,
+  refreshing,
 }: {
   number: string;
   title: string;
   meta?: string;
+  refreshing?: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-[#ececea] pt-8">
@@ -1306,6 +2156,15 @@ function SectionOpener({
         <h2 className="text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">
           {title}
         </h2>
+        {refreshing && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fcd34d] bg-[#fffbeb] px-2.5 py-1 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.15)]">
+            <span aria-hidden className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]" />
+            </span>
+            Updating
+          </span>
+        )}
       </div>
       {meta && (
         <span className="text-[12px] font-medium text-[#6b7280]">{meta}</span>
@@ -1334,8 +2193,48 @@ function BareHeader({ rowsCount, builtAt }: { rowsCount: number; builtAt?: strin
   );
 }
 
+// =============================================================================
+// BUILDING STATE — shown when stocks are tracked but radar hasn't built yet
+// =============================================================================
+
+function BuildingState({ trackedCount }: { trackedCount: number }) {
+  return (
+    <main className="flex-grow">
+      <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
+        <header className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">stocksbrew · Radar</span>
+          <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">Radar</h1>
+        </header>
+        <div className="rounded-3xl border border-[#e5e7eb] bg-white p-10 md:p-14 flex flex-col items-center gap-5 text-center">
+          {/* Animated radar pulse rings */}
+          <div className="relative flex h-16 w-16 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0052ff] opacity-10" style={{ animationDuration: "1.8s" }} />
+            <span className="absolute inline-flex h-12 w-12 animate-ping rounded-full bg-[#0052ff] opacity-15" style={{ animationDuration: "1.8s", animationDelay: "0.3s" }} />
+            <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#eff6ff]">
+              <span className="material-symbols-outlined text-[#0052ff]" style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}>radar</span>
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-[20px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
+              Building your Radar…
+            </p>
+            <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-sm">
+              We&apos;re fetching prices, running analysis, and setting up alerts for your {trackedCount} {trackedCount === 1 ? "stock" : "stocks"}. This usually takes under a minute.
+            </p>
+          </div>
+          <BuildingStateRefresher />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// =============================================================================
+// POPULAR_FALLBACK
+// =============================================================================
+
 const POPULAR_FALLBACK: Array<{ ticker: string; sector: string; reason: string }> = [
-  { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on tikrr." },
+  { ticker: "AAPL", sector: "Consumer Electronics", reason: "Most-watched name on stocksbrew." },
   { ticker: "NVDA", sector: "Semiconductors", reason: "AI infra leader · high heat." },
   { ticker: "MSFT", sector: "Software", reason: "Quality compounder · steady." },
   { ticker: "META", sector: "Communication Services", reason: "Analyst runway +33%." },
@@ -1343,7 +2242,15 @@ const POPULAR_FALLBACK: Array<{ ticker: string; sector: string; reason: string }
   { ticker: "AMZN", sector: "Consumer Cyclical", reason: "Cloud + retail compounder." },
 ];
 
-function EmptyState({ suggestions = [] }: { suggestions?: Dict[] }) {
+function EmptyState({
+  suggestions = [],
+  trackedIds = new Set(),
+  isSubscribed,
+}: {
+  suggestions?: Dict[];
+  trackedIds?: Set<string>;
+  isSubscribed: boolean;
+}) {
   const cards =
     suggestions.length > 0
       ? suggestions.slice(0, 6).map((s) => ({
@@ -1370,17 +2277,18 @@ function EmptyState({ suggestions = [] }: { suggestions?: Dict[] }) {
               Build your Radar
             </h2>
             <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-[560px]">
-              Add stocks from any detail page and tikrr will deliver twice-daily AI briefs on
-              what you hold and watch — directives, catalysts, alerts, all personalized.
+              Add stocks from any detail page and stocksbrew gives you personalized buy, hold, and
+              sell calls on what you hold and watch, plus triggers and email alerts when setups change.
             </p>
           </div>
         </div>
-        <Link
-          href="/"
-          className="self-start inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0"
-        >
-          Browse stocks →
-        </Link>
+        <RadarBatchEditModal
+          initialItems={[]}
+          isSubscribed={isSubscribed}
+          ctaLabel="Add stocks"
+          enableImageUpload
+          triggerClassName="self-start inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0"
+        />
       </div>
 
       <div className="flex flex-col gap-4">
@@ -1397,37 +2305,47 @@ function EmptyState({ suggestions = [] }: { suggestions?: Dict[] }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.map((card) => (
-            <Link
-              key={card.ticker}
-              href={`/stock/${encodeURIComponent(card.ticker)}`}
-              className="group flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
-            >
-              <StockLogo ticker={card.ticker} market={card.market} size={36} />
-              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-                    {card.ticker}
-                  </span>
-                  {card.sector && (
-                    <span className="text-[11px] text-[#9ca3af] truncate">{card.sector}</span>
+          {cards.map((card) => {
+            const instrumentId = `${card.market === "IN" ? "IN" : "US"}_${card.ticker}`;
+            return (
+              <div
+                key={card.ticker}
+                className="group flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+              >
+                <Link href={`/stock/${encodeURIComponent(card.ticker)}`} className="flex items-center gap-3 min-w-0 flex-1">
+                  <StockLogo ticker={card.ticker} market={card.market} size={36} />
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                        {card.ticker}
+                      </span>
+                      {card.sector && (
+                        <span className="text-[11px] text-[#9ca3af] truncate">{card.sector}</span>
+                      )}
+                    </div>
+                    {card.reason && (
+                      <span className="text-[11.5px] text-[#6b7280] leading-snug truncate">
+                        {card.reason}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  {typeof card.score === "number" && (
+                    <span className={`text-[15px] font-semibold tabular-nums ${scoreToneText(card.score)}`}>
+                      {Math.round(card.score)}
+                    </span>
                   )}
+                  <TrackButton
+                    ticker={card.ticker}
+                    instrumentId={instrumentId}
+                    isTracked={trackedIds.has(instrumentId)}
+                    variant="icon"
+                  />
                 </div>
-                {card.reason && (
-                  <span className="text-[11.5px] text-[#6b7280] leading-snug truncate">
-                    {card.reason}
-                  </span>
-                )}
               </div>
-              {typeof card.score === "number" && (
-                <span
-                  className={`shrink-0 text-[15px] font-semibold tabular-nums ${scoreToneText(card.score)}`}
-                >
-                  {Math.round(card.score)}
-                </span>
-              )}
-            </Link>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -1441,7 +2359,7 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
   const watching = rows.filter((r) => r.position_type !== "holding").sort(byAttention);
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-8">
+      <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
         <header className="flex flex-col gap-1.5">
           <h1 className="text-[28px] md:text-[34px] font-semibold text-[#111111] tracking-[-0.02em] leading-none">
             Radar
@@ -1464,7 +2382,7 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
             </Link>
           </div>
           <p className="text-[12px] text-[#6b7280]">
-            Prices are loading — your analysis will appear here once the next radar cycle runs.
+            Prices are loading. Your analysis will appear here once the next radar cycle runs.
             Free plan supports up to 3 stocks; Pro unlocks unlimited.
           </p>
           <WatchlistTabs holdings={holdings} watching={watching} suggestions={[]} />
@@ -1475,27 +2393,70 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
 }
 
 const STARTER_PICKS = [
-  { ticker: "NVDA", market: "US", sector: "Semiconductors", reason: "AI infrastructure leader — most-tracked on tikrr." },
+  { ticker: "NVDA", market: "US", sector: "Semiconductors", reason: "AI infrastructure leader, most-tracked on stocksbrew." },
   { ticker: "AAPL", market: "US", sector: "Consumer Electronics", reason: "Durable free cash flow, highest retail ownership." },
   { ticker: "MSFT", market: "US", sector: "Software", reason: "Quality compounder with steady earnings growth." },
-  { ticker: "META", market: "US", sector: "Comm. Services", reason: "Analyst runway +33% — strong momentum." },
+  { ticker: "META", market: "US", sector: "Comm. Services", reason: "Analyst runway +33%, strong momentum." },
   { ticker: "GOOGL", market: "US", sector: "Comm. Services", reason: "Cheap relative to peers on forward earnings." },
   { ticker: "AMZN", market: "US", sector: "Consumer Cyclical", reason: "Cloud + retail flywheel, underappreciated margins." },
 ];
 
-function UnsubscribedState({ tracked }: { tracked: string[] }) {
+function UnsubscribedState({
+  tracked,
+}: {
+  tracked: string[];
+}) {
+  const trackedCount = tracked.length;
+  const atLimit = trackedCount >= 3;
+
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6 md:px-20 lg:px-32 py-10 md:py-12 flex flex-col gap-10">
+      <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-10">
 
         {/* Header */}
-        <header className="flex flex-col gap-2">
-          <h1 className="text-[32px] md:text-[40px] font-semibold text-[#0a0a0a] tracking-[-0.03em] leading-none">
-            Radar
-          </h1>
-          <p className="text-[14px] text-[#6b7280] leading-snug">
-            Track up to 3 stocks free. Get AI directives, alerts, and daily briefings.
-          </p>
+        <header className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
+                stocksbrew · {todayMasthead()}
+              </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-[32px] md:text-[40px] font-semibold text-[#0a0a0a] tracking-[-0.03em] leading-none">
+                  Radar
+                </h1>
+                <Link
+                  href="/subscribe"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-semibold text-[#92400e] hover:border-[#f59e0b] transition-colors"
+                >
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
+                    <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#b45309"/>
+                  </svg>
+                  Free · {trackedCount}/3 stocks
+                </Link>
+              </div>
+              <p className="text-[12.5px] text-[#6b7280]">
+                Track up to 3 stocks free. Get AI directives, alerts, and daily briefings.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 self-start mt-2">
+              {atLimit ? (
+                <Link
+                  href="/subscribe"
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
+                >
+                  Upgrade to track more →
+                </Link>
+              ) : (
+                <RadarBatchEditModal
+                  initialItems={[]}
+                  isSubscribed={false}
+                  ctaLabel="Add a stock"
+                  enableImageUpload
+                />
+              )}
+            </div>
+          </div>
         </header>
 
         {/* Start here — pick your first stocks */}
@@ -1504,7 +2465,7 @@ function UnsubscribedState({ tracked }: { tracked: string[] }) {
             <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#ecfdf5] text-[15px]">🚀</span>
             <div>
               <h2 className="text-[15px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">Start your Radar</h2>
-              <p className="text-[12px] text-[#6b7280]">Add up to 3 stocks free. tikrr tracks them daily and tells you what to do.</p>
+              <p className="text-[12px] text-[#6b7280]">Add up to 3 stocks free. stocksbrew tracks them daily and tells you what to do.</p>
             </div>
           </div>
 
@@ -1545,7 +2506,7 @@ function UnsubscribedState({ tracked }: { tracked: string[] }) {
           </ul>
 
           <p className="text-[11.5px] text-[#9ca3af] text-center">
-            Or search for any stock using the search bar above.
+            Or use <span className="font-semibold text-[#6b7280]">+ Add a stock</span> above to search any ticker.
           </p>
         </section>
 
@@ -1567,8 +2528,8 @@ function UnsubscribedState({ tracked }: { tracked: string[] }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <FeatureCard emoji="🎯" iconBg="#ecfdf5" title="AI briefs" body="Buy / hold / sell directive for every stock you track, every morning." />
-            <FeatureCard emoji="⚡" iconBg="#fef3c7" title="Cross-Radar read" body="Daily portfolio-level themes, risks, and opportunities." />
-            <FeatureCard emoji="🔔" iconBg="#fef2f2" title="Alerts" body="Earnings, RSI extremes, 52-week levels — when they fire." />
+            <FeatureCard emoji="⚡" iconBg="#fef3c7" title="Cross-Radar read" body="Portfolio-level themes, risks, and opportunities across your list." />
+            <FeatureCard emoji="🔔" iconBg="#fef2f2" title="Alerts" body="Earnings, RSI extremes, 52-week levels when they fire." />
           </div>
         </section>
 
@@ -1617,20 +2578,40 @@ type PillarAverages = {
 
 function computePillarAverages(rows: WatchlistRow[]): PillarAverages {
   const keys = ["overall", "valuation", "growth", "quality", "momentum"] as const;
-  const out: PillarAverages = {
-    overall: null,
-    valuation: null,
-    growth: null,
-    quality: null,
-    momentum: null,
-  };
+  const out: PillarAverages = { overall: null, valuation: null, growth: null, quality: null, momentum: null };
+
+  // Dollar-weight when ALL holdings have portfolio_weight_pct > 0.
+  // Partial coverage would skew results, so it's all-or-none.
+  const holdingRows = rows.filter((r) => r.position_type === "holding");
+  const positionAware =
+    holdingRows.length > 0 &&
+    holdingRows.every(
+      (r) =>
+        typeof r.holding?.portfolio_weight_pct === "number" &&
+        (r.holding.portfolio_weight_pct as number) > 0,
+    );
+
   for (const key of keys) {
-    const values: number[] = [];
-    for (const r of rows) {
-      const v = r.scores?.[key];
-      if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+    if (positionAware) {
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (const r of holdingRows) {
+        const score = r.scores?.[key];
+        const w = r.holding!.portfolio_weight_pct as number;
+        if (typeof score === "number" && Number.isFinite(score) && w > 0) {
+          weightedSum += score * w;
+          totalWeight += w;
+        }
+      }
+      out[key] = totalWeight > 0 ? weightedSum / totalWeight : null;
+    } else {
+      const values: number[] = [];
+      for (const r of rows) {
+        const v = r.scores?.[key];
+        if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+      }
+      out[key] = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
     }
-    out[key] = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
   }
   return out;
 }
@@ -1689,23 +2670,6 @@ function byAttention(a: WatchlistRow, b: WatchlistRow): number {
   return Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0);
 }
 
-function buildUpNext(rows: WatchlistRow[]): UpNextItem[] {
-  const out: UpNextItem[] = [];
-  for (const r of rows) {
-    for (const c of (r.catalysts ?? []) as Dict[]) {
-      const title = text(c.title ?? c.kind);
-      if (!title) continue;
-      const window = text(c.window) || text(c.date_label) || "soon";
-      const urgency = text(c.urgency).toLowerCase() as UpNextItem["urgency"];
-      out.push({ ticker: r.ticker, title, window, urgency });
-    }
-  }
-  // sort by urgency, holdings first implicitly via input order
-  const urgencyRank: Record<string, number> = { high: 3, med: 2, low: 1, "": 0 };
-  out.sort((a, b) => (urgencyRank[b.urgency] ?? 0) - (urgencyRank[a.urgency] ?? 0));
-  return out.slice(0, 10);
-}
-
 type FlatAlert = {
   ticker: string;
   kind: string;
@@ -1742,11 +2706,15 @@ function flattenAlerts(rows: WatchlistRow[]): FlatAlert[] {
 }
 
 type ActivityEvent = {
+  title: string;
+  body: string;
   sentence: string;
   event_type: string;
   scope: string;
   direction: string;
   symbol: string;
+  urgency: number;
+  evidence: string[];
 };
 
 function buildActivityEvents(
@@ -1783,42 +2751,34 @@ function buildActivityEvents(
       const body = text(event.body);
       const sentence = [title, body].filter(Boolean).join(" · ") || "Tracked-stock update.";
       const scopeGuess = text(event.scope) || (text(event.ticker) ? "stock" : "market");
+      const evidence = (Array.isArray(event.evidence) ? event.evidence : [])
+        .map((e) => text(e))
+        .filter(Boolean)
+        .slice(0, 3);
       return {
+        title: title || sentence,
+        body,
         sentence,
         event_type: text(event.kind) || "event",
         direction: text(event.tone) || text(event.direction) || "neutral",
         symbol: text(event.ticker) || text(event.symbol),
         scope: scopeGuess,
+        urgency: num(event.urgency) ?? 0,
+        evidence,
       };
     });
   }
   return (brief?.essential_events ?? []).slice(0, 12).map((item) => ({
+    title: item.sentence,
+    body: "",
     sentence: item.sentence,
     event_type: item.event_type,
     direction: item.direction,
     symbol: item.symbol,
     scope: item.scope,
+    urgency: 50,
+    evidence: [],
   }));
-}
-
-function buildChangesData(changes: Dict) {
-  const hasPrevious = Boolean(changes.has_previous);
-  const changedCount = num(changes.changed_count) ?? 0;
-  const scoreChanges = asArray(changes.score_changes).map((item) => ({
-    ticker: text(item.ticker),
-    sentence: text(item.sentence),
-    delta: num(item.delta),
-  }));
-  const newTickers = Array.isArray(changes.new_tickers)
-    ? changes.new_tickers.map((item) => String(item)).filter(Boolean)
-    : [];
-  return {
-    summary: text(changes.summary),
-    hasPrevious,
-    changedCount,
-    scoreChanges,
-    newTickers,
-  };
 }
 
 function extractRunwayPct(item: Dict, headline: string): number | null {

@@ -44,12 +44,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Already subscribed" }, { status: 409 });
   }
 
-  // 5. Rate-limit: one checkout attempt per 2 minutes
+  // 5. Rate-limit rapid duplicate clicks (not abandoned checkout retries)
+  const CHECKOUT_COOLDOWN_MS = 12 * 1000;
   if (userDoc?.lastCheckoutCreatedAt) {
     const last = new Date(userDoc.lastCheckoutCreatedAt).getTime();
-    if (Date.now() - last < 2 * 60 * 1000) {
+    const elapsed = Date.now() - last;
+    if (elapsed < CHECKOUT_COOLDOWN_MS) {
+      const retryAfterSeconds = Math.ceil((CHECKOUT_COOLDOWN_MS - elapsed) / 1000);
       return NextResponse.json(
-        { error: "Please wait a moment before trying again." },
+        {
+          error: `Please wait ${retryAfterSeconds}s before trying again.`,
+          retryAfterSeconds,
+        },
         { status: 429 },
       );
     }
@@ -81,7 +87,7 @@ export async function POST(req: NextRequest) {
       user_id: uid,
       plan: period,
     },
-    return_url: `${appUrl}/subscribe?success=1`,
+    return_url: `${appUrl}/subscribe`,
   };
 
   const dodoRes = await fetch(`${DODO_BASE}/checkouts`, {

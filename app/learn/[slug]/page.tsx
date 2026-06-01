@@ -23,15 +23,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: post.description,
     alternates: { canonical: `/learn/${slug}` },
     openGraph: {
-      title: `${post.title} · tikrr Learn`,
+      title: `${post.title} · stocksbrew Learn`,
       description: post.description,
-      url: `https://www.tikrr.online/learn/${slug}`,
+      url: `https://www.stocksbrew.online/learn/${slug}`,
       images: [{ url: post.image, width: 800, height: 600, alt: post.imageAlt }],
       type: "article",
       publishedTime: post.date,
     },
     twitter: {
-      title: `${post.title} · tikrr Learn`,
+      title: `${post.title} · stocksbrew Learn`,
       description: post.description,
       images: [post.image],
     },

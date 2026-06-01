@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { scrubLegacyBrand } from "@/lib/brand";
 import type { ThematicScreensDoc, ScreenMatchRow } from "@/lib/screens";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
@@ -18,7 +19,7 @@ const HOME_SCREEN_ROWS_PRO = 8;
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top: {
-    title: "Top tikrr Score",
+    title: "Top stocksbrew Score",
     subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation.",
   },
   quality_compounders: {
@@ -177,7 +178,8 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
         {nonEmpty.map((screen) => {
           const isActive = screen.id === active.id;
           const isHouse = screen.id === "tikrr_top";
-          const label = FRIENDLY_COPY[screen.id]?.title ?? screen.title;
+          const label =
+            FRIENDLY_COPY[screen.id]?.title ?? scrubLegacyBrand(screen.title);
           return (
             <button
               key={screen.id}

@@ -28,6 +28,9 @@ export async function batchGetRefs<T>(
 }
 
 // ─── Active universe ──────────────────────────────────────────────────────────
+// Universe IDs are legacy Firestore namespaces. In product language, US_universe
+// is the current runtime_core, not the full search_catalog or coverage_catalog.
+// See docs/stock-universes.md before changing this contract.
 // Both functions are wrapped in React.cache so the Firestore config doc is read
 // exactly once per server-render request regardless of how many lib functions
 // call them. Without this, each of getStockIntelligenceDoc / getInstrumentViewDoc
@@ -62,6 +65,17 @@ export async function getAiUniverse(market: "US" | "IN" = "US"): Promise<string>
 export async function getPriceUniverse(market: "US" | "IN" = "US"): Promise<string> {
   const data = await _getUniverseConfig();
   return resolveUniverse(data, market, "price");
+}
+
+export async function getActiveUniverses(): Promise<Record<"US_ai" | "IN_ai" | "US_price" | "IN_price", string>> {
+  const data = await _getUniverseConfig();
+  const usUniverse = requireUniverse(data, "US_universe");
+  return {
+    US_ai: usUniverse,
+    US_price: usUniverse,
+    IN_ai: requireUniverse(data, "IN_ai_universe"),
+    IN_price: requireUniverse(data, "IN_price_universe"),
+  };
 }
 
 // ─── Materialized dashboard view ─────────────────────────────────────────────
@@ -180,6 +194,27 @@ const getMarketMoversCached = unstable_cache(
 );
 
 export const getMarketMovers = cache(getMarketMoversCached);
+
+const getPriceCoreOverridesUncached = async (
+  market: "US" | "IN" = "US",
+): Promise<string[]> => {
+  const doc = await adminFirestore.collection("tm_config").doc("price_core_overrides").get();
+  if (!doc.exists) return [];
+  const data = doc.data() as Record<string, unknown>;
+  const values = data?.[market];
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter(Boolean);
+};
+
+const getPriceCoreOverridesCached = unstable_cache(
+  getPriceCoreOverridesUncached,
+  ["price-core-overrides"],
+  { revalidate: 60 },
+);
+
+export const getPriceCoreOverrides = cache(getPriceCoreOverridesCached);
 
 // ─── Instruments ─────────────────────────────────────────────────────────────
 

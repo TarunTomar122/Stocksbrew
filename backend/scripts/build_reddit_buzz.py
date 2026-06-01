@@ -11,9 +11,9 @@ from typing import Any
 import requests
 
 from backend.llm_client import (
-    MIMO_API_URL,
     json_response_format,
     llm_api_key,
+    llm_api_url,
     llm_headers,
     llm_model,
     parse_json_content,
@@ -23,9 +23,7 @@ from backend.storage import TraceMoneyStore
 
 USER_AGENT = "tikrr-reddit-buzz/2.0"
 DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks", "investing", "StockMarket", "options", "shortsqueeze"]
-OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
-LLM_URL = os.getenv("MIMO_API_URL", "").strip() or MIMO_API_URL
 
 TICKER_EXTRACTION_PROMPT = """You extract stock buzz from Reddit posts.
 Return JSON object:
@@ -37,7 +35,11 @@ Return JSON object:
       "mentions": 4,
       "sentiment": "bullish|bearish|neutral",
       "context": "2 concise sentences explaining the catalyst or narrative",
-      "catalysts": ["...", "..."]
+      "catalysts": ["...", "..."],
+      "company_name": "NVIDIA Corporation",
+      "exchange_hint": "NASDAQ|NYSE|AMEX|UNKNOWN",
+      "confidence": 0.0,
+      "evidence_span": "short quote or phrase from post text"
     }
   },
   "notable_posts": [
@@ -48,7 +50,67 @@ Rules:
 - Output valid JSON only.
 - Use only US stock tickers; no crypto.
 - No filler language like "users are saying"; explain the market narrative directly.
+- Confidence must be 0..1 and should be low when ticker/company mapping is uncertain.
 """
+
+
+def _ticker_context_doc_id(market: str, ticker: str) -> str:
+    return f"{market.upper()}__{str(ticker or '').strip().upper()}"
+
+
+def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict[str, Any]) -> None:
+    """Write per-ticker Reddit context docs for stock pages."""
+    market_key = market.upper()
+    tickers = [row for row in (payload.get("tickers") or []) if isinstance(row, dict)]
+    top_posts = [row for row in (payload.get("top_posts") or []) if isinstance(row, dict)]
+    notable = payload.get("notable_discussions") or []
+    current_tickers = sorted({str(row.get("ticker") or "").strip().upper() for row in tickers if row.get("ticker")})
+    index_ref = store.db.collection("reddit_ticker_context_index").document(market_key)
+    previous = index_ref.get()
+    previous_tickers: list[str] = []
+    if previous.exists:
+        previous_data = previous.to_dict() or {}
+        previous_tickers = [
+            str(ticker or "").strip().upper()
+            for ticker in (previous_data.get("tickers") or [])
+            if str(ticker or "").strip()
+        ]
+
+    batch = store.db.batch()
+    collection = store.db.collection("reddit_ticker_contexts")
+    for row in tickers:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+        ticker_posts = [
+            post
+            for post in top_posts
+            if ticker in {str(t or "").strip().upper() for t in (post.get("tickers") or [])}
+        ]
+        batch.set(
+            collection.document(_ticker_context_doc_id(market_key, ticker)),
+            {
+                "market": market_key,
+                "ticker": ticker,
+                "generated_at": payload.get("generated_at"),
+                "post_count": payload.get("post_count") or 0,
+                "cue": row,
+                "top_posts": ticker_posts,
+                "notable_discussions": notable,
+            },
+        )
+    for ticker in sorted(set(previous_tickers) - set(current_tickers)):
+        batch.delete(collection.document(_ticker_context_doc_id(market_key, ticker)))
+    batch.set(
+        index_ref,
+        {
+            "market": market_key,
+            "generated_at": payload.get("generated_at"),
+            "tickers": current_tickers,
+            "count": len(current_tickers),
+        },
+    )
+    batch.commit()
 
 
 def _utc_now() -> str:
@@ -127,19 +189,40 @@ def _heuristic_fallback(posts: list[dict[str, Any]], max_tickers: int) -> tuple[
     return tickers, "neutral", []
 
 
+def _normalize_name(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = re.sub(r"\b(inc|inc\.|corp|corporation|ltd|limited|holdings?|company|co|plc|class a|class b)\b", " ", text)
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _load_supported_tickers(store: TraceMoneyStore, market: str) -> set[str]:
+    docs = (
+        store.db.collection("tm_instruments")
+        .where("market", "==", str(market).upper())
+        .select(["ticker"])
+        .stream()
+    )
+    out: set[str] = set()
+    for doc in docs:
+        payload = doc.to_dict() or {}
+        ticker = str(payload.get("ticker") or "").strip().upper()
+        if ticker:
+            out.add(ticker)
+    return out
+
+
 def _resolve_llm_config() -> tuple[str, str, str] | None:
-    """Prefer OpenAI for Reddit ticker extraction; fall back to MiMo."""
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if openai_key:
-        model = os.getenv("OPENAI_MODEL", "").strip() or OPENAI_DEFAULT_MODEL
-        return openai_key, model, OPENAI_CHAT_URL
-    mimo_key = llm_api_key()
-    if mimo_key:
-        return mimo_key, llm_model("gpt-4o-mini"), LLM_URL
-    return None
+    """Return OpenAI credentials for Reddit ticker extraction."""
+    api_key = llm_api_key()
+    if not api_key:
+        return None
+    model = llm_model(OPENAI_DEFAULT_MODEL)
+    return api_key, model, llm_api_url()
 
 
-def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:
+def _llm_extract(posts: list[dict[str, Any]], *, timeout_seconds: int) -> dict[str, Any] | None:
     resolved = _resolve_llm_config()
     if not resolved:
         return None
@@ -164,7 +247,7 @@ def _llm_extract(posts: list[dict[str, Any]]) -> dict[str, Any] | None:
             ],
             "response_format": json_response_format(),
         },
-        timeout=45,
+        timeout=max(45, int(timeout_seconds)),
     )
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"]
@@ -180,6 +263,7 @@ def main() -> None:
     parser.add_argument("--max-tickers", type=int, default=20)
     parser.add_argument("--max-top-posts", type=int, default=12)
     parser.add_argument("--timeout-seconds", type=int, default=12)
+    parser.add_argument("--llm-timeout-seconds", type=int, default=120)
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -198,7 +282,7 @@ def main() -> None:
 
     llm_data: dict[str, Any] | None = None
     try:
-        llm_data = _llm_extract(posts)
+        llm_data = _llm_extract(posts, timeout_seconds=args.llm_timeout_seconds)
     except Exception as exc:
         print({"stage": "reddit_llm_failed", "error": str(exc)})
 
@@ -216,6 +300,7 @@ def main() -> None:
     ]
 
     if llm_data and isinstance(llm_data.get("tickers"), dict):
+        supported_tickers = _load_supported_tickers(store, args.market)
         tickers_payload: list[dict[str, Any]] = []
         for symbol, item in (llm_data.get("tickers") or {}).items():
             ticker = str(symbol or "").strip().upper()
@@ -223,13 +308,30 @@ def main() -> None:
                 continue
             if not isinstance(item, dict):
                 continue
+            company_name = str(item.get("company_name") or "").strip()
+            company_norm = _normalize_name(company_name)
+
+            if ticker not in supported_tickers:
+                continue
+
+            # Hard guard for common private-company confusion (e.g. SpaceX -> SPCE).
+            if ticker == "SPCE" and "space exploration technologies" in company_norm:
+                continue
+            mention_count = int(item.get("mentions") or 0)
+            if mention_count <= 0:
+                continue
+
             tickers_payload.append(
                 {
                     "ticker": ticker,
                     "sentiment": str(item.get("sentiment") or "neutral"),
                     "summary": str(item.get("context") or "").strip() or f"{ticker} is active in Reddit chatter.",
-                    "mention_count": int(item.get("mentions") or 0),
+                    "mention_count": mention_count,
                     "catalysts": [str(c).strip() for c in (item.get("catalysts") or []) if str(c).strip()][:4],
+                    "company_name": company_name,
+                    "exchange_hint": str(item.get("exchange_hint") or "UNKNOWN").strip().upper()[:12],
+                    "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0.0))),
+                    "evidence_span": str(item.get("evidence_span") or "").strip()[:180],
                 }
             )
         tickers_payload.sort(key=lambda row: int(row.get("mention_count") or 0), reverse=True)
@@ -259,6 +361,7 @@ def main() -> None:
         "universe_id": universe_id,
     }
     store.db.collection("reddit_snapshots").document(f"{args.market}__latest").set(payload)
+    _write_ticker_read_models(store, args.market, payload)
     store.save_stage_watermark(
         market=args.market,
         stage_key="build_reddit_buzz",

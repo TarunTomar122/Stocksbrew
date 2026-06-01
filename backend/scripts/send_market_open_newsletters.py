@@ -10,6 +10,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.email_runtime import log_email_send
 from backend.lifecycle_emailing import email_pro_daily_digest, send_email
 from backend.scripts.send_market_open_newsletter_preview import (
     _build_generic_market_newsletter,
@@ -30,10 +31,24 @@ def _email_key(email: str) -> str:
     return hashlib.sha1(email.strip().lower().encode("utf-8")).hexdigest()[:16]
 
 
+def _view_is_fresh_for_today(view: dict[str, Any], *, today_key: str) -> bool:
+    built_at = str(view.get("built_at") or "").strip()
+    if not built_at:
+        return False
+    try:
+        dt = datetime.fromisoformat(built_at.replace("Z", "+00:00"))
+    except Exception:
+        return False
+    return dt.astimezone(timezone.utc).date().isoformat() == today_key
+
+
 def _already_sent(store: TraceMoneyStore, *, market: str, date_key: str, email: str) -> bool:
     doc_id = f"{market}__{date_key}__{_email_key(email)}"
     doc = store.db.collection("tm_market_open_email_log").document(doc_id).get()
-    return bool(doc.exists)
+    if not doc.exists:
+        return False
+    payload = doc.to_dict() or {}
+    return bool(payload.get("sent") is True)
 
 
 def _mark_sent(
@@ -63,14 +78,8 @@ def _mark_sent(
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Send market-open newsletter to all free+pro users")
-    parser.add_argument("--market", default="US")
-    parser.add_argument("--limit", type=int, default=0, help="optional max users to process (0 = no limit)")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
-
-    market = str(args.market or "US").upper()
+def run_market_open_newsletters(*, market: str = "US", limit: int = 0, dry_run: bool = False) -> dict[str, Any]:
+    market = str(market or "US").upper()
     store = TraceMoneyStore()
     today = _today_key()
 
@@ -102,7 +111,7 @@ def main() -> None:
 
     total = sent = skipped = failed = 0
     for doc in users:
-        if args.limit and total >= args.limit:
+        if limit and total >= limit:
             break
         uid = doc.id
         user = doc.to_dict() or {}
@@ -126,7 +135,7 @@ def main() -> None:
             view = store.get_watchlist_view(uid) or {}
             rows = view.get("rows") if isinstance(view, dict) else []
             rows = rows if isinstance(rows, list) else []
-            if rows:
+            if rows and isinstance(view, dict) and _view_is_fresh_for_today(view, today_key=today):
                 brief = view.get("brief") if isinstance(view, dict) else None
                 events = view.get("event_radar") if isinstance(view, dict) else None
                 subject, html = email_pro_daily_digest(
@@ -134,10 +143,11 @@ def main() -> None:
                     market_rows,
                     radar_brief=brief if isinstance(brief, dict) else None,
                     radar_events=events if isinstance(events, list) else None,
+                    radar_today_setup=view.get("today_setup") if isinstance(view.get("today_setup"), dict) else None,
                 )
                 mode = "personalized"
 
-        if args.dry_run:
+        if dry_run:
             skipped += 1
             continue
 
@@ -153,22 +163,47 @@ def main() -> None:
             sent=ok,
         )
         if ok:
+            log_email_send(
+                store,
+                uid=uid,
+                email=email,
+                email_type="subscriber_daily_digest" if mode == "personalized" else "free_market_digest",
+                dedupe_key=f"{mode}_{today}",
+                subject=subject,
+                trigger_type="market_open_email",
+                meta={"market": market, "mode": mode},
+            )
             sent += 1
         else:
             failed += 1
 
-    print(
-        {
-            "market": market,
-            "date": today,
-            "total_users_scanned": total,
-            "sent": sent,
-            "skipped": skipped,
-            "failed": failed,
-        }
-    )
-    if failed > 0 and not args.dry_run:
+    summary = {
+        "market": market,
+        "date": today,
+        "total_users_scanned": total,
+        "sent": sent,
+        "skipped": skipped,
+        "failed": failed,
+    }
+    if failed > 0 and not dry_run:
         raise SystemExit(1)
+    return summary
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Send market-open newsletter to all free+pro users")
+    parser.add_argument("--market", default="US")
+    parser.add_argument("--limit", type=int, default=0, help="optional max users to process (0 = no limit)")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    print(
+        run_market_open_newsletters(
+            market=str(args.market or "US").upper(),
+            limit=max(0, int(args.limit or 0)),
+            dry_run=bool(args.dry_run),
+        )
+    )
 
 
 if __name__ == "__main__":

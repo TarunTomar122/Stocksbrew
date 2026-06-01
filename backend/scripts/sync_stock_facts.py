@@ -20,6 +20,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--pause", type=float, default=0.5)
     parser.add_argument("--max-workers", type=int, default=1)
+    parser.add_argument(
+        "--include-price-core-overrides",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include tm_config/price_core_overrides tickers in addition to the base universe",
+    )
     parser.add_argument("--print-json", action="store_true")
     args = parser.parse_args()
 
@@ -32,6 +38,31 @@ def main() -> None:
         )
 
     instruments = list_instruments(args.market, universe_id)
+    if args.include_price_core_overrides:
+        all_instruments = list_instruments(args.market, None)
+        by_id = {
+            str(instrument.get("instrument_id") or "").upper(): instrument
+            for instrument in all_instruments
+            if str(instrument.get("instrument_id") or "").strip()
+        }
+        seen = {
+            str(instrument.get("instrument_id") or "").upper()
+            for instrument in instruments
+            if str(instrument.get("instrument_id") or "").strip()
+        }
+        added = 0
+        for instrument_id in store.get_price_core_overrides(args.market):
+            key = str(instrument_id or "").strip().upper()
+            if not key or key in seen:
+                continue
+            instrument = by_id.get(key)
+            if not instrument:
+                continue
+            instruments.append(instrument)
+            seen.add(key)
+            added += 1
+        if added > 0:
+            print(f"Included {added} price-core override instruments for {args.market}.")
     if args.limit > 0:
         instruments = instruments[:args.limit]
     docs: list[dict] = []

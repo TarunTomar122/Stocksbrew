@@ -2,54 +2,120 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ProBadge } from "@/components/pro-badge";
+import { useStockScrollRoot } from "@/components/stock-scroll-rail";
 
-type TabKey = "overview" | "analyst" | "fundamentals" | "ai";
+type TabKey = "overview" | "analyst" | "fundamentals" | "earnings" | "ai";
 
 type Props = {
   overview: ReactNode;
   analyst: ReactNode;
   fundamentals: ReactNode;
+  earnings?: ReactNode | null;
   ai: ReactNode | null;
   isSubscribed: boolean;
 };
 
-const TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
+const BASE_TABS: { key: TabKey; label: string; narrowLabel?: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "analyst", label: "Analyst" },
   { key: "fundamentals", label: "Fundamentals" },
   { key: "ai", label: "AI brief", narrowLabel: "AI" },
+  { key: "earnings", label: "Earnings" },
 ];
 
-const SCROLL_OFFSET = typeof window !== "undefined" && window.innerWidth < 768 ? 160 : 140;
+function scrollOffset(useContainer: boolean): number {
+  if (typeof window === "undefined") return 140;
+  if (useContainer) return 56;
+  return window.innerWidth < 768 ? 160 : 140;
+}
 
-export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribed }: Props) {
+function resolveScrollRoot(
+  scrollRootRef: ReturnType<typeof useStockScrollRoot>,
+): HTMLElement | null {
+  if (typeof window === "undefined") return null;
+  if (!window.matchMedia("(min-width: 1024px)").matches) return null;
+  return scrollRootRef?.current ?? null;
+}
+
+export function StockPageTabs({
+  overview,
+  analyst,
+  fundamentals,
+  earnings,
+  ai,
+  isSubscribed,
+}: Props) {
   const [active, setActive] = useState<TabKey>("overview");
   const clickLockUntil = useRef(0);
-  const visible = ai ? TABS : TABS.filter((t) => t.key !== "ai");
+  const scrollRootRef = useStockScrollRoot();
+  const visible = BASE_TABS.filter((t) => {
+    if (t.key === "ai" && !ai) return false;
+    if (t.key === "earnings" && !earnings) return false;
+    return true;
+  });
 
   useEffect(() => {
     function onScroll() {
       if (Date.now() < clickLockUntil.current) return;
-      const probe = window.scrollY + SCROLL_OFFSET + 20;
+      const root = resolveScrollRoot(scrollRootRef);
+      const offset = scrollOffset(Boolean(root));
+      const probeLine = root
+        ? root.getBoundingClientRect().top + offset + 20
+        : offset + 20;
       let current: TabKey = visible[0]?.key ?? "overview";
       for (const t of visible) {
         const el = document.getElementById(`stock-section-${t.key}`);
         if (!el) continue;
-        if (el.offsetTop <= probe) current = t.key;
+        if (el.getBoundingClientRect().top <= probeLine) current = t.key;
       }
       setActive(current);
     }
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [visible]);
+
+    function bind() {
+      onScroll();
+      const root = resolveScrollRoot(scrollRootRef);
+      const cleanups: (() => void)[] = [];
+
+      if (root) {
+        root.addEventListener("scroll", onScroll, { passive: true });
+        cleanups.push(() => root.removeEventListener("scroll", onScroll));
+        window.addEventListener("scroll", onScroll, { passive: true });
+        cleanups.push(() => window.removeEventListener("scroll", onScroll));
+      } else {
+        window.addEventListener("scroll", onScroll, { passive: true });
+        cleanups.push(() => window.removeEventListener("scroll", onScroll));
+      }
+
+      return () => cleanups.forEach((fn) => fn());
+    }
+
+    let cleanup = bind();
+    const mq = window.matchMedia("(min-width: 1024px)");
+    function onBreakpoint() {
+      cleanup();
+      cleanup = bind();
+    }
+    mq.addEventListener("change", onBreakpoint);
+    return () => {
+      cleanup();
+      mq.removeEventListener("change", onBreakpoint);
+    };
+  }, [visible, scrollRootRef]);
 
   function goTo(key: TabKey) {
     const el = document.getElementById(`stock-section-${key}`);
     if (!el) return;
     clickLockUntil.current = Date.now() + 800;
     setActive(key);
-    const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
+    const root = resolveScrollRoot(scrollRootRef);
+    const offset = scrollOffset(Boolean(root));
+    if (root) {
+      const rootRect = root.getBoundingClientRect();
+      const y = root.scrollTop + (el.getBoundingClientRect().top - rootRect.top) - offset;
+      root.scrollTo({ top: y, behavior: "smooth" });
+      return;
+    }
+    const y = el.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top: y, behavior: "smooth" });
   }
 
@@ -57,19 +123,20 @@ export function StockPageTabs({ overview, analyst, fundamentals, ai, isSubscribe
     overview,
     analyst,
     fundamentals,
+    earnings: earnings ?? null,
     ai,
   };
 
   return (
     <div className="flex flex-col gap-0 min-w-0">
-      <div className="sticky top-[104px] md:top-16 z-30 -mx-1 bg-[var(--background)] border-b border-[#e5e7eb]">
+      <div className="sticky top-[104px] md:top-16 lg:top-0 z-30 -mx-1 bg-[var(--background)] border-b border-[#e5e7eb]">
         <nav
           className="flex flex-nowrap items-stretch gap-0 sm:gap-0.5 px-1 overflow-x-auto overscroll-x-contain scrollbar-hide touch-pan-x"
           role="tablist"
         >
           {visible.map((t) => {
             const isActive = active === t.key;
-            const locked = !isSubscribed && t.key === "ai";
+            const locked = !isSubscribed && (t.key === "ai" || t.key === "earnings");
             const baseLabel = t.label;
             const baseNarrow = t.narrowLabel ?? t.label;
             return (

@@ -197,15 +197,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `Should I Buy ${upper}? | tikrr`,
+    title: `Should I Buy ${upper}? | stocksbrew`,
     description,
     openGraph: {
-      title: `Should I Buy ${upper}? | tikrr`,
+      title: `Should I Buy ${upper}? | stocksbrew`,
       description,
-      url: `https://www.tikrr.online/should-i-buy/${upper}`,
+      url: `https://www.stocksbrew.online/should-i-buy/${upper}`,
     },
     twitter: {
-      title: `Should I Buy ${upper}? | tikrr`,
+      title: `Should I Buy ${upper}? | stocksbrew`,
       description,
     },
   };
@@ -499,7 +499,7 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
                 href="/"
                 className="shrink-0 rounded-[10px] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#0052ff] hover:bg-white/90 transition-colors"
               >
-                Explore tikrr →
+                Explore stocksbrew →
               </Link>
             </div>
 

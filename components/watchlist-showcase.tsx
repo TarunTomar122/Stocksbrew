@@ -298,8 +298,8 @@ const SLIDES: Slide[] = [
   {
     id: "brief",
     eyebrow: "Brief",
-    title: "Twice a day, every name.",
-    body: "AM + close: short AI read across your Radar from that day’s news.",
+    title: "A clear call on every name.",
+    body: "Fundamentals, news, Reddit, and earnings turned into buy, hold, or sell guidance on your Radar.",
     visual: BriefVisual,
   },
   {

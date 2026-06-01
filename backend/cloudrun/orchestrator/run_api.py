@@ -58,8 +58,8 @@ class RunJobsClient:
         self,
         operation_name: str,
         *,
-        timeout_s: int = 180,
-        poll_s: int = 2,
+        timeout_s: int = 900,
+        poll_s: int = 5,
     ) -> str:
         deadline = time.time() + timeout_s
         last: dict[str, Any] = {}

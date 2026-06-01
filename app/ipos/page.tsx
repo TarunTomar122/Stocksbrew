@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import { IpoCalendar } from "@/components/ipo-calendar";
 
 export const metadata: Metadata = {
-  title: "IPO Calendar | tikrr",
-  description: "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
+  title: "IPO Calendar | stocksbrew",
+  description:
+    "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
+  alternates: { canonical: "/ipos" },
   openGraph: {
-    title: "IPO Calendar | tikrr",
-    description: "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
+    title: "IPO Calendar | stocksbrew",
+    description:
+      "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
+    url: "https://www.stocksbrew.online/ipos",
   },
 };
 
@@ -22,7 +26,9 @@ export default function IposPage() {
             IPO Calendar
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
-            Track upcoming initial public offerings. See pricing dates, estimated price ranges, and which exchange each company is listing on.
+            Track upcoming initial public offerings. See pricing dates,
+            estimated price ranges, and which exchange each company is listing
+            on.
           </p>
         </header>
 

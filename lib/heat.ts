@@ -4,10 +4,9 @@ import { adminFirestore } from "@/lib/firebase-admin";
 
 // Heat list reader.
 //
-// Backs the /heat page. One Firestore read (`tm_heat_list/{market}`) returns
-// a fully joined, pre-ranked list - no per-stock fan-out on the server. The
-// backend `build_heat_list.py` stage writes this doc after every pipeline
-// run (see backend/heat_list.py for the scoring model).
+// Backs the /heat page. Prefer the compact read-model
+// `tm_heat_list_view/{market}` so the page does not read the full analytical
+// `tm_heat_list/{market}` document (~500 rows) on every request.
 
 export type HeatSetupType =
   | "overheated"
@@ -84,20 +83,61 @@ export type HeatList = {
   baseline_window_days: number;
   row_count: number;
   rows: HeatRow[];
+  setup_counts?: Record<string, number>;
   summary?: HeatSummary;
 };
+
+export function compactHeatListForView(data: HeatList | null): HeatList | null {
+  if (!data) return null;
+  const sorted = [...data.rows].sort((a, b) => (b.heat_score ?? 0) - (a.heat_score ?? 0));
+  const setupCounts: Record<string, number> = {};
+  const selected = new Map<string, HeatRow>();
+
+  for (const row of sorted) {
+    const setup = row.setup_type ?? "momentum_watch";
+    setupCounts[setup] = (setupCounts[setup] ?? 0) + 1;
+  }
+
+  for (const row of sorted.slice(0, 6)) {
+    selected.set(row.instrument_id, row);
+  }
+  for (const setup of Object.keys(setupCounts)) {
+    let kept = 0;
+    for (const row of sorted) {
+      if ((row.setup_type ?? "momentum_watch") !== setup) continue;
+      selected.set(row.instrument_id, row);
+      kept += 1;
+      if (kept >= 10) break;
+    }
+  }
+
+  return {
+    ...data,
+    row_count: data.row_count || data.rows.length,
+    setup_counts: setupCounts,
+    rows: sorted.filter((row) => selected.has(row.instrument_id)),
+  };
+}
 
 async function getHeatListUncached(
   market: "US" | "IN" = "US",
 ): Promise<HeatList | null> {
+  const compactDoc = await adminFirestore.collection("tm_heat_list_view").doc(market).get();
+  if (compactDoc.exists) {
+    const data = compactDoc.data() as HeatList;
+    return {
+      ...data,
+      rows: Array.isArray(data.rows) ? data.rows : [],
+    };
+  }
   const doc = await adminFirestore.collection("tm_heat_list").doc(market).get();
   if (!doc.exists) return null;
   const data = doc.data() as HeatList;
   // Defensive: Firestore maps occasionally omit empty arrays - normalise.
-  return {
+  return compactHeatListForView({
     ...data,
     rows: Array.isArray(data.rows) ? data.rows : [],
-  };
+  });
 }
 
 const getHeatListCached = unstable_cache(

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { ScreenMatchesTable } from "@/components/screen-matches-table";
 import { getCurrentMarket } from "@/lib/market";
+import { scrubLegacyBrand } from "@/lib/brand";
 import { getScreenById } from "@/lib/screens";
 
 type Props = {
@@ -12,7 +13,7 @@ type Props = {
 };
 
 const SCREEN_META_INFO: Record<string, { title: string; subtitle: string }> = {
-  tikrr_top: { title: "Top tikrr Score", subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
+  tikrr_top: { title: "Top stocksbrew Score", subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders: { title: "Quality Compounders", subtitle: "Strong businesses built to grow year after year." },
   cheap_growth: { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
   momentum_leaders: { title: "On a Tear", subtitle: "Leading the tape with the long-term trend intact." },
@@ -31,12 +32,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: info.subtitle,
       alternates: { canonical: `/screens/${id}` },
       openGraph: {
-        title: `${info.title} · tikrr`,
+        title: `${info.title} · stocksbrew`,
         description: info.subtitle,
-        url: `https://www.tikrr.online/screens/${id}`,
+        url: `https://www.stocksbrew.online/screens/${id}`,
       },
       twitter: {
-        title: `${info.title} · tikrr`,
+        title: `${info.title} · stocksbrew`,
         description: info.subtitle,
       },
     };
@@ -63,7 +64,7 @@ const SCREEN_META: Record<
 
 const COLUMN_LEGEND = [
   {
-    label: "tikrr score",
+    label: "stocksbrew score",
     body: "Overall score blending growth, momentum, quality and valuation.",
     direction: "Higher = stronger overall",
   },
@@ -103,6 +104,10 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
   const result = await getScreenById(market, params.id);
   if (!result) notFound();
   const { screen } = result;
+  const display = SCREEN_META_INFO[screen.id] ?? {
+    title: scrubLegacyBrand(screen.title),
+    subtitle: scrubLegacyBrand(screen.tagline),
+  };
 
   const meta = SCREEN_META[screen.id] ?? {
     icon: "S",
@@ -123,7 +128,7 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
             Screens
           </Link>
           <span className="text-[#d1d5db]">/</span>
-          <span className="text-[#111111]">{screen.title}</span>
+          <span className="text-[#111111]">{display.title}</span>
         </nav>
 
         {/* Header */}
@@ -144,10 +149,10 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div className="flex flex-col gap-2 max-w-[680px]">
               <h1 className="text-[30px] md:text-[36px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.15]">
-                {screen.title}
+                {display.title}
               </h1>
               <p className="text-[15px] text-[#4a4d55] leading-[1.55]">
-                {screen.tagline}
+                {display.subtitle}
               </p>
             </div>
             <div className="flex items-baseline gap-2 tabular-nums">

@@ -96,7 +96,7 @@ export function FeedbackWidget() {
           ) : (
             <div className="px-5 pb-5 flex flex-col gap-3">
               <p className="text-[13px] text-[#6b7280] leading-relaxed">
-                What feature, data, or insight would make tikrr better for you?
+                What feature, data, or insight would make stocksbrew better for you?
               </p>
               <textarea
                 ref={inputRef}
@@ -106,7 +106,7 @@ export function FeedbackWidget() {
                   setError("");
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="I wish tikrr had…"
+                placeholder="I wish stocksbrew had…"
                 rows={3}
                 autoFocus
                 className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3 text-[14px] text-[#111111] placeholder:text-[#9ca3af] outline-none resize-none focus:border-[#6366f1] focus:bg-white transition-colors"

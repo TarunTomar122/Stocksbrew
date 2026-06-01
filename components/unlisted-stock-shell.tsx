@@ -34,7 +34,7 @@ export function UnlistedStockShell({ ticker, market, redditTickerContext }: Prop
                     {ticker}
                   </span>
                   <span className="text-[12px] text-[#6b7280] leading-snug mt-1">
-                    Not in tikrr&apos;s tracked universe yet. Full quotes and AI briefs will appear once we add it.
+                    Not in stocksbrew&apos;s tracked universe yet. Full quotes and AI briefs will appear once we add it.
                   </span>
                 </div>
               </div>

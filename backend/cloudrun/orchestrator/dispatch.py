@@ -60,6 +60,9 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
 
 
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
+    # `limit` only caps the ranked runtime core. Price-core overrides are the
+    # extended high-priority coverage set and must be included for every
+    # price-core phase, including intraday.
     ranked = _rank_instruments(store, market, universe_id, limit)
     ids: list[str] = []
     seen: set[str] = set()
@@ -268,8 +271,16 @@ def main() -> None:
             "price_core_intraday",
             "open_anomalies",
             "reddit_buzz",
+            "zone_briefs",
+            "market_events",
+            "data_health",
+            "stock_facts",
             "market_open_email",
+            "earnings_intel",
+            "pre_earnings_intel",
             "daily_postclose",
+            "on_demand_news",
+            "stock_requests",
         ],
         required=True,
     )
@@ -285,11 +296,29 @@ def main() -> None:
     parser.add_argument("--max-workers", type=int, default=6)
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
+    parser.add_argument("--on-demand-broad-cap", type=int, default=0)
+    parser.add_argument("--query", default="")
+    parser.add_argument("--prioritize-query", default="")
+    parser.add_argument("--recent-days", type=int, default=3)
+    parser.add_argument("--upcoming-days", type=int, default=7)
+    parser.add_argument("--max-events", type=int, default=20)
+    parser.add_argument("--skip-if-fresh-hours", type=int, default=0)
+    parser.add_argument("--model", default="")
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
     parser.add_argument("--watchlist-with-llm", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+
+    # Cost guardrails: cap intraday fanout server-side so a stale scheduler payload
+    # cannot explode Cloud Run executions/cost.
+    if args.lane == "price_core_intraday":
+        intraday_limit_cap = max(1, int(os.getenv("INTRADAY_LIMIT_CAP", "80")))
+        intraday_shard_min = max(1, int(os.getenv("INTRADAY_SHARD_SIZE_MIN", "40")))
+        intraday_parallel_cap = max(1, int(os.getenv("INTRADAY_MAX_PARALLEL_CAP", "2")))
+        args.limit = min(max(1, args.limit), intraday_limit_cap)
+        args.shard_size = max(args.shard_size, intraday_shard_min)
+        args.max_parallel = min(max(1, args.max_parallel), intraday_parallel_cap)
 
     if not args.project:
         raise ValueError("Missing --project (or GOOGLE_CLOUD_PROJECT)")
@@ -308,8 +337,18 @@ def main() -> None:
         "price_core_intraday": os.getenv("PRICE_CORE_INTRADAY_JOB_NAME", "tikrr-price-core-intraday"),
         "open_anomalies": os.getenv("OPEN_ANOMALIES_JOB_NAME", "tikrr-open-anomalies"),
         "reddit_buzz": os.getenv("REDDIT_BUZZ_JOB_NAME", "tikrr-reddit-buzz"),
+        "zone_briefs": os.getenv("ZONE_BRIEFS_JOB_NAME", "tikrr-zone-briefs"),
+        "market_events": os.getenv("MARKET_EVENTS_JOB_NAME", "tikrr-market-events"),
+        "data_health": os.getenv("DATA_HEALTH_JOB_NAME", "tikrr-data-health"),
+        "stock_facts": os.getenv("STOCK_FACTS_JOB_NAME", "tikrr-stock-facts"),
         "market_open_email": os.getenv("MARKET_OPEN_EMAIL_JOB_NAME", "tikrr-market-open-email"),
+        "earnings_intel": os.getenv("EARNINGS_INTEL_JOB_NAME", "tikrr-earnings-intel"),
+        "pre_earnings_intel": os.getenv(
+            "PRE_EARNINGS_INTEL_JOB_NAME", "tikrr-pre-earnings-intel"
+        ),
         "daily_postclose": os.getenv("DAILY_POSTCLOSE_JOB_NAME", "tikrr-daily-postclose"),
+        "on_demand_news": os.getenv("ON_DEMAND_NEWS_JOB_NAME", "tikrr-on-demand-news"),
+        "stock_requests": os.getenv("STOCK_REQUESTS_JOB_NAME", "tikrr-stock-requests"),
     }
     job_name = job_name_by_lane[args.lane]
 
@@ -370,7 +409,11 @@ def main() -> None:
                 store=store,
             )
             summary["home_refresh"] = home_refresh
-        should_refresh_watchlists = args.refresh_watchlists or args.lane in {"price_core_open", "price_core_intraday"}
+        # Price-core lanes own prices plus shared home/dashboard materialization.
+        # User watchlists are rebuilt by tracked_open_briefs and market_open_email
+        # shortly after open, and by post-close/on-demand flows. Rebuilding them
+        # here duplicates broad per-user work without adding coverage.
+        should_refresh_watchlists = args.refresh_watchlists
         if should_refresh_watchlists:
             summary["watchlist_refresh"] = _refresh_watchlist_views(
                 run_id=run_id,
@@ -447,20 +490,97 @@ def main() -> None:
             universe_id=universe_id,
             metadata={},
         )
+        single_extra_args: list[str] = []
+        if args.lane == "on_demand_news":
+            single_extra_args = [
+                "--limit",
+                str(args.limit),
+                "--per-stock-cap",
+                str(args.per_stock_cap),
+                "--broad-cap",
+                str(args.on_demand_broad_cap),
+            ]
+        elif args.lane == "stock_requests":
+            single_extra_args = ["--limit", str(max(1, args.limit))]
+            query = str(args.query or "").strip().upper()
+            prioritize = str(args.prioritize_query or "").strip().upper()
+            if query:
+                single_extra_args.extend(["--query", query])
+            if prioritize:
+                single_extra_args.extend(["--prioritize-query", prioritize])
+        elif args.lane == "earnings_intel":
+            single_extra_args = [
+                "--recent-days",
+                str(max(0, args.recent_days)),
+                "--max-events",
+                str(max(1, args.max_events)),
+            ]
+            if str(args.model or "").strip():
+                single_extra_args.extend(["--model", str(args.model).strip()])
+        elif args.lane == "pre_earnings_intel":
+            single_extra_args = [
+                "--upcoming-days",
+                str(max(1, args.upcoming_days)),
+                "--max-events",
+                str(max(1, args.max_events)),
+            ]
+            if str(args.model or "").strip():
+                single_extra_args.extend(["--model", str(args.model).strip()])
+        elif args.lane == "zone_briefs":
+            single_extra_args = [
+                "--per-stock-cap",
+                str(args.per_stock_cap),
+                "--chunk-workers",
+                str(args.chunk_workers),
+            ]
+        elif args.lane == "market_events":
+            single_extra_args = ["--limit", str(max(1, args.limit))]
+            if args.skip_if_fresh_hours > 0:
+                single_extra_args.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
+        elif args.lane == "market_open_email":
+            single_extra_args = ["--limit", str(max(0, args.limit))]
+        elif args.lane == "stock_facts":
+            single_extra_args = [
+                "--limit",
+                str(max(0, args.limit)),
+                "--max-workers",
+                str(max(1, args.max_workers)),
+            ]
         summary = _run_single_job_lane(
             lane=args.lane,
             market=args.market,
             universe_id=universe_id,
             run_id=run_id,
             job_name=job_name,
-            extra_args=[],
+            extra_args=single_extra_args,
             client=RunJobsClient(project=args.project, region=args.region),
         )
+        if args.lane == "market_open_email":
+            # Ensure email payload reads freshly materialized Radar rows instead
+            # of potentially stale previous-day watchlist views.
+            summary["watchlist_refresh"] = _refresh_watchlist_views(
+                run_id=run_id,
+                no_llm=True,
+                subscribed_only=False,
+            )
 
     status = "success"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:
         status = "failed"
-    if args.lane in {"daily_postclose", "open_anomalies", "reddit_buzz", "market_open_email"} and summary.get("status") != "success":
+    if args.lane in {
+        "daily_postclose",
+        "open_anomalies",
+        "reddit_buzz",
+        "zone_briefs",
+        "market_events",
+        "data_health",
+        "stock_facts",
+        "market_open_email",
+        "earnings_intel",
+        "pre_earnings_intel",
+        "on_demand_news",
+        "stock_requests",
+    } and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)
     print(summary)

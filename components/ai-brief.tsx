@@ -20,7 +20,7 @@ function formatRelative(iso: string): string {
 export function AiBrief({ brief, mocked }: Props) {
   const data: HeroBrief =
     brief ?? {
-      title: "Market Intelligence Briefing",
+      title: "Stock call",
       body: "No brief available right now. Once the pipeline runs, a synthesized market summary will appear here with verified sources and a live update timestamp.",
       verified_source_count: 0,
       updated_at: new Date().toISOString(),
