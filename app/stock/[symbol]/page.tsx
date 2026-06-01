@@ -124,16 +124,17 @@ function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
 
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
+  const sessionPromise = getSessionUser();
   const cookieMarket = getCurrentMarket();
   // Try the active market first, then fall back to the other one so that
   // sharing an IN link from a US session (or vice-versa) still resolves.
   const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
-  let stock = await getStockSummary(symbol, cookieMarket);
-  let market: "US" | "IN" = cookieMarket;
-  if (!stock) {
-    stock = await getStockSummary(symbol, otherMarket);
-    if (stock) market = otherMarket;
-  }
+  const [stockInCookieMarket, stockInOtherMarket] = await Promise.all([
+    getStockSummary(symbol, cookieMarket),
+    getStockSummary(symbol, otherMarket),
+  ]);
+  const stock = stockInCookieMarket ?? stockInOtherMarket;
+  const market: "US" | "IN" = stockInCookieMarket ? cookieMarket : otherMarket;
   if (!stock) {
     const normalizedTicker = normalizeStockSymbolParam(symbol);
     if (!normalizedTicker) notFound();
@@ -157,7 +158,7 @@ export default async function StockPage({ params }: Props) {
     );
   }
 
-  const session = await getSessionUser();
+  const session = await sessionPromise;
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const tracked = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
@@ -199,9 +200,13 @@ export default async function StockPage({ params }: Props) {
     getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
     getRedditContextForTicker(market, stock.ticker).catch(() => null),
-    getOnDemandNewsJob(stock.instrument_id).catch(() => null),
-    getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null),
-    getPreEarningsIntelUpcoming(market, stock.instrument_id).catch(() => null),
+    subscribed ? getOnDemandNewsJob(stock.instrument_id).catch(() => null) : Promise.resolve(null),
+    subscribed
+      ? getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null)
+      : Promise.resolve(null),
+    subscribed
+      ? getPreEarningsIntelUpcoming(market, stock.instrument_id).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);

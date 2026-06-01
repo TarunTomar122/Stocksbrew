@@ -39,10 +39,11 @@ MARKET_EVENTS_OPEN_SKIP_IF_FRESH_HOURS="${MARKET_EVENTS_OPEN_SKIP_IF_FRESH_HOURS
 CRON_CLOSE_ANOMALIES="${CRON_CLOSE_ANOMALIES:-40 20 * * 1-5}" # 2:10 AM IST (after postclose has usually completed)
 CRON_CLOSE_REDDIT_BUZZ="${CRON_CLOSE_REDDIT_BUZZ:-45 20 * * 1-5}" # 2:15 AM IST (after postclose has usually completed)
 CRON_OPEN_EMAILS="${CRON_OPEN_EMAILS:-42 13 * * 1-5}"     # 7:12 PM IST (after open pipeline + anomalies)
-CRON_INTRADAY="${CRON_INTRADAY:-*/30 13-19 * * 1-5}"      # every 30 min during session
+CRON_INTRADAY="${CRON_INTRADAY:-0 13-19 * * 1-5}"          # hourly baseline during session
+CRON_INTRADAY_OPENBURST="${CRON_INTRADAY_OPENBURST:-30 13-15 * * 1-5}" # extra half-hour cadence near open
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
 CRON_EARNINGS_INTEL="${CRON_EARNINGS_INTEL:-0 21 * * 1-5}" # 2:30 AM IST (after postclose)
-CRON_ON_DEMAND_NEWS="${CRON_ON_DEMAND_NEWS:-0 * * * 1-5}" # hourly backup; track/watchlist APIs dispatch immediately
+CRON_ON_DEMAND_NEWS="${CRON_ON_DEMAND_NEWS:-0 */4 * * 1-5}" # 4-hour backup; track/watchlist APIs dispatch immediately
 CRON_STOCK_REQUESTS="${CRON_STOCK_REQUESTS:-*/30 * * * *}" # every 30m; API also dispatches on each request
 STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
 CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow fundamentals/facts refresh
@@ -127,9 +128,10 @@ printf '%s\n' "$(mk_body open_anomalies "${extra_universe}")" > "${tmp_dir}/clos
 printf '%s\n' "$(mk_body reddit_buzz "${extra_universe}")" > "${tmp_dir}/close_reddit_buzz.json"
 printf '%s\n' "$(mk_body market_open_email "${extra_universe}")" > "${tmp_dir}/open_emails.json"
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday.json"
+printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday_openburst.json"
 printf '%s\n' "$(mk_body daily_postclose "${extra_universe}")" > "${tmp_dir}/postclose.json"
 printf '%s\n' "$(mk_body earnings_intel "${extra_universe},\"--recent-days\",\"3\",\"--max-events\",\"30\"")" > "${tmp_dir}/earnings_intel.json"
-printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"12\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
+printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
@@ -146,6 +148,7 @@ upsert_job "tikrr-close-anomalies" "${CRON_CLOSE_ANOMALIES}" "${tmp_dir}/close_a
 upsert_job "tikrr-close-reddit-buzz" "${CRON_CLOSE_REDDIT_BUZZ}" "${tmp_dir}/close_reddit_buzz.json"
 upsert_job "tikrr-open-emails" "${CRON_OPEN_EMAILS}" "${tmp_dir}/open_emails.json"
 upsert_job "tikrr-intraday-price" "${CRON_INTRADAY}" "${tmp_dir}/intraday.json"
+upsert_job "tikrr-intraday-price-openburst" "${CRON_INTRADAY_OPENBURST}" "${tmp_dir}/intraday_openburst.json"
 upsert_job "tikrr-postclose" "${CRON_POSTCLOSE}" "${tmp_dir}/postclose.json"
 upsert_job "tikrr-earnings-intel" "${CRON_EARNINGS_INTEL}" "${tmp_dir}/earnings_intel.json"
 upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
