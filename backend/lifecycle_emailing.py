@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import html
 from urllib.parse import quote
 from pathlib import Path
 from datetime import datetime, timezone
@@ -97,6 +98,81 @@ def _card(title: str, lines: list[str], cta_label: str, cta_url: str, kicker: st
 </table></td></tr></table></body></html>"""
 
 
+def _esc(value: Any) -> str:
+    return html.escape(str(value or ""))
+
+
+def _rich_shell(
+    *,
+    title: str,
+    eyebrow: str,
+    intro: str,
+    sections: list[str],
+    cta_label: str,
+    cta_url: str,
+    footer: str = "You’re getting this because you use stocksbrew. Not investment advice. Not a broker.",
+    secondary_cta_label: str | None = None,
+    secondary_cta_url: str | None = None,
+) -> str:
+    ctas = [
+        (
+            f"<a href='{_esc(cta_url)}' style='display:inline-block;background:#111111;color:#ffffff;text-decoration:none;"
+            f"font-size:14px;font-weight:700;padding:13px 24px;border-radius:999px'>{_esc(cta_label)} &rarr;</a>"
+        )
+    ]
+    if secondary_cta_label and secondary_cta_url:
+        ctas.append(
+            f"<a href='{_esc(secondary_cta_url)}' style='display:inline-block;margin-left:10px;color:#111111;"
+            f"text-decoration:none;font-size:14px;font-weight:600'>{_esc(secondary_cta_label)} &rarr;</a>"
+        )
+    sections_html = "".join(sections)
+    return f"""<!doctype html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+  <title>{_esc(title)}</title>
+</head>
+<body style='margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif'>
+  <table width='100%' cellpadding='0' cellspacing='0' style='padding:32px 16px'><tr><td align='center'>
+    <table width='580' cellpadding='0' cellspacing='0'>
+      <tr><td style='padding-bottom:20px'><span style='font-size:24px;font-weight:800;color:#111111;letter-spacing:-0.05em'>stocksbrew</span></td></tr>
+    </table>
+    <table width='580' cellpadding='0' cellspacing='0' style='background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden'>
+      <tr><td style='padding:32px'>
+        <div style='font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:12px'>{_esc(eyebrow)}</div>
+        <div style='font-size:30px;font-weight:800;color:#111111;line-height:1.15;letter-spacing:-0.03em;margin-bottom:10px'>{_esc(title)}</div>
+        <div style='font-size:15px;color:#4b5563;line-height:1.65'>{intro}</div>
+      </td></tr>
+      {sections_html}
+      <tr><td style='padding:24px 32px 32px 32px'>{"".join(ctas)}</td></tr>
+    </table>
+    <table width='580' cellpadding='0' cellspacing='0' style='margin-top:18px'>
+      <tr><td style='font-size:12px;color:#9ca3af;line-height:1.7'>{footer}</td></tr>
+    </table>
+  </td></tr></table>
+</body>
+</html>"""
+
+
+def _section(title: str, body: str) -> str:
+    return (
+        "<tr><td style='padding:0 32px'><div style='height:1px;background:#f3f4f6'></div></td></tr>"
+        f"<tr><td style='padding:18px 32px 0 32px'><div style='font-size:12px;font-weight:700;color:#9ca3af;"
+        f"letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px'>{_esc(title)}</div>"
+        f"<div style='font-size:14px;color:#374151;line-height:1.65'>{body}</div></td></tr>"
+    )
+
+
+def _bullet_section(title: str, bullets: list[str]) -> str:
+    items = "".join(
+        f"<li style='margin:0 0 8px 18px'>{_esc(item)}</li>"
+        for item in bullets
+        if str(item or "").strip()
+    )
+    return _section(title, f"<ul style='padding:0;margin:0'>{items}</ul>")
+
+
 def _is_bad_logo_url(raw: str) -> bool:
     s = str(raw or "").strip().lower()
     if not s:
@@ -136,34 +212,48 @@ def email_logo_img(*, ticker: str, logo_url: str | None = None, size: int = 42, 
 
 
 def email_track_blocked(ticker: str | None = None) -> tuple[str, str]:
-    subject = f"Your AI Radar for {ticker or 'this stock'} is one click away"
-    html = _card(
-        title=f"Unlock Radar for {ticker or 'this stock'}",
-        lines=[
-            "You just tried to add a stock to Radar.",
-            "Radar tracking runs personalized buy, hold, and sell calls plus alerts, so this is a Pro feature.",
-            "Upgrade now to track holdings, watchlist names, and get AI stance updates.",
+    label = ticker or "this stock"
+    subject = f"Unlock Radar for {label}"
+    html = _rich_shell(
+        title=f"{label} is where the product starts to matter",
+        eyebrow="Radar locked",
+        intro=(
+            f"You tried to add <strong style='color:#111111'>{_esc(label)}</strong> to Radar. "
+            "That’s the right behavior. The useful version of stocksbrew starts when your names are tracked, scored, and monitored for you."
+        ),
+        sections=[
+            _bullet_section("What Pro unlocks", [
+                "A standing buy / hold / sell call on every stock you track",
+                "A daily Radar email instead of checking five tabs",
+                "Alerts when a thesis or setup actually changes",
+            ]),
+            _section("Why this matters", "Without Radar, you still have a stock page. With Radar, the app becomes a monitoring system."),
         ],
-        cta_label="See Pro plans",
+        cta_label="Unlock Pro Radar",
         cta_url=f"{APP_URL}/subscribe",
-        kicker="Radar locked",
     )
     return subject, html
 
 
 def email_checkout_abandoned(plan: str | None = None) -> tuple[str, str]:
     plan_label = "yearly" if plan == "yearly" else "monthly"
-    subject = "Complete Pro unlock for your Radar"
-    html = _card(
-        title="Finish your Pro checkout",
-        lines=[
-            f"Your {plan_label} checkout was started but not completed.",
-            "Once active, Radar, AI briefs, and full heat/screen views unlock instantly.",
-            "Pick up where you left off in under a minute.",
+    subject = "Finish unlocking Pro"
+    html = _rich_shell(
+        title="You were close. Don’t leave Radar half on.",
+        eyebrow="Checkout pending",
+        intro=(
+            f"Your {plan_label} Pro checkout started but didn’t complete. "
+            "If you’re paying attention to your stocks regularly, this is the point where the product goes from interesting to useful."
+        ),
+        sections=[
+            _bullet_section("What changes once Pro is on", [
+                "Unlimited Radar names instead of a tiny free set",
+                "Daily email with real stance and movement across your book",
+                "Alerts when setups shift into something worth acting on",
+            ]),
         ],
         cta_label="Complete checkout",
         cta_url=f"{APP_URL}/subscribe",
-        kicker="Checkout pending",
     )
     return subject, html
 
@@ -171,48 +261,59 @@ def email_checkout_abandoned(plan: str | None = None) -> tuple[str, str]:
 def email_free_high_intent(tickers: list[str]) -> tuple[str, str]:
     focus = ", ".join(tickers[:3]) if tickers else "your watched stocks"
     subject = f"Stop scanning headlines. Get a stance on {tickers[0] if tickers else 'your stocks'}"
-    html = _card(
-        title="You’ve been researching the same names",
-        lines=[
-            f"Recent activity: {focus}.",
-            "Use Pro Radar to turn those names into tracked positions with AI coverage.",
-            "You’ll get clear catalysts, risks, and what changed since last brief.",
+    html = _rich_shell(
+        title="You’re doing the work manually right now",
+        eyebrow="High intent detected",
+        intro=(
+            f"We keep seeing the same names in your research flow: <strong style='color:#111111'>{_esc(focus)}</strong>. "
+            "That usually means one thing: you care enough to check, but you still don’t have a system running for you."
+        ),
+        sections=[
+            _section("What Radar changes", "Instead of re-reading news and rechecking charts, you get one standing stance, the reason it changed, and the next action to consider."),
         ],
-        cta_label="Unlock Pro Radar",
+        cta_label="Turn these into Radar names",
         cta_url=f"{APP_URL}/subscribe",
-        kicker="High intent detected",
     )
     return subject, html
 
 
 def email_free_alert_teaser(ticker: str) -> tuple[str, str]:
     subject = f"Get emailed the moment {ticker} crosses your level"
-    html = _card(
-        title=f"Set instant alert coverage for {ticker}",
-        lines=[
-            "You’ve checked this stock multiple times recently.",
-            "With Pro, you can set price alerts and get notified the moment thresholds break.",
-            "No need to keep refreshing the page.",
+    html = _rich_shell(
+        title=f"Stop refreshing {ticker}",
+        eyebrow="Alert teaser",
+        intro=(
+            f"You’ve come back to <strong style='color:#111111'>{_esc(ticker)}</strong> more than once. "
+            "That usually means you’re waiting for a price or setup condition. Let the app watch it."
+        ),
+        sections=[
+            _bullet_section("What the alert should do", [
+                "Tell you the level broke",
+                "Explain whether the move helps or hurts the thesis",
+                "Point you back to the stock page with current context",
+            ])
         ],
         cta_label="Unlock alerts",
         cta_url=f"{APP_URL}/subscribe",
-        kicker="Alert teaser",
     )
     return subject, html
 
 
 def email_pro_welcome() -> tuple[str, str]:
     subject = "Pro is active. Do these 3 things now"
-    html = _card(
-        title="You’re in. Radar is unlocked.",
-        lines=[
-            "1) Add your core holdings to Radar.",
-            "2) Add watchlist names you’re stalking.",
-            "3) Set at least one price alert so you never miss a break.",
+    html = _rich_shell(
+        title="Radar is live. Make it useful today.",
+        eyebrow="Pro active",
+        intro="Most people underuse products like this in the first five minutes. Do the setup once and the emails become much better.",
+        sections=[
+            _bullet_section("Do these now", [
+                "Add core holdings first so the daily digest is position-aware",
+                "Add stalking names second so you get idea flow, not just maintenance",
+                "Set at least one alert so you feel the product pull you back at the right time",
+            ])
         ],
         cta_label="Open Radar",
         cta_url=f"{APP_URL}/watchlist",
-        kicker="Pro active",
     )
     return subject, html
 
@@ -238,15 +339,79 @@ def email_pro_directive_change(
             "This is a fresh stance change from your previous Radar build."
             f" ({prev_stance} → {new_stance})"
         )
-    html = _card(
+    html = _rich_shell(
         title=title,
-        lines=[
-            line,
-            "This email only fires on stance transitions, not on every refresh.",
+        eyebrow="Directive change",
+        intro=(
+            f"<strong style='color:#111111'>{_esc(ticker)}</strong> moved from "
+            f"<strong>{_esc(prev_stance.title())}</strong> to <strong>{_esc(new_stance.title())}</strong> in your "
+            f"{'holdings' if pos == 'holding' else 'watchlist'}."
+        ),
+        sections=[
+            _section("What changed", _esc(line)),
+            _section("Why you got this", "This only fires on actual stance transitions, not on every Radar rebuild."),
         ],
         cta_label=f"Open {ticker} in Radar",
         cta_url=f"{APP_URL}/watchlist",
-        kicker="Directive change",
+    )
+    return subject, html
+
+
+def email_first_radar_item(first_name: str) -> tuple[str, str]:
+    subject = "Your first Radar stock is live"
+    html = _rich_shell(
+        title=f"{first_name}, your first stock is being watched now",
+        eyebrow="Radar started",
+        intro=(
+            "You added your first Radar name. Good. The next step is making the product smart enough to reflect your actual book, not one isolated stock."
+        ),
+        sections=[
+            _bullet_section("Best next moves", [
+                "Add the holdings you care about most",
+                "Add one or two names you are stalking",
+                "Reply if something in the brief feels off or missing",
+            ]),
+        ],
+        cta_label="Open your Radar",
+        cta_url=f"{APP_URL}/watchlist",
+    )
+    return subject, html
+
+
+def email_pro_earnings_setup(doc: dict[str, Any], *, position_type: str = "watchlist") -> tuple[str, str]:
+    report = doc.get("report") or {}
+    decision = report.get("decision_guide") or {}
+    setup = report.get("setup") or {}
+    ticker = str(doc.get("ticker") or "").strip().upper()
+    event_date = str(doc.get("event_date") or "").strip()
+    headline = str(report.get("headline") or f"{ticker} earnings setup").strip()
+    summary = str(report.get("summary") or "").strip()
+    holder_line = str(decision.get("for_holders") or "").strip()
+    watcher_line = str(decision.get("for_watchers") or "").strip()
+    confidence = (report.get("confidence") or {}).get("score_0_100")
+    subject = f"{ticker} reports soon: what to watch"
+    audience_line = holder_line if position_type == "holding" else watcher_line
+    confidence_line = f"Confidence: {int(confidence)}/100." if isinstance(confidence, (int, float)) else ""
+    html = _rich_shell(
+        title=headline or f"{ticker} earnings setup",
+        eyebrow="Earnings setup",
+        intro=(
+            f"<strong style='color:#111111'>{_esc(ticker)}</strong> reports on <strong>{_esc(event_date)}</strong>. "
+            f"{_esc(summary)}"
+        ),
+        sections=[
+            _section("What to do", _esc(audience_line or "Open the full setup and review the decision guide before the print.")),
+            _section(
+                "Why the setup matters",
+                _esc(str(setup.get("pre_earnings_positioning") or "")) + (f" {_esc(confidence_line)}" if confidence_line else ""),
+            ),
+            _bullet_section(
+                "Key monitor list",
+                [str(item) for item in (decision.get("key_monitor_list") or [])[:4]],
+            ),
+        ],
+        cta_label=f"Open {ticker}",
+        cta_url=f"{APP_URL}/stock/{ticker}",
     )
     return subject, html
 

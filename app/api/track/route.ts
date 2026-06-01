@@ -8,6 +8,7 @@ import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
+import { logEmailSend } from "@/lib/email-log";
 import { sendTransactionalEmail, buildFirstRadarItemEmail, firstNameFromEmail } from "@/lib/brevo";
 
 import { FieldValue } from "firebase-admin/firestore";
@@ -51,6 +52,15 @@ async function maybeFireFirstRadarItemEmail(
   const sent = await sendTransactionalEmail(email, subject, html);
   if (sent) {
     await logRef.set({ uid, email, sent_at: new Date().toISOString() });
+    await logEmailSend({
+      uid,
+      email,
+      emailType: "subscriber_first_radar",
+      dedupeKey,
+      subject,
+      triggerType: "track_post",
+      meta: { source: "first_radar_item" },
+    }).catch(() => undefined);
     await recordLifecycleEvent({
       uid,
       email,

@@ -1,10 +1,12 @@
-"""Send lifecycle emails for free conversion + pro wow flows.
+"""Send lifecycle emails for free conversion + pro lifecycle flows.
 
 Usage:
   python -m backend.scripts.send_lifecycle_emails
+  python -m backend.scripts.send_lifecycle_emails --skip-pro-daily-digest --skip-pro-directive-change
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from collections import defaultdict
@@ -13,12 +15,14 @@ from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from backend.email_runtime import load_recent_send_index, log_email_send, parse_iso  # noqa: E402
 from backend.lifecycle_emailing import (  # noqa: E402
     email_checkout_abandoned,
     email_free_alert_teaser,
     email_free_high_intent,
     email_pro_directive_change,
     email_pro_daily_digest,
+    email_pro_earnings_setup,
     email_pro_welcome,
     email_track_blocked,
     now_iso,
@@ -31,34 +35,12 @@ class RunCache:
     def __init__(self, store: TraceMoneyStore, lookback_hours: int = 720) -> None:
         self.store = store
         self.users: dict[str, dict[str, Any]] = {}
-        self.recent_sends: dict[tuple[str, str], datetime] = {}
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
-        logs = store.db.collection("tm_lifecycle_email_log").where("created_at", ">=", cutoff.isoformat()).stream()
-        for doc in logs:
-            row = doc.to_dict() or {}
-            uid = str(row.get("uid") or "")
-            template = str(row.get("template") or "")
-            created = _parse_iso(row.get("created_at"))
-            if not uid or not template or not created:
-                continue
-            key = (uid, template)
-            if created > self.recent_sends.get(key, datetime.min.replace(tzinfo=timezone.utc)):
-                self.recent_sends[key] = created
+        self.recent_sends = load_recent_send_index(store, lookback_hours=lookback_hours)
 
     def user(self, uid: str) -> dict[str, Any]:
         if uid not in self.users:
             self.users[uid] = self.store.db.collection("users").document(uid).get().to_dict() or {}
         return self.users[uid]
-
-
-def _parse_iso(value: Any) -> datetime | None:
-    s = str(value or "").strip()
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except Exception:
-        return None
 
 
 def _email_opted_in(user: dict[str, Any], pref_key: str) -> bool:
@@ -76,20 +58,23 @@ def _sent_recent(cache: RunCache, uid: str, template: str, hours: int) -> bool:
 def _log_send(cache: RunCache, uid: str, email: str, template: str, meta: dict[str, Any]) -> None:
     created_at = now_iso()
     cache.store.db.collection("tm_lifecycle_email_log").add(
-        {
-            "uid": uid,
-            "email": email,
-            "template": template,
-            "meta": meta,
-            "created_at": created_at,
-        }
+        {"uid": uid, "email": email, "template": template, "meta": meta, "created_at": created_at}
     )
-    parsed = _parse_iso(created_at)
+    log_email_send(
+        cache.store,
+        uid=uid,
+        email=email,
+        email_type=template,
+        dedupe_key=template,
+        subject=str(meta.get("subject") or template),
+        meta=meta,
+    )
+    parsed = parse_iso(created_at)
     if parsed:
         cache.recent_sends[(uid, template)] = parsed
 
 
-def _process_track_blocked(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_track_blocked(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     events = (
         store.db.collection("tm_lifecycle_events")
@@ -118,15 +103,17 @@ def _process_track_blocked(store: TraceMoneyStore, cache: RunCache) -> int:
         instrument_id = str(payload.get("instrument_id") or "")
         ticker = instrument_id.split("_", 1)[-1] if "_" in instrument_id else None
         subject, body = email_track_blocked(ticker)
-        ok = send_email(email, subject, body)
-        event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
+        ok = True if dry_run else send_email(email, subject, body)
+        if not dry_run:
+            event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
         if ok:
-            _log_send(cache, uid, email, "free_track_blocked", {"ticker": ticker})
+            if not dry_run:
+                _log_send(cache, uid, email, "free_track_blocked", {"ticker": ticker, "subject": subject})
             sent += 1
     return sent
 
 
-def _process_checkout_abandon(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_checkout_abandon(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     now = datetime.now(timezone.utc)
     events = (
@@ -139,7 +126,7 @@ def _process_checkout_abandon(store: TraceMoneyStore, cache: RunCache) -> int:
         data = event.to_dict() or {}
         uid = str(data.get("uid") or "")
         email = str(data.get("email") or "").strip()
-        created = _parse_iso(data.get("created_at"))
+        created = parse_iso(data.get("created_at"))
         if not uid or not email or not created:
             event.reference.update({"processed_at": now_iso(), "skip_reason": "missing_fields"})
             continue
@@ -158,15 +145,17 @@ def _process_checkout_abandon(store: TraceMoneyStore, cache: RunCache) -> int:
             continue
         payload = data.get("payload") or {}
         subject, body = email_checkout_abandoned(str(payload.get("plan") or "monthly"))
-        ok = send_email(email, subject, body)
-        event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
+        ok = True if dry_run else send_email(email, subject, body)
+        if not dry_run:
+            event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
         if ok:
-            _log_send(cache, uid, email, "free_checkout_abandon", {"age_hours": age_hours})
+            if not dry_run:
+                _log_send(cache, uid, email, "free_checkout_abandon", {"age_hours": age_hours, "subject": subject})
             sent += 1
     return sent
 
 
-def _process_free_high_intent(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_free_high_intent(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     views = store.db.collection("tm_stock_views").where("created_at", ">=", cutoff.isoformat()).stream()
@@ -193,14 +182,21 @@ def _process_free_high_intent(store: TraceMoneyStore, cache: RunCache) -> int:
         if _sent_recent(cache, uid, "free_high_intent_views", 168):
             continue
         subject, body = email_free_high_intent(tickers)
-        ok = send_email(email, subject, body)
+        ok = True if dry_run else send_email(email, subject, body)
         if ok:
-            _log_send(cache, uid, email, "free_high_intent_views", {"views": view_count, "tickers": tickers[:5]})
+            if not dry_run:
+                _log_send(
+                    cache,
+                    uid,
+                    email,
+                    "free_high_intent_views",
+                    {"views": view_count, "tickers": tickers[:5], "subject": subject},
+                )
             sent += 1
     return sent
 
 
-def _process_free_alert_teaser(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_free_alert_teaser(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     cutoff = datetime.now(timezone.utc) - timedelta(days=2)
     views = store.db.collection("tm_stock_views").where("created_at", ">=", cutoff.isoformat()).stream()
@@ -232,14 +228,15 @@ def _process_free_alert_teaser(store: TraceMoneyStore, cache: RunCache) -> int:
         if _sent_recent(cache, uid, "free_alert_teaser", 168):
             continue
         subject, body = email_free_alert_teaser(ticker)
-        ok = send_email(email, subject, body)
+        ok = True if dry_run else send_email(email, subject, body)
         if ok:
-            _log_send(cache, uid, email, "free_alert_teaser", {"ticker": ticker, "views": count})
+            if not dry_run:
+                _log_send(cache, uid, email, "free_alert_teaser", {"ticker": ticker, "views": count, "subject": subject})
             sent += 1
     return sent
 
 
-def _process_pro_welcome(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_pro_welcome(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     events = (
         store.db.collection("tm_lifecycle_events")
@@ -264,15 +261,17 @@ def _process_pro_welcome(store: TraceMoneyStore, cache: RunCache) -> int:
             event.reference.update({"processed_at": now_iso(), "skip_reason": "deduped"})
             continue
         subject, body = email_pro_welcome()
-        ok = send_email(email, subject, body)
-        event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
+        ok = True if dry_run else send_email(email, subject, body)
+        if not dry_run:
+            event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
         if ok:
-            _log_send(cache, uid, email, "pro_welcome", {})
+            if not dry_run:
+                _log_send(cache, uid, email, "pro_welcome", {"subject": subject})
             sent += 1
     return sent
 
 
-def _process_pro_daily_digest(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_pro_daily_digest(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     users = store.db.collection("users").where("is_subscribed", "==", True).stream()
     for doc in users:
@@ -292,14 +291,15 @@ def _process_pro_daily_digest(store: TraceMoneyStore, cache: RunCache) -> int:
             continue
         market_rows = store.get_market_price_snapshot("US")
         subject, body = email_pro_daily_digest(rows, market_rows)
-        ok = send_email(email, subject, body)
+        ok = True if dry_run else send_email(email, subject, body)
         if ok:
-            _log_send(cache, uid, email, "pro_daily_digest", {"rows": len(rows)})
+            if not dry_run:
+                _log_send(cache, uid, email, "pro_daily_digest", {"rows": len(rows), "subject": subject})
             sent += 1
     return sent
 
 
-def _process_pro_directive_changes(store: TraceMoneyStore, cache: RunCache) -> int:
+def _process_pro_directive_changes(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
     sent = 0
     events = (
         store.db.collection("tm_lifecycle_events")
@@ -355,37 +355,115 @@ def _process_pro_directive_changes(store: TraceMoneyStore, cache: RunCache) -> i
             new_stance=new_stance,
             directive_text=directive_text,
         )
-        ok = send_email(email, subject, body)
-        event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
+        ok = True if dry_run else send_email(email, subject, body)
+        if not dry_run:
+            event.reference.update({"processed_at": now_iso(), "email_sent": bool(ok)})
         if ok:
-            _log_send(
-                cache,
-                uid,
-                email,
-                dedupe_key,
-                {
-                    "ticker": ticker,
-                    "position_type": position_type,
-                    "prev_stance": prev_stance,
-                    "new_stance": new_stance,
-                },
-            )
+            if not dry_run:
+                _log_send(
+                    cache,
+                    uid,
+                    email,
+                    dedupe_key,
+                    {
+                        "ticker": ticker,
+                        "position_type": position_type,
+                        "prev_stance": prev_stance,
+                        "new_stance": new_stance,
+                        "subject": subject,
+                    },
+                )
             sent += 1
     return sent
 
 
-def main() -> None:
+def _process_pro_earnings_setup(store: TraceMoneyStore, cache: RunCache, *, dry_run: bool = False) -> int:
+    sent = 0
+    users = store.db.collection("users").where("is_subscribed", "==", True).stream()
+    for doc in users:
+        uid = doc.id
+        user = doc.to_dict() or {}
+        if not _email_opted_in(user, "email_alerts_enabled"):
+            continue
+        email = str(user.get("email") or user.get("email_lower") or "").strip()
+        if not email:
+            continue
+        tracked = [str(i).strip().upper() for i in (user.get("tracked_stocks") or []) if str(i).strip()]
+        if not tracked:
+            continue
+        refs = [store.db.collection("tm_pre_earnings_intel").document(f"US__{iid}__upcoming") for iid in tracked if iid.startswith("US_")]
+        if not refs:
+            continue
+        docs = [snap.to_dict() or {} for snap in store.db.get_all(refs) if snap.exists]
+        docs = [row for row in docs if row.get("event_date") and row.get("ticker")]
+        docs.sort(key=lambda row: (int(row.get("days_until") or 99), -int(((row.get("report") or {}).get("confidence") or {}).get("score_0_100") or 0)))
+        doc_row = next((row for row in docs if int(row.get("days_until") or 99) <= 3), None)
+        if not doc_row:
+            continue
+        ticker = str(doc_row.get("ticker") or "").strip().upper()
+        event_date = str(doc_row.get("event_date") or "").strip()
+        dedupe_key = f"pro_earnings_setup_{ticker}_{event_date}"
+        if _sent_recent(cache, uid, dedupe_key, 96):
+            continue
+        position_type = "holding" if str(doc_row.get("instrument_id") or "") in {
+            str(key).strip().upper()
+            for key, value in ((user.get("watchlist_positions") or {}) or {}).items()
+            if value == "holding"
+        } else "watchlist"
+        subject, body = email_pro_earnings_setup(doc_row, position_type=position_type)
+        ok = True if dry_run else send_email(email, subject, body)
+        if ok:
+            if not dry_run:
+                _log_send(
+                    cache,
+                    uid,
+                    email,
+                    dedupe_key,
+                    {"ticker": ticker, "event_date": event_date, "subject": subject, "position_type": position_type},
+                )
+            sent += 1
+    return sent
+
+
+def run_lifecycle_emails(
+    *,
+    include_pro_daily_digest: bool = True,
+    include_pro_directive_change: bool = True,
+    include_pro_earnings_setup: bool = True,
+    dry_run: bool = False,
+) -> dict[str, int]:
     store = TraceMoneyStore()
     cache = RunCache(store)
     totals = {
-        "free_track_blocked": _process_track_blocked(store, cache),
-        "free_checkout_abandon": _process_checkout_abandon(store, cache),
-        "free_high_intent_views": _process_free_high_intent(store, cache),
-        "free_alert_teaser": _process_free_alert_teaser(store, cache),
-        "pro_welcome": _process_pro_welcome(store, cache),
-        "pro_daily_digest": _process_pro_daily_digest(store, cache),
-        "pro_directive_change": _process_pro_directive_changes(store, cache),
+        "free_track_blocked": _process_track_blocked(store, cache, dry_run=dry_run),
+        "free_checkout_abandon": _process_checkout_abandon(store, cache, dry_run=dry_run),
+        "free_high_intent_views": _process_free_high_intent(store, cache, dry_run=dry_run),
+        "free_alert_teaser": _process_free_alert_teaser(store, cache, dry_run=dry_run),
+        "pro_welcome": _process_pro_welcome(store, cache, dry_run=dry_run),
     }
+    if include_pro_daily_digest:
+        totals["pro_daily_digest"] = _process_pro_daily_digest(store, cache, dry_run=dry_run)
+    if include_pro_directive_change:
+        totals["pro_directive_change"] = _process_pro_directive_changes(store, cache, dry_run=dry_run)
+    if include_pro_earnings_setup:
+        totals["pro_earnings_setup"] = _process_pro_earnings_setup(store, cache, dry_run=dry_run)
+    return totals
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Send lifecycle and conversion emails")
+    parser.add_argument("--skip-pro-daily-digest", action="store_true")
+    parser.add_argument("--skip-pro-directive-change", action="store_true")
+    parser.add_argument("--skip-pro-earnings-setup", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    totals = run_lifecycle_emails(
+        include_pro_daily_digest=not args.skip_pro_daily_digest,
+        include_pro_directive_change=not args.skip_pro_directive_change,
+        include_pro_earnings_setup=not args.skip_pro_earnings_setup,
+        dry_run=bool(args.dry_run),
+    )
     print("Lifecycle email run summary:")
     for key, value in totals.items():
         print(f"  {key}: {value}")

@@ -537,6 +537,8 @@ def main() -> None:
             single_extra_args = ["--limit", str(max(1, args.limit))]
             if args.skip_if_fresh_hours > 0:
                 single_extra_args.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
+        elif args.lane == "market_open_email":
+            single_extra_args = ["--limit", str(max(0, args.limit))]
         elif args.lane == "stock_facts":
             single_extra_args = [
                 "--limit",

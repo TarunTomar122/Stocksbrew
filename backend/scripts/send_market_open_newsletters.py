@@ -10,6 +10,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.email_runtime import log_email_send
 from backend.lifecycle_emailing import email_pro_daily_digest, send_email
 from backend.scripts.send_market_open_newsletter_preview import (
     _build_generic_market_newsletter,
@@ -77,14 +78,8 @@ def _mark_sent(
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Send market-open newsletter to all free+pro users")
-    parser.add_argument("--market", default="US")
-    parser.add_argument("--limit", type=int, default=0, help="optional max users to process (0 = no limit)")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
-
-    market = str(args.market or "US").upper()
+def run_market_open_newsletters(*, market: str = "US", limit: int = 0, dry_run: bool = False) -> dict[str, Any]:
+    market = str(market or "US").upper()
     store = TraceMoneyStore()
     today = _today_key()
 
@@ -116,7 +111,7 @@ def main() -> None:
 
     total = sent = skipped = failed = 0
     for doc in users:
-        if args.limit and total >= args.limit:
+        if limit and total >= limit:
             break
         uid = doc.id
         user = doc.to_dict() or {}
@@ -151,7 +146,7 @@ def main() -> None:
                 )
                 mode = "personalized"
 
-        if args.dry_run:
+        if dry_run:
             skipped += 1
             continue
 
@@ -167,22 +162,47 @@ def main() -> None:
             sent=ok,
         )
         if ok:
+            log_email_send(
+                store,
+                uid=uid,
+                email=email,
+                email_type="subscriber_daily_digest" if mode == "personalized" else "free_market_digest",
+                dedupe_key=f"{mode}_{today}",
+                subject=subject,
+                trigger_type="market_open_email",
+                meta={"market": market, "mode": mode},
+            )
             sent += 1
         else:
             failed += 1
 
-    print(
-        {
-            "market": market,
-            "date": today,
-            "total_users_scanned": total,
-            "sent": sent,
-            "skipped": skipped,
-            "failed": failed,
-        }
-    )
-    if failed > 0 and not args.dry_run:
+    summary = {
+        "market": market,
+        "date": today,
+        "total_users_scanned": total,
+        "sent": sent,
+        "skipped": skipped,
+        "failed": failed,
+    }
+    if failed > 0 and not dry_run:
         raise SystemExit(1)
+    return summary
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Send market-open newsletter to all free+pro users")
+    parser.add_argument("--market", default="US")
+    parser.add_argument("--limit", type=int, default=0, help="optional max users to process (0 = no limit)")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    print(
+        run_market_open_newsletters(
+            market=str(args.market or "US").upper(),
+            limit=max(0, int(args.limit or 0)),
+            dry_run=bool(args.dry_run),
+        )
+    )
 
 
 if __name__ == "__main__":

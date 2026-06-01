@@ -38,7 +38,7 @@ export async function sendTransactionalEmail(
 }
 
 export function buildFirstRadarItemEmail(firstName: string): { subject: string; html: string } {
-  const subject = "getting value from stocksbrew?";
+  const subject = "Your first Radar stock is live";
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -52,31 +52,40 @@ export function buildFirstRadarItemEmail(firstName: string): { subject: string; 
 
       <table width="580" cellpadding="0" cellspacing="0">
         <tr><td style="padding-bottom:20px">
-          <span style="font-size:24px;font-weight:800;color:#6d28d9;letter-spacing:-0.05em">stocksbrew</span>
+          <span style="font-size:24px;font-weight:800;color:#111111;letter-spacing:-0.05em">stocksbrew</span>
         </td></tr>
       </table>
 
       <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden">
 
         <tr>
-          <td style="padding:36px 32px 28px 32px">
-            <div style="font-size:28px;font-weight:800;color:#111111;line-height:1.2;letter-spacing:-0.03em;margin-bottom:20px">
-              Hey ${firstName}, quick check-in
+          <td style="padding:32px 32px 24px 32px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:12px">
+              Radar started
+            </div>
+            <div style="font-size:30px;font-weight:800;color:#111111;line-height:1.15;letter-spacing:-0.03em;margin-bottom:12px">
+              ${firstName}, your first stock is being watched now
             </div>
             <div style="font-size:15px;color:#374151;line-height:1.75">
               <p style="margin:0 0 16px 0">
-                You added your first stock to Radar. Wanted to make sure it's actually useful for you.
-              </p>
-              <p style="margin:0 0 16px 0">
-                Radar runs daily AI analysis across everything you track, prices, news, fundamentals, and builds a clear buy / hold / sell call for each position. The goal is that you never have to wonder "so what do I do with this?" again.
-              </p>
-              <p style="margin:0 0 16px 0">
-                If something feels off, missing, or you want a feature that doesn't exist yet, just reply to this email. I read every reply and ship fast when I hear a real need.
-              </p>
-              <p style="margin:0">
-                Talk soon,<br />Tarun
+                You added your first Radar name. Good. The next step is making the product reflect your real book, not one isolated ticker.
               </p>
             </div>
+          </td>
+        </tr>
+
+        <tr><td style="padding:0 32px"><div style="height:1px;background:#f3f4f6"></div></td></tr>
+
+        <tr>
+          <td style="padding:18px 32px 0 32px">
+            <div style="font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px">
+              Best next moves
+            </div>
+            <ul style="padding:0;margin:0;font-size:14px;color:#374151;line-height:1.7">
+              <li style="margin:0 0 8px 18px">Add the holdings you care about most.</li>
+              <li style="margin:0 0 8px 18px">Add one or two stalking names so the daily email has idea flow.</li>
+              <li style="margin:0 0 8px 18px">Reply if a brief feels off or something important is missing.</li>
+            </ul>
           </td>
         </tr>
 
