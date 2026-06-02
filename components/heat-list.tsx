@@ -6,7 +6,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { HeatList, HeatRow } from "@/lib/heat";
 import type { DivergenceList, DivergenceRow } from "@/lib/divergence";
-import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
+import { SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 const ROWS_PER_TAB = 10;
 const SIDE_RAIL_ROWS = 6;
@@ -398,17 +398,16 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
 
       {/* Right rail */}
       <section className="flex flex-col gap-4 min-w-0">
-        {freshness ? (
+        {relativeTime(data.generated_at) && (
           <div className="flex items-center justify-between gap-3">
-            <span className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${freshness.toneClass}`}>
-              {freshness.label}
-              {freshness.relative ? ` · ${freshness.relative}` : ""}
+            <span className="text-[11px] text-[#9ca3af]">
+              Updated {relativeTime(data.generated_at)}
             </span>
-            {freshness.status === "stale" && (
+            {SHOW_DATA_FRESHNESS_UI && freshness?.status === "stale" && (
               <span className="text-[11px] text-[#991b1b]">Heat data is older than 72h</span>
             )}
           </div>
-        ) : null}
+        )}
         <SetupPills
           counts={counts}
           active={activeTab}

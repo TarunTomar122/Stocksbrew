@@ -8,7 +8,7 @@ import { TrackButton } from "@/components/track-button";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
-import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -272,12 +272,11 @@ export function AnomaliesPageView({
             </div>
             <p className="text-[12px] text-[#9ca3af]">
               {summary}
-              {anomaliesFreshness ? (
-                <>
-                  {" "}
-                  · <span className={anomaliesFreshness.toneClass}>{anomaliesFreshness.label}</span>
-                  {anomaliesFreshness.relative ? ` · ${anomaliesFreshness.relative}` : ""}
-                </>
+              {relativeTime(generatedAt) && (
+                <> · Updated {relativeTime(generatedAt)}</>
+              )}
+              {SHOW_DATA_FRESHNESS_UI && anomaliesFreshness ? (
+                <> · <span className={anomaliesFreshness.toneClass}>{anomaliesFreshness.label}</span></>
               ) : null}
             </p>
           </div>
@@ -317,12 +316,11 @@ export function AnomaliesPageView({
             </div>
             <p className="text-[12px] text-[#9ca3af]">
               {reddit!.post_count} posts scanned
-              {redditFreshness ? (
-                <>
-                  {" "}
-                  · <span className={redditFreshness.toneClass}>{redditFreshness.label}</span>
-                  {redditFreshness.relative ? ` · ${redditFreshness.relative}` : ""}
-                </>
+              {relativeTime(reddit?.generated_at) && (
+                <> · Updated {relativeTime(reddit?.generated_at)}</>
+              )}
+              {SHOW_DATA_FRESHNESS_UI && redditFreshness ? (
+                <> · <span className={redditFreshness.toneClass}>{redditFreshness.label}</span></>
               ) : null}
             </p>
           </div>

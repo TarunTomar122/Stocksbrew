@@ -4,7 +4,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
-import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
   anomalies: AnomalyItem[];
@@ -129,11 +129,13 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
           </div>
           <p className="text-[12px] text-[#9ca3af]">
             {summary}
-            {freshness ? (
+            {relativeTime(generatedAt) && (
+              <> · Updated {relativeTime(generatedAt)}</>
+            )}
+            {SHOW_DATA_FRESHNESS_UI && freshness ? (
               <>
                 {" "}
                 · <span className={freshness.toneClass}>{freshness.label}</span>
-                {freshness.relative ? ` · ${freshness.relative}` : ""}
               </>
             ) : null}
           </p>

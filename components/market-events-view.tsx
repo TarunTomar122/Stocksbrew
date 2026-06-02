@@ -7,7 +7,7 @@ import {
   groupEventsByReportDate,
   type MarketEvent,
 } from "@/lib/market-events-shared";
-import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
+import { SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
   if (!Number.isFinite(v)) return "—";
@@ -27,7 +27,7 @@ function hookLine(event: MarketEvent): string {
   return event.title;
 }
 
-function EventCard({ event }: { event: MarketEvent }) {
+function EventCard({ event, predicted }: { event: MarketEvent; predicted?: boolean }) {
   const href = event.ticker
     ? `/stock/${encodeURIComponent(event.ticker)}`
     : null;
@@ -65,14 +65,21 @@ function EventCard({ event }: { event: MarketEvent }) {
             ) : null}
           </div>
         </div>
-        {hasChange && (
-          <span
-            className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums"
-            style={{ background: changeBg, color: changeColor }}
-          >
-            {isUp ? "▲" : "▼"} {fmtPct(event.day_change_pct!)}
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {predicted && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#f0fdf4] px-2 py-0.5 text-[11px] font-semibold text-[#16a34a]">
+              ✓ Called it
+            </span>
+          )}
+          {hasChange && (
+            <span
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums"
+              style={{ background: changeBg, color: changeColor }}
+            >
+              {isUp ? "▲" : "▼"} {fmtPct(event.day_change_pct!)}
+            </span>
+          )}
+        </div>
       </div>
 
       {hasPrice && (
@@ -116,11 +123,13 @@ export function MarketEventsView({
   events,
   summary,
   generatedAt,
+  predictionHits,
   afterHeader,
 }: {
   events: MarketEvent[];
   summary: string;
   generatedAt: string;
+  predictionHits?: Set<string>;
   afterHeader?: React.ReactNode;
 }) {
   const freshness = SHOW_DATA_FRESHNESS_UI
@@ -137,10 +146,14 @@ export function MarketEventsView({
           <h1 className="text-[32px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[40px]">
             Earnings
           </h1>
-          {hasReported && freshness ? (
+          {hasReported && relativeTime(generatedAt) && (
+            <span className="text-[12px] font-medium text-[#9ca3af]">
+              Updated {relativeTime(generatedAt)}
+            </span>
+          )}
+          {SHOW_DATA_FRESHNESS_UI && hasReported && freshness ? (
             <span className={`text-[12px] font-medium ${freshness.toneClass}`}>
               {freshness.label}
-              {freshness.relative ? ` · ${freshness.relative}` : ""}
             </span>
           ) : null}
         </div>
@@ -178,7 +191,11 @@ export function MarketEventsView({
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                 {section.events.map((event) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    predicted={predictionHits?.has(event.instrument_id)}
+                  />
                 ))}
               </div>
             </section>

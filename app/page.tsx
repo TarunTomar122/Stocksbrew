@@ -406,7 +406,7 @@ async function HomeEventsStream() {
   const market = getCurrentMarket();
   const data = await getMarketEvents(market).catch(() => null);
   if (!data || data.events.length === 0) return null;
-  return <HomeEventsStrip events={data.events} />;
+  return <HomeEventsStrip events={data.events} generatedAt={data.generated_at} />;
 }
 
 async function HomeRedditStream() {

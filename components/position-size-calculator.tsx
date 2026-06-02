@@ -218,6 +218,12 @@ export function PositionSizeCalculator() {
               >
                 Run Should I Buy on {tickerSlug}
               </Link>
+              <Link
+                href="/compare-stocks"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
+              >
+                Compare stocks
+              </Link>
             </div>
           )}
 
@@ -234,6 +240,12 @@ export function PositionSizeCalculator() {
                 className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
               >
                 Try Should I Buy
+              </Link>
+              <Link
+                href="/compare-stocks"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
+              >
+                Compare stocks
               </Link>
             </div>
           )}

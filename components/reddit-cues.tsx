@@ -3,7 +3,7 @@ import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
-import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
   data: RedditSnapshot;
@@ -106,12 +106,11 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
           </div>
           <p className="text-[12px] text-[#9ca3af]">
             {data.post_count} posts scanned
-            {freshness ? (
-              <>
-                {" "}
-                · <span className={freshness.toneClass}>{freshness.label}</span>
-                {freshness.relative ? ` · ${freshness.relative}` : ""}
-              </>
+            {relativeTime(data.generated_at) && (
+              <> · Updated {relativeTime(data.generated_at)}</>
+            )}
+            {SHOW_DATA_FRESHNESS_UI && freshness ? (
+              <> · <span className={freshness.toneClass}>{freshness.label}</span></>
             ) : null}
           </p>
         </div>
