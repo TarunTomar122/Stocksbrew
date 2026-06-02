@@ -609,7 +609,7 @@ def _build_stock_registry(sectors: dict[str, dict], exchange: str, currency: str
                 "cap": CAP_MAP.get(symbol, "large"),
                 "exchange": exchange,
                 "currency": currency,
-                "logo": f"https://tikrr.online/logos/{symbol}.png",
+                "logo": f"https://www.stocksbrew.online/logos/{symbol}.png",
             })
     return stocks
 

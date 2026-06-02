@@ -89,11 +89,11 @@ export const blogContent: Record<string, string> = {
 
     <p>Most tools nail one or two of these. The best nail all six.</p>
 
-    <h2 id="tikrr">How tikrr Delivers AI Market Briefs</h2>
+    <h2 id="stocksbrew">How stocksbrew Delivers AI Market Briefs</h2>
 
-    <p><a href="https://tikrr.online">tikrr</a> was built from the ground up to solve the exact problems we've been discussing. It's not a charting tool with AI bolted on. It's an intelligence platform that happens to use AI as its engine.</p>
+    <p><a href="https://www.stocksbrew.online">stocksbrew</a> was built from the ground up to solve the exact problems we've been discussing. It's not a charting tool with AI bolted on. It's an intelligence platform that happens to use AI as its engine.</p>
 
-    <p>Here's how tikrr's daily market brief works:</p>
+    <p>Here's how stocksbrew's daily market brief works:</p>
 
     <ul>
       <li><strong>50+ sources aggregated daily</strong> - news, social media, Wall Street research, SEC filings, earnings transcripts</li>
@@ -103,7 +103,7 @@ export const blogContent: Record<string, string> = {
       <li><strong>No terminal required</strong> - works in your browser, no Bloomberg subscription needed</li>
     </ul>
 
-    <p>tikrr isn't trying to replace your brokerage or your charting software. It's replacing the 45 minutes you spend every morning trying to figure out what matters. It's the intelligence layer that sits on top of everything else you use.</p>
+    <p>stocksbrew isn't trying to replace your brokerage or your charting software. It's replacing the 45 minutes you spend every morning trying to figure out what matters. It's the intelligence layer that sits on top of everything else you use.</p>
 
     <h2 id="getting-started">Getting Started</h2>
 
@@ -286,7 +286,7 @@ export const blogContent: Record<string, string> = {
       <li><strong>Review and adjust</strong> - After a week, review which alerts were useful and adjust your settings.</li>
     </ol>
 
-    <p><a href="https://tikrr.online">tikrr</a> delivers smart alerts as part of its daily market intelligence platform. Instead of setting individual alerts for each stock, you get a comprehensive daily brief that includes all the smart signals for your watchlist, scored and contextualized.</p>
+    <p><a href="https://www.stocksbrew.online">stocksbrew</a> delivers smart alerts as part of its daily market intelligence platform. Instead of setting individual alerts for each stock, you get a comprehensive daily brief that includes all the smart signals for your watchlist, scored and contextualized.</p>
 
     <p>For a broader look at AI-powered watchlists, check out our comparison of <a href="/blog/ai-stock-watchlist-vs-traditional">AI stock watchlists vs traditional watchlists</a>.</p>
 `,
@@ -388,20 +388,20 @@ export const blogContent: Record<string, string> = {
 
     <p>The problem is that AI prediction products often present probabilistic signals as certainties. "Our AI says this stock will go up" is very different from "Our AI identifies a pattern that historically precedes price increases 60% of the time." The first is misleading. The second is useful.</p>
 
-    <h2 id="tikrr-approach">tikrr's Approach: AI for Intelligence, Not Prediction</h2>
+    <h2 id="stocksbrew-approach">stocksbrew's Approach: AI for Intelligence, Not Prediction</h2>
 
-    <p><a href="https://tikrr.online">tikrr</a> takes a deliberately different approach to AI stock analysis. Instead of trying to predict stock prices, tikrr uses AI for two things:</p>
+    <p><a href="https://www.stocksbrew.online">stocksbrew</a> takes a deliberately different approach to AI stock analysis. Instead of trying to predict stock prices, stocksbrew uses AI for two things:</p>
 
     <h3>1. Intelligence Aggregation</h3>
-    <p>tikrr scans 50+ sources daily: news outlets, social media platforms, SEC filings, analyst reports, and earnings transcripts. AI processes all of this and extracts the signals relevant to your watchlist.</p>
+    <p>stocksbrew scans 50+ sources daily: news outlets, social media platforms, SEC filings, analyst reports, and earnings transcripts. AI processes all of this and extracts the signals relevant to your watchlist.</p>
 
     <h3>2. Signal Scoring</h3>
     <p>Every signal gets scored for relevance, credibility, and timeliness. You don't just get a list of news. You get a prioritized, scored list of intelligence that tells you what to pay attention to and why.</p>
 
-    <p>tikrr doesn't claim to predict stock prices. It doesn't promise guaranteed returns. It does something more honest and more useful: it gives you the best possible information to make your own decisions.</p>
+    <p>stocksbrew doesn't claim to predict stock prices. It doesn't promise guaranteed returns. It does something more honest and more useful: it gives you the best possible information to make your own decisions.</p>
 
     <blockquote>
-      "I stopped looking for an AI that tells me what to buy. Instead, I found one that tells me what to pay attention to. That's tikrr, and it's been way more useful."
+      "I stopped looking for an AI that tells me what to buy. Instead, I found one that tells me what to pay attention to. That's stocksbrew, and it's been way more useful."
     </blockquote>
 
     <h2 id="how-to-use">How to Actually Use AI for Stock Analysis</h2>
@@ -599,7 +599,7 @@ export const blogContent: Record<string, string> = {
 
     <h2 id="getting-started">Getting Started with AI Watchlists</h2>
 
-    <p>The best way to experience the difference is to try it. <a href="https://tikrr.online">tikrr</a> offers AI-powered watchlist intelligence as part of its daily market brief. You set your watchlist, and tikrr scans 50+ sources every day to surface the signals that matter for your stocks.</p>
+    <p>The best way to experience the difference is to try it. <a href="https://www.stocksbrew.online">stocksbrew</a> offers AI-powered watchlist intelligence as part of its daily market brief. You set your watchlist, and stocksbrew scans 50+ sources every day to surface the signals that matter for your stocks.</p>
 
     <p>Start with your existing watchlist. Add the 10-15 stocks you care about most. Then let the AI do the watching for a week. You'll quickly see the difference between a list of prices and a list of intelligence.</p>
 `,
@@ -712,7 +712,7 @@ export const blogContent: Record<string, string> = {
     <p>Building your own daily research routine using free tools (Google News, Twitter, SEC EDGAR, Yahoo Finance) gives you maximum control but costs significant time. Most people who try this approach start strong and fade within weeks because it's unsustainable alongside a full-time job.</p>
 
     <h3>The AI Tool Approach</h3>
-    <p>AI-powered market intelligence tools like <a href="https://tikrr.online">tikrr</a> offer the best balance for most people. They aggregate 50+ sources, score and filter for relevance, personalize to your watchlist, and deliver consistently every day. The cost is a fraction of a Bloomberg terminal, and the time investment is near zero.</p>
+    <p>AI-powered market intelligence tools like <a href="https://www.stocksbrew.online">stocksbrew</a> offer the best balance for most people. They aggregate 50+ sources, score and filter for relevance, personalize to your watchlist, and deliver consistently every day. The cost is a fraction of a Bloomberg terminal, and the time investment is near zero.</p>
 
     <h3>The Terminal Approach</h3>
     <p>Bloomberg, Reuters Eikon, and FactSet remain the gold standard for institutional investors. They offer unparalleled depth and real-time data. But at $20,000+ per year, they're overkill for individual investors, analysts at smaller firms, or anyone who doesn't need tick-by-tick data.</p>
@@ -748,7 +748,7 @@ export const blogContent: Record<string, string> = {
     <p>Here are the tools worth considering, ranked by value for individual investors and analysts:</p>
 
     <ul>
-      <li><strong><a href="https://tikrr.online">tikrr</a></strong> - AI-powered daily market intelligence. Aggregates 50+ sources, scores signals, personalizes to your watchlist. Free tier available. Best value for daily intelligence.</li>
+      <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> - AI-powered daily market intelligence. Aggregates 50+ sources, scores signals, personalizes to your watchlist. Free tier available. Best value for daily intelligence.</li>
       <li><strong>Seeking Alpha</strong> - Strong community-driven analysis with daily digests. Good for fundamental research. Premium starts at $240/year.</li>
       <li><strong>Finviz</strong> - Excellent for screening and visualization. Limited intelligence features. Free with ads, $40/month for premium.</li>
       <li><strong>Yahoo Finance</strong> - Free, decent for basic news and quotes. No AI scoring or personalization.</li>
@@ -794,7 +794,7 @@ export const blogContent: Record<string, string> = {
       <li><strong>Consistent daily delivery</strong> - Giving you a structured daily brief</li>
     </ul>
 
-    <p>The gap between what free tools offer and what you actually need for daily market intelligence is exactly where paid tools like <a href="https://tikrr.online">tikrr</a> add value. But let's start with what you can get for free.</p>
+    <p>The gap between what free tools offer and what you actually need for daily market intelligence is exactly where paid tools like <a href="https://www.stocksbrew.online">stocksbrew</a> add value. But let's start with what you can get for free.</p>
 
     <h2 id="news">Free Market News and Intelligence</h2>
 
@@ -879,9 +879,9 @@ export const blogContent: Record<string, string> = {
     <h2 id="ai">Free AI-Powered Intelligence</h2>
 
     <div class="tool-entry">
-      <h3>tikrr</h3>
+      <h3>stocksbrew</h3>
       <span class="rating rating-great">Great Free Tier</span>
-      <p>tikrr offers a free tier of its AI-powered daily market intelligence platform. You get a daily market brief that aggregates 50+ sources, scores signals for relevance, and personalizes to your watchlist. This is the only free tool we found that offers AI-powered daily intelligence.</p>
+      <p>stocksbrew offers a free tier of its AI-powered daily market intelligence platform. You get a daily market brief that aggregates 50+ sources, scores signals for relevance, and personalizes to your watchlist. This is the only free tool we found that offers AI-powered daily intelligence.</p>
       <p><strong>What it does well:</strong> AI-powered daily intelligence, 50+ source aggregation, signal scoring, watchlist personalization, free to start.</p>
       <p><strong>What it misses:</strong> Not a charting or screening tool, focused on intelligence not execution.</p>
     </div>
@@ -892,7 +892,7 @@ export const blogContent: Record<string, string> = {
 
     <div class="gap-box">
       <h4>Gap 1: Unified Daily Intelligence</h4>
-      <p>No free tool (except tikrr) gives you a single, structured daily briefing that combines news, sentiment, filings, and watchlist signals. You'd need to check 5-6 separate tools every morning to replicate this manually.</p>
+      <p>No free tool (except stocksbrew) gives you a single, structured daily briefing that combines news, sentiment, filings, and watchlist signals. You'd need to check 5-6 separate tools every morning to replicate this manually.</p>
     </div>
 
     <div class="gap-box">
@@ -915,14 +915,14 @@ export const blogContent: Record<string, string> = {
     <p>If you want to build a market intelligence workflow using only free tools, here's the best approach:</p>
 
     <ol>
-      <li><strong>Morning: tikrr daily brief</strong> - Get your AI-powered daily intelligence for free. This covers news, sentiment, and watchlist signals in one place.</li>
+      <li><strong>Morning: stocksbrew daily brief</strong> - Get your AI-powered daily intelligence for free. This covers news, sentiment, and watchlist signals in one place.</li>
       <li><strong>Screening: Finviz</strong> - Use the free screener to find new stocks that match your criteria.</li>
       <li><strong>Charting: TradingView</strong> - Analyze stocks you're interested in with the free charting tier.</li>
       <li><strong>Fundamentals: SEC EDGAR + Macrotrends</strong> - Deep dive into filings and historical financials when you need them.</li>
       <li><strong>Sentiment: StockTwits + Reddit</strong> - Gauge retail sentiment, but take it with a grain of salt.</li>
     </ol>
 
-    <p>This workflow covers 80% of what a paid intelligence platform offers, at zero cost. The remaining 20% (advanced AI scoring, multi-source correlation, push delivery) is where a tool like tikrr's paid tier or a Bloomberg terminal adds value.</p>
+    <p>This workflow covers 80% of what a paid intelligence platform offers, at zero cost. The remaining 20% (advanced AI scoring, multi-source correlation, push delivery) is where a tool like stocksbrew's paid tier or a Bloomberg terminal adds value.</p>
 
     <blockquote>
       "The best market intelligence setup isn't the most expensive one. It's the one you actually use consistently. Start with free tools, build the habit, then upgrade when you've outgrown them."
@@ -1035,8 +1035,8 @@ export const blogContent: Record<string, string> = {
       <p>Seeking Alpha is great for deep fundamental research. The community-driven model means you get diverse perspectives on any stock. The quant ratings are useful for screening. But it's not a daily intelligence tool. It's a research platform. You go there to dig deep, not to get a quick daily brief.</p>
     </div>
 
-    <div class="tool-card" id="tikrr">
-      <h3>4. tikrr</h3>
+    <div class="tool-card" id="stocksbrew">
+      <h3>4. stocksbrew</h3>
       <div class="price">Free tier available</div>
       <div class="best-for">Best for: Individual investors and analysts who want daily market intelligence without a terminal</div>
       <div class="pros-cons">
@@ -1059,7 +1059,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
       </div>
-      <p>tikrr fills a gap that the other tools miss: daily, AI-powered market intelligence that's accessible to individual investors. It aggregates 50+ sources (news, social media, filings, analyst reports), scores signals for relevance, and personalizes everything to your watchlist. It's not trying to replace Bloomberg or Finviz. It's the intelligence layer that sits on top of everything else. For daily market awareness, it's the best value we found.</p>
+      <p>stocksbrew fills a gap that the other tools miss: daily, AI-powered market intelligence that's accessible to individual investors. It aggregates 50+ sources (news, social media, filings, analyst reports), scores signals for relevance, and personalizes everything to your watchlist. It's not trying to replace Bloomberg or Finviz. It's the intelligence layer that sits on top of everything else. For daily market awareness, it's the best value we found.</p>
     </div>
 
     <div class="tool-card" id="finviz">
@@ -1086,7 +1086,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
       </div>
-      <p>Finviz is the best free stock screener available. The heat maps are addictive and genuinely useful for spotting sector trends. But it's a screening and visualization tool, not an intelligence tool. It shows you data but doesn't analyze it for you. For a detailed comparison, see our <a href="/blog/tikrr-vs-finviz">tikrr vs Finviz breakdown</a>.</p>
+      <p>Finviz is the best free stock screener available. The heat maps are addictive and genuinely useful for spotting sector trends. But it's a screening and visualization tool, not an intelligence tool. It shows you data but doesn't analyze it for you. For a detailed comparison, see our <a href="/blog/stocksbrew-vs-finviz">stocksbrew vs Finviz breakdown</a>.</p>
     </div>
 
     <div class="tool-card" id="stocktwits">
@@ -1167,7 +1167,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
       </div>
-      <p>Yahoo Finance Premium is hard to recommend. At $350/year, you get Morningstar research reports and better charting. But tools like tikrr offer AI-powered intelligence for less (or free), and Finviz offers better screening for $30/year less. Yahoo Finance Premium feels like a product from a different era.</p>
+      <p>Yahoo Finance Premium is hard to recommend. At $350/year, you get Morningstar research reports and better charting. But tools like stocksbrew offer AI-powered intelligence for less (or free), and Finviz offers better screening for $30/year less. Yahoo Finance Premium feels like a product from a different era.</p>
     </div>
 
     <div class="tool-card" id="koyfin">
@@ -1260,7 +1260,7 @@ export const blogContent: Record<string, string> = {
         <td>Fundamental research</td>
       </tr>
       <tr>
-        <td>tikrr</td>
+        <td>stocksbrew</td>
         <td>Free</td>
         <td>Yes</td>
         <td>Yes</td>
@@ -1320,13 +1320,13 @@ export const blogContent: Record<string, string> = {
     <h2 id="recommendations">Our Recommendations</h2>
 
     <div class="pick">
-      <h4>Best Value for Daily Intelligence: tikrr</h4>
-      <p>If you want a daily market brief with AI-powered intelligence, personalized to your watchlist, and don't want to pay $24,000 for a terminal, tikrr is the clear winner. It's the only tool on this list that's specifically designed for daily market intelligence with AI scoring. Free tier available.</p>
+      <h4>Best Value for Daily Intelligence: stocksbrew</h4>
+      <p>If you want a daily market brief with AI-powered intelligence, personalized to your watchlist, and don't want to pay $24,000 for a terminal, stocksbrew is the clear winner. It's the only tool on this list that's specifically designed for daily market intelligence with AI scoring. Free tier available.</p>
     </div>
 
     <div class="pick">
       <h4>Best for Screening: Finviz</h4>
-      <p>If you need to find stocks that match specific criteria, Finviz's screener is unmatched at its price point. Combine it with tikrr for daily intelligence on the stocks you find.</p>
+      <p>If you need to find stocks that match specific criteria, Finviz's screener is unmatched at its price point. Combine it with stocksbrew for daily intelligence on the stocks you find.</p>
     </div>
 
     <div class="pick">
@@ -1339,10 +1339,10 @@ export const blogContent: Record<string, string> = {
       <p>If you want deep dives on individual stocks, Seeking Alpha's community of analysts provides diverse perspectives. Use it for research, not daily monitoring.</p>
     </div>
 
-    <p>The reality is most investors need more than one tool. The combination we see working best: <strong>tikrr for daily intelligence</strong>, <strong>Finviz for screening</strong>, and <strong>TradingView for charting</strong>. That covers your daily awareness, stock discovery, and technical analysis needs for a fraction of what a Bloomberg terminal costs.</p>
+    <p>The reality is most investors need more than one tool. The combination we see working best: <strong>stocksbrew for daily intelligence</strong>, <strong>Finviz for screening</strong>, and <strong>TradingView for charting</strong>. That covers your daily awareness, stock discovery, and technical analysis needs for a fraction of what a Bloomberg terminal costs.</p>
 `,
-  "tikrr-vs-finviz": `
-<p>If you're comparing Finviz and tikrr, you're already thinking about market tools the right way. Both help you make better investment decisions, but they approach the problem from completely different angles. Finviz is a screener that helps you find stocks. tikrr is an intelligence platform that helps you understand the market. Here's a detailed breakdown of how they compare and which one fits your workflow.</p>
+  "stocksbrew-vs-finviz": `
+<p>If you're comparing Finviz and stocksbrew, you're already thinking about market tools the right way. Both help you make better investment decisions, but they approach the problem from completely different angles. Finviz is a screener that helps you find stocks. stocksbrew is an intelligence platform that helps you understand the market. Here's a detailed breakdown of how they compare and which one fits your workflow.</p>
 
 <p>We'll cover features, pricing, who each tool is best for, and the scenarios where using both makes more sense than choosing one.</p>
 
@@ -1350,7 +1350,7 @@ export const blogContent: Record<string, string> = {
 
       <p>Finviz launched in 2007 and quickly became the default stock screener for retail investors. Its heatmaps are iconic, the screener is powerful, and the free tier is genuinely useful. It's one of those tools that every investor has bookmarked.</p>
 
-      <p>tikrr launched in 2026 with a different thesis: most investors don't need more data, they need better intelligence. Instead of giving you 60 filters to screen 8,000 stocks, tikrr gives you twice-daily AI briefs that tell you what's happening and what it means for your specific watchlist.</p>
+      <p>stocksbrew launched in 2026 with a different thesis: most investors don't need more data, they need better intelligence. Instead of giving you 60 filters to screen 8,000 stocks, stocksbrew gives you personalized buy, hold, and sell calls built from fundamentals, news, Reddit, and earnings for your specific watchlist.</p>
 
       <p>They're not really competitors in the traditional sense. They solve different problems. But if you're choosing where to spend your $9-40/month, the comparison matters.</p>
 
@@ -1363,7 +1363,7 @@ export const blogContent: Record<string, string> = {
           <p><strong>Pricing:</strong> Free (delayed) / $39.50/mo Elite</p>
         </div>
         <div class="card">
-          <h3>tikrr</h3>
+          <h3>stocksbrew</h3>
           <p><strong>What it is:</strong> Market intelligence platform with AI briefs, watchlist radar, and sector spotlights.</p>
           <p><strong>Best for:</strong> Understanding what's happening in the market right now and what it means for your portfolio.</p>
           <p><strong>Core strength:</strong> AI-powered daily briefs that curate market intelligence so you don't have to.</p>
@@ -1378,7 +1378,7 @@ export const blogContent: Record<string, string> = {
           <tr>
             <th>Feature</th>
             <th>Finviz</th>
-            <th>tikrr</th>
+            <th>stocksbrew</th>
             <th>Winner</th>
           </tr>
         </thead>
@@ -1398,20 +1398,20 @@ export const blogContent: Record<string, string> = {
           <tr>
             <td>Daily Market Brief</td>
             <td>None - raw news feed only</td>
-            <td>Twice-daily AI briefs with context</td>
-            <td>tikrr</td>
+            <td>Personalized buy/hold/sell calls with context</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>Watchlist Intelligence</td>
             <td>Basic portfolio tracking</td>
             <td>AI radar: scoring, breakouts, RSI, earnings alerts</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>Sector Analysis</td>
             <td>Heatmap by sector</td>
             <td>AI-powered sector spotlights with context</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>News Aggregation</td>
@@ -1423,7 +1423,7 @@ export const blogContent: Record<string, string> = {
             <td>Email Alerts</td>
             <td>Basic price alerts (Elite)</td>
             <td>AI alerts: breakouts, RSI, earnings, fundamentals</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>Charting</td>
@@ -1435,39 +1435,39 @@ export const blogContent: Record<string, string> = {
             <td>AI Features</td>
             <td>None</td>
             <td>Core feature (briefs, radar, scorecard)</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>Learning Curve</td>
             <td>Medium - screener has learning curve</td>
             <td>Low - brief format is immediately useful</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>Mobile Experience</td>
             <td>Poor - desktop-focused, dated UI</td>
             <td>Modern, responsive design</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
           <tr>
             <td>Price</td>
             <td>$0 / $39.50/mo</td>
             <td>$0 / $9/mo</td>
-            <td>tikrr</td>
+            <td>stocksbrew</td>
           </tr>
         </tbody>
       </table>
 
       <h2 id="pricing">Pricing Breakdown</h2>
 
-      <p>Pricing is where the comparison gets interesting. Finviz has one paid tier (Elite) at $39.50/mo. tikrr has a free tier and Pro at $9/mo. That's a significant difference for individual investors.</p>
+      <p>Pricing is where the comparison gets interesting. Finviz has one paid tier (Elite) at $39.50/mo. stocksbrew has a free tier and Pro at $9/mo. That's a significant difference for individual investors.</p>
 
       <table>
         <thead>
           <tr>
             <th>Plan</th>
             <th>Finviz</th>
-            <th>tikrr</th>
+            <th>stocksbrew</th>
           </tr>
         </thead>
         <tbody>
@@ -1489,9 +1489,9 @@ export const blogContent: Record<string, string> = {
         </tbody>
       </table>
 
-      <p><strong>The math:</strong> Finviz Elite costs 4.4x more than tikrr Pro. For the price of one year of Finviz Elite ($300), you could get 33 months of tikrr Pro. That's nearly three years of AI-powered market intelligence for the cost of one year of a stock screener.</p>
+      <p><strong>The math:</strong> Finviz Elite costs 4.4x more than stocksbrew Pro. For the price of one year of Finviz Elite ($300), you could get 33 months of stocksbrew Pro. That's nearly three years of AI-powered market intelligence for the cost of one year of a stock screener.</p>
 
-      <p>Finviz does offer a free tier, which is generous. But it comes with significant limitations: delayed data (15-20 minutes), ads everywhere, and no real-time alerts. tikrr's free tier includes a daily market brief and basic sector data without the ad clutter.</p>
+      <p>Finviz does offer a free tier, which is generous. But it comes with significant limitations: delayed data (15-20 minutes), ads everywhere, and no real-time alerts. stocksbrew's free tier includes a daily market brief and basic sector data without the ad clutter.</p>
 
       <h2 id="who">Who Each Tool Is For</h2>
 
@@ -1509,7 +1509,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
         <div class="card">
-          <h3>Choose tikrr If You...</h3>
+          <h3>Choose stocksbrew If You...</h3>
           <ul style="color:var(--text-dim); padding-left:20px; margin-top:8px;">
             <li>Want daily market intelligence without doing the work</li>
             <li>Have a watchlist and want AI to monitor it for you</li>
@@ -1522,25 +1522,27 @@ export const blogContent: Record<string, string> = {
 
       <h2 id="verdict">The Verdict</h2>
 
-      <p>The honest answer is that most investors will benefit from having both tools in their toolkit. Finviz for the moments when you need to screen for specific setups, and tikrr for the daily habit of understanding what's happening in the market.</p>
+      <p>The honest answer is that most investors will benefit from having both tools in their toolkit. Finviz for the moments when you need to screen for specific setups, and stocksbrew for the daily habit of understanding what's happening in the market.</p>
 
       <p>If you can only pick one, the decision comes down to how you spend your time. If you're an active trader who spends hours scanning for setups, Finviz is non-negotiable. The screener is too good to pass up, and the heatmaps are genuinely useful for spotting momentum.</p>
 
-      <p>But if you're like most investors, you don't have time to screen 8,000 stocks every morning. You want to know what moved, why it moved, and what it means for the 15 stocks you actually own. That's where tikrr shines. The AI brief gives you that context in 5 minutes, and the watchlist radar monitors your positions while you do other things.</p>
+      <p>But if you're like most investors, you don't have time to screen 8,000 stocks every morning. You want to know what moved, why it moved, and what it means for the 15 stocks you actually own. That's where stocksbrew shines. The AI brief gives you that context in 5 minutes, and the watchlist radar monitors your positions while you do other things.</p>
 
-      <p>The price difference reinforces this. At $9/mo, tikrr costs less than a quarter of Finviz Elite. For investors who want intelligence without the time commitment, it's the better value play.</p>
+      <p>The price difference reinforces this. At $9/mo, stocksbrew costs less than a quarter of Finviz Elite. For investors who want intelligence without the time commitment, it's the better value play.</p>
 
       <div class="card" style="border-color:var(--green);">
         <h3>They Solve Different Problems</h3>
-        <p style="font-size:1.05em; line-height:1.7; margin-top:12px;">Finviz is a <strong>screener</strong>. It answers "show me stocks that match my criteria." tikrr is an <strong>intelligence platform</strong>. It answers "what's happening in the market and what does it mean for me?"</p>
-        <p style="margin-top:12px; color:var(--text-dim);">If you're an active trader who scans for setups, Finviz is essential. If you're an investor who wants to understand the market in 5 minutes every morning, tikrr is the better fit. Many users will benefit from both - Finviz for screening, tikrr for intelligence.</p>
-        <p style="margin-top:12px; color:var(--text-dim);">At $9/mo vs $39.50/mo, tikrr is also the clear value play. You get AI-powered intelligence for less than a quarter of Finviz's price.</p>
+        <p style="font-size:1.05em; line-height:1.7; margin-top:12px;">Finviz is a <strong>screener</strong>. It answers "show me stocks that match my criteria." stocksbrew is an <strong>intelligence platform</strong>. It answers "what's happening in the market and what does it mean for me?"</p>
+        <p style="margin-top:12px; color:var(--text-dim);">If you're an active trader who scans for setups, Finviz is essential. If you're an investor who wants to understand the market in 5 minutes every morning, stocksbrew is the better fit. Many users will benefit from both - Finviz for screening, stocksbrew for intelligence.</p>
+        <p style="margin-top:12px; color:var(--text-dim);">At $9/mo vs $39.50/mo, stocksbrew is also the clear value play. You get AI-powered intelligence for less than a quarter of Finviz's price.</p>
       </div>
 
+      <p>Also see: <a href="/compare/stocksbrew-vs-tickertape">stocksbrew vs Tickertape</a> (US Radar vs Indian screeners) and the <a href="/guides">stock research guide</a>.</p>
+
       <div class="cta-section">
-        <h3>Try tikrr Free</h3>
+        <h3>Try stocksbrew Free</h3>
         <p>See what AI-powered market intelligence looks like. No credit card required.</p>
-        <a href="https://tikrr.online" class="cta-button">Start Free →</a>
+        <a href="https://www.stocksbrew.online" class="cta-button">Start Free →</a>
       </div>
 `,
   "track-stock-news-for-your-portfolio": `
@@ -1584,18 +1586,18 @@ export const blogContent: Record<string, string> = {
 <p><strong>Cons:</strong> Requires setup effort, no scoring or AI, manual keyword filtering is imperfect.</p>
 <p><strong>Verdict:</strong> Best for control freaks who want to see everything on their terms.</p>
 
-<h3>5. AI-Powered Market Intelligence (tikrr, 5 min/day)</h3>
-<p>This is the category that changes the equation. Tools like <a href="https://tikrr.online">tikrr</a> aggregate 50+ sources, score signals by relevance, and deliver a personalized daily brief for your watchlist. Instead of reading 50 headlines, you read 5 that matter.</p>
+<h3>5. AI-Powered Market Intelligence (stocksbrew, 5 min/day)</h3>
+<p>This is the category that changes the equation. Tools like <a href="https://www.stocksbrew.online">stocksbrew</a> aggregate 50+ sources, score signals by relevance, and deliver a personalized daily brief for your watchlist. Instead of reading 50 headlines, you read 5 that matter.</p>
 <p><strong>Pros:</strong> AI scoring, watchlist personalization, multi-source aggregation, 5-minute daily brief.</p>
 <p><strong>Cons:</strong> Not a charting or execution tool. Focused purely on intelligence.</p>
-<p><strong>Verdict:</strong> Best for busy investors who want the signal without the noise. <a href="https://tikrr.online">Try it free</a>.</p>
+<p><strong>Verdict:</strong> Best for busy investors who want the signal without the noise. <a href="https://www.stocksbrew.online">Try it free</a>.</p>
 
 <h2 id="system">The 5-Minute Daily System</h2>
 
 <p>Here's the actual system I recommend. It takes 5 minutes and covers 90% of what you need:</p>
 
 <ol>
-  <li><strong>Morning (3 min):</strong> Read your AI market brief. <a href="https://tikrr.online">tikrr</a> delivers this automatically. It covers overnight moves, news for your watchlist, and earnings previews. You're done before your coffee gets cold.</li>
+  <li><strong>Morning (3 min):</strong> Read your AI market brief. <a href="https://www.stocksbrew.online">stocksbrew</a> delivers this automatically. It covers overnight moves, news for your watchlist, and earnings previews. You're done before your coffee gets cold.</li>
   <li><strong>Midday (1 min):</strong> Quick scan of Google Finance news feed for your holdings. Flag anything unusual.</li>
   <li><strong>Evening (1 min):</strong> Check after-hours moves. If something moved more than 3%, read the headline.</li>
 </ol>
@@ -1625,8 +1627,8 @@ export const blogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Stop Drowning in Stock News</h3>
-  <p>tikrr aggregates 50+ sources and scores what matters for your watchlist. Free tier available.</p>
-  <a href="https://tikrr.online" class="cta-button">Try tikrr Free →</a>
+  <p>stocksbrew aggregates 50+ sources and scores what matters for your watchlist. Free tier available.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 
 <p>For more on building an efficient market intelligence workflow, see our guide on <a href="/blog/daily-market-intelligence-guide">daily market intelligence</a> and our comparison of <a href="/blog/free-market-intelligence-tools">free market intelligence tools</a>.</p>
@@ -1646,8 +1648,8 @@ export const blogContent: Record<string, string> = {
 
 <h2 id="methods">How to Get an Earnings Calendar for Your Watchlist</h2>
 
-<h3>Option 1: tikrr Earnings Calendar (Recommended)</h3>
-<p><a href="https://tikrr.online/earnings">tikrr's earnings calendar</a> automatically syncs with your watchlist. You add stocks to your radar, and the earnings calendar shows upcoming reports for only those stocks. It also includes AI-powered briefs for recent earnings, so you can see what happened last quarter at a glance.</p>
+<h3>Option 1: stocksbrew Earnings Calendar (Recommended)</h3>
+<p><a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> automatically syncs with your watchlist. You add stocks to your radar, and the earnings calendar shows upcoming reports for only those stocks. It also includes AI-powered briefs for recent earnings, so you can see what happened last quarter at a glance.</p>
 <p><strong>What makes it different:</strong> Watchlist sync, AI brief integration, free tier available.</p>
 <p><strong>Best for:</strong> Investors who want earnings dates tied to their actual portfolio, not a generic calendar.</p>
 
@@ -1683,7 +1685,7 @@ export const blogContent: Record<string, string> = {
   <li><strong>Set a decision rule</strong> - "If they miss, I sell half. If they beat, I hold." Decide <em>before</em> the report, not during the panic.</li>
 </ol>
 
-<p>tikrr's <a href="https://tikrr.online/should-i-buy">"Should I Buy?"</a> tool and <a href="https://tikrr.online/earnings">earnings page</a> cover most of this automatically, with AI analysis of recent earnings and consensus data.</p>
+<p>stocksbrew's <a href="https://www.stocksbrew.online/should-i-buy">"Should I Buy?"</a> tool and <a href="https://www.stocksbrew.online/earnings">earnings page</a> cover most of this automatically, with AI analysis of recent earnings and consensus data.</p>
 
 <h2 id="earnings-moves">How Much Do Stocks Move on Earnings?</h2>
 
@@ -1709,8 +1711,8 @@ export const blogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Never Miss Earnings Again</h3>
-  <p>tikrr syncs your watchlist with the earnings calendar. Add your stocks, see their dates. Free tier available.</p>
-  <a href="https://tikrr.online/earnings" class="cta-button">See Your Earnings Calendar →</a>
+  <p>stocksbrew syncs your watchlist with the earnings calendar. Add your stocks, see their dates. Free tier available.</p>
+  <a href="https://www.stocksbrew.online/earnings" class="cta-button">See Your Earnings Calendar →</a>
 </div>
 
 <p>For more on earnings analysis, check our <a href="/blog/ai-stock-analysis-what-works">guide to AI stock analysis</a> and the <a href="/blog/what-is-ai-market-brief">AI market brief explainer</a>.</p>
@@ -1733,7 +1735,7 @@ export const blogContent: Record<string, string> = {
 <p>This is the core of staying informed without constant checking. Do this once per day, ideally in the morning:</p>
 
 <ol>
-  <li><strong>Read a daily market brief (2 min)</strong> - A good AI market brief, like the one <a href="https://tikrr.online">tikrr</a> delivers, gives you the overnight summary, what moved, and what to watch. No scrolling, no clicking, just one structured read.</li>
+  <li><strong>Read a daily market brief (2 min)</strong> - A good AI market brief, like the one <a href="https://www.stocksbrew.online">stocksbrew</a> delivers, gives you the overnight summary, what moved, and what to watch. No scrolling, no clicking, just one structured read.</li>
   <li><strong>Check your portfolio once (1 min)</strong> - Open your brokerage app. Look at total portfolio change. If it's within normal range (say, +/- 1%), close it. Don't drill into individual positions unless something moved more than 3%.</li>
   <li><strong>Scan alerts (2 min)</strong> - If you have alerts set up (see below), scan them. Price alerts, earnings alerts, news alerts. Deal with anything urgent. Ignore everything else.</li>
 </ol>
@@ -1747,7 +1749,7 @@ export const blogContent: Record<string, string> = {
 <h3>Essential Alerts</h3>
 <ul>
   <li><strong>Price alerts (5% moves)</strong> - Set alerts at +/- 5% from current price for each holding. This catches meaningful moves without triggering on daily noise.</li>
-  <li><strong>Earnings alerts</strong> - Get notified 1 day before and 1 day after each earnings report. <a href="https://tikrr.online/earnings">tikrr's earnings calendar</a> does this automatically for your watchlist.</li>
+  <li><strong>Earnings alerts</strong> - Get notified 1 day before and 1 day after each earnings report. <a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> does this automatically for your watchlist.</li>
   <li><strong>52-week high/low alerts</strong> - When a stock hits a new 52-week high or low, it's worth knowing. These are structural events.</li>
 </ul>
 
@@ -1771,9 +1773,9 @@ export const blogContent: Record<string, string> = {
 
 <ol>
   <li><strong>Review the week's moves</strong> - Any position up or down more than 5%? Read the headlines for context.</li>
-  <li><strong>Check upcoming earnings</strong> - Any of your stocks reporting this week? <a href="https://tikrr.online/earnings">tikrr's earnings calendar</a> shows this at a glance.</li>
-  <li><strong>Read your weekly market summary</strong> - Many services offer weekly digests. tikrr's <a href="https://tikrr.online">daily briefs</a> are daily, but you can also review the week's accumulated signals.</li>
-  <li><strong>Review sector performance</strong> - Are the sectors you're exposed to trending up or down? <a href="https://tikrr.online/heat">tikrr's market heat map</a> shows this visually.</li>
+  <li><strong>Check upcoming earnings</strong> - Any of your stocks reporting this week? <a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> shows this at a glance.</li>
+  <li><strong>Read your weekly market summary</strong> - Many services offer weekly digests. stocksbrew's <a href="https://www.stocksbrew.online">daily briefs</a> are daily, but you can also review the week's accumulated signals.</li>
+  <li><strong>Review sector performance</strong> - Are the sectors you're exposed to trending up or down? <a href="https://www.stocksbrew.online/heat">stocksbrew's market heat map</a> shows this visually.</li>
 </ol>
 
 <p>This weekly check is where you catch the things your daily 5-minute scan might miss.</p>
@@ -1781,7 +1783,7 @@ export const blogContent: Record<string, string> = {
 <h2 id="tools">Tools That Help You Check Less</h2>
 
 <ul>
-  <li><strong><a href="https://tikrr.online">tikrr</a></strong> - AI daily brief, watchlist radar, earnings calendar. The whole point is staying informed in 5 min/day. Free tier.</li>
+  <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> - AI daily brief, watchlist radar, earnings calendar. The whole point is staying informed in 5 min/day. Free tier.</li>
   <li><strong>TradingView alerts</strong> - Best for price and technical alerts. Free tier gives you a limited number of alerts.</li>
   <li><strong>Google Finance</strong> - Simple portfolio tracking with news aggregation. Free.</li>
   <li><strong>Brokerage app alerts</strong> - Most brokerages (Fidelity, Schwab, Robinhood) let you set price and news alerts. Use them.</li>
@@ -1801,8 +1803,8 @@ export const blogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Stay Informed in 5 Minutes a Day</h3>
-  <p>tikrr delivers a personalized daily brief for your watchlist. No scrolling, no noise. Free tier available.</p>
-  <a href="https://tikrr.online" class="cta-button">Try tikrr Free →</a>
+  <p>stocksbrew delivers a personalized daily brief for your watchlist. No scrolling, no noise. Free tier available.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 
 <p>Related: <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a> and <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
@@ -1851,11 +1853,11 @@ export const blogContent: Record<string, string> = {
 <p><strong>Free tier:</strong> Unlimited, automatic.</p>
 <p><strong>Verdict:</strong> Best for passive investors who want some alerts without any setup. Not for active traders.</p>
 
-<h3>4. tikrr (Best for Intelligence-Based Alerts)</h3>
-<p><a href="https://tikrr.online">tikrr</a> takes a different approach to alerts. Instead of just price triggers, it uses AI to score market signals and alerts you when something significant happens for your watchlist: earnings beats/misses, unusual sentiment shifts, analyst changes, sector rotations. The alerts are part of a broader daily intelligence system.</p>
+<h3>4. stocksbrew (Best for Intelligence-Based Alerts)</h3>
+<p><a href="https://www.stocksbrew.online">stocksbrew</a> takes a different approach to alerts. Instead of just price triggers, it uses AI to score market signals and alerts you when something significant happens for your watchlist: earnings beats/misses, unusual sentiment shifts, analyst changes, sector rotations. The alerts are part of a broader daily intelligence system.</p>
 <p><strong>Alert types:</strong> AI-scored market signals, earnings alerts, watchlist radar, anomaly detection.</p>
 <p><strong>Delivery:</strong> Daily brief, web dashboard.</p>
-<p><strong>Free tier:</strong> Full daily brief and watchlist radar. <a href="https://tikrr.online">Sign up free</a>.</p>
+<p><strong>Free tier:</strong> Full daily brief and watchlist radar. <a href="https://www.stocksbrew.online">Sign up free</a>.</p>
 <p><strong>Verdict:</strong> Best for investors who want intelligence, not just price triggers. The alert philosophy is fundamentally different: it tells you <em>what matters</em>, not just <em>what moved</em>.</p>
 
 <h3>5. Yahoo Finance (Best for Portfolio Alerts)</h3>
@@ -1892,7 +1894,7 @@ export const blogContent: Record<string, string> = {
   <li><strong>Best for technical traders:</strong> TradingView</li>
   <li><strong>Best free option:</strong> Your brokerage</li>
   <li><strong>Best for simplicity:</strong> Google Finance</li>
-  <li><strong>Best for intelligence:</strong> <a href="https://tikrr.online">tikrr</a></li>
+  <li><strong>Best for intelligence:</strong> <a href="https://www.stocksbrew.online">stocksbrew</a></li>
   <li><strong>Best for portfolio tracking:</strong> Yahoo Finance</li>
   <li><strong>Best for fundamental investors:</strong> Seeking Alpha</li>
   <li><strong>Best for screening alerts:</strong> Finviz (premium)</li>
@@ -1905,7 +1907,7 @@ export const blogContent: Record<string, string> = {
 
 <ol>
   <li><strong>Brokerage alerts</strong> for price moves (5% thresholds on each holding)</li>
-  <li><strong><a href="https://tikrr.online">tikrr</a></strong> for daily intelligence brief and watchlist radar</li>
+  <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> for daily intelligence brief and watchlist radar</li>
   <li><strong>Google Finance</strong> for news aggregation and basic price tracking</li>
   <li><strong>TradingView free</strong> for your #1 most important technical alert</li>
   <li><strong>Yahoo Finance</strong> for earnings and dividend date alerts</li>
@@ -1924,8 +1926,8 @@ export const blogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Get Intelligence-Based Alerts</h3>
-  <p>tikrr alerts you on what matters, not just what moved. AI-scored signals for your watchlist. Free tier available.</p>
-  <a href="https://tikrr.online" class="cta-button">Try tikrr Free →</a>
+  <p>stocksbrew alerts you on what matters, not just what moved. AI-scored signals for your watchlist. Free tier available.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 
 <p>Related: <a href="/blog/ai-stock-alerts-vs-price-alerts">AI Stock Alerts vs Price Alerts</a> and <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a>.</p>

@@ -10,7 +10,7 @@ from backend.env import load_backend_env
 load_backend_env()
 
 
-DEFAULT_TIKRR_API_BASE = os.getenv("TIKRR_API_BASE_URL", "https://www.tikrr.online/api/tikrr").rstrip("/")
+DEFAULT_TIKRR_API_BASE = os.getenv("TIKRR_API_BASE_URL", "https://www.stocksbrew.online/api/tikrr").rstrip("/")
 DEFAULT_TIKRR_API_KEY = os.getenv("TIKRR_API_KEY") or os.getenv("TIKRR_SECRET_KEY") or "openclaw"
 
 

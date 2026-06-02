@@ -294,7 +294,7 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
         {active === "suggestions" && (
           <ul className="divide-y divide-[#f3f4f6]">
             {suggestions.length === 0
-              ? <EmptyList message="No ideas queued - tikrr will suggest names that complement your Radar." />
+              ? <EmptyList message="No ideas queued - stocksbrew will suggest names that complement your Radar." />
               : suggestions.slice(0, 8).map((s) => (
                   <SuggestionRow key={String(s.instrument_id || s.ticker)} item={s} />
                 ))}

@@ -26,4 +26,11 @@ export function initPostHog() {
   return posthog;
 }
 
+export function captureEvent(name: string, properties?: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  const client = initPostHog();
+  if (!inited) return;
+  client.capture(name, properties);
+}
+
 export { posthog };

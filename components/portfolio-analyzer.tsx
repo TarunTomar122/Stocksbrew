@@ -581,11 +581,11 @@ function ProCTA() {
           </h3>
         </div>
         <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-[480px]">
-          Tikrr Pro tracks each of your stocks daily — flagging risk before it hits, surfacing opportunities you&apos;d miss, and telling you exactly what to do with every holding every morning.
+          stocksbrew Pro tracks each of your stocks daily, flagging risk before it hits, surfacing opportunities you&apos;d miss, and telling you exactly what to do with every holding every morning.
         </p>
         <ul className="flex flex-col gap-2">
           {[
-            "Daily verdict on every stock you own — Accumulate, Trim, Hold, Avoid",
+            "Daily verdict on every stock you own: Accumulate, Trim, Hold, Avoid",
             "Risk alerts the moment something changes in your portfolio",
             "Full pillar breakdown: Valuation · Growth · Quality · Momentum",
             "Morning brief with what actually matters before the open",
@@ -686,7 +686,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
             Portfolio analyzer
           </h1>
           <p className="text-[15px] text-[#6b7280] max-w-[540px] leading-relaxed">
-            Paste your tickers, search, or drop a brokerage screenshot. Get sector allocation, factor tilt, risk flags, and opportunities — instantly, for free.
+            Paste your tickers, search, or drop a brokerage screenshot. Get sector allocation, factor tilt, risk flags, and opportunities instantly, for free.
           </p>
         </div>
 

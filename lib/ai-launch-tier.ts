@@ -1,6 +1,6 @@
 /**
  * The free-for-everyone AI tier that ships with launch. These tickers always
- * get a full news-backed or no-news LLM brief twice daily - subscribers can
+ * get a full news-backed or no-news LLM call on Radar - subscribers can
  * extend their personal AI tier beyond this set via the track-stock flow.
  *
  * Kept in sync with `backend/config/instrument_universe.json` universes

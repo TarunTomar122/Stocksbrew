@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { scrubLegacyBrand } from "@/lib/brand";
+import { relativeTime } from "@/lib/freshness";
 import type { ThematicScreensDoc, ScreenMatchRow } from "@/lib/screens";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
@@ -18,7 +20,7 @@ const HOME_SCREEN_ROWS_PRO = 8;
 
 const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top: {
-    title: "Top tikrr Score",
+    title: "Top stocksbrew Score",
     subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation.",
   },
   quality_compounders: {
@@ -170,14 +172,17 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
             Curated screens based on growth, momentum, quality and valuation. Skip the screener.
           </p>
         </div>
-        <span className="text-[12px] text-[#6b7280]">Updated daily</span>
+        <span className="text-[12px] text-[#9ca3af]">
+          {relativeTime(doc?.generated_at) ? `Updated ${relativeTime(doc?.generated_at)}` : "Updated daily"}
+        </span>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-4">
         {nonEmpty.map((screen) => {
           const isActive = screen.id === active.id;
           const isHouse = screen.id === "tikrr_top";
-          const label = FRIENDLY_COPY[screen.id]?.title ?? screen.title;
+          const label =
+            FRIENDLY_COPY[screen.id]?.title ?? scrubLegacyBrand(screen.title);
           return (
             <button
               key={screen.id}

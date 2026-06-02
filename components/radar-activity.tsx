@@ -1,230 +1,217 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { StockLogo } from "@/components/stock-logo";
+import type { RadarActivityEvent } from "@/lib/activity-events";
 
-type EventItem = {
-  sentence: string;
-  event_type: string;
-  scope: string;
-  direction: string;
-  symbol: string;
-};
+type EventItem = RadarActivityEvent;
 
-type ChangeItem = {
-  ticker: string;
-  sentence: string;
-  delta: number | null;
-};
-
-type Props = {
-  events: EventItem[];
-  changes: {
-    summary: string;
-    hasPrevious: boolean;
-    changedCount: number;
-    scoreChanges: ChangeItem[];
-    newTickers: string[];
-  };
-};
-
-type Tab = "events" | "changes";
-
-export function RadarActivity({ events, changes }: Props) {
-  const [open, setOpen] = useState(true);
-  const [tab, setTab] = useState<Tab>("events");
-  const totalCount = events.length + changes.changedCount + changes.newTickers.length;
-
-  return (
-    <section className="flex flex-col gap-4">
-      {/* Section opener */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="group flex items-baseline justify-between gap-3 border-t border-[#e5e7eb] pt-8 text-left"
-      >
-        <div className="flex items-baseline gap-3">
-          <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
-            § 04
-          </span>
-          <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[#111111]">
-            Activity
-          </h2>
-          {totalCount > 0 && (
-            <span className="text-[12px] font-semibold tabular-nums text-[#9ca3af]">
-              {totalCount}
-            </span>
-          )}
-        </div>
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6b7280] group-hover:text-[#111111]">
-          {open ? "Collapse −" : "Expand +"}
-        </span>
-      </button>
-
-      {open && (
-        <>
-          <div className="flex items-center gap-1.5">
-            <TabButton
-              active={tab === "events"}
-              onClick={() => setTab("events")}
-              label="Events"
-              count={events.length}
-            />
-            <TabButton
-              active={tab === "changes"}
-              onClick={() => setTab("changes")}
-              label="Changes"
-              count={changes.changedCount + changes.newTickers.length}
-            />
-          </div>
-
-          {tab === "events" ? (
-            <EventList events={events} />
-          ) : (
-            <ChangesList changes={changes} />
-          )}
-        </>
-      )}
-    </section>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12px] font-semibold transition-colors ${
-        active
-          ? "bg-[#111111] text-white"
-          : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
-      }`}
-    >
-      {label}
-      <span
-        className={`text-[10px] font-semibold tabular-nums ${
-          active ? "text-white/70" : "text-[#9ca3af]"
-        }`}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
-function EventList({ events }: { events: EventItem[] }) {
-  if (events.length === 0) {
-    return (
-      <p className="rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafafa] px-6 py-10 text-center text-[13px] text-[#6b7280] italic">
-        All quiet. No tracked-stock events this session.
-      </p>
-    );
+function toneStyles(direction: string): { dot: string; chip: string; chipText: string } {
+  const d = (direction || "").toLowerCase();
+  if (["positive", "bullish", "up", "good"].includes(d)) {
+    return { dot: "#10b981", chip: "#ecfdf5", chipText: "#047857" };
   }
+  if (["negative", "bearish", "down", "bad", "risk", "warning"].includes(d)) {
+    return { dot: "#ef4444", chip: "#fef2f2", chipText: "#b91c1c" };
+  }
+  return { dot: "#6b7280", chip: "#f3f4f6", chipText: "#374151" };
+}
+
+function marketFromSymbol(symbol: string): "US" | "IN" {
+  return symbol.toUpperCase().startsWith("IN_") || symbol.toUpperCase().endsWith(".NS")
+    ? "IN"
+    : "US";
+}
+
+function cleanSymbol(symbol: string): string {
+  return symbol.replace(/^US_/i, "").replace(/^IN_/i, "").replace(/\.NS$/i, "");
+}
+
+function BookEventCard({ event }: { event: EventItem }) {
+  const tone = toneStyles(event.direction);
+  const eventType = (event.event_type || "event").replaceAll("_", " ");
+  const sym = cleanSymbol(event.symbol || "");
+  const title = event.title || event.sentence;
   return (
-    <ul className="flex flex-col">
-      {events.map((event, i) => {
-        const eventType = (event.event_type || "event").replaceAll("_", " ");
-        return (
-          <li
-            key={`event-${i}-${event.symbol || "na"}`}
-            className="grid grid-cols-[minmax(72px,_auto)_1fr_auto] items-start gap-4 border-b border-[#f3f4f6] py-3"
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
+    <article className="flex flex-col gap-2.5 rounded-xl border border-[#f3f4f6] bg-[#fafafa] p-3">
+      <div className="flex items-start gap-2.5">
+        {sym ? (
+          <StockLogo ticker={sym} market={marketFromSymbol(event.symbol)} size={32} />
+        ) : (
+          <span
+            aria-hidden
+            className="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full"
+            style={{ background: tone.dot }}
+          />
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em]"
+              style={{ background: tone.chip, color: tone.chipText }}
+            >
               {eventType}
             </span>
-            <p className="text-[13px] leading-relaxed text-[#111111]">
-              {event.symbol ? (
-                <>
-                  <Link
-                    href={`/stock/${encodeURIComponent(event.symbol)}`}
-                    className="font-semibold hover:text-[#0052ff] transition-colors"
-                  >
-                    {event.symbol}
-                  </Link>
-                  {" · "}
-                  {event.sentence}
-                </>
-              ) : (
-                event.sentence
-              )}
-            </p>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#6b7280]">
-              {event.scope || "stock"}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+            {sym && (
+              <Link
+                href={`/stock/${encodeURIComponent(sym)}`}
+                className="text-[11px] font-semibold text-[#111111] hover:text-[#0052ff] transition-colors"
+              >
+                {sym}
+              </Link>
+            )}
+          </div>
+          <p className="text-[12px] font-semibold leading-snug text-[#111111] line-clamp-3">
+            {title}
+          </p>
+        </div>
+      </div>
+    </article>
   );
 }
 
-function ChangesList({ changes }: { changes: Props["changes"] }) {
-  const hasAny =
-    changes.scoreChanges.length > 0 || changes.newTickers.length > 0;
+function BookEventCompactRow({ event }: { event: EventItem }) {
+  const tone = toneStyles(event.direction);
+  const eventType = (event.event_type || "event").replaceAll("_", " ");
+  const sym = cleanSymbol(event.symbol || "");
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[14px] leading-relaxed text-[#111111] max-w-[760px]">
-        {changes.summary ||
-          "No previous snapshot yet; this build sets the baseline."}
-      </p>
-      {hasAny && (
-        <ul className="flex flex-col">
-          {changes.scoreChanges.map((item, i) => {
-            const delta = item.delta;
-            const tone =
-              typeof delta === "number" && delta > 0
-                ? "text-[#10b981]"
-                : typeof delta === "number" && delta < 0
-                ? "text-[#ef4444]"
-                : "text-[#6b7280]";
-            const deltaStr =
-              delta === null
-                ? "—"
-                : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`;
-            return (
-              <li
-                key={`score-${i}`}
-                className="grid grid-cols-[minmax(56px,_auto)_1fr_auto] items-baseline gap-4 border-b border-[#f3f4f6] py-2.5"
+    <li className="border-t border-[#f3f4f6] py-2.5 first:border-t-0 first:pt-0">
+      <div className="flex items-start gap-2">
+        <span
+          aria-hidden
+          className="mt-1.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: tone.dot }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+              {eventType}
+            </span>
+            {sym && (
+              <Link
+                href={`/stock/${encodeURIComponent(sym)}`}
+                className="text-[11px] font-semibold text-[#111111] hover:text-[#0052ff] transition-colors"
               >
-                <span className="text-[12px] font-semibold tabular-nums text-[#111111]">
-                  {item.ticker}
-                </span>
-                <span className="text-[13px] text-[#6b7280]">{item.sentence}</span>
-                <span className={`text-[13px] font-semibold tabular-nums ${tone}`}>
-                  {deltaStr}
-                </span>
-              </li>
-            );
-          })}
-          {changes.newTickers.map((ticker) => (
-            <li
-              key={`new-${ticker}`}
-              className="grid grid-cols-[minmax(56px,_auto)_1fr_auto] items-baseline gap-4 border-b border-[#f3f4f6] py-2.5"
+                {sym}
+              </Link>
+            )}
+          </div>
+          <p className="mt-0.5 text-[11px] leading-snug text-[#6b7280] line-clamp-2">
+            {event.title || event.sentence}
+          </p>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+export function BookEventsPanel({
+  events,
+  layout = "rail",
+}: {
+  events: EventItem[];
+  layout?: "rail" | "full";
+}) {
+  const headlineCount = layout === "full" ? 6 : 3;
+  const headline = events.slice(0, headlineCount);
+  const rest = events.slice(headlineCount);
+
+  return (
+    <div className="flex min-w-0 w-full flex-col gap-3 p-0 sm:p-0">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#eff6ff] text-[14px]"
+          >
+            📰
+          </span>
+          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#1e3a8a]">
+            Your book
+          </span>
+        </div>
+        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+          {events.length}
+        </span>
+      </div>
+      {events.length === 0 ? (
+        <p className="text-[12px] italic text-[#9ca3af]">
+          All quiet. No book events today.
+        </p>
+      ) : (
+        <>
+          <div
+            className={
+              layout === "full"
+                ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                : "flex flex-col gap-2.5"
+            }
+          >
+            {headline.map((event, i) => (
+              <BookEventCard key={`book-${i}-${event.symbol || event.event_type}`} event={event} />
+            ))}
+          </div>
+          {rest.length > 0 && (
+            <ul
+              className={
+                layout === "full"
+                  ? "grid grid-cols-1 gap-0 border-t border-[#f3f4f6] pt-3 sm:grid-cols-2 lg:grid-cols-3"
+                  : "flex flex-col"
+              }
             >
-              <span className="text-[12px] font-semibold tabular-nums text-[#111111]">
-                {ticker}
-              </span>
-              <span className="text-[13px] text-[#6b7280]">
-                Baseline established for future score, alert, and event changes.
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
-                new
-              </span>
-            </li>
-          ))}
-        </ul>
+              {rest.map((event, i) => (
+                <BookEventCompactRow
+                  key={`book-rest-${i}-${event.symbol || event.event_type}`}
+                  event={event}
+                />
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
 }
 
+function TodayMarketEventCard({ event }: { event: EventItem }) {
+  const tone = toneStyles(event.direction);
+  const eventType = (event.event_type || "event").replaceAll("_", " ");
+  const title = event.title || event.sentence;
+  return (
+    <article className="flex h-full flex-col gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+      <span
+        className="inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
+        style={{ background: tone.chip, color: tone.chipText }}
+      >
+        {eventType}
+      </span>
+      <p className="text-[13px] font-medium leading-snug text-[#111111] line-clamp-3">
+        {title}
+      </p>
+    </article>
+  );
+}
+
+export function TodayMarketEvents({ events }: { events: EventItem[] }) {
+  const headline = events.slice(0, 3);
+  if (headline.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="inline-flex h-2 w-2 shrink-0 rounded-full bg-[#6b7280]" />
+        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#374151]">
+          Market-wide
+        </span>
+        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+          {headline.length}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {headline.map((event, i) => (
+          <TodayMarketEventCard key={`market-${i}-${event.event_type}`} event={event} />
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { captureEvent } from "@/lib/posthog";
 
 type Props = {
   query: string;
@@ -18,8 +19,17 @@ export function StockRequestModal({ query, onClose }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     })
-      .then((r) => (r.ok ? setStatus("done") : setStatus("error")))
-      .catch(() => setStatus("error"));
+      .then((r) => {
+        setStatus(r.ok ? "done" : "error");
+        captureEvent(r.ok ? "stock_request_succeeded" : "stock_request_failed", {
+          query,
+          status: r.status,
+        });
+      })
+      .catch(() => {
+        setStatus("error");
+        captureEvent("stock_request_failed", { query, error: "network" });
+      });
   }, [query]);
 
   // ESC to close
@@ -84,7 +94,7 @@ export function StockRequestModal({ query, onClose }: Props) {
                 <span className="font-bold">{query}</span>
               </p>
               <p className="text-[14px] text-[#6b7280] leading-relaxed">
-                We queued this request. We’ll email you as soon as this stock is available in Tikrr.
+                We queued this request. We’ll email you as soon as this stock is available in stocksbrew.
               </p>
             </>
           )}

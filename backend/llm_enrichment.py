@@ -433,7 +433,7 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("OPENAI_API_KEY or MIMO_API_KEY is required because heuristic enrichment has been removed")
+            raise ValueError("OPENAI_API_KEY is required because heuristic enrichment has been removed")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending: list[tuple[int, Article, str]] = []
@@ -451,11 +451,37 @@ class OpenAIArticleEnricher:
         if pending:
             with ThreadPoolExecutor(max_workers=min(self.max_workers, len(pending))) as executor:
                 future_map = {
-                    executor.submit(self._enrich_article, article, cache_key): index
+                    executor.submit(self._enrich_article, article, cache_key): (index, article, cache_key)
                     for index, article, cache_key in pending
                 }
                 for future in as_completed(future_map):
-                    enriched[future_map[future]] = future.result()
+                    index, article, cache_key = future_map[future]
+                    try:
+                        enriched[index] = future.result()
+                    except Exception as exc:  # pragma: no cover - safety net for pipeline resilience
+                        logger.error(
+                            "LLM enrich terminal fallback market=%s source_id=%s err=%s url=%s",
+                            article.market,
+                            article.source_id,
+                            exc,
+                            article.url,
+                        )
+                        fallback_payload = _fallback_payload(article)
+                        try:
+                            enriched[index] = apply_enrichment(article, fallback_payload)
+                        except Exception:
+                            # Absolute last resort: keep a usable article shape and move on.
+                            enriched[index] = replace(
+                                article,
+                                topic_key=f"market:{article.market}:macro",
+                                topic_label="Market",
+                                topic_kind="market",
+                                bucket_keys=[f"market:{article.market}:macro"],
+                                bucket_labels=["Market"],
+                                bucket_kinds=["market"],
+                                enrichment_source="llm",
+                            )
+                        self._save_cached_payload(cache_key, article, fallback_payload)
 
         return [article for article in enriched if article is not None]
 
@@ -464,10 +490,10 @@ class OpenAIArticleEnricher:
         payload = response.json()
         message = payload["choices"][0]["message"]
         if message.get("refusal"):
-            raise ValueError("MiMo refused enrichment request")
+            raise ValueError("LLM refused enrichment request")
         content = (message.get("content") or "").strip()
         if not content:
-            raise ValueError("MiMo returned empty content")
+            raise ValueError("LLM returned empty content")
         return parse_json_content(content)
 
     def _request_payload(self, article: Article, repair: bool = False) -> dict[str, Any]:

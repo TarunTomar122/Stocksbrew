@@ -9,11 +9,12 @@ import { TrackButton } from "@/components/track-button";
 import { StockRequestModal } from "@/components/stock-request-modal";
 import { ProBadge } from "@/components/pro-badge";
 import { useUser } from "@/lib/auth-context";
+import { captureEvent } from "@/lib/posthog";
 import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
 
 type Props = {
-  searchIndex: SearchEntry[];
+  searchIndex?: SearchEntry[];
   market: Market;
   trackedIds?: string[];
   isSubscribed?: boolean;
@@ -22,12 +23,13 @@ type Props = {
 const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean }[] = [
   { href: "/heat",      label: "Hot Stocks",       icon: "local_fire_department" },
   { href: "/screens",   label: "Screens",          icon: "tune" },
+  { href: "/events",    label: "Events",           icon: "bolt" },
   { href: "/anomalies", label: "Market Anomalies", icon: "trending_up", pro: true },
   { href: "/watchlist", label: "Radar",            icon: "radar" },
 ];
 
 /** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */
-const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/anomalies", "/watchlist"] as const;
+const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/events", "/anomalies", "/watchlist"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
@@ -126,9 +128,11 @@ function MarketPicker({ market }: { market: Market }) {
   );
 }
 
-export function Header({ searchIndex, market, trackedIds = [], isSubscribed = false }: Props) {
+export function Header({ searchIndex: initialSearchIndex = [], market, trackedIds = [], isSubscribed = false }: Props) {
   const router = useRouter();
   const { user, initialAuthed } = useUser();
+  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(initialSearchIndex);
+  const [searchIndexReady, setSearchIndexReady] = useState<boolean>(initialSearchIndex.length > 0);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -151,6 +155,39 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   }, [query]);
 
   useEffect(() => {
+    let cancelled = false;
+    const url = `/api/search-index?market=${encodeURIComponent(String(market || "US"))}`;
+    const run = async () => {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = (await res.json()) as { entries?: SearchEntry[] };
+        const entries = Array.isArray(payload.entries) ? payload.entries : [];
+        if (!cancelled) {
+          setSearchIndex(entries);
+          setSearchIndexReady(entries.length > 0);
+        }
+      } catch {
+        // keep local fallback
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(run);
+      return () => {
+        cancelled = true;
+        if ("cancelIdleCallback" in window) {
+          (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
+        }
+      };
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [market]);
+
+  useEffect(() => {
     function onDocClick(e: MouseEvent) {
       const target = e.target as HTMLElement | null;
       if (target?.closest("[data-track-modal-root='true']")) {
@@ -165,6 +202,12 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
   }, []);
 
   function navigateTo(entry: SearchEntry) {
+    captureEvent("stock_search_selected", {
+      ticker: entry.ticker,
+      instrument_id: entry.instrument_id,
+      market,
+      source: mobileSearchOpen ? "mobile_header" : "desktop_header",
+    });
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();
@@ -240,9 +283,12 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
             <Link
               href="/"
-              className="flex shrink-0 items-center gap-2 text-[20px] font-semibold text-[#111111] tracking-[-0.04em] leading-none"
+              className="flex shrink-0 flex-col gap-0.5 text-[#111111] leading-none"
             >
-              tikrr
+              <span className="text-[20px] font-semibold tracking-[-0.04em]">stocksbrew</span>
+              <span className="text-[10px] font-medium text-[#9ca3af] tracking-normal">
+                (formerly tikrr)
+              </span>
             </Link>
             <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
               {navItems.map((item) => {
@@ -258,24 +304,26 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
                     }`}
                   >
                     <span
-                      className="material-symbols-outlined"
+                      className="material-symbols-outlined shrink-0"
                       style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}
                       aria-hidden
                     >
                       {item.icon}
                     </span>
-                    {item.label}
-                    {item.beta && (
-                      <span
-                        className={`ml-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
-                          active
-                            ? "bg-white/20 text-white"
-                            : "bg-[#fef3c7] text-[#b45309]"
-                        }`}
-                      >
-                        Beta
-                      </span>
-                    )}
+                    <span className="inline-flex items-center gap-1">
+                      {item.label}
+                      {item.beta && (
+                        <span
+                          className={`ml-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
+                            active
+                              ? "bg-white/20 text-white"
+                              : "bg-[#fef3c7] text-[#b45309]"
+                          }`}
+                        >
+                          Beta
+                        </span>
+                      )}
+                    </span>
                     {item.pro && !isSubscribed && (
                       <ProBadge
                         isSubscribed={isSubscribed}
@@ -314,7 +362,7 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
                 }}
                 onFocus={() => setOpen(true)}
                 onKeyDown={onKeyDown}
-                placeholder="Search ticker…"
+                placeholder={searchIndexReady ? "Search ticker…" : "Preparing search…"}
                 autoComplete="off"
                 spellCheck={false}
                 className="h-10 w-56 rounded-lg border border-[#e5e7eb] bg-white pl-10 pr-3 text-[14px] text-[#111111] placeholder:text-[#898989] outline-none transition-all duration-200 focus:w-72 focus:border-[#111111]"
@@ -335,6 +383,10 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
                         type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
+                          captureEvent("stock_request_clicked", {
+                            query: query.trim().toUpperCase(),
+                            source: "desktop_header",
+                          });
                           setOpen(false);
                           setRequestQuery(query.trim().toUpperCase());
                         }}
@@ -515,6 +567,10 @@ export function Header({ searchIndex, market, trackedIds = [], isSubscribed = fa
                 <button
                   type="button"
                   onClick={() => {
+                    captureEvent("stock_request_clicked", {
+                      query: query.trim().toUpperCase(),
+                      source: "mobile_header",
+                    });
                     setMobileSearchOpen(false);
                     setRequestQuery(query.trim().toUpperCase());
                   }}

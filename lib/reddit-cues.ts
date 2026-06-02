@@ -102,11 +102,11 @@ function normalizeSnapshot(raw: Record<string, unknown>, market: "US" | "IN"): R
   const tickers: RedditTicker[] = Array.isArray(rawTickers)
     ? rawTickers
         .map((item) => normalizeTicker(item))
-        .filter((item): item is RedditTicker => Boolean(item))
+        .filter((item): item is RedditTicker => Boolean(item && item.mention_count > 0))
     : rawTickers && typeof rawTickers === "object"
     ? Object.entries(rawTickers)
         .map(([ticker, value]) => normalizeTicker(value, ticker))
-        .filter((item): item is RedditTicker => Boolean(item))
+        .filter((item): item is RedditTicker => Boolean(item && item.mention_count > 0))
     : [];
 
   return {
@@ -173,6 +173,51 @@ export type RedditTickerContext = {
   notable_discussions: string[];
 };
 
+type RedditTickerContextDoc = {
+  market?: string;
+  ticker?: string;
+  generated_at?: string;
+  post_count?: number;
+  cue?: Record<string, unknown>;
+  top_posts?: unknown[];
+  notable_discussions?: unknown[];
+};
+
+async function getRedditContextForTickerUncached(
+  market: "US" | "IN" = "US",
+  ticker: string,
+): Promise<RedditTickerContext | null> {
+  const upper = ticker.trim().toUpperCase();
+  if (!upper) return null;
+  const doc = await adminFirestore
+    .collection("reddit_ticker_contexts")
+    .doc(`${market}__${upper}`)
+    .get();
+  if (!doc.exists) return null;
+  const data = doc.data() as RedditTickerContextDoc;
+  const cue = normalizeTicker(data.cue, upper);
+  if (!cue) return null;
+  return {
+    cue,
+    generated_at: typeof data.generated_at === "string" ? data.generated_at : "",
+    post_count: typeof data.post_count === "number" ? data.post_count : 0,
+    top_posts: Array.isArray(data.top_posts)
+      ? data.top_posts
+          .map((row) => normalizeTopPost(row))
+          .filter((row): row is RedditTopPost => Boolean(row))
+      : [],
+    notable_discussions: Array.isArray(data.notable_discussions)
+      ? data.notable_discussions.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      : [],
+  };
+}
+
+export const getRedditContextForTicker = unstable_cache(
+  getRedditContextForTickerUncached,
+  ["reddit-context-for-ticker"],
+  { revalidate: 300 },
+);
+
 export function getRedditTickerContext(
   snapshot: RedditSnapshot | null | undefined,
   ticker: string,
@@ -211,7 +256,7 @@ export function resolveRedditContextForSymbol(
       ticker: upper,
       sentiment: "neutral",
       summary:
-        "This name isn’t in tikrr’s library yet. Below is what Reddit discussed in our latest scan.",
+        "This name isn’t in stocksbrew’s library yet. Below is what Reddit discussed in our latest scan.",
       mention_count: top_posts.length,
       catalysts: [],
     },

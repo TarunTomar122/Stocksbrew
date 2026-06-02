@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
+
 type Column = {
   title: string;
   links: { label: string; href: string; external?: boolean }[];
@@ -11,18 +13,39 @@ const COLUMNS: Column[] = [
     links: [
       { label: "Markets", href: "/" },
       { label: "Market Heat", href: "/heat" },
-      { label: "Market Anomalies", href: "/anomalies" },
       { label: "Screens", href: "/screens" },
       { label: "News", href: "/news" },
+      { label: "Market Anomalies", href: "/anomalies" },
       { label: "Radar", href: "/watchlist" },
     ],
   },
   {
-    title: "Coverage",
+    title: "Earnings",
     links: [
-      { label: "US stocks", href: "/" },
-      { label: "Sectors", href: "/" },
-      { label: "Indices & macro", href: "/" },
+      { label: "Upcoming setups", href: "/upcoming-events" },
+      { label: "Fresh reports", href: "/events" },
+      { label: "Earnings calendar", href: "/earnings" },
+      { label: "Earnings intel", href: "/earnings-intel" },
+    ],
+  },
+  {
+    title: "Free tools",
+    links: [
+      { label: "Should I Buy?", href: "/should-i-buy" },
+      { label: "Compare stocks", href: "/compare-stocks" },
+      { label: "Portfolio Analyzer", href: "/portfolio" },
+      { label: "Position size calculator", href: "/position-size-calculator" },
+      { label: "IPO calendar", href: "/ipos" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { label: "Research guides", href: "/guides" },
+      { label: "Learn", href: "/learn" },
+      { label: "Blog", href: "/blog" },
+      { label: "Compare tools", href: "/compare" },
+      { label: "Use cases", href: "/use-cases" },
     ],
   },
   {
@@ -30,18 +53,7 @@ const COLUMNS: Column[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "Pricing", href: "/subscribe" },
-      { label: "Learn", href: "/learn" },
-      { label: "Blog", href: "/blog" },
-      { label: "Contact", href: "mailto:hello@tikrr.com", external: true },
-    ],
-  },
-  {
-    title: "Free tools",
-    links: [
-      { label: "Portfolio Analyzer", href: "/portfolio" },
-      { label: "Should I Buy?", href: "/should-i-buy" },
-      { label: "Earnings Calendar", href: "/earnings" },
-      { label: "IPO Calendar", href: "/ipos" },
+      { label: "Contact", href: "mailto:tomartarun2001@gmail.com", external: true },
     ],
   },
   {
@@ -60,16 +72,16 @@ export function Footer() {
   return (
     <footer className="mt-16 bg-[#0b1228] text-white">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-10">
           {/* Wordmark + tagline */}
           <div className="col-span-2 flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-1.5 w-fit">
               <span className="text-[20px] font-semibold tracking-[-0.04em] text-white leading-none">
-                tikrr
+                stocksbrew
               </span>
             </Link>
-            <p className="text-[14px] leading-[1.55] text-white/65 max-w-[280px]">
-              Market intelligence for the stocks you actually care about - US markets today, more coming soon.
+            <p className="text-[14px] leading-[1.55] text-white/65 max-w-[320px]">
+              {SHORT_DESCRIPTION}
             </p>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/85">
@@ -113,16 +125,17 @@ export function Footer() {
           ))}
         </div>
 
-        <a href="https://www.scrolllaunch.com/products/tikrr?utm_source=badge&utm_medium=embed&utm_campaign=tikrr&ref=scrolllaunch" target="_blank" rel="noopener noreferrer">
+          <div className="my-4">
+        <a href="https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch" target="_blank" rel="noopener noreferrer">
   <img src="https://www.scrolllaunch.com/api/badge/tikrr" alt="Featured on ScrollLaunch" width="220" height="48" loading="lazy" />
 </a>
-
+</div>
         <div className="mt-14 pt-6 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-[12px] text-white/55">
-            © {year} tikrr. All rights reserved.
+            © {year} stocksbrew. All rights reserved.
           </p>
           <p className="text-[12px] text-white/45 max-w-[640px]">
-            tikrr provides market data and analytics for informational purposes only. Nothing here is investment advice. Past performance does not guarantee future results.
+            stocksbrew provides market data and analytics for informational purposes only. Nothing here is investment advice. Past performance does not guarantee future results.
           </p>
         </div>
       </div>

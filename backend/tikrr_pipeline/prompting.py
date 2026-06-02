@@ -8,7 +8,7 @@ from backend.tikrr_pipeline.facts import extract_facts
 from backend.tikrr_pipeline.searxng import SearchHit
 
 
-SYSTEM_PROMPT = """You generate one rich stock briefing payload for Tikrr.
+SYSTEM_PROMPT = """You generate one rich stock briefing payload for stocksbrew.
 
 Rules:
 - Return only facts supported by the supplied search results.
@@ -31,7 +31,7 @@ Rules:
 - If extracted hard facts are supplied, prefer them over weaker paraphrases from snippets.
 """
 
-MARKET_SYSTEM_PROMPT = """You generate one market overview payload for Tikrr.
+MARKET_SYSTEM_PROMPT = """You generate one market overview payload for stocksbrew.
 
 Rules:
 - Use only facts supported by the supplied market articles and factual context.
@@ -45,7 +45,7 @@ Rules:
 - Sentiment overall should be between -1 and 1.
 """
 
-SECTOR_SYSTEM_PROMPT = """You generate one sector overview payload for Tikrr.
+SECTOR_SYSTEM_PROMPT = """You generate one sector overview payload for stocksbrew.
 
 Rules:
 - Use only facts supported by the supplied sector articles and factual context.
@@ -106,7 +106,7 @@ def build_user_prompt(
         news_hits=news_hits,
         analyst_hits=analyst_hits,
     )
-    return f"""Generate a Tikrr stock payload for:
+    return f"""Generate a stocksbrew stock payload for:
 
 symbol: {symbol}
 market: {market}
@@ -158,7 +158,7 @@ def build_market_prompt(
     breadth: dict[str, object],
 ) -> str:
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    return f"""Generate a Tikrr market overview payload for:
+    return f"""Generate a stocksbrew market overview payload for:
 
 market: {market}
 runType: {run_type}
@@ -209,7 +209,7 @@ def build_sector_prompt(
     top_losers: list[dict[str, object]],
 ) -> str:
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    return f"""Generate a Tikrr sector overview payload for:
+    return f"""Generate a stocksbrew sector overview payload for:
 
 market: {market}
 sectorId: {sector_id}

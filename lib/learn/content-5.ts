@@ -62,7 +62,7 @@ export const posts_41_50: Record<string, string> = {
 <p>Your criteria reflect your strategy. A value investor's criteria look different from a growth investor's. That's fine - but have criteria and stick to them.</p>
 
 <h2>Step 2: Screen and Filter</h2>
-<p>Use stock screeners (Finviz, tikrr screens, your broker's research tools) to generate a list of candidates matching your criteria. This narrows thousands of stocks to a few dozen. Don't add everything that passes the screen - the screen generates candidates, not decisions.</p>
+<p>Use stock screeners (Finviz, stocksbrew screens, your broker's research tools) to generate a list of candidates matching your criteria. This narrows thousands of stocks to a few dozen. Don't add everything that passes the screen - the screen generates candidates, not decisions.</p>
 
 <h2>Step 3: Tier Your Watchlist</h2>
 <p>Organize your watchlist into tiers:</p>

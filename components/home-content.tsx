@@ -38,21 +38,6 @@ function fmtPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
-function relativeTime(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const diffMs = Date.now() - d.getTime();
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 function StockRow({ stock, market }: { stock: StockData; market: "US" | "IN" }) {
   const { user } = useUser();
   const up = stock.changePct > 0;
@@ -128,13 +113,9 @@ function NewsItem({ article }: { article: NewsArticle }) {
       <span className="text-[13px] font-semibold text-[#111111] leading-snug line-clamp-3">
         {article.title}
       </span>
-      <div className="flex items-center gap-2 text-[11px]">
-        <span className="font-semibold tracking-[0.05em] uppercase text-[#0052ff] truncate">
-          {article.source_name}
-        </span>
-        <span className="text-[#d1d5db]">·</span>
-        <span className="text-[#6b7280]">{relativeTime(article.published_at)}</span>
-      </div>
+      <span className="text-[11px] font-semibold tracking-[0.05em] uppercase text-[#0052ff] truncate min-w-0">
+        {article.source_name}
+      </span>
     </a>
   );
 }

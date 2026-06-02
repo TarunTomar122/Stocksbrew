@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
+import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import type { WatchlistRow } from "@/lib/watchlist-view";
 
 type SortKey =
@@ -153,7 +154,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
         return;
       }
       setModalStatus("success");
-      startTransition(() => router.refresh());
+      startTransition(() => triggerRadarBackgroundRefresh(router));
     } finally {
       setPendingId(null);
       setTimeout(() => setModalOpen(false), 900);
@@ -398,7 +399,7 @@ export function WatchlistGrid({ rows }: { rows: WatchlistRow[] }) {
       <RadarAsyncModal
         open={modalOpen}
         title={modalTitle}
-        subtitle="Applying your update and refreshing Radar..."
+        subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
     </>

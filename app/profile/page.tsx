@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { ProfileSubscription } from "@/components/profile-subscription";
+import { ProfileFounderFeedback } from "@/components/profile-founder-feedback";
 import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceToggle } from "@/components/preference-toggle";
+import { ProfileRadarHighlight } from "@/components/profile-radar-highlight";
 
 export const revalidate = 0;
 
@@ -33,6 +35,7 @@ export default async function ProfilePage() {
           day: "numeric",
         })
       : null;
+  const trackedCount = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks!.length : 0;
 
   return (
     <main className="flex-grow">
@@ -66,12 +69,15 @@ export default async function ProfilePage() {
             </div>
           </div>
 
+          <ProfileRadarHighlight trackedCount={trackedCount} />
+
           <ProfileSubscription
             isSubscribed={subscribed}
             hasBillableSubscription={hasBillableSubscription}
             subscriptionStatus={userDoc?.subscriptionStatus ?? null}
             subscriptionPlan={userDoc?.subscriptionPlan ?? null}
             cancelAtPeriodEnd={userDoc?.cancelAtPeriodEnd ?? false}
+            subscriptionId={subscriptionId ?? null}
           />
         </section>
 
@@ -92,15 +98,17 @@ export default async function ProfilePage() {
             field="email_digest_enabled"
             icon="mail"
             label="Email digest"
-            description="Daily AI brief across your Radar, delivered to your inbox"
+            description="Radar summary and call updates delivered to your inbox"
             initialValue={userDoc?.email_digest_enabled ?? true}
           />
           <PreferenceRow
             icon="schedule"
             label="Refresh cadence"
-            description="How often your Radar brief regenerates"
+            description="How often your Radar calls refresh"
             badge="Coming soon"
           />
+
+          <ProfileFounderFeedback />
         </section>
 
         {/* ─── Danger zone ─────────────────────────────────── */}

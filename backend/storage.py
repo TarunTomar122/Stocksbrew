@@ -33,6 +33,157 @@ def _serialize(obj: Any) -> Any:
     return obj
 
 
+def _compact_heat_list(payload: dict[str, Any]) -> dict[str, Any]:
+    rows_raw = payload.get("rows") or []
+    rows = [row for row in rows_raw if isinstance(row, dict)]
+    rows.sort(key=lambda row: float(row.get("heat_score") or 0), reverse=True)
+    setup_counts: dict[str, int] = {}
+    selected: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        setup = str(row.get("setup_type") or "momentum_watch")
+        setup_counts[setup] = setup_counts.get(setup, 0) + 1
+
+    for row in rows[:6]:
+        instrument_id = str(row.get("instrument_id") or "")
+        if instrument_id:
+            selected[instrument_id] = row
+
+    for setup in setup_counts:
+        kept = 0
+        for row in rows:
+            if str(row.get("setup_type") or "momentum_watch") != setup:
+                continue
+            instrument_id = str(row.get("instrument_id") or "")
+            if instrument_id:
+                selected[instrument_id] = row
+            kept += 1
+            if kept >= 10:
+                break
+
+    return {
+        **{k: v for k, v in payload.items() if k != "rows"},
+        "row_count": int(payload.get("row_count") or len(rows)),
+        "setup_counts": setup_counts,
+        "rows": [row for row in rows if str(row.get("instrument_id") or "") in selected],
+    }
+
+
+HOME_MACRO_IDS = {
+    "US_IDX_SPX",
+    "US_IDX_NDX",
+    "US_MAC_GOLD",
+    "US_MAC_SILVER",
+    "US_MAC_OIL",
+    "US_MAC_VIX",
+    "IN_IDX_NIFTY50",
+    "IN_IDX_BANKNIFTY",
+    "IN_MAC_GOLD",
+    "IN_MAC_SILVER",
+    "IN_MAC_OIL",
+    "IN_IDX_VIX",
+}
+
+HOME_SECTOR_SYMBOLS = {
+    # Keep in sync with components/sector-spotlights.tsx.
+    "AAPL", "MSFT", "GOOGL", "GOOG", "META", "AMZN", "NFLX", "ADBE", "CRM",
+    "ORCL", "NOW", "SHOP", "CRWD", "SNOW", "DDOG", "NET", "ZS", "TEAM", "MDB",
+    "OKTA", "PANW", "FTNT", "INTU", "WDAY", "IBM", "SAP", "UBER", "ABNB",
+    "DOCU", "ROKU", "SPOT", "PINS", "SNAP", "SQ", "PYPL", "TSLA",
+    "NVDA", "AMD", "INTC", "TSM", "AVGO", "MU", "QCOM", "ASML", "LRCX", "AMAT",
+    "ADI", "MRVL", "ON", "KLAC", "MCHP", "TXN", "NXPI", "MPWR", "STM", "SWKS",
+    "QRVO", "ARM", "AMKR", "SMCI",
+    "CAT", "DE", "HON", "UNP", "UPS", "FDX", "GE", "EMR", "MMM", "ROK",
+    "ETN", "PH", "PCAR", "URI", "NSC", "CSX", "ITW", "JCI", "PWR", "FAST",
+    "GWW", "CMI", "WM", "RSG",
+    "LMT", "RTX", "NOC", "GD", "LHX", "HII", "TDG", "AXON", "BA", "HEI",
+    "KTOS", "LDOS", "PLTR",
+}
+
+
+def _compact_home_snapshot_rows(rows_raw: Any, mover_limit: int = 12) -> list[dict[str, Any]]:
+    rows = [row for row in (rows_raw or []) if isinstance(row, dict)]
+    selected: dict[str, dict[str, Any]] = {}
+
+    def key_for(row: dict[str, Any]) -> str:
+        return str(row.get("instrumentId") or row.get("instrument_id") or row.get("symbol") or "")
+
+    for row in rows:
+        instrument_id = str(row.get("instrumentId") or row.get("instrument_id") or "")
+        symbol = str(row.get("symbol") or "").upper()
+        if instrument_id in HOME_MACRO_IDS or symbol in HOME_SECTOR_SYMBOLS:
+            key = key_for(row)
+            if key:
+                selected[key] = row
+
+    def change_pct(row: dict[str, Any]) -> float:
+        price = row.get("price") if isinstance(row.get("price"), dict) else {}
+        value = price.get("changePct")
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    stock_rows = [
+        row
+        for row in rows
+        if "_MAC_" not in str(row.get("instrumentId") or row.get("instrument_id") or "")
+        and "_IDX_" not in str(row.get("instrumentId") or row.get("instrument_id") or "")
+    ]
+    ordered = sorted(stock_rows, key=change_pct, reverse=True)
+    for row in ordered[:mover_limit] + list(reversed(ordered[-mover_limit:])):
+        key = key_for(row)
+        if key:
+            selected[key] = row
+
+    return [row for row in rows if key_for(row) in selected]
+
+
+def _compact_home_dashboard(dashboard: Any) -> dict[str, Any] | None:
+    if not isinstance(dashboard, dict):
+        return None
+    keep = {
+        "market",
+        "generated_at",
+        "universe_id",
+        "macro_cards",
+        "market_tiles",
+        "market_sentiment",
+        "hero_brief",
+        "sector_flows",
+        "gainers",
+        "losers",
+    }
+    return {key: value for key, value in dashboard.items() if key in keep}
+
+
+def _home_core_view(payload: dict[str, Any]) -> dict[str, Any]:
+    """Homepage core read-model without bulky news/thematic embeds."""
+    core = {
+        key: value
+        for key, value in payload.items()
+        if key not in {"news", "thematic_screens"}
+    }
+    core["dashboard"] = _compact_home_dashboard(payload.get("dashboard"))
+    core["market_snapshot_rows"] = _compact_home_snapshot_rows(payload.get("market_snapshot_rows"))
+    core["market_snapshot_row_count"] = len(payload.get("market_snapshot_rows") or [])
+    return core
+
+
+def _home_news_view(payload: dict[str, Any], limit: int = 8) -> dict[str, Any]:
+    """Latest-news read-model for the homepage right rail."""
+    news_raw = payload.get("news") or []
+    news = [item for item in news_raw if isinstance(item, dict)]
+    return {
+        "market": payload.get("market"),
+        "universe_id": payload.get("universe_id"),
+        "ai_universe_id": payload.get("ai_universe_id"),
+        "updated_at": payload.get("updated_at"),
+        "news": news[:limit],
+        "news_count": len(news),
+    }
+
+
 class TraceMoneyStore:
     """Firestore persistence for config, market data, and derived views."""
 
@@ -517,10 +668,55 @@ class TraceMoneyStore:
         self.db.collection("tm_views_dashboard").document(doc_id).set(payload)
 
     def save_home_view(self, market: str, payload: dict[str, Any]) -> None:
-        self.db.collection("tm_home_view").document(str(market).upper()).set({
-            **(_serialize(payload) or {}),
+        market_key = str(market).upper()
+        serialized = _serialize(payload) or {}
+        full_payload = {
+            **serialized,
+            "market": market_key,
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, merge=True)
+        }
+        self.db.collection("tm_home_view").document(market_key).set(full_payload, merge=True)
+        self.db.collection("tm_home_view_core").document(market_key).set(_home_core_view(full_payload))
+        self.db.collection("tm_home_news").document(market_key).set(_home_news_view(full_payload))
+
+    def replace_search_index(self, market: str, entries: list[dict[str, Any]]) -> None:
+        market_key = str(market).upper()
+        entries_map: dict[str, dict[str, Any]] = {}
+        for raw in entries:
+            row = _serialize(raw) or {}
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            ticker = str(row.get("ticker") or "").strip().upper()
+            if not instrument_id or not ticker:
+                continue
+            entries_map[instrument_id] = row
+        self.db.collection("tm_search_index").document(market_key).set(
+            {
+                "market": market_key,
+                "entries": entries_map,
+                "size": len(entries_map),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    def save_search_index_entries(self, market: str, entries: list[dict[str, Any]]) -> int:
+        market_key = str(market).upper()
+        updates: dict[str, Any] = {
+            "market": market_key,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        saved = 0
+        for raw in entries:
+            row = _serialize(raw) or {}
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            ticker = str(row.get("ticker") or "").strip().upper()
+            if not instrument_id or not ticker:
+                continue
+            updates[f"entries.{instrument_id}"] = row
+            saved += 1
+        if saved == 0:
+            return 0
+        self.db.collection("tm_search_index").document(market_key).set(updates, merge=True)
+        return saved
 
     def get_news_home_feed(self, market: str, universe_id: str, limit: int = 30) -> list[dict[str, Any]]:
         namespace = self._news_namespace(market, universe_id).get()
@@ -984,6 +1180,7 @@ class TraceMoneyStore:
             .select([
                 "tracked_stocks",
                 "watchlist_positions",
+                "watchlist_version",
                 "alert_thresholds",
                 "thresholds",
                 "email",
@@ -1187,14 +1384,19 @@ class TraceMoneyStore:
     def save_heat_list(self, market: str, payload: dict[str, Any]) -> None:
         """Write the ranked heat-list doc for a market.
 
-        One doc per market under `tm_heat_list/{market}`. Holds the fully
-        joined rows the `/heat` page renders so a page load is a single
-        Firestore read."""
-        self.db.collection("tm_heat_list").document(market).set({
+        `tm_heat_list/{market}` keeps the full analytical artifact.
+        `tm_heat_list_view/{market}` is the compact frontend read model.
+        Keep `/heat` on the compact doc so request payload does not scale with
+        the full ranked universe."""
+        full_payload = {
             **payload,
             "market": market,
             "generated_at": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        self.db.collection("tm_heat_list").document(market).set(full_payload)
+        # Compact read-model for `/heat`: keep top rows per setup plus counts.
+        # The full analytical artifact above remains available for debugging.
+        self.db.collection("tm_heat_list_view").document(market).set(_compact_heat_list(full_payload))
 
     def get_heat_list(self, market: str) -> dict[str, Any] | None:
         doc = self.db.collection("tm_heat_list").document(market).get()

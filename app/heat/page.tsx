@@ -15,12 +15,12 @@ export const metadata: Metadata = {
     "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving, and track names in Radar.",
   alternates: { canonical: "/heat" },
   openGraph: {
-    title: "Market Heat - Daily Ranked Stock Setups · tikrr",
+    title: "Market Heat - Daily Ranked Stock Setups · stocksbrew",
     description: "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",
-    url: "https://www.tikrr.online/heat",
+    url: "https://www.stocksbrew.online/heat",
   },
   twitter: {
-    title: "Market Heat - Daily Ranked Stock Setups · tikrr",
+    title: "Market Heat - Daily Ranked Stock Setups · stocksbrew",
     description: "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",
   },
 };
@@ -47,10 +47,12 @@ async function HeatContentStream() {
   let data: HeatList | null = null;
   let divergence: DivergenceList | null = null;
   try {
-    [data, divergence] = await Promise.all([
+    const [rawHeat, divergenceDoc] = await Promise.all([
       getHeatList(market),
       getDivergenceList(market),
     ]);
+    data = rawHeat;
+    divergence = divergenceDoc;
   } catch (err) {
     console.error("[heat] load failed:", err);
   }

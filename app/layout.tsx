@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -10,8 +11,11 @@ import { Header } from "@/components/header";
 import { LaunchBanner } from "@/components/launch-banner";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
-import { getSearchIndex } from "@/lib/search";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import {
+  MEDIUM_DESCRIPTION,
+  SITE_TITLE_DEFAULT,
+} from "@/lib/brand-copy";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -22,24 +26,24 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://www.tikrr.online/#organization",
-      name: "tikrr",
-      url: "https://www.tikrr.online",
-      description: "Market intelligence platform providing AI-powered stock briefs, market sentiment analysis, heat lists, and thematic screens for US equities.",
-      logo: "https://www.tikrr.online/hero.png",
-      sameAs: ["https://twitter.com/tikrr"],
+      "@id": "https://www.stocksbrew.online/#organization",
+      name: "stocksbrew",
+      url: "https://www.stocksbrew.online",
+      description: MEDIUM_DESCRIPTION,
+      logo: "https://www.stocksbrew.online/hero.png",
+      sameAs: ["https://www.stocksbrew.online"],
       contactPoint: {
         "@type": "ContactPoint",
-        email: "hello@tikrr.com",
+        email: "tomartarun2001@gmail.com",
         contactType: "customer support",
       },
     },
     {
       "@type": "WebApplication",
-      "@id": "https://www.tikrr.online/#webapp",
-      name: "tikrr",
-      url: "https://www.tikrr.online",
-      description: "Real-time precision analytics for your global portfolio.",
+      "@id": "https://www.stocksbrew.online/#webapp",
+      name: "stocksbrew",
+      url: "https://www.stocksbrew.online",
+      description: MEDIUM_DESCRIPTION,
       applicationCategory: "FinanceApplication",
       operatingSystem: "All",
       offers: {
@@ -51,42 +55,54 @@ const jsonLd = {
   ],
 };
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.tikrr.online"),
+  metadataBase: new URL("https://www.stocksbrew.online"),
   title: {
-    default: "tikrr - Market Intelligence",
-    template: "%s · tikrr",
+    default: SITE_TITLE_DEFAULT,
+    template: "%s · stocksbrew",
   },
-  description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens for US equities.",
-  keywords: ["stock market", "market intelligence", "stock analysis", "AI briefs", "market sentiment", "stock screener", "investing", "equities", "technical analysis", "fundamental analysis"],
-  authors: [{ name: "tikrr" }],
-  creator: "tikrr",
-  publisher: "tikrr",
+  description: MEDIUM_DESCRIPTION,
+  keywords: [
+    "stock calls",
+    "buy hold sell guidance",
+    "risk flags",
+    "investment opportunities",
+    "watchlist radar",
+    "stock analysis",
+    "AI briefs",
+    "portfolio tracking",
+    "stock screener",
+    "investing",
+    "US equities",
+  ],
+  authors: [{ name: "stocksbrew" }],
+  creator: "stocksbrew",
+  publisher: "stocksbrew",
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
-    siteName: "tikrr",
-    title: "tikrr - Market Intelligence",
-    description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens.",
-    url: "https://www.tikrr.online",
+    siteName: "stocksbrew",
+    title: SITE_TITLE_DEFAULT,
+    description: MEDIUM_DESCRIPTION,
+    url: "https://www.stocksbrew.online",
     locale: "en_US",
     images: [
       {
         url: "/hero.png",
         width: 1200,
         height: 630,
-        alt: "tikrr - Market Intelligence",
+        alt: SITE_TITLE_DEFAULT,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "tikrr - Market Intelligence",
-    description: "Real-time precision analytics for your global portfolio. AI-powered stock briefs, market sentiment, heat lists, and thematic screens.",
+    title: SITE_TITLE_DEFAULT,
+    description: MEDIUM_DESCRIPTION,
     images: ["/hero.png"],
-    creator: "@tikrr",
+    creator: "@stocksbrew",
   },
   robots: {
     index: true,
@@ -102,24 +118,25 @@ export const metadata: Metadata = {
 };
 
 async function SubscriptionBannerGate() {
-  const session = await getSessionUser();
-  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-  const isSubscribed = resolveIsSubscribed(userDoc);
+  const { isSubscribed } = await getLayoutUserData();
   return isSubscribed ? null : <LaunchBanner />;
 }
 
-async function HeaderData() {
+const getLayoutUserData = cache(async () => {
   const market = getCurrentMarket();
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-  const searchIndex = await getSearchIndex(market).catch(() => []);
   const trackedIds: string[] = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
     : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
+  return { market, trackedIds, isSubscribed };
+});
+
+async function HeaderData() {
+  const { market, trackedIds, isSubscribed } = await getLayoutUserData();
   return (
     <Header
-      searchIndex={searchIndex}
       market={market}
       trackedIds={trackedIds}
       isSubscribed={isSubscribed}
@@ -135,7 +152,7 @@ function HeaderFallback() {
           href="/"
           className="flex shrink-0 items-center gap-2 text-[20px] font-semibold leading-none tracking-[-0.04em] text-[#111111]"
         >
-          tikrr
+          stocksbrew
         </a>
         <div className="hidden items-center gap-1 md:flex" aria-hidden="true">
           <div className="h-9 w-24 rounded-full bg-[#f3f4f6]" />

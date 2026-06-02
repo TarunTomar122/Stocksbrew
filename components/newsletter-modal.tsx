@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useUser } from "@/lib/auth-context";
+import { captureEvent } from "@/lib/posthog";
 
 const STORAGE_KEY = "tikrr_newsletter_modal_dismissed";
 const DELAY_MS = 4000;
@@ -38,6 +39,7 @@ export function NewsletterModal() {
     const trimmed = email.trim();
     if (!trimmed) return;
     setState("loading");
+    captureEvent("newsletter_signup_submitted", { source: "homepage_modal" });
     try {
       const res = await fetch("/api/newsletter-signup", {
         method: "POST",
@@ -46,12 +48,15 @@ export function NewsletterModal() {
       });
       if (res.ok) {
         setState("success");
+        captureEvent("newsletter_signup_succeeded", { source: "homepage_modal", status: res.status });
         setTimeout(dismiss, 2500);
       } else {
         setState("error");
+        captureEvent("newsletter_signup_failed", { source: "homepage_modal", status: res.status });
       }
     } catch {
       setState("error");
+      captureEvent("newsletter_signup_failed", { source: "homepage_modal", error: "network" });
     }
   }
 

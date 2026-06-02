@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import { StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
 import { TrackButton } from "@/components/track-button";
+import { sectorSlug } from "@/lib/sector";
 import type { RedditTickerContext } from "@/lib/reddit-cues";
 import type { StockIntelPro } from "@/lib/types";
 import type { StockSummary, TimelineEvent } from "@/lib/stock";
@@ -103,6 +105,86 @@ function scoreTone(v?: number | null): string {
   return "text-[#9ca3af]";
 }
 
+function isPlaceholderDescription(desc: string, name?: string): boolean {
+  const d = desc.trim();
+  if (!d) return true;
+  if (/tracked in the (US|India) core universe\.?$/i.test(d)) return true;
+  if (name && d.startsWith(name) && /tracked in/i.test(d)) return true;
+  return false;
+}
+
+function fmtMarketCap(v: number, currencySymbol: string): string {
+  if (!Number.isFinite(v) || v <= 0) return "—";
+  if (v >= 1e12) return `${currencySymbol}${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9) return `${currencySymbol}${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `${currencySymbol}${(v / 1e6).toFixed(0)}M`;
+  return `${currencySymbol}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function StockCompanyBlurb({
+  stock,
+  currencySymbol,
+}: {
+  stock: StockSummary;
+  currencySymbol: string;
+}) {
+  const sector = stock.sector?.trim();
+  const industry = stock.industry?.trim();
+  const description = stock.description?.trim();
+  const showDescription =
+    description && !isPlaceholderDescription(description, stock.name);
+  const indices = (stock.index_memberships ?? []).filter(Boolean).slice(0, 3);
+  const marketCap = stock.fundamentals?.market_cap;
+
+  if (!sector && !industry && !showDescription && indices.length === 0 && typeof marketCap !== "number") {
+    return null;
+  }
+
+  const sectorHref = sector ? `/sector/${encodeURIComponent(sectorSlug(sector))}` : null;
+
+  return (
+    <div className="flex flex-col gap-2.5 border-t border-[#f3f4f6] pt-4">
+      {(sector || industry) && (
+        <p className="text-[12px] leading-snug text-[#6b7280]">
+          {sector &&
+            (sectorHref ? (
+              <Link href={sectorHref} className="font-semibold text-[#111111] hover:text-[#0052ff] transition-colors">
+                {sector}
+              </Link>
+            ) : (
+              <span className="font-semibold text-[#111111]">{sector}</span>
+            ))}
+          {sector && industry && <span> · </span>}
+          {industry && <span>{industry}</span>}
+        </p>
+      )}
+      {typeof marketCap === "number" && (
+        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#9ca3af]">
+          Market cap{" "}
+          <span className="font-semibold normal-case tracking-normal text-[#111111]">
+            {fmtMarketCap(marketCap, currencySymbol)}
+          </span>
+        </p>
+      )}
+      {indices.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {indices.map((idx) => (
+            <span
+              key={idx}
+              className="rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-semibold text-[#6b7280]"
+            >
+              {idx}
+            </span>
+          ))}
+        </div>
+      )}
+      {showDescription && (
+        <p className="line-clamp-4 text-[12px] leading-relaxed text-[#6b7280]">{description}</p>
+      )}
+    </div>
+  );
+}
+
 function isSystemTimelineEvent(event: TimelineEvent): boolean {
   const source = String(event.source_name ?? "").trim().toLowerCase();
   const title = String(event.title ?? "").trim().toLowerCase();
@@ -132,7 +214,8 @@ export function StockSideRail({
   const visibleTimeline = (timeline ?? []).filter((event) => !isSystemTimelineEvent(event));
 
   return (
-    <aside className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2 lg:-mr-2 flex flex-col gap-4 w-full lg:max-w-[340px] scrollbar-hide">
+    <aside className="w-full lg:max-w-[340px]">
+      <div className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto flex flex-col gap-4">
       {/* Identity card */}
       <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-5">
         <div className="flex items-start gap-3">
@@ -195,6 +278,8 @@ export function StockSideRail({
           isSubscribed={isSubscribed}
           isTracked={isTracked}
         />
+
+        <StockCompanyBlurb stock={stock} currencySymbol={currencySymbol} />
       </div>
 
       {/* Scorecard mini - hidden on mobile (available in Fundamentals tab) */}
@@ -317,6 +402,7 @@ export function StockSideRail({
           )}
         </div>
       )}
+      </div>
     </aside>
   );
 }

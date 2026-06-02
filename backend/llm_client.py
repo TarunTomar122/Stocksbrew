@@ -10,32 +10,34 @@ from backend.env import load_backend_env
 load_backend_env()
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-MIMO_API_URL = os.getenv(
-    "MIMO_API_URL",
-    "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
-)
 DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
-DEFAULT_MIMO_MODEL = os.getenv("MIMO_MODEL", "mimo-v2.5").strip() or "mimo-v2.5"
+LLM_BRIEF_SOURCE = "llm"
+
+
+def is_llm_brief_source(source: str | None) -> bool:
+    normalized = str(source or "").strip().lower()
+    return normalized in {LLM_BRIEF_SOURCE, "mimo"}
 
 
 def llm_api_key() -> str:
-    """Return server-side LLM key (OpenAI preferred, MiMo fallback)."""
-    return (
-        os.getenv("OPENAI_API_KEY", "").strip()
-        or os.getenv("MIMO_API_KEY", "").strip()
-    )
+    """Return server-side OpenAI API key."""
+    return os.getenv("OPENAI_API_KEY", "").strip()
 
 
 def llm_api_url() -> str:
-    """Return chat completions endpoint for the active provider."""
-    return OPENAI_API_URL if os.getenv("OPENAI_API_KEY", "").strip() else MIMO_API_URL
+    return OPENAI_API_URL
 
 
 def llm_model(default: str | None = None) -> str:
     """Return model name used for cache keys and API calls."""
-    if os.getenv("OPENAI_API_KEY", "").strip():
-        return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
-    return os.getenv("MIMO_MODEL", "").strip() or default or DEFAULT_MIMO_MODEL
+    return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
+
+
+def require_llm_api_key() -> str:
+    api_key = llm_api_key()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is required")
+    return api_key
 
 
 def llm_headers(api_key: str) -> dict[str, str]:
@@ -46,7 +48,6 @@ def llm_headers(api_key: str) -> dict[str, str]:
 
 
 def json_response_format() -> dict[str, str]:
-    # MiMo supports OpenAI-style JSON-object mode, not OpenAI json_schema mode.
     return {"type": "json_object"}
 
 

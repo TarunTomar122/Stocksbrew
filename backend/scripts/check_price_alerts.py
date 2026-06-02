@@ -19,7 +19,7 @@ from backend.storage import TraceMoneyStore  # noqa: E402
 
 BREVO_API = "https://api.brevo.com/v3/smtp/email"
 FROM_EMAIL = "yourtrace.online@gmail.com"
-FROM_NAME = "tikrr Alerts"
+FROM_NAME = "stocksbrew Alerts"
 
 
 def send_email(to: str, subject: str, body: str) -> bool:
@@ -91,13 +91,13 @@ def build_email(ticker: str, condition: str, target: float, current: float, dire
         <table cellpadding="0" cellspacing="0">
           <tr>
             <td align="center" valign="middle" height="40" style="height:40px;background-color:#111;border-radius:999px;padding-left:20px;padding-right:20px">
-              <a href="https://www.tikrr.online/stock/{ticker}" target="_blank" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#fff;text-decoration:none;white-space:nowrap;line-height:1">View {ticker} on tikrr →</a>
+              <a href="https://www.stocksbrew.online/stock/{ticker}" target="_blank" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#fff;text-decoration:none;white-space:nowrap;line-height:1">View {ticker} on stocksbrew →</a>
             </td>
           </tr>
         </table>
       </td></tr>
       <tr><td style="padding:0 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid #e5e7eb;font-size:0;line-height:0">&nbsp;</td></tr></table></td></tr>
-      <tr><td style="padding:24px 24px 32px 24px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;line-height:1.5">Sent by tikrr because you set a price alert. <a href="https://www.tikrr.online/profile" target="_blank" style="color:#0052ff;text-decoration:none">Manage alerts</a></td></tr>
+      <tr><td style="padding:24px 24px 32px 24px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;line-height:1.5">Sent by stocksbrew because you set a price alert. <a href="https://www.stocksbrew.online/profile" target="_blank" style="color:#0052ff;text-decoration:none">Manage alerts</a></td></tr>
     </table>
   </td></tr>
 </table>

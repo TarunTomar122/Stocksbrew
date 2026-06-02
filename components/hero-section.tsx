@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { StockLogo } from "@/components/stock-logo";
-import type { HeroVerdict } from "@/lib/hero-verdict";
+import { ExpandableYoutubeVideo } from "@/components/expandable-youtube-video";
+import { HERO_SUBHEAD } from "@/lib/brand-copy";
 
 type IndexData = {
   ticker: string;
@@ -18,8 +18,9 @@ type IndexData = {
 
 type Props = {
   indices: IndexData[];
-  verdict?: HeroVerdict | null;
+  verdict?: unknown;
   isSubscribed?: boolean;
+  showIndexSkeleton?: boolean;
 };
 
 function fmtPrice(v: number): string {
@@ -42,23 +43,67 @@ async function syncServerSession(): Promise<void> {
   });
 }
 
-const DEMO_VERDICT: HeroVerdict = {
-  ticker: "NVDA",
-  name: "NVIDIA Corporation",
-  price: 131.38,
-  changePct: 2.64,
-  level: "Buy signal",
-  shortLabel: "BUY",
-  color: "#10b981",
-  bg: "#ecfdf5",
-  textColor: "#065f46",
-  overall: 74,
-  oneLiner: "Up 2.6% today · momentum strong · valuation reasonable.",
-  logoUrl: "https://logo.clearbit.com/nvidia.com",
+const YT_VIDEO_ID = "i7tbJL58PMA";
+
+// pos = absolute coordinates (no negatives — avoids overflow-hidden clipping)
+// rotate = applied to outer wrapper; hover translate applied to inner card (keeps transforms independent)
+const SCATTERED_CHIPS: {
+  ticker: string;
+  verdict: "Buy" | "Hold" | "Sell";
+  pos: { top?: string; bottom?: string; left?: string; right?: string };
+  rotate: string;
+}[] = [
+  // ── left side — vary x-offset dramatically so they don't read as a column ──
+  { ticker: "AAPL",  verdict: "Hold", pos: { top: "4%",    left: "9%"  }, rotate: "-3deg"   },
+  { ticker: "NVDA",  verdict: "Buy",  pos: { top: "44%",   left: "2%"  }, rotate: "2deg"    },
+  { ticker: "MSFT",  verdict: "Buy",  pos: { bottom: "4%", left: "17%" }, rotate: "-1.5deg" },
+  // ── right side ─────────────────────────────────────────────────────────────
+  { ticker: "TSLA",  verdict: "Sell", pos: { top: "6%",    right: "4%"  }, rotate: "3deg"    },
+  { ticker: "GOOGL", verdict: "Buy",  pos: { top: "43%",   right: "13%" }, rotate: "-2.5deg" },
+  { ticker: "AMD",   verdict: "Hold", pos: { bottom: "3%", right: "5%"  }, rotate: "2deg"    },
+];
+
+const VERDICT_STYLES = {
+  Buy:  { text: "#10b981", bg: "#ecfdf5" },
+  Hold: { text: "#f59e0b", bg: "#fffbeb" },
+  Sell: { text: "#ef4444", bg: "#fef2f2" },
 };
 
-export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
-  const displayVerdict = verdict ?? DEMO_VERDICT;
+const MOBILE_CHIPS = SCATTERED_CHIPS.slice(0, 4);
+
+function StockVerdictChip({
+  ticker,
+  verdict,
+  rotate,
+  compact,
+}: {
+  ticker: string;
+  verdict: "Buy" | "Hold" | "Sell";
+  rotate?: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] ${
+        compact ? "px-2.5 py-1.5" : "px-3 py-2 shadow-[0_2px_16px_rgba(0,0,0,0.07)]"
+      }`}
+      style={rotate ? { transform: `rotate(${rotate})` } : undefined}
+    >
+      <StockLogo ticker={ticker} market="US" size={compact ? 18 : 22} />
+      <span className={`font-semibold text-[#111111] ${compact ? "text-[11px]" : "text-[12px]"}`}>
+        {ticker}
+      </span>
+      <span
+        className={`font-bold rounded-md ${compact ? "text-[10px] px-1 py-0.5" : "text-[11px] px-1.5 py-0.5"}`}
+        style={{ color: VERDICT_STYLES[verdict].text, background: VERDICT_STYLES[verdict].bg }}
+      >
+        {verdict}
+      </span>
+    </div>
+  );
+}
+
+export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton = false }: Props) {
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
@@ -82,199 +127,106 @@ export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
   const displayIndices = indices.slice(0, 5);
 
   return (
-    <section className="w-full overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-14 items-center pt-10 md:pt-14 pb-10">
+    <section className="w-full overflow-hidden bg-white">
+      <div className="flex flex-col items-center gap-12 md:gap-20 pt-10 md:pt-16 pb-10">
 
-        {/* LEFT: copy + CTA */}
-        <div className="flex flex-col items-start gap-6 text-left">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1 text-[12px] font-medium text-[#374151]">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-            For people who own stocks
-          </span>
+        {/* Headline block — centered, with scattered floating chips */}
+        <div className="relative w-full flex items-center justify-center" style={{ minHeight: "220px" }}>
 
-          <h1 className="text-[40px] md:text-[52px] lg:text-[60px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.02]">
-            Stock Market <br />in 5 minutes.
-          </h1>
-
-          <p className="text-[16px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[480px]">
-            Tikrr tells you what to do with your stocks with research-backed analysis every day.
-          </p>
-
-          <div className="flex flex-col items-start gap-2.5">
-            <button
-              type="button"
-              onClick={startTracking}
-              disabled={busy}
-              className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
-            >
-              {busy ? "Opening..." : user ? "Open your Radar" : "Track your first stock - free"}
-            </button>
-            {!isSubscribed && (
-              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-                {["Free for 3 stocks", "No credit card", "Pro unlocks unlimited + alerts"].map((p) => (
-                  <span key={p} className="inline-flex items-center gap-1.5 text-[11.5px] text-[#9ca3af]">
-                    <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
-                    {p}
-                  </span>
-                ))}
+          {/* Scattered stock chips — desktop only */}
+          <div className="hidden lg:block absolute inset-0 select-none">
+            {SCATTERED_CHIPS.map((s) => (
+              <div
+                key={s.ticker}
+                className="absolute transition-transform duration-200 ease-out hover:-translate-y-1.5"
+                style={{ ...s.pos, transform: `rotate(${s.rotate})` }}
+              >
+                <StockVerdictChip ticker={s.ticker} verdict={s.verdict} />
               </div>
-            )}
+            ))}
+          </div>
+
+          {/* Center text */}
+          <div className="relative flex flex-col items-center gap-4 text-center w-full max-w-[540px] px-4 lg:px-0">
+            <h1 className="text-[30px] sm:text-[40px] md:text-[52px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.05]">
+              Know exactly what to do with your stocks.
+            </h1>
+
+            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[380px]">
+              {HERO_SUBHEAD}
+            </p>
+
+            {/* Stock chips — mobile / tablet (desktop uses scattered layout above) */}
+            <div className="flex lg:hidden flex-wrap items-center justify-center gap-2.5 w-full max-w-[340px]">
+              {MOBILE_CHIPS.map((s) => (
+                <StockVerdictChip
+                  key={s.ticker}
+                  ticker={s.ticker}
+                  verdict={s.verdict}
+                  rotate={s.rotate}
+                  compact
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-col items-center gap-2.5 w-full">
+              <button
+                type="button"
+                onClick={startTracking}
+                disabled={busy}
+                className="inline-flex w-full sm:w-auto items-center justify-center h-11 px-7 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
+              >
+                {busy ? "Opening..." : user ? "Open your Radar" : "Track your first stock for free"}
+              </button>
+              {!isSubscribed && (
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                  {["Free for 3 stocks", "No credit card", "Pro unlocks unlimited + alerts"].map((p) => (
+                    <span key={p} className="inline-flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
+                      <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* RIGHT: three-pillar preview — verdict / radar / anomaly */}
-        <div className="flex flex-col gap-3 w-full">
-          {/* TILE 1 — Per-stock verdict */}
-          <Link
-            href={`/stock/${encodeURIComponent(displayVerdict.ticker)}`}
-            className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)]"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                01 · Per-stock verdict
-              </span>
-              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                tikrr
-              </span>
-            </div>
+        {/* Video embed — full width on mobile, capped on desktop */}
+        <div className="relative w-full max-w-[860px] mx-auto px-0 md:px-6 lg:px-0">
 
-            <div className="flex items-center gap-3">
-              <StockLogo
-                ticker={displayVerdict.ticker}
-                logoUrl={displayVerdict.logoUrl}
-                market="US"
-                size={40}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[16px] font-semibold text-[#111111]">
-                    {displayVerdict.ticker}
-                  </span>
-                  <span className="text-[11px] text-[#9ca3af] truncate">
-                    {displayVerdict.name}
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
-                    ${fmtPrice(displayVerdict.price)}
-                  </span>
-                  {typeof displayVerdict.changePct === "number" && (
-                    <span
-                      className="text-[12px] font-semibold tabular-nums"
-                      style={{ color: displayVerdict.changePct >= 0 ? "#10b981" : "#ef4444" }}
-                    >
-                      {fmtPct(displayVerdict.changePct)}
-                    </span>
-                  )}
-                </div>
+          {/* Browser frame + video */}
+          <div className="w-full">
+            <div className="hidden sm:flex items-center gap-1.5 rounded-t-2xl bg-[#f3f4f6] border border-b-0 border-[#e5e7eb] px-4 py-2.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ef4444] opacity-70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b] opacity-70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] opacity-70" />
+              <div className="mx-3 flex-1 rounded-md bg-white border border-[#e5e7eb] px-3 py-0.5 text-[11px] text-[#9ca3af] text-center">
+                www.stocksbrew.online/watchlist
               </div>
-              <div
-                className="flex items-center gap-2 rounded-xl px-3 py-2"
-                style={{ background: displayVerdict.bg }}
-              >
-                <span
-                  className="text-[14px] font-semibold tracking-[-0.01em] leading-none"
-                  style={{ color: displayVerdict.textColor }}
-                >
-                  {displayVerdict.shortLabel}
-                </span>
-                <span
-                  aria-hidden
-                  className="h-3 w-px"
-                  style={{ background: displayVerdict.textColor, opacity: 0.3 }}
+            </div>
+            <div className="relative w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl overflow-hidden border sm:border-t-0 border-[#e5e7eb] shadow-[0_20px_60px_rgba(0,0,0,0.10)] isolate" style={{ paddingBottom: "56.25%" }}>
+              <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-t-none sm:rounded-b-2xl">
+                <ExpandableYoutubeVideo
+                  videoId={YT_VIDEO_ID}
+                  title="See stocksbrew in action"
+                  previewLabel="See stocksbrew in action"
+                  className="h-full w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl"
                 />
-                <span
-                  className="text-[14px] font-semibold tabular-nums leading-none"
-                  style={{ color: displayVerdict.textColor }}
-                >
-                  {displayVerdict.overall}
-                </span>
               </div>
             </div>
-
-            <p className="mt-3 text-[12.5px] text-[#374151] leading-[1.45] line-clamp-2">
-              {displayVerdict.oneLiner}
-            </p>
-          </Link>
-
-          {/* TILE 2 — Your Radar */}
-          <Link
-            href="/watchlist"
-            className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)]"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#0052ff]" />
-                02 · Your Radar
-              </span>
-              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                portfolio
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-[#fef3c7] px-2 py-1 text-[11px] font-semibold text-[#92400e]">
-                <span aria-hidden>⚠</span>
-                67% in Technology
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-[#eff6ff] px-2 py-1 text-[11px] font-semibold text-[#1e3a8a]">
-                <span aria-hidden>🎯</span>
-                3 opportunities
-              </span>
-            </div>
-
-            <p className="mt-3 text-[12.5px] text-[#374151] leading-[1.45] line-clamp-2">
-              <span className="font-semibold text-[#111111]">AMD broke out</span> · NVDA RSI at 78 · MSFT earnings May 20 AMC
-            </p>
-          </Link>
-
-          {/* TILE 3 — Market anomaly */}
-          <Link
-            href="/anomalies"
-            className="group relative w-full rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5 text-left transition-all hover:border-[#111111] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)]"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[#ef4444]" />
-                03 · Market anomaly
-              </span>
-              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-                today
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <StockLogo
-                ticker="PLTR"
-                market="US"
-                size={36}
-                logoUrl="https://logo.clearbit.com/palantir.com"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[15px] font-semibold text-[#111111]">PLTR</span>
-                  <span className="text-[13px] font-semibold tabular-nums text-[#10b981]">+12.3%</span>
-                </div>
-                <p className="text-[12px] text-[#6b7280] leading-snug truncate">
-                  Unusual call volume · 3× average flow
-                </p>
-              </div>
-              <span className="shrink-0 text-[11px] font-semibold tracking-[0.06em] uppercase text-[#9ca3af] group-hover:text-[#111111] group-hover:translate-x-0.5 transition-all">
-                See all →
-              </span>
-            </div>
-          </Link>
+          </div>
         </div>
+
       </div>
 
       {/* Index strip */}
       {displayIndices.length > 0 && (
-        <div className="border-t border-[#f3f4f6] py-4 flex items-center justify-center gap-0 overflow-x-auto scrollbar-hide divide-x divide-[#f3f4f6]">
+        <div className="border-t border-[#f3f4f6] py-3 flex items-center justify-start md:justify-center gap-0 overflow-x-auto scrollbar-hide divide-x divide-[#f3f4f6]">
           {displayIndices.map((idx) => {
             const positive = idx.changePct >= 0;
             return (
-              <div key={idx.ticker} className="flex flex-col gap-0.5 px-6 shrink-0 text-center">
+              <div key={idx.ticker} className="flex flex-col gap-0.5 px-4 md:px-6 shrink-0 text-center">
                 <span className="text-[11px] font-semibold text-[#9ca3af] tracking-[0.06em] uppercase whitespace-nowrap">
                   {idx.name.length > 14 ? idx.ticker : idx.name}
                 </span>
@@ -292,6 +244,18 @@ export function HeroSection({ indices, verdict, isSubscribed = false }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+      {displayIndices.length === 0 && showIndexSkeleton && (
+        <div className="border-t border-[#f3f4f6] py-3 px-4 md:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-pulse">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={`hero-index-skeleton-${i}`} className="flex flex-col items-center gap-2">
+                <span className="h-3 w-16 rounded bg-[#f3f4f6]" />
+                <span className="h-6 w-20 rounded bg-[#f3f4f6]" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>

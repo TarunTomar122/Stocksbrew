@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   description: "50 free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
   alternates: { canonical: "/learn" },
   openGraph: {
-    title: "Learn to Invest - Free Guides & Tutorials · tikrr",
+    title: "Learn to Invest - Free Guides & Tutorials · stocksbrew",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
-    url: "https://www.tikrr.online/learn",
+    url: "https://www.stocksbrew.online/learn",
   },
   twitter: {
-    title: "Learn to Invest - Free Guides & Tutorials · tikrr",
+    title: "Learn to Invest - Free Guides & Tutorials · stocksbrew",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
   },
 };
@@ -124,7 +124,7 @@ export default function LearnPage() {
         <section className="mt-4 rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
           <h2 className="text-[22px] font-semibold text-[#111111] mb-2">From the Blog</h2>
           <p className="text-[14px] text-[#6b7280] mb-5 max-w-[480px] mx-auto">
-            Deeper dives into market intelligence, stock tracking, and investing strategy.
+            Deeper dives into stock calls, smarter tracking, and investing strategy.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/blog/how-to-track-stock-news" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
@@ -138,6 +138,12 @@ export default function LearnPage() {
             </Link>
             <Link href="/blog/best-free-stock-alert-tools-2026" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
               Alert Tools
+            </Link>
+            <Link href="/guides" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
+              Research Guide
+            </Link>
+            <Link href="/compare/stocksbrew-vs-tickertape" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
+              vs Tickertape
             </Link>
             <Link href="/blog" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#111111] bg-[#111111] text-white text-[13px] font-medium hover:-translate-y-[1px] transition-transform">
               All Posts →

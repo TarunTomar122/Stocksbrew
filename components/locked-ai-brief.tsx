@@ -13,6 +13,8 @@ type Props = {
   instrumentId: string;
   isSubscribed: boolean;
   isTracked?: boolean;
+  onDemandStatus?: string;
+  onDemandError?: string;
 };
 
 const PRO_BRIEF_BENEFITS: { icon: string; label: string; text: string }[] = [
@@ -59,7 +61,14 @@ function ProBriefBenefits() {
 // A blurred mock of the AI brief layout: Strategic Directive, News signal,
 // Catalysts/Drivers/Risks, Sentiment. Sits behind the unlock CTA so free
 // users see exactly what they get on the AI tier.
-export function LockedAiBrief({ ticker, instrumentId, isSubscribed, isTracked = false }: Props) {
+export function LockedAiBrief({
+  ticker,
+  instrumentId,
+  isSubscribed,
+  isTracked = false,
+  onDemandStatus = "",
+  onDemandError = "",
+}: Props) {
   const { user, loading } = useUser();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +81,8 @@ export function LockedAiBrief({ ticker, instrumentId, isSubscribed, isTracked = 
         instrumentId={instrumentId}
         isSubscribed={isSubscribed}
         isTracked={isTracked}
+        onDemandStatus={onDemandStatus}
+        onDemandError={onDemandError}
       />
     );
   }
@@ -95,7 +106,7 @@ export function LockedAiBrief({ ticker, instrumentId, isSubscribed, isTracked = 
       }
     : {
         title: `Unlock the ${ticker} Pro brief`,
-        body: "Turn this into a monitored name: tikrr reads the latest news, scores the setup, and shows what matters before the next move.",
+        body: "Turn this into a monitored name: stocksbrew reads the latest news, scores the setup, and shows what matters before the next move.",
         label: "Get Pro",
         onClick: () => router.push("/subscribe"),
       };
@@ -144,24 +155,28 @@ function ProBriefPreparingState({
   instrumentId,
   isSubscribed,
   isTracked,
+  onDemandStatus,
+  onDemandError,
 }: {
   ticker: string;
   instrumentId: string;
   isSubscribed: boolean;
   isTracked: boolean;
+  onDemandStatus: string;
+  onDemandError: string;
 }) {
   if (!isTracked) {
     return (
-      <section className="rounded-2xl border border-[#e5e7eb] bg-white p-6 flex flex-col gap-4">
-        <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
+      <section className="overflow-hidden rounded-3xl border border-[#e5e7eb] bg-white p-5 md:p-6 flex flex-col gap-4">
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
           <span aria-hidden>✨</span> Pro · AI tab
         </span>
-        <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
+        <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.02em]">
           Start AI coverage for {ticker}
         </h3>
-        <p className="text-[14px] text-[#6b7280] leading-relaxed">
+        <p className="text-[13px] text-[#6b7280] leading-relaxed max-w-[640px]">
           Add this stock to Radar and our AI agent will start researching it immediately.
-          First brief appears here as soon as synthesis is ready.
+          Your first brief appears here as soon as synthesis is ready.
         </p>
         <div className="pt-1">
           <TrackButton
@@ -176,49 +191,185 @@ function ProBriefPreparingState({
     );
   }
 
+  const normalizedStatus = String(onDemandStatus || "").toLowerCase();
+  const isTerminalNoNews = normalizedStatus === "no_articles" || normalizedStatus === "no_brief";
+  const isFailed = normalizedStatus === "failed";
+  const isComplete = normalizedStatus === "complete";
+  const isRunningLike =
+    normalizedStatus === "queued" || normalizedStatus === "running" || normalizedStatus === "retry";
+
+  if (isTerminalNoNews) {
+    return <CoveragePausedBrief ticker={ticker} status={normalizedStatus} />;
+  }
+
+  if (isFailed) {
+    return (
+      <BriefPreparingPanel
+        tone="failed"
+        badge="Retry queued"
+        title={`${ticker} brief hit a snag`}
+        body={`Synthesis did not finish cleanly${onDemandError ? `: ${onDemandError}` : ""}. stocksbrew will retry on the next pass.`}
+        steps={[
+          { done: true, label: "In your Radar" },
+          { done: true, label: "Sources fetched" },
+          { done: false, label: "Retry scheduled" },
+        ]}
+        footnote="Overview and scorecard data are still available while we retry."
+      />
+    );
+  }
+
+  if (isComplete) {
+    return (
+      <BriefPreparingPanel
+        tone="ready"
+        badge="Brief ready"
+        title={`${ticker} brief is ready`}
+        body="Synthesis finished. Refresh this tab if you still see the preparing state."
+        steps={[
+          { done: true, label: "In your Radar" },
+          { done: true, label: "Sources analyzed" },
+          { done: true, label: "AI brief ready" },
+        ]}
+      />
+    );
+  }
+
   return (
-    <section className="rounded-2xl border border-[#dbeafe] bg-[#f8fbff] p-6 flex flex-col gap-5">
-      <div className="flex items-start gap-3">
+    <BriefPreparingPanel
+      tone="working"
+      badge={isRunningLike ? "Research in progress" : "Queued"}
+      title={`Researching ${ticker} now`}
+      body="We are collecting fresh sources, scoring the setup, and generating your first brief. This tab updates automatically once it is ready."
+      steps={[
+        { done: true, label: "In your Radar" },
+        { done: normalizedStatus === "running" || normalizedStatus === "retry", label: "Sources collecting" },
+        { done: false, label: "AI brief ready" },
+      ]}
+      footnote={
+        normalizedStatus === "running"
+          ? "Running on-demand synthesis now."
+          : normalizedStatus === "retry"
+          ? "Retrying with a broader source pass."
+          : "Queued for on-demand synthesis."
+      }
+    />
+  );
+}
+
+function CoveragePausedBrief({
+  ticker,
+  status,
+}: {
+  ticker: string;
+  status: string;
+}) {
+  const usedFallbackSources = status === "no_brief";
+
+  return (
+    <BriefPreparingPanel
+      tone="paused"
+      badge="Expanding coverage"
+      title={`${ticker} is on Radar. Brief coming soon.`}
+      body={
+        usedFallbackSources
+          ? "We found some sources, but not enough high-confidence material for a full brief yet. stocksbrew will keep scanning and publish here automatically."
+          : "We checked for fresh stock-specific news and did not find enough yet. stocksbrew will keep scanning on the next passes and publish here automatically."
+      }
+      steps={[
+        { done: true, label: "In your Radar" },
+        { done: true, label: "Initial sources checked" },
+        { done: false, label: "Brief publishes when ready" },
+      ]}
+      footnote="Price, scorecard, and technicals are still live on Overview while we fill this in."
+    />
+  );
+}
+
+type BriefPanelTone = "paused" | "working" | "ready" | "failed";
+
+function BriefPreparingPanel({
+  tone,
+  badge,
+  title,
+  body,
+  steps,
+  footnote,
+}: {
+  tone: BriefPanelTone;
+  badge: string;
+  title: string;
+  body: string;
+  steps: Array<{ done: boolean; label: string }>;
+  footnote?: string;
+}) {
+  const styles: Record<
+    BriefPanelTone,
+    { shell: string; badge: string; body: string; footnote: string }
+  > = {
+    paused: {
+      shell: "border border-[#bfdbfe] bg-[#eff6ff]",
+      badge: "text-[#1d4ed8]",
+      body: "text-[#1e3a8a]",
+      footnote: "text-[#64748b]",
+    },
+    working: {
+      shell: "border border-[#fed7aa] bg-[#fff7ed]",
+      badge: "text-[#c2410c]",
+      body: "text-[#7c2d12]",
+      footnote: "text-[#9a3412]/80",
+    },
+    ready: {
+      shell: "border border-[#bbf7d0] bg-[#f0fdf4]",
+      badge: "text-[#047857]",
+      body: "text-[#065f46]",
+      footnote: "text-[#047857]/80",
+    },
+    failed: {
+      shell: "border border-[#fecaca] bg-[#fef2f2]",
+      badge: "text-[#b91c1c]",
+      body: "text-[#991b1b]",
+      footnote: "text-[#b45309]",
+    },
+  };
+  const palette = styles[tone];
+
+  return (
+    <section className={`overflow-hidden rounded-3xl p-5 md:p-6 flex flex-col gap-5 ${palette.shell}`}>
+      <div className="flex flex-col gap-2 max-w-[680px]">
         <span
-          className="material-symbols-outlined text-[#0052ff] animate-pulse"
-          style={{ fontSize: 22, fontVariationSettings: "'wght' 650" }}
-          aria-hidden
+          className={`inline-flex w-fit items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${palette.badge}`}
         >
-          auto_awesome
+          {badge}
         </span>
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#2563eb]">
-            Pro AI agent is working
-          </span>
-          <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
-            Researching {ticker} right now
-          </h3>
-          <p className="text-[14px] text-[#6b7280] leading-relaxed">
-            We are collecting fresh sources, scoring the setup, and generating your first brief.
-            This tab auto-updates once it is ready.
-          </p>
-        </div>
+        <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">{title}</h3>
+        <p className={`text-[13px] leading-relaxed ${palette.body}`}>{body}</p>
       </div>
 
-      <div className="space-y-2">
-        <div className="h-2 rounded-full bg-[#e5e7eb] overflow-hidden">
-          <div className="h-full w-[42%] rounded-full bg-[#93c5fd] animate-pulse" />
-        </div>
-        <p className="text-[12px] text-[#64748b]">
-          Status: queued for on-demand synthesis.
-        </p>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        {steps.map((step) => (
+          <BriefStatusStep key={step.label} done={step.done} label={step.label} />
+        ))}
       </div>
 
-      <div className="pt-1">
-        <TrackButton
-          ticker={ticker}
-          instrumentId={instrumentId}
-          tier="free"
-          isSubscribed={isSubscribed}
-          isTracked={true}
-        />
-      </div>
+      {footnote ? <p className={`text-[12px] leading-relaxed ${palette.footnote}`}>{footnote}</p> : null}
     </section>
+  );
+}
+
+function BriefStatusStep({ done, label }: { done: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5">
+      <span
+        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${
+          done ? "bg-[#10b981] text-white" : "bg-[#f3f4f6] text-[#9ca3af]"
+        }`}
+        aria-hidden
+      >
+        {done ? "✓" : "•"}
+      </span>
+      <span className="text-[12px] font-semibold text-[#374151]">{label}</span>
+    </div>
   );
 }
 

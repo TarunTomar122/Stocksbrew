@@ -3,6 +3,7 @@ import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
   data: RedditSnapshot;
@@ -17,14 +18,6 @@ const SENTIMENT_META: Record<string, { label: string; color: string }> = {
 
 function getSentimentMeta(s: string) {
   return SENTIMENT_META[s?.toLowerCase()] ?? SENTIMENT_META.neutral;
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "just now";
-  if (hours === 1) return "1h ago";
-  return `${hours}h ago`;
 }
 
 function UpvoteArrow({ color }: { color: string }) {
@@ -85,6 +78,9 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
 
   const bulls = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length;
   const bears = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
+  const freshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(data.generated_at, MARKET_FEED_FRESHNESS)
+    : null;
 
   return (
     <section className="flex flex-col gap-5">
@@ -109,7 +105,13 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
             </span>
           </div>
           <p className="text-[12px] text-[#9ca3af]">
-            {data.post_count} posts scanned · {timeAgo(data.generated_at)}
+            {data.post_count} posts scanned
+            {relativeTime(data.generated_at) && (
+              <> · Updated {relativeTime(data.generated_at)}</>
+            )}
+            {SHOW_DATA_FRESHNESS_UI && freshness ? (
+              <> · <span className={freshness.toneClass}>{freshness.label}</span></>
+            ) : null}
           </p>
         </div>
 

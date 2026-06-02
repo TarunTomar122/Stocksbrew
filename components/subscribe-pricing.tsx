@@ -8,9 +8,9 @@ import { posthog } from "@/lib/posthog";
 
 const PRO_BULLETS = [
   "Unlimited stocks on your Radar (free is capped at 3)",
-  "Per-stock AI verdict — buy / hold / sell, fundamentals scorecard, news-backed brief",
-  "Portfolio diagnosis — concentration risks, clusters, opportunities, daily activity",
-  "Market anomalies & email alerts — RSI extremes, earnings, breakouts when they fire",
+  "Per-stock verdict: buy / hold / sell, fundamentals scorecard, research-backed call",
+  "Portfolio diagnosis: concentration risks, clusters, opportunities, cross-Radar themes",
+  "Price triggers and email alerts when stocks hit buy or sell zones",
   "Cancel anytime · one click · no questions asked",
 ];
 

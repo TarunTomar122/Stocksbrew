@@ -78,7 +78,7 @@ def main() -> None:
     except Exception as exc:  # pragma: no cover - operator-facing CLI
         print(f"Pipeline test failed: {exc}", file=sys.stderr)
         print(
-            "Check that SearXNG is reachable at SEARXNG_BASE_URL and MIMO_API_KEY is set.",
+            "Check that SearXNG is reachable at SEARXNG_BASE_URL and OPENAI_API_KEY is set.",
             file=sys.stderr,
         )
         raise SystemExit(1) from exc

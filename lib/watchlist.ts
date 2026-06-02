@@ -10,6 +10,17 @@ export type UserDoc = {
   is_subscribed?: boolean;
   tracked_stocks?: string[];
   watchlist_positions?: Record<string, "holding" | "watchlist">;
+  watchlist_holdings?: Record<
+    string,
+    {
+      quantity?: number | null;
+      market_value?: number | null;
+      average_cost?: number | null;
+      currency?: "USD" | "INR" | string;
+      source?: "manual" | "screenshot" | "unknown";
+      updated_at?: string;
+    }
+  >;
   watchlist_updated_at?: string;
   watchlist_version?: number;
   radar_v1?: {
@@ -23,11 +34,15 @@ export type UserDoc = {
     pulse?: Record<string, unknown>;
     portfolio?: Record<string, unknown>;
     event_radar?: Array<Record<string, unknown>>;
+    today_setup?: Record<string, unknown>;
     changes?: Record<string, unknown>;
   };
   created_at?: string;
   last_sign_in_at?: string;
   lastCheckoutCreatedAt?: number;
+  lastCheckoutSessionId?: string | null;
+  lastCheckoutPlan?: "monthly" | "yearly" | null;
+  lastCheckoutMarket?: "US" | "IN" | null;
   /** Dodo subscription fields (see app/api/subscription/webhook). */
   subscriptionId?: string | null;
   subscriptionStatus?: string | null;
@@ -56,7 +71,11 @@ const DEV_UNLOCK_PRO =
 
 export function resolveIsSubscribed(doc: UserDoc | null | undefined): boolean {
   if (DEV_UNLOCK_PRO && doc) return true;
-  return Boolean(doc?.is_subscribed);
+  if (!doc) return false;
+  if (doc.is_subscribed) return true;
+  const status = String(doc.subscriptionStatus || "").trim().toLowerCase();
+  if (status === "active" || status === "trialing") return true;
+  return false;
 }
 
 export async function isSubscribed(uid: string | null | undefined): Promise<boolean> {

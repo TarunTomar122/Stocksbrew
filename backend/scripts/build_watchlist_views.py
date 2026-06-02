@@ -180,9 +180,16 @@ def main() -> None:
             [str(t) for t in tracked],
             is_subscribed=bool(user.get("is_subscribed")),
             positions=user.get("watchlist_positions") or {},
+            holdings=user.get("watchlist_holdings") or {},
             active_universes=active_universes,
             include_llm_brief=not args.no_llm,
         )
+        source_version = int(user.get("watchlist_version") or 0)
+        if source_version > 0:
+            payload["source_version"] = source_version
+            payload["today_version_applied"] = source_version
+            payload["diagnosis_version_applied"] = source_version
+            payload["activity_version_applied"] = source_version
         if input_version:
             payload["built_from_version"] = input_version
         if args.dry_run:

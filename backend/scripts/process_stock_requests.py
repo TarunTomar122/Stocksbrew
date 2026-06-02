@@ -11,17 +11,36 @@ Flow:
 """
 from __future__ import annotations
 
+import os
+
+# Parallel workers call subprocess (fork) while Firestore uses gRPC in other threads.
+os.environ.setdefault("GRPC_ENABLE_FORK_SUPPORT", "true")
+
 import argparse
+import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
 import requests
+from google.cloud import firestore
 
 from backend.instrument_universe import list_instruments
 from backend.lifecycle_emailing import email_stock_request_ready, send_email
+from backend.llm_client import (
+    json_response_format,
+    llm_api_key,
+    llm_api_url,
+    llm_headers,
+    llm_model,
+    parse_json_content,
+    schema_system_prompt,
+)
 from backend.market_strategy import normalize_ticker_entry
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.scripts.materialize_views import materialize_views
@@ -34,6 +53,25 @@ SUFFIX_RE = re.compile(
 )
 PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
+OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+STALE_RUNNING_TTL_MINUTES = 20
+RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending", "needs_confirmation"}
+INVALID_REQUEST_TOKENS = {
+    "TO", "IT", "IN", "ON", "AT", "IS", "ARE",
+    "HTTPS", "HTTP", "WWW", "COM", "DIV", "HREF",
+}
+
+SYMBOL_HINT_PROMPT = """You map user stock requests to likely US stock tickers.
+
+Return JSON with:
+- "symbol_hints": array of 1-5 uppercase ticker candidates (letters only where possible)
+- "name_hints": array of 1-3 likely company names
+
+Rules:
+- Do not include ETFs unless the request clearly is an ETF (e.g. SPY, XBI, QQQ).
+- If unsure, return an empty array.
+- No prose, JSON only.
+"""
 
 
 def _now() -> str:
@@ -171,11 +209,18 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
         symbol = str(item.get("symbol") or "").strip().upper()
         if not symbol:
             continue
+        # Keep deterministic matching focused on standard equity-like symbols.
+        # This avoids pseudo rows (e.g. long synthetic IDs) tying score with real tickers.
+        if market == "US":
+            if len(symbol) > 5:
+                continue
+            if not symbol.isalpha():
+                continue
         exchange = str(item.get("exchange") or "").strip().upper()
         country = str(item.get("country") or "").strip().upper()
-        if market == "US" and country and country != "UNITED STATES":
+        if market == "US" and country and country not in {"UNITED STATES", "USA", "US"}:
             continue
-        if market == "IN" and country and country != "INDIA":
+        if market == "IN" and country and country not in {"INDIA", "IN"}:
             continue
         out.append(
             {
@@ -190,6 +235,59 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
             }
         )
     return out
+
+
+def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
+    if market != "US":
+        return [], []
+    api_key = llm_api_key()
+    if not api_key:
+        return [], []
+    model = llm_model(OPENAI_DEFAULT_MODEL)
+    endpoint = llm_api_url()
+    payload = {"query": str(query or "").strip(), "market": market}
+    resp = requests.post(
+        endpoint,
+        headers=llm_headers(api_key),
+        json={
+            "model": model,
+            "temperature": 0.0,
+            "messages": [
+                {"role": "system", "content": schema_system_prompt(SYMBOL_HINT_PROMPT, {"type": "object"})},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            "response_format": json_response_format(),
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    content = resp.json()["choices"][0]["message"]["content"]
+    parsed = parse_json_content(content)
+    symbols = []
+    for raw in parsed.get("symbol_hints") or []:
+        sym = str(raw or "").strip().upper()
+        if not sym:
+            continue
+        if len(sym) > 8:
+            continue
+        symbols.append(sym)
+    names = []
+    for raw in parsed.get("name_hints") or []:
+        name = str(raw or "").strip()
+        if name:
+            names.append(name)
+    # de-dup, preserve order
+    def _dedupe(items: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for item in items:
+            key = item.upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+    return _dedupe(symbols)[:5], _dedupe(names)[:3]
 
 
 def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
@@ -213,6 +311,88 @@ def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str)
     if second and int(top["_score"]) - int(second["_score"]) < 15:
         return None
     return top
+
+
+def _resolve_request_with_llm_fallback(
+    master_rows: list[dict[str, Any]],
+    market: str,
+    query: str,
+) -> dict[str, Any] | None:
+    resolved = _resolve_request(master_rows, market, query)
+    if resolved:
+        return resolved
+
+    symbol_hints, name_hints = _llm_symbol_hints(query, market)
+    probe_queries = [*symbol_hints, *name_hints]
+    for probe in probe_queries:
+        candidate = _resolve_request(master_rows, market, probe)
+        if not candidate:
+            continue
+        # Guardrail: only accept LLM-assisted resolve when deterministic score
+        # is still strong on the original user query.
+        rescored = {
+            **candidate,
+            "_score": _score_candidate(query, candidate, market),
+        }
+        if int(rescored["_score"]) >= 70:
+            return rescored
+
+    # Name-first salvage path: if query is a company name, allow a slightly
+    # lower score only when the top candidate is clearly ahead and exchange-safe.
+    if len(normalize_name(query)) >= 5:
+        provider_rows = _search_provider_candidates(query, market)
+        if provider_rows:
+            ranked = sorted(
+                ({**row, "_score": _score_candidate(query, row, market)} for row in provider_rows),
+                key=lambda row: row["_score"],
+                reverse=True,
+            )
+            top = ranked[0] if ranked else None
+            second = ranked[1] if len(ranked) > 1 else None
+            if top and int(top.get("_score") or 0) >= 65 and (not second or int(top.get("_score") or 0) - int(second.get("_score") or 0) >= 20):
+                return top
+    return None
+
+
+def _looks_like_junk_request(query: str) -> bool:
+    q = str(query or "").strip().upper()
+    if not q:
+        return True
+    if q in INVALID_REQUEST_TOKENS:
+        return True
+    if "/" in q or ":" in q:
+        return True
+    if q.endswith(".COM") or q.endswith(".NET") or q.endswith(".ORG"):
+        return True
+    return False
+
+
+def _reset_stale_running_requests(store: TraceMoneyStore, *, ttl_minutes: int) -> int:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=max(1, ttl_minutes))
+    docs = store.db.collection("stock_requests").where("status", "==", "running").stream()
+    reset = 0
+    for doc in docs:
+        data = doc.to_dict() or {}
+        updated_raw = str(data.get("updated_at") or data.get("last_requested_at") or "").strip()
+        stale = True
+        if updated_raw:
+            try:
+                dt = datetime.fromisoformat(updated_raw.replace("Z", "+00:00"))
+                stale = dt < cutoff
+            except Exception:
+                stale = True
+        if not stale:
+            continue
+        doc.reference.set(
+            {
+                "status": "retry",
+                "resolve_error": "stale_running_recovered",
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        reset += 1
+    return reset
 
 
 def _catalog_instrument_map(market: str) -> dict[str, dict[str, Any]]:
@@ -315,6 +495,30 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
                     "previousClose": quote.get("quote", {}).get("previous_close"),
                     "volume": quote.get("quote", {}).get("volume"),
                 },
+            }
+        ],
+    )
+
+
+def _upsert_search_index_entry(store: TraceMoneyStore, instrument: dict[str, Any]) -> None:
+    market = str(instrument.get("market") or "US").upper()
+    instrument_id = str(instrument.get("instrument_id") or "").upper()
+    ticker = str(instrument.get("ticker") or "").upper()
+    if not instrument_id or not ticker:
+        return
+    latest = store.get_latest_prices([instrument_id]).get(instrument_id) or {}
+    quote = latest.get("quote") or {}
+    store.save_search_index_entries(
+        market,
+        [
+            {
+                "instrument_id": instrument_id,
+                "ticker": ticker,
+                "name": str(instrument.get("name") or ticker).strip(),
+                "exchange": str(instrument.get("exchange") or "").strip(),
+                "price": quote.get("current"),
+                "day_change_pct": quote.get("day_change_pct"),
+                "updated_at": latest.get("updated_at"),
             }
         ],
     )
@@ -425,110 +629,343 @@ def _materialize_home(store: TraceMoneyStore, market: str) -> None:
     )
 
 
-def _pending_requests(store: TraceMoneyStore, limit: int) -> list[Any]:
-    docs = list(store.db.collection("stock_requests").stream())
+def _materialize_search_index(store: TraceMoneyStore, market: str) -> None:
+    universe_id = store.get_active_price_universe(market)
+    if not universe_id:
+        return
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "backend.scripts.materialize_search_index",
+            "--market",
+            market,
+            "--active-only",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _subscribed_requester_emails(store: TraceMoneyStore) -> set[str]:
+    emails: set[str] = set()
+    for user in store.list_subscribed_users():
+        if not bool(user.get("is_subscribed")):
+            continue
+        for field in ("email", "email_lower"):
+            raw = str(user.get(field) or "").strip().lower()
+            if raw:
+                emails.add(raw)
+    return emails
+
+
+def _requester_emails(data: dict[str, Any]) -> set[str]:
+    emails = {
+        str(e).strip().lower()
+        for e in (data.get("requester_emails") or [])
+        if str(e).strip()
+    }
+    legacy = str(data.get("requester_email") or "").strip().lower()
+    if legacy:
+        emails.add(legacy)
+    return emails
+
+
+def _pending_requests(
+    store: TraceMoneyStore,
+    limit: int,
+    *,
+    query: str | None = None,
+    prioritize_query: str | None = None,
+    requester_email: str | None = None,
+    pro_emails: set[str] | None = None,
+) -> list[Any]:
+    if query:
+        doc = store.db.collection("stock_requests").document(query.strip().upper()).get()
+        docs = [doc] if doc.exists else []
+    else:
+        docs = list(store.db.collection("stock_requests").stream())
+    requester = (requester_email or "").strip().lower()
     out = []
     for doc in docs:
         data = doc.to_dict() or {}
         if bool(data.get("fulfilled")):
             continue
         status = str(data.get("status") or "queued")
-        if status not in {"queued", "retry", "pending"}:
+        if status not in RUNNABLE_REQUEST_STATUSES:
+            continue
+        if requester and requester not in _requester_emails(data):
             continue
         out.append(doc)
-    out.sort(key=lambda d: str((d.to_dict() or {}).get("last_requested_at") or ""))
-    return out[:limit]
+
+    prioritize = (prioritize_query or "").strip().upper()
+    subscribed = pro_emails or set()
+
+    def _sort_key(doc: Any) -> tuple[int, int, str]:
+        data = doc.to_dict() or {}
+        doc_id = str(doc.id or "").upper()
+        is_priority = 0 if prioritize and doc_id == prioritize else 1
+        is_pro = 0 if _requester_emails(data) & subscribed else 1
+        ts = str(data.get("last_requested_at") or data.get("requested_at") or "")
+        return (is_priority, is_pro, ts)
+
+    out.sort(key=_sort_key)
+    return out[: max(1, limit)]
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Process stock requests automatically")
-    parser.add_argument("--market", default="US", choices=["US", "IN"])
-    parser.add_argument("--limit", type=int, default=20)
-    parser.add_argument("--to-email", default="", help="Override send target for testing")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
+def _claim_request(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str, Any] | None:
+    """Atomically claim a request so concurrent Cloud Run triggers do not
+    process or email the same query twice."""
 
-    store = TraceMoneyStore()
-    jobs = _pending_requests(store, args.limit)
-    if not jobs:
-        print("No pending stock requests.")
-        return
+    @firestore.transactional
+    def _txn(tx: Any) -> dict[str, Any] | None:
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            return None
+        data = snap.to_dict() or {}
+        if bool(data.get("fulfilled")):
+            return None
+        status = str(data.get("status") or "queued")
+        if status not in RUNNABLE_REQUEST_STATUSES:
+            return None
+        tx.set(
+            ref,
+            {
+                "status": "running",
+                "processing_claim_id": claim_id,
+                "processing_started_at": _now(),
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        return data
 
-    print(f"[stock-requests] processing={len(jobs)} market={args.market}")
-    master_by_market: dict[str, list[dict[str, Any]]] = {}
+    return _txn(store.db.transaction())
 
-    for job in jobs:
-        ref = job.reference
-        data = job.to_dict() or {}
-        query = str(data.get("query") or ref.id).strip()
-        market = str(data.get("market") or args.market).strip().upper()
-        emails = [str(e).strip().lower() for e in (data.get("requester_emails") or []) if str(e).strip()]
-        if args.to_email:
-            emails = [args.to_email.strip().lower()]
 
-        if not query:
-            continue
-        if args.dry_run:
-            print(f"  [dry] {ref.id} query={query} market={market}")
-            continue
+def _process_one_request(
+    *,
+    store: TraceMoneyStore,
+    ref: Any,
+    data: dict[str, Any],
+    default_market: str,
+    master_by_market: dict[str, list[dict[str, Any]]],
+    master_lock: threading.Lock,
+    promote_lock: threading.Lock,
+    markets_to_materialize: set[str],
+    markets_lock: threading.Lock,
+    dry_run: bool,
+    to_email: str,
+    skip_ready_email: bool,
+) -> str:
+    query = str(data.get("query") or ref.id).strip()
+    market = str(data.get("market") or default_market).strip().upper()
+    emails = [str(e).strip().lower() for e in (data.get("requester_emails") or []) if str(e).strip()]
+    if to_email:
+        emails = [to_email.strip().lower()]
 
-        ref.set({"status": "running", "updated_at": _now()}, merge=True)
-        try:
+    if not query:
+        return "skip"
+    if dry_run:
+        print(f"  [dry] {ref.id} query={query} market={market}")
+        return "dry"
+
+    if _looks_like_junk_request(query):
+        ref.set(
+            {
+                "status": "ignored",
+                "fulfilled": False,
+                "resolve_error": "junk_query_filtered",
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        print(f"  [ignored] {query}: junk_query_filtered")
+        return "ignored"
+
+    try:
+        with master_lock:
             if market not in master_by_market:
                 master_by_market[market] = _load_symbol_master(store, market)
-            resolved = _resolve_request(master_by_market[market], market, query)
-            if not resolved:
-                ref.set(
-                    {
-                        "status": "needs_confirmation",
-                        "fulfilled": False,
-                        "resolve_error": "no_deterministic_match",
-                        "updated_at": _now(),
-                    },
-                    merge=True,
-                )
-                print(f"  [needs_confirmation] {query}")
-                continue
+            master = master_by_market[market]
+        resolved = _resolve_request_with_llm_fallback(master, market, query)
+        if not resolved:
+            ref.set(
+                {
+                    "status": "needs_confirmation",
+                    "fulfilled": False,
+                    "resolve_error": "no_deterministic_match",
+                    "updated_at": _now(),
+                },
+                merge=True,
+            )
+            print(f"  [needs_confirmation] {query}")
+            return "needs_confirmation"
 
-            instrument = _upsert_instrument(store, resolved)
+        instrument = _upsert_instrument(store, resolved)
+        with promote_lock:
             _promote_instrument(store, instrument)
-            _sync_price_for_one(store, instrument)
-            _backfill_single_instrument(store, instrument)
-            _queue_news_job(store, instrument)
-            _materialize_home(store, market)
+        _sync_price_for_one(store, instrument)
+        _upsert_search_index_entry(store, instrument)
+        _backfill_single_instrument(store, instrument)
+        _queue_news_job(store, instrument)
+        with markets_lock:
+            markets_to_materialize.add(market)
+
+        sent = 0
+        if not skip_ready_email:
             sent = _send_ready_email(
                 emails=emails,
                 ticker=str(instrument.get("ticker") or query).upper(),
                 company_name=str(instrument.get("name") or query),
             )
 
-            ref.set(
-                {
-                    "status": "fulfilled",
-                    "fulfilled": True,
-                    "fulfilled_at": _now(),
-                    "market": market,
-                    "resolved_symbol": str(instrument.get("ticker") or "").upper(),
-                    "resolved_instrument_id": str(instrument.get("instrument_id") or "").upper(),
-                    "resolve_score": int(resolved.get("_score") or 0),
-                    "email_sent_count": sent,
-                    "updated_at": _now(),
-                    "resolve_error": "",
-                },
-                merge=True,
-            )
-            print(f"  [ok] {query} -> {instrument.get('instrument_id')} email_sent={sent}")
-        except Exception as exc:
-            ref.set(
-                {
-                    "status": "retry",
-                    "fulfilled": False,
-                    "resolve_error": str(exc),
-                    "updated_at": _now(),
-                },
-                merge=True,
-            )
-            print(f"  [fail] {query}: {exc}")
+        ref.set(
+            {
+                "status": "fulfilled",
+                "fulfilled": True,
+                "fulfilled_at": _now(),
+                "market": market,
+                "resolved_symbol": str(instrument.get("ticker") or "").upper(),
+                "resolved_instrument_id": str(instrument.get("instrument_id") or "").upper(),
+                "resolve_score": int(resolved.get("_score") or 0),
+                "email_sent_count": sent,
+                "updated_at": _now(),
+                "resolve_error": "",
+            },
+            merge=True,
+        )
+        print(f"  [ok] {query} -> {instrument.get('instrument_id')} email_sent={sent}")
+        return "ok"
+    except Exception as exc:
+        ref.set(
+            {
+                "status": "retry",
+                "fulfilled": False,
+                "resolve_error": str(exc),
+                "updated_at": _now(),
+            },
+            merge=True,
+        )
+        print(f"  [fail] {query}: {exc}")
+        return "fail"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Process stock requests automatically")
+    parser.add_argument("--market", default="US", choices=["US", "IN"])
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--query", default="", help="Process only this request query (doc id)")
+    parser.add_argument(
+        "--prioritize-query",
+        default="",
+        help="Process up to --limit pending requests; run this query first",
+    )
+    parser.add_argument("--to-email", default="", help="Override send target for testing")
+    parser.add_argument(
+        "--requester-email",
+        default="",
+        help="Only process requests from this email (for backlog clears)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel workers (each request still claims atomically)",
+    )
+    parser.add_argument(
+        "--skip-ready-email",
+        action="store_true",
+        help="Do not send per-ticker ready emails (use for batch backlog)",
+    )
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    store = TraceMoneyStore()
+    recovered = _reset_stale_running_requests(store, ttl_minutes=STALE_RUNNING_TTL_MINUTES)
+    if recovered:
+        print(f"[stock-requests] recovered_stale_running={recovered}")
+    query = str(args.query or "").strip().upper()
+    prioritize = str(args.prioritize_query or "").strip().upper()
+    requester_email = str(args.requester_email or "").strip().lower()
+    pro_emails = _subscribed_requester_emails(store)
+    jobs = _pending_requests(
+        store,
+        args.limit,
+        query=query or None,
+        prioritize_query=prioritize or None,
+        requester_email=requester_email or None,
+        pro_emails=pro_emails,
+    )
+    if not jobs:
+        print("No pending stock requests.")
+        return
+
+    workers = max(1, min(args.workers, len(jobs), 8))
+    print(
+        f"[stock-requests] processing={len(jobs)} market={args.market} workers={workers}"
+        f" prioritize={prioritize or '-'} requester={requester_email or '-'}"
+        f" pro_requesters={len(pro_emails)}"
+    )
+    master_by_market: dict[str, list[dict[str, Any]]] = {}
+    master_lock = threading.Lock()
+    promote_lock = threading.Lock()
+    markets_to_materialize: set[str] = set()
+    markets_lock = threading.Lock()
+
+    def _run_claimed(job: Any) -> str:
+        ref = job.reference
+        claim_id = uuid4().hex
+        data = _claim_request(store, ref, claim_id)
+        if not data:
+            print(f"  [skip] {ref.id}: already_claimed")
+            return "skip"
+        return _process_one_request(
+            store=store,
+            ref=ref,
+            data=data,
+            default_market=args.market,
+            master_by_market=master_by_market,
+            master_lock=master_lock,
+            promote_lock=promote_lock,
+            markets_to_materialize=markets_to_materialize,
+            markets_lock=markets_lock,
+            dry_run=args.dry_run,
+            to_email=str(args.to_email or ""),
+            skip_ready_email=bool(args.skip_ready_email),
+        )
+
+    counts: dict[str, int] = {}
+    if workers == 1:
+        for job in jobs:
+            outcome = _run_claimed(job)
+            counts[outcome] = counts.get(outcome, 0) + 1
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_run_claimed, job) for job in jobs]
+            for fut in as_completed(futures):
+                try:
+                    outcome = fut.result()
+                except Exception as exc:
+                    outcome = "fail"
+                    print(f"  [fail] worker: {exc}")
+                counts[outcome] = counts.get(outcome, 0) + 1
+
+    if not args.dry_run:
+        for market in sorted(markets_to_materialize):
+            try:
+                _materialize_search_index(store, market)
+                print(f"[stock-requests] materialized_search_index market={market}")
+            except Exception as exc:
+                print(f"[stock-requests] materialize_search_index_failed market={market}: {exc}")
+            try:
+                _materialize_home(store, market)
+                print(f"[stock-requests] materialized_home market={market}")
+            except Exception as exc:
+                print(f"[stock-requests] materialize_home_failed market={market}: {exc}")
+
+    print(f"[stock-requests] done {counts}")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,8 @@ import { adminFirestore } from "@/lib/firebase-admin";
 export type LifecycleEventType =
   | "track_blocked_subscription_required"
   | "checkout_started"
-  | "subscription_converted";
+  | "subscription_converted"
+  | "first_radar_item_email_sent";
 
 export async function recordLifecycleEvent(params: {
   uid: string;

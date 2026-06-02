@@ -29,7 +29,7 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
   const pageUrl =
     typeof window !== "undefined"
       ? window.location.href
-      : `https://www.tikrr.online/should-i-buy/${ticker}`;
+      : `https://www.stocksbrew.online/should-i-buy/${ticker}`;
 
   async function getImageBlob(): Promise<Blob> {
     const el = document.getElementById(cardElementId);
@@ -101,7 +101,7 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
       background: "white",
       borderTop: "1px solid #f3f4f6",
     });
-    footer.innerHTML = `<span style="font-size:11px;color:#9ca3af;font-family:inherit;font-weight:500;">tikrr.online/should-i-buy</span>`;
+    footer.innerHTML = `<span style="font-size:11px;color:#9ca3af;font-family:inherit;font-weight:500;">www.stocksbrew.online/should-i-buy</span>`;
     const whiteBottom = el.lastElementChild as HTMLElement | null;
     (whiteBottom ?? el).appendChild(footer);
 
@@ -127,7 +127,7 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `tikrr-${ticker.toLowerCase()}-should-i-buy.png`;
+    a.download = `stocksbrew-${ticker.toLowerCase()}-should-i-buy.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

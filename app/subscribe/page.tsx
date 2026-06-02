@@ -4,19 +4,20 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { SubscribePricing } from "@/components/subscribe-pricing";
 import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
+import { SubscriptionActivator } from "@/components/subscription-activator";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
-  description: "Unlock Pro access to AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts. Free and Pro plans available.",
+  description: "Unlock Pro for unlimited Radar stocks, personalized buy/hold/sell calls, full scorecards, and email alerts when stocks hit buy or sell zones. Free for 3 stocks.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
-    title: "tikrr Pro - Pricing & Plans",
-    description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
-    url: "https://www.tikrr.online/subscribe",
+    title: "stocksbrew Pro - Pricing & Plans",
+    description: "Unlimited Radar, research-backed calls, price triggers, and email alerts when setups change.",
+    url: "https://www.stocksbrew.online/subscribe",
   },
   twitter: {
-    title: "tikrr Pro - Pricing & Plans",
-    description: "Unlock AI-powered stock briefs, full scorecards, analyst consensus, institutional flows, and personalized Radar alerts.",
+    title: "stocksbrew Pro - Pricing & Plans",
+    description: "Unlimited Radar, research-backed calls, price triggers, and email alerts when setups change.",
   },
 };
 
@@ -33,8 +34,12 @@ export default async function SubscribePage({ searchParams }: Props) {
   const session = await getSessionUser();
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const callbackSuccess = searchParams.success === "1" || searchParams.status === "active";
+  const callbackSuccess =
+    searchParams.success === "1" ||
+    searchParams.status === "active" ||
+    searchParams.status === "succeeded";
   const justSubscribed = callbackSuccess || isSubscribed;
+  const subscriptionId = searchParams.subscription_id ?? null;
 
   // Vercel injects x-vercel-ip-country on every request — use it for automatic
   // geo-detection. Falls back to "US" in local dev where the header isn't present.
@@ -45,13 +50,12 @@ export default async function SubscribePage({ searchParams }: Props) {
   return (
     <main className="flex-grow">
       <SubscriptionSuccessModal
-        open={callbackSuccess}
-        subscriptionId={searchParams.subscription_id}
+        open={callbackSuccess && isSubscribed}
+        subscriptionId={subscriptionId ?? undefined}
       />
       <div className="mx-auto flex w-full max-w-screen-xl flex-col items-center gap-12 px-6 md:px-10 lg:px-16 py-16 md:py-24">
 
         {justSubscribed && !isSubscribed && (
-          /* Webhook hasn't fired yet - show a pending state */
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#eff6ff]">
               <span
@@ -63,8 +67,14 @@ export default async function SubscribePage({ searchParams }: Props) {
             </span>
             <p className="text-[16px] font-semibold text-[#111111]">Payment received - activating your Pro…</p>
             <p className="text-[14px] text-[#6b7280] max-w-sm">
-              This usually takes a few seconds. Refresh the page if it doesn&apos;t update automatically.
+              We&apos;re syncing your subscription with Dodo. This usually takes a few seconds.
             </p>
+            <SubscriptionActivator
+              subscriptionId={subscriptionId}
+              status={searchParams.status ?? null}
+              isSubscribed={isSubscribed}
+              autoActivate
+            />
           </div>
         )}
 

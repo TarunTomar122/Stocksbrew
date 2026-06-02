@@ -1,4 +1,5 @@
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
+import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
 type Props = {
   facts: StockFacts | null;
@@ -39,19 +40,6 @@ function formatNumber(value?: number | null): string {
 function pctTone(value?: number | null): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "text-[#111111]";
   return value >= 0 ? "text-[#10b981]" : "text-[#ef4444]";
-}
-
-function formatRelative(iso?: string): string {
-  if (!iso) return "";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "";
-  const mins = Math.round((Date.now() - then) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
 }
 
 function parseEventDateLabel(label?: string): Date | null {
@@ -278,6 +266,12 @@ export function StockFactsPanel({
   }
 
   const hasFinancials = finStats.length > 0;
+  const factsFreshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(fundamentalsUpdatedAt, {
+        agingHours: 24 * 7,
+        staleHours: 24 * 14,
+      })
+    : null;
 
   return (
     <div className="flex flex-col gap-10">
@@ -288,10 +282,18 @@ export function StockFactsPanel({
             <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
               Key stats
             </h3>
-            <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-              Updated {formatRelative(fundamentalsUpdatedAt) || "-"}
-            </span>
+            {factsFreshness ? (
+              <span className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${factsFreshness.toneClass}`}>
+                {factsFreshness.label}
+                {factsFreshness.relative ? ` · ${factsFreshness.relative}` : ""}
+              </span>
+            ) : null}
           </div>
+          {factsFreshness?.status === "stale" && (
+            <p className="rounded-xl border border-[#fee2e2] bg-[#fef2f2] px-3 py-2 text-[12px] leading-relaxed text-[#991b1b]">
+              Fundamentals are older than 14 days. Treat valuation and analyst stats as stale until the next fundamentals refresh.
+            </p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-5">
             {keyStats.map((s) => (
               <Stat

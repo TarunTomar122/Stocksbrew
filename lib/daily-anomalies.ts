@@ -51,6 +51,16 @@ export type DailyAnomaliesDoc = {
   enriched_at?: string;
 };
 
+type DailyAnomalyTickerDoc = {
+  market: string;
+  ticker: string;
+  generated_at?: string;
+  enriched_at?: string;
+  date?: string;
+  summary?: string;
+  anomaly?: AnomalyItem;
+};
+
 async function getDailyAnomaliesUncached(
   market: "US" | "IN" = "US",
 ): Promise<DailyAnomaliesDoc | null> {
@@ -65,5 +75,26 @@ async function getDailyAnomaliesUncached(
 export const getDailyAnomalies = unstable_cache(
   getDailyAnomaliesUncached,
   ["daily-anomalies"],
+  { revalidate: 120 },
+);
+
+async function getDailyAnomalyForTickerUncached(
+  market: "US" | "IN" = "US",
+  ticker: string,
+): Promise<AnomalyItem | null> {
+  const normalized = ticker.trim().toUpperCase();
+  if (!normalized) return null;
+  const doc = await adminFirestore
+    .collection("tm_daily_anomaly_tickers")
+    .doc(`${market}__${normalized}`)
+    .get();
+  if (!doc.exists) return null;
+  const data = doc.data() as DailyAnomalyTickerDoc;
+  return data.anomaly ?? null;
+}
+
+export const getDailyAnomalyForTicker = unstable_cache(
+  getDailyAnomalyForTickerUncached,
+  ["daily-anomaly-for-ticker"],
   { revalidate: 120 },
 );

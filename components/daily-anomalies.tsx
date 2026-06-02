@@ -4,6 +4,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
   anomalies: AnomalyItem[];
@@ -22,17 +23,11 @@ function fmtPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "just now";
-  if (hours === 1) return "1h ago";
-  return `${hours}h ago`;
-}
-
 function AnomalyCard({ item }: { item: AnomalyItem }) {
   const isUp = item.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
+  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
+  const showBrief = brief && brief !== item.headline;
 
   return (
     <Link
@@ -77,8 +72,14 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
 
       {/* Headline */}
       {item.headline && (
-        <p className="min-h-[36px] line-clamp-2 text-[13px] leading-snug text-[#374151]">
+        <p className="line-clamp-2 text-[13px] leading-snug text-[#111111]">
           {item.headline}
+        </p>
+      )}
+
+      {showBrief && (
+        <p className="line-clamp-2 text-[12px] leading-snug text-[#6b7280]">
+          {brief}
         </p>
       )}
 
@@ -100,6 +101,9 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
   const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
   const visible = anomalies.slice(0, visibleLimit);
   const lockedCount = Math.max(0, Math.min(anomalies.length, maxCards) - visible.length);
+  const freshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS)
+    : null;
 
   const ups = anomalies.filter((a) => a.direction === "up");
   const downs = anomalies.filter((a) => a.direction === "down");
@@ -124,7 +128,16 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
             </span>
           </div>
           <p className="text-[12px] text-[#9ca3af]">
-            {summary} · {timeAgo(generatedAt)}
+            {summary}
+            {relativeTime(generatedAt) && (
+              <> · Updated {relativeTime(generatedAt)}</>
+            )}
+            {SHOW_DATA_FRESHNESS_UI && freshness ? (
+              <>
+                {" "}
+                · <span className={freshness.toneClass}>{freshness.label}</span>
+              </>
+            ) : null}
           </p>
         </div>
 

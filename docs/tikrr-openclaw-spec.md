@@ -33,7 +33,7 @@ Purpose:
       "cap": "mega",
       "exchange": "NASDAQ",
       "currency": "USD",
-      "logo": "https://tikrr.online/logos/AAPL.png"
+      "logo": "https://www.stocksbrew.online/logos/AAPL.png"
     }
   },
   "india": {
@@ -43,7 +43,7 @@ Purpose:
       "cap": "mega",
       "exchange": "NSE",
       "currency": "INR",
-      "logo": "https://tikrr.online/logos/RELIANCE.png"
+      "logo": "https://www.stocksbrew.online/logos/RELIANCE.png"
     }
   }
 }

@@ -83,15 +83,7 @@ export function SignalDeck({
           {top.length} signal{top.length === 1 ? "" : "s"} from free data
         </span>
       </div>
-      <div
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3 justify-start overflow-x-scroll scrollbar-hide"
-        style={{
-          gridTemplateColumns:
-            top.length >= 3
-              ? `repeat(${Math.min(top.length, 5)}, 170px)`
-              : undefined,
-        }}
-      >
+      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
         {top.map((s, i) => (
           <SignalTileCard key={`${s.label}-${i}`} signal={s} />
         ))}

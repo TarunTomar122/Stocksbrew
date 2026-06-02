@@ -13,12 +13,12 @@ export const metadata: Metadata = {
     "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
   alternates: { canonical: "/screens" },
   openGraph: {
-    title: "Thematic Screens · tikrr",
+    title: "Thematic Screens · stocksbrew",
     description: "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
-    url: "https://www.tikrr.online/screens",
+    url: "https://www.stocksbrew.online/screens",
   },
   twitter: {
-    title: "Thematic Screens · tikrr",
+    title: "Thematic Screens · stocksbrew",
     description: "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
   },
 };
@@ -68,7 +68,7 @@ export default function ScreensIndexPage() {
             Screens
           </span>
           <h1 className="text-[36px] md:text-[44px] font-semibold tracking-[-0.03em] text-[#111111] leading-[1.1]">
-            Curated screens, ranked by tikrr score.
+            Curated screens, ranked by stocksbrew score.
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
             Each screen filters stocks by a specific angle - growth, momentum, quality or valuation. Skip the screener and jump straight to the names that already fit.

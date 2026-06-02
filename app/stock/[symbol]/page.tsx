@@ -11,7 +11,10 @@ import { DataQualityStrip } from "@/components/data-quality-strip";
 import { PeersRow } from "@/components/peers-row";
 import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
+import { PreEarningsSetupCard } from "@/components/pre-earnings-setup-card";
+import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { StockPageTabs } from "@/components/stock-page-tabs";
+import { StockScrollRail } from "@/components/stock-scroll-rail";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
 import { ProLockOverlay } from "@/components/pro-lock-overlay";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
@@ -24,10 +27,12 @@ import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
+import { stockMetaDescription } from "@/lib/brand-copy";
 import { getSessionUser } from "@/lib/auth-server";
-import { getMarketMovers } from "@/lib/firestore";
+import { getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
 import {
   getInstrumentViewDoc,
+  getOnDemandNewsJob,
   getStockFacts,
   getStockIntelPro,
   getStockIntelligenceDoc,
@@ -37,10 +42,12 @@ import {
   type StockIntelligenceDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
-import { getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
+import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
-import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
+import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
+import { getPreEarningsIntelUpcoming } from "@/lib/pre-earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 60;
@@ -70,16 +77,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const upper = label.toUpperCase();
   return {
     title: `${upper} - Stock Analysis & AI Brief`,
-    description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts. Track on your tikrr Radar.`,
+    description: stockMetaDescription(upper),
     alternates: { canonical: `/stock/${upper}` },
     openGraph: {
-      title: `${upper} - Stock Analysis & AI Brief · tikrr`,
-      description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
-      url: `https://www.tikrr.online/stock/${upper}`,
+      title: `${upper} - Stock Analysis & AI Brief · stocksbrew`,
+      description: stockMetaDescription(upper),
+      url: `https://www.stocksbrew.online/stock/${upper}`,
     },
     twitter: {
-      title: `${upper} - Stock Analysis & AI Brief · tikrr`,
-      description: `Latest ${upper} stock analysis: price, fundamentals, technicals, AI-powered brief, analyst consensus, and catalysts.`,
+      title: `${upper} - Stock Analysis & AI Brief · stocksbrew`,
+      description: stockMetaDescription(upper),
     },
   };
 }
@@ -111,18 +118,23 @@ function hasSentimentBreakdown(sentiment: SentimentBreakdown | null | undefined)
   return Boolean((sentiment?.lanes?.length ?? 0) > 0 || (sentiment?.sources_breakdown?.length ?? 0) > 0);
 }
 
+function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
+  return Boolean(String(intelligence?.directive?.text ?? "").trim());
+}
+
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
+  const sessionPromise = getSessionUser();
   const cookieMarket = getCurrentMarket();
   // Try the active market first, then fall back to the other one so that
   // sharing an IN link from a US session (or vice-versa) still resolves.
   const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
-  let stock = await getStockSummary(symbol, cookieMarket);
-  let market: "US" | "IN" = cookieMarket;
-  if (!stock) {
-    stock = await getStockSummary(symbol, otherMarket);
-    if (stock) market = otherMarket;
-  }
+  const [stockInCookieMarket, stockInOtherMarket] = await Promise.all([
+    getStockSummary(symbol, cookieMarket),
+    getStockSummary(symbol, otherMarket),
+  ]);
+  const stock = stockInCookieMarket ?? stockInOtherMarket;
+  const market: "US" | "IN" = stockInCookieMarket ? cookieMarket : otherMarket;
   if (!stock) {
     const normalizedTicker = normalizeStockSymbolParam(symbol);
     if (!normalizedTicker) notFound();
@@ -146,7 +158,7 @@ export default async function StockPage({ params }: Props) {
     );
   }
 
-  const session = await getSessionUser();
+  const session = await sessionPromise;
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const tracked = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
@@ -168,8 +180,12 @@ export default async function StockPage({ params }: Props) {
     intelPro,
     stockFacts,
     marketMovers,
-    anomaliesDoc,
-    redditSnapshot,
+    priceCoreOverrides,
+    anomaly,
+    redditTickerContext,
+    onDemandJob,
+    earningsIntel,
+    preEarningsIntel,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -181,17 +197,31 @@ export default async function StockPage({ params }: Props) {
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
-    getDailyAnomalies(market).catch(() => null),
-    getRedditCues(market).catch(() => null),
+    getPriceCoreOverrides(market).catch(() => [] as string[]),
+    getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
+    getRedditContextForTicker(market, stock.ticker).catch(() => null),
+    subscribed ? getOnDemandNewsJob(stock.instrument_id).catch(() => null) : Promise.resolve(null),
+    subscribed
+      ? getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null)
+      : Promise.resolve(null),
+    subscribed
+      ? getPreEarningsIntelUpcoming(market, stock.instrument_id).catch(() => null)
+      : Promise.resolve(null),
   ]);
-  const redditTickerContext = resolveRedditContextForSymbol(redditSnapshot, stock.ticker);
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
-  const isPriorityStock = priorityIds.includes(stock.instrument_id);
-  const showPriorityNotice = priorityIds.length > 0 && !isPriorityStock;
-  const anomaly = anomaliesDoc?.anomalies.find(
-    (a) => a.ticker?.toUpperCase() === stock.ticker.toUpperCase(),
-  ) ?? null;
+  const inPriorityCohort = priorityIds.includes(stock.instrument_id);
+  const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
+  const isHighFrequencyEligible = inPriorityCohort || inExtendedOverrides;
+  const showPriorityNotice = priorityIds.length > 0 && !isHighFrequencyEligible;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
+
+  // If the on-demand job says "complete" but no intelligence doc was produced
+  // (e.g. the stock was uncovered), treat it as "no_brief" so we don't show
+  // a misleading "Brief ready — refresh" card to the user.
+  const resolvedOnDemandStatus =
+    !intelligence && onDemandJob?.status === "complete"
+      ? "no_brief"
+      : onDemandJob?.status;
 
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
@@ -223,6 +253,11 @@ export default async function StockPage({ params }: Props) {
   const overviewContent = (
     <section className="flex flex-col gap-10">
       {anomaly && <AnomalyBanner anomaly={anomaly} />}
+      {subscribed && preEarningsIntel ? (
+        <a href="#stock-section-earnings" className="block scroll-mt-32">
+          <PreEarningsSetupCard doc={preEarningsIntel} ticker={stock.ticker} compact />
+        </a>
+      ) : null}
       <SignalDeck
         facts={stockFacts}
         intelPro={intelPro}
@@ -295,17 +330,45 @@ export default async function StockPage({ params }: Props) {
 
   const aiSource = intelligence?.source ?? "";
   const aiCoverageType = intelligence?.coverage_type ?? "";
-  const isOnDemandFirstPass = aiCoverageType === "on_demand_no_news";
-  const isNoMajorNewsFallback = isOnDemandFirstPass;
+  const isNoMajorNewsTagged = aiCoverageType === "on_demand_no_news";
+  const hasNewsBackedBrief = hasDirectiveBrief(intelligence);
   const isFallbackBrief =
-    isOnDemandFirstPass ||
+    isNoMajorNewsTagged ||
     aiSource === "rules" ||
     aiCoverageType === "on_demand_fallback" ||
     intelligence?.data_quality?.freshness_status === "pending";
-  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsFallback));
-  const showSynthesis = hasAI && hasBriefText(intelligence) && (!isFallbackBrief || isNoMajorNewsFallback);
-  const showCards = hasAI && hasVisualCards(intelligence);
-  const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown);
+  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsTagged));
+  // Prefer full AI brief when directive/synthesis exists, even if coverage is tagged no-news.
+  const showNoMajorNewsPanel = hasAI && isNoMajorNewsTagged && !hasNewsBackedBrief;
+  const showFullNewsBrief =
+    hasAI &&
+    !showBriefStatus &&
+    (hasNewsBackedBrief || (hasBriefText(intelligence) && !isNoMajorNewsTagged));
+  const showSynthesis = showFullNewsBrief;
+  const showCards = hasAI && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
+  const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
+
+  const hasEarningsContent = Boolean(preEarningsIntel || earningsIntel);
+  const earningsContent = !hasEarningsContent ? null : subscribed ? (
+    <div className="flex flex-col gap-10">
+      {preEarningsIntel ? (
+        <PreEarningsSetupCard doc={preEarningsIntel} ticker={stock.ticker} />
+      ) : null}
+      {preEarningsIntel && earningsIntel ? (
+        <div className="flex flex-col gap-2 pt-4 border-t-2 border-[#e5e7eb]">
+          <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+            After the print
+          </p>
+        </div>
+      ) : null}
+      {earningsIntel ? <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} /> : null}
+    </div>
+  ) : (
+    <PremiumTabLock
+      title="Earnings intel is Pro-only"
+      description="Unlock pre-earnings setups and post-earnings reads: expected EPS, likely stock move, and what to do."
+    />
+  );
 
   const aiContent = subscribed ? (
     hasAI ? (
@@ -316,7 +379,7 @@ export default async function StockPage({ params }: Props) {
             generatedAt={intelligence?.generated_at}
           />
         )}
-        {isNoMajorNewsFallback && (
+        {showNoMajorNewsPanel && (
           <AiBriefStatus
             ticker={stock.ticker}
             generatedAt={intelligence?.generated_at}
@@ -324,7 +387,7 @@ export default async function StockPage({ params }: Props) {
             brief={intelligence?.today_brief ?? intelligence?.body}
           />
         )}
-        {!showBriefStatus && (
+        {showFullNewsBrief && (
           <>
             <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
               Updated {formatRelative(intelligence?.generated_at) || "-"}
@@ -335,7 +398,7 @@ export default async function StockPage({ params }: Props) {
         {showSynthesis && <AiSynthesis intelligence={intelligence} />}
         {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
         {showSentiment && <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />}
-        {!showBriefStatus && intelligence?.data_quality && (
+        {(showFullNewsBrief || showNoMajorNewsPanel) && intelligence?.data_quality && (
           <DataQualityStrip quality={intelligence.data_quality} />
         )}
       </section>
@@ -345,6 +408,8 @@ export default async function StockPage({ params }: Props) {
         instrumentId={stock.instrument_id}
         isSubscribed={subscribed}
         isTracked={isTracked}
+        onDemandStatus={resolvedOnDemandStatus}
+        onDemandError={onDemandJob?.error}
       />
     )
   ) : (
@@ -363,7 +428,7 @@ export default async function StockPage({ params }: Props) {
         ticker={stock.ticker}
       />
       <div className="mx-auto w-full max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-6 md:px-10 lg:px-16 md:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4 sm:gap-6 lg:gap-14">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start gap-4 sm:gap-6 lg:gap-14">
           <StockSideRail
             stock={stock}
             intelPro={intelPro}
@@ -376,13 +441,16 @@ export default async function StockPage({ params }: Props) {
             market={market}
             redditTickerContext={redditTickerContext}
           />
-          <StockPageTabs
-            overview={overviewContent}
-            analyst={analystContent}
-            fundamentals={fundamentalsContent}
-            ai={aiContent}
-            isSubscribed={subscribed}
-          />
+          <StockScrollRail>
+            <StockPageTabs
+              overview={overviewContent}
+              analyst={analystContent}
+              fundamentals={fundamentalsContent}
+              earnings={earningsContent}
+              ai={aiContent}
+              isSubscribed={subscribed}
+            />
+          </StockScrollRail>
         </div>
       </div>
     </main>

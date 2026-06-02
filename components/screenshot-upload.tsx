@@ -96,7 +96,7 @@ export function ScreenshotUpload({ onTickersFound, searchIndex }: Props) {
         .slice(0, 30);
 
       if (result.length === 0) {
-        setStatus("No stocks recognised. Try a clearer screenshot — or paste tickers manually.");
+        setStatus("No stocks recognised. Try a clearer screenshot, or paste tickers manually.");
         setFoundCount(null);
       } else {
         setFoundCount(result.length);

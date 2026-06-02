@@ -124,7 +124,7 @@ function detectRiskFlags(stocks: PortfolioStock[]): RiskFlag[] {
       severity: "medium",
       ticker: s.ticker,
       headline: `${s.ticker} is the weakest score in your portfolio`,
-      body: `Overall score ${s.scores.overall} — review if this still fits your thesis.`,
+      body: `Overall score ${s.scores.overall}. Review if this still fits your thesis.`,
     });
   }
 
@@ -152,7 +152,7 @@ function detectOpportunities(stocks: PortfolioStock[]): Opportunity[] {
       ticker: s.ticker,
       kind: "analyst_runway",
       headline: `${s.ticker} has ${(s.target_upside_pct ?? 0) >= 0 ? "+" : ""}${s.target_upside_pct?.toFixed(1)}% analyst target runway`,
-      body: `Score ${s.scores.overall} — analysts see room to run.`,
+      body: `Score ${s.scores.overall}. Analysts see room to run.`,
     }));
 }
 
@@ -224,7 +224,7 @@ export async function analyzePortfolio(tickers: string[]): Promise<PortfolioAnal
   const avgOverall = averageScores(stocks, "overall");
   if (avgOverall !== null) {
     const label = avgOverall >= 75 ? "Solid" : avgOverall >= 55 ? "Average" : avgOverall >= 35 ? "Mixed" : "Weak";
-    summaryParts.push(`Average tikrr score is ${avgOverall} (${label}).`);
+    summaryParts.push(`Average stocksbrew score is ${avgOverall} (${label}).`);
   }
   if (stocks.length === unique.length) summaryParts.push(`All ${stocks.length} stocks resolved.`);
 
