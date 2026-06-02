@@ -726,7 +726,7 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
         <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#5b6f99]">Before open</span>
         <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">{setup.headline}</h3>
         {setup.body && !signals.length ? (
-          <p className="max-w-[900px] text-[15px] leading-[1.65] text-[#374151]">{compact(setup.body, 160)}</p>
+          <p className="max-w-[900px] text-[15px] leading-[1.65] text-[#374151]">{setup.body}</p>
         ) : null}
       </div>
 
@@ -737,20 +737,20 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
               key={thread}
               className="inline-flex items-center rounded-full border border-[#dbe7ff] bg-white px-3 py-1 text-[11px] font-medium text-[#35538a]"
             >
-              {compact(thread, 72)}
+              {thread}
             </span>
           ))}
         </div>
       ) : null}
 
       {signals.length > 0 ? (
-        <div className="mt-5 overflow-hidden rounded-[20px] border border-[#dbe7ff] bg-white">
+        <div className="mt-5 flex flex-col">
           {signals.map((signal, idx) => {
             const evidence = signal.evidence?.filter(Boolean).slice(0, 2) || [];
             return (
               <div
                 key={`${signal.ticker}-${signal.kind}-${idx}`}
-                className={`px-4 py-4 md:px-5 ${idx > 0 ? "border-t border-[#eef4ff]" : ""}`}
+                className={`py-4 ${idx > 0 ? "border-t border-[#eef4ff]" : ""}`}
               >
                 <div className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)] md:items-start">
                   <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-1">
@@ -761,7 +761,7 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
                     <p className="text-[16px] font-semibold leading-snug text-[#111827]">{titleWithoutTicker(signal.ticker, signal.title)}</p>
                     <p className="mt-1.5 text-[14px] leading-[1.55] text-[#4b5563]">{signal.why_it_matters}</p>
                     {evidence.length ? (
-                      <p className="mt-2 text-[12px] text-[#6b7280]">{evidence.map((item) => compact(item, 64)).join(" · ")}</p>
+                      <p className="mt-2 text-[12px] text-[#6b7280]">{evidence.join(" · ")}</p>
                     ) : null}
                   </div>
                 </div>

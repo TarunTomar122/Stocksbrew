@@ -3,7 +3,7 @@ import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
-import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
   data: RedditSnapshot;
@@ -78,7 +78,9 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
 
   const bulls = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length;
   const bears = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
-  const freshness = freshnessInfo(data.generated_at, MARKET_FEED_FRESHNESS);
+  const freshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(data.generated_at, MARKET_FEED_FRESHNESS)
+    : null;
 
   return (
     <section className="flex flex-col gap-5">
@@ -103,8 +105,13 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
             </span>
           </div>
           <p className="text-[12px] text-[#9ca3af]">
-            {data.post_count} posts scanned · <span className={freshness.toneClass}>{freshness.label}</span>
-            {freshness.relative ? ` · ${freshness.relative}` : ""}
+            {data.post_count} posts scanned
+            {relativeTime(data.generated_at) && (
+              <> · Updated {relativeTime(data.generated_at)}</>
+            )}
+            {SHOW_DATA_FRESHNESS_UI && freshness ? (
+              <> · <span className={freshness.toneClass}>{freshness.label}</span></>
+            ) : null}
           </p>
         </div>
 

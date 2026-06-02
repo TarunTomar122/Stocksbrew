@@ -1,4 +1,5 @@
 import type { DataQuality } from "@/lib/stock";
+import { SHOW_DATA_FRESHNESS_UI } from "@/lib/freshness";
 
 type Props = {
   quality: DataQuality | null | undefined;
@@ -28,7 +29,7 @@ function formatFreshness(hours?: number): string {
 }
 
 export function DataQualityStrip({ quality }: Props) {
-  if (!quality) return null;
+  if (!SHOW_DATA_FRESHNESS_UI || !quality) return null;
 
   const fresh = freshnessTone(quality.freshness_status);
   const conf = confidenceTone(quality.confidence_score);

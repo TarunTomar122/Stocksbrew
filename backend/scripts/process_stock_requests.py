@@ -629,6 +629,25 @@ def _materialize_home(store: TraceMoneyStore, market: str) -> None:
     )
 
 
+def _materialize_search_index(store: TraceMoneyStore, market: str) -> None:
+    universe_id = store.get_active_price_universe(market)
+    if not universe_id:
+        return
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "backend.scripts.materialize_search_index",
+            "--market",
+            market,
+            "--active-only",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
 def _subscribed_requester_emails(store: TraceMoneyStore) -> set[str]:
     emails: set[str] = set()
     for user in store.list_subscribed_users():
@@ -935,6 +954,11 @@ def main() -> None:
 
     if not args.dry_run:
         for market in sorted(markets_to_materialize):
+            try:
+                _materialize_search_index(store, market)
+                print(f"[stock-requests] materialized_search_index market={market}")
+            except Exception as exc:
+                print(f"[stock-requests] materialize_search_index_failed market={market}: {exc}")
             try:
                 _materialize_home(store, market)
                 print(f"[stock-requests] materialized_home market={market}")

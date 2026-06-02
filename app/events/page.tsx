@@ -4,7 +4,10 @@ import { UpcomingEarningsCallout } from "@/components/upcoming-earnings-callout"
 import { getMarketEvents } from "@/lib/market-events";
 import { getCurrentMarket } from "@/lib/market";
 import { getSessionUser } from "@/lib/auth-server";
-import { listUpcomingPreEarningsIntel } from "@/lib/pre-earnings-intel";
+import {
+  listUpcomingPreEarningsIntel,
+  getPreEarningsIntelPastForInstruments,
+} from "@/lib/pre-earnings-intel";
 import { MarketEventsView } from "@/components/market-events-view";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
@@ -38,6 +41,28 @@ export default async function EventsPage() {
     getMarketEvents(market).catch(() => null),
     listUpcomingPreEarningsIntel(market, 7).catch(() => []),
   ]);
+
+  // For events that already reported, check if we had a pre-earnings prediction
+  // and whether it was correct, so we can show a "Predicted ✓" badge.
+  const reportedEvents = data?.events ?? [];
+  const reportedIds = [...new Set(reportedEvents.map((e) => e.instrument_id).filter(Boolean))];
+  const pastPredictions = reportedIds.length
+    ? await getPreEarningsIntelPastForInstruments(market, reportedIds).catch(() => [])
+    : [];
+
+  const predictionHits = new Set<string>();
+  for (const pred of pastPredictions) {
+    const move = pred.report?.call?.post_print_move;
+    if (!move || move === "unclear" || move === "chop") continue;
+    const event = reportedEvents.find(
+      (e) => e.instrument_id === pred.instrument_id && e.event_date === pred.event_date,
+    );
+    if (!event) continue;
+    const correct =
+      (move === "rally" && event.direction === "positive") ||
+      (move === "fade" && event.direction === "negative");
+    if (correct) predictionHits.add(pred.instrument_id);
+  }
   const hasReported = (data?.events.length ?? 0) > 0;
   const isEmpty = !hasReported && upcoming.length === 0;
 
@@ -59,6 +84,7 @@ export default async function EventsPage() {
             events={data?.events ?? []}
             summary={data?.summary ?? ""}
             generatedAt={data?.generated_at ?? new Date().toISOString()}
+            predictionHits={predictionHits}
             afterHeader={
               <UpcomingEarningsCallout
                 setupCount={upcoming.length}

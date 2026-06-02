@@ -1,3 +1,6 @@
+/** Stale/aging labels and warning callouts in the product UI. */
+export const SHOW_DATA_FRESHNESS_UI = false;
+
 export type FreshnessStatus = "fresh" | "aging" | "stale" | "unknown";
 
 export type FreshnessInfo = {
