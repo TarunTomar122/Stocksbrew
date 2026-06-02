@@ -43,6 +43,7 @@ CRON_INTRADAY="${CRON_INTRADAY:-0 13-19 * * 1-5}"          # hourly baseline dur
 CRON_INTRADAY_OPENBURST="${CRON_INTRADAY_OPENBURST:-30 13-15 * * 1-5}" # extra half-hour cadence near open
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
 CRON_EARNINGS_INTEL="${CRON_EARNINGS_INTEL:-0 21 * * 1-5}" # 2:30 AM IST (after postclose)
+CRON_PRE_EARNINGS_INTEL="${CRON_PRE_EARNINGS_INTEL:-30 21 * * 1-5}" # 3:00 AM IST (after earnings intel)
 CRON_ON_DEMAND_NEWS="${CRON_ON_DEMAND_NEWS:-0 */4 * * 1-5}" # 4-hour backup; track/watchlist APIs dispatch immediately
 CRON_STOCK_REQUESTS="${CRON_STOCK_REQUESTS:-*/30 * * * *}" # every 30m; API also dispatches on each request
 STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
@@ -131,6 +132,7 @@ printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phas
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday_openburst.json"
 printf '%s\n' "$(mk_body daily_postclose "${extra_universe}")" > "${tmp_dir}/postclose.json"
 printf '%s\n' "$(mk_body earnings_intel "${extra_universe},\"--recent-days\",\"3\",\"--max-events\",\"30\"")" > "${tmp_dir}/earnings_intel.json"
+printf '%s\n' "$(mk_body pre_earnings_intel "${extra_universe},\"--upcoming-days\",\"7\",\"--max-events\",\"40\"")" > "${tmp_dir}/pre_earnings_intel.json"
 printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
 
@@ -151,6 +153,7 @@ upsert_job "tikrr-intraday-price" "${CRON_INTRADAY}" "${tmp_dir}/intraday.json"
 upsert_job "tikrr-intraday-price-openburst" "${CRON_INTRADAY_OPENBURST}" "${tmp_dir}/intraday_openburst.json"
 upsert_job "tikrr-postclose" "${CRON_POSTCLOSE}" "${tmp_dir}/postclose.json"
 upsert_job "tikrr-earnings-intel" "${CRON_EARNINGS_INTEL}" "${tmp_dir}/earnings_intel.json"
+upsert_job "tikrr-pre-earnings-intel" "${CRON_PRE_EARNINGS_INTEL}" "${tmp_dir}/pre_earnings_intel.json"
 upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
 upsert_job "tikrr-stock-facts" "${CRON_STOCK_FACTS}" "${tmp_dir}/stock_facts.json"
 

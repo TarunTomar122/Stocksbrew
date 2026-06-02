@@ -32,6 +32,7 @@ const COLUMNS: Column[] = [
     title: "Free tools",
     links: [
       { label: "Should I Buy?", href: "/should-i-buy" },
+      { label: "Compare stocks", href: "/compare-stocks" },
       { label: "Portfolio Analyzer", href: "/portfolio" },
       { label: "Position size calculator", href: "/position-size-calculator" },
       { label: "IPO calendar", href: "/ipos" },

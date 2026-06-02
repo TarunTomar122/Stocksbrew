@@ -22,7 +22,7 @@ export const START_PATHS: HubLink[] = [
   {
     href: "/should-i-buy",
     title: "Try free tools first",
-    description: "Run Should I Buy on a ticker, then explore Portfolio Analyzer, Heat, and Screens.",
+    description: "Run Should I Buy on a ticker, compare it with peers side by side, then explore Portfolio Analyzer, Heat, and Screens.",
     badge: "Path C",
   },
 ];
@@ -32,6 +32,11 @@ export const FREE_TOOLS: HubLink[] = [
     href: "/should-i-buy",
     title: "Should I Buy",
     description: "Free AI scorecard on any US ticker. Add winners to Radar in one click.",
+  },
+  {
+    href: "/compare-stocks",
+    title: "Compare Stocks",
+    description: "Line up 2 to 5 US tickers side by side. See price, scores, and returns with the best per row highlighted.",
   },
   {
     href: "/portfolio",
@@ -143,7 +148,7 @@ export const GUIDES_FAQS = [
   {
     question: "What free tools does stocksbrew include?",
     answer:
-      "Should I Buy, Portfolio Analyzer, Market Heat, Screens, Earnings Intel, and a filterable news timeline. Radar tracking is free for up to three US tickers.",
+      "Should I Buy, Compare Stocks, Portfolio Analyzer, Market Heat, Screens, Earnings Intel, and a filterable news timeline. Radar tracking is free for up to three US tickers.",
   },
   {
     question: "How is this different from a screener site?",

@@ -56,6 +56,25 @@ export async function getPreEarningsIntelForInstruments(
   return filterPreEarningsWithinDays(rows);
 }
 
+export async function getPreEarningsIntelPastForInstruments(
+  market: "US" | "IN",
+  instrumentIds: string[],
+): Promise<PreEarningsIntelDoc[]> {
+  if (!instrumentIds.length) return [];
+  const refs = instrumentIds.map((id) =>
+    adminFirestore.collection("tm_pre_earnings_intel").doc(`${market}__${id}__upcoming`),
+  );
+  const snaps = await adminFirestore.getAll(...refs);
+  const rows: PreEarningsIntelDoc[] = [];
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const data = snap.data() as PreEarningsIntelDoc;
+    if (!data?.instrument_id || !data?.ticker || !data?.event_date) continue;
+    rows.push({ ...data, doc_id: snap.id });
+  }
+  return rows;
+}
+
 export async function listUpcomingPreEarningsIntel(
   market: "US" | "IN" = "US",
   maxDays = 7,

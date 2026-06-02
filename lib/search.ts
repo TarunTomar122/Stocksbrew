@@ -1,5 +1,4 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getHomeView } from "@/lib/home-view";
@@ -61,13 +60,7 @@ async function getSearchIndexUncached(
   );
 }
 
-const getSearchIndexCached = unstable_cache(
-  getSearchIndexUncached,
-  ["search-index", "v2-dedupe-share-class"],
-  { revalidate: 300 },
-);
-
-// The search index is a broad, read-heavy catalog doc (~500+ entries for US).
-// Cache it across requests and inside a server render; quote freshness should
-// come from tm_latest_prices, not from this catalog payload.
-export const getSearchIndex = cache(getSearchIndexCached);
+// The search index is a broad catalog doc, but it has to reflect fresh
+// fulfillment and universe updates immediately. Keep only request-local
+// memoization here; do not cross-request cache it.
+export const getSearchIndex = cache(getSearchIndexUncached);

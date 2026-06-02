@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import { EarningsScenarioBar } from "@/components/earnings-scenario-bar";
 import type { MarketEvent } from "@/lib/market-events-shared";
+import { relativeTime } from "@/lib/freshness";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
   if (!Number.isFinite(v)) return "—";
@@ -97,7 +98,7 @@ function EarningsEventCard({ event }: { event: MarketEvent }) {
   );
 }
 
-export function HomeEventsStrip({ events }: { events: MarketEvent[] }) {
+export function HomeEventsStrip({ events, generatedAt }: { events: MarketEvent[]; generatedAt?: string | null }) {
   const top = events.slice(0, 4);
   if (top.length === 0) return null;
 
@@ -111,6 +112,11 @@ export function HomeEventsStrip({ events }: { events: MarketEvent[] }) {
           <h2 className="text-[18px] font-semibold tracking-[-0.015em] text-[#111111]">
             Earnings
           </h2>
+          {generatedAt && (
+            <span className="text-[11px] text-[#9ca3af]">
+              Updated {relativeTime(generatedAt)}
+            </span>
+          )}
         </div>
         <Link
           href="/events"

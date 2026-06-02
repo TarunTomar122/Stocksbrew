@@ -42,6 +42,7 @@ export const SHOULD_I_BUY_STEPS = [
 
 export const SHOULD_I_BUY_STACK = [
   { name: "Should I Buy", href: "/should-i-buy", role: "Vet new ideas before you commit" },
+  { name: "Compare Stocks", href: "/compare-stocks", role: "Line up the pick against its peers" },
   { name: "Radar", href: "/watchlist", role: "Daily directives on keepers (3 free)" },
   { name: "Portfolio Analyzer", href: "/portfolio", role: "Concentration and overlap check" },
   { name: "Earnings Intel", href: "/earnings-intel", role: "Post-print read on reporting names" },
