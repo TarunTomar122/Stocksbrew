@@ -4,7 +4,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
-import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
 type Props = {
   anomalies: AnomalyItem[];
@@ -101,7 +101,9 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
   const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
   const visible = anomalies.slice(0, visibleLimit);
   const lockedCount = Math.max(0, Math.min(anomalies.length, maxCards) - visible.length);
-  const freshness = freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS);
+  const freshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS)
+    : null;
 
   const ups = anomalies.filter((a) => a.direction === "up");
   const downs = anomalies.filter((a) => a.direction === "down");
@@ -126,8 +128,14 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
             </span>
           </div>
           <p className="text-[12px] text-[#9ca3af]">
-            {summary} · <span className={freshness.toneClass}>{freshness.label}</span>
-            {freshness.relative ? ` · ${freshness.relative}` : ""}
+            {summary}
+            {freshness ? (
+              <>
+                {" "}
+                · <span className={freshness.toneClass}>{freshness.label}</span>
+                {freshness.relative ? ` · ${freshness.relative}` : ""}
+              </>
+            ) : null}
           </p>
         </div>
 

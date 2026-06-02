@@ -6,7 +6,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { HeatList, HeatRow } from "@/lib/heat";
 import type { DivergenceList, DivergenceRow } from "@/lib/divergence";
-import { freshnessInfo } from "@/lib/freshness";
+import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
 const ROWS_PER_TAB = 10;
 const SIDE_RAIL_ROWS = 6;
@@ -375,7 +375,9 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
 
   const hotRows = sorted.slice(0, SIDE_RAIL_ROWS);
   const hasDivergence = divergence && Array.isArray(divergence.rows) && divergence.rows.length > 0;
-  const freshness = freshnessInfo(data.generated_at, { agingHours: 24, staleHours: 72 });
+  const freshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(data.generated_at, { agingHours: 24, staleHours: 72 })
+    : null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-x-14 gap-y-8">
@@ -396,15 +398,17 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
 
       {/* Right rail */}
       <section className="flex flex-col gap-4 min-w-0">
-        <div className="flex items-center justify-between gap-3">
-          <span className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${freshness.toneClass}`}>
-            {freshness.label}
-            {freshness.relative ? ` · ${freshness.relative}` : ""}
-          </span>
-          {freshness.status === "stale" && (
-            <span className="text-[11px] text-[#991b1b]">Heat data is older than 72h</span>
-          )}
-        </div>
+        {freshness ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${freshness.toneClass}`}>
+              {freshness.label}
+              {freshness.relative ? ` · ${freshness.relative}` : ""}
+            </span>
+            {freshness.status === "stale" && (
+              <span className="text-[11px] text-[#991b1b]">Heat data is older than 72h</span>
+            )}
+          </div>
+        ) : null}
         <SetupPills
           counts={counts}
           active={activeTab}

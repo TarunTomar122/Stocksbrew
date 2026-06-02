@@ -1,5 +1,5 @@
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
-import { freshnessInfo } from "@/lib/freshness";
+import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
 type Props = {
   facts: StockFacts | null;
@@ -266,10 +266,12 @@ export function StockFactsPanel({
   }
 
   const hasFinancials = finStats.length > 0;
-  const factsFreshness = freshnessInfo(fundamentalsUpdatedAt, {
-    agingHours: 24 * 7,
-    staleHours: 24 * 14,
-  });
+  const factsFreshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(fundamentalsUpdatedAt, {
+        agingHours: 24 * 7,
+        staleHours: 24 * 14,
+      })
+    : null;
 
   return (
     <div className="flex flex-col gap-10">
@@ -280,12 +282,14 @@ export function StockFactsPanel({
             <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
               Key stats
             </h3>
-            <span className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${factsFreshness.toneClass}`}>
-              {factsFreshness.label}
-              {factsFreshness.relative ? ` · ${factsFreshness.relative}` : ""}
-            </span>
+            {factsFreshness ? (
+              <span className={`text-[11px] font-semibold tracking-[0.08em] uppercase ${factsFreshness.toneClass}`}>
+                {factsFreshness.label}
+                {factsFreshness.relative ? ` · ${factsFreshness.relative}` : ""}
+              </span>
+            ) : null}
           </div>
-          {factsFreshness.status === "stale" && (
+          {factsFreshness?.status === "stale" && (
             <p className="rounded-xl border border-[#fee2e2] bg-[#fef2f2] px-3 py-2 text-[12px] leading-relaxed text-[#991b1b]">
               Fundamentals are older than 14 days. Treat valuation and analyst stats as stale until the next fundamentals refresh.
             </p>

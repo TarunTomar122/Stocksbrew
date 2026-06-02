@@ -8,7 +8,7 @@ import { TrackButton } from "@/components/track-button";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
 import { getFeedPreviewLimit } from "@/lib/pro-features";
-import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
+import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -239,8 +239,12 @@ export function AnomaliesPageView({
   const visibleReddit = (reddit?.tickers ?? []).slice(0, freeLimit);
   const lockedAnomalyCount = Math.max(0, anomalies.length - visibleAnomalies.length);
   const lockedRedditCount = Math.max(0, redditCount - visibleReddit.length);
-  const anomaliesFreshness = freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS);
-  const redditFreshness = freshnessInfo(reddit?.generated_at, MARKET_FEED_FRESHNESS);
+  const anomaliesFreshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS)
+    : null;
+  const redditFreshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(reddit?.generated_at, MARKET_FEED_FRESHNESS)
+    : null;
 
   // On mobile, show only the active tab. On desktop, show both stacked.
   const showAnomalies = tab === "anomalies";
@@ -267,8 +271,14 @@ export function AnomaliesPageView({
               {lockedAnomalyCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
             <p className="text-[12px] text-[#9ca3af]">
-              {summary} · <span className={anomaliesFreshness.toneClass}>{anomaliesFreshness.label}</span>
-              {anomaliesFreshness.relative ? ` · ${anomaliesFreshness.relative}` : ""}
+              {summary}
+              {anomaliesFreshness ? (
+                <>
+                  {" "}
+                  · <span className={anomaliesFreshness.toneClass}>{anomaliesFreshness.label}</span>
+                  {anomaliesFreshness.relative ? ` · ${anomaliesFreshness.relative}` : ""}
+                </>
+              ) : null}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -306,8 +316,14 @@ export function AnomaliesPageView({
               {lockedRedditCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
             <p className="text-[12px] text-[#9ca3af]">
-              {reddit!.post_count} posts scanned · <span className={redditFreshness.toneClass}>{redditFreshness.label}</span>
-              {redditFreshness.relative ? ` · ${redditFreshness.relative}` : ""}
+              {reddit!.post_count} posts scanned
+              {redditFreshness ? (
+                <>
+                  {" "}
+                  · <span className={redditFreshness.toneClass}>{redditFreshness.label}</span>
+                  {redditFreshness.relative ? ` · ${redditFreshness.relative}` : ""}
+                </>
+              ) : null}
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

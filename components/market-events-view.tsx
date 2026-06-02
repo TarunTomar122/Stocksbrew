@@ -7,7 +7,7 @@ import {
   groupEventsByReportDate,
   type MarketEvent,
 } from "@/lib/market-events-shared";
-import { freshnessInfo } from "@/lib/freshness";
+import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
   if (!Number.isFinite(v)) return "—";
@@ -123,7 +123,9 @@ export function MarketEventsView({
   generatedAt: string;
   afterHeader?: React.ReactNode;
 }) {
-  const freshness = freshnessInfo(generatedAt, { agingHours: 24, staleHours: 72 });
+  const freshness = SHOW_DATA_FRESHNESS_UI
+    ? freshnessInfo(generatedAt, { agingHours: 24, staleHours: 72 })
+    : null;
 
   const sections = groupEventsByReportDate(events);
   const hasReported = events.length > 0;
@@ -135,7 +137,7 @@ export function MarketEventsView({
           <h1 className="text-[32px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[40px]">
             Earnings
           </h1>
-          {hasReported ? (
+          {hasReported && freshness ? (
             <span className={`text-[12px] font-medium ${freshness.toneClass}`}>
               {freshness.label}
               {freshness.relative ? ` · ${freshness.relative}` : ""}
