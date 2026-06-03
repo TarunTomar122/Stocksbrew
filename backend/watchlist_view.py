@@ -1107,7 +1107,13 @@ def _build_portfolio_brief(
         return fallback
 
     payloads = [_portfolio_payload_for_row(row) for row in rows]
-    result = generate_portfolio_brief(payloads, store=store)
+    market = str((rows[0].get("market") or "US")).upper() if rows else "US"
+    sector_regimes: dict[str, Any] = {}
+    try:
+        sector_regimes = store.get_sector_regimes(market) if store else {}
+    except Exception:
+        pass
+    result = generate_portfolio_brief(payloads, store=store, sector_regimes=sector_regimes)
     if not isinstance(result, dict):
         return fallback
 

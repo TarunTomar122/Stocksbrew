@@ -897,6 +897,14 @@ Each entry needs:
   - symbol: stock symbol when scope is stock, else empty
   - sector_id: sector id when scope is sector, else empty
 
+MARKET REGIME - USE IT:
+- The payload may include a `market_regime` block with a `macro` read (market_phase, risk_appetite, narrative, leadership sectors, laggards, rotation_signal) and a `sectors` array with per-sector regime data (regime, conviction, narrative, invalidators, leadership_stocks).
+- Let the regime shape your narrative and signals. A stock in a "breaking_down" sector with a bullish directive should have lower conviction and acknowledge the sector headwind. A stock in a "momentum" or "expanding" sector can be leaned into more confidently.
+- If rotation_signal is non-empty, surface it in the narrative or blind_spot — it's the kind of macro context users can't get from a stock screener.
+- Laggard sectors = blind spot candidates if the user has no exposure.
+- Do NOT just repeat the regime label verbatim. Interpret it. "Semis are in a confirmed momentum regime with 80% breadth" beats "regime: momentum".
+- If market_regime is absent, proceed without it.
+
 STYLE:
 - Every field should be insight-first. Never narrate price moves.
 - Only mention earnings/events if they appear in current_events or premium_signals. Never invent or reuse stale event dates.
@@ -1003,9 +1011,14 @@ PORTFOLIO_BRIEF_SCHEMA = {
 PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-27-portfolio-brief-v14"
 
 
+def _slugify(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", (value or "").lower()).strip("_")
+
+
 def generate_portfolio_brief(
     stock_payloads: list[dict[str, Any]],
     store: Any | None = None,
+    sector_regimes: dict[str, Any] | None = None,
 ) -> dict[str, str] | None:
     """Generate a personalized portfolio brief from stock intelligence docs."""
     api_key = llm_api_key()
@@ -1066,7 +1079,47 @@ def generate_portfolio_brief(
             "streak_direction": (doc.get("streak") or {}).get("direction", "flat"),
         })
 
-    payload = {"watchlist": watchlist_data, "stock_count": len(watchlist_data)}
+    # Build a slim regime context — only sectors the user actually holds/watches,
+    # plus the macro read. This keeps the prompt tight and directly relevant.
+    regime_context: dict[str, Any] = {}
+    if sector_regimes:
+        macro = sector_regimes.get("macro") or {}
+        if macro:
+            regime_context["macro"] = {
+                "market_phase": macro.get("market_phase"),
+                "risk_appetite": macro.get("risk_appetite"),
+                "narrative": macro.get("narrative"),
+                "leadership": macro.get("leadership") or [],
+                "laggards": macro.get("laggards") or [],
+                "rotation_signal": macro.get("rotation_signal") or "",
+            }
+        # Find which sectors appear in the user's watchlist
+        user_sectors = {
+            _slugify(str(s.get("sector") or ""))
+            for s in stock_payloads
+            if s.get("sector")
+        }
+        relevant_sector_regimes = []
+        for slug, regime in sector_regimes.items():
+            if slug == "macro":
+                continue
+            if slug in user_sectors or str(regime.get("sector") or "").lower().replace(" ", "_") in user_sectors:
+                relevant_sector_regimes.append({
+                    "sector": regime.get("sector"),
+                    "regime": regime.get("regime"),
+                    "conviction": regime.get("conviction"),
+                    "narrative": regime.get("narrative"),
+                    "invalidators": regime.get("invalidators") or [],
+                    "leadership_stocks": regime.get("leadership_stocks") or [],
+                })
+        if relevant_sector_regimes:
+            regime_context["sectors"] = relevant_sector_regimes
+
+    payload = {
+        "watchlist": watchlist_data,
+        "stock_count": len(watchlist_data),
+        **({"market_regime": regime_context} if regime_context else {}),
+    }
 
     # Check cache
     cache_key = None
