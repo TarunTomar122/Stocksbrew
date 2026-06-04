@@ -198,6 +198,60 @@ export const allBlogPosts: BlogPost[] = [
     category: "comparison",
     tags: ["earnings", "ai", "analysts", "comparison", "prediction"],
     date: "2026-06-01",
+    readTime: "12 min read",
+  },
+
+  {
+    slug: "stock-market-heatmap-tools",
+    title: "Best Free Stock Market Heatmap Tools in 2026 (Tested & Ranked)",
+    description:
+      "Stock market heatmaps give you a visual snapshot of market activity at a glance. We tested 8 free heatmap tools and ranked them by accuracy, speed, and usability.",
+    category: "tools",
+    tags: ["heatmap", "visualization", "free-tools", "market-overview"],
+    date: "2026-06-02",
+    readTime: "10 min read",
+  },
+  {
+    slug: "ai-stock-sentiment-analysis-tools",
+    title: "AI Stock Sentiment Analysis: How to Read Market Mood in 2026",
+    description:
+      "Market sentiment drives prices. Learn how AI-powered sentiment analysis tools track investor mood across news, social media, and earnings calls to give you an edge.",
+    category: "intelligence",
+    tags: ["sentiment", "ai", "market-mood", "analysis"],
+    date: "2026-06-02",
+    readTime: "12 min read",
+  },
+  {
+    slug: "track-insider-trading-free",
+    title: "How to Track Insider Trading for Free in 2026",
+    description:
+      "Insider buying and selling is one of the strongest market signals. Here are the best free tools to track insider trades and interpret what they mean for your portfolio.",
+    category: "guides",
+    tags: ["insider-trading", "free-tools", "signals", "portfolio"],
+    date: "2026-06-02",
+    readTime: "9 min read",
+  },
+  {
+    slug: "stock-market-daily-newsletter-free",
+    title: "5 Best Free Stock Market Daily Newsletters in 2026",
+    description:
+      "Get daily stock market intelligence delivered to your inbox without spending a dime. We tested 15 free newsletters and ranked the top 5 for actionable insights.",
+    category: "comparison",
+    tags: ["newsletter", "daily-brief", "free", "curation"],
+    date: "2026-06-02",
+    readTime: "11 min read",
+  },
+  {
+    slug: "market-breadth-analysis-guide",
+    title: "Market Breadth Analysis: A Complete Beginner's Guide for 2026",
+    description:
+      "What is market breadth and why does it matter? Learn how to use advance-decline lines, new highs/lows, and breadth indicators to gauge the real health of the stock market.",
+    category: "intelligence",
+    tags: ["market-breadth", "indicators", "beginner-guide", "analysis"],
+    date: "2026-06-02",
+    readTime: "13 min read",
+  },
+];
     slug: "how-to-read-stock-heat-map",
     title: "How to Read a Stock Heat Map: A Complete Guide",
     description: "Stock heat maps turn market data into color-coded visuals. Learn how to read them spot sector rotation, and find trading opportunities in seconds.",
