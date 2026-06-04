@@ -5,6 +5,7 @@ import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import { PortfolioSearch } from "@/components/portfolio-search";
 import { TrackInRadarButton } from "@/components/track-in-radar-button";
+import { captureEvent } from "@/lib/posthog";
 import type { SearchEntry } from "@/lib/search";
 import type { CompareStock, CompareStocksResult } from "@/lib/compare-stocks";
 
@@ -509,15 +510,38 @@ export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchE
   function addTicker(t: string) {
     const upper = t.trim().toUpperCase();
     if (!upper) return;
+    let added = false;
+    let totalSelected = 0;
     setTickers((prev) => {
       if (prev.includes(upper)) return prev;
       if (prev.length >= MAX_TICKERS) return prev;
+      added = true;
+      totalSelected = prev.length + 1;
       return [...prev, upper];
     });
+    if (added) {
+      captureEvent("compare_ticker_added", {
+        ticker: upper,
+        total_selected: totalSelected,
+      });
+    }
   }
 
   function removeTicker(t: string) {
-    setTickers((prev) => prev.filter((x) => x !== t));
+    let removed = false;
+    let totalSelected = 0;
+    setTickers((prev) => {
+      const next = prev.filter((x) => x !== t);
+      removed = next.length !== prev.length;
+      totalSelected = next.length;
+      return next;
+    });
+    if (removed) {
+      captureEvent("compare_ticker_removed", {
+        ticker: t,
+        total_selected: totalSelected,
+      });
+    }
   }
 
   function reset() {
@@ -531,6 +555,10 @@ export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchE
     if (!canCompare) return;
     setPhase("loading");
     setError(null);
+    captureEvent("compare_started", {
+      count: tickers.length,
+      tickers: tickers.join(","),
+    });
     try {
       const res = await fetch("/api/compare-stocks", {
         method: "POST",
@@ -544,10 +572,18 @@ export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchE
       const data: CompareStocksResult = await res.json();
       setResult(data);
       setPhase("results");
+      captureEvent("compare_succeeded", {
+        count: tickers.length,
+        tickers: tickers.join(","),
+      });
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setPhase("error");
+      captureEvent("compare_failed", {
+        count: tickers.length,
+        tickers: tickers.join(","),
+      });
     }
   }
 

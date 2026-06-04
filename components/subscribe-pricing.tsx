@@ -4,15 +4,8 @@ import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
-import { posthog } from "@/lib/posthog";
-
-const PRO_BULLETS = [
-  "Unlimited stocks on your Radar (free is capped at 3)",
-  "Per-stock verdict: buy / hold / sell, fundamentals scorecard, research-backed call",
-  "Portfolio diagnosis: concentration risks, clusters, opportunities, cross-Radar themes",
-  "Price triggers and email alerts when stocks hit buy or sell zones",
-  "Cancel anytime · one click · no questions asked",
-];
+import { captureEvent } from "@/lib/posthog";
+import { PRO_BULLETS } from "@/components/landing-pro-preview";
 
 const PLANS_US = [
   {
@@ -102,20 +95,27 @@ export function SubscribePricing({
 
   async function handlePlanClick(period: "monthly" | "yearly") {
     setError(null);
+    captureEvent("subscription_plan_clicked", { period, market });
 
     // Not signed in - sign in first, then retry
     if (!user) {
       setLoadingPlan(period);
       try {
         await signInWithGoogle();
-        posthog.capture("subscribe_signin_started", { period, market });
+        captureEvent("subscribe_signin_started", { period, market });
+        captureEvent("subscribe_signin_succeeded", { period, market });
         // Auth state is now updated; Firebase currentUser is available
         const checkoutUrl = await startCheckout(period, market);
-        posthog.capture("checkout_started", { period, market });
+        captureEvent("checkout_started", { period, market });
         window.location.href = checkoutUrl;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
         setError(msg);
+        captureEvent("subscribe_signin_failed", {
+          period,
+          market,
+          error: err instanceof Error ? err.message : "unknown",
+        });
       } finally {
         setLoadingPlan(null);
       }
@@ -125,11 +125,16 @@ export function SubscribePricing({
     setLoadingPlan(period);
     try {
       const checkoutUrl = await startCheckout(period, market);
-      posthog.capture("checkout_started", { period, market });
+      captureEvent("checkout_started", { period, market });
       window.location.href = checkoutUrl;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
+      captureEvent("checkout_failed", {
+        period,
+        market,
+        error: err instanceof Error ? err.message : "unknown",
+      });
     } finally {
       setLoadingPlan(null);
     }
@@ -145,10 +150,10 @@ export function SubscribePricing({
           <span aria-hidden>🚀</span> Launch-week pricing
         </span>
         <h1 className="text-[36px] md:text-[48px] font-semibold tracking-[-0.03em] text-[#111111] leading-[1.05]">
-          Cheaper than a coffee.
+          The call on every stock you own.
         </h1>
         <p className="text-[15px] text-[#6b7280] max-w-md leading-relaxed">
-          One plan, full access. Cancel anytime with one click - no questions asked.
+          Pro reads the news, scores the setup, and tells you what to do, every morning. Cheaper than a coffee, cancel anytime.
         </p>
       </div>
 

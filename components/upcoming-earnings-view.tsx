@@ -99,8 +99,13 @@ export function UpcomingEarningsView({
           </div>
           {!isSubscribed ? (
             <ProLockOverlay
-              title="Upcoming earnings intel is Pro"
-              description="Unlock AI setups before the print: expected EPS, likely stock move, and what to do."
+              title="Know the setup before the print"
+              description="Our read on each earnings event ahead of the date, so you are positioned before the number drops."
+              benefits={[
+                "Whether we expect a beat, miss, or inline print",
+                "How the stock is likely to trade after",
+                "Whether to act, hold, or stay out",
+              ]}
             />
           ) : null}
         </div>

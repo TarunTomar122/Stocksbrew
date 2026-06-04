@@ -6,7 +6,6 @@ import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { StockLogo } from "@/components/stock-logo";
-import { ExpandableYoutubeVideo } from "@/components/expandable-youtube-video";
 import { HERO_SUBHEAD } from "@/lib/brand-copy";
 
 type IndexData = {
@@ -16,11 +15,22 @@ type IndexData = {
   changePct: number;
 };
 
+export type HeroSpotlight = {
+  ticker: string;
+  name: string;
+  logoUrl: string | null;
+  dayChangePct: number;
+  headline: string;
+  reasoning: string;
+  verdict: string | null;
+};
+
 type Props = {
   indices: IndexData[];
   verdict?: unknown;
   isSubscribed?: boolean;
   showIndexSkeleton?: boolean;
+  spotlight?: HeroSpotlight | null;
 };
 
 function fmtPrice(v: number): string {
@@ -42,8 +52,6 @@ async function syncServerSession(): Promise<void> {
     body: JSON.stringify({ idToken }),
   });
 }
-
-const YT_VIDEO_ID = "i7tbJL58PMA";
 
 // pos = absolute coordinates (no negatives — avoids overflow-hidden clipping)
 // rotate = applied to outer wrapper; hover translate applied to inner card (keeps transforms independent)
@@ -103,7 +111,7 @@ function StockVerdictChip({
   );
 }
 
-export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton = false }: Props) {
+export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton = false, spotlight = null }: Props) {
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
@@ -148,11 +156,12 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
 
           {/* Center text */}
           <div className="relative flex flex-col items-center gap-4 text-center w-full max-w-[540px] px-4 lg:px-0">
-            <h1 className="text-[30px] sm:text-[40px] md:text-[52px] font-semibold text-[#111111] tracking-[-0.04em] leading-[1.05]">
-              Know exactly what to do with your stocks.
+            <h1 className="text-[28px] sm:text-[36px] md:text-[46px] font-semibold tracking-[-0.04em] leading-[1.08] max-w-[560px]">
+              <span className="text-[#9ca3af]">Other apps show the numbers. </span>
+              <span className="text-[#111111]">We tell you what they mean.</span>
             </h1>
 
-            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[380px]">
+            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
               {HERO_SUBHEAD}
             </p>
 
@@ -192,31 +201,8 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
           </div>
         </div>
 
-        {/* Video embed — full width on mobile, capped on desktop */}
-        <div className="relative w-full max-w-[860px] mx-auto px-0 md:px-6 lg:px-0">
-
-          {/* Browser frame + video */}
-          <div className="w-full">
-            <div className="hidden sm:flex items-center gap-1.5 rounded-t-2xl bg-[#f3f4f6] border border-b-0 border-[#e5e7eb] px-4 py-2.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#ef4444] opacity-70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b] opacity-70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] opacity-70" />
-              <div className="mx-3 flex-1 rounded-md bg-white border border-[#e5e7eb] px-3 py-0.5 text-[11px] text-[#9ca3af] text-center">
-                www.stocksbrew.online/watchlist
-              </div>
-            </div>
-            <div className="relative w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl overflow-hidden border sm:border-t-0 border-[#e5e7eb] shadow-[0_20px_60px_rgba(0,0,0,0.10)] isolate" style={{ paddingBottom: "56.25%" }}>
-              <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-t-none sm:rounded-b-2xl">
-                <ExpandableYoutubeVideo
-                  videoId={YT_VIDEO_ID}
-                  title="See stocksbrew in action"
-                  previewLabel="See stocksbrew in action"
-                  className="h-full w-full rounded-2xl sm:rounded-t-none sm:rounded-b-2xl"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Live call — a real, current read from stocksbrew (no mockups) */}
+        {spotlight && <HeroSpotlightCard spotlight={spotlight} />}
 
       </div>
 
@@ -259,5 +245,70 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
         </div>
       )}
     </section>
+  );
+}
+
+function HeroSpotlightCard({ spotlight }: { spotlight: HeroSpotlight }) {
+  const up = spotlight.dayChangePct >= 0;
+  const changeColor = up ? "#10b981" : "#ef4444";
+  const changeBg = up ? "#ecfdf5" : "#fef2f2";
+
+  return (
+    <div className="w-full max-w-[560px] mx-auto px-4 lg:px-0">
+      <div className="flex items-center justify-center gap-2 pb-3">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
+        </span>
+        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#6b7280]">
+          What stocksbrew is flagging right now
+        </span>
+      </div>
+
+      <article className="flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-white p-5 shadow-[0_20px_60px_rgba(17,24,39,0.08)]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <StockLogo
+              ticker={spotlight.ticker}
+              market="US"
+              size={36}
+              logoUrl={spotlight.logoUrl}
+            />
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">
+                {spotlight.ticker}
+              </span>
+              <span className="truncate max-w-[180px] text-[12px] text-[#9ca3af]">
+                {spotlight.name}
+              </span>
+            </div>
+          </div>
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums"
+            style={{ background: changeBg, color: changeColor }}
+          >
+            {up ? "▲" : "▼"} {Math.abs(spotlight.dayChangePct).toFixed(2)}%
+          </span>
+        </div>
+
+        <p className="text-[15px] font-semibold leading-snug text-[#111111]">
+          {spotlight.headline}
+        </p>
+        <p className="text-[13px] leading-relaxed text-[#6b7280]">
+          {spotlight.reasoning}
+        </p>
+
+        {spotlight.verdict && (
+          <div className="flex items-center gap-2 border-t border-[#f3f4f6] pt-3">
+            <span className="text-[11px] font-medium text-[#9ca3af]">
+              Our read
+            </span>
+            <span className="text-[12px] font-semibold text-[#111111]">
+              {spotlight.verdict}
+            </span>
+          </div>
+        )}
+      </article>
+    </div>
   );
 }

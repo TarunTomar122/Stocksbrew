@@ -99,6 +99,12 @@ export function ProfileSubscription({
         </p>
       )}
 
+      {!isSubscribed && (
+        <p className="text-[13px] text-[#6b7280] leading-relaxed">
+          Get a daily call on every stock you track, plus alerts and a read on your portfolio risk.
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {!isSubscribed && (
           <Link
@@ -107,7 +113,7 @@ export function ProfileSubscription({
           >
             {subscriptionStatus === "payment_failed" || subscriptionStatus === "processing"
               ? "Try subscribing again"
-              : "Subscribe to Pro"}
+              : "Get Pro"}
           </Link>
         )}
         {isSubscribed && hasBillableSubscription && !cancelAtPeriodEnd && (

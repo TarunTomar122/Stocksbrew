@@ -16,7 +16,7 @@ import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { StockPageTabs } from "@/components/stock-page-tabs";
 import { StockScrollRail } from "@/components/stock-scroll-rail";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
-import { ProLockOverlay } from "@/components/pro-lock-overlay";
+import { ProLockCard } from "@/components/pro-lock-overlay";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
@@ -414,8 +414,13 @@ export default async function StockPage({ params }: Props) {
     )
   ) : (
     <PremiumTabLock
-      title="AI brief is Pro-only"
-      description="Unlock AI stance, catalysts, risks, and sentiment for stocks in your Radar."
+      title={`What does the news actually mean for ${stock.ticker}?`}
+      description="Pro reads every fresh headline, scores the setup, and gives you the stance before the next move."
+      benefits={[
+        "A clear stance: buy, hold, sell, or watch",
+        "The catalysts and risks that actually matter",
+        "Sentiment read from news and the crowd",
+      ]}
     />
   );
 
@@ -457,14 +462,10 @@ export default async function StockPage({ params }: Props) {
   );
 }
 
-function PremiumTabLock({ title, description }: { title: string; description: string }) {
+function PremiumTabLock({ title, description, benefits }: { title: string; description: string; benefits?: string[] }) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-[#e5e7eb] bg-white p-6 min-h-[260px]">
-      <div
-        aria-hidden
-        className="pointer-events-none select-none h-full rounded-2xl bg-gradient-to-b from-[#f8fafc] via-[#f3f4f6] to-[#eef2ff]"
-      />
-      <ProLockOverlay title={title} description={description} />
+    <section className="relative flex items-center justify-center overflow-hidden rounded-3xl border border-[#e5e7eb] bg-gradient-to-b from-[#f8fafc] via-[#f3f4f6] to-[#eef2ff] p-6 sm:p-8">
+      <ProLockCard title={title} description={description} benefits={benefits} />
     </section>
   );
 }

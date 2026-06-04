@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { captureEvent } from "@/lib/posthog";
 
 export function FeedbackWidget() {
   const [open, setOpen] = useState(false);
@@ -22,6 +23,7 @@ export function FeedbackWidget() {
     if (!trimmed) return;
     setSending(true);
     setError("");
+    captureEvent("feedback_submitted", { length: trimmed.length, surface: "widget" });
     try {
       const res = await fetch("/api/feedback", {
         method: "POST",
@@ -30,10 +32,12 @@ export function FeedbackWidget() {
       });
       if (!res.ok) throw new Error("Failed to send");
       setSent(true);
+      captureEvent("feedback_succeeded", { length: trimmed.length, surface: "widget" });
       setText("");
       setTimeout(dismiss, 2500);
     } catch {
       setError("Something went wrong. Try again?");
+      captureEvent("feedback_failed", { surface: "widget" });
     } finally {
       setSending(false);
     }

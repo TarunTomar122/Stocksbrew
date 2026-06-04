@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import NextTopLoader from "nextjs-toploader";
 
 import { AuthProvider } from "@/lib/auth-context";
+import { GoogleAnalyticsPageview } from "@/components/google-analytics";
 import { PostHogPageview } from "@/components/posthog-pageview";
 
 type ProvidersProps = {
@@ -15,6 +16,7 @@ export function Providers({ children, initialAuthed }: ProvidersProps) {
   return (
     <AuthProvider initialAuthed={initialAuthed}>
       <PostHogPageview />
+      <GoogleAnalyticsPageview />
       <NextTopLoader
         color="var(--primary)"
         initialPosition={0.12}

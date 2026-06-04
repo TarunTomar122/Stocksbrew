@@ -17,9 +17,6 @@ function fmtPrice(v: number, market: MarketEvent["market"]): string {
   return `${symbol}${v.toFixed(2)}`;
 }
 
-function fmtPct(v: number): string {
-  return `${Math.abs(v).toFixed(2)}%`;
-}
 
 function hookLine(event: MarketEvent): string {
   const first = event.evidence.find((e) => e.trim());
@@ -32,12 +29,6 @@ function EventCard({ event, predicted }: { event: MarketEvent; predicted?: boole
     ? `/stock/${encodeURIComponent(event.ticker)}`
     : null;
   const hasPrice = typeof event.price === "number";
-  const hasChange = typeof event.day_change_pct === "number";
-  const isUp = hasChange
-    ? event.day_change_pct! >= 0
-    : event.direction === "positive";
-  const changeColor = isUp ? "#10b981" : "#ef4444";
-  const changeBg = isUp ? "#ecfdf5" : "#fef2f2";
   const hook = hookLine(event);
 
   const inner = (
@@ -65,21 +56,11 @@ function EventCard({ event, predicted }: { event: MarketEvent; predicted?: boole
             ) : null}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {predicted && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#f0fdf4] px-2 py-0.5 text-[11px] font-semibold text-[#16a34a]">
-              ✓ Called it
-            </span>
-          )}
-          {hasChange && (
-            <span
-              className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums"
-              style={{ background: changeBg, color: changeColor }}
-            >
-              {isUp ? "▲" : "▼"} {fmtPct(event.day_change_pct!)}
-            </span>
-          )}
-        </div>
+        {predicted && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f0fdf4] px-2 py-0.5 text-[11px] font-semibold text-[#16a34a]">
+            ✓ We saw it coming
+          </span>
+        )}
       </div>
 
       {hasPrice && (
