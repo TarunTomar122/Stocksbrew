@@ -1932,4 +1932,185 @@ export const blogContent: Record<string, string> = {
 
 <p>Related: <a href="/blog/ai-stock-alerts-vs-price-alerts">AI Stock Alerts vs Price Alerts</a> and <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a>.</p>
 `,
-};
+  "how-to-read-stock-heat-map": `
+<div class="blog-meta">Updated May 2026 &middot; 10 min read</div>
+
+<p>A stock heat map is the single fastest way to understand what's happening in the market. One glance and you can see which sectors are green, which stocks are getting hammered, and where the money is flowing.</p>
+
+<p>Yet most investors open a heat map and see... colored boxes. They don't know if dark green means +2% or +20%, or why some boxes are larger than others. This guide fixes that.</p>
+
+<h2 id="what-is-heat-map">What Is a Stock Heat Map?</h2>
+
+<p>A stock heat map (also called a <strong>market heat map</strong> or <strong>stock market heat map</strong>) is a data visualization that uses color intensity and box size to represent stock performance and market capitalization. It's like a weather radar for the stock market.</p>
+
+<p>Every box represents one stock. The box <strong>color</strong> shows performance (greens for gains, reds for losses). The box <strong>size</strong> shows market cap or trading volume. Together, they let you scan hundreds of stocks in under 5 seconds.</p>
+
+<h2 id="how-to-read">How to Read a Stock Heat Map</h2>
+
+<p>Reading a heat map comes down to three things:</p>
+
+<h3>1. Color Intensity</h3>
+<p>Dark green = strong gain. Light green = small gain. Light red = small loss. Dark red = strong loss. The exact thresholds vary by platform.</p>
+
+<h3>2. Box Size</h3>
+<p>Larger boxes = larger market cap companies. Apple's box will always dwarf a small-cap biotech. This is important because a 5% drop on Apple (huge box turning red) affects the market far more than a 5% drop on a tiny stock.</p>
+
+<h3>3. Sector Grouping</h3>
+<p>Most heat maps group stocks by sector. If you see an entire sector turning red, that's sector rotation. If you see isolated red in a sea of green, it's stock-specific news.</p>
+
+<h2 id="market-heat">Our Approach vs Traditional Heat Maps</h2>
+
+<p>Most heat maps show <em>every</em> stock equally — including the 99% that aren't moving. Our <a href="/heat">Market Heat</a> at stocksbrew is different: it shows stocks getting <strong>unusual attention</strong> based on price action, volume, and news activity. Fewer boxes, higher signal.</p>
+
+<h2 id="common-patterns">Common Patterns to Spot</h2>
+
+<ul>
+  <li><strong>Green cluster in tech, red cluster in energy</strong>: Sector rotation. Money moving from energy to tech.</li>
+  <li><strong>One stock dark green, sector neutral</strong>: Stock-specific catalyst. Earnings, product launch, analyst upgrade.</li>
+  <li><strong>Small caps all red, large caps green</strong>: Risk-off day. Investors fleeing to safety.</li>
+  <li><strong>Whole market pale green</strong>: Low-volatility day. No one's making big moves.</li>
+</ul>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<ol>
+  <li><strong>Check the heat map first</strong> — before looking at individual stocks, scan the heat map for sector-level trends.</li>
+  <li><strong>Don't trade every red box</strong> — look for <em>unusual</em> moves relative to sector peers.</li>
+  <li><strong>Combine with news</strong> — the heat map tells you <em>what</em>; news tells you <em>why</em>.</li>
+  <li><strong>Check pre-market</strong> — the pre-market heat map shows where the day is heading.</li>
+</ol>
+
+<div class="cta-section">
+  <h3>See Today's Market Heat</h3>
+  <p>See which stocks are getting unusual attention in real-time.</p>
+  <a href="https://stocksbrew.online/heat" class="cta-button">View Market Heat →</a>
+</div>
+
+<p>Related: <a href="/blog/daily-market-intelligence-guide">Daily Market Intelligence Guide</a>.</p>
+`,
+  "stock-analysis-beginners-technical-vs-fundamental": `
+<div class="blog-meta">Updated May 2026 &middot; 12 min read</div>
+
+<p>When you first start investing, you hear two buzzwords constantly: <strong>technical analysis</strong> and <strong>fundamental analysis</strong>. Everyone seems to have a strong opinion. But they answer different questions.</p>
+
+<h2 id="fundamental-analysis">What Is Fundamental Analysis?</h2>
+
+<p>Fundamental analysis evaluates a stock's <strong>intrinsic value</strong> by examining financial statements, industry trends, economic conditions, and competitive advantages. It answers: <em>Is this a good company?</em></p>
+
+<p>Key metrics: P/E ratio, EPS growth, debt-to-equity, revenue growth, profit margins.</p>
+
+<h2 id="technical-analysis">What Is Technical Analysis?</h2>
+
+<p>Technical analysis studies <strong>price action and volume</strong> to predict future price movements. It answers: <em>When should I buy or sell?</em></p>
+
+<p>Key tools: Support and resistance, RSI, moving averages (50-day, 200-day), volume confirmation.</p>
+
+<h2 id="key-differences">Key Differences at a Glance</h2>
+
+<p>Fundamental analysis is long-term (months to years), answers "what to buy?", uses financial statements. Technical analysis is shorter-term (days to weeks), answers "when to buy/sell?", uses price charts.</p>
+
+<h2 id="which-one-you-need">Which One Do You Actually Need?</h2>
+
+<p>For most retail investors: <strong>both, but lean on fundamentals.</strong> Use fundamental analysis to find quality stocks. Use basic technical analysis to time entries.</p>
+
+<div class="cta-section">
+  <h3>Get Both in One Tool</h3>
+  <p>Fundamentals <em>and</em> technicals on every stock — scores, briefs, alerts.</p>
+  <a href="https://stocksbrew.online" class="cta-button">Try Free →</a>
+</div>
+
+<p>Related: <a href="/blog/ai-stock-analysis-what-works">AI Stock Analysis: What Actually Works</a>.</p>
+`,
+  "free-stock-screeners-indian-investors": `
+<div class="blog-meta">Updated May 2026 &middot; 12 min read</div>
+
+<p>Indian investors have more free stock screening tools than ever. Screener.in, Tickertape, TradingView, and newer AI-powered options all offer free tiers. But which one should you actually use?</p>
+
+<h2 id="screener-in">1. Screener.in — Best for Fundamental Research</h2>
+<p>Screener.in is the gold standard for fundamental analysis of Indian stocks. Free, fast, clean financial data. No technical analysis tools or real-time data.</p>
+
+<h2 id="tickertape">2. Tickertape — Best All-Rounder</h2>
+<p>Stock analysis with modern UI, screening tools, portfolio tracking, and market news. Some features gated behind Tickertape Pro.</p>
+
+<h2 id="tradingview">3. TradingView — Best for Technical Screening</h2>
+<p>World's best charting platform. Free tier includes basic screening with real-time NSE/BSE data.</p>
+
+<h2 id="alternatives">4. AI-Powered Alternatives</h2>
+<p><a href="https://stocksbrew.online">stocksbrew</a> offers AI-powered stock briefs, market heat maps, portfolio analysis, and watchlist radar. Stronger for US markets currently with India support planned.</p>
+
+<div class="cta-section">
+  <h3>Try AI-Powered Stock Analysis</h3>
+  <a href="https://stocksbrew.online" class="cta-button">Start Free →</a>
+</div>
+
+<p>Related: <a href="/blog/free-market-intelligence-tools">Best Free Market Intelligence Tools</a>.</p>
+`,
+  "how-to-build-stock-watchlist": `
+<div class="blog-meta">Updated May 2026 &middot; 10 min read</div>
+
+<p>Most investors build watchlists like shopping lists. A good watchlist is curated, maintained, and has fewer than 20 stocks.</p>
+
+<h2 id="why-watchlist-fails">Why Most Watchlists Fail</h2>
+<p>The problem is clutter. When every stock is on your watchlist, nothing gets your attention. A useful watchlist has <strong>fewer than 20 stocks</strong> with clear reasons for each.</p>
+
+<h2 id="building-process">The 4-Step Watchlist Building Process</h2>
+
+<h3>Step 1: Start with What You Own</h3>
+<p>Your existing portfolio is the core of your watchlist.</p>
+
+<h3>Step 2: Add Top Candidates</h3>
+<p>3-5 stocks you'd genuinely buy at the right price. Know the P/E, growth story, and key risks.</p>
+
+<h3>Step 3: Add Sector Representatives</h3>
+<p>1-2 key stocks per sector to track rotation.</p>
+
+<h3>Step 4: Prune Monthly</h3>
+<p>Review every month. Remove stocks that no longer meet criteria.</p>
+
+<h2 id="monitoring">Monitoring Your Watchlist</h2>
+
+<p><a href="https://stocksbrew.online">stocksbrew's Radar</a> tracks your watchlist automatically — daily briefs, alerts when stocks hit buy/sell zones.</p>
+
+<div class="cta-section">
+  <h3>AI-Powered Watchlist Monitoring</h3>
+  <p>Free for 3 stocks, no credit card.</p>
+  <a href="https://stocksbrew.online" class="cta-button">Build Your Watchlist →</a>
+</div>
+
+<p>Related: <a href="/blog/ai-stock-watchlist-vs-traditional">AI Watchlists vs Traditional Watchlists</a>.</p>
+`,
+  "portfolio-rebalancing-guide-retail-investors": `
+<div class="blog-meta">Updated May 2026 &middot; 12 min read</div>
+
+<p>Portfolio rebalancing is the single most underrated investing discipline. Most retail investors set a target allocation once, then let the market decide their actual allocation.</p>
+
+<h2 id="what-is-rebalancing">What Is Portfolio Rebalancing?</h2>
+<p>Bringing your portfolio back to target allocation. If you target 60% stocks and 40% bonds, and the market pushes you to 75/25, rebalancing means selling stocks and buying bonds.</p>
+
+<h2 id="why-rebalance">Why Rebalancing Matters</h2>
+<ul>
+  <li><strong>Risk control</strong> — your risk profile changes as allocations drift</li>
+  <li><strong>Disciplined selling</strong> — forces you to take profits on winners</li>
+  <li><strong>Forced buying</strong> — naturally buys low and sells high</li>
+  <li><strong>Emotional anchor</strong> — prevents panic selling during corrections</li>
+</ul>
+
+<h2 id="strategies">Three Rebalancing Strategies</h2>
+
+<h3>1. Calendar-Based</h3>
+<p>Pick a date — quarterly or semi-annually — and rebalance regardless of market conditions. Simple, automatic, no monitoring needed.</p>
+
+<h3>2. Threshold-Based</h3>
+<p>Set a drift threshold (typically 5%). When any asset class exceeds it, rebalance. More precise but requires monitoring.</p>
+
+<h3>3. Hybrid Approach</h3>
+<p>Light calendar rebalance quarterly + full rebalance when threshold is hit. Best for most serious retail investors.</p>
+
+<div class="cta-section">
+  <h3>Analyze Your Portfolio for Free</h3>
+  <p>Check sector allocation, concentration risk, and factor exposure.</p>
+  <a href="https://stocksbrew.online/portfolio" class="cta-button">Analyze Portfolio →</a>
+</div>
+
+<p>Related: <a href="/blog/track-stock-news-for-your-portfolio">How to Track Portfolio News</a>.</p>
+`,
