@@ -39,10 +39,147 @@ import {
   type PortfolioExposure,
   type PortfolioScenario,
 } from "@/lib/portfolio-scenarios";
+import { getBookRegimeRead, type SectorExposure } from "@/lib/sector-regimes";
+import { RadarRegimeBlock } from "@/components/radar-regime-block";
+import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getRedditCues } from "@/lib/reddit-cues";
+import {
+  RadarSignalsOnBook,
+  type BookAnomaly,
+  type BookBuzz,
+} from "@/components/radar-signals-on-book";
+import { getSectorRegimes, slugifySector, REGIME_LABEL } from "@/lib/sector-regimes";
+import { ConnectedReadCard, SignalChips, type SignalChip } from "@/components/connected-read-card";
+import type { DailyAnomaliesDoc } from "@/lib/daily-anomalies";
+import type { RedditSnapshot } from "@/lib/reddit-cues";
+import type { SectorRegimeDoc } from "@/lib/sector-regimes";
+
+export type LivePick = {
+  ticker: string;
+  name: string;
+  market: "US" | "IN";
+  logoUrl: string | null;
+  chips: SignalChip[];
+  line: string;
+};
+
+/** Names lighting up across anomalies and buzz right now, chained with their
+ * sector regime. Used to make the empty Radar feel live, not generic. */
+function buildLivePicks(
+  anomaliesDoc: DailyAnomaliesDoc | null,
+  redditSnap: RedditSnapshot | null,
+  regimes: Map<string, SectorRegimeDoc>,
+  market: "US" | "IN",
+  exclude: Set<string>,
+  max = 6,
+): LivePick[] {
+  type Acc = {
+    ticker: string;
+    name: string;
+    logoUrl: string | null;
+    sector: string;
+    dayChangePct: number | null;
+    headline: string | null;
+    mentions: number;
+    sentiment: string;
+    summary: string;
+  };
+  const byTicker = new Map<string, Acc>();
+
+  for (const a of anomaliesDoc?.anomalies ?? []) {
+    const t = String(a.ticker || "").trim().toUpperCase();
+    if (!t || exclude.has(t)) continue;
+    byTicker.set(t, {
+      ticker: t,
+      name: a.name || t,
+      logoUrl: a.logo_url ?? null,
+      sector: String(a.sector || ""),
+      dayChangePct: typeof a.day_change_pct === "number" ? a.day_change_pct : null,
+      headline: a.headline ?? a.today_brief ?? null,
+      mentions: 0,
+      sentiment: "",
+      summary: "",
+    });
+  }
+  for (const r of redditSnap?.tickers ?? []) {
+    const t = String(r.ticker || "").trim().toUpperCase();
+    if (!t || exclude.has(t)) continue;
+    const prev = byTicker.get(t);
+    if (prev) {
+      prev.mentions = r.mention_count;
+      prev.sentiment = r.sentiment;
+      prev.summary = r.summary;
+    } else {
+      byTicker.set(t, {
+        ticker: t, name: t, logoUrl: null, sector: "",
+        dayChangePct: null, headline: null,
+        mentions: r.mention_count, sentiment: r.sentiment, summary: r.summary,
+      });
+    }
+  }
+
+  const picks: Array<{ pick: LivePick; weight: number }> = [];
+  for (const acc of byTicker.values()) {
+    const chips: SignalChip[] = [];
+    let weight = 0;
+    if (acc.dayChangePct != null && Math.abs(acc.dayChangePct) >= 2) {
+      const up = acc.dayChangePct >= 0;
+      chips.push({ kind: up ? "anomaly_up" : "anomaly_down", label: `${up ? "Up" : "Down"} ${Math.abs(acc.dayChangePct).toFixed(1)}%` });
+      weight += 2 + Math.min(4, Math.abs(acc.dayChangePct) / 3);
+    }
+    if (acc.mentions > 0) {
+      chips.push({ kind: "buzz", label: "Reddit buzz" });
+      weight += 2;
+    }
+    const regime = acc.sector ? regimes.get(slugifySector(acc.sector)) : undefined;
+    if (regime) {
+      chips.push({ kind: "regime", label: REGIME_LABEL[regime.regime] });
+      weight += 1;
+    }
+    if (chips.length === 0) continue;
+    const line = acc.headline || acc.summary || "Moving on fresh activity today.";
+    picks.push({
+      pick: { ticker: acc.ticker, name: acc.name, market, logoUrl: acc.logoUrl, chips, line },
+      weight,
+    });
+  }
+
+  return picks
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, max)
+    .map((p) => p.pick);
+}
 
 export const dynamic = "force-dynamic";
 
 type Dict = Record<string, unknown>;
+
+/** Sector weights for the book: value-weighted when holdings have weights, else
+ * an equal-weight count across every tracked name. Used to join regime data. */
+function computeSectorExposure(rows: WatchlistRow[]): SectorExposure[] {
+  const holdings = rows.filter(
+    (r) => r.position_type === "holding" && String(r.sector_label || "").trim(),
+  );
+  const useWeights =
+    holdings.length > 0 &&
+    holdings.every(
+      (r) =>
+        typeof r.holding?.portfolio_weight_pct === "number" &&
+        (r.holding.portfolio_weight_pct as number) > 0,
+    );
+  const basis = holdings.length > 0 ? holdings : rows.filter((r) => String(r.sector_label || "").trim());
+  const totals = new Map<string, number>();
+  let sum = 0;
+  for (const r of basis) {
+    const sector = String(r.sector_label || "").trim();
+    if (!sector) continue;
+    const w = useWeights ? (r.holding!.portfolio_weight_pct as number) : 1;
+    totals.set(sector, (totals.get(sector) ?? 0) + w);
+    sum += w;
+  }
+  if (sum <= 0) return [];
+  return [...totals.entries()].map(([sector, w]) => ({ sector, weightPct: (w / sum) * 100 }));
+}
 
 // =============================================================================
 // PAGE
@@ -153,6 +290,51 @@ export default async function WatchlistPage() {
   // view on every price tick. Price jobs update tm_latest_prices; this page
   // overlays those quote fields at read time.
   const rows = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
+  const regimeMarket = rows[0]?.market === "IN" ? "IN" : "US";
+  const bookRegime = await getBookRegimeRead(
+    regimeMarket,
+    computeSectorExposure(rows),
+  ).catch(() => null);
+
+  // Buzz + anomaly lenses on the book: intersect the market-wide feeds (one doc
+  // each) with the user's tracked tickers, so it costs two reads, not 2N.
+  const trackedTickers = new Set(
+    rows.map((r) => String(r.ticker || "").trim().toUpperCase()).filter(Boolean),
+  );
+  const [anomaliesDoc, redditSnap] = await Promise.all([
+    getDailyAnomalies(regimeMarket).catch(() => null),
+    getRedditCues(regimeMarket).catch(() => null),
+  ]);
+  const bookAnomalies: BookAnomaly[] = (anomaliesDoc?.anomalies ?? [])
+    .filter((a) => trackedTickers.has(String(a.ticker || "").trim().toUpperCase()))
+    .map((a) => ({
+      ticker: a.ticker,
+      name: a.name || a.ticker,
+      logoUrl: a.logo_url ?? null,
+      dayChangePct: typeof a.day_change_pct === "number" ? a.day_change_pct : null,
+      headline: a.headline ?? a.today_brief ?? null,
+      market: regimeMarket,
+    }));
+  const bookBuzz: BookBuzz[] = (redditSnap?.tickers ?? [])
+    .filter((t) => trackedTickers.has(String(t.ticker || "").trim().toUpperCase()))
+    .map((t) => ({
+      ticker: t.ticker,
+      sentiment: t.sentiment,
+      summary: t.summary,
+      mentions: t.mention_count,
+      market: regimeMarket,
+    }));
+
+  // Live moat-driven picks for the empty Radar (names moving and buzzing today,
+  // chained with their sector regime). Computed only when the book is empty.
+  let livePicks: LivePick[] = [];
+  if (rows.length === 0) {
+    const { sectors: regimeMap } = await getSectorRegimes(regimeMarket).catch(() => ({
+      sectors: new Map(),
+      macro: null,
+    }));
+    livePicks = buildLivePicks(anomaliesDoc, redditSnap, regimeMap, regimeMarket, trackedTickers);
+  }
   const suggestions = (watchlistView?.suggestions || radar.suggestions || []) as Dict[];
   const brief = ((watchlistView?.brief || radar.brief) ?? null) as WatchlistBrief | null;
   const pulse = ((watchlistView?.pulse || radar.pulse) ?? null) as WatchlistPulse | null;
@@ -212,7 +394,7 @@ export default async function WatchlistPage() {
   }
 
   if (!isSubscribed && rows.length === 0) {
-    return <UnsubscribedState tracked={tracked} />;
+    return <UnsubscribedState tracked={tracked} livePicks={livePicks} />;
   }
   // Free users with rows get the full Radar — the only difference is the 3-stock
   // limit enforced at /api/track time, not at display time.
@@ -387,6 +569,9 @@ export default async function WatchlistPage() {
           watchlistPositions={watchlistPositions}
         />
 
+        {/* ── SIGNALS ON YOUR BOOK ──────────────────────────────────────── */}
+        <RadarSignalsOnBook anomalies={bookAnomalies} buzz={bookBuzz} />
+
         {/* ── § 01 · YOUR BOOK ──────────────────────────────────────────── */}
         <YourBookSection
           holdings={holdings}
@@ -419,6 +604,7 @@ export default async function WatchlistPage() {
         )}
 
         {/* ── § 03 · DIAGNOSIS ──────────────────────────────────────────── */}
+        <RadarRegimeBlock read={bookRegime} />
         <DiagnosisSection
           portfolio={portfolio}
           pillarAverages={pillarAverages}
@@ -492,7 +678,7 @@ function HeaderStrip({
               href="/subscribe"
               className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
             >
-              Upgrade to track more →
+              Track every stock you hold →
             </Link>
           ) : (
             <RadarBatchEditModal
@@ -1243,14 +1429,14 @@ function YourBookSection({
                 </span>
               </div>
               <p className="text-[15px] font-semibold text-white leading-snug">
-                You&apos;ve hit the limit. Unlock your full Radar.
+                Three stocks in. Pro covers the whole book.
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {[
-                  { icon: "trending_up", text: "Unlimited stocks" },
-                  { icon: "notifications", text: "RSI & breakout alerts" },
-                  { icon: "psychology", text: "AI verdict per stock" },
-                  { icon: "analytics", text: "Portfolio diagnosis" },
+                  { icon: "psychology", text: "A daily call on each stock" },
+                  { icon: "notifications", text: "Alerts when something moves" },
+                  { icon: "analytics", text: "Risk across your whole list" },
+                  { icon: "trending_up", text: "Track as many as you hold" },
                 ].map(({ icon, text }) => (
                   <span key={text} className="inline-flex items-center gap-1 text-[11px] text-white/55">
                     <span className="material-symbols-outlined text-white/40" style={{ fontSize: 13, fontVariationSettings: "'wght' 500" }}>{icon}</span>
@@ -1264,7 +1450,7 @@ function YourBookSection({
               href="/subscribe"
               className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]"
             >
-              Unlock Pro · $9/mo →
+              Get Pro · $9/mo →
             </Link>
           </div>
         ) : undefined}
@@ -2025,6 +2211,34 @@ function reasonChip(reason: string): { bg: string; fg: string } {
   return { bg: "#f3f4f6", fg: "#4b5563" };
 }
 
+// The moat is anomalies, buzz, and news, not fundamental screens. Surface the
+// reason a name is actually interesting right now, falling back to the screen
+// only when there is no live signal.
+function suggestionMoatSignal(item: Dict): { label: string; bg: string; fg: string; line: string } | null {
+  const anomalyPct = num(item.anomaly_move_pct);
+  const anomalyHeadline = text(item.anomaly_headline);
+  const redditMentions = num(item.reddit_mentions);
+  const redditSummary = text(item.reddit_summary);
+  if (anomalyPct !== null && Math.abs(anomalyPct) >= 2) {
+    const dir = anomalyPct >= 0 ? "up" : "down";
+    return {
+      label: "Unusual move",
+      bg: anomalyPct >= 0 ? "#ecfdf5" : "#fef2f2",
+      fg: anomalyPct >= 0 ? "#047857" : "#b91c1c",
+      line: anomalyHeadline || `Moved ${dir} ${Math.abs(anomalyPct).toFixed(1)}% today, outside its normal range.`,
+    };
+  }
+  if (redditMentions !== null && redditMentions > 0) {
+    return {
+      label: "Reddit buzz",
+      bg: "#fff1ec",
+      fg: "#c2410c",
+      line: redditSummary || `${redditMentions} mentions trending across r/stocks and more.`,
+    };
+  }
+  return null;
+}
+
 function StocksToCheckOut({
   suggestions,
   tracked,
@@ -2034,7 +2248,10 @@ function StocksToCheckOut({
   tracked: string[];
   isSubscribed: boolean;
 }) {
-  const list = suggestions.slice(0, 6);
+  // Moat-first: names lighting up in anomalies or buzz lead the list.
+  const list = [...suggestions]
+    .sort((a, b) => Number(Boolean(suggestionMoatSignal(b))) - Number(Boolean(suggestionMoatSignal(a))))
+    .slice(0, 6);
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex items-center gap-2">
@@ -2054,9 +2271,10 @@ function StocksToCheckOut({
         <ul className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
           {list.map((item, i) => {
             const ticker = text(item.ticker);
-            const reason = text(item.reason);
-            const why = text(item.why);
-            const score = num(item.score ?? item.match_score);
+            const moat = suggestionMoatSignal(item);
+            const reason = moat ? moat.label : text(item.reason);
+            const why = moat ? moat.line : text(item.why);
+            const score = moat ? null : num(item.score ?? item.match_score);
             const market = item.market === "IN" ? "IN" : "US";
             const instrumentId = ticker ? `${market}_${ticker}` : "";
             const isTracked = instrumentId ? tracked.includes(instrumentId) : false;
@@ -2079,7 +2297,7 @@ function StocksToCheckOut({
                       </span>
                       {reason &&
                         (() => {
-                          const chip = reasonChip(reason);
+                          const chip = moat ? { bg: moat.bg, fg: moat.fg } : reasonChip(reason);
                           return (
                             <span
                               className="inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em] whitespace-nowrap"
@@ -2403,11 +2621,15 @@ const STARTER_PICKS = [
 
 function UnsubscribedState({
   tracked,
+  livePicks = [],
 }: {
   tracked: string[];
+  livePicks?: LivePick[];
 }) {
   const trackedCount = tracked.length;
   const atLimit = trackedCount >= 3;
+  const featured = livePicks[0] ?? null;
+  const restPicks = livePicks.slice(1);
 
   return (
     <main className="flex-grow">
@@ -2445,7 +2667,7 @@ function UnsubscribedState({
                   href="/subscribe"
                   className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
                 >
-                  Upgrade to track more →
+                  Track every stock you hold →
                 </Link>
               ) : (
                 <RadarBatchEditModal
@@ -2459,18 +2681,63 @@ function UnsubscribedState({
           </div>
         </header>
 
-        {/* Start here — pick your first stocks */}
+        {/* Morning preview — show the chain of signals turning into a call */}
+        {featured && (
+          <section className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1d4ed8]">
+                Here is the kind of read you would wake up to
+              </span>
+              <p className="text-[13px] text-[#6b7280] max-w-xl">
+                We watch the buzz, the moves, and the regime, then tell you what it adds up to. Add a stock and this lands on your Radar every morning.
+              </p>
+            </div>
+            <div className="max-w-[460px]">
+              <ConnectedReadCard
+                ticker={featured.ticker}
+                name={featured.name}
+                market={featured.market}
+                logoUrl={featured.logoUrl}
+                chips={featured.chips}
+                conclusion={`${featured.line} Track ${featured.ticker} and you get the full call on it tomorrow.`}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Start here — names lighting up right now */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#ecfdf5] text-[15px]">🚀</span>
             <div>
-              <h2 className="text-[15px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">Start your Radar</h2>
-              <p className="text-[12px] text-[#6b7280]">Add up to 3 stocks free. stocksbrew tracks them daily and tells you what to do.</p>
+              <h2 className="text-[15px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
+                {restPicks.length > 0 ? "Lighting up right now" : "Start your Radar"}
+              </h2>
+              <p className="text-[12px] text-[#6b7280]">
+                {restPicks.length > 0
+                  ? "Names moving and buzzing today. Add up to 3 free and get the call on each tomorrow."
+                  : "Add up to 3 stocks free. We track them daily and tell you what to do."}
+              </p>
             </div>
           </div>
 
           <ul className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
-            {STARTER_PICKS.map((pick, i) => {
+            {(restPicks.length > 0
+              ? restPicks.map((p) => ({
+                  ticker: p.ticker,
+                  market: p.market,
+                  logoUrl: p.logoUrl,
+                  chips: p.chips,
+                  line: p.line,
+                }))
+              : STARTER_PICKS.map((p) => ({
+                  ticker: p.ticker,
+                  market: (p.market === "IN" ? "IN" : "US") as "US" | "IN",
+                  logoUrl: null,
+                  chips: [] as SignalChip[],
+                  line: p.reason,
+                }))
+            ).map((pick, i) => {
               const instrumentId = `${pick.market}_${pick.ticker}`;
               const isTracked = tracked.includes(instrumentId);
               return (
@@ -2482,15 +2749,16 @@ function UnsubscribedState({
                     href={`/stock/${encodeURIComponent(pick.ticker)}`}
                     className="flex items-center gap-3 flex-1 min-w-0 group"
                   >
-                    <StockLogo ticker={pick.ticker} market={pick.market as "US" | "IN"} size={36} />
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
-                          {pick.ticker}
-                        </span>
-                        <span className="text-[11px] text-[#9ca3af]">{pick.sector}</span>
-                      </div>
-                      <span className="text-[12px] text-[#6b7280] truncate">{pick.reason}</span>
+                    <StockLogo ticker={pick.ticker} market={pick.market} size={36} logoUrl={pick.logoUrl} />
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                        {pick.ticker}
+                      </span>
+                      {pick.chips.length > 0 ? (
+                        <SignalChips chips={pick.chips} />
+                      ) : (
+                        <span className="text-[12px] text-[#6b7280] truncate">{pick.line}</span>
+                      )}
                     </div>
                   </Link>
                   <TrackButton
@@ -2516,7 +2784,7 @@ function UnsubscribedState({
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">Pro · $9/mo</span>
               <h3 className="text-[16px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
-                Unlock the full Radar experience
+                Stop guessing on the stocks you hold
               </h3>
             </div>
             <Link

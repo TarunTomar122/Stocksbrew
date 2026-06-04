@@ -234,10 +234,18 @@ export function AnomaliesPageView({
 
   const hasReddit = reddit && (reddit.tickers?.length ?? 0) > 0;
   const redditCount = reddit?.tickers?.length ?? 0;
-  const freeLimit = getFeedPreviewLimit(isSubscribed, 8);
-  const visibleAnomalies = anomalies.slice(0, freeLimit);
-  const visibleReddit = (reddit?.tickers ?? []).slice(0, freeLimit);
-  const lockedAnomalyCount = Math.max(0, anomalies.length - visibleAnomalies.length);
+  // Cap the feed so the header counts always match what is actually on screen.
+  const MAX_ANOMALIES = 12;
+  const cappedAnomalies = anomalies.slice(0, MAX_ANOMALIES);
+  const anomalyUpCount = cappedAnomalies.filter((a) => a.direction === "up").length;
+  const anomalyDownCount = cappedAnomalies.filter((a) => a.direction === "down").length;
+  const anomaliesSummary = `${cappedAnomalies.length} of today's biggest moves · ${anomalyUpCount} up, ${anomalyDownCount} down`;
+
+  const anomalyLimit = getFeedPreviewLimit(isSubscribed, cappedAnomalies.length);
+  const redditLimit = getFeedPreviewLimit(isSubscribed, 8);
+  const visibleAnomalies = cappedAnomalies.slice(0, anomalyLimit);
+  const visibleReddit = (reddit?.tickers ?? []).slice(0, redditLimit);
+  const lockedAnomalyCount = Math.max(0, cappedAnomalies.length - visibleAnomalies.length);
   const lockedRedditCount = Math.max(0, redditCount - visibleReddit.length);
   const anomaliesFreshness = SHOW_DATA_FRESHNESS_UI
     ? freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS)
@@ -257,7 +265,7 @@ export function AnomaliesPageView({
         <MobileTabBar
           active={tab}
           onSelect={setTab}
-          anomalyCount={anomalies.length}
+          anomalyCount={cappedAnomalies.length}
           redditCount={redditCount}
         />
       )}
@@ -267,11 +275,11 @@ export function AnomaliesPageView({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <SectionLabel label="Biggest moves" count={anomalies.length} />
+              <SectionLabel label="Biggest moves" count={cappedAnomalies.length} />
               {lockedAnomalyCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
             <p className="text-[12px] text-[#9ca3af]">
-              {summary}
+              {anomaliesSummary}
               {relativeTime(generatedAt) && (
                 <> · Updated {relativeTime(generatedAt)}</>
               )}
@@ -282,10 +290,10 @@ export function AnomaliesPageView({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[12px] font-semibold tabular-nums text-[#10b981]">
-              ▲ {anomalies.filter((a) => a.direction === "up").length} surging
+              ▲ {anomalyUpCount} surging
             </span>
             <span className="text-[12px] font-semibold tabular-nums text-[#ef4444]">
-              ▼ {anomalies.filter((a) => a.direction === "down").length} dropping
+              ▼ {anomalyDownCount} dropping
             </span>
           </div>
         </div>
@@ -299,8 +307,8 @@ export function AnomaliesPageView({
               href="/subscribe"
               className="flex min-h-[176px] flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center"
             >
-              <p className="text-[15px] font-semibold text-[#111111]">+{lockedAnomalyCount} more anomalies</p>
-              <p className="text-[12px] text-[#6b7280]">Unlock Pro for full anomaly feed</p>
+              <p className="text-[15px] font-semibold text-[#111111]">+{lockedAnomalyCount} more unusual moves</p>
+              <p className="text-[12px] text-[#6b7280]">See every name moving outside its normal range, and why.</p>
             </Link>
           )}
         </div>
@@ -341,8 +349,8 @@ export function AnomaliesPageView({
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[13px] font-semibold text-[#111111]">+{lockedRedditCount} more names</p>
-                  <p className="text-[11px] text-[#9ca3af] mt-0.5">Unlock with Pro</p>
+                  <p className="text-[13px] font-semibold text-[#111111]">+{lockedRedditCount} more names buzzing</p>
+                  <p className="text-[11px] text-[#9ca3af] mt-0.5">See the full crowd read and what is driving it.</p>
                 </div>
               </Link>
             )}

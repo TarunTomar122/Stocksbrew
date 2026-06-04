@@ -104,25 +104,34 @@ export function HomeEventsStrip({ events, generatedAt }: { events: MarketEvent[]
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
             Fresh reports
           </span>
-          <h2 className="text-[18px] font-semibold tracking-[-0.015em] text-[#111111]">
+          <Link
+            href="/events"
+            className="group/title inline-flex items-center gap-1.5 text-[18px] font-semibold tracking-[-0.015em] text-[#111111] hover:text-[#0052ff] transition-colors"
+          >
             Earnings
-          </h2>
-          {generatedAt && (
-            <span className="text-[11px] text-[#9ca3af]">
-              Updated {relativeTime(generatedAt)}
-            </span>
-          )}
+            <span className="text-[14px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
+          </Link>
+          <p className="text-[12px] text-[#6b7280]">
+            We read every report and tell you what it means.
+            {generatedAt && (
+              <span className="text-[#9ca3af]"> Updated {relativeTime(generatedAt)}.</span>
+            )}
+          </p>
         </div>
         <Link
-          href="/events"
-          className="shrink-0 text-[13px] font-semibold text-[#0052ff] hover:underline"
+          href="/upcoming-events"
+          className="group/up inline-flex w-full shrink-0 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-2 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors sm:w-auto sm:py-1.5"
         >
-          See all →
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#fef3c7] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] uppercase text-[#92400e]">
+            ★ Pro
+          </span>
+          <span className="flex-1 sm:flex-none">We call them before they report</span>
+          <span className="text-[#9ca3af] group-hover/up:translate-x-0.5 transition-transform">→</span>
         </Link>
       </div>
 

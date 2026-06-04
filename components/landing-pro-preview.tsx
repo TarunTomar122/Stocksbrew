@@ -15,43 +15,59 @@ type Feature = {
   example: string;
 };
 
+// The interpretation layer, framed as "what happens when we point it at your stocks."
 const FEATURES: Feature[] = [
   {
-    icon: "visibility_off",
-    iconBg: "#fef3c7",
-    iconFg: "#92400e",
-    label: "Know your risk",
-    title: "See when you're too heavy in one area",
-    body: "You find out you were over-concentrated after a drop. stocksbrew shows it before.",
-    example: "67% in Technology. Consider adding a defensive position.",
-  },
-  {
-    icon: "event",
+    icon: "verified",
     iconBg: "#eff6ff",
     iconFg: "#0052ff",
-    label: "Stay ahead",
-    title: "Never miss an earnings date on your list",
-    body: "Earnings, ratings changes, and RSI extremes all in one place, rescored every run.",
-    example: "PLTR earnings May 4. NVDA RSI at 78.",
+    label: "The call",
+    title: "A verdict on every name, with the reasoning",
+    body: "Buy, hold, sell, or watch on each stock you track. Not a score you have to interpret. The actual call, and why.",
+    example: "NVDA: trim into strength above $220. Valuation rich, momentum fading.",
   },
   {
-    icon: "compare_arrows",
-    iconBg: "#ecfdf5",
-    iconFg: "#047857",
-    label: "Cut the noise",
-    title: "Only see what actually changed",
-    body: "Not a wall of data every time. Just the scores, news, and signals that moved since your last check.",
-    example: "GOOGL score up 3.2. Analyst target raised 37% this week.",
+    icon: "monitoring",
+    iconBg: "#f0fdf4",
+    iconFg: "#16a34a",
+    label: "Before the print",
+    title: "Our read on earnings before they report",
+    body: "We call the beat or miss and how the stock reacts, before the number drops. Then we show you if we were right.",
+    example: "HPE: EPS beat likely, setup bullish. Reported, stock rose 30%.",
   },
   {
-    icon: "notifications_active",
+    icon: "hub",
+    iconBg: "#fef3c7",
+    iconFg: "#92400e",
+    label: "The whole book",
+    title: "What your portfolio is really exposed to",
+    body: "Concentration, overlapping bets, and the gap you cannot see. We read the book, not just the tickers.",
+    example: "67% in Technology. One rate shock hits all of it at once.",
+  },
+  {
+    icon: "sensors",
     iconBg: "#fef2f2",
     iconFg: "#dc2626",
-    label: "Get pinged",
-    title: "Your inbox tells you when to look",
-    body: "Breakouts, RSI extremes, earnings windows. You get an email the moment it matters for a stock you track.",
-    example: "AMD broke out. Email sent at 09:42 ET.",
+    label: "The signal",
+    title: "Anomalies and Reddit, read for you",
+    body: "When a name you track moves on something real, or the crowd turns, you hear what it means in plain language.",
+    example: "ZS down 6%. Growth outlook cut, analyst downgrade. Not noise.",
   },
+];
+
+// One contrast block. Other apps stop at data; stocksbrew adds the judgment.
+const DATA_SIDE = [
+  "Price charts and candlesticks",
+  "P/E, market cap, revenue tables",
+  "A news headline list you scroll",
+  "You do the thinking",
+];
+
+const JUDGMENT_SIDE = [
+  "A clear call on every stock: buy, hold, sell, watch",
+  "EPS predictions before the print, with a track record",
+  "Anomalies and Reddit chatter read and explained",
+  "Sector regime: what is rotating, what is heating up",
 ];
 
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
@@ -60,69 +76,133 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   const ctaLabel = isSignedIn ? "Subscribe - $9/mo" : "Sign in & start free";
 
   return (
-    <section className="flex flex-col gap-10">
-      {/* Headline */}
-      <div className="flex flex-col items-center gap-3 text-center max-w-3xl mx-auto">
-        <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
-          stocksbrew Pro
-        </span>
-        <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
-          Your Radar for the stocks you care about.
-        </h2>
+    <section className="flex flex-col gap-20">
+      {/* Category: data vs judgment */}
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col items-center gap-3 text-center max-w-2xl mx-auto">
+          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
+            Why stocksbrew
+          </span>
+          <h2 className="text-[28px] md:text-[38px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
+            The numbers are everywhere. The judgment is not.
+          </h2>
+          <p className="text-[15px] leading-relaxed text-[#6b7280] max-w-lg">
+            Every broker and finance app hands you the same data. None of them tell you what to do with it.
+            That is the part we built.
+          </p>
+        </div>
+
+        <div className="mx-auto grid w-full max-w-[820px] grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-4 rounded-3xl border border-[#e5e7eb] bg-[#fafafa] p-6 md:p-7">
+            <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+              Every other app
+            </span>
+            <ul className="flex flex-col gap-2.5">
+              {DATA_SIDE.map((line) => (
+                <li key={line} className="flex items-start gap-2 text-[14px] text-[#6b7280]">
+                  <span
+                    aria-hidden
+                    className="material-symbols-outlined text-[#9ca3af] mt-0.5"
+                    style={{ fontSize: 18 }}
+                  >
+                    remove
+                  </span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-3xl border-2 border-[#111111] bg-white p-6 md:p-7 shadow-[0_18px_50px_rgba(17,24,39,0.06)]">
+            <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
+              stocksbrew
+            </span>
+            <ul className="flex flex-col gap-2.5">
+              {JUDGMENT_SIDE.map((line) => (
+                <li key={line} className="flex items-start gap-2 text-[14px] font-medium text-[#111111]">
+                  <span
+                    aria-hidden
+                    className="material-symbols-outlined text-[#10b981] mt-0.5"
+                    style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
+                  >
+                    check_circle
+                  </span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
 
-      {/* Feature grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {FEATURES.map((f) => (
-          <FeatureCard key={f.label} feature={f} />
-        ))}
+      {/* Point it at your stocks */}
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col items-center gap-3 text-center max-w-2xl mx-auto">
+          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
+            stocksbrew Pro
+          </span>
+          <h2 className="text-[28px] md:text-[38px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
+            Point all of that at the stocks you actually own.
+          </h2>
+          <p className="text-[15px] leading-relaxed text-[#6b7280] max-w-lg">
+            Free shows you stocksbrew thinking about the market. Pro turns it on your watchlist and your portfolio.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {FEATURES.map((f) => (
+            <FeatureCard key={f.label} feature={f} />
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-col items-center gap-2 mt-12">
-        <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1] text-center">
-          Cheaper than a coffee.
-        </h2>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-3 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#92400e]">
-          <span aria-hidden>🚀</span>
-          Launch-week pricing
-        </span>
-      </div>
+      {/* Pricing */}
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1] text-center">
+            Try it free for 3 days.
+          </h2>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-3 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#92400e]">
+            <span aria-hidden>🚀</span>
+            Launch-week pricing
+          </span>
+        </div>
 
-      {/* Pricing - monthly + yearly side by side */}
-      <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 md:grid-cols-2 gap-5">
-        <PricingCard
-          tag="Monthly"
-          price="$9"
-          period="/ month"
-          strike="$12"
-          save="Save 25%"
-          trial="3 days free, then $9/mo"
-          isSignedIn={isSignedIn}
-          ctaLabel={ctaLabel}
-        />
-        <PricingCard
-          tag="Yearly"
-          price="$99"
-          period="/ year"
-          strike="$144"
-          save="Save 31%"
-          trial="3 days free, then $99/yr"
-          highlight
-          isSignedIn={isSignedIn}
-          ctaLabel={ctaLabel}
-        />
+        <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 md:grid-cols-2 gap-5">
+          <PricingCard
+            tag="Monthly"
+            price="$9"
+            period="/ month"
+            strike="$12"
+            save="Save 25%"
+            trial="3 days free, then $9/mo"
+            isSignedIn={isSignedIn}
+            ctaLabel={ctaLabel}
+          />
+          <PricingCard
+            tag="Yearly"
+            price="$99"
+            period="/ year"
+            strike="$144"
+            save="Save 31%"
+            trial="3 days free, then $99/yr"
+            highlight
+            isSignedIn={isSignedIn}
+            ctaLabel={ctaLabel}
+          />
+        </div>
       </div>
-
     </section>
   );
 }
 
-const PRO_BULLETS = [
+export const PRO_BULLETS = [
   "Unlimited stocks on your Radar (free is capped at 3)",
-  "Per-stock verdict: buy / hold / sell, fundamentals scorecard, research-backed call",
-  "Portfolio diagnosis: concentration risks, clusters, opportunities, cross-Radar themes",
-  "Market anomalies & email alerts: RSI extremes, earnings, breakouts when they fire",
-  "Cancel anytime · one click · no questions asked",
+  "A clear call on every stock: buy, hold, sell, or watch, with the reasoning",
+  "Pre-earnings setups: our read before the print, with the track record",
+  "Portfolio diagnosis: concentration, overlap, and the gaps you cannot see",
+  "Anomalies, Reddit buzz, and email alerts when something moves",
+  "Cancel anytime, one click, no questions asked",
 ];
 
 function PricingCard({
@@ -201,7 +281,7 @@ function PricingCard({
         </span>
         <LandingProPricingCta isSignedIn={isSignedIn} highlight={highlight} ctaLabel={ctaLabel} />
         <span className="text-[11px] font-medium text-[#9ca3af] text-center">
-          Cancel anytime · no questions asked
+          Cancel anytime, no questions asked
         </span>
       </div>
     </article>

@@ -42,6 +42,7 @@ def main() -> None:
 
     _run([sys.executable, "-m", "backend.scripts.build_stock_intel_pro", *common])
     _run([sys.executable, "-m", "backend.scripts.build_stock_technicals", *common])
+    _run([sys.executable, "-m", "backend.scripts.build_sector_regimes", "--market", args.market])
     _run([sys.executable, "-m", "backend.scripts.build_market_breadth", *common])
 
     _run([sys.executable, "-m", "backend.scripts.build_thematic_screens", *common])

@@ -842,6 +842,24 @@ class TraceMoneyStore:
         self.db.collection("tm_sector_benchmarks").document(doc_id).set(payload)
         self.db.collection("tm_sector_benchmarks").document(f"latest__{market}").set(payload)
 
+    def get_sector_regimes(self, market: str) -> dict[str, dict[str, Any]]:
+        """Return all live sector regime docs for a market, keyed by sector_slug.
+        Includes the macro doc under key 'macro'."""
+        prefix = f"{market.upper()}__"
+        docs = self.db.collection("tm_sector_regimes").stream()
+        result: dict[str, dict[str, Any]] = {}
+        for doc in docs:
+            doc_id = doc.id
+            if not doc_id.startswith(prefix):
+                continue
+            if "__bt_" in doc_id:
+                continue  # skip backtest docs
+            slug = doc_id[len(prefix):]
+            data = _serialize(doc.to_dict()) or {}
+            if data:
+                result[slug] = data
+        return result
+
     def get_sector_benchmarks(
         self, market: str, snapshot_date: str | None = None
     ) -> dict[str, Any] | None:
