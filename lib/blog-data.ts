@@ -121,6 +121,83 @@ export const allBlogPosts: BlogPost[] = [
     readTime: "14 min read",
   },
   {
+    slug: "free-stock-market-analysis-tools",
+    title: "Free Stock Market Analysis Tools That Actually Work (2026)",
+    description:
+      "We tested 15 free stock analysis platforms. Here are the ones that actually deliver real value at zero cost.",
+    category: "tools",
+    tags: ["free", "tools", "screening", "comparison"],
+    date: "2026-05-28",
+    readTime: "10 min read",
+  },
+  {
+    slug: "stock-research-busy-professionals",
+    title: "Stock Research for Busy Professionals: A 5-Minute Daily Routine",
+    description:
+      "A practical stock research system for people with full-time jobs. 10 minutes per day, no screen time during work hours.",
+    category: "guides",
+    tags: ["productivity", "routine", "guide", "busy-professionals"],
+    date: "2026-05-28",
+    readTime: "9 min read",
+  },
+  {
+    slug: "ai-stock-analysis-comparison",
+    title: "AI Stock Analysis Tools Compared: 8 Platforms Tested (2026)",
+    description:
+      "Prospero, Danelfin, TrendSpider, stocksbrew, and 4 more. We compared 8 AI stock analysis tools so you know which one fits your style.",
+    category: "comparison",
+    tags: ["ai", "comparison", "tools", "review"],
+    date: "2026-05-28",
+    readTime: "11 min read",
+  },
+  {
+    slug: "daily-stock-market-analysis-routine",
+    title: "A 10-Minute Daily Stock Market Analysis Routine for Busy Investors",
+    description:
+      "A practical daily routine for analyzing the stock market in 10 minutes. Perfect for busy professionals who want to stay on top of their portfolio.",
+    category: "guides",
+    tags: ["routine", "productivity", "daily", "guide"],
+    date: "2026-06-01",
+    readTime: "8 min read",
+  },
+  {
+    slug: "stock-picks-vs-stock-screeners",
+    title: "Stock Picks vs Stock Screeners: What Busy Investors Actually Need",
+    description:
+      "Stock screeners give you lists. Stock picks give you decisions. Here's when to use each and the hybrid approach that works best.",
+    category: "guides",
+    tags: ["stock-picks", "screeners", "comparison", "guide"],
+    date: "2026-06-01",
+    readTime: "10 min read",
+  },
+  {
+    slug: "how-to-use-stock-alerts-effectively",
+    title: "How to Use Stock Alerts Effectively (Without Alert Fatigue)",
+    description:
+      "Stop getting buried in useless notifications. A practical guide to setting up stock alerts that actually matter for your portfolio.",
+    category: "guides",
+    tags: ["alerts", "productivity", "guide", "notifications"],
+    date: "2026-06-01",
+    readTime: "9 min read",
+  },
+  {
+    slug: "sector-rotation-tracking-tools",
+    title: "Sector Rotation Tracking: The Smart Investor's Guide to Market Trends",
+    description:
+      "Track where smart money is flowing with sector rotation analysis. Tools and techniques for staying ahead of market trends.",
+    category: "intelligence",
+    tags: ["sector-rotation", "market-trends", "tools", "guide"],
+    date: "2026-06-01",
+    readTime: "11 min read",
+  },
+  {
+    slug: "earnings-predictions-ai-vs-analyst",
+    title: "Earnings Predictions: AI vs Wall Street Analysts in 2026",
+    description:
+      "Who predicts earnings better? We compare AI-powered earnings forecasts against traditional Wall Street analyst predictions.",
+    category: "comparison",
+    tags: ["earnings", "ai", "analysts", "comparison", "prediction"],
+    date: "2026-06-01",
     slug: "how-to-read-stock-heat-map",
     title: "How to Read a Stock Heat Map: A Complete Guide",
     description: "Stock heat maps turn market data into color-coded visuals. Learn how to read them spot sector rotation, and find trading opportunities in seconds.",
