@@ -20,16 +20,25 @@ type Props = {
   isSubscribed?: boolean;
 };
 
-const NAV_ITEMS: { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean }[] = [
-  { href: "/heat",      label: "Hot Stocks",       icon: "local_fire_department" },
-  { href: "/screens",   label: "Screens",          icon: "tune" },
+type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean };
+
+// Primary nav leads with the surfaces that carry Pro value (Events has upcoming
+// setups, Anomalies is Pro-gated) plus the user's own Radar.
+const NAV_ITEMS: NavItem[] = [
   { href: "/events",    label: "Events",           icon: "bolt" },
-  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up", pro: true },
+  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up" },
   { href: "/watchlist", label: "Radar",            icon: "radar" },
 ];
 
-/** Mobile strip: same order as NAV_ITEMS; auth-only items (Radar) omitted when logged out. */
-const MOBILE_HEADER_ORDER = ["/heat", "/screens", "/events", "/anomalies", "/watchlist"] as const;
+// Free, browse-only surfaces. Demoted into a "More" menu so they do not crowd
+// out the conversion path while staying one click away.
+const MORE_ITEMS: NavItem[] = [
+  { href: "/heat",    label: "Hot Stocks", icon: "local_fire_department" },
+  { href: "/screens", label: "Screens",    icon: "tune" },
+];
+
+/** Mobile strip order: conversion items first, free browse items last. */
+const MOBILE_HEADER_ORDER = ["/events", "/anomalies", "/watchlist", "/heat", "/screens"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
@@ -125,6 +134,77 @@ function MarketPicker({ market }: { market: Market }) {
         </div>
       )}
     </div>
+  );
+}
+
+function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const anyActive = items.some(
+    (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+          anyActive ? "bg-[#111111] text-white" : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#111111]"
+        }`}
+      >
+        More
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}
+          aria-hidden
+        >
+          {open ? "expand_less" : "expand_more"}
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-2 w-[200px] overflow-hidden rounded-xl border border-[#e5e7eb] bg-white py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.08)] z-50">
+          {items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium text-[#111111] hover:bg-[#f5f5f5]"
+            >
+              <span
+                className="material-symbols-outlined text-[#6b7280]"
+                style={{ fontSize: 18, fontVariationSettings: "'wght' 500" }}
+                aria-hidden
+              >
+                {item.icon}
+              </span>
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GoProPill({ className = "" }: { className?: string }) {
+  return (
+    <Link
+      href="/subscribe"
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-2 text-[13px] font-semibold text-white transition-transform hover:-translate-y-[1px] active:translate-y-0 ${className}`}
+    >
+      <span aria-hidden className="text-[#fcd34d]">★</span>
+      Go Pro
+    </Link>
   );
 }
 
@@ -270,10 +350,13 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   }, []);
 
   const navItems = NAV_ITEMS.filter((item) => !item.authOnly || user || initialAuthed);
+  const allItems = [...NAV_ITEMS, ...MORE_ITEMS];
 
   const mobileHeaderItems = MOBILE_HEADER_ORDER.map((href) =>
-    navItems.find((n) => n.href === href),
-  ).filter((item): item is (typeof NAV_ITEMS)[number] => item != null);
+    allItems.find((n) => n.href === href),
+  ).filter((item): item is NavItem => item != null);
+
+  const showGoPro = !isSubscribed;
 
   return (
     <header className="sticky top-0 z-[65] w-full bg-white border-b border-[#e5e7eb]">
@@ -333,6 +416,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   </Link>
                 );
               })}
+              <MoreMenu items={MORE_ITEMS} pathname={pathname} />
             </nav>
           </div>
 
@@ -463,6 +547,8 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
 
             <MarketPicker market={market} />
 
+            {showGoPro && <GoProPill className="hidden sm:inline-flex" />}
+
             <AuthButton />
           </div>
         </div>
@@ -472,6 +558,15 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             className="-mx-6 flex gap-1 overflow-x-auto overscroll-x-contain px-6 scrollbar-hide touch-pan-x"
             aria-label="Primary"
           >
+            {showGoPro && (
+              <Link
+                href="/subscribe"
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#111111] px-3 py-1.5 text-[13px] font-semibold text-white"
+              >
+                <span aria-hidden className="text-[#fcd34d]">★</span>
+                Go Pro
+              </Link>
+            )}
             {mobileHeaderItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (

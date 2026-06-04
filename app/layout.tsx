@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cache } from "react";
 import { cookies } from "next/headers";
+import Script from "next/script";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
@@ -20,6 +21,9 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 const SESSION_COOKIE_NAME = "tikrr_session";
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+  process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -191,6 +195,26 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {process.env.NODE_ENV === "production" && GA_MEASUREMENT_ID ? (
+          <>
+            <Script
+              id="ga-loader"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){window.dataLayer.push(arguments);}
+                  window.gtag = window.gtag || gtag;
+                  gtag('js', new Date());
+                  gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: false });
+                `,
+              }}
+            />
+          </>
+        ) : null}
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers initialAuthed={hasSessionCookie}>

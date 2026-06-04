@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { posthog } from "@/lib/posthog";
+import { captureEvent } from "@/lib/posthog";
 import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 
@@ -63,7 +63,25 @@ export function TrackButton({
 
     // Not signed in → open Google sign-in popup.
     if (!user) {
-      signInWithGoogle().catch(console.error);
+      signInWithGoogle()
+        .then(() => {
+          captureEvent("radar_signin_succeeded", {
+            ticker,
+            instrument_id: instrumentId,
+            tier: tier ?? null,
+            subscribed: Boolean(isSubscribed),
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          captureEvent("radar_signin_failed", {
+            ticker,
+            instrument_id: instrumentId,
+            tier: tier ?? null,
+            subscribed: Boolean(isSubscribed),
+            error: err instanceof Error ? err.message : "unknown",
+          });
+        });
       return;
     }
 
@@ -88,7 +106,7 @@ export function TrackButton({
           }
           setLocalTracked(false);
           setModalStatus("success");
-          posthog.capture("radar_remove_clicked", { instrument_id: instrumentId, ticker });
+          captureEvent("radar_remove_clicked", { instrument_id: instrumentId, ticker });
           triggerBackgroundRefresh();
         } finally {
           setPendingOp(null);
@@ -133,12 +151,15 @@ export function TrackButton({
           if (res.status === 409) {
             if (data?.error === "free_tier_limit_reached") {
               setOpen(false);
+              setError("You are tracking 3 of 3 free stocks. Pro tracks every name you hold, with a call on each.");
               setModalStatus("error");
-              setTimeout(() => setModalOpen(false), 1200);
-              router.push("/subscribe");
+              setTimeout(() => {
+                setModalOpen(false);
+                router.push("/subscribe");
+              }, 2200);
               return;
             }
-            setError("Radar is full - remove one first.");
+            setError("Your Radar is full. Remove one, or go Pro to track every stock you hold.");
           } else {
             setError("Could not add - try again.");
           }
@@ -148,7 +169,7 @@ export function TrackButton({
         }
         setLocalTracked(true);
         setModalStatus("success");
-        posthog.capture("radar_add_clicked", {
+        captureEvent("radar_add_clicked", {
           instrument_id: instrumentId,
           ticker,
           position_type: positionType,

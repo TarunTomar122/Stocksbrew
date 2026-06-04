@@ -39,9 +39,10 @@ export default function CookiesPage() {
       <section>
         <h2>Analytics</h2>
         <p>
-          We use a privacy-respecting analytics setup that doesn't store
-          personally identifiable information in cookies. No cross-site
-          advertising trackers run on stocksbrew.
+          We use analytics tools, including Google Analytics, to understand
+          traffic and product usage in aggregate. These tools may use cookies or
+          browser identifiers for reporting, but we do not use them for
+          cross-site advertising.
         </p>
       </section>
 

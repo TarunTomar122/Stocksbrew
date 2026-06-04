@@ -5,17 +5,24 @@ import { useState } from "react";
 
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { captureEvent } from "@/lib/posthog";
 
 export function AuthButton() {
   const { user, loading, initialAuthed } = useUser();
   const [busy, setBusy] = useState(false);
 
   async function handleSignIn() {
+    captureEvent("auth_sign_in_clicked", { surface: "header" });
     setBusy(true);
     try {
       await signInWithGoogle();
+      captureEvent("auth_sign_in_succeeded", { surface: "header" });
     } catch (err) {
       console.error("sign-in failed", err);
+      captureEvent("auth_sign_in_failed", {
+        surface: "header",
+        error: err instanceof Error ? err.message : "unknown",
+      });
     } finally {
       setBusy(false);
     }

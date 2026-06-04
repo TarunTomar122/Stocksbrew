@@ -2,35 +2,61 @@ import type { MarketEventScenario } from "@/lib/market-events-shared";
 
 const CASE_ORDER: MarketEventScenario["case"][] = ["bear", "base", "bull"];
 
-const CASE_META: Record<
-  MarketEventScenario["case"],
-  { label: string; color: string; soft: string; text: string }
-> = {
-  bear: { label: "Bear", color: "#ef4444", soft: "#fef2f2", text: "#b91c1c" },
-  base: { label: "Neutral", color: "#0052ff", soft: "#eff6ff", text: "#1d4ed8" },
-  bull: { label: "Bull", color: "#10b981", soft: "#ecfdf5", text: "#047857" },
+type Lean = "bull" | "bear" | "mixed";
+
+const LEAN_META: Record<Lean, { color: string; text: string; sentence: string }> = {
+  bull: {
+    color: "#10b981",
+    text: "#047857",
+    sentence: "Expect a bullish move in the near term.",
+  },
+  bear: {
+    color: "#ef4444",
+    text: "#b91c1c",
+    sentence: "Expect a bearish move in the near term.",
+  },
+  mixed: {
+    color: "#0052ff",
+    text: "#1d4ed8",
+    sentence: "Expect range-bound trading in the near term.",
+  },
 };
 
-const TIE_BREAK: Record<MarketEventScenario["case"], number> = {
-  bull: 0,
-  base: 1,
-  bear: 2,
-};
-
-function leadScenario(
+function readScenarios(
   scenarios: MarketEventScenario[] | undefined,
-): MarketEventScenario | null {
+): { lean: Lean; confidence: number } | null {
   const valid = (scenarios ?? []).filter(
-    (scenario) =>
-      CASE_ORDER.includes(scenario.case) && Number.isFinite(scenario.probability_pct),
+    (s) => CASE_ORDER.includes(s.case) && Number.isFinite(s.probability_pct),
   );
   if (valid.length === 0) return null;
 
-  return [...valid].sort((a, b) => {
-    const pctDiff = b.probability_pct - a.probability_pct;
-    if (pctDiff !== 0) return pctDiff;
-    return TIE_BREAK[a.case] - TIE_BREAK[b.case];
-  })[0];
+  const total = valid.reduce((sum, s) => sum + Math.max(0, s.probability_pct), 0);
+  if (total <= 0) return null;
+
+  const pct = (c: MarketEventScenario["case"]) => {
+    const found = valid.find((s) => s.case === c);
+    return found ? (found.probability_pct / total) * 100 : 0;
+  };
+  const bull = pct("bull");
+  const bear = pct("bear");
+  const neutral = pct("base");
+
+  // Lean is set by the stronger directional case; confidence rolls the neutral
+  // case into the lean (a bullish-or-flat read versus a bearish-or-flat read).
+  let lean: Lean = "mixed";
+  let confidence = neutral;
+  if (bull > bear) {
+    lean = "bull";
+    confidence = bull + neutral;
+  } else if (bear > bull) {
+    lean = "bear";
+    confidence = bear + neutral;
+  } else {
+    lean = "mixed";
+    confidence = Math.max(bull, bear) + neutral;
+  }
+
+  return { lean, confidence: Math.min(100, Math.round(confidence)) };
 }
 
 export function EarningsScenarioBar({
@@ -42,27 +68,41 @@ export function EarningsScenarioBar({
   compact?: boolean;
   className?: string;
 }) {
-  const lead = leadScenario(scenarios);
-  if (!lead) return null;
+  const read = readScenarios(scenarios);
+  if (!read) return null;
 
-  const meta = CASE_META[lead.case];
-  const pct = Math.round(lead.probability_pct);
+  const meta = LEAN_META[read.lean];
 
   return (
-    <span
-      className={`inline-flex w-fit items-center gap-2 rounded-lg font-semibold uppercase tracking-[0.06em] ${
-        compact ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px] sm:text-[12px]"
-      } ${className}`}
-      style={{ background: meta.soft, color: meta.text }}
-      aria-label={`${meta.label} case ${pct}%`}
-    >
-      <span
-        className={`inline-block shrink-0 rounded-full ${compact ? "h-1.5 w-1.5" : "h-2 w-2"}`}
-        style={{ background: meta.color }}
-        aria-hidden
-      />
-      {meta.label}
-      <span className="tabular-nums text-[#111111]">{pct}%</span>
-    </span>
+    <div className={`flex w-full flex-col gap-1.5 ${className}`}>
+      <p
+        className={`flex items-center gap-1.5 font-medium leading-snug ${
+          compact ? "text-[11px]" : "text-[12px]"
+        }`}
+        style={{ color: meta.text }}
+      >
+        <span
+          className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: meta.color }}
+          aria-hidden
+        />
+        {meta.sentence}
+      </p>
+      <div className="flex items-center gap-2">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#f3f4f6]">
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${read.confidence}%`, background: meta.color }}
+          />
+        </div>
+        <span
+          className={`shrink-0 tabular-nums font-semibold text-[#6b7280] ${
+            compact ? "text-[10px]" : "text-[11px]"
+          }`}
+        >
+          {read.confidence}% confidence
+        </span>
+      </div>
+    </div>
   );
 }

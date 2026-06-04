@@ -6,6 +6,7 @@ import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { StockLogo } from "@/components/stock-logo";
+import { ConnectedReadCard } from "@/components/connected-read-card";
 
 type DemoRow = {
   ticker: string;
@@ -96,13 +97,6 @@ const STANCE_META: Record<DemoRow["stance"], { bg: string; fg: string; dot: stri
   avoid:      { bg: "#fef2f2", fg: "#991b1b", dot: "#ef4444" },
   hold:       { bg: "#f3f4f6", fg: "#374151", dot: "#374151" },
 };
-
-function scoreColor(s: number): string {
-  if (s >= 80) return "text-[#10b981]";
-  if (s >= 60) return "text-[#111111]";
-  if (s >= 40) return "text-[#6b7280]";
-  return "text-[#ef4444]";
-}
 
 function fmtPrice(v: number): string {
   return `$${v.toLocaleString(undefined, {
@@ -200,9 +194,9 @@ export function DemoRadar() {
                 Your Radar
               </h1>
               <p className="text-[15px] text-[#6b7280] leading-[1.65] mt-3">
-                Every morning, stocksbrew reads the market and tells you exactly what to do
-                with each stock you own: directives, risk flags, and opportunities, personalized
-                to your portfolio. This is what yours could look like.
+                Every morning we read the buzz, the moves, the earnings, and the sector regime on
+                the stocks you own, then tell you what it all adds up to and what to do about it.
+                This is what yours could look like.
               </p>
             </div>
 
@@ -216,31 +210,23 @@ export function DemoRadar() {
             </button>
           </div>
 
-          {/* Right: portfolio score + pillars */}
-          <div className="flex flex-col gap-4 shrink-0">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-semibold tracking-[0.14em] uppercase text-[#9ca3af]">Portfolio score</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-[72px] font-semibold tabular-nums leading-none text-[#10b981]">72</span>
-                <span className="text-[18px] text-[#9ca3af] mb-1">/100</span>
-              </div>
-              <span className="text-[12px] text-[#6b7280]">Strong overall · 5 stocks</span>
-            </div>
-
-            {/* 4-pillar mini grid */}
-            <div className="grid grid-cols-2 gap-2 min-w-[220px]">
-              {[
-                { label: "Valuation", score: 58 },
-                { label: "Growth",    score: 78 },
-                { label: "Quality",   score: 82 },
-                { label: "Momentum",  score: 68 },
-              ].map((p) => (
-                <div key={p.label} className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-2 flex flex-col gap-0.5">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">{p.label}</span>
-                  <span className={`text-[20px] font-semibold tabular-nums leading-none ${scoreColor(p.score)}`}>{p.score}</span>
-                </div>
-              ))}
-            </div>
+          {/* Right: a connected read — signals chaining into a call */}
+          <div className="flex w-full flex-col gap-2 md:max-w-[400px] shrink-0">
+            <span className="text-[10px] font-semibold tracking-[0.14em] uppercase text-[#9ca3af]">
+              This morning on this book
+            </span>
+            <ConnectedReadCard
+              ticker="NVDA"
+              name="NVIDIA Corp"
+              market="US"
+              logoUrl={null}
+              chips={[
+                { kind: "buzz", label: "Reddit buzz" },
+                { kind: "anomaly_up", label: "Up 6.4%" },
+                { kind: "regime", label: "Momentum" },
+              ]}
+              conclusion="Accumulate on dips below 210. The setup is strong, just do not chase the breakout here."
+            />
           </div>
         </header>
 
@@ -285,11 +271,11 @@ export function DemoRadar() {
           {/* What's locked — chip row */}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {[
-              "Your book ledger",
-              "Risk flags",
-              "Portfolio diagnosis",
-              "Opportunities",
-              "Stocks to check out",
+              "A call on every stock",
+              "Anomalies on your book",
+              "Reddit buzz on your names",
+              "Sector regime read",
+              "Pre-earnings setups",
             ].map((label) => (
               <span
                 key={label}
@@ -329,7 +315,7 @@ export function DemoRadar() {
               {busy ? "Signing you in…" : "Sign in with Google, it's free →"}
             </button>
             <p className="text-[12px] text-[#9ca3af]">
-              Free for 3 stocks &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; 2,400+ investors tracking daily
+              Free for 3 stocks &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; Cancel anytime
             </p>
           </div>
 

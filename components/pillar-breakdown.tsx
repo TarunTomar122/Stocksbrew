@@ -76,8 +76,13 @@ export function PillarBreakdown({
     <section className="relative flex flex-col gap-5 pt-8 border-t border-[#e5e7eb] overflow-hidden">
       {!isSubscribed && (
         <ProLockOverlay
-          title="Pillar scores · Pro"
-          description="Four scores vs sector: growth, momentum, valuation, quality."
+          title="See where this stock is strong and where it breaks"
+          description="Four pillars scored against the stock's own sector, so a number you would otherwise trust gets caught."
+          benefits={[
+            "Growth, momentum, valuation, and quality, each scored",
+            "Measured against sector peers, not the whole market",
+            "The one pillar dragging the stock down, flagged",
+          ]}
         />
       )}
       <h3 className="inline-flex items-center gap-2 text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">

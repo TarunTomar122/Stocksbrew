@@ -160,6 +160,7 @@ def build_stock_technical_doc(
         "ticker": instrument.get("ticker", ""),
         "as_of_date": as_of_date,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "day_change_pct": _to_float(quote.get("day_change_pct")),
         "source": "tm_latest_prices.history_window",
         "sample_size": {
             "price_points": len(closes),

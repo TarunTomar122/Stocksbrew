@@ -7,6 +7,7 @@ import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { flushWatchlistRebuild, scheduleWatchlistRebuild } from "@/lib/radar-client-refresh";
+import { captureEvent } from "@/lib/posthog";
 
 type Props = {
   /** instrument_ids like ["US_NVDA", "US_META"] */
@@ -101,6 +102,11 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
       return;
     }
 
+    captureEvent("radar_bulk_add_clicked", {
+      count: instrumentIds.length,
+      position_type: positionType,
+      authenticated: Boolean(user),
+    });
     setState("busy");
     setModalStatus("loading");
     setModalOpen(true);
@@ -109,10 +115,19 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
     if (!user) {
       try {
         await signInWithGoogle();
+        captureEvent("radar_bulk_signin_succeeded", {
+          count: instrumentIds.length,
+          position_type: positionType,
+        });
         await syncServerSession();
         // Small delay to let the session settle
         await new Promise((r) => setTimeout(r, 800));
-      } catch {
+      } catch (err) {
+        captureEvent("radar_bulk_signin_failed", {
+          count: instrumentIds.length,
+          position_type: positionType,
+          error: err instanceof Error ? err.message : "unknown",
+        });
         setState("idle");
         setModalStatus("error");
         setTimeout(() => setModalOpen(false), 1200);
@@ -124,6 +139,24 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
     setResult(r);
     setState(r.limitReached ? "partial" : "done");
     setModalStatus(r.added.length > 0 ? "success" : "error");
+    captureEvent(r.added.length > 0 ? "radar_bulk_add_succeeded" : "radar_bulk_add_failed", {
+      count: instrumentIds.length,
+      added: r.added.length,
+      skipped: r.skipped.length,
+      limit_reached: r.limitReached,
+      limit_at: r.limitAt,
+      position_type: positionType,
+      authenticated: Boolean(user),
+    });
+    if (r.limitReached) {
+      captureEvent("radar_bulk_limit_reached", {
+        count: instrumentIds.length,
+        added: r.added.length,
+        skipped: r.skipped.length,
+        limit_at: r.limitAt,
+        position_type: positionType,
+      });
+    }
     setTimeout(() => setModalOpen(false), 900);
     if (!r.limitReached) {
       // Hard redirect after short delay

@@ -35,6 +35,10 @@ import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { LandingProPreview } from "@/components/landing-pro-preview";
 import { HeroSection } from "@/components/hero-section";
+import { getRecentCorrectCalls } from "@/lib/track-record";
+import { TrackRecordBar } from "@/components/track-record-bar";
+import { LandingFaq } from "@/components/landing-faq";
+import { LandingFinalCta } from "@/components/landing-final-cta";
 
 function rowToStock(s: SnapshotRow) {
   return {
@@ -366,22 +370,35 @@ function HomeSignalStreamFallback({ title }: { title: string }) {
 async function HomeMarketStream() {
   const core = await loadHomeCore();
   return (
-    <>
-      <SectorSpotlights
-        snapshotRows={core.snapshotRows}
-        trackedIds={
-          Array.isArray(core.userDoc?.tracked_stocks)
-            ? core.userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
-            : []
-        }
-        isSubscribed={core.isSubscribed}
-      />
+    <SectorSpotlights
+      snapshotRows={core.snapshotRows}
+      trackedIds={
+        Array.isArray(core.userDoc?.tracked_stocks)
+          ? core.userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+          : []
+      }
+      isSubscribed={core.isSubscribed}
+    />
+  );
+}
 
-      <LandingProPreview
-        isSignedIn={Boolean(core.session)}
-        isSubscribed={core.isSubscribed}
-      />
-</>
+async function HomeProStream() {
+  const core = await loadHomeCore();
+  return (
+    <LandingProPreview
+      isSignedIn={Boolean(core.session)}
+      isSubscribed={core.isSubscribed}
+    />
+  );
+}
+
+async function HomeFinalCtaStream() {
+  const core = await loadHomeCore();
+  return (
+    <LandingFinalCta
+      isSignedIn={Boolean(core.session)}
+      isSubscribed={core.isSubscribed}
+    />
   );
 }
 
@@ -400,6 +417,12 @@ async function HomeAnomaliesStream() {
       isSubscribed={core.isSubscribed}
     />
   );
+}
+
+async function HomeTrackRecordStream() {
+  const market = getCurrentMarket();
+  const calls = await getRecentCorrectCalls(market).catch(() => []);
+  return <TrackRecordBar calls={calls} />;
 }
 
 async function HomeEventsStream() {
@@ -445,6 +468,22 @@ export default function HomePage() {
           <HomeHeroStream />
         </Suspense>
 
+        <Suspense fallback={null}>
+          <HomeTrackRecordStream />
+        </Suspense>
+
+        <div className="flex flex-col items-center gap-2 text-center">
+          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
+            Live, right now
+          </span>
+          <h2 className="text-[26px] md:text-[34px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1] max-w-xl">
+            This is stocksbrew thinking, out loud.
+          </h2>
+          <p className="max-w-md text-[14px] leading-relaxed text-[#6b7280]">
+            Everything below is free and updates through the day. Pro points the same read at the stocks you track.
+          </p>
+        </div>
+
         <Suspense fallback={<HomeSignalStreamFallback title="events" />}>
           <HomeEventsStream />
         </Suspense>
@@ -457,8 +496,6 @@ export default function HomePage() {
           <HomeRedditStream />
         </Suspense>
 
-        <NewsletterSignup />
-
         <Suspense fallback={<HomeMarketFallback />}>
           <HomeMarketStream />
         </Suspense>
@@ -467,7 +504,20 @@ export default function HomePage() {
           <HomeContentStream />
         </Suspense>
 
+        {/* Conversion close: pitch + pricing, then proof, objections, and the ask */}
+        <Suspense fallback={null}>
+          <HomeProStream />
+        </Suspense>
+
         <Testimonials />
+
+        <LandingFaq />
+
+        <Suspense fallback={null}>
+          <HomeFinalCtaStream />
+        </Suspense>
+
+        <NewsletterSignup />
 
         <LearnTeaser />
       </div>

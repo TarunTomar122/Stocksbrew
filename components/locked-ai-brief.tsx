@@ -105,7 +105,7 @@ export function LockedAiBrief({
         },
       }
     : {
-        title: `Unlock the ${ticker} Pro brief`,
+        title: `Get the stance on ${ticker} every morning`,
         body: "Turn this into a monitored name: stocksbrew reads the latest news, scores the setup, and shows what matters before the next move.",
         label: "Get Pro",
         onClick: () => router.push("/subscribe"),

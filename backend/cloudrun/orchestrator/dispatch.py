@@ -281,6 +281,7 @@ def main() -> None:
             "daily_postclose",
             "on_demand_news",
             "stock_requests",
+            "sector_regimes",
         ],
         required=True,
     )
@@ -349,6 +350,7 @@ def main() -> None:
         "daily_postclose": os.getenv("DAILY_POSTCLOSE_JOB_NAME", "tikrr-daily-postclose"),
         "on_demand_news": os.getenv("ON_DEMAND_NEWS_JOB_NAME", "tikrr-on-demand-news"),
         "stock_requests": os.getenv("STOCK_REQUESTS_JOB_NAME", "tikrr-stock-requests"),
+        "sector_regimes": os.getenv("SECTOR_REGIMES_JOB_NAME", "tikrr-sector-regimes"),
     }
     job_name = job_name_by_lane[args.lane]
 
@@ -580,6 +582,7 @@ def main() -> None:
         "pre_earnings_intel",
         "on_demand_news",
         "stock_requests",
+        "sector_regimes",
     } and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)
