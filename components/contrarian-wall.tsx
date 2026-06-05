@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
+import { ContrarianXray } from "@/components/contrarian-xray";
 import type { ContrarianCard } from "@/lib/contrarian";
 
 function stanceTone(side: "bull" | "bear"): { text: string; bg: string } {
@@ -73,15 +74,7 @@ export function ContrarianWall({ cards }: { cards: ContrarianCard[] }) {
         ))}
       </div>
 
-      <div className="flex justify-center">
-        <Link
-          href="/watchlist"
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#111111] px-6 py-3 text-[14px] font-semibold text-white transition-transform hover:-translate-y-[1px]"
-        >
-          See where you are offside the crowd
-          <span aria-hidden>→</span>
-        </Link>
-      </div>
+      <ContrarianXray />
     </section>
   );
 }
