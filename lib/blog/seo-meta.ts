@@ -22,7 +22,6 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
       { question: "What is the best free AI stock analysis tool?", answer: "stocksbrew offers the best free AI-powered stock analysis with personalized daily briefs, watchlist radar, and signal scoring. The free tier is generous and doesn't require a credit card." },
       { question: "Can you do stock analysis for free?", answer: "Yes. You can combine stocksbrew for daily intelligence, Finviz for screening, TradingView for charting, and Yahoo Finance for portfolio tracking. This stack covers daily monitoring, research, and analysis at zero cost." },
     ],
-    author: "Tarat",
   },
   "stock-research-busy-professionals": {
     primaryKeyword: "stock research for busy professionals",
@@ -39,7 +38,6 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
       { question: "What is the best stock research routine for working people?", answer: "A 10-minute daily routine: 5 minutes for an AI market brief in the morning, 2 minutes for a midday check, and 3 minutes for an evening review. Supplement with a 15-minute Sunday deep-dive weekly." },
       { question: "Do I need to check stocks every day?", answer: "You don't need to check prices every day, but you should review market intelligence daily. A daily brief takes 5 minutes and keeps you informed without the anxiety of watching price ticks." },
     ],
-    author: "Tarat",
   },
   "ai-stock-analysis-comparison": {
     primaryKeyword: "AI stock analysis comparison",
@@ -56,7 +54,6 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
       { question: "Is AI stock analysis worth it?", answer: "Yes, when used correctly. AI is excellent at information processing, pattern recognition, and sentiment analysis. It's not good at predicting stock prices. Use AI for intelligence and monitoring, not for trading decisions." },
       { question: "How much do AI stock analysis tools cost?", answer: "Prices range from free (stocksbrew, Seeking Alpha basic) to $108/month (TrendSpider). Most quality tools fall in the $9-50/month range. Many offer free tiers that cover basic needs." },
     ],
-    author: "Tarat",
   },
 };
 

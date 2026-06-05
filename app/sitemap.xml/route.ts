@@ -57,7 +57,6 @@ export async function GET() {
   for (const u of USE_CASES) {
     entries.push(url(`/use-cases/${u.slug}`, "0.75", "monthly"));
   }
-  }
 
   // Learn posts
   for (const p of allLearnPosts) {

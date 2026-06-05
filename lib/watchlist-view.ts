@@ -24,6 +24,7 @@ const MONTHS: Record<string, number> = {
 export type WatchlistRow = {
   instrument_id: string;
   ticker: string;
+  instrument_name?: string;
   logo_url?: string | null;
   position_type: "holding" | "watchlist";
   market: "US" | "IN" | "";

@@ -308,7 +308,7 @@ export default async function WatchlistPage() {
     getRedditCues(regimeMarket).catch(() => null),
     getPremarketMovers(regimeMarket).catch(() => null),
   ]);
-  const bookPremarket: BookPremarket[] = isPremarketLive(premarketDoc)
+  const bookPremarket: BookPremarket[] = isPremarketLive(premarketDoc, regimeMarket)
     ? rows
         .map((r) => {
           const t = String(r.ticker || "").trim().toUpperCase();

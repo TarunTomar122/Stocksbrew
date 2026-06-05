@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 from typing import Any
 
 
@@ -9,15 +10,25 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _finite_float(value: Any, default: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(parsed):
+        return default
+    return parsed
+
+
 def _round(value: float, digits: int = 2) -> float:
-    return round(float(value), digits)
+    return round(_finite_float(value), digits)
 
 
 def _series_from_points(points: list[dict[str, Any]], *, desired: int = 6) -> list[float]:
     values = [
-        float(point.get("quote", {}).get("current", 0.0))
+        _finite_float(point.get("quote", {}).get("current", 0.0))
         for point in sorted(points, key=lambda item: str(item.get("captured_at", "")))
-        if float(point.get("quote", {}).get("current", 0.0)) > 0
+        if _finite_float(point.get("quote", {}).get("current", 0.0)) > 0
     ]
     if not values:
         values = [0.0]
@@ -38,17 +49,17 @@ def _provider_fundamentals(latest_price: dict[str, Any]) -> dict[str, Any]:
             "week_52_high": 0,
         }
     return {
-        "market_cap": _round(float(fundamentals.get("market_cap", 0.0)), 2),
-        "pe_ttm": _round(float(fundamentals.get("pe_ttm", 0.0)), 2),
-        "dividend_yield": float(fundamentals.get("dividend_yield", 0.0) or 0.0),
-        "annual_dividend": _round(float(fundamentals.get("annual_dividend", 0.0)), 2),
-        "week_52_low": _round(float(fundamentals.get("week_52_low", 0.0)), 2),
-        "week_52_high": _round(float(fundamentals.get("week_52_high", 0.0)), 2),
+        "market_cap": _round(_finite_float(fundamentals.get("market_cap", 0.0)), 2),
+        "pe_ttm": _round(_finite_float(fundamentals.get("pe_ttm", 0.0)), 2),
+        "dividend_yield": _finite_float(fundamentals.get("dividend_yield", 0.0) or 0.0),
+        "annual_dividend": _round(_finite_float(fundamentals.get("annual_dividend", 0.0)), 2),
+        "week_52_low": _round(_finite_float(fundamentals.get("week_52_low", 0.0)), 2),
+        "week_52_high": _round(_finite_float(fundamentals.get("week_52_high", 0.0)), 2),
     }
 
 
 def _sentiment_score_from_change(day_change_pct: float) -> int:
-    score = 50 + (day_change_pct * 8)
+    score = 50 + (_finite_float(day_change_pct) * 8)
     return max(5, min(95, int(round(score))))
 
 
@@ -115,13 +126,13 @@ def _is_compact_point(value: str) -> bool:
 
 def _dashboard_row(instrument: dict[str, Any], latest_price: dict[str, Any]) -> dict[str, Any]:
     quote = latest_price.get("quote", {})
-    day_change_pct = float(quote.get("day_change_pct", 0.0))
+    day_change_pct = _finite_float(quote.get("day_change_pct", 0.0))
     return {
         "instrument_id": instrument["instrument_id"],
         "ticker": instrument["ticker"],
         "name": instrument["name"],
         "sector": instrument.get("sector", ""),
-        "price": _round(float(quote.get("current", 0.0))),
+        "price": _round(_finite_float(quote.get("current", 0.0))),
         "day_change_pct": _round(day_change_pct),
         "ai_sentiment_score": _sentiment_score_from_change(day_change_pct),
         "news_count": 0,
@@ -478,7 +489,7 @@ def build_instrument_view(
     market_context_payload = market_context if str(market_context.get("today_brief", "")).strip() else None
     sector_context_payload = sector_context if str(sector_context.get("today_brief", "")).strip() else None
     quote = latest_price.get("quote", {})
-    day_change_pct = float(quote.get("day_change_pct", 0.0))
+    day_change_pct = _finite_float(quote.get("day_change_pct", 0.0))
     score = _sentiment_score_from_change(day_change_pct)
     label = _sentiment_label(score)
     generated_at = _utc_now()
@@ -487,14 +498,14 @@ def build_instrument_view(
     for point in sorted(price_points, key=lambda item: str(item.get("captured_at", "")), reverse=True)[:6]:
         point_quote = point.get("quote", {})
         captured_at = str(point.get("captured_at") or generated_at)
-        point_change = float(point_quote.get("day_change_pct", 0.0))
+        point_change = _finite_float(point_quote.get("day_change_pct", 0.0))
         point_label = _sentiment_label(_sentiment_score_from_change(point_change))
         session_phase = str(point.get("session_phase", "manual")).replace("_", " ")
         timeline.append({
             "timestamp": captured_at,
             "title": f"{session_phase.title()} price snapshot captured",
             "summary": (
-                f"{instrument['ticker']} was recorded at {float(point_quote.get('current', 0.0)):.2f} "
+                f"{instrument['ticker']} was recorded at {_finite_float(point_quote.get('current', 0.0)):.2f} "
                 f"with a day change of {point_change:+.2f}%."
             ),
             "sentiment_label": point_label,

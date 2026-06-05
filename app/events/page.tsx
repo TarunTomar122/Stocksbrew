@@ -14,7 +14,7 @@ import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
 import { getSectorRegimes } from "@/lib/sector-regimes";
 import { PremarketSection } from "@/components/premarket-section";
 
-export const revalidate = 120;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Earnings Reports - Fresh Post-Earnings Analysis",
@@ -46,7 +46,7 @@ export default async function EventsPage() {
     getPremarketMovers(market).catch(() => null),
     getSectorRegimes(market).catch(() => ({ sectors: new Map(), macro: null })),
   ]);
-  const showPremarket = isPremarketLive(premarketDoc);
+  const showPremarket = isPremarketLive(premarketDoc, market);
 
   // For events that already reported, check if we had a pre-earnings prediction
   // and whether it was correct, so we can show a "Predicted ✓" badge.

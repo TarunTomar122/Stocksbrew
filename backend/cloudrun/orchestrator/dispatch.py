@@ -556,6 +556,17 @@ def main() -> None:
                 "--max-workers",
                 str(max(1, args.max_workers)),
             ]
+        if args.lane == "market_open_email":
+            # Refresh Radar/watchlist views before sending so the email reads
+            # the latest open-session prices and directives, not a prior view.
+            pre_email_refresh = _refresh_watchlist_views(
+                run_id=run_id,
+                no_llm=True,
+                subscribed_only=False,
+            )
+        else:
+            pre_email_refresh = None
+
         summary = _run_single_job_lane(
             lane=args.lane,
             market=args.market,
@@ -565,14 +576,8 @@ def main() -> None:
             extra_args=single_extra_args,
             client=RunJobsClient(project=args.project, region=args.region),
         )
-        if args.lane == "market_open_email":
-            # Ensure email payload reads freshly materialized Radar rows instead
-            # of potentially stale previous-day watchlist views.
-            summary["watchlist_refresh"] = _refresh_watchlist_views(
-                run_id=run_id,
-                no_llm=True,
-                subscribed_only=False,
-            )
+        if pre_email_refresh is not None:
+            summary["watchlist_refresh"] = pre_email_refresh
 
     status = "success"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:

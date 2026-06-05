@@ -3,14 +3,17 @@ import { StockLogo } from "@/components/stock-logo";
 import type { CorrectCall } from "@/lib/track-record";
 
 function CallCard({ call }: { call: CorrectCall }) {
-  const up = (call.dayChangePct ?? 0) >= 0;
+  const movePct = typeof call.dayChangePct === "number" && Number.isFinite(call.dayChangePct)
+    ? call.dayChangePct
+    : null;
+  const up = movePct != null && movePct >= 0;
   const changeColor = up ? "#10b981" : "#ef4444";
   const changeBg = up ? "#ecfdf5" : "#fef2f2";
 
   return (
     <Link
       href={call.ticker ? `/stock/${encodeURIComponent(call.ticker)}` : "/events"}
-      className="group flex h-full w-full shrink-0 flex-col gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+      className="group flex h-full w-[260px] shrink-0 flex-col gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-shadow hover:border-[#d1d5db] hover:shadow-[0_4px_14px_rgba(17,24,39,0.06)]"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -19,24 +22,27 @@ function CallCard({ call }: { call: CorrectCall }) {
             {call.ticker}
           </span>
         </div>
-        {call.dayChangePct != null && (
-          <span
-            className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-2 py-0.5 text-[12px] font-semibold tabular-nums"
-            style={{ background: changeBg, color: changeColor }}
-          >
-            {up ? "▲" : "▼"} {Math.abs(call.dayChangePct).toFixed(1)}%
-          </span>
+        {movePct != null && (
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span
+              className="inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[12px] font-semibold tabular-nums"
+              style={{ background: changeBg, color: changeColor }}
+            >
+              {up ? "▲" : "▼"} {Math.abs(movePct).toFixed(1)}%
+            </span>
+            <span className="text-[10px] font-medium text-[#9ca3af]">on earnings day</span>
+          </div>
         )}
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-start gap-1.5">
         <span
           aria-hidden
-          className="material-symbols-outlined text-[#10b981]"
+          className="material-symbols-outlined mt-[2px] shrink-0 text-[#10b981]"
           style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}
         >
           check_circle
         </span>
-        <span className="text-[13px] font-medium leading-snug text-[#374151]">
+        <span className="text-left text-[13px] font-medium leading-snug text-[#374151]">
           {call.call}
         </span>
       </div>
@@ -54,20 +60,19 @@ export function TrackRecordBar({ calls }: { calls: CorrectCall[] }) {
           The receipts
         </span>
         <h2 className="text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] text-[#111111] leading-tight">
-          Earnings moves we called before they happened
+          Pre-earnings calls that landed
         </h2>
         <p className="text-[14px] leading-relaxed text-[#6b7280]">
-          We published a setup before each report below. The stock moved the way we said it would.
-          Misses are on the stock pages too.
+          Our setup went live before each print. The move shown is from earnings day, not today.
         </p>
       </div>
 
-      <div className="flex w-full max-w-4xl flex-wrap justify-center gap-3">
-        {calls.slice(0, 4).map((call) => (
-          <div key={`${call.ticker}-${call.eventDate}`} className="w-full min-w-[230px] max-w-[280px] flex-1 sm:flex-none">
-            <CallCard call={call} />
-          </div>
-        ))}
+      <div className="w-full max-w-4xl overflow-x-auto py-4 scrollbar-hide md:py-5">
+        <div className="flex w-max min-w-full flex-nowrap items-stretch justify-center gap-3 md:gap-4">
+          {calls.slice(0, 4).map((call) => (
+            <CallCard key={`${call.ticker}-${call.eventDate}`} call={call} />
+          ))}
+        </div>
       </div>
     </section>
   );

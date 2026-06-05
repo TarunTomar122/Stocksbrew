@@ -16,25 +16,12 @@ type IndexData = {
   changePct: number;
 };
 
-export type HeroSpotlight = {
-  ticker: string;
-  name: string;
-  logoUrl: string | null;
-  dayChangePct: number;
-  headline: string;
-  reasoning: string;
-  verdict: string | null;
-};
-
 type Props = {
   indices: IndexData[];
   verdict?: unknown;
   isSubscribed?: boolean;
   showIndexSkeleton?: boolean;
-  spotlight?: HeroSpotlight | null;
-  leftChips?: HeroChip[];
-  rightChips?: HeroChip[];
-  mobileChips?: HeroChip[];
+  chips?: HeroChip[];
 };
 
 function fmtPrice(v: number): string {
@@ -57,26 +44,21 @@ async function syncServerSession(): Promise<void> {
   });
 }
 
-// rotate + offsetClass tune the floating feel inside the side columns
 type HeroChip = {
   ticker: string;
   name: string;
   verdict: string;
   directive: string;
   dayChangePct: number;
-  rotate: string;
-  offsetClass?: string;
 };
 
-const LEFT_HERO_CHIPS: HeroChip[] = [
+const DEFAULT_HERO_CHIPS: HeroChip[] = [
   {
     ticker: "AAPL",
     name: "Apple",
     verdict: "Hold",
     directive: "Wait for a pullback before adding",
     dayChangePct: 0.6,
-    rotate: "-2.5deg",
-    offsetClass: "-translate-y-1 translate-x-2",
   },
   {
     ticker: "NVDA",
@@ -84,8 +66,6 @@ const LEFT_HERO_CHIPS: HeroChip[] = [
     verdict: "Buy",
     directive: "AI demand still driving the setup",
     dayChangePct: 2.1,
-    rotate: "1.5deg",
-    offsetClass: "translate-x-6",
   },
   {
     ticker: "MSFT",
@@ -93,20 +73,13 @@ const LEFT_HERO_CHIPS: HeroChip[] = [
     verdict: "Buy",
     directive: "Cloud growth keeps the trend intact",
     dayChangePct: 1.3,
-    rotate: "-1deg",
-    offsetClass: "translate-y-1 -translate-x-1",
   },
-];
-
-const RIGHT_HERO_CHIPS: HeroChip[] = [
   {
     ticker: "TSLA",
     name: "Tesla",
     verdict: "Sell",
     directive: "Momentum fading after the run",
     dayChangePct: -1.8,
-    rotate: "2.5deg",
-    offsetClass: "-translate-y-1 -translate-x-2",
   },
   {
     ticker: "GOOGL",
@@ -114,8 +87,6 @@ const RIGHT_HERO_CHIPS: HeroChip[] = [
     verdict: "Buy",
     directive: "Search and AI ads look strong",
     dayChangePct: 1.5,
-    rotate: "-2deg",
-    offsetClass: "-translate-x-5",
   },
   {
     ticker: "AMD",
@@ -123,12 +94,8 @@ const RIGHT_HERO_CHIPS: HeroChip[] = [
     verdict: "Hold",
     directive: "Needs a clean break above resistance",
     dayChangePct: -0.4,
-    rotate: "1.5deg",
-    offsetClass: "translate-y-1 translate-x-1",
   },
 ];
-
-const MOBILE_CHIPS = [...LEFT_HERO_CHIPS.slice(0, 2), ...RIGHT_HERO_CHIPS.slice(0, 2)];
 
 const VERDICT_STYLES: Record<string, { text: string; bg: string }> = {
   Buy:        { text: "#10b981", bg: "#ecfdf5" },
@@ -143,21 +110,16 @@ function verdictStyle(v: string): { text: string; bg: string } {
   return VERDICT_STYLES[v] ?? VERDICT_STYLES.Hold;
 }
 
-function FloatingHeroChip({ chip, compact }: { chip: HeroChip; compact?: boolean }) {
+function HeroChipCard({ chip }: { chip: HeroChip }) {
   return (
-    <div
-      className={`transition-transform duration-200 ease-out hover:-translate-y-1.5 ${chip.offsetClass ?? ""}`}
-    >
-      <div style={{ transform: `rotate(${chip.rotate})` }}>
-        <StockVerdictChip
-          ticker={chip.ticker}
-          name={chip.name}
-          verdict={chip.verdict}
-          directive={chip.directive}
-          dayChangePct={chip.dayChangePct}
-          compact={compact}
-        />
-      </div>
+    <div className="shrink-0 self-stretch transition-transform duration-200 ease-out hover:-translate-y-1">
+      <StockVerdictChip
+        ticker={chip.ticker}
+        name={chip.name}
+        verdict={chip.verdict}
+        directive={chip.directive}
+        dayChangePct={chip.dayChangePct}
+      />
     </div>
   );
 }
@@ -180,42 +142,46 @@ function StockVerdictChip({
   const up = dayChangePct >= 0;
   const changeColor = up ? "#10b981" : "#ef4444";
   const changeBg = up ? "#ecfdf5" : "#fef2f2";
-  const logoSize = compact ? 28 : 38;
+  const logoSize = compact ? 28 : 40;
 
   const inner = (
     <div
-      className={`flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-left shadow-[0_8px_28px_rgba(17,24,39,0.08)] transition-shadow hover:shadow-[0_12px_36px_rgba(17,24,39,0.12)] ${
-        compact ? "min-w-[156px] max-w-[176px] p-2.5" : "w-[188px] p-3.5"
+      className={`flex h-full flex-col gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white text-left transition-shadow hover:border-[#d1d5db] hover:shadow-[0_4px_14px_rgba(17,24,39,0.06)] ${
+        compact ? "w-[176px] p-2.5" : "w-[204px] p-4"
       }`}
     >
       <div className="flex items-start gap-2.5">
         <StockLogo ticker={ticker} market="US" size={logoSize} eager />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-center justify-between gap-1.5">
-            <span className={`font-semibold tracking-[-0.01em] text-[#111111] ${compact ? "text-[12px]" : "text-[13px]"}`}>
+            <span className={`font-semibold tracking-[-0.01em] text-[#111111] ${compact ? "text-[12px]" : "text-[14px]"}`}>
               {ticker}
             </span>
             <span
               className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-semibold tabular-nums ${
-                compact ? "text-[9px]" : "text-[10px]"
+                compact ? "text-[9px]" : "text-[11px]"
               }`}
               style={{ background: changeBg, color: changeColor }}
             >
               {up ? "▲" : "▼"} {Math.abs(dayChangePct).toFixed(1)}%
             </span>
           </div>
-          <span className={`truncate text-[#9ca3af] ${compact ? "text-[10px]" : "text-[11px]"}`}>
+          <span className={`truncate text-[#9ca3af] ${compact ? "text-[10px]" : "text-[12px]"}`}>
             {name}
           </span>
         </div>
       </div>
 
-      <p className={`leading-snug text-[#6b7280] ${compact ? "text-[10px] line-clamp-2" : "text-[11px] line-clamp-2"}`}>
+      <p
+        className={`flex-1 min-h-[2.75em] leading-snug text-[#6b7280] ${
+          compact ? "text-[10px] line-clamp-2" : "text-[12px] line-clamp-2"
+        }`}
+      >
         {directive}
       </p>
 
       <span
-        className={`self-start font-bold rounded-md ${compact ? "text-[10px] px-1.5 py-0.5" : "text-[11px] px-2 py-0.5"}`}
+        className={`mt-auto self-start font-bold rounded-md ${compact ? "text-[10px] px-1.5 py-0.5" : "text-[12px] px-2 py-0.5"}`}
         style={{ color: verdictStyle(verdict).text, background: verdictStyle(verdict).bg }}
       >
         {verdict}
@@ -226,7 +192,7 @@ function StockVerdictChip({
   return (
     <Link
       href={`/stock/${encodeURIComponent(ticker)}`}
-      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052ff] focus-visible:ring-offset-2 rounded-2xl"
+      className="flex h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052ff] focus-visible:ring-offset-2 rounded-2xl"
     >
       {inner}
     </Link>
@@ -237,18 +203,13 @@ export function HeroSection({
   indices,
   isSubscribed = false,
   showIndexSkeleton = false,
-  spotlight = null,
-  leftChips,
-  rightChips,
-  mobileChips,
+  chips,
 }: Props) {
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
 
-  const left = leftChips && leftChips.length > 0 ? leftChips : LEFT_HERO_CHIPS;
-  const right = rightChips && rightChips.length > 0 ? rightChips : RIGHT_HERO_CHIPS;
-  const mobile = mobileChips && mobileChips.length > 0 ? mobileChips : MOBILE_CHIPS;
+  const displayChips = chips && chips.length > 0 ? chips : DEFAULT_HERO_CHIPS;
 
   async function startTracking() {
     if (user) {
@@ -269,68 +230,31 @@ export function HeroSection({
   const displayIndices = indices.slice(0, 5);
 
   return (
-    <section className="w-full overflow-hidden bg-white">
-      <div className="flex flex-col items-center gap-12 md:gap-20 pt-10 md:pt-16 pb-10">
+    <section className="w-full bg-white">
+      <div className="flex flex-col items-center gap-10 md:gap-12 pt-10 md:pt-14 pb-10">
+        <div className="flex w-full max-w-[1120px] flex-col items-center gap-6 px-4 text-center md:gap-7 lg:px-6">
+          <h1 className="max-w-[720px] text-[32px] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-[40px] md:text-[48px] xl:text-[54px]">
+            <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
+            <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
+          </h1>
+          <p className="max-w-[600px] text-[16px] leading-[1.6] text-[#6b7280] md:text-[19px]">
+            {HERO_SUBHEAD}
+          </p>
+          <HeroCta
+            busy={busy}
+            isSubscribed={isSubscribed}
+            signedIn={Boolean(user)}
+            onStart={startTracking}
+          />
 
-        {/* Headline block — side columns on desktop, stacked on mobile */}
-        <div className="w-full max-w-[1120px] mx-auto px-4 lg:px-6">
-          {/* Mobile / tablet */}
-          <div className="flex lg:hidden flex-col items-center gap-4 text-center">
-            <h1 className="text-[28px] sm:text-[36px] md:text-[46px] font-semibold tracking-[-0.04em] leading-[1.08] max-w-[560px]">
-              <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
-              <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
-            </h1>
-            <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
-              {HERO_SUBHEAD}
-            </p>
-            <div className="flex flex-wrap items-stretch justify-center gap-3 w-full max-w-[420px]">
-              {mobile.map((chip) => (
-                <FloatingHeroChip key={chip.ticker} chip={chip} compact />
-              ))}
-            </div>
-            <HeroCta
-              busy={busy}
-              isSubscribed={isSubscribed}
-              signedIn={Boolean(user)}
-              onStart={startTracking}
-            />
-          </div>
-
-          {/* Desktop — headline centered, cards in left/right gutters */}
-          <div className="hidden lg:grid min-h-[360px] grid-cols-[minmax(0,1fr)_minmax(0,560px)_minmax(0,1fr)] items-center gap-x-8 xl:gap-x-10">
-            <div className="flex flex-col items-end gap-7 justify-center pr-1 xl:pr-3">
-              {left.map((chip) => (
-                <FloatingHeroChip key={chip.ticker} chip={chip} />
-              ))}
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center gap-4 text-center px-2">
-              <h1 className="text-[36px] xl:text-[46px] font-semibold tracking-[-0.04em] leading-[1.08]">
-                <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
-                <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
-              </h1>
-              <p className="text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
-                {HERO_SUBHEAD}
-              </p>
-              <HeroCta
-                busy={busy}
-                isSubscribed={isSubscribed}
-                signedIn={Boolean(user)}
-                onStart={startTracking}
-              />
-            </div>
-
-            <div className="flex flex-col items-start gap-7 justify-center pl-1 xl:pl-3">
-              {right.map((chip) => (
-                <FloatingHeroChip key={chip.ticker} chip={chip} />
+          <div className="w-full overflow-x-auto py-4 scrollbar-hide md:py-5">
+            <div className="flex w-max min-w-full flex-nowrap items-stretch justify-center gap-3 md:gap-4">
+              {displayChips.map((chip) => (
+                <HeroChipCard key={chip.ticker} chip={chip} />
               ))}
             </div>
           </div>
         </div>
-
-        {/* Live call — a real, current read from stocksbrew (no mockups) */}
-        {spotlight && <HeroSpotlightCard spotlight={spotlight} />}
-
       </div>
 
       {/* Index strip */}
@@ -406,71 +330,6 @@ function HeroCta({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function HeroSpotlightCard({ spotlight }: { spotlight: HeroSpotlight }) {
-  const up = spotlight.dayChangePct >= 0;
-  const changeColor = up ? "#10b981" : "#ef4444";
-  const changeBg = up ? "#ecfdf5" : "#fef2f2";
-
-  return (
-    <div className="w-full max-w-[560px] mx-auto px-4 lg:px-0">
-      <div className="flex items-center justify-center gap-2 pb-3">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
-        </span>
-        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#6b7280]">
-          What stocksbrew is flagging right now
-        </span>
-      </div>
-
-      <article className="flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-white p-5 shadow-[0_20px_60px_rgba(17,24,39,0.08)]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <StockLogo
-              ticker={spotlight.ticker}
-              market="US"
-              size={36}
-              logoUrl={spotlight.logoUrl}
-            />
-            <div className="flex min-w-0 flex-col">
-              <span className="text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">
-                {spotlight.ticker}
-              </span>
-              <span className="truncate max-w-[180px] text-[12px] text-[#9ca3af]">
-                {spotlight.name}
-              </span>
-            </div>
-          </div>
-          <span
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums"
-            style={{ background: changeBg, color: changeColor }}
-          >
-            {up ? "▲" : "▼"} {Math.abs(spotlight.dayChangePct).toFixed(2)}%
-          </span>
-        </div>
-
-        <p className="text-[15px] font-semibold leading-snug text-[#111111]">
-          {spotlight.headline}
-        </p>
-        <p className="text-[13px] leading-relaxed text-[#6b7280]">
-          {spotlight.reasoning}
-        </p>
-
-        {spotlight.verdict && (
-          <div className="flex items-center gap-2 border-t border-[#f3f4f6] pt-3">
-            <span className="text-[11px] font-medium text-[#9ca3af]">
-              Our read
-            </span>
-            <span className="text-[12px] font-semibold text-[#111111]">
-              {spotlight.verdict}
-            </span>
-          </div>
-        )}
-      </article>
     </div>
   );
 }

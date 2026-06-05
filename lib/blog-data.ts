@@ -251,7 +251,7 @@ export const allBlogPosts: BlogPost[] = [
     date: "2026-06-02",
     readTime: "13 min read",
   },
-];
+  {
     slug: "how-to-read-stock-heat-map",
     title: "How to Read a Stock Heat Map: A Complete Guide",
     description: "Stock heat maps turn market data into color-coded visuals. Learn how to read them spot sector rotation, and find trading opportunities in seconds.",
