@@ -70,6 +70,7 @@ def _build_cards(store: TraceMoneyStore, market: str) -> list[dict[str, Any]]:
         quote = price_doc.get("quote") or {}
         ac = price_doc.get("analyst_consensus") or {}
         current = _f(quote.get("current"))
+        day_change = _f(quote.get("day_change_pct"))
         target = _f(ac.get("target_price"))
         label = str(ac.get("label") or "").strip()
         label_l = label.lower()
@@ -82,54 +83,46 @@ def _build_cards(store: TraceMoneyStore, market: str) -> list[dict[str, Any]]:
         quality = _pillar(row, "quality")
         upside = ((target - current) / current * 100.0) if target and target > 0 else None
 
-        # Crowd bullish + we are cautious: priced in, rich, no upside left.
+        # Analyst-consensus disagreement is only used to FIND interesting names.
+        # The card is presented as our own suggestion, no crowd language.
         if label_l in BULL_LABELS and upside is not None and upside <= 3.0:
             rich = valuation is not None and valuation <= 50
             score = (3.0 - upside) + (50 - (valuation or 50)) + min(buy_n, 30) * 0.4
             stance = "Avoid" if (upside <= -3 and rich) else "Trim"
-            who = f"{buy_n} analysts" if buy_n else "The Street"
             if upside <= -8:
-                reason = (
-                    f"{who} still say buy, but it is trading {abs(round(upside))}% above their own "
-                    "price target. The crowd is chasing. We would not."
-                )
+                reason = f"Trading {abs(round(upside))}% above fair value. We would not chase it here."
             elif rich:
-                reason = (
-                    f"{who} still say buy, but it is already at target with a rich valuation. "
-                    "We would fade strength here."
-                )
+                reason = "Priced for perfection and the upside is used up. We would take profits into strength."
             else:
-                reason = f"{who} are bullish, but the upside to their own target is used up."
+                reason = "The upside to fair value is used up. We would trim into strength."
             cautious.append({
                 "ticker": ticker, "instrument_id": iid,
                 "name": names.get(iid) or ticker,
                 "sector": row.get("sector_label"),
-                "crowd_label": label or "Buy", "crowd_side": "bull",
                 "our_stance": stance, "our_side": "bear",
                 "reason": reason,
                 "upside_pct": round(upside, 1),
+                "day_change_pct": round(day_change, 2) if day_change is not None else None,
                 "_score": score,
             })
             continue
 
-        # Crowd cool + we are constructive: room to run, strong growth/quality.
         if (label_l in {"hold"} or label_l in BEAR_LABELS) and upside is not None and upside >= 15.0:
             strong = (quality is not None and quality >= 65) and (growth is not None and growth >= 60)
             if not strong:
                 continue
             score = upside + (quality or 0) * 0.4 + (growth or 0) * 0.4
             reason = (
-                f"The Street is lukewarm, but growth and quality are top-tier with {round(upside)}% "
-                "still to the target. We would accumulate."
+                f"Top-tier growth and quality with {round(upside)}% room to run. We would accumulate."
             )
             constructive.append({
                 "ticker": ticker, "instrument_id": iid,
                 "name": names.get(iid) or ticker,
                 "sector": row.get("sector_label"),
-                "crowd_label": label or "Hold", "crowd_side": "bear",
                 "our_stance": "Accumulate", "our_side": "bull",
                 "reason": reason,
                 "upside_pct": round(upside, 1),
+                "day_change_pct": round(day_change, 2) if day_change is not None else None,
                 "_score": score,
             })
 

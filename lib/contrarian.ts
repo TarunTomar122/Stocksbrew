@@ -6,12 +6,11 @@ export type ContrarianCard = {
   instrument_id: string;
   name: string;
   sector: string | null;
-  crowd_label: string;
-  crowd_side: "bull" | "bear";
   our_stance: string;
   our_side: "bull" | "bear";
   reason: string;
   upside_pct: number | null;
+  day_change_pct: number | null;
 };
 
 export type ContrarianCalls = {

@@ -3,16 +3,13 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getHeroIndices } from "@/lib/hero-indices";
 import { getCurrentMarket } from "@/lib/market";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
-import { getContrarianCalls } from "@/lib/contrarian";
-import { ContrarianWall } from "@/components/contrarian-wall";
+import { getContrarianCalls, type ContrarianCard } from "@/lib/contrarian";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 function pickSpotlight(
   anomalies: Awaited<ReturnType<typeof getDailyAnomalies>>,
 ): HeroSpotlight | null {
   const rows = anomalies?.anomalies ?? [];
-  // Prefer a mover that actually carries a written read (headline + reasoning),
-  // ranked by how much it moved so the hero shows something live and concrete.
   const candidates = rows
     .filter((row) => {
       const reasoning = row.visual_summary?.why_it_matters || row.today_brief;
@@ -32,6 +29,29 @@ function pickSpotlight(
   };
 }
 
+// Tasteful float presets so the real cards keep the scattered hero feel.
+const ROTATIONS = ["-2.5deg", "1.5deg", "-1deg", "2deg", "-1.5deg", "1deg"];
+const OFFSETS = [
+  "-translate-y-1 translate-x-2",
+  "translate-x-6",
+  "translate-y-1 -translate-x-1",
+  "translate-y-1 translate-x-2",
+  "-translate-x-5",
+  "translate-y-1 translate-x-1",
+];
+
+function toChips(cards: ContrarianCard[]) {
+  return cards.map((c, i) => ({
+    ticker: c.ticker,
+    name: c.name,
+    verdict: c.our_stance,
+    directive: c.reason,
+    dayChangePct: c.day_change_pct ?? 0,
+    rotate: ROTATIONS[i % ROTATIONS.length],
+    offsetClass: OFFSETS[i % OFFSETS.length],
+  }));
+}
+
 export async function HomeHeroStream() {
   const market = getCurrentMarket();
   const session = await getSessionUser();
@@ -44,15 +64,21 @@ export async function HomeHeroStream() {
   const isSubscribed = resolveIsSubscribed(userDoc);
   const spotlight = pickSpotlight(anomalies);
 
+  const cards = contrarian?.cards ?? [];
+  const chips = toChips(cards);
+  const leftChips = chips.slice(0, 3);
+  const rightChips = chips.slice(3, 6);
+  const mobileChips = chips.slice(0, 4);
+
   return (
-    <div className="flex flex-col gap-16 md:gap-20">
-      <HeroSection
-        indices={indices}
-        isSubscribed={isSubscribed}
-        showIndexSkeleton={false}
-        spotlight={spotlight}
-      />
-      <ContrarianWall cards={contrarian?.cards ?? []} />
-    </div>
+    <HeroSection
+      indices={indices}
+      isSubscribed={isSubscribed}
+      showIndexSkeleton={false}
+      spotlight={spotlight}
+      leftChips={leftChips}
+      rightChips={rightChips}
+      mobileChips={mobileChips}
+    />
   );
 }

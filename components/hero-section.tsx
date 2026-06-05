@@ -32,6 +32,9 @@ type Props = {
   isSubscribed?: boolean;
   showIndexSkeleton?: boolean;
   spotlight?: HeroSpotlight | null;
+  leftChips?: HeroChip[];
+  rightChips?: HeroChip[];
+  mobileChips?: HeroChip[];
 };
 
 function fmtPrice(v: number): string {
@@ -54,25 +57,26 @@ async function syncServerSession(): Promise<void> {
   });
 }
 
-// pos = absolute coordinates (no negatives — avoids overflow-hidden clipping)
-// rotate = applied to outer wrapper; hover translate applied to inner card (keeps transforms independent)
-const SCATTERED_CHIPS: {
+// rotate + offsetClass tune the floating feel inside the side columns
+type HeroChip = {
   ticker: string;
   name: string;
-  verdict: "Buy" | "Hold" | "Sell";
+  verdict: string;
   directive: string;
   dayChangePct: number;
-  pos: { top?: string; bottom?: string; left?: string; right?: string };
   rotate: string;
-}[] = [
+  offsetClass?: string;
+};
+
+const LEFT_HERO_CHIPS: HeroChip[] = [
   {
     ticker: "AAPL",
     name: "Apple",
     verdict: "Hold",
     directive: "Wait for a pullback before adding",
     dayChangePct: 0.6,
-    pos: { top: "2%", left: "6%" },
-    rotate: "-3deg",
+    rotate: "-2.5deg",
+    offsetClass: "-translate-y-1 translate-x-2",
   },
   {
     ticker: "NVDA",
@@ -80,8 +84,8 @@ const SCATTERED_CHIPS: {
     verdict: "Buy",
     directive: "AI demand still driving the setup",
     dayChangePct: 2.1,
-    pos: { top: "40%", left: "1%" },
-    rotate: "2deg",
+    rotate: "1.5deg",
+    offsetClass: "translate-x-6",
   },
   {
     ticker: "MSFT",
@@ -89,17 +93,20 @@ const SCATTERED_CHIPS: {
     verdict: "Buy",
     directive: "Cloud growth keeps the trend intact",
     dayChangePct: 1.3,
-    pos: { bottom: "2%", left: "12%" },
-    rotate: "-1.5deg",
+    rotate: "-1deg",
+    offsetClass: "translate-y-1 -translate-x-1",
   },
+];
+
+const RIGHT_HERO_CHIPS: HeroChip[] = [
   {
     ticker: "TSLA",
     name: "Tesla",
     verdict: "Sell",
     directive: "Momentum fading after the run",
     dayChangePct: -1.8,
-    pos: { top: "4%", right: "2%" },
-    rotate: "3deg",
+    rotate: "2.5deg",
+    offsetClass: "-translate-y-1 -translate-x-2",
   },
   {
     ticker: "GOOGL",
@@ -107,8 +114,8 @@ const SCATTERED_CHIPS: {
     verdict: "Buy",
     directive: "Search and AI ads look strong",
     dayChangePct: 1.5,
-    pos: { top: "39%", right: "8%" },
-    rotate: "-2.5deg",
+    rotate: "-2deg",
+    offsetClass: "-translate-x-5",
   },
   {
     ticker: "AMD",
@@ -116,18 +123,44 @@ const SCATTERED_CHIPS: {
     verdict: "Hold",
     directive: "Needs a clean break above resistance",
     dayChangePct: -0.4,
-    pos: { bottom: "1%", right: "3%" },
-    rotate: "2deg",
+    rotate: "1.5deg",
+    offsetClass: "translate-y-1 translate-x-1",
   },
 ];
 
-const VERDICT_STYLES = {
-  Buy:  { text: "#10b981", bg: "#ecfdf5" },
-  Hold: { text: "#f59e0b", bg: "#fffbeb" },
-  Sell: { text: "#ef4444", bg: "#fef2f2" },
+const MOBILE_CHIPS = [...LEFT_HERO_CHIPS.slice(0, 2), ...RIGHT_HERO_CHIPS.slice(0, 2)];
+
+const VERDICT_STYLES: Record<string, { text: string; bg: string }> = {
+  Buy:        { text: "#10b981", bg: "#ecfdf5" },
+  Accumulate: { text: "#10b981", bg: "#ecfdf5" },
+  Hold:       { text: "#f59e0b", bg: "#fffbeb" },
+  Trim:       { text: "#f59e0b", bg: "#fffbeb" },
+  Sell:       { text: "#ef4444", bg: "#fef2f2" },
+  Avoid:      { text: "#ef4444", bg: "#fef2f2" },
 };
 
-const MOBILE_CHIPS = SCATTERED_CHIPS.slice(0, 4);
+function verdictStyle(v: string): { text: string; bg: string } {
+  return VERDICT_STYLES[v] ?? VERDICT_STYLES.Hold;
+}
+
+function FloatingHeroChip({ chip, compact }: { chip: HeroChip; compact?: boolean }) {
+  return (
+    <div
+      className={`transition-transform duration-200 ease-out hover:-translate-y-1.5 ${chip.offsetClass ?? ""}`}
+    >
+      <div style={{ transform: `rotate(${chip.rotate})` }}>
+        <StockVerdictChip
+          ticker={chip.ticker}
+          name={chip.name}
+          verdict={chip.verdict}
+          directive={chip.directive}
+          dayChangePct={chip.dayChangePct}
+          compact={compact}
+        />
+      </div>
+    </div>
+  );
+}
 
 function StockVerdictChip({
   ticker,
@@ -135,15 +168,13 @@ function StockVerdictChip({
   verdict,
   directive,
   dayChangePct,
-  rotate,
   compact,
 }: {
   ticker: string;
   name: string;
-  verdict: "Buy" | "Hold" | "Sell";
+  verdict: string;
   directive: string;
   dayChangePct: number;
-  rotate?: string;
   compact?: boolean;
 }) {
   const up = dayChangePct >= 0;
@@ -154,9 +185,8 @@ function StockVerdictChip({
   const inner = (
     <div
       className={`flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-left shadow-[0_8px_28px_rgba(17,24,39,0.08)] transition-shadow hover:shadow-[0_12px_36px_rgba(17,24,39,0.12)] ${
-        compact ? "min-w-[156px] max-w-[176px] p-2.5" : "min-w-[172px] max-w-[196px] p-3.5"
+        compact ? "min-w-[156px] max-w-[176px] p-2.5" : "w-[188px] p-3.5"
       }`}
-      style={rotate ? { transform: `rotate(${rotate})` } : undefined}
     >
       <div className="flex items-start gap-2.5">
         <StockLogo ticker={ticker} market="US" size={logoSize} eager />
@@ -186,7 +216,7 @@ function StockVerdictChip({
 
       <span
         className={`self-start font-bold rounded-md ${compact ? "text-[10px] px-1.5 py-0.5" : "text-[11px] px-2 py-0.5"}`}
-        style={{ color: VERDICT_STYLES[verdict].text, background: VERDICT_STYLES[verdict].bg }}
+        style={{ color: verdictStyle(verdict).text, background: verdictStyle(verdict).bg }}
       >
         {verdict}
       </span>
@@ -203,10 +233,22 @@ function StockVerdictChip({
   );
 }
 
-export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton = false, spotlight = null }: Props) {
+export function HeroSection({
+  indices,
+  isSubscribed = false,
+  showIndexSkeleton = false,
+  spotlight = null,
+  leftChips,
+  rightChips,
+  mobileChips,
+}: Props) {
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
+
+  const left = leftChips && leftChips.length > 0 ? leftChips : LEFT_HERO_CHIPS;
+  const right = rightChips && rightChips.length > 0 ? rightChips : RIGHT_HERO_CHIPS;
+  const mobile = mobileChips && mobileChips.length > 0 ? mobileChips : MOBILE_CHIPS;
 
   async function startTracking() {
     if (user) {
@@ -230,73 +272,58 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
     <section className="w-full overflow-hidden bg-white">
       <div className="flex flex-col items-center gap-12 md:gap-20 pt-10 md:pt-16 pb-10">
 
-        {/* Headline block — centered, with scattered floating chips */}
-        <div className="relative w-full flex items-center justify-center" style={{ minHeight: "300px" }}>
-
-          {/* Scattered stock chips — desktop only */}
-          <div className="hidden lg:block absolute inset-0 select-none pointer-events-none">
-            {SCATTERED_CHIPS.map((s) => (
-              <div
-                key={s.ticker}
-                className="absolute pointer-events-auto transition-transform duration-200 ease-out hover:-translate-y-1.5"
-                style={{ ...s.pos, transform: `rotate(${s.rotate})` }}
-              >
-                <StockVerdictChip
-                  ticker={s.ticker}
-                  name={s.name}
-                  verdict={s.verdict}
-                  directive={s.directive}
-                  dayChangePct={s.dayChangePct}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Center text */}
-          <div className="relative flex flex-col items-center gap-4 text-center w-full max-w-[540px] px-4 lg:px-0">
+        {/* Headline block — side columns on desktop, stacked on mobile */}
+        <div className="w-full max-w-[1120px] mx-auto px-4 lg:px-6">
+          {/* Mobile / tablet */}
+          <div className="flex lg:hidden flex-col items-center gap-4 text-center">
             <h1 className="text-[28px] sm:text-[36px] md:text-[46px] font-semibold tracking-[-0.04em] leading-[1.08] max-w-[560px]">
               <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
               <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
             </h1>
-
             <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
               {HERO_SUBHEAD}
             </p>
+            <div className="flex flex-wrap items-stretch justify-center gap-3 w-full max-w-[420px]">
+              {mobile.map((chip) => (
+                <FloatingHeroChip key={chip.ticker} chip={chip} compact />
+              ))}
+            </div>
+            <HeroCta
+              busy={busy}
+              isSubscribed={isSubscribed}
+              signedIn={Boolean(user)}
+              onStart={startTracking}
+            />
+          </div>
 
-            {/* Stock chips — mobile / tablet (desktop uses scattered layout above) */}
-            <div className="flex lg:hidden flex-wrap items-stretch justify-center gap-3 w-full max-w-[420px]">
-              {MOBILE_CHIPS.map((s) => (
-                <StockVerdictChip
-                  key={s.ticker}
-                  ticker={s.ticker}
-                  name={s.name}
-                  verdict={s.verdict}
-                  directive={s.directive}
-                  dayChangePct={s.dayChangePct}
-                  compact
-                />
+          {/* Desktop — headline centered, cards in left/right gutters */}
+          <div className="hidden lg:grid min-h-[360px] grid-cols-[minmax(0,1fr)_minmax(0,560px)_minmax(0,1fr)] items-center gap-x-8 xl:gap-x-10">
+            <div className="flex flex-col items-end gap-7 justify-center pr-1 xl:pr-3">
+              {left.map((chip) => (
+                <FloatingHeroChip key={chip.ticker} chip={chip} />
               ))}
             </div>
 
-            <div className="flex flex-col items-center gap-2.5 w-full">
-              <button
-                type="button"
-                onClick={startTracking}
-                disabled={busy}
-                className="inline-flex w-full sm:w-auto items-center justify-center h-11 px-7 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
-              >
-                {busy ? "Opening..." : user ? "Open your Radar" : "Track your first stock for free"}
-              </button>
-              {!isSubscribed && (
-                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-                  {["Free for 3 stocks", "No credit card", "Pro unlocks unlimited + alerts"].map((p) => (
-                    <span key={p} className="inline-flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
-                      <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
-                      {p}
-                    </span>
-                  ))}
-                </div>
-              )}
+            <div className="relative z-10 flex flex-col items-center gap-4 text-center px-2">
+              <h1 className="text-[36px] xl:text-[46px] font-semibold tracking-[-0.04em] leading-[1.08]">
+                <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
+                <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
+              </h1>
+              <p className="text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">
+                {HERO_SUBHEAD}
+              </p>
+              <HeroCta
+                busy={busy}
+                isSubscribed={isSubscribed}
+                signedIn={Boolean(user)}
+                onStart={startTracking}
+              />
+            </div>
+
+            <div className="flex flex-col items-start gap-7 justify-center pl-1 xl:pl-3">
+              {right.map((chip) => (
+                <FloatingHeroChip key={chip.ticker} chip={chip} />
+              ))}
             </div>
           </div>
         </div>
@@ -345,6 +372,41 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
         </div>
       )}
     </section>
+  );
+}
+
+function HeroCta({
+  busy,
+  isSubscribed,
+  signedIn,
+  onStart,
+}: {
+  busy: boolean;
+  isSubscribed: boolean;
+  signedIn: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2.5 w-full">
+      <button
+        type="button"
+        onClick={onStart}
+        disabled={busy}
+        className="inline-flex w-full sm:w-auto items-center justify-center h-11 px-7 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
+      >
+        {busy ? "Opening..." : signedIn ? "Open your Radar" : "Track your first stock for free"}
+      </button>
+      {!isSubscribed && (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          {["Free for 3 stocks", "No credit card", "Pro unlocks unlimited + alerts"].map((p) => (
+            <span key={p} className="inline-flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
+              <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
