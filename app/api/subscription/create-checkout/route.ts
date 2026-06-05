@@ -3,6 +3,7 @@ import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { getUserDoc } from "@/lib/watchlist";
 import { isDodoConfigured, DODO_BASE, dodoHeaders, productIdFor } from "@/lib/dodo";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+import { isTrialEligible } from "@/lib/trial-eligibility";
 
 export async function POST(req: NextRequest) {
   // 1. Verify Firebase ID token from Authorization header
@@ -62,9 +63,10 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const trialEligible = isTrialEligible(userDoc);
 
   // 6. Create Dodo checkout session
-  const dodoPayload = {
+  const dodoPayload: Record<string, unknown> = {
     billing: {
       city: null,
       country: market === "IN" ? "IN" : "US",
@@ -89,6 +91,10 @@ export async function POST(req: NextRequest) {
     },
     return_url: `${appUrl}/subscribe`,
   };
+  // Dodo always applies the product trial on new checkouts unless we override it.
+  if (!trialEligible) {
+    dodoPayload.subscription_data = { trial_period_days: 0 };
+  }
 
   const dodoRes = await fetch(`${DODO_BASE}/checkouts`, {
     method: "POST",
@@ -132,6 +138,7 @@ export async function POST(req: NextRequest) {
     payload: {
       plan: period,
       checkout_session_id: session.id ?? null,
+      trial_eligible: trialEligible,
     },
   }).catch(() => undefined);
 

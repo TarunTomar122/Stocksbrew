@@ -8,6 +8,7 @@ type DispatchLane =
   | "daily_postclose"
   | "open_anomalies"
   | "reddit_buzz"
+  | "trump_logic"
   | "market_open_email"
   | "earnings_intel"
   | "market_events"

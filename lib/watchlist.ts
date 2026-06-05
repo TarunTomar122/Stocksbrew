@@ -48,6 +48,12 @@ export type UserDoc = {
   subscriptionStatus?: string | null;
   subscriptionPlan?: string | null;
   cancelAtPeriodEnd?: boolean;
+  /** Set on first subscription activation; blocks repeat free trials at checkout. */
+  hasUsedTrial?: boolean;
+  subscribedAt?: string | null;
+  dodoCustomerId?: string | null;
+  lastPaymentFailedAt?: string | null;
+  cancelledAt?: string | null;
   /** Email opt-out flags - treated as true when absent (opt-in by default). */
   email_alerts_enabled?: boolean;
   email_digest_enabled?: boolean;
@@ -72,9 +78,18 @@ const DEV_UNLOCK_PRO =
 export function resolveIsSubscribed(doc: UserDoc | null | undefined): boolean {
   if (DEV_UNLOCK_PRO && doc) return true;
   if (!doc) return false;
-  if (doc.is_subscribed) return true;
   const status = String(doc.subscriptionStatus || "").trim().toLowerCase();
-  if (status === "active" || status === "trialing") return true;
+  if (
+    status === "payment_failed" ||
+    status === "failed" ||
+    status === "on_hold" ||
+    status === "cancelled" ||
+    status === "expired"
+  ) {
+    return false;
+  }
+  if (doc.is_subscribed) return true;
+  if (status === "active" || status === "trialing" || status === "on_trial") return true;
   return false;
 }
 

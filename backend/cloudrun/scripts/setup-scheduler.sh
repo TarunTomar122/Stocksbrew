@@ -33,8 +33,8 @@ CRON_REDDIT_BUZZ="${CRON_REDDIT_BUZZ:-20 13 * * 1-5}"     # 6:50 PM IST
 CRON_ZONE_BRIEFS="${CRON_ZONE_BRIEFS:-0 14 * * 1-5}"     # 7:30 PM IST (after open_anomalies + reddit_buzz are fresh)
 CRON_MARKET_EVENTS_OPEN="${CRON_MARKET_EVENTS_OPEN:-10 14 * * 1-5}" # 7:40 PM IST (after anomalies + reddit + zone briefs)
 CRON_DATA_HEALTH_OPEN="${CRON_DATA_HEALTH_OPEN:-20 14 * * 1-5}" # 7:50 PM IST (after open derived feeds)
-CRON_MARKET_EVENTS_CLOSE="${CRON_MARKET_EVENTS_CLOSE:-20 21 * * 1-5}" # 2:50 AM IST (after earnings intel)
-CRON_DATA_HEALTH_CLOSE="${CRON_DATA_HEALTH_CLOSE:-30 21 * * 1-5}" # 3:00 AM IST (after close derived feeds)
+CRON_MARKET_EVENTS_CLOSE="${CRON_MARKET_EVENTS_CLOSE:-30 22 * * 1-5}" # 4:00 AM IST (after late AMC earnings intel)
+CRON_DATA_HEALTH_CLOSE="${CRON_DATA_HEALTH_CLOSE:-40 22 * * 1-5}" # 4:10 AM IST (after close derived feeds)
 MARKET_EVENTS_OPEN_SKIP_IF_FRESH_HOURS="${MARKET_EVENTS_OPEN_SKIP_IF_FRESH_HOURS:-20}"
 CRON_CLOSE_ANOMALIES="${CRON_CLOSE_ANOMALIES:-40 20 * * 1-5}" # 2:10 AM IST (after postclose has usually completed)
 CRON_CLOSE_REDDIT_BUZZ="${CRON_CLOSE_REDDIT_BUZZ:-45 20 * * 1-5}" # 2:15 AM IST (after postclose has usually completed)
@@ -42,12 +42,15 @@ CRON_OPEN_EMAILS="${CRON_OPEN_EMAILS:-42 13 * * 1-5}"     # 7:12 PM IST (after o
 CRON_INTRADAY="${CRON_INTRADAY:-0 13-19 * * 1-5}"          # hourly baseline during session
 CRON_INTRADAY_OPENBURST="${CRON_INTRADAY_OPENBURST:-30 13-15 * * 1-5}" # extra half-hour cadence near open
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
-CRON_EARNINGS_INTEL="${CRON_EARNINGS_INTEL:-0 21 * * 1-5}" # 2:30 AM IST (after postclose)
-CRON_PRE_EARNINGS_INTEL="${CRON_PRE_EARNINGS_INTEL:-30 21 * * 1-5}" # 3:00 AM IST (after earnings intel)
+CRON_EARNINGS_INTEL="${CRON_EARNINGS_INTEL:-0 22 * * 1-5}" # 3:30 AM IST (late enough for most AMC prints to settle)
+CRON_PRE_EARNINGS_INTEL="${CRON_PRE_EARNINGS_INTEL:-45 22 * * 1-5}" # 4:15 AM IST (after events materialization)
 CRON_ON_DEMAND_NEWS="${CRON_ON_DEMAND_NEWS:-0 */4 * * 1-5}" # 4-hour backup; track/watchlist APIs dispatch immediately
 CRON_STOCK_REQUESTS="${CRON_STOCK_REQUESTS:-*/30 * * * *}" # every 30m; API also dispatches on each request
 STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
 CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow fundamentals/facts refresh
+CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth Social market digest
+CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # 11:30 UTC = 7:30 ET; pre-market live since 4 ET
+CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h45 before the open email
 STOCK_FACTS_LIMIT="${STOCK_FACTS_LIMIT:-0}" # 0 means full active price universe
 STOCK_FACTS_MAX_WORKERS="${STOCK_FACTS_MAX_WORKERS:-4}"
 
@@ -135,6 +138,9 @@ printf '%s\n' "$(mk_body earnings_intel "${extra_universe},\"--recent-days\",\"3
 printf '%s\n' "$(mk_body pre_earnings_intel "${extra_universe},\"--upcoming-days\",\"7\",\"--max-events\",\"40\"")" > "${tmp_dir}/pre_earnings_intel.json"
 printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
+printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}/trump_logic.json"
+printf '%s\n' "$(mk_minimal_body premarket_movers "${extra_universe}")" > "${tmp_dir}/premarket_movers.json"
+printf '%s\n' "$(mk_minimal_body premarket_email "${extra_universe}")" > "${tmp_dir}/premarket_email.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
 upsert_job "tikrr-open-price" "${CRON_OPEN_PRICE}" "${tmp_dir}/open_price.json"
@@ -156,5 +162,8 @@ upsert_job "tikrr-earnings-intel" "${CRON_EARNINGS_INTEL}" "${tmp_dir}/earnings_
 upsert_job "tikrr-pre-earnings-intel" "${CRON_PRE_EARNINGS_INTEL}" "${tmp_dir}/pre_earnings_intel.json"
 upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
 upsert_job "tikrr-stock-facts" "${CRON_STOCK_FACTS}" "${tmp_dir}/stock_facts.json"
+upsert_job "tikrr-trump-logic" "${CRON_TRUMP_LOGIC}" "${tmp_dir}/trump_logic.json"
+upsert_job "tikrr-premarket-movers" "${CRON_PREMARKET_MOVERS}" "${tmp_dir}/premarket_movers.json"
+upsert_job "tikrr-premarket-email" "${CRON_PREMARKET_EMAIL}" "${tmp_dir}/premarket_email.json"
 
 echo "Scheduler jobs ready in ${SCHEDULER_LOCATION}."

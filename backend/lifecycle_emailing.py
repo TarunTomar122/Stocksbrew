@@ -841,3 +841,123 @@ def email_pro_daily_digest(
     </table>
   </td></tr></table></body></html>"""
     return subject, html
+
+
+def _premarket_stock_row(
+    *,
+    ticker: str,
+    logo_url: str | None,
+    gap_pct: float,
+    note: str,
+) -> str:
+    up = gap_pct >= 0
+    color = "#047857" if up else "#b91c1c"
+    arrow = "&#9650;" if up else "&#9660;"
+    logo = email_logo_src(ticker=ticker, logo_url=logo_url)
+    return (
+        "<tr><td style='padding:10px 0;border-top:1px solid #f3f4f6'>"
+        "<table width='100%' cellpadding='0' cellspacing='0'><tr>"
+        f"<td width='34' valign='top'><img src='{_esc(logo)}' width='30' height='30' "
+        "style='border-radius:8px;object-fit:cover' alt='' /></td>"
+        "<td valign='top' style='padding-left:10px'>"
+        f"<span style='font-size:14px;font-weight:700;color:#111827'>{_esc(ticker)}</span> "
+        f"<span style='font-size:13px;font-weight:700;color:{color}'>{arrow} {abs(gap_pct):.1f}%</span>"
+        f"<div style='font-size:13px;color:#6b7280;line-height:1.5;margin-top:2px'>{_esc(note)}</div>"
+        "</td></tr></table></td></tr>"
+    )
+
+
+def email_pre_market_brief(
+    first_name: str,
+    premarket: dict[str, Any] | None,
+    rows: list[dict[str, Any]] | None = None,
+    *,
+    market_phase_line: str | None = None,
+    reporting_today: list[dict[str, Any]] | None = None,
+) -> tuple[str, str]:
+    """Build the personalized pre-market brief: setup, your book before the
+    bell, market-wide gappers, and who reports before the open."""
+    premarket = premarket or {}
+    rows = rows or []
+    by_ticker: dict[str, dict[str, Any]] = premarket.get("by_ticker") or {}
+    gappers_up = premarket.get("gappers_up") or []
+    gappers_down = premarket.get("gappers_down") or []
+
+    sections: list[str] = []
+
+    # On your book before the bell (personalized).
+    book_rows_html: list[str] = []
+    for row in rows:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        hit = by_ticker.get(ticker)
+        if not ticker or not hit:
+            continue
+        gap = float(hit.get("pre_market_change_pct") or 0.0)
+        directive = str(row.get("ai_directive_text") or "").strip()
+        pos = "Holding" if row.get("position_type") == "holding" else "Watching"
+        note = directive or f"{pos} on your Radar."
+        book_rows_html.append(
+            _premarket_stock_row(ticker=ticker, logo_url=row.get("logo_url"), gap_pct=gap, note=note)
+        )
+        if len(book_rows_html) >= 5:
+            break
+    book_count = len(book_rows_html)
+    if book_rows_html:
+        sections.append(
+            _section(
+                "On your book before the bell",
+                f"<table width='100%' cellpadding='0' cellspacing='0'>{''.join(book_rows_html)}</table>",
+            )
+        )
+
+    # Market-wide gappers.
+    movers_html: list[str] = []
+    for r in (gappers_up[:3] + gappers_down[:2]):
+        movers_html.append(
+            _premarket_stock_row(
+                ticker=str(r.get("ticker") or ""),
+                logo_url=r.get("logo_url"),
+                gap_pct=float(r.get("pre_market_change_pct") or 0.0),
+                note=str(r.get("name") or ""),
+            )
+        )
+    if movers_html:
+        sections.append(
+            _section(
+                "Moving before the bell",
+                f"<table width='100%' cellpadding='0' cellspacing='0'>{''.join(movers_html)}</table>",
+            )
+        )
+
+    # Reporting before the open.
+    if reporting_today:
+        bullets = []
+        for ev in reporting_today[:5]:
+            t = str(ev.get("ticker") or "").strip().upper()
+            call = str(ev.get("call") or "").strip()
+            bullets.append(f"{t}{(' — ' + call) if call else ''}")
+        if bullets:
+            sections.append(_bullet_section("Reporting before the open", bullets))
+
+    hi = f"{first_name}, " if first_name and first_name != "there" else ""
+    if book_count > 0:
+        intro = (
+            f"{hi}{book_count} {'name' if book_count == 1 else 'names'} on your book "
+            "are moving before the open. Here is the setup and what it means."
+        )
+        subject = f"Before the open: {book_count} of your names are moving"
+    else:
+        intro = f"{hi}here is what is set up before the bell today."
+        subject = "Before the open: today's setup"
+    if market_phase_line:
+        intro = f"{_esc(market_phase_line)} {intro}"
+
+    html = _rich_shell(
+        title="Before the open",
+        eyebrow="Pre-market brief",
+        intro=intro,
+        sections=sections,
+        cta_label="See the full setup",
+        cta_url=f"{APP_URL}/premarket",
+    )
+    return subject, html

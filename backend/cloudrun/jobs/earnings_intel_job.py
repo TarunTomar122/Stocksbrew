@@ -5,6 +5,9 @@ import json
 import subprocess
 import sys
 
+from backend.scripts.build_earnings_intel import recent_reporter_instrument_ids
+from backend.storage import TraceMoneyStore
+
 
 def _parse_instrument_ids(stdout: str) -> list[str]:
     """Pull instrument_ids out of build_earnings_intel's final JSON line.
@@ -26,6 +29,59 @@ def _parse_instrument_ids(stdout: str) -> list[str]:
             return [str(i).strip() for i in ids if str(i).strip()]
         return []
     return []
+
+
+def _sync_reporter_market_data(
+    *,
+    market: str,
+    universe_id: str,
+    instrument_ids: list[str],
+) -> None:
+    """Refresh prices and fundamentals for recent reporters outside the core cohort."""
+    if not instrument_ids:
+        return
+    joined = ",".join(instrument_ids)
+    common = ["--market", market, "--universe", universe_id, "--instrument-ids", joined]
+    cmds = [
+        [
+            sys.executable,
+            "-m",
+            "backend.scripts.sync_price_snapshots",
+            *common,
+            "--session-phase",
+            "post_close",
+            "--merge-market-snapshot",
+        ],
+        [
+            sys.executable,
+            "-m",
+            "backend.scripts.sync_stock_metrics",
+            *common,
+            "--max-workers",
+            "2",
+            "--pause",
+            "0.35",
+        ],
+        [
+            sys.executable,
+            "-m",
+            "backend.scripts.sync_stock_facts",
+            *common,
+            "--max-workers",
+            "2",
+            "--pause",
+            "0.35",
+            "--no-include-price-core-overrides",
+        ],
+    ]
+    for cmd in cmds:
+        print({
+            "step": "sync_reporter_market_data",
+            "reporters": len(instrument_ids),
+            "cmd": " ".join(cmd),
+        })
+        # Best-effort: intel still builds if a provider is rate-limited.
+        subprocess.run(cmd, check=False)
 
 
 def main() -> None:
@@ -60,7 +116,35 @@ def main() -> None:
     # runs and degrades gracefully (reported_actuals.available = false).
     subprocess.run(actuals_cmd, check=False)
 
-    # Step 2: build the post-earnings intel reports.
+    store = TraceMoneyStore()
+    universe_id = args.universe.strip() or store.get_active_price_universe(args.market) or ""
+    if not universe_id:
+        raise ValueError(f"No active price universe configured for {args.market}")
+
+    # Step 2: refresh prices + fundamentals for recent reporters. Many sit in our
+    # calendar universe but outside the ~100-stock price cohort, so the events
+    # page and stock detail pages would otherwise show missing quote/facts data.
+    # Match build_earnings_intel --all-recent: scope to the full calendar
+    # universe (tm_instruments), not the smaller price cohort in args.universe.
+    reporter_ids = recent_reporter_instrument_ids(
+        store,
+        args.market,
+        recent_days=max(0, args.recent_days),
+        max_events=max(1, args.max_events),
+    )
+    print({
+        "run_id": args.run_id,
+        "lane": args.lane,
+        "step": "sync_reporter_market_data",
+        "reporters": len(reporter_ids),
+    })
+    _sync_reporter_market_data(
+        market=args.market,
+        universe_id=universe_id,
+        instrument_ids=reporter_ids,
+    )
+
+    # Step 3: build the post-earnings intel reports.
     cmd = [
         sys.executable,
         "-m",
@@ -85,7 +169,7 @@ def main() -> None:
     if build.stderr:
         print(build.stderr, end="", file=sys.stderr)
 
-    # Step 3: refresh the AI news brief for every stock that just reported, so a
+    # Step 4: refresh the AI news brief for every stock that just reported, so a
     # stock nobody is watching (whose brief may be weeks stale) gets a fresh
     # brief that reflects the print instead of showing ancient coverage. The
     # earnings block + post-earnings highlights are now in place, so the brief

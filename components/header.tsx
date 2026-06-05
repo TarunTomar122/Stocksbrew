@@ -33,12 +33,13 @@ const NAV_ITEMS: NavItem[] = [
 // Free, browse-only surfaces. Demoted into a "More" menu so they do not crowd
 // out the conversion path while staying one click away.
 const MORE_ITEMS: NavItem[] = [
-  { href: "/heat",    label: "Hot Stocks", icon: "local_fire_department" },
-  { href: "/screens", label: "Screens",    icon: "tune" },
+  { href: "/heat",         label: "Hot Stocks",   icon: "local_fire_department" },
+  { href: "/screens",      label: "Screens",      icon: "tune" },
+  { href: "/trump-logic",  label: "Trump Logic",  icon: "campaign", beta: true },
 ];
 
 /** Mobile strip order: conversion items first, free browse items last. */
-const MOBILE_HEADER_ORDER = ["/events", "/anomalies", "/watchlist", "/heat", "/screens"] as const;
+const MOBILE_HEADER_ORDER = ["/events", "/anomalies", "/watchlist", "/heat", "/screens", "/trump-logic"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
@@ -366,12 +367,9 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
             <Link
               href="/"
-              className="flex shrink-0 flex-col gap-0.5 text-[#111111] leading-none"
+              className="shrink-0 text-[20px] font-semibold tracking-[-0.04em] text-[#111111] leading-none"
             >
-              <span className="text-[20px] font-semibold tracking-[-0.04em]">stocksbrew</span>
-              <span className="text-[10px] font-medium text-[#9ca3af] tracking-normal">
-                (formerly tikrr)
-              </span>
+              stocksbrew
             </Link>
             <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
               {navItems.map((item) => {

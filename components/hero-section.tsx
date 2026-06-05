@@ -6,7 +6,7 @@ import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { StockLogo } from "@/components/stock-logo";
-import { HERO_SUBHEAD } from "@/lib/brand-copy";
+import { HERO_HEADLINE_EMPHASIS, HERO_HEADLINE_LEAD, HERO_SUBHEAD } from "@/lib/brand-copy";
 
 type IndexData = {
   ticker: string;
@@ -157,8 +157,8 @@ export function HeroSection({ indices, isSubscribed = false, showIndexSkeleton =
           {/* Center text */}
           <div className="relative flex flex-col items-center gap-4 text-center w-full max-w-[540px] px-4 lg:px-0">
             <h1 className="text-[28px] sm:text-[36px] md:text-[46px] font-semibold tracking-[-0.04em] leading-[1.08] max-w-[560px]">
-              <span className="text-[#9ca3af]">Other apps show the numbers. </span>
-              <span className="text-[#111111]">We tell you what they mean.</span>
+              <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
+              <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
             </h1>
 
             <p className="text-[15px] md:text-[17px] text-[#6b7280] leading-[1.55] max-w-[440px]">

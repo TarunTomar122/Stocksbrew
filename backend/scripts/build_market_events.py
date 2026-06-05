@@ -311,12 +311,12 @@ def _attach_latest_quotes(store: TraceMoneyStore, events: list[dict[str, Any]]) 
 
 
 def build_for_market(store: TraceMoneyStore, market: str, limit: int, earnings_cap: int) -> dict[str, Any]:
-    cap = max(0, earnings_cap or limit)
+    cap = max(max(0, earnings_cap or limit), max(0, limit))
     ranked = sorted(
         _events_from_earnings(market, store, cap),
         key=lambda e: (
             _text(e.get("event_date")),
-            -float(e.get("urgency") or 0),
+            float(e.get("urgency") or 0),
         ),
         reverse=True,
     )[: max(0, limit)]

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "standardwebhooks";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+import { trialConsumedPatch } from "@/lib/trial-eligibility";
 
 type WebhookLogLevel = "info" | "warn" | "error";
 
@@ -153,6 +154,7 @@ async function handleEvent(
           subscriptionPlan: plan,
           subscribedAt: new Date().toISOString(),
           cancelAtPeriodEnd: false,
+          ...trialConsumedPatch(),
         },
         { merge: true },
       );
@@ -181,6 +183,7 @@ async function handleEvent(
           subscriptionStatus: "active",
           lastPaymentAt: new Date().toISOString(),
           cancelAtPeriodEnd: false,
+          ...trialConsumedPatch(),
         },
         { merge: true },
       );
@@ -195,7 +198,12 @@ async function handleEvent(
 
     case "payment.failed": {
       await ref.set(
-        { subscriptionStatus: "payment_failed", lastPaymentFailedAt: new Date().toISOString() },
+        {
+          is_subscribed: false,
+          subscriptionStatus: "payment_failed",
+          lastPaymentFailedAt: new Date().toISOString(),
+          ...trialConsumedPatch(),
+        },
         { merge: true },
       );
       dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type });

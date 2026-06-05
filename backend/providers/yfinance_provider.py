@@ -258,3 +258,65 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
             pass
 
     return out
+
+
+def fetch_premarket_quotes(
+    instruments: list[dict[str, Any]],
+    *,
+    max_workers: int = 6,
+) -> dict[str, dict[str, Any]]:
+    """Fetch pre-market quotes for a focused set of instruments.
+
+    Yahoo's `.info` payload carries pre-market fields during the pre-market
+    session (marketState == "PRE"). Outside that window, or for illiquid names
+    with no pre-market print, preMarketPrice is None and the name is skipped.
+
+    Returns {instrument_id: {ticker, pre_market_price, previous_close,
+    pre_market_change_pct, market_state, captured_at}} for names that actually
+    have a pre-market quote.
+    """
+    if not instruments:
+        return {}
+
+    def _one(instrument: dict[str, Any]) -> dict[str, Any] | None:
+        yahoo_symbol = yahoo_symbol_for(instrument)
+        try:
+            info = yf.Ticker(yahoo_symbol).info or {}
+        except Exception:
+            return None
+        state = str(info.get("marketState") or "")
+        pre = _to_float(info.get("preMarketPrice"), default=0.0)
+        if pre <= 0:
+            return None
+        prev_close = _to_float(info.get("regularMarketPreviousClose")) or _to_float(
+            info.get("previousClose")
+        )
+        if prev_close <= 0:
+            return None
+        # Prefer Yahoo's own pct, fall back to computing the gap ourselves.
+        pct = info.get("preMarketChangePercent")
+        try:
+            pct = float(pct)
+        except (TypeError, ValueError):
+            pct = ((pre - prev_close) / prev_close) * 100.0
+        return {
+            "ticker": str(instrument.get("ticker", yahoo_symbol)),
+            "pre_market_price": round(pre, 4),
+            "previous_close": round(prev_close, 4),
+            "pre_market_change_pct": round(pct, 2),
+            "market_state": state,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    rows: dict[str, dict[str, Any]] = {}
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(instruments))) as executor:
+        futures = {executor.submit(_one, inst): inst for inst in instruments}
+        for future in as_completed(futures):
+            inst = futures[future]
+            try:
+                result = future.result()
+            except Exception:
+                result = None
+            if result:
+                rows[inst["instrument_id"]] = result
+    return rows

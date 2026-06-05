@@ -101,7 +101,23 @@ def pick_actual_for_event(
     best: dict[str, Any] | None = None
     best_gap = None
     for row in actuals:
-        if row.get("reported_eps") is None:
+        reported_eps = row.get("reported_eps")
+        if reported_eps is None:
+            continue
+        estimated_eps = row.get("estimated_eps")
+        surprise = row.get("surprise")
+        surprise_pct = row.get("surprise_pct")
+        if (
+            reported_eps == 0
+            and estimated_eps not in (None, 0)
+            and surprise is not None
+            and abs(float(surprise) + float(estimated_eps)) < 0.0001
+            and surprise_pct is not None
+            and abs(float(surprise_pct) + 100.0) < 0.01
+        ):
+            # Alpha Vantage sometimes publishes a same-day placeholder row with
+            # reportedEPS=0 and surprise=-estimate before the real print settles.
+            # Treat that as "not captured yet" instead of generating fake misses.
             continue
         reported = _parse_date(row.get("reported_date", ""))
         if reported is None:

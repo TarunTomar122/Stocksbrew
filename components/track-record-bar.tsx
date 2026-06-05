@@ -10,7 +10,7 @@ function CallCard({ call }: { call: CorrectCall }) {
   return (
     <Link
       href={call.ticker ? `/stock/${encodeURIComponent(call.ticker)}` : "/events"}
-      className="group flex min-w-[230px] shrink-0 snap-start flex-col gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm md:min-w-0"
+      className="group flex h-full w-full shrink-0 flex-col gap-2.5 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -48,23 +48,25 @@ export function TrackRecordBar({ calls }: { calls: CorrectCall[] }) {
   if (!calls || calls.length < 3) return null;
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
+    <section className="flex flex-col items-center gap-6 text-center">
+      <div className="flex max-w-2xl flex-col items-center gap-2">
         <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-[#0052ff]">
           The receipts
         </span>
         <h2 className="text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] text-[#111111] leading-tight">
-          We make the calls before the print. Here is how the last ones landed.
+          Earnings moves we called before they happened
         </h2>
-        <p className="max-w-[640px] text-[14px] leading-relaxed text-[#6b7280]">
-          Every name below had a stocksbrew read going into earnings, and the stock did what we said it would.
-          We show the misses too, on the stock pages.
+        <p className="text-[14px] leading-relaxed text-[#6b7280]">
+          We published a setup before each report below. The stock moved the way we said it would.
+          Misses are on the stock pages too.
         </p>
       </div>
 
-      <div className="flex items-stretch gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
+      <div className="flex w-full max-w-4xl flex-wrap justify-center gap-3">
         {calls.slice(0, 4).map((call) => (
-          <CallCard key={`${call.ticker}-${call.eventDate}`} call={call} />
+          <div key={`${call.ticker}-${call.eventDate}`} className="w-full min-w-[230px] max-w-[280px] flex-1 sm:flex-none">
+            <CallCard call={call} />
+          </div>
         ))}
       </div>
     </section>

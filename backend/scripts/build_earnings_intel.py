@@ -330,6 +330,37 @@ def _list_recent_events(
     return [payload for _date, payload in out[: max(1, max_events)]]
 
 
+def recent_reporter_instrument_ids(
+    store: TraceMoneyStore,
+    market: str,
+    *,
+    recent_days: int,
+    max_events: int,
+    universe_id: str | None = None,
+) -> list[str]:
+    """Instrument ids for stocks that recently reported in our calendar universe."""
+    universe_by_ticker = _universe_instruments_by_ticker(store, market, universe_id)
+    events = _list_recent_events(
+        store,
+        market,
+        recent_days,
+        max_events,
+        set(universe_by_ticker.keys()),
+    )
+    ids: list[str] = []
+    seen: set[str] = set()
+    for event in events:
+        ticker = str(event.get("ticker") or "").upper().strip()
+        instrument = universe_by_ticker.get(ticker)
+        if not instrument:
+            continue
+        instrument_id = str(instrument.get("instrument_id") or "").strip()
+        if instrument_id and instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
+    return ids
+
+
 def _recent_news_context(
     store: TraceMoneyStore,
     market: str,
@@ -558,17 +589,75 @@ def _reported_actuals(event: dict[str, Any]) -> dict[str, Any]:
     estimated_eps = _safe_float(event.get("estimated_eps"))
     if estimated_eps is None:
         estimated_eps = _safe_float(event.get("eps_estimate"))
+    eps_surprise = _safe_float(event.get("eps_surprise"))
+    eps_surprise_pct = _safe_float(event.get("eps_surprise_pct"))
+    if (
+        reported_eps == 0
+        and estimated_eps not in (None, 0)
+        and eps_surprise is not None
+        and abs(eps_surprise + estimated_eps) < 0.0001
+        and eps_surprise_pct is not None
+        and abs(eps_surprise_pct + 100.0) < 0.01
+    ):
+        return {
+            "available": False,
+            "rejected_reason": "provider_zero_eps_placeholder",
+            "estimated_eps": estimated_eps,
+            "reported_date": event.get("actuals_reported_date") or event.get("event_date"),
+            "note": (
+                "Provider actuals look like a provisional zero-EPS placeholder. "
+                "Do not state a beat or miss until real reported EPS is captured."
+            ),
+        }
     return {
         "available": True,
         "reported_eps": reported_eps,
         "estimated_eps": estimated_eps,
-        "eps_surprise": _safe_float(event.get("eps_surprise")),
-        "eps_surprise_pct": _safe_float(event.get("eps_surprise_pct")),
+        "eps_surprise": eps_surprise,
+        "eps_surprise_pct": eps_surprise_pct,
         "surprise_label": event.get("surprise_label"),
         "reported_date": event.get("actuals_reported_date") or event.get("event_date"),
         "fiscal_date_ending": event.get("actuals_fiscal_date_ending")
         or event.get("fiscal_date_ending"),
     }
+
+
+_ACTUALS_EVENT_FIELDS = {
+    "actuals_captured_at",
+    "actuals_fiscal_date_ending",
+    "actuals_reported_date",
+    "eps_surprise",
+    "eps_surprise_pct",
+    "reported_eps",
+    "surprise_label",
+}
+
+
+def _prompt_reported_actuals(reported_actuals: dict[str, Any]) -> dict[str, Any]:
+    """Return only model-safe actuals fields.
+
+    Internal rejection reasons are useful for debugging, but they must not leak
+    into the prompt. Otherwise the model can turn implementation diagnostics
+    like "placeholder" into user-facing earnings narratives.
+    """
+    if reported_actuals.get("available") is True:
+        return reported_actuals
+    return {
+        "available": False,
+        "note": (
+            "Actual reported EPS is not captured yet. Do not state a beat or "
+            "miss and do not present the estimate as the reported result."
+        ),
+    }
+
+
+def _prompt_earnings_event(event: dict[str, Any], reported_actuals: dict[str, Any]) -> dict[str, Any]:
+    """Strip rejected raw actuals from model-visible event payloads."""
+    clean = dict(event or {})
+    if reported_actuals.get("available") is not True:
+        for key in _ACTUALS_EVENT_FIELDS:
+            clean.pop(key, None)
+    return clean
 
 
 def _build_input_payload(
@@ -600,6 +689,8 @@ def _build_input_payload(
     event_date = str((event or {}).get("event_date") or "")
     timing = _event_timing(event_date)
     reported_actuals = _reported_actuals(event or {})
+    prompt_reported_actuals = _prompt_reported_actuals(reported_actuals)
+    prompt_event = _prompt_earnings_event(event or {}, reported_actuals)
 
     return {
         "as_of_utc": _utc_now(),
@@ -608,8 +699,8 @@ def _build_input_payload(
         "instrument_id": instrument_id,
         "company_name": instrument.get("name"),
         "timing": timing,
-        "reported_actuals": reported_actuals,
-        "earnings_event": event or {},
+        "reported_actuals": prompt_reported_actuals,
+        "earnings_event": prompt_event,
         "latest_price": latest.get("quote") or {},
         "price_reaction_window": _reaction_metrics(history, event_date),
         "price_history_90d": _history_snapshot(history),
@@ -734,8 +825,11 @@ def main() -> None:
             "report": synthesis,
         }
         if args.write:
-            store.db.collection("tm_earnings_intel").document(doc_id).set(report, merge=True)
-            store.db.collection("tm_earnings_intel").document(f"{args.market.upper()}__{instrument_id}__latest").set(report, merge=True)
+            # Generated reports are full snapshots. Do not merge nested maps:
+            # stale keys from older prompt/input shapes can otherwise survive
+            # and leak bad provider data into downstream materializers.
+            store.db.collection("tm_earnings_intel").document(doc_id).set(report)
+            store.db.collection("tm_earnings_intel").document(f"{args.market.upper()}__{instrument_id}__latest").set(report)
         results.append(report)
 
     if args.dry_run or not args.write:

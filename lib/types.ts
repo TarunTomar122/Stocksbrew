@@ -166,6 +166,10 @@ export type LatestPrice = {
     exchange?: string;
     name?: string;
   };
+  history_window?: Array<{
+    captured_at?: string;
+    quote?: { current?: number };
+  }>;
 };
 
 export type SnapshotRow = {

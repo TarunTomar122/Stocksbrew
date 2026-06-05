@@ -1,5 +1,6 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 import { DODO_BASE, dodoHeaders } from "@/lib/dodo";
+import { trialConsumedPatch } from "@/lib/trial-eligibility";
 
 type DodoSubscription = {
   subscription_id?: string;
@@ -60,6 +61,7 @@ export async function grantProSubscription(
         subscribedAt: new Date().toISOString(),
         cancelAtPeriodEnd: false,
         lastPaymentFailedAt: null,
+        ...trialConsumedPatch(),
       },
       { merge: true },
     );

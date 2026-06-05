@@ -12,11 +12,11 @@ export type CorrectCall = {
 };
 
 function callLabel(epsOutlook: string | undefined, move: string): string {
-  if (move === "rally" && epsOutlook === "beat") return "Called the beat and the pop";
-  if (move === "fade" && epsOutlook === "miss") return "Called the miss and the drop";
-  if (move === "rally") return "Called the post-earnings pop";
-  if (move === "fade") return "Called the post-earnings drop";
-  return "Called the setup";
+  if (move === "rally" && epsOutlook === "beat") return "Predicted the beat — stock rose";
+  if (move === "fade" && epsOutlook === "miss") return "Predicted the miss — stock fell";
+  if (move === "rally") return "Predicted the rally — correct";
+  if (move === "fade") return "Predicted the drop — correct";
+  return "The move matched our setup";
 }
 
 async function getRecentCorrectCallsUncached(
