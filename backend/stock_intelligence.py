@@ -27,7 +27,7 @@ from backend.models import Article
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-06-05-stock-brief-v12-regime-risk-appetite"
+STOCK_BRIEF_CACHE_VERSION = "2026-06-05-stock-brief-v13-directive-price-coherence"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -268,7 +268,7 @@ Fields to write:
   - trigger, severity (1-5), probability (1-5)
 
 - **directive**: ONE actionable stance the user can take or watch for. Pick the single best fit based on evidence. Object with:
-  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $198", "Trim into strength above $220", "Watch breakout above $230", "Hold above $205", "Starter position only - evidence thin"
+  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $180", "Watch for reclaim of $510", "Add on breakout above $230", "Hold unless $205 breaks", "Starter position only - evidence thin"
   - stance: one of ["accumulate", "trim", "watch", "avoid", "hold"]
   - trigger_type: one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]
   - trigger_value: a STRING. PARITY IS MANDATORY:
@@ -276,7 +276,7 @@ Fields to write:
       · If text mentions a date or event with a date → trigger_type MUST be "date" AND trigger_value MUST be a full ISO date in the FUTURE relative to TODAY'S DATE (which will be given in the user payload as `today`). Never use 2023 or past years. If no reliable future date is known, use trigger_type "none" instead.
       · For sentiment_flip/new_catalyst/none → trigger_value MUST be "".
       · Mismatches between text and trigger fields are NOT allowed. Every numeric price in text must appear as trigger_value.
-  - rationale: ONE sentence explaining why this directive fits, grounded in the evidence.
+  - rationale: ONE sentence connecting the current setup to the trigger - mention where price sits relative to the level when a price trigger is used.
   - confidence: "low" | "med" | "high"
 
 STYLE:
@@ -291,7 +291,7 @@ FUNDAMENTALS - USE THEM:
 - The user payload includes a `fundamentals` block with four pillar scores (valuation, growth, quality, momentum - each 0-100), plus `standout_metrics` (score ≥ 75) and `weak_metrics` (score ≤ 25) and quant-driven `catalysts` (earnings dates, rank upgrades, short spikes). These are ground truth, not news.
 - Let fundamentals shape the directive, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
 - A beaten-down name with strong growth and a Buy-tilted quant rank can be "accumulate on dips". A high-multiple winner with strong evidence can still be "accumulate" or "watch for breakout" if the setup remains constructive.
-- Use fundamentals to pick concrete trigger prices - e.g. if the stock is above its analyst target, a "trim above $X" directive is natural; if below, "accumulate below $Y".
+- Use fundamentals to pick concrete trigger prices. If price is already above analyst target AND still showing strength, a conditional trim on further extension above $X can work. If price is below target or selling off, prefer watch/accumulate at support instead.
 - Drivers and risk_cards should weave fundamentals + news: "label: Margin expansion outpaces peers / detail: Operating margin sits in the sector's top quartile while revenue still compounds at 16% YoY."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
@@ -305,6 +305,15 @@ RISK APPETITE - OFFENSIVE, NOT TIMID:
 - "Trim" should be reserved for genuinely crowded or exhausted setups where upside looks capped relative to risk, not simply because a stock has already run.
 - Avoid sounding like a compliance officer or textbook value investor. Sound like a sharp operator deciding where capital should go next.
 - Still stay evidence-bound: no hype, no invented catalysts, no fake certainty.
+
+DIRECTIVE vs CURRENT PRICE - READ THIS FIRST:
+- The payload always includes `current_price`. It may also include `price_context` with `day_change_pct`, `recent_sessions`, MAs, RSI, and returns.
+- Before choosing stance or trigger, read where the stock trades NOW and what happened in `recent_sessions`.
+- The directive must make sense to someone looking at the live quote. If they would think "but it's already below/above that" - rewrite it.
+- Decide whether the advice is for NOW or for a FUTURE level:
+  · NOW: stance and level match current position (e.g. at $492 with support at $480 → "Watch hold at $480" or "Accumulate below $480").
+  · FUTURE: price must reclaim or break a level first → usually stance "watch", and text must signal the condition ("Watch for reclaim of $510", "Trim if price pushes above $220").
+- Never use "trim into strength" when the stock is not in strength today (negative `day_change_pct`, breaking recent highs, underperforming market/sector) unless the directive explicitly frames a future reclaim/bounce.
 
 DIRECTIVE SELECTION PRIORITY:
 - First ask: is there a credible upside path with real evidence behind it?
@@ -323,14 +332,15 @@ DIRECTIVE STYLE BY SETUP:
 - If `setup_state` is "trend": prefer "hold", "stay long", "add on continuation", or "hold while X holds" when momentum is healthy, and include the level when possible.
 - If `setup_state` is "rotation": prefer directives that acknowledge leadership shifts, relative strength, or capital rotating into the group.
 - If `setup_state` is "exhaustion": prefer "trim", "avoid chasing", or "re-evaluate if X breaks" over fresh accumulation.
+- setup_state and directive must agree on the tape: do not pair a sharp down day or "exhaustion" with "trim into strength above" unless framing a bounce trade; for "rotation", say whether this name is leading or lagging.
 - If you choose a bullish stance, vary the directive wording so it reflects the setup instead of repeating the same template.
 - Avoid vague directives with no usable trigger when a concrete level is available in the payload.
 
-PRICE CONTEXT - USE IT:
-- The user payload may include a `price_context` block with day change vs market/sector, RSI, 52-week distance, MA position, volume vs average, multi-week returns, and recent session closes.
-- Use it to interpret news vs setup: bullish news after a big run does NOT automatically mean trim. If the move still has sponsorship and the setup is not exhausted, staying constructive is valid. Quiet news while coiled above support = accumulation.
-- Do NOT narrate the chart back ("stock is up 2% today"). Use price context for setup_state, directive trigger levels, and tension with fundamentals/news.
-- Anchor directive trigger prices to levels in price_context when sensible (recent closes, MAs, analyst targets).
+PRICE CONTEXT - USE IT FOR THE DIRECTIVE:
+- Read `price_context.current_price` and `recent_sessions` before writing the directive.
+- Pick trigger levels from real anchors: recent session highs/lows, nearby MAs, analyst target, obvious support/resistance from the last 5 closes.
+- Match stance to today's tape: big down day + breaking recent lows → prefer watch/accumulate below support, not trim into strength above resistance; strong up day + extended RSI → trim or watch exhaustion can be valid; coiled near support after pullback → accumulate below X or watch hold at X.
+- You may still avoid narrating price in `body`/`headline`. The directive is where the price level must be actionable and coherent with `current_price`.
 
 MARKET REGIME - USE IT:
 - The payload may include a `market_regime` block with a macro read (market_phase, risk_appetite, narrative, leadership, laggards, rotation_signal) and one relevant sector regime for the stock.
