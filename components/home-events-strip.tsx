@@ -123,16 +123,26 @@ export function HomeEventsStrip({ events, generatedAt }: { events: MarketEvent[]
             )}
           </p>
         </div>
-        <Link
-          href="/upcoming-events"
-          className="group/up inline-flex w-full shrink-0 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-2 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors sm:w-auto sm:py-1.5"
-        >
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#fef3c7] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] uppercase text-[#92400e]">
-            ★ Pro
-          </span>
-          <span className="flex-1 sm:flex-none">We call them before they report</span>
-          <span className="text-[#9ca3af] group-hover/up:translate-x-0.5 transition-transform">→</span>
-        </Link>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <Link
+            href="/upcoming-events"
+            className="group/up inline-flex w-full shrink-0 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-2 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors sm:w-auto sm:py-1.5"
+          >
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#fef3c7] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] uppercase text-[#92400e]">
+              ★ Pro
+            </span>
+            <span className="flex-1 sm:flex-none">We call them before they report</span>
+            <span className="text-[#9ca3af] group-hover/up:translate-x-0.5 transition-transform">→</span>
+          </Link>
+          <Link
+            href="/premarket"
+            className="group/pm inline-flex w-full shrink-0 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-2 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors sm:w-auto sm:py-1.5"
+          >
+            <span className="text-[14px]" aria-hidden>🌅</span>
+            <span className="flex-1 sm:flex-none">Pre-market setup</span>
+            <span className="text-[#9ca3af] group-hover/pm:translate-x-0.5 transition-transform">→</span>
+          </Link>
+        </div>
       </div>
 
       <div className="flex items-stretch gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
