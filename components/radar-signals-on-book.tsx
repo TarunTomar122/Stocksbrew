@@ -18,6 +18,14 @@ export type BookBuzz = {
   market: "US" | "IN";
 };
 
+export type BookPremarket = {
+  ticker: string;
+  name: string;
+  logoUrl: string | null;
+  gapPct: number;
+  market: "US" | "IN";
+};
+
 function sentimentTone(sentiment: string): { text: string; soft: string } {
   const s = sentiment.toLowerCase();
   if (s === "bullish") return { text: "#047857", soft: "#ecfdf5" };
@@ -43,11 +51,13 @@ function LensHeader({ icon, label, count, href }: { icon: string; label: string;
 export function RadarSignalsOnBook({
   anomalies,
   buzz,
+  premarket = [],
 }: {
   anomalies: BookAnomaly[];
   buzz: BookBuzz[];
+  premarket?: BookPremarket[];
 }) {
-  if (anomalies.length === 0 && buzz.length === 0) return null;
+  if (anomalies.length === 0 && buzz.length === 0 && premarket.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-4">
@@ -61,6 +71,36 @@ export function RadarSignalsOnBook({
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {premarket.length > 0 && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+            <LensHeader icon="🌅" label="Before the open" count={premarket.length} href="/premarket" />
+            <div className="flex flex-col divide-y divide-[#f3f4f6]">
+              {premarket.slice(0, 4).map((p) => {
+                const up = p.gapPct >= 0;
+                return (
+                  <Link
+                    key={p.ticker}
+                    href={`/stock/${encodeURIComponent(p.ticker)}`}
+                    className="group flex items-center justify-between gap-2.5 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <StockLogo ticker={p.ticker} market={p.market} size={26} logoUrl={p.logoUrl} />
+                      <span className="text-[13px] font-semibold text-[#111111] group-hover:text-[#0052ff]">
+                        {p.ticker}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[12px] font-semibold tabular-nums"
+                      style={{ color: up ? "#10b981" : "#ef4444" }}
+                    >
+                      {up ? "▲" : "▼"} {Math.abs(p.gapPct).toFixed(1)}%
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {anomalies.length > 0 && (
           <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
             <LensHeader icon="📈" label="Moving today" count={anomalies.length} href="/anomalies" />

@@ -47,7 +47,9 @@ import {
   RadarSignalsOnBook,
   type BookAnomaly,
   type BookBuzz,
+  type BookPremarket,
 } from "@/components/radar-signals-on-book";
+import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
 import { getSectorRegimes, slugifySector, REGIME_LABEL } from "@/lib/sector-regimes";
 import { ConnectedReadCard, SignalChips, type SignalChip } from "@/components/connected-read-card";
 import type { DailyAnomaliesDoc } from "@/lib/daily-anomalies";
@@ -301,10 +303,28 @@ export default async function WatchlistPage() {
   const trackedTickers = new Set(
     rows.map((r) => String(r.ticker || "").trim().toUpperCase()).filter(Boolean),
   );
-  const [anomaliesDoc, redditSnap] = await Promise.all([
+  const [anomaliesDoc, redditSnap, premarketDoc] = await Promise.all([
     getDailyAnomalies(regimeMarket).catch(() => null),
     getRedditCues(regimeMarket).catch(() => null),
+    getPremarketMovers(regimeMarket).catch(() => null),
   ]);
+  const bookPremarket: BookPremarket[] = isPremarketLive(premarketDoc)
+    ? rows
+        .map((r) => {
+          const t = String(r.ticker || "").trim().toUpperCase();
+          const hit = premarketDoc?.by_ticker?.[t];
+          if (!t || !hit) return null;
+          return {
+            ticker: r.ticker,
+            name: r.instrument_name || r.ticker,
+            logoUrl: r.logo_url ?? null,
+            gapPct: hit.pre_market_change_pct,
+            market: regimeMarket,
+          } as BookPremarket;
+        })
+        .filter((x): x is BookPremarket => x !== null)
+        .sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct))
+    : [];
   const bookAnomalies: BookAnomaly[] = (anomaliesDoc?.anomalies ?? [])
     .filter((a) => trackedTickers.has(String(a.ticker || "").trim().toUpperCase()))
     .map((a) => ({
@@ -570,7 +590,7 @@ export default async function WatchlistPage() {
         />
 
         {/* ── SIGNALS ON YOUR BOOK ──────────────────────────────────────── */}
-        <RadarSignalsOnBook anomalies={bookAnomalies} buzz={bookBuzz} />
+        <RadarSignalsOnBook anomalies={bookAnomalies} buzz={bookBuzz} premarket={bookPremarket} />
 
         {/* ── § 01 · YOUR BOOK ──────────────────────────────────────────── */}
         <YourBookSection
