@@ -51,7 +51,8 @@ CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow funda
 CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth Social market digest
 CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # 11:30 UTC = 7:30 ET; pre-market live since 4 ET
 CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h45 before the open email
-CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14,17 * * 1-5}" # after open + midday; refresh crowd-vs-us wall with prices
+CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14 * * 1-5}" # 14:00 UTC = 30m after open; refresh hero contrarian wall with fresh open prices
+CRON_CONTRARIAN_CLOSE="${CRON_CONTRARIAN_CLOSE:-30 20 * * 1-5}" # 20:30 UTC = 30m after close; refresh hero contrarian wall for post-close session
 STOCK_FACTS_LIMIT="${STOCK_FACTS_LIMIT:-0}" # 0 means full active price universe
 STOCK_FACTS_MAX_WORKERS="${STOCK_FACTS_MAX_WORKERS:-4}"
 
@@ -168,5 +169,6 @@ upsert_job "tikrr-trump-logic" "${CRON_TRUMP_LOGIC}" "${tmp_dir}/trump_logic.jso
 upsert_job "tikrr-premarket-movers" "${CRON_PREMARKET_MOVERS}" "${tmp_dir}/premarket_movers.json"
 upsert_job "tikrr-premarket-email" "${CRON_PREMARKET_EMAIL}" "${tmp_dir}/premarket_email.json"
 upsert_job "tikrr-contrarian-calls" "${CRON_CONTRARIAN}" "${tmp_dir}/contrarian_calls.json"
+upsert_job "tikrr-contrarian-calls-close" "${CRON_CONTRARIAN_CLOSE}" "${tmp_dir}/contrarian_calls.json"
 
 echo "Scheduler jobs ready in ${SCHEDULER_LOCATION}."
