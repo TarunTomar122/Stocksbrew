@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { TrumpLogicMention, TrumpLogicSnapshot, TrumpLogicTickerRow } from "@/lib/trump-logic-types";
-import { formatSincePct } from "@/lib/trump-logic-format";
+import {
+  formatSincePct,
+  sortTrumpLogicTickers,
+  TRUMP_LOGIC_SORT_OPTIONS,
+  type TrumpLogicSortKey,
+} from "@/lib/trump-logic-format";
 import { StockLogo } from "@/components/stock-logo";
 import { relativeTime } from "@/lib/freshness";
 
@@ -20,6 +25,13 @@ const SENTIMENT_META: Record<string, { label: string; color: string; bg: string 
 
 function sentimentMeta(s: string) {
   return SENTIMENT_META[s?.toLowerCase()] ?? SENTIMENT_META.neutral;
+}
+
+function cardSentiment(row: TrumpLogicTickerRow) {
+  if (row.bullish_count > 0 && row.bearish_count > 0) {
+    return SENTIMENT_META.mixed;
+  }
+  return sentimentMeta(row.latest_sentiment);
 }
 
 function MentionLine({ mention, ticker }: { mention: TrumpLogicMention; ticker: string }) {
@@ -61,7 +73,7 @@ function MentionLine({ mention, ticker }: { mention: TrumpLogicMention; ticker: 
 
 function TickerRow({ row }: { row: TrumpLogicTickerRow }) {
   const [open, setOpen] = useState(false);
-  const meta = sentimentMeta(row.latest_sentiment);
+  const meta = cardSentiment(row);
   const since = formatSincePct(row.latest_change_since_pct);
 
   return (
@@ -109,17 +121,6 @@ function TickerRow({ row }: { row: TrumpLogicTickerRow }) {
           </div>
         </div>
 
-        {(row.bullish_count > 0 || row.bearish_count > 0) && (
-          <div className="flex items-center gap-3 text-[11px] font-semibold text-[#9ca3af]">
-            {row.bullish_count > 0 ? (
-              <span style={{ color: "#10b981" }}>{row.bullish_count} bullish</span>
-            ) : null}
-            {row.bearish_count > 0 ? (
-              <span style={{ color: "#ef4444" }}>{row.bearish_count} bearish</span>
-            ) : null}
-          </div>
-        )}
-
         {row.mentions.length > 1 ? (
           <button
             type="button"
@@ -143,7 +144,11 @@ function TickerRow({ row }: { row: TrumpLogicTickerRow }) {
 }
 
 export function TrumpLogicView({ data }: Props) {
-  const rows = useMemo(() => data?.tickers ?? [], [data?.tickers]);
+  const [sortKey, setSortKey] = useState<TrumpLogicSortKey>("mentions");
+  const rows = useMemo(
+    () => sortTrumpLogicTickers(data?.tickers ?? [], sortKey),
+    [data?.tickers, sortKey],
+  );
 
   if (!data || rows.length === 0) {
     return (
@@ -177,8 +182,8 @@ export function TrumpLogicView({ data }: Props) {
           </span>
         </div>
         <p className="text-[15px] text-[#6b7280] leading-relaxed max-w-3xl">
-          Stocks Trump mentioned on Truth Social — sorted by how often he talked about them, with
-          bullish/bearish reads and price change since each mention.
+          Stocks Trump mentioned on Truth Social — bullish/bearish reads and price change since each
+          mention.
           {data.lookback_days ? <> Last {data.lookback_days} days.</> : null}
         </p>
         <div className="flex flex-wrap items-center gap-4 text-[12px] text-[#9ca3af]">
@@ -195,6 +200,29 @@ export function TrumpLogicView({ data }: Props) {
           <p className="text-[11px] text-[#9ca3af] leading-relaxed max-w-3xl">{data.source_note}</p>
         ) : null}
       </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+          Sort
+        </span>
+        {TRUMP_LOGIC_SORT_OPTIONS.map((option) => {
+          const active = sortKey === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setSortKey(option.key)}
+              className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                active
+                  ? "border-[#111111] bg-[#111111] text-white"
+                  : "border-[#e5e7eb] bg-white text-[#374151] hover:border-[#111111]"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {rows.map((row) => (

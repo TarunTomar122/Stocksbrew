@@ -10,6 +10,9 @@ import {
 } from "@/lib/pre-earnings-intel";
 import { MarketEventsView } from "@/components/market-events-view";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
+import { getSectorRegimes } from "@/lib/sector-regimes";
+import { PremarketSection } from "@/components/premarket-section";
 
 export const revalidate = 120;
 
@@ -37,10 +40,13 @@ export default async function EventsPage() {
     : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
 
-  const [data, upcoming] = await Promise.all([
+  const [data, upcoming, premarketDoc, regimes] = await Promise.all([
     getMarketEvents(market).catch(() => null),
     listUpcomingPreEarningsIntel(market, 7).catch(() => []),
+    getPremarketMovers(market).catch(() => null),
+    getSectorRegimes(market).catch(() => ({ sectors: new Map(), macro: null })),
   ]);
+  const showPremarket = isPremarketLive(premarketDoc);
 
   // For events that already reported, check if we had a pre-earnings prediction
   // and whether it was correct, so we can show a "Predicted ✓" badge.
@@ -69,6 +75,13 @@ export default async function EventsPage() {
   return (
     <main className="flex-grow">
       <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
+        {showPremarket && premarketDoc && (
+          <PremarketSection
+            movers={premarketDoc}
+            marketPhase={regimes.macro?.market_phase}
+            marketRisk={regimes.macro?.risk_appetite}
+          />
+        )}
         {isEmpty ? (
           <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-10 text-center">
             <p className="text-[12px] font-semibold tracking-[0.12em] uppercase text-[#111111]">

@@ -958,6 +958,6 @@ def email_pre_market_brief(
         intro=intro,
         sections=sections,
         cta_label="See the full setup",
-        cta_url=f"{APP_URL}/premarket",
+        cta_url=f"{APP_URL}/events",
     )
     return subject, html

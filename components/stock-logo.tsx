@@ -14,6 +14,8 @@ type Props = {
   fallbackBg?: string;
   /** Text color used for the monogram fallback. */
   fallbackFg?: string;
+  /** Load immediately for above-the-fold logos (hero, etc.). */
+  eager?: boolean;
 };
 
 // Domain map for the NSE names we care about. Used to prefer a domain logo
@@ -190,6 +192,7 @@ export function StockLogo({
   market = "US",
   fallbackBg = "#1c1c1e",
   fallbackFg = "#ffffff",
+  eager = false,
 }: Props) {
   const upper = ticker.toUpperCase();
   const domain = domainForTicker(upper, market);
@@ -261,7 +264,8 @@ export function StockLogo({
         alt=""
         width={size}
         height={size}
-        loading="lazy"
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : "auto"}
         onError={() => {
           setLoaded(false);
           setSourceIndex((i) => i + 1);

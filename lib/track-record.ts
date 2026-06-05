@@ -12,10 +12,10 @@ export type CorrectCall = {
 };
 
 function callLabel(epsOutlook: string | undefined, move: string): string {
-  if (move === "rally" && epsOutlook === "beat") return "Predicted the beat — stock rose";
-  if (move === "fade" && epsOutlook === "miss") return "Predicted the miss — stock fell";
-  if (move === "rally") return "Predicted the rally — correct";
-  if (move === "fade") return "Predicted the drop — correct";
+  if (move === "rally" && epsOutlook === "beat") return "Predicted the beat, stock rose";
+  if (move === "fade" && epsOutlook === "miss") return "Predicted the miss, stock fell";
+  if (move === "rally") return "Predicted the rally, correct";
+  if (move === "fade") return "Predicted the drop, correct";
   return "The move matched our setup";
 }
 

@@ -25,10 +25,9 @@ type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; 
 // Primary nav leads with the surfaces that carry Pro value (Events has upcoming
 // setups, Anomalies is Pro-gated) plus the user's own Radar.
 const NAV_ITEMS: NavItem[] = [
-  { href: "/premarket", label: "Pre-market",        icon: "wb_twilight" },
-  { href: "/events",    label: "Events",            icon: "bolt" },
-  { href: "/anomalies", label: "Market Anomalies",  icon: "trending_up" },
-  { href: "/watchlist", label: "Radar",             icon: "radar" },
+  { href: "/events",    label: "Events",           icon: "bolt" },
+  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up" },
+  { href: "/watchlist", label: "Radar",            icon: "radar" },
 ];
 
 // Free, browse-only surfaces. Demoted into a "More" menu so they do not crowd
@@ -40,7 +39,7 @@ const MORE_ITEMS: NavItem[] = [
 ];
 
 /** Mobile strip order: conversion items first, free browse items last. */
-const MOBILE_HEADER_ORDER = ["/premarket", "/events", "/anomalies", "/watchlist", "/heat", "/screens", "/trump-logic"] as const;
+const MOBILE_HEADER_ORDER = ["/events", "/anomalies", "/watchlist", "/heat", "/screens", "/trump-logic"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
