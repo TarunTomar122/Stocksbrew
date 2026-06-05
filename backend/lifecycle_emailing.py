@@ -884,6 +884,7 @@ def email_pre_market_brief(
     gappers_down = premarket.get("gappers_down") or []
 
     sections: list[str] = []
+    shown_tickers: set[str] = set()
 
     # On your book before the bell (personalized).
     book_rows_html: list[str] = []
@@ -899,6 +900,7 @@ def email_pre_market_brief(
         book_rows_html.append(
             _premarket_stock_row(ticker=ticker, logo_url=row.get("logo_url"), gap_pct=gap, note=note)
         )
+        shown_tickers.add(ticker)
         if len(book_rows_html) >= 5:
             break
     book_count = len(book_rows_html)
@@ -913,14 +915,18 @@ def email_pre_market_brief(
     # Market-wide gappers.
     movers_html: list[str] = []
     for r in (gappers_up[:3] + gappers_down[:2]):
+        ticker = str(r.get("ticker") or "").strip().upper()
+        if not ticker or ticker in shown_tickers:
+            continue
         movers_html.append(
             _premarket_stock_row(
-                ticker=str(r.get("ticker") or ""),
+                ticker=ticker,
                 logo_url=r.get("logo_url"),
                 gap_pct=float(r.get("pre_market_change_pct") or 0.0),
                 note=str(r.get("name") or ""),
             )
         )
+        shown_tickers.add(ticker)
     if movers_html:
         sections.append(
             _section(
@@ -934,8 +940,11 @@ def email_pre_market_brief(
         bullets = []
         for ev in reporting_today[:5]:
             t = str(ev.get("ticker") or "").strip().upper()
+            if not t or t in shown_tickers:
+                continue
             call = str(ev.get("call") or "").strip()
             bullets.append(f"{t}{(' — ' + call) if call else ''}")
+            shown_tickers.add(t)
         if bullets:
             sections.append(_bullet_section("Reporting before the open", bullets))
 

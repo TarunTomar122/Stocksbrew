@@ -86,6 +86,42 @@ def _gather_candidate_tickers(store: TraceMoneyStore, market: str) -> tuple[set[
     return tickers, tracked_ids
 
 
+def _canonicalize_row(
+    *,
+    instrument_id: str,
+    quote: dict[str, Any],
+    candidates: dict[str, dict[str, Any]],
+    by_ticker: dict[str, dict[str, Any]],
+    by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    ticker = str(quote.get("ticker") or "").strip().upper()
+    if not ticker:
+        return None
+
+    # Always prefer the current universe mapping by ticker. This protects the
+    # snapshot from stale tracked IDs or mismatched candidate metadata.
+    inst = by_ticker.get(ticker)
+    if inst is None:
+        candidate = candidates.get(instrument_id) or {}
+        candidate_id = str(candidate.get("instrument_id") or "").strip().upper()
+        candidate_ticker = str(candidate.get("ticker") or "").strip().upper()
+        if candidate_id and candidate_id in by_id and candidate_ticker == ticker:
+            inst = by_id[candidate_id]
+    if inst is None:
+        return None
+
+    return {
+        "instrument_id": str(inst.get("instrument_id") or instrument_id).strip().upper(),
+        "ticker": ticker,
+        "name": inst.get("name") or ticker,
+        "logo_url": inst.get("logo_url"),
+        "sector": inst.get("sector"),
+        "pre_market_price": quote["pre_market_price"],
+        "previous_close": quote["previous_close"],
+        "pre_market_change_pct": quote["pre_market_change_pct"],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build pre-market movers snapshot")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -124,19 +160,20 @@ def main() -> None:
 
     rows: list[dict[str, Any]] = []
     market_state = ""
+    dropped = 0
     for iid, q in quotes.items():
-        inst = candidates.get(iid) or {}
         market_state = market_state or str(q.get("market_state") or "")
-        rows.append({
-            "instrument_id": iid,
-            "ticker": q["ticker"],
-            "name": inst.get("name") or q["ticker"],
-            "logo_url": inst.get("logo_url"),
-            "sector": inst.get("sector"),
-            "pre_market_price": q["pre_market_price"],
-            "previous_close": q["previous_close"],
-            "pre_market_change_pct": q["pre_market_change_pct"],
-        })
+        row = _canonicalize_row(
+            instrument_id=iid,
+            quote=q,
+            candidates=candidates,
+            by_ticker=by_ticker,
+            by_id=by_id,
+        )
+        if row is None:
+            dropped += 1
+            continue
+        rows.append(row)
 
     rows.sort(key=lambda r: abs(r["pre_market_change_pct"]), reverse=True)
     gappers_up = [r for r in rows if r["pre_market_change_pct"] >= 0][:15]
@@ -160,6 +197,7 @@ def main() -> None:
         "quoted": len(rows),
         "up": len(gappers_up),
         "down": len(gappers_down),
+        "dropped": dropped,
         "market_state": market_state,
     }))
 

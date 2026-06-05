@@ -27,7 +27,7 @@ from backend.models import Article
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-05-29-stock-brief-v11-earnings-actuals"
+STOCK_BRIEF_CACHE_VERSION = "2026-06-05-stock-brief-v12-regime-risk-appetite"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -268,7 +268,7 @@ Fields to write:
   - trigger, severity (1-5), probability (1-5)
 
 - **directive**: ONE actionable stance the user can take or watch for. Pick the single best fit based on evidence. Object with:
-  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $198", "Trim into strength above $220", "Watch Q1 earnings Apr 27", "Re-evaluate if Azure growth softens", "Starter position only - evidence thin"
+  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $198", "Trim into strength above $220", "Watch breakout above $230", "Hold above $205", "Starter position only - evidence thin"
   - stance: one of ["accumulate", "trim", "watch", "avoid", "hold"]
   - trigger_type: one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]
   - trigger_value: a STRING. PARITY IS MANDATORY:
@@ -289,17 +289,56 @@ STYLE:
 
 FUNDAMENTALS - USE THEM:
 - The user payload includes a `fundamentals` block with four pillar scores (valuation, growth, quality, momentum - each 0-100), plus `standout_metrics` (score ≥ 75) and `weak_metrics` (score ≤ 25) and quant-driven `catalysts` (earnings dates, rank upgrades, short spikes). These are ground truth, not news.
-- Let fundamentals shape the directive: a stock with weak valuation (PEG > 2, P/E > sector) trading up on news = "trim into strength" not "accumulate". A beaten-down name with strong growth and a Buy-tilted quant rank = "accumulate on dips".
+- Let fundamentals shape the directive, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
+- A beaten-down name with strong growth and a Buy-tilted quant rank can be "accumulate on dips". A high-multiple winner with strong evidence can still be "accumulate" or "watch for breakout" if the setup remains constructive.
 - Use fundamentals to pick concrete trigger prices - e.g. if the stock is above its analyst target, a "trim above $X" directive is natural; if below, "accumulate below $Y".
 - Drivers and risk_cards should weave fundamentals + news: "label: Margin expansion outpaces peers / detail: Operating margin sits in the sector's top quartile while revenue still compounds at 16% YoY."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
 
+RISK APPETITE - OFFENSIVE, NOT TIMID:
+- Write like a sharp growth-oriented investor who is willing to lean in when the setup is asymmetric.
+- Do not default to caution just because valuation looks rich. Expensive stocks can still be buys if growth, estimate revisions, narrative strength, sector leadership, and price structure support it.
+- Prefer identifying the highest-upside actionable setup, not the most defensible neutral take.
+- When evidence is bullish but imperfect, it is acceptable to give an "accumulate" or "watch for breakout" stance rather than collapsing to "hold".
+- Momentum, narrative acceleration, estimate revisions, leadership within sector, and strong post-earnings reactions are valid reasons to stay constructive even when valuation is stretched.
+- "Trim" should be reserved for genuinely crowded or exhausted setups where upside looks capped relative to risk, not simply because a stock has already run.
+- Avoid sounding like a compliance officer or textbook value investor. Sound like a sharp operator deciding where capital should go next.
+- Still stay evidence-bound: no hype, no invented catalysts, no fake certainty.
+
+DIRECTIVE SELECTION PRIORITY:
+- First ask: is there a credible upside path with real evidence behind it?
+- If yes, prefer "accumulate" or "watch" over "hold".
+- Use "hold" only when upside and downside are genuinely balanced.
+- Use "avoid" only when the evidence is clearly deteriorating or the thesis is breaking.
+- Use "trim" when the stock looks overheated, consensus is too euphoric, or the next catalyst has poor risk/reward.
+- Do NOT default to "accumulate on dips" for every bullish setup. Choose the directive style that best matches the actual setup.
+- Prefer directives that contain a concrete price level when the payload supports one. Support, resistance, recent closes, moving averages, analyst targets, or well-supported trigger levels are all valid anchors.
+- "Hold" should usually still be actionable with a level, for example "Hold above $205" or "Hold unless $690 breaks".
+- "Watch" should usually still be actionable with a level, for example "Watch breakout above $230" or "Watch for support at $140".
+
+DIRECTIVE STYLE BY SETUP:
+- If `setup_state` is "accumulation": "accumulate on dips below X" is natural when support is clear.
+- If `setup_state` is "breakout": prefer "watch/add above X" or "watch for breakout above X" rather than a dip-buy directive.
+- If `setup_state` is "trend": prefer "hold", "stay long", "add on continuation", or "hold while X holds" when momentum is healthy, and include the level when possible.
+- If `setup_state` is "rotation": prefer directives that acknowledge leadership shifts, relative strength, or capital rotating into the group.
+- If `setup_state` is "exhaustion": prefer "trim", "avoid chasing", or "re-evaluate if X breaks" over fresh accumulation.
+- If you choose a bullish stance, vary the directive wording so it reflects the setup instead of repeating the same template.
+- Avoid vague directives with no usable trigger when a concrete level is available in the payload.
+
 PRICE CONTEXT - USE IT:
 - The user payload may include a `price_context` block with day change vs market/sector, RSI, 52-week distance, MA position, volume vs average, multi-week returns, and recent session closes.
-- Use it to interpret news vs setup: bullish news after a big run = trim into strength, not accumulate. Quiet news while coiled above support = accumulation.
+- Use it to interpret news vs setup: bullish news after a big run does NOT automatically mean trim. If the move still has sponsorship and the setup is not exhausted, staying constructive is valid. Quiet news while coiled above support = accumulation.
 - Do NOT narrate the chart back ("stock is up 2% today"). Use price context for setup_state, directive trigger levels, and tension with fundamentals/news.
 - Anchor directive trigger prices to levels in price_context when sensible (recent closes, MAs, analyst targets).
+
+MARKET REGIME - USE IT:
+- The payload may include a `market_regime` block with a macro read (market_phase, risk_appetite, narrative, leadership, laggards, rotation_signal) and one relevant sector regime for the stock.
+- Use market regime to size conviction, not to override stock evidence blindly.
+- In risk-on tapes or leadership sectors, it is acceptable to lean more constructive when the stock evidence is already supportive.
+- In defensive tapes or a sector that is breaking down, require cleaner evidence before giving an aggressive bullish directive.
+- If stock evidence and regime disagree, surface the tension explicitly. That tension is often the real insight.
+- Do NOT repeat regime labels verbatim. Interpret what they mean for this stock's setup and directive.
 
 RECENCY - THIS IS CRITICAL:
 - Today's date is in the payload as `today`. The payload includes `recent_news`: an array of the freshest articles, each with its own `date`, `title`, and `summary`.
@@ -454,6 +493,7 @@ def _llm_synthesize_brief(
     analyst_target: float | None = None,
     fundamentals: dict[str, Any] | None = None,
     price_context: dict[str, Any] | None = None,
+    market_regime: dict[str, Any] | None = None,
     recent_news: list[dict[str, Any]] | None = None,
     reddit: dict[str, Any] | None = None,
     earnings: dict[str, Any] | None = None,
@@ -490,6 +530,8 @@ def _llm_synthesize_brief(
         payload["earnings"] = earnings
     if price_context:
         payload["price_context"] = price_context
+    if market_regime:
+        payload["market_regime"] = market_regime
 
     # Check cache
     cache_key = None
@@ -1013,6 +1055,48 @@ PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-27-portfolio-brief-v14"
 
 def _slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", (value or "").lower()).strip("_")
+
+
+def _stock_market_regime(
+    instrument: dict[str, Any],
+    fundamentals: dict[str, Any] | None,
+    sector_regimes: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not sector_regimes:
+        return None
+
+    regime_context: dict[str, Any] = {}
+    macro = sector_regimes.get("macro") or {}
+    if macro:
+        regime_context["macro"] = {
+            "market_phase": macro.get("market_phase"),
+            "risk_appetite": macro.get("risk_appetite"),
+            "narrative": macro.get("narrative"),
+            "leadership": macro.get("leadership") or [],
+            "laggards": macro.get("laggards") or [],
+            "rotation_signal": macro.get("rotation_signal") or "",
+        }
+
+    sector_candidates = [
+        str(instrument.get("sector") or "").strip(),
+        str((fundamentals or {}).get("sector") or "").strip(),
+    ]
+    sector_slug_candidates = {_slugify(value) for value in sector_candidates if value}
+    for slug in sector_slug_candidates:
+        regime = sector_regimes.get(slug) or {}
+        if not regime:
+            continue
+        regime_context["sector"] = {
+            "sector": regime.get("sector"),
+            "regime": regime.get("regime"),
+            "conviction": regime.get("conviction"),
+            "narrative": regime.get("narrative"),
+            "invalidators": regime.get("invalidators") or [],
+            "leadership_stocks": regime.get("leadership_stocks") or [],
+        }
+        break
+
+    return regime_context or None
 
 
 def generate_portfolio_brief(
@@ -2273,6 +2357,13 @@ def build_stock_intelligence_docs(
         except Exception:
             technicals_by_id = {}
 
+    sector_regimes: dict[str, Any] = {}
+    if store is not None:
+        try:
+            sector_regimes = store.get_sector_regimes(market)
+        except Exception:
+            sector_regimes = {}
+
     # Reddit buzz, loaded once per run and keyed by upper-cased ticker. Used to
     # give the brief retail-sentiment context alongside the news evidence.
     reddit_by_ticker: dict[str, dict[str, Any]] = {}
@@ -2572,6 +2663,7 @@ def build_stock_intelligence_docs(
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
+        market_regime = _stock_market_regime(instrument, fundamentals_block, sector_regimes)
         llm_brief = _llm_synthesize_brief(
             ticker=instrument["ticker"],
             name=instrument.get("name", instrument["ticker"]),
@@ -2587,6 +2679,7 @@ def build_stock_intelligence_docs(
             analyst_target=analyst_target,
             fundamentals=fundamentals_block,
             price_context=price_context,
+            market_regime=market_regime,
             recent_news=recent_news,
             reddit=reddit_ctx,
             earnings=earnings_ctx,

@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.instrument_universe import list_instruments
 from backend.lifecycle_emailing import (
     email_pre_market_brief,
     first_name_from_profile,
@@ -56,6 +57,11 @@ def _macro_phase_line(store: TraceMoneyStore, market: str) -> str | None:
 def _reporting_today(store: TraceMoneyStore, market: str) -> list[dict[str, Any]]:
     today = datetime.now(timezone.utc).date().isoformat()
     out: list[dict[str, Any]] = []
+    valid_tickers = {
+        str(row.get("ticker") or "").strip().upper()
+        for row in list_instruments(market)
+        if str(row.get("ticker") or "").strip()
+    }
     try:
         snap = (
             store.db.collection("tm_earnings_events")
@@ -65,11 +71,21 @@ def _reporting_today(store: TraceMoneyStore, market: str) -> list[dict[str, Any]
         )
         for doc in snap:
             t = str((doc.to_dict() or {}).get("ticker") or "").strip().upper()
-            if t:
+            if t and t in valid_tickers:
                 out.append({"ticker": t, "call": ""})
     except Exception:
         pass
-    return out[:5]
+    deduped: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in out:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if not ticker or ticker in seen:
+            continue
+        deduped.append(row)
+        seen.add(ticker)
+        if len(deduped) >= 5:
+            break
+    return deduped
 
 
 def main() -> None:

@@ -1,4 +1,4 @@
-"""A/B compare stock brief synthesis with and without price_context.
+"""Compare stock brief synthesis across baseline and enriched contexts.
 
 Example:
   cd backend && python -m backend.scripts.compare_brief_price_context --ticker NVDA
@@ -203,14 +203,16 @@ def main() -> None:
         )
 
     price_context = kwargs.pop("price_context", None)
+    market_regime = kwargs.pop("market_regime", None)
     kwargs["store"] = None
 
     if args.show_context and price_context:
         print("\n[price_context payload]")
         print(json.dumps(price_context, indent=2, ensure_ascii=True))
 
-    without = _llm_synthesize_brief(**kwargs, price_context=None)
-    with_ctx = _llm_synthesize_brief(**kwargs, price_context=price_context)
+    baseline = _llm_synthesize_brief(**kwargs, price_context=None, market_regime=None)
+    with_price = _llm_synthesize_brief(**kwargs, price_context=price_context, market_regime=None)
+    full = _llm_synthesize_brief(**kwargs, price_context=price_context, market_regime=market_regime)
 
     top_news_title = None
     titles = kwargs.get("article_titles")
@@ -218,18 +220,27 @@ def main() -> None:
         top_news_title = str(titles[0])
 
     _print_ui_view(
-        "UI — WITHOUT price_context (old)",
+        "UI — BASELINE (no price_context, no market_regime)",
         _ui_view(
-            without,
+            baseline,
             sentiment_label=str(kwargs.get("sentiment_label") or "neutral"),
             sentiment_score=int(kwargs.get("sentiment_score") or 50),
             top_news_title=top_news_title,
         ),
     )
     _print_ui_view(
-        "UI — WITH price_context (new)",
+        "UI — WITH price_context only",
         _ui_view(
-            with_ctx,
+            with_price,
+            sentiment_label=str(kwargs.get("sentiment_label") or "neutral"),
+            sentiment_score=int(kwargs.get("sentiment_score") or 50),
+            top_news_title=top_news_title,
+        ),
+    )
+    _print_ui_view(
+        "UI — FULL (price_context + market_regime + new prompt policy)",
+        _ui_view(
+            full,
             sentiment_label=str(kwargs.get("sentiment_label") or "neutral"),
             sentiment_score=int(kwargs.get("sentiment_score") or 50),
             top_news_title=top_news_title,
@@ -237,8 +248,9 @@ def main() -> None:
     )
 
     if args.raw:
-        _print_brief("RAW — WITHOUT price_context", without)
-        _print_brief("RAW — WITH price_context", with_ctx)
+        _print_brief("RAW — BASELINE", baseline)
+        _print_brief("RAW — WITH price_context only", with_price)
+        _print_brief("RAW — FULL", full)
 
 
 if __name__ == "__main__":

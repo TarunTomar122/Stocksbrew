@@ -4,6 +4,7 @@ import unittest
 
 from backend.models import Article
 from backend.stock_intelligence import (
+    _stock_market_regime,
     _summarize_price_context,
     build_stock_intelligence_docs,
 )
@@ -173,6 +174,61 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(block["volume_vs_avg"], 2.0)
         self.assertEqual(len(block["recent_sessions"]), 5)
         self.assertEqual(block["returns"]["week_1_pct"], 10.0)
+
+    def test_stock_market_regime_prefers_instrument_sector(self) -> None:
+        instrument = {"ticker": "NVDA", "sector": "Semiconductors"}
+        fundamentals = {"sector": "Technology"}
+        sector_regimes = {
+            "macro": {
+                "market_phase": "trending_up",
+                "risk_appetite": "high",
+                "narrative": "AI leadership still owns the tape.",
+                "leadership": ["Semiconductors", "Software"],
+                "laggards": ["Utilities"],
+                "rotation_signal": "Capital keeps rotating back into semis on pullbacks.",
+            },
+            "semiconductors": {
+                "sector": "Semiconductors",
+                "regime": "momentum",
+                "conviction": "high",
+                "narrative": "Estimate revisions remain positive.",
+                "invalidators": ["AI capex cuts"],
+                "leadership_stocks": ["NVDA", "AVGO"],
+            },
+            "technology": {
+                "sector": "Technology",
+                "regime": "range",
+                "conviction": "med",
+                "narrative": "Mixed breadth.",
+                "invalidators": [],
+                "leadership_stocks": ["MSFT"],
+            },
+        }
+
+        result = _stock_market_regime(instrument, fundamentals, sector_regimes)
+        assert result is not None
+        self.assertEqual(result["macro"]["market_phase"], "trending_up")
+        self.assertEqual(result["sector"]["sector"], "Semiconductors")
+        self.assertEqual(result["sector"]["regime"], "momentum")
+
+    def test_stock_market_regime_uses_fundamentals_sector_fallback(self) -> None:
+        instrument = {"ticker": "CRWD"}
+        fundamentals = {"sector": "Software"}
+        sector_regimes = {
+            "software": {
+                "sector": "Software",
+                "regime": "expanding",
+                "conviction": "med",
+                "narrative": "Enterprise spend is holding up.",
+                "invalidators": ["Budget cuts"],
+                "leadership_stocks": ["CRWD", "MSFT"],
+            }
+        }
+
+        result = _stock_market_regime(instrument, fundamentals, sector_regimes)
+        assert result is not None
+        self.assertEqual(result["sector"]["sector"], "Software")
+        self.assertEqual(result["sector"]["leadership_stocks"], ["CRWD", "MSFT"])
 
 
 if __name__ == "__main__":
