@@ -285,6 +285,7 @@ def main() -> None:
             "trump_logic",
             "premarket_movers",
             "premarket_email",
+            "contrarian_calls",
         ],
         required=True,
     )
@@ -357,6 +358,7 @@ def main() -> None:
         "trump_logic": os.getenv("TRUMP_LOGIC_JOB_NAME", "tikrr-trump-logic"),
         "premarket_movers": os.getenv("PREMARKET_MOVERS_JOB_NAME", "tikrr-premarket-movers"),
         "premarket_email": os.getenv("PREMARKET_EMAIL_JOB_NAME", "tikrr-premarket-email"),
+        "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
     }
     job_name = job_name_by_lane[args.lane]
 
@@ -592,6 +594,7 @@ def main() -> None:
         "trump_logic",
         "premarket_movers",
         "premarket_email",
+        "contrarian_calls",
     } and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)

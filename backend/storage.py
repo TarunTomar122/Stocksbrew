@@ -842,6 +842,14 @@ class TraceMoneyStore:
         self.db.collection("tm_sector_benchmarks").document(doc_id).set(payload)
         self.db.collection("tm_sector_benchmarks").document(f"latest__{market}").set(payload)
 
+    def save_contrarian_calls(self, market: str, payload: dict[str, Any]) -> None:
+        """Write the latest crowd-vs-us contrarian calls for a market."""
+        self.db.collection("tm_contrarian_calls").document(f"{market.upper()}__latest").set(payload)
+
+    def get_contrarian_calls(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_contrarian_calls").document(f"{market.upper()}__latest").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
     def save_premarket_movers(self, market: str, payload: dict[str, Any]) -> None:
         """Write the latest pre-market movers snapshot for a market."""
         self.db.collection("tm_premarket_movers").document(f"{market.upper()}__latest").set(payload)

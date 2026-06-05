@@ -3,6 +3,8 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getHeroIndices } from "@/lib/hero-indices";
 import { getCurrentMarket } from "@/lib/market";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getContrarianCalls } from "@/lib/contrarian";
+import { ContrarianWall } from "@/components/contrarian-wall";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 function pickSpotlight(
@@ -33,20 +35,24 @@ function pickSpotlight(
 export async function HomeHeroStream() {
   const market = getCurrentMarket();
   const session = await getSessionUser();
-  const [indices, userDoc, anomalies] = await Promise.all([
+  const [indices, userDoc, anomalies, contrarian] = await Promise.all([
     getHeroIndices(market),
     session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
     getDailyAnomalies(market).catch(() => null),
+    getContrarianCalls(market).catch(() => null),
   ]);
   const isSubscribed = resolveIsSubscribed(userDoc);
   const spotlight = pickSpotlight(anomalies);
 
   return (
-    <HeroSection
-      indices={indices}
-      isSubscribed={isSubscribed}
-      showIndexSkeleton={false}
-      spotlight={spotlight}
-    />
+    <div className="flex flex-col gap-16 md:gap-20">
+      <HeroSection
+        indices={indices}
+        isSubscribed={isSubscribed}
+        showIndexSkeleton={false}
+        spotlight={spotlight}
+      />
+      <ContrarianWall cards={contrarian?.cards ?? []} />
+    </div>
   );
 }
