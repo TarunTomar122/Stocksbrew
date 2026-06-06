@@ -92,11 +92,20 @@ export const metadata: Metadata = {
     description: MEDIUM_DESCRIPTION,
     url: "https://www.stocksbrew.online",
     locale: "en_US",
+    images: [
+      {
+        url: "/api/og",
+        width: 1200,
+        height: 630,
+        alt: "stocksbrew — clear buy, hold, and sell calls on US stocks",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE_DEFAULT,
     description: MEDIUM_DESCRIPTION,
+    images: ["/api/og"],
     creator: "@stocksbrew",
   },
   robots: {

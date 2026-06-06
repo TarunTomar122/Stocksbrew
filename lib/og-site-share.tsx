@@ -1,10 +1,36 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { ImageResponse } = require("next/dist/compiled/@vercel/og/index.node") as typeof import("@vercel/og");
+import { readFileSync } from "fs";
+import path from "path";
+
+import { ImageResponse } from "@vercel/og";
 
 import { getContrarianCalls, type ContrarianCard } from "@/lib/contrarian";
 import { MEDIUM_DESCRIPTION, SITE_TITLE_DEFAULT, TAGLINE } from "@/lib/brand-copy";
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;
+
+let fontCache: Array<{ name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" }> | null =
+  null;
+
+function loadOgFonts() {
+  if (fontCache) return fontCache;
+  const regularPath = path.join(process.cwd(), "assets/og/inter-400.woff");
+  const boldPath = path.join(process.cwd(), "assets/og/inter-700.woff");
+  fontCache = [
+    {
+      name: "Inter",
+      data: readFileSync(regularPath).buffer,
+      weight: 400,
+      style: "normal",
+    },
+    {
+      name: "Inter",
+      data: readFileSync(boldPath).buffer,
+      weight: 700,
+      style: "normal",
+    },
+  ];
+  return fontCache;
+}
 
 export type OgShareCard = {
   ticker: string;
@@ -121,10 +147,10 @@ function ShareCard({ card }: { card: OgShareCard }) {
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 28, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
+          <span style={{ fontSize: 28, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>
             {card.ticker}
           </span>
-          <span style={{ fontSize: 14, color: "#9ca3af", fontWeight: 500 }}>
+          <span style={{ fontSize: 14, color: "#9ca3af", fontWeight: 400 }}>
             {truncate(card.name, 18)}
           </span>
         </div>
@@ -148,7 +174,7 @@ function ShareCard({ card }: { card: OgShareCard }) {
         style={{
           alignSelf: "flex-start",
           fontSize: 14,
-          fontWeight: 800,
+          fontWeight: 700,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
           color: vs.color,
@@ -167,7 +193,7 @@ function ShareCard({ card }: { card: OgShareCard }) {
           fontSize: 17,
           lineHeight: 1.45,
           color: "#4b5563",
-          fontWeight: 500,
+          fontWeight: 400,
           display: "flex",
           flex: 1,
         }}
@@ -180,6 +206,7 @@ function ShareCard({ card }: { card: OgShareCard }) {
 
 export async function renderSiteShareImage() {
   const cards = await getOgShareCards();
+  const fonts = loadOgFonts();
 
   return new ImageResponse(
     (
@@ -190,7 +217,7 @@ export async function renderSiteShareImage() {
           display: "flex",
           flexDirection: "column",
           background: "linear-gradient(145deg, #0b1220 0%, #111827 55%, #0f172a 100%)",
-          fontFamily: '"Helvetica Neue", system-ui, -apple-system, sans-serif',
+          fontFamily: "Inter",
           padding: "44px 48px 40px",
         }}
       >
@@ -208,7 +235,7 @@ export async function renderSiteShareImage() {
             <span
               style={{
                 fontSize: 42,
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "#ffffff",
                 letterSpacing: "-0.04em",
               }}
@@ -216,10 +243,10 @@ export async function renderSiteShareImage() {
               stocksbrew
             </span>
           </div>
-          <span style={{ fontSize: 24, fontWeight: 600, color: "#e5e7eb", letterSpacing: "-0.02em" }}>
+          <span style={{ fontSize: 24, fontWeight: 700, color: "#e5e7eb", letterSpacing: "-0.02em" }}>
             {TAGLINE}
           </span>
-          <span style={{ fontSize: 17, color: "#9ca3af", maxWidth: 760, lineHeight: 1.4 }}>
+          <span style={{ fontSize: 17, color: "#9ca3af", maxWidth: 760, lineHeight: 1.4, fontWeight: 400 }}>
             {MEDIUM_DESCRIPTION}
           </span>
         </div>
@@ -243,10 +270,13 @@ export async function renderSiteShareImage() {
           <span style={{ fontSize: 16, fontWeight: 700, color: "#d1d5db" }}>
             www.stocksbrew.online
           </span>
-          <span style={{ fontSize: 14, color: "#6b7280" }}>{SITE_TITLE_DEFAULT}</span>
+          <span style={{ fontSize: 14, color: "#6b7280", fontWeight: 400 }}>{SITE_TITLE_DEFAULT}</span>
         </div>
       </div>
     ),
-    OG_SIZE,
+    {
+      ...OG_SIZE,
+      fonts,
+    },
   );
 }
