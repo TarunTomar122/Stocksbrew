@@ -34,7 +34,7 @@ const jsonLd = {
       name: "stocksbrew",
       url: "https://www.stocksbrew.online",
       description: MEDIUM_DESCRIPTION,
-      logo: "https://www.stocksbrew.online/hero.png",
+      logo: "https://www.stocksbrew.online/icon.svg",
       sameAs: ["https://www.stocksbrew.online"],
       contactPoint: {
         "@type": "ContactPoint",
@@ -92,20 +92,11 @@ export const metadata: Metadata = {
     description: MEDIUM_DESCRIPTION,
     url: "https://www.stocksbrew.online",
     locale: "en_US",
-    images: [
-      {
-        url: "/hero.png",
-        width: 1200,
-        height: 630,
-        alt: SITE_TITLE_DEFAULT,
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE_DEFAULT,
     description: MEDIUM_DESCRIPTION,
-    images: ["/hero.png"],
     creator: "@stocksbrew",
   },
   robots: {
