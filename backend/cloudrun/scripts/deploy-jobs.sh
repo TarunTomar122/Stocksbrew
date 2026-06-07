@@ -47,6 +47,7 @@ FIREBASE_SECRET_NAME="${FIREBASE_SECRET_NAME:-tikrr-firebase-service-account-jso
 OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-tikrr-openai-api-key}"
 TAVILY_SECRET_NAME="${TAVILY_SECRET_NAME:-tikrr-tavily-api-key}"
 BREVO_SECRET_NAME="${BREVO_SECRET_NAME:-tikrr-brevo-api-key}"
+TWELVE_DATA_SECRET_NAME="${TWELVE_DATA_SECRET_NAME:-tikrr-twelve-data-api-key}"
 OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini}"
 INTRADAY_LIMIT_CAP="${INTRADAY_LIMIT_CAP:-80}"
 INTRADAY_SHARD_SIZE_MIN="${INTRADAY_SHARD_SIZE_MIN:-40}"
@@ -138,6 +139,16 @@ upsert_optional_brevo_secret() {
   printf '%s' "${BREVO_API_KEY}" | gcloud secrets versions add "${BREVO_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
 }
 
+upsert_optional_twelve_data_secret() {
+  if [[ -z "${TWELVE_DATA_API_KEY:-}" ]]; then
+    return
+  fi
+  if ! gcloud secrets describe "${TWELVE_DATA_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
+    gcloud secrets create "${TWELVE_DATA_SECRET_NAME}" --replication-policy=automatic --project="${GOOGLE_CLOUD_PROJECT}"
+  fi
+  printf '%s' "${TWELVE_DATA_API_KEY}" | gcloud secrets versions add "${TWELVE_DATA_SECRET_NAME}" --data-file=- --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null
+}
+
 upsert_optional_tavily_secret() {
   if [[ -z "${TAVILY_API_KEY:-}" ]]; then
     return
@@ -155,6 +166,13 @@ tavily_secret_available() {
   gcloud secrets describe "${TAVILY_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1
 }
 
+twelve_data_secret_available() {
+  if [[ -n "${TWELVE_DATA_API_KEY:-}" ]]; then
+    return 0
+  fi
+  gcloud secrets describe "${TWELVE_DATA_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1
+}
+
 deploy_job() {
   local job_name="$1"
   local memory="$2"
@@ -167,6 +185,9 @@ deploy_job() {
   fi
   if [[ -n "${BREVO_API_KEY:-}" ]] || gcloud secrets describe "${BREVO_SECRET_NAME}" --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
     job_secrets="${job_secrets},BREVO_API_KEY=${BREVO_SECRET_NAME}:latest"
+  fi
+  if twelve_data_secret_available; then
+    job_secrets="${job_secrets},TWELVE_DATA_API_KEY=${TWELVE_DATA_SECRET_NAME}:latest"
   fi
 
   local deploy_args=(
@@ -251,6 +272,10 @@ else
   if [[ -n "${BREVO_API_KEY:-}" ]]; then
     echo "Updating Brevo secret ${BREVO_SECRET_NAME}..."
     upsert_optional_brevo_secret
+  fi
+  if [[ -n "${TWELVE_DATA_API_KEY:-}" ]]; then
+    echo "Updating Twelve Data secret ${TWELVE_DATA_SECRET_NAME}..."
+    upsert_optional_twelve_data_secret
   fi
   if [[ -n "${TAVILY_API_KEY:-}" ]]; then
     echo "Updating Tavily secret ${TAVILY_SECRET_NAME}..."
