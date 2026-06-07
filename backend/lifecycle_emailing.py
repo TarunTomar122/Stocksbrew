@@ -58,7 +58,13 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def send_email(to: str, subject: str, html_body: str) -> bool:
+def send_email(
+    to: str,
+    subject: str,
+    html_body: str,
+    *,
+    attachments: list[dict[str, str]] | None = None,
+) -> bool:
     api_key = os.environ.get("BREVO_API_KEY")
     if not api_key:
         print("[skip] BREVO_API_KEY not set")
@@ -66,15 +72,18 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
     try:
         import requests
 
+        payload: dict[str, Any] = {
+            "sender": {"email": FROM_EMAIL, "name": FROM_NAME},
+            "to": [{"email": to}],
+            "subject": subject,
+            "htmlContent": html_body,
+        }
+        if attachments:
+            payload["attachment"] = attachments
         resp = requests.post(
             BREVO_API,
             headers={"api-key": api_key, "Content-Type": "application/json"},
-            json={
-                "sender": {"email": FROM_EMAIL, "name": FROM_NAME},
-                "to": [{"email": to}],
-                "subject": subject,
-                "htmlContent": html_body,
-            },
+            json=payload,
             timeout=12,
         )
         if resp.status_code in (200, 201):
@@ -113,6 +122,7 @@ def _rich_shell(
     footer: str = "You’re getting this because you use stocksbrew. Not investment advice. Not a broker.",
     secondary_cta_label: str | None = None,
     secondary_cta_url: str | None = None,
+    content_width: int = 580,
 ) -> str:
     ctas = [
         (
@@ -126,6 +136,7 @@ def _rich_shell(
             f"text-decoration:none;font-size:14px;font-weight:600'>{_esc(secondary_cta_label)} &rarr;</a>"
         )
     sections_html = "".join(sections)
+    width = max(520, int(content_width or 580))
     return f"""<!doctype html>
 <html lang='en'>
 <head>
@@ -135,10 +146,10 @@ def _rich_shell(
 </head>
 <body style='margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif'>
   <table width='100%' cellpadding='0' cellspacing='0' style='padding:32px 16px'><tr><td align='center'>
-    <table width='580' cellpadding='0' cellspacing='0'>
+    <table width='{width}' cellpadding='0' cellspacing='0'>
       <tr><td style='padding-bottom:20px'><span style='font-size:24px;font-weight:800;color:#111111;letter-spacing:-0.05em'>stocksbrew</span></td></tr>
     </table>
-    <table width='580' cellpadding='0' cellspacing='0' style='background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden'>
+    <table width='{width}' cellpadding='0' cellspacing='0' style='background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden'>
       <tr><td style='padding:32px'>
         <div style='font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:12px'>{_esc(eyebrow)}</div>
         <div style='font-size:30px;font-weight:800;color:#111111;line-height:1.15;letter-spacing:-0.03em;margin-bottom:10px'>{_esc(title)}</div>
@@ -147,7 +158,7 @@ def _rich_shell(
       {sections_html}
       <tr><td style='padding:24px 32px 32px 32px'>{"".join(ctas)}</td></tr>
     </table>
-    <table width='580' cellpadding='0' cellspacing='0' style='margin-top:18px'>
+    <table width='{width}' cellpadding='0' cellspacing='0' style='margin-top:18px'>
       <tr><td style='font-size:12px;color:#9ca3af;line-height:1.7'>{footer}</td></tr>
     </table>
   </td></tr></table>
@@ -166,11 +177,61 @@ def _section(title: str, body: str) -> str:
 
 def _bullet_section(title: str, bullets: list[str]) -> str:
     items = "".join(
-        f"<li style='margin:0 0 8px 18px'>{_esc(item)}</li>"
+        f"<li style='margin:0 0 10px 18px;line-height:1.6;word-wrap:break-word;"
+        f"overflow-wrap:break-word'>{_esc(item)}</li>"
         for item in bullets
         if str(item or "").strip()
     )
     return _section(title, f"<ul style='padding:0;margin:0'>{items}</ul>")
+
+
+def _regime_chip(regime_label: str) -> str:
+    label = str(regime_label or "").strip()
+    if not label:
+        return ""
+    key = label.lower().replace(" ", "_")
+    if key in {"expanding", "momentum", "recovering"}:
+        bg, fg = "#ecfdf5", "#047857"
+    elif key in {"breaking_down", "topping"}:
+        bg, fg = "#fef2f2", "#b91c1c"
+    else:
+        bg, fg = "#f3f4f6", "#4b5563"
+    return (
+        f"<span style='display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;"
+        f"background:{bg};color:{fg};font-size:11px;font-weight:700;letter-spacing:0.02em;"
+        f"text-transform:lowercase'>{_esc(label)}</span>"
+    )
+
+
+def _sector_pulse_section(sector_insights: list[dict[str, Any]]) -> str:
+    blocks: list[str] = []
+    for row in sector_insights[:3]:
+        title = str(row.get("title") or "").strip()
+        if not title:
+            continue
+        regime = str(row.get("regime_label") or row.get("regime") or "").strip()
+        narrative = " ".join(str(row.get("narrative") or "").split())
+        chip = _regime_chip(regime)
+        blocks.append(
+            "<div style='margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #f3f4f6'>"
+            f"<div style='margin-bottom:6px;line-height:1.4'>"
+            f"<span style='font-size:14px;font-weight:700;color:#111827'>{_esc(title)}</span>"
+            f"{chip}</div>"
+            + (
+                f"<div style='font-size:13px;color:#6b7280;line-height:1.6'>{_esc(narrative)}</div>"
+                if narrative
+                else ""
+            )
+            + "</div>"
+        )
+    if not blocks:
+        return ""
+    if blocks:
+        blocks[-1] = blocks[-1].replace(
+            "margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #f3f4f6",
+            "margin:0;padding-bottom:0;border-bottom:none",
+        )
+    return _section("Sector pulse", "".join(blocks))
 
 
 def _is_bad_logo_url(raw: str) -> bool:
@@ -209,6 +270,28 @@ def email_logo_img(*, ticker: str, logo_url: str | None = None, size: int = 42, 
         f"<img src='{src}' width='{size}' height='{size}' "
         f"style='border-radius:{radius}px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb;padding:2px;display:block' />"
     )
+
+
+def _trim_words(text: str, limit: int) -> str:
+    cleaned = " ".join(str(text or "").split())
+    if len(cleaned) <= limit:
+        return cleaned
+    head = cleaned[: limit - 1]
+    last_space = head.rfind(" ")
+    trimmed = (head[:last_space] if last_space > 20 else head).strip()
+    return f"{trimmed}…" if trimmed else cleaned[:limit]
+
+
+def _first_sentence(text: str, limit: int = 120) -> str:
+    cleaned = " ".join(str(text or "").split())
+    if not cleaned:
+        return ""
+    for sep in (". ", "! ", "? "):
+        idx = cleaned.find(sep)
+        if idx > 0:
+            sentence = cleaned[: idx + 1].strip()
+            return _trim_words(sentence, limit)
+    return _trim_words(cleaned, limit)
 
 
 def email_track_blocked(ticker: str | None = None) -> tuple[str, str]:
@@ -968,5 +1051,146 @@ def email_pre_market_brief(
         sections=sections,
         cta_label="See the full setup",
         cta_url=f"{APP_URL}/events",
+    )
+    return subject, html
+
+
+def _weekly_stock_row(
+    *,
+    ticker: str,
+    logo_url: str | None,
+    week_pct: float,
+    note: str,
+) -> str:
+    up = week_pct >= 0
+    color = "#047857" if up else "#b91c1c"
+    arrow = "&#9650;" if up else "&#9660;"
+    logo = email_logo_src(ticker=ticker, logo_url=logo_url)
+    detail = _esc(_trim_words(note, 78)) if note else ""
+    return (
+        "<tr><td style='padding:10px 0;border-top:1px solid #f3f4f6'>"
+        "<table width='100%' cellpadding='0' cellspacing='0'><tr>"
+        f"<td width='34' valign='top'><img src='{_esc(logo)}' width='30' height='30' "
+        "style='border-radius:8px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb' alt='' /></td>"
+        "<td valign='top' style='padding-left:10px'>"
+        f"<span style='font-size:14px;font-weight:700;color:#111827'>{_esc(ticker)}</span> "
+        f"<span style='font-size:13px;font-weight:700;color:{color}'>{arrow} {abs(week_pct):.1f}%</span>"
+        + (
+            f"<div style='font-size:13px;color:#6b7280;line-height:1.5;margin-top:2px;"
+            f"word-wrap:break-word;overflow-wrap:break-word'>{detail}</div>"
+            if detail
+            else ""
+        )
+        + "</td></tr></table></td></tr>"
+    )
+
+
+def _index_chip(label: str, week_pct: float) -> str:
+    up = week_pct >= 0
+    color = "#047857" if up else "#b91c1c"
+    sign = "+" if up else ""
+    return (
+        "<span style='display:inline-block;margin:0 10px 8px 0;padding:8px 12px;border:1px solid #e5e7eb;"
+        "border-radius:999px;font-size:13px;color:#111827;background:#f9fafb'>"
+        f"<strong>{_esc(label)}</strong> "
+        f"<span style='color:{color};font-weight:700'>{sign}{week_pct:.1f}%</span></span>"
+    )
+
+
+def email_week_in_markets(
+    first_name: str,
+    report: dict[str, Any] | None,
+) -> tuple[str, str]:
+    """Build the free Sunday Week in the Markets newsletter."""
+    report = report or {}
+    macro_line = str(report.get("macro_line") or "").strip()
+    indices = report.get("indices") or []
+    gainers = report.get("gainers") or []
+    losers = report.get("losers") or []
+    sector_insights = report.get("sector_insights") or []
+    watch_items = report.get("watch_items") or []
+    macro = report.get("macro") or {}
+
+    sections: list[str] = []
+
+    if indices:
+        chips = "".join(
+            _index_chip(str(row.get("label") or ""), float(row.get("week_change_pct") or 0.0))
+            for row in indices
+        )
+        sections.append(_section("Market snapshot", chips))
+
+    if gainers:
+        rows = [
+            _weekly_stock_row(
+                ticker=str(row.get("ticker") or "").upper(),
+                logo_url=row.get("logo_url"),
+                week_pct=float(row.get("week_change_pct") or 0.0),
+                note=str(row.get("note") or ""),
+            )
+            for row in gainers[:4]
+            if str(row.get("ticker") or "").strip()
+        ]
+        if rows:
+            sections.append(
+                _section(
+                    "Biggest gainers",
+                    f"<table width='100%' cellpadding='0' cellspacing='0'>{''.join(rows)}</table>",
+                )
+            )
+
+    if losers:
+        rows = [
+            _weekly_stock_row(
+                ticker=str(row.get("ticker") or "").upper(),
+                logo_url=row.get("logo_url"),
+                week_pct=float(row.get("week_change_pct") or 0.0),
+                note=str(row.get("note") or ""),
+            )
+            for row in losers[:4]
+            if str(row.get("ticker") or "").strip()
+        ]
+        if rows:
+            sections.append(
+                _section(
+                    "Biggest decliners",
+                    f"<table width='100%' cellpadding='0' cellspacing='0'>{''.join(rows)}</table>",
+                )
+            )
+
+    sector_block = _sector_pulse_section(sector_insights)
+    if sector_block:
+        sections.append(sector_block)
+
+    if watch_items:
+        sections.append(_bullet_section("Watch next week", [str(item) for item in watch_items[:4] if str(item).strip()]))
+
+    hi = f"{first_name}, " if first_name and first_name != "there" else ""
+    intro_bits = ["Here's what moved this week."]
+    if macro_line:
+        intro_bits.append(_esc(macro_line))
+    macro_narrative = _first_sentence(str(macro.get("narrative") or ""), 130)
+    if macro_narrative:
+        intro_bits.append(_esc(macro_narrative))
+    intro = f"{hi}{' '.join(intro_bits)}"
+
+    lead_index = indices[0] if indices else None
+    if lead_index:
+        label = str(lead_index.get("label") or "Market")
+        pct = float(lead_index.get("week_change_pct") or 0.0)
+        sign = "+" if pct >= 0 else ""
+        subject = f"Week in the markets: {label} {sign}{pct:.1f}%"
+    else:
+        subject = "Your week in the markets"
+
+    html = _rich_shell(
+        title="Week in the markets",
+        eyebrow="Weekly recap",
+        intro=intro,
+        sections=sections,
+        cta_label="Open stocksbrew",
+        cta_url=APP_URL,
+        footer="You’re getting this because you use stocksbrew or signed up for our free newsletter. Not investment advice. Not a broker.",
+        content_width=660,
     )
     return subject, html

@@ -38,8 +38,12 @@ if [[ "${DRY_RUN}" == "1" ]]; then
 fi
 
 echo "Executing ${DISPATCH_JOB_NAME} with args: ${ARGS[*]}"
-gcloud run jobs execute "${DISPATCH_JOB_NAME}" \
-  --project="${GOOGLE_CLOUD_PROJECT}" \
-  --region="${GOOGLE_CLOUD_REGION}" \
-  --args="$(IFS=, ; echo "${ARGS[*]}")" \
+GCLOUD_ARGS=(run jobs execute "${DISPATCH_JOB_NAME}"
+  --project="${GOOGLE_CLOUD_PROJECT}"
+  --region="${GOOGLE_CLOUD_REGION}"
   --wait
+)
+for arg in "${ARGS[@]}"; do
+  GCLOUD_ARGS+=(--args="${arg}")
+done
+gcloud "${GCLOUD_ARGS[@]}"

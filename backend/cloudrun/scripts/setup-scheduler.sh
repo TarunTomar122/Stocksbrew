@@ -53,6 +53,7 @@ CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # 11:30 UTC = 7:
 CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h45 before the open email
 CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14 * * 1-5}" # 14:00 UTC = 30m after open; refresh hero contrarian wall with fresh open prices
 CRON_CONTRARIAN_CLOSE="${CRON_CONTRARIAN_CLOSE:-30 20 * * 1-5}" # 20:30 UTC = 30m after close; refresh hero contrarian wall for post-close session
+CRON_WEEKLY_NEWSLETTER="${CRON_WEEKLY_NEWSLETTER:-0 14 * * 0}" # Sunday 14:00 UTC = 10:00 ET; week in the markets recap
 STOCK_FACTS_LIMIT="${STOCK_FACTS_LIMIT:-0}" # 0 means full active price universe
 STOCK_FACTS_MAX_WORKERS="${STOCK_FACTS_MAX_WORKERS:-4}"
 
@@ -144,6 +145,7 @@ printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}
 printf '%s\n' "$(mk_minimal_body premarket_movers "${extra_universe}")" > "${tmp_dir}/premarket_movers.json"
 printf '%s\n' "$(mk_minimal_body premarket_email "${extra_universe}")" > "${tmp_dir}/premarket_email.json"
 printf '%s\n' "$(mk_minimal_body contrarian_calls "${extra_universe}")" > "${tmp_dir}/contrarian_calls.json"
+printf '%s\n' "$(mk_minimal_body weekly_newsletter "${extra_universe}")" > "${tmp_dir}/weekly_newsletter.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
 upsert_job "tikrr-open-price" "${CRON_OPEN_PRICE}" "${tmp_dir}/open_price.json"
@@ -170,5 +172,6 @@ upsert_job "tikrr-premarket-movers" "${CRON_PREMARKET_MOVERS}" "${tmp_dir}/prema
 upsert_job "tikrr-premarket-email" "${CRON_PREMARKET_EMAIL}" "${tmp_dir}/premarket_email.json"
 upsert_job "tikrr-contrarian-calls" "${CRON_CONTRARIAN}" "${tmp_dir}/contrarian_calls.json"
 upsert_job "tikrr-contrarian-calls-close" "${CRON_CONTRARIAN_CLOSE}" "${tmp_dir}/contrarian_calls.json"
+upsert_job "tikrr-weekly-newsletter" "${CRON_WEEKLY_NEWSLETTER}" "${tmp_dir}/weekly_newsletter.json"
 
 echo "Scheduler jobs ready in ${SCHEDULER_LOCATION}."

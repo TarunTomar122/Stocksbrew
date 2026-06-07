@@ -286,6 +286,7 @@ def main() -> None:
             "premarket_movers",
             "premarket_email",
             "contrarian_calls",
+            "weekly_newsletter",
         ],
         required=True,
     )
@@ -359,6 +360,7 @@ def main() -> None:
         "premarket_movers": os.getenv("PREMARKET_MOVERS_JOB_NAME", "tikrr-premarket-movers"),
         "premarket_email": os.getenv("PREMARKET_EMAIL_JOB_NAME", "tikrr-premarket-email"),
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
+        "weekly_newsletter": os.getenv("WEEKLY_NEWSLETTER_JOB_NAME", "tikrr-weekly-newsletter"),
     }
     job_name = job_name_by_lane[args.lane]
 
@@ -549,6 +551,8 @@ def main() -> None:
                 single_extra_args.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
         elif args.lane == "market_open_email":
             single_extra_args = ["--limit", str(max(0, args.limit))]
+        elif args.lane == "weekly_newsletter":
+            single_extra_args = ["--limit", str(max(0, args.limit))]
         elif args.lane == "stock_facts":
             single_extra_args = [
                 "--limit",
@@ -600,6 +604,7 @@ def main() -> None:
         "premarket_movers",
         "premarket_email",
         "contrarian_calls",
+        "weekly_newsletter",
     } and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)
