@@ -22,7 +22,19 @@ from backend.llm_client import (
 from backend.storage import TraceMoneyStore
 
 USER_AGENT = "tikrr-reddit-buzz/2.0"
-DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks", "investing", "StockMarket", "options", "shortsqueeze"]
+DEFAULT_SUBREDDITS = [
+    "wallstreetbets",
+    "stocks",
+    "investing",
+    "StockMarket",
+    "options",
+    "shortsqueeze",
+    "SecurityAnalysis",
+    "ValueInvesting",
+    "dividends",
+    "ETFs",
+    "pennystocks",
+]
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 
 TICKER_EXTRACTION_PROMPT = """You extract stock buzz from Reddit posts.
