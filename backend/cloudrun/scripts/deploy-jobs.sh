@@ -179,6 +179,7 @@ deploy_job() {
   local memory="$2"
   local cpu="$3"
   local timeout="$4"
+  local job_args="${5:-}"
 
   local job_secrets="FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SECRET_NAME}:latest,OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest"
   if tavily_secret_available; then
@@ -209,6 +210,9 @@ deploy_job() {
 
   if [[ -n "${SERVICE_ACCOUNT_EMAIL:-}" ]]; then
     deploy_args+=(--service-account="${SERVICE_ACCOUNT_EMAIL}")
+  fi
+  if [[ -n "${job_args}" ]]; then
+    deploy_args+=(--args="${job_args}")
   fi
 
   gcloud "${deploy_args[@]}"
@@ -290,7 +294,16 @@ fi
 run_deploy() {
   local key="$1"
   read -r job_name memory cpu timeout <<< "${JOB_REGISTRY[$key]}"
-  deploy_job "${job_name}" "${memory}" "${cpu}" "${timeout}"
+  local job_args=""
+  case "${key}" in
+    premarket-movers)
+      job_args="-m,backend.cloudrun.jobs.premarket_movers_job,--run-id,manual,--lane,premarket_movers,--market,US"
+      ;;
+    premarket-email)
+      job_args="-m,backend.cloudrun.jobs.premarket_email_job,--run-id,manual,--lane,premarket_email,--market,US"
+      ;;
+  esac
+  deploy_job "${job_name}" "${memory}" "${cpu}" "${timeout}" "${job_args}"
 }
 
 if [[ ${#TARGET_JOBS[@]} -eq 0 ]]; then
