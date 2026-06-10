@@ -28,7 +28,7 @@ names, not product concepts.
 | **Fundamentals** | `sync_stock_metrics` (Finviz scrape) | coverage catalog / selected refresh set | ~166 | Every 5 days | `tm_stock_metrics` |
 | **AI briefs + news** | tracked Cloud Run lanes + `build_per_stock_intelligence` | runtime core + UNION(subscribed tracked) | AI universe + tracked | Daily/pre-open/on-demand | `tm_news_runs`, `tm_stock_intelligence` |
 | **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_earnings_intel` |
-| **Pre-earnings intel** | `build_pre_earnings_intel` | US universe + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
+| **Pre-earnings intel** | `build_pre_earnings_intel` | full supported US market catalog + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
 | **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Pre-market + on-demand | `tm_watchlist_views` |
 | **On-demand news** | `process_on_demand_news_jobs` | any newly tracked stock | any | Queued by tracking flows; currently processed by scheduled polling | `tm_on_demand_news_jobs` |
 

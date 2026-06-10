@@ -12,7 +12,7 @@ def main() -> None:
     parser.add_argument("--market", choices=["US"], default="US")
     parser.add_argument("--universe", default="")
     parser.add_argument("--upcoming-days", type=int, default=7)
-    parser.add_argument("--max-events", type=int, default=40)
+    parser.add_argument("--max-events", type=int, default=200)
     parser.add_argument("--model", default="")
     parser.add_argument(
         "--force",

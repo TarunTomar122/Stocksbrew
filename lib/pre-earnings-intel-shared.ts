@@ -55,14 +55,14 @@ export function daysUntilEventDate(eventDate: string, ref = new Date()): number 
   return Math.round((event.getTime() - today.getTime()) / 86_400_000);
 }
 
-/** True when print is 1..maxDays calendar days ahead (UTC). */
+/** True when print is today..maxDays calendar days ahead (UTC). */
 export function isWithinPreEarningsWindow(
   eventDate: string,
   maxDays = 7,
   ref = new Date(),
 ): boolean {
   const delta = daysUntilEventDate(eventDate, ref);
-  return delta !== null && delta >= 1 && delta <= maxDays;
+  return delta !== null && delta >= 0 && delta <= maxDays;
 }
 
 export function filterPreEarningsWithinDays(

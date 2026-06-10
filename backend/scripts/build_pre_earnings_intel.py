@@ -239,7 +239,7 @@ def _list_upcoming_events(
         event_date = _as_date(str(payload.get("event_date") or ""))
         if not event_date:
             continue
-        if today < event_date <= end:
+        if today <= event_date <= end:
             out.append((event_date, payload))
     out.sort(key=lambda pair: pair[0])
     return [payload for _date, payload in out[: max(1, max_events)]]
@@ -358,7 +358,7 @@ def main() -> None:
         default=7,
         help="When --all-upcoming, include event_date within this many days ahead",
     )
-    parser.add_argument("--max-events", type=int, default=40, help="Cap processed events")
+    parser.add_argument("--max-events", type=int, default=200, help="Cap processed events")
     parser.add_argument(
         "--force",
         action="store_true",

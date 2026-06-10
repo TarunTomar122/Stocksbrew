@@ -89,7 +89,7 @@ export async function listUpcomingPreEarningsIntel(
   const eventSnap = await adminFirestore
     .collection("tm_earnings_events")
     .where("market", "==", market)
-    .where("event_date", ">", fromIso)
+    .where("event_date", ">=", fromIso)
     .where("event_date", "<=", toIso)
     .orderBy("event_date")
     .get();

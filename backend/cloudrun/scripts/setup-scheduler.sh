@@ -148,7 +148,7 @@ printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phas
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday_openburst.json"
 printf '%s\n' "$(mk_body daily_postclose "${extra_universe}")" > "${tmp_dir}/postclose.json"
 printf '%s\n' "$(mk_body earnings_intel "${extra_universe},\"--recent-days\",\"3\",\"--max-events\",\"30\"")" > "${tmp_dir}/earnings_intel.json"
-printf '%s\n' "$(mk_body pre_earnings_intel "${extra_universe},\"--upcoming-days\",\"7\",\"--max-events\",\"40\"")" > "${tmp_dir}/pre_earnings_intel.json"
+printf '%s\n' "$(mk_body pre_earnings_intel ",\"--upcoming-days\",\"7\",\"--max-events\",\"200\"")" > "${tmp_dir}/pre_earnings_intel.json"
 printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
 printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}/trump_logic.json"

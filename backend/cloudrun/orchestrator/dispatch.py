@@ -59,6 +59,20 @@ def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None)
     return store.get_active_price_universe(market) or ""
 
 
+def _lane_universe_id(
+    store: TraceMoneyStore,
+    market: str,
+    lane: str,
+    explicit: str | None,
+) -> str:
+    # Public pre-earnings surfaces should cover the full supported market
+    # catalog, not just the active runtime core. Only honor an explicit
+    # universe override for that lane.
+    if lane == "pre_earnings_intel":
+        return str(explicit or "").strip()
+    return _resolve_universe(store, market, explicit)
+
+
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
     # `limit` only caps the ranked runtime core. Price-core overrides are the
     # extended high-priority coverage set and must be included for every
@@ -332,8 +346,8 @@ def main() -> None:
 
     store = TraceMoneyStore()
     state = PipelineStateStore(store)
-    universe_id = _resolve_universe(store, args.market, args.universe or None)
-    if not universe_id:
+    universe_id = _lane_universe_id(store, args.market, args.lane, args.universe or None)
+    if args.lane != "pre_earnings_intel" and not universe_id:
         raise ValueError(f"No active universe configured for {args.market}")
     run_id = args.run_id or _utc_run_id(args.lane, args.market)
 
