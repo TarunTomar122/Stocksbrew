@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -130,17 +131,11 @@ def _utc_now() -> str:
 
 
 def _strip_html(raw: str) -> str:
-    return (
-        str(raw or "")
-        .replace("<br>", "\n")
-        .replace("<br/>", "\n")
-        .replace("<br />", "\n")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", '"')
-        .replace("&#39;", "'")
-    )
+    text = html.unescape(str(raw or ""))
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 
 def _fetch_rss(subreddit: str, timeout_s: int) -> list[dict[str, Any]]:
@@ -178,13 +173,37 @@ STOPWORDS = {
     "CALL", "CALLS", "PUT", "PUTS", "HOLD", "SELL", "BUY", "LONG", "SHORT",
 }
 
+HEURISTIC_AMBIGUOUS_TICKERS = {
+    "A", "AA", "AI", "ALL", "AM", "AMP", "AN", "ARE", "AS", "AT", "BR", "BY",
+    "CAN", "CEO", "DD", "EDIT", "ELSE", "EV", "FOR", "GO", "HAS", "HE", "HIM",
+    "I", "IN", "IT", "JOB", "KEY", "LINK", "LOW", "MD", "ME", "MY", "NOW",
+    "ON", "OR", "OUT", "R", "REDD", "S", "SO", "T", "TD", "TO", "U", "US",
+    "V", "W", "WELL", "WHY", "X", "Y", "YOU",
+}
 
-def _heuristic_fallback(posts: list[dict[str, Any]], max_tickers: int) -> tuple[list[dict[str, Any]], str, list[str]]:
+
+def _extract_heuristic_candidates(text: str) -> list[str]:
+    out: list[str] = []
+    raw = str(text or "")
+    for token in re.findall(r"\$([A-Za-z]{1,5})\b", raw):
+        out.append(token.upper())
+    for token in re.findall(r"\b[A-Z]{3,5}\b", raw):
+        out.append(token)
+    return out
+
+
+def _heuristic_fallback(
+    posts: list[dict[str, Any]],
+    max_tickers: int,
+    supported_tickers: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], str, list[str]]:
     stats: dict[str, int] = defaultdict(int)
     for post in posts:
-        text = f"{post.get('title', '')} {post.get('selftext', '')}".upper()
-        for token in re.findall(r"\b[A-Z]{1,5}\b", text):
-            if token in STOPWORDS or len(token) <= 1:
+        text = f"{post.get('title', '')} {post.get('selftext', '')}"
+        for token in _extract_heuristic_candidates(text):
+            if token in STOPWORDS or token in HEURISTIC_AMBIGUOUS_TICKERS or len(token) <= 1:
+                continue
+            if supported_tickers is not None and token not in supported_tickers:
                 continue
             stats[token] += 1
     ranked = sorted(stats.items(), key=lambda item: item[1], reverse=True)[:max_tickers]
@@ -195,10 +214,50 @@ def _heuristic_fallback(posts: list[dict[str, Any]], max_tickers: int) -> tuple[
             "summary": f"{symbol} mentioned in {count} Reddit posts.",
             "mention_count": int(count),
             "catalysts": [],
+            "source": "heuristic",
         }
         for symbol, count in ranked
     ]
     return tickers, "neutral", []
+
+
+def _supplement_with_heuristics(
+    *,
+    posts: list[dict[str, Any]],
+    existing: list[dict[str, Any]],
+    max_tickers: int,
+    supported_tickers: set[str],
+) -> list[dict[str, Any]]:
+    if len(existing) >= max_tickers:
+        return existing[:max_tickers]
+
+    existing_by_ticker = {
+        str(row.get("ticker") or "").strip().upper(): dict(row)
+        for row in existing
+        if str(row.get("ticker") or "").strip()
+    }
+    existing_order = [
+        str(row.get("ticker") or "").strip().upper()
+        for row in existing
+        if str(row.get("ticker") or "").strip()
+    ]
+    heuristics, _, _ = _heuristic_fallback(posts, max_tickers=max_tickers * 3, supported_tickers=supported_tickers)
+    remaining_slots = min(max_tickers - len(existing_order), 6)
+    added_order: list[str] = []
+    for row in heuristics:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if not ticker or ticker in existing_by_ticker:
+            continue
+        if ticker not in supported_tickers:
+            continue
+        existing_by_ticker[ticker] = row
+        added_order.append(ticker)
+        if len(added_order) >= remaining_slots or len(existing_by_ticker) >= max_tickers:
+            break
+
+    merged = [existing_by_ticker[ticker] for ticker in existing_order if ticker in existing_by_ticker]
+    merged.extend(existing_by_ticker[ticker] for ticker in added_order if ticker in existing_by_ticker)
+    return merged[:max_tickers]
 
 
 def _normalize_name(value: str) -> str:
@@ -292,6 +351,8 @@ def main() -> None:
         except Exception as exc:
             print({"stage": "reddit_scan_failed", "subreddit": subreddit, "error": str(exc)})
 
+    supported_tickers = _load_supported_tickers(store, args.market)
+
     llm_data: dict[str, Any] | None = None
     try:
         llm_data = _llm_extract(posts, timeout_seconds=args.llm_timeout_seconds)
@@ -311,8 +372,11 @@ def main() -> None:
         for post in posts[: max(0, args.max_top_posts)]
     ]
 
+    llm_ticker_count = 0
+    heuristic_supplement_count = 0
+    heuristic_only = False
+
     if llm_data and isinstance(llm_data.get("tickers"), dict):
-        supported_tickers = _load_supported_tickers(store, args.market)
         tickers_payload: list[dict[str, Any]] = []
         for symbol, item in (llm_data.get("tickers") or {}).items():
             ticker = str(symbol or "").strip().upper()
@@ -344,10 +408,12 @@ def main() -> None:
                     "exchange_hint": str(item.get("exchange_hint") or "UNKNOWN").strip().upper()[:12],
                     "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0.0))),
                     "evidence_span": str(item.get("evidence_span") or "").strip()[:180],
+                    "source": "llm",
                 }
             )
         tickers_payload.sort(key=lambda row: int(row.get("mention_count") or 0), reverse=True)
         tickers_payload = tickers_payload[: max(0, args.max_tickers)]
+        llm_ticker_count = len(tickers_payload)
         mood = str(llm_data.get("market_mood") or "neutral")
         notable = []
         for row in (llm_data.get("notable_posts") or [])[:12]:
@@ -358,15 +424,29 @@ def main() -> None:
                     notable.append(why)
                 elif title:
                     notable.append(title)
+        before_supplement = len(tickers_payload)
+        tickers_payload = _supplement_with_heuristics(
+            posts=posts,
+            existing=tickers_payload,
+            max_tickers=max(0, args.max_tickers),
+            supported_tickers=supported_tickers,
+        )
+        heuristic_supplement_count = max(0, len(tickers_payload) - before_supplement)
     else:
-        tickers_payload, mood, notable = _heuristic_fallback(posts, args.max_tickers)
+        heuristic_only = True
+        tickers_payload, mood, notable = _heuristic_fallback(posts, args.max_tickers, supported_tickers)
 
     payload = {
         "market": args.market,
         "generated_at": _utc_now(),
         "post_count": len(posts),
+        "subreddit_count": len(subreddits),
         "subreddits": subreddits,
         "market_mood": mood,
+        "ticker_count": len(tickers_payload),
+        "llm_ticker_count": llm_ticker_count,
+        "heuristic_supplement_count": heuristic_supplement_count,
+        "heuristic_only": heuristic_only,
         "tickers": tickers_payload,
         "top_posts": top_posts,
         "notable_discussions": notable[:12],
@@ -383,7 +463,15 @@ def main() -> None:
         error_count=0,
         metadata={"subreddits": subreddits, "max_tickers": args.max_tickers},
     )
-    print({"market": args.market, "post_count": len(posts), "ticker_count": len(tickers_payload), "llm": bool(llm_data)})
+    print({
+        "market": args.market,
+        "post_count": len(posts),
+        "ticker_count": len(tickers_payload),
+        "llm": bool(llm_data),
+        "llm_ticker_count": llm_ticker_count,
+        "heuristic_supplement_count": heuristic_supplement_count,
+        "heuristic_only": heuristic_only,
+    })
 
 
 if __name__ == "__main__":
