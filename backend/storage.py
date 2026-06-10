@@ -927,6 +927,9 @@ class TraceMoneyStore:
     def _news_namespace(self, market: str, universe_id: str):
         return self.db.collection("tm_news_runs").document(f"{market}__{universe_id}")
 
+    def _news_freshness_collection(self):
+        return self.db.collection("tm_news_freshness")
+
     def _replace_subcollection(self, parent_ref, name: str, docs_payload: list[dict[str, Any]], id_field: str) -> None:
         def commit_batch(ops: list[tuple[str, Any, dict[str, Any] | None]]) -> None:
             if not ops:
@@ -1031,6 +1034,42 @@ class TraceMoneyStore:
         rows = [_serialize(doc.to_dict()) or {} for doc in docs]
         rows.sort(key=lambda row: row.get("published_at", ""), reverse=True)
         return rows
+
+    def get_news_freshness_docs(
+        self,
+        market: str,
+        instrument_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        rows: dict[str, dict[str, Any]] = {}
+        if not instrument_ids:
+            return rows
+        refs = [
+            self._news_freshness_collection().document(f"{market.upper()}__{instrument_id.strip().upper()}")
+            for instrument_id in instrument_ids
+            if str(instrument_id or "").strip()
+        ]
+        for doc in self.db.get_all(refs):
+            if not doc.exists:
+                continue
+            payload = _serialize(doc.to_dict()) or {}
+            instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+            if instrument_id:
+                rows[instrument_id] = payload
+        return rows
+
+    def save_news_freshness_docs(self, payloads: list[dict[str, Any]]) -> None:
+        if not payloads:
+            return
+        collection = self._news_freshness_collection()
+        for start in range(0, len(payloads), 450):
+            batch = self.db.batch()
+            for payload in payloads[start:start + 450]:
+                market = str(payload.get("market") or "").strip().upper()
+                instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+                if not market or not instrument_id:
+                    continue
+                batch.set(collection.document(f"{market}__{instrument_id}"), payload, merge=True)
+            batch.commit()
 
     def save_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
@@ -1231,6 +1270,55 @@ class TraceMoneyStore:
             data["uid"] = doc.id
             rows.append(data)
         return rows
+
+    def list_users_by_ids(self, uids: list[str]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        if not uids:
+            return rows
+        collection = self.db.collection("users")
+        refs = [collection.document(str(uid).strip()) for uid in uids if str(uid).strip()]
+        for doc in self.db.get_all(refs):
+            if not doc.exists:
+                continue
+            data = _serialize(doc.to_dict()) or {}
+            tracked = data.get("tracked_stocks") or []
+            if not isinstance(tracked, list) or not tracked:
+                continue
+            data["uid"] = doc.id
+            rows.append(data)
+        rows.sort(key=lambda row: str(row.get("uid") or ""))
+        return rows
+
+    def list_user_ids_tracking_any(
+        self,
+        instrument_ids: list[str],
+        *,
+        subscribed_only: bool = False,
+    ) -> list[str]:
+        wanted = {
+            str(instrument_id or "").strip().upper()
+            for instrument_id in instrument_ids
+            if str(instrument_id or "").strip()
+        }
+        if not wanted:
+            return []
+        matched: list[str] = []
+        for user in self.list_subscribed_users():
+            if subscribed_only and not bool(user.get("is_subscribed")):
+                continue
+            tracked = user.get("tracked_stocks") or []
+            if not isinstance(tracked, list):
+                continue
+            tracked_ids = {
+                str(instrument_id or "").strip().upper()
+                for instrument_id in tracked
+                if str(instrument_id or "").strip()
+            }
+            if tracked_ids.intersection(wanted):
+                uid = str(user.get("uid") or "").strip()
+                if uid:
+                    matched.append(uid)
+        return matched
 
     def list_user_watchlists(self, market: str | None = None) -> list[dict[str, Any]]:
         docs = self.db.collection("tm_user_watchlists").stream()

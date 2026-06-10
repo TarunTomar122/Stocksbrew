@@ -3,12 +3,13 @@
 ## Lanes (target shape)
 
 1. `tracked_news_prep` (pre-open): fetch + enrich tracked-stock news only.
-2. `price_core_open` (market open): fast sharded price refresh for core list.
-3. `tracked_open_briefs` (after open): build tracked AI briefs from fresh prices + cached enriched news, then targeted materialize.
-4. `price_core_intraday` (every 30 min in current Scheduler): sharded price refresh + lightweight materialize for ranked runtime core plus price-core overrides.
-5. `market_open_email` (after open chain): send market-open digest emails (pro personalized + free generic).
-6. `daily_postclose` (once post-close): heavier daily chain.
-7. `data_health` (after open and close derived feeds): write `tm_data_health/{market}` frontend freshness/cost snapshot.
+2. `tracked_incremental_refresh` (new incremental cadence): fetch tracked-stock news, detect changed tickers, rebuild briefs only for changed names, then refresh only affected user watchlists.
+3. `price_core_open` (market open): fast sharded price refresh for core list.
+4. `tracked_open_briefs` (after open): build tracked AI briefs from fresh prices + cached enriched news, then targeted materialize.
+5. `price_core_intraday` (every 30 min in current Scheduler): sharded price refresh + lightweight materialize for ranked runtime core plus price-core overrides.
+6. `market_open_email` (after open chain): send market-open digest emails (pro personalized + free generic).
+7. `daily_postclose` (once post-close): heavier daily chain.
+8. `data_health` (after open and close derived feeds): write `tm_data_health/{market}` frontend freshness/cost snapshot.
 
 ## Folder layout
 
@@ -61,6 +62,7 @@ bash backend/cloudrun/scripts/deploy-jobs.sh
 
 ```bash
 LANE=tracked_news_prep SHARD_SIZE=2 MAX_PARALLEL=2 PER_STOCK_CAP=3 bash backend/cloudrun/scripts/run-dispatch.sh
+LANE=tracked_incremental_refresh PER_STOCK_CAP=3 bash backend/cloudrun/scripts/run-dispatch.sh
 LANE=price_core_open LIMIT=5 SHARD_SIZE=2 MAX_PARALLEL=2 bash backend/cloudrun/scripts/run-dispatch.sh
 LANE=tracked_open_briefs SHARD_SIZE=2 MAX_PARALLEL=2 PER_STOCK_CAP=3 bash backend/cloudrun/scripts/run-dispatch.sh
 LANE=price_core_intraday LIMIT=5 SHARD_SIZE=2 MAX_PARALLEL=2 bash backend/cloudrun/scripts/run-dispatch.sh

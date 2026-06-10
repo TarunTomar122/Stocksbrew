@@ -26,6 +26,11 @@ CHUNK_WORKERS="${CHUNK_WORKERS:-4}"
 
 # 7:00 PM IST baseline open is 13:30 UTC. If open shifts to 8:00 PM IST, update these cron strings (+1h).
 CRON_PREOPEN="${CRON_PREOPEN:-45 12 * * 1-5}"            # 6:15 PM IST
+CRON_TRACKED_REFRESH_T6="${CRON_TRACKED_REFRESH_T6:-30 7 * * 1-5}" # 1:00 PM IST / 6h before US open
+CRON_TRACKED_REFRESH_T2="${CRON_TRACKED_REFRESH_T2:-30 11 * * 1-5}" # 5:00 PM IST / 2h before US open
+CRON_TRACKED_REFRESH_PRE="${CRON_TRACKED_REFRESH_PRE:-0 13 * * 1-5}" # 6:30 PM IST / 30m before US open
+CRON_TRACKED_REFRESH_INTRADAY="${CRON_TRACKED_REFRESH_INTRADAY:-30 16,19 * * 1-5}" # 10:00 PM + 1:00 AM IST / roughly every 3h in session
+CRON_TRACKED_REFRESH_CLOSE="${CRON_TRACKED_REFRESH_CLOSE:-30 20 * * 1-5}" # 2:00 AM IST / 30m after close
 CRON_OPEN_PRICE="${CRON_OPEN_PRICE:-30 13 * * 1-5}"       # 7:00 PM IST
 CRON_OPEN_BRIEFS="${CRON_OPEN_BRIEFS:-35 13 * * 1-5}"     # 7:05 PM IST
 CRON_OPEN_ANOMALIES="${CRON_OPEN_ANOMALIES:-38 13 * * 1-5}" # 7:08 PM IST
@@ -122,6 +127,11 @@ if [[ -n "${UNIVERSE}" ]]; then
 fi
 
 printf '%s\n' "$(mk_body tracked_news_prep "${extra_universe}")" > "${tmp_dir}/preopen.json"
+printf '%s\n' "$(mk_body tracked_incremental_refresh "${extra_universe}")" > "${tmp_dir}/tracked_refresh_t6.json"
+printf '%s\n' "$(mk_body tracked_incremental_refresh "${extra_universe}")" > "${tmp_dir}/tracked_refresh_t2.json"
+printf '%s\n' "$(mk_body tracked_incremental_refresh "${extra_universe}")" > "${tmp_dir}/tracked_refresh_pre.json"
+printf '%s\n' "$(mk_body tracked_incremental_refresh "${extra_universe}")" > "${tmp_dir}/tracked_refresh_intraday.json"
+printf '%s\n' "$(mk_body tracked_incremental_refresh "${extra_universe}")" > "${tmp_dir}/tracked_refresh_close.json"
 printf '%s\n' "$(mk_body price_core_open "${extra_universe},\"--session-phase\",\"open_check\"")" > "${tmp_dir}/open_price.json"
 printf '%s\n' "$(mk_body tracked_open_briefs "${extra_universe},\"--session-phase\",\"open_check\"")" > "${tmp_dir}/open_briefs.json"
 printf '%s\n' "$(mk_body open_anomalies "${extra_universe}")" > "${tmp_dir}/open_anomalies.json"
@@ -148,6 +158,11 @@ printf '%s\n' "$(mk_minimal_body contrarian_calls "${extra_universe}")" > "${tmp
 printf '%s\n' "$(mk_minimal_body weekly_newsletter "${extra_universe}")" > "${tmp_dir}/weekly_newsletter.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
+upsert_job "tikrr-tracked-refresh-t6" "${CRON_TRACKED_REFRESH_T6}" "${tmp_dir}/tracked_refresh_t6.json"
+upsert_job "tikrr-tracked-refresh-t2" "${CRON_TRACKED_REFRESH_T2}" "${tmp_dir}/tracked_refresh_t2.json"
+upsert_job "tikrr-tracked-refresh-pre" "${CRON_TRACKED_REFRESH_PRE}" "${tmp_dir}/tracked_refresh_pre.json"
+upsert_job "tikrr-tracked-refresh-intraday" "${CRON_TRACKED_REFRESH_INTRADAY}" "${tmp_dir}/tracked_refresh_intraday.json"
+upsert_job "tikrr-tracked-refresh-close" "${CRON_TRACKED_REFRESH_CLOSE}" "${tmp_dir}/tracked_refresh_close.json"
 upsert_job "tikrr-open-price" "${CRON_OPEN_PRICE}" "${tmp_dir}/open_price.json"
 upsert_job "tikrr-open-briefs" "${CRON_OPEN_BRIEFS}" "${tmp_dir}/open_briefs.json"
 upsert_job "tikrr-open-anomalies" "${CRON_OPEN_ANOMALIES}" "${tmp_dir}/open_anomalies.json"

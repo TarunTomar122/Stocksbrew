@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+import hashlib
+import json
 import logging
 import re
 import time
@@ -291,6 +293,118 @@ def _prepare_grouped_stock_articles(
     return projected
 
 
+def _article_targets(
+    article: Article,
+    instruments_by_ticker: dict[str, dict[str, Any]],
+    ticker_patterns: dict[str, re.Pattern[str]],
+) -> set[str]:
+    targets: set[str] = set()
+    focus_ticker = str(getattr(article, "focus_ticker", "") or "").strip().upper()
+    if focus_ticker in instruments_by_ticker:
+        targets.add(focus_ticker)
+    for ticker in getattr(article, "stock_tickers", []) or []:
+        normalized = str(ticker or "").strip().upper()
+        if normalized in instruments_by_ticker:
+            targets.add(normalized)
+    if targets:
+        return targets
+    text = f"{article.title} {article.summary} {article.body_text}"
+    for ticker, pattern in ticker_patterns.items():
+        if pattern.search(text):
+            targets.add(ticker)
+    return targets
+
+
+def _map_articles_to_instruments(
+    raw_articles: list[Article],
+    instruments: list[dict[str, Any]],
+) -> dict[str, list[Article]]:
+    instruments_by_ticker = {
+        str(instrument.get("ticker") or "").strip().upper(): instrument
+        for instrument in instruments
+        if str(instrument.get("ticker") or "").strip()
+    }
+    ticker_patterns = {
+        ticker: re.compile(rf"\b{re.escape(ticker)}\b", re.IGNORECASE)
+        for ticker in instruments_by_ticker
+    }
+    by_instrument: dict[str, list[Article]] = {}
+    seen_pairs: set[tuple[str, str]] = set()
+    for article in raw_articles:
+        article_key = (
+            str(getattr(article, "id", "") or "").strip()
+            or str(getattr(article, "url", "") or "").strip()
+        )
+        if not article_key:
+            continue
+        for ticker in _article_targets(article, instruments_by_ticker, ticker_patterns):
+            instrument = instruments_by_ticker.get(ticker)
+            instrument_id = str(instrument.get("instrument_id") or "").strip().upper() if instrument else ""
+            if not instrument_id:
+                continue
+            pair = (article_key, instrument_id)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            by_instrument.setdefault(instrument_id, []).append(article)
+    return by_instrument
+
+
+def _filter_articles_for_instruments(
+    raw_articles: list[Article],
+    instruments: list[dict[str, Any]],
+) -> list[Article]:
+    by_instrument = _map_articles_to_instruments(raw_articles, instruments)
+    allowed_article_ids = {
+        _article_identity(article)
+        for articles in by_instrument.values()
+        for article in articles
+        if _article_identity(article)
+    }
+    return [
+        article
+        for article in raw_articles
+        if _article_identity(article) in allowed_article_ids
+    ]
+
+
+def _article_identity(article: Article) -> str:
+    return (
+        str(getattr(article, "id", "") or "").strip()
+        or str(getattr(article, "url", "") or "").strip()
+    )
+
+
+def _article_fingerprint(articles: list[Article]) -> str:
+    payload = [
+        {
+            "id": _article_identity(article),
+            "published_at": str(getattr(article, "published_at", "") or ""),
+            "title": str(getattr(article, "title", "") or ""),
+            "sentiment_label": str(getattr(article, "sentiment_label", "") or ""),
+            "sentiment_score": float(getattr(article, "sentiment_score", 0.0) or 0.0),
+        }
+        for article in sorted(
+            articles,
+            key=lambda item: (
+                str(getattr(item, "published_at", "") or ""),
+                _article_identity(item),
+            ),
+            reverse=True,
+        )
+    ]
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _latest_article_at(articles: list[Article]) -> str:
+    timestamps = [
+        str(getattr(article, "published_at", "") or "").strip()
+        for article in articles
+        if str(getattr(article, "published_at", "") or "").strip()
+    ]
+    return max(timestamps) if timestamps else ""
+
+
 def _fetch_chunk(
     market: str,
     universe_id: str,
@@ -335,6 +449,16 @@ def main() -> None:
     parser.add_argument("--skip-context", action="store_true", help="Skip market/sector context brief build")
     parser.add_argument("--skip-materialize", action="store_true", help="Skip dashboard/instrument view materialization")
     parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids to refresh")
+    parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Use per-instrument freshness state and rebuild only changed tickers",
+    )
+    parser.add_argument(
+        "--emit-changed-instrument-ids-path",
+        default="",
+        help="Optional file path to write changed instrument ids as JSON",
+    )
     parser.add_argument("--paid-only", action="store_true", help="Refresh only subscribed users' tracked stocks")
     parser.add_argument("--upsert", action="store_true", help="Upsert articles/enrichments/briefs instead of replacing subcollections")
     parser.add_argument(
@@ -420,6 +544,19 @@ def main() -> None:
     if not instruments:
         print(f"[per-stock] no instruments selected for {args.market} / {universe_id}; exiting")
         return
+    selected_instrument_ids = [
+        str(instrument.get("instrument_id") or "").strip().upper()
+        for instrument in instruments
+        if str(instrument.get("instrument_id") or "").strip()
+    ]
+    prior_freshness = (
+        store.get_news_freshness_docs(args.market, selected_instrument_ids)
+        if args.incremental
+        else {}
+    )
+    changed_instrument_ids: list[str] = []
+    changed_instrument_set: set[str] = set()
+    freshness_payloads: dict[str, dict[str, Any]] = {}
     logger.info(
         "per_stock_intelligence instrument_union market=%s universe=%s base_count=%s paid_tracked_count=%s paid_extra_count=%s total_count=%s",
         args.market,
@@ -432,6 +569,28 @@ def main() -> None:
 
     enriched_articles: list[Article]
     if args.synthesis_only:
+        if args.incremental:
+            changed_instrument_ids = sorted(
+                instrument_id
+                for instrument_id, payload in prior_freshness.items()
+                if bool(payload.get("needs_brief_refresh"))
+            )
+            changed_instrument_set = set(changed_instrument_ids)
+            if changed_instrument_ids:
+                instruments = [
+                    instrument
+                    for instrument in instruments
+                    if str(instrument.get("instrument_id") or "").strip().upper() in changed_instrument_set
+                ]
+                print(
+                    f"[per-stock] synthesis-only incremental narrowed to {len(instruments)} changed instruments"
+                )
+            else:
+                if args.emit_changed_instrument_ids_path:
+                    with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:
+                        json.dump([], handle)
+                print("[per-stock] synthesis-only incremental found no changed instruments; exiting")
+                return
         max_docs = max(200, len(instruments) * max(1, args.per_stock_cap) * 4)
         enriched_payloads = store.list_article_enrichments(args.market, universe_id, limit=max_docs)
         selected_ids = {
@@ -534,6 +693,42 @@ def main() -> None:
             f"{sum(1 for s in source_health if s['ok'])} healthy sources"
         )
 
+        if args.incremental:
+            articles_by_instrument = _map_articles_to_instruments(raw_articles, instruments)
+            now_iso = datetime.now(timezone.utc).isoformat()
+            for instrument in instruments:
+                instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+                if not instrument_id:
+                    continue
+                instrument_articles = articles_by_instrument.get(instrument_id, [])
+                article_fingerprint = _article_fingerprint(instrument_articles)
+                previous = prior_freshness.get(instrument_id) or {}
+                previous_fingerprint = str(previous.get("article_fingerprint") or "")
+                changed = article_fingerprint != previous_fingerprint
+                if changed:
+                    changed_instrument_set.add(instrument_id)
+                freshness_payloads[instrument_id] = {
+                    "market": args.market.upper(),
+                    "universe_id": universe_id,
+                    "instrument_id": instrument_id,
+                    "ticker": str(instrument.get("ticker") or "").strip().upper(),
+                    "priority_tier": "tracked",
+                    "last_discovery_at": now_iso,
+                    "latest_article_at": _latest_article_at(instrument_articles),
+                    "article_fingerprint": article_fingerprint,
+                    "article_count": len(instrument_articles),
+                    "new_article_count": max(
+                        0,
+                        len(instrument_articles) - int(previous.get("article_count") or 0),
+                    ),
+                    "needs_brief_refresh": changed,
+                }
+            changed_instrument_ids = sorted(changed_instrument_set)
+            print(
+                f"[per-stock] incremental discovery found {len(changed_instrument_ids)} changed instruments "
+                f"out of {len(selected_instrument_ids)}"
+            )
+
         raw_payload = [article.to_dict() for article in raw_articles]
         if args.upsert or args.paid_only or requested_ids is not None:
             store.upsert_news_articles(args.market, universe_id, raw_payload, source_health=source_health)
@@ -541,6 +736,8 @@ def main() -> None:
             store.save_news_articles(args.market, universe_id, raw_payload, source_health=source_health)
 
         if not raw_articles:
+            if freshness_payloads:
+                store.save_news_freshness_docs(list(freshness_payloads.values()))
             print("[per-stock] no articles after partitioned fetch - skipping enrichment and synthesis")
             logger.info(
                 "per_stock_intelligence early_exit reason=no_articles market=%s universe=%s instruments=%s",
@@ -550,8 +747,28 @@ def main() -> None:
             )
             return
 
+        if args.incremental and not changed_instrument_ids:
+            if freshness_payloads:
+                store.save_news_freshness_docs(list(freshness_payloads.values()))
+            if args.emit_changed_instrument_ids_path:
+                with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:
+                    json.dump([], handle)
+            print("[per-stock] incremental mode found no changed instruments; enrichment and synthesis skipped")
+            return
+
+        refresh_instruments = instruments
+        refresh_raw_articles = raw_articles
+        if args.incremental and changed_instrument_ids:
+            changed_instrument_set = set(changed_instrument_ids)
+            refresh_instruments = [
+                instrument
+                for instrument in instruments
+                if str(instrument.get("instrument_id") or "").strip().upper() in changed_instrument_set
+            ]
+            refresh_raw_articles = _filter_articles_for_instruments(raw_articles, refresh_instruments)
+
         if use_grouped_stock_llm:
-            enriched_articles = _prepare_grouped_stock_articles(raw_articles, instruments)
+            enriched_articles = _prepare_grouped_stock_articles(refresh_raw_articles, refresh_instruments)
             enriched_payload = [article.to_dict() for article in enriched_articles]
             if args.upsert or args.paid_only or requested_ids is not None:
                 store.upsert_article_enrichments(args.market, universe_id, enriched_payload)
@@ -563,7 +780,7 @@ def main() -> None:
             )
         else:
             enricher = OpenAIArticleEnricher(store=store)
-            enriched_articles = enricher.enrich_articles(raw_articles)
+            enriched_articles = enricher.enrich_articles(refresh_raw_articles)
             enriched_payload = [article.to_dict() for article in enriched_articles]
             if args.upsert or args.paid_only or requested_ids is not None:
                 store.upsert_article_enrichments(args.market, universe_id, enriched_payload)
@@ -572,6 +789,17 @@ def main() -> None:
             print(f"[per-stock] enriched {len(enriched_articles)} articles")
 
         if args.enrich_only:
+            if freshness_payloads:
+                now_iso = datetime.now(timezone.utc).isoformat()
+                for instrument_id in changed_instrument_ids:
+                    payload = dict(freshness_payloads.get(instrument_id) or {})
+                    payload["latest_enrichment_at"] = now_iso
+                    payload["needs_brief_refresh"] = True
+                    freshness_payloads[instrument_id] = payload
+                store.save_news_freshness_docs(list(freshness_payloads.values()))
+            if args.emit_changed_instrument_ids_path:
+                with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:
+                    json.dump(sorted(changed_instrument_ids), handle)
             logger.info(
                 "per_stock_intelligence enrich_only complete market=%s universe=%s enriched=%s",
                 args.market,
@@ -673,6 +901,35 @@ def main() -> None:
             print(f"[per-stock] marketaux augmentation failed ({mx_exc}) — continuing without")
             logger.warning("per_stock_intelligence marketaux_augmentation_failed error=%s", mx_exc)
 
+    if args.incremental and changed_instrument_ids and not args.synthesis_only:
+        changed_instrument_set = set(changed_instrument_ids)
+        existing_payloads = store.list_article_enrichments(
+            args.market,
+            universe_id,
+            limit=max(400, len(changed_instrument_ids) * max(1, args.per_stock_cap) * 6),
+        )
+        existing_articles = [_coerce_article(payload) for payload in existing_payloads]
+        existing_articles = _filter_articles_for_instruments(
+            existing_articles,
+            [
+                instrument
+                for instrument in instruments
+                if str(instrument.get("instrument_id") or "").strip().upper() in changed_instrument_set
+            ],
+        )
+        merged_by_id: dict[str, Article] = {}
+        for article in existing_articles + enriched_articles:
+            article_id = _article_identity(article)
+            if article_id:
+                merged_by_id[article_id] = article
+        enriched_articles = list(merged_by_id.values())
+
+    if args.incremental and changed_instrument_ids:
+        instruments = [
+            instrument
+            for instrument in instruments
+            if str(instrument.get("instrument_id") or "").strip().upper() in set(changed_instrument_ids)
+        ]
     docs = build_stock_intelligence_docs(
         args.market,
         universe_id,
@@ -738,6 +995,38 @@ def main() -> None:
         store.upsert_stock_intelligence_docs(args.market, universe_id, docs)
     else:
         store.save_stock_intelligence_docs(args.market, universe_id, docs)
+
+    if args.incremental:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        docs_by_id = {
+            str(doc.get("instrument_id") or "").strip().upper(): doc
+            for doc in docs
+            if str(doc.get("instrument_id") or "").strip()
+        }
+        for instrument in instruments:
+            instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+            if not instrument_id:
+                continue
+            payload = dict(freshness_payloads.get(instrument_id) or prior_freshness.get(instrument_id) or {})
+            payload.update(
+                {
+                    "market": args.market.upper(),
+                    "universe_id": universe_id,
+                    "instrument_id": instrument_id,
+                    "ticker": str(instrument.get("ticker") or "").strip().upper(),
+                    "latest_brief_at": now_iso,
+                    "needs_brief_refresh": False,
+                    "brief_input_fingerprint": hashlib.sha256(
+                        json.dumps(docs_by_id.get(instrument_id) or {}, sort_keys=True).encode("utf-8")
+                    ).hexdigest(),
+                }
+            )
+            freshness_payloads[instrument_id] = payload
+        if freshness_payloads:
+            store.save_news_freshness_docs(list(freshness_payloads.values()))
+        if args.emit_changed_instrument_ids_path:
+            with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:
+                json.dump(sorted(changed_instrument_ids), handle)
 
     if not args.skip_context:
         import sys

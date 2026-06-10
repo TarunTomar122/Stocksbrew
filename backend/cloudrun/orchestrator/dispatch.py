@@ -266,6 +266,7 @@ def main() -> None:
         "--lane",
         choices=[
             "tracked_news_prep",
+            "tracked_incremental_refresh",
             "price_core_open",
             "tracked_open_briefs",
             "price_core_intraday",
@@ -338,6 +339,9 @@ def main() -> None:
 
     job_name_by_lane = {
         "tracked_news_prep": os.getenv("TRACKED_NEWS_PREP_JOB_NAME", "tikrr-tracked-news-prep"),
+        "tracked_incremental_refresh": os.getenv(
+            "TRACKED_INCREMENTAL_REFRESH_JOB_NAME", "tikrr-tracked-incremental-refresh"
+        ),
         "price_core_open": os.getenv("PRICE_CORE_OPEN_JOB_NAME", "tikrr-price-core-open"),
         "tracked_open_briefs": os.getenv("TRACKED_OPEN_BRIEFS_JOB_NAME", "tikrr-tracked-open-briefs"),
         "price_core_intraday": os.getenv("PRICE_CORE_INTRADAY_JOB_NAME", "tikrr-price-core-intraday"),
@@ -545,6 +549,14 @@ def main() -> None:
                 "--chunk-workers",
                 str(args.chunk_workers),
             ]
+        elif args.lane == "tracked_incremental_refresh":
+            single_extra_args = [
+                "--per-stock-cap",
+                str(args.per_stock_cap),
+                "--chunk-workers",
+                str(args.chunk_workers),
+                "--no-llm",
+            ]
         elif args.lane == "market_events":
             single_extra_args = ["--limit", str(max(1, args.limit))]
             if args.skip_if_fresh_hours > 0:
@@ -588,6 +600,7 @@ def main() -> None:
         status = "failed"
     if args.lane in {
         "daily_postclose",
+        "tracked_incremental_refresh",
         "open_anomalies",
         "reddit_buzz",
         "zone_briefs",

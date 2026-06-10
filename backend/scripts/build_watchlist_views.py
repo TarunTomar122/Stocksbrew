@@ -113,6 +113,16 @@ def main() -> None:
         help="Build for a single user only",
     )
     parser.add_argument(
+        "--uids",
+        default=None,
+        help="Comma-separated user ids to rebuild selectively",
+    )
+    parser.add_argument(
+        "--instrument-ids",
+        default=None,
+        help="Comma-separated instrument ids; rebuild only users tracking any of them",
+    )
+    parser.add_argument(
         "--input-version",
         default="",
         help="Optional source version tag for this refresh cycle (e.g. lane run_id).",
@@ -142,11 +152,31 @@ def main() -> None:
     store = TraceMoneyStore()
     active_universes = _active_universe_cache(store)
 
+    explicit_uids = [
+        item.strip()
+        for item in str(args.uids or "").split(",")
+        if item.strip()
+    ]
+    instrument_ids = [
+        item.strip().upper()
+        for item in str(args.instrument_ids or "").split(",")
+        if item.strip()
+    ]
+    if args.uid and explicit_uids:
+        raise ValueError("Pass either --uid or --uids, not both")
     if args.uid:
         user_doc = store.db.collection("users").document(args.uid).get()
         if not user_doc.exists:
             raise ValueError(f"No user doc for uid={args.uid}")
         users = [{"uid": args.uid, **(user_doc.to_dict() or {})}]
+    elif explicit_uids:
+        users = store.list_users_by_ids(explicit_uids)
+    elif instrument_ids:
+        matched_uids = store.list_user_ids_tracking_any(
+            instrument_ids,
+            subscribed_only=args.subscribed_only,
+        )
+        users = store.list_users_by_ids(matched_uids)
     else:
         users = store.list_subscribed_users()
         if args.subscribed_only:
