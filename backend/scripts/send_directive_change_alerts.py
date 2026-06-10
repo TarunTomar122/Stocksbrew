@@ -6,12 +6,16 @@ Only sends:
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from backend.email_runtime import log_email_send, parse_iso
 
 from backend.lifecycle_emailing import email_pro_directive_change, now_iso, send_email
 from backend.storage import TraceMoneyStore
+
+
+DIRECTIVE_CHANGE_EMAILS_PAUSED = os.getenv("PAUSE_DIRECTIVE_CHANGE_EMAILS", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _email_opted_in(user: dict[str, Any], pref_key: str) -> bool:
@@ -54,6 +58,13 @@ def main() -> None:
         .where("processed_at", "==", None)
         .stream()
     )
+    if DIRECTIVE_CHANGE_EMAILS_PAUSED:
+        skipped = 0
+        for event in events:
+            event.reference.update({"processed_at": now_iso(), "skip_reason": "directive_emails_paused"})
+            skipped += 1
+        print({"directive_change_sent": 0, "directive_change_skipped": skipped, "paused": True})
+        return
     for event in events:
         data = event.to_dict() or {}
         uid = str(data.get("uid") or "")

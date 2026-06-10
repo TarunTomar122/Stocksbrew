@@ -30,6 +30,8 @@ from backend.lifecycle_emailing import (  # noqa: E402
 )
 from backend.storage import TraceMoneyStore  # noqa: E402
 
+DIRECTIVE_CHANGE_EMAILS_PAUSED = os.getenv("PAUSE_DIRECTIVE_CHANGE_EMAILS", "").strip().lower() in {"1", "true", "yes", "on"}
+
 
 class RunCache:
     def __init__(self, store: TraceMoneyStore, lookback_hours: int = 720) -> None:
@@ -313,6 +315,11 @@ def _process_pro_directive_changes(store: TraceMoneyStore, cache: RunCache, *, d
         .where("processed_at", "==", None)
         .stream()
     )
+    if DIRECTIVE_CHANGE_EMAILS_PAUSED:
+        for event in events:
+            if not dry_run:
+                event.reference.update({"processed_at": now_iso(), "skip_reason": "directive_emails_paused"})
+        return 0
     for event in events:
         data = event.to_dict() or {}
         uid = str(data.get("uid") or "")

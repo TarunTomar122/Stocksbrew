@@ -13,6 +13,7 @@ that's 200 writes/day - rounding-error territory.
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime, timezone
 
 from backend.storage import TraceMoneyStore
@@ -23,6 +24,7 @@ from backend.watchlist_view import (
 
 ALERTABLE_HOLDING_STANCES = {"trim"}
 ALERTABLE_WATCHING_STANCES = {"accumulate"}
+DIRECTIVE_CHANGE_EMAILS_PAUSED = os.getenv("PAUSE_DIRECTIVE_CHANGE_EMAILS", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _now_iso() -> str:
@@ -57,6 +59,8 @@ def _queue_directive_change_events(
     previous_rows: list[dict],
     current_rows: list[dict],
 ) -> int:
+    if DIRECTIVE_CHANGE_EMAILS_PAUSED:
+        return 0
     previous = _stance_map(previous_rows)
     current = _stance_map(current_rows)
     if not previous or not current:
