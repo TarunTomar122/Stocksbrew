@@ -1,7 +1,8 @@
 """Incremental tracked-stock news refresh.
 
-Fetches fresh tracked-stock news, rebuilds briefs only for changed tickers,
-materializes those instruments, then rebuilds only the affected user watchlists.
+Stage 1: cheap discovery across all tracked names.
+Stage 2: selective enrichment + brief rebuild for changed names only.
+Then rebuild only the affected user watchlists.
 """
 from __future__ import annotations
 
@@ -67,7 +68,7 @@ def main() -> None:
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as handle:
         changed_path = handle.name
 
-    intel_cmd = [
+    discovery_cmd = [
         sys.executable,
         "-m",
         "backend.scripts.build_per_stock_intelligence",
@@ -78,6 +79,7 @@ def main() -> None:
         "--instrument-ids",
         ",".join(instrument_ids),
         "--incremental",
+        "--discovery-only",
         "--emit-changed-instrument-ids-path",
         changed_path,
         "--upsert",
@@ -90,9 +92,10 @@ def main() -> None:
         "--chunk-workers",
         str(args.chunk_workers),
         "--skip-context",
+        "--skip-materialize",
     ]
     try:
-        intel_result = _run(intel_cmd)
+        discovery_result = _run(discovery_cmd)
         with open(changed_path, "r", encoding="utf-8") as handle:
             changed_ids = json.load(handle) or []
     finally:
@@ -108,6 +111,33 @@ def main() -> None:
     if not changed_ids:
         print({"status": "noop", "reason": "no_changed_tickers", "tracked_count": len(instrument_ids)})
         return
+
+    synthesis_cmd = [
+        sys.executable,
+        "-m",
+        "backend.scripts.build_per_stock_intelligence",
+        "--market",
+        args.market,
+        "--universe",
+        universe_id,
+        "--instrument-ids",
+        ",".join(changed_ids),
+        "--incremental",
+        "--upsert",
+        "--per-stock-cap",
+        str(args.per_stock_cap),
+        "--broad-cap",
+        "0",
+        "--chunk-size",
+        "10",
+        "--chunk-workers",
+        str(args.chunk_workers),
+        "--skip-context",
+        "--skip-av",
+        "--skip-finnhub",
+        "--skip-marketaux",
+    ]
+    synthesis_result = _run(synthesis_cmd)
 
     watchlist_cmd = [
         sys.executable,
@@ -139,7 +169,8 @@ def main() -> None:
             "tracked_count": len(instrument_ids),
             "changed_count": len(changed_ids),
             "changed_ids": changed_ids,
-            "intel_stdout_tail": "\n".join(intel_result.stdout.strip().splitlines()[-8:]) if intel_result.stdout else "",
+            "discovery_stdout_tail": "\n".join(discovery_result.stdout.strip().splitlines()[-8:]) if discovery_result.stdout else "",
+            "synthesis_stdout_tail": "\n".join(synthesis_result.stdout.strip().splitlines()[-8:]) if synthesis_result.stdout else "",
             "watchlist_stdout_tail": "\n".join(watchlist_result.stdout.strip().splitlines()[-8:]) if watchlist_result.stdout else "",
             "alerts_stdout_tail": "\n".join(alerts_result.stdout.strip().splitlines()[-8:]) if alerts_result and alerts_result.stdout else "",
         }

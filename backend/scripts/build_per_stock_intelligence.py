@@ -468,7 +468,10 @@ def main() -> None:
     )
     parser.add_argument("--enrich-only", action="store_true", help="Fetch + enrich news only, skip brief synthesis")
     parser.add_argument("--synthesis-only", action="store_true", help="Build briefs from existing enrichments only")
+    parser.add_argument("--discovery-only", action="store_true", help="Fetch raw articles, detect changed tickers, and stop before enrichment")
     parser.add_argument("--skip-av", action="store_true", help="Skip Alpha Vantage news augmentation (fall back to RSS only)")
+    parser.add_argument("--skip-finnhub", action="store_true", help="Skip Finnhub news augmentation")
+    parser.add_argument("--skip-marketaux", action="store_true", help="Skip Marketaux news augmentation")
     parser.add_argument(
         "--synthesis-lookback-hours",
         type=int,
@@ -478,6 +481,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.enrich_only and args.synthesis_only:
         raise ValueError("--enrich-only and --synthesis-only cannot be combined")
+    if args.discovery_only and (args.enrich_only or args.synthesis_only):
+        raise ValueError("--discovery-only cannot be combined with --enrich-only or --synthesis-only")
     configure_pipeline_logging()
     store = TraceMoneyStore()
     universe_id = str(args.universe or store.get_active_ai_universe(args.market) or "").strip()
@@ -714,9 +719,9 @@ def main() -> None:
                     "ticker": str(instrument.get("ticker") or "").strip().upper(),
                     "priority_tier": "tracked",
                     "last_discovery_at": now_iso,
-                    "latest_article_at": _latest_article_at(instrument_articles),
-                    "article_fingerprint": article_fingerprint,
-                    "article_count": len(instrument_articles),
+                    "pending_latest_article_at": _latest_article_at(instrument_articles),
+                    "pending_article_fingerprint": article_fingerprint,
+                    "pending_article_count": len(instrument_articles),
                     "new_article_count": max(
                         0,
                         len(instrument_articles) - int(previous.get("article_count") or 0),
@@ -754,6 +759,15 @@ def main() -> None:
                 with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:
                     json.dump([], handle)
             print("[per-stock] incremental mode found no changed instruments; enrichment and synthesis skipped")
+            return
+
+        if args.discovery_only:
+            if freshness_payloads:
+                store.save_news_freshness_docs(list(freshness_payloads.values()))
+            if args.emit_changed_instrument_ids_path:
+                with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:
+                    json.dump(sorted(changed_instrument_ids), handle)
+            print("[per-stock] discovery-only mode complete (enrichment and synthesis skipped)")
             return
 
         refresh_instruments = instruments
@@ -858,7 +872,7 @@ def main() -> None:
     # and only for the tracked-stocks subset so call count stays manageable.
     # Falls back gracefully — never blocks the pipeline.
     # ---------------------------------------------------------------------------
-    if not args.synthesis_only and args.market == "US":
+    if not args.synthesis_only and args.market == "US" and not args.skip_finnhub:
         tracked_tickers = [
             str(inst.get("ticker") or "").strip().upper()
             for inst in instruments
@@ -882,7 +896,7 @@ def main() -> None:
     # 100 req/day free.  Batches all tickers in a few calls.  Entity-tagged
     # articles with per-ticker sentiment — same pattern as AV.
     # ---------------------------------------------------------------------------
-    if not args.synthesis_only:
+    if not args.synthesis_only and not args.skip_marketaux:
         all_tickers = [
             str(inst.get("ticker") or "").strip().upper()
             for inst in instruments
@@ -1014,6 +1028,12 @@ def main() -> None:
                     "universe_id": universe_id,
                     "instrument_id": instrument_id,
                     "ticker": str(instrument.get("ticker") or "").strip().upper(),
+                    "latest_article_at": payload.get("pending_latest_article_at") or payload.get("latest_article_at") or "",
+                    "article_fingerprint": payload.get("pending_article_fingerprint") or payload.get("article_fingerprint") or "",
+                    "article_count": int(payload.get("pending_article_count") or payload.get("article_count") or 0),
+                    "pending_latest_article_at": "",
+                    "pending_article_fingerprint": "",
+                    "pending_article_count": 0,
                     "latest_brief_at": now_iso,
                     "needs_brief_refresh": False,
                     "brief_input_fingerprint": hashlib.sha256(
