@@ -79,7 +79,7 @@ function StockRow({ stock, market }: { stock: StockData; market: "US" | "IN" }) 
           e.preventDefault();
           e.stopPropagation();
           if (!user) {
-            signInWithGoogle().catch(console.error);
+            signInWithGoogle({ surface: "home_content" }).catch(console.error);
           }
         }}
         className="hidden sm:inline-flex text-[#9ca3af] hover:text-[#111111] transition-colors shrink-0"

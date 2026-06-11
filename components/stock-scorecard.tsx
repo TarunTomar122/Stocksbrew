@@ -1,5 +1,6 @@
 import type { StockIntelPro, StockIntelPillar } from "@/lib/types";
 import { PillarBreakdown } from "@/components/pillar-breakdown";
+import { StockProPaywall } from "@/components/stock-pro-paywall";
 
 const PILLAR_ORDER: Array<keyof StockIntelPro["pillars"]> = [
   "growth",
@@ -13,13 +14,6 @@ const PILLAR_LABEL: Record<keyof StockIntelPro["pillars"], string> = {
   growth: "Growth",
   quality: "Quality",
   momentum: "Momentum",
-};
-
-const PILLAR_SUBTITLE: Record<keyof StockIntelPro["pillars"], string> = {
-  growth: "Revenue & earnings trajectory",
-  momentum: "Market signals & sentiment",
-  valuation: "Price vs sector & growth",
-  quality: "Profitability & balance sheet",
 };
 
 const PILLAR_ICON: Record<keyof StockIntelPro["pillars"], { emoji: string; bg: string }> = {
@@ -78,9 +72,11 @@ function ScoreBar({ score, height = "h-1.5" }: { score: number; height?: string 
 function PillarCard({
   name,
   pillar,
+  showVerdict = true,
 }: {
   name: keyof StockIntelPro["pillars"];
   pillar: StockIntelPillar;
+  showVerdict?: boolean;
 }) {
   const icon = PILLAR_ICON[name];
   return (
@@ -102,9 +98,11 @@ function PillarCard({
           {PILLAR_LABEL[name]}
         </span>
         <ScoreBar score={pillar.score} />
-        <span className="text-[11px] text-[#6b7280]">
-          {VERDICT_COPY[pillar.verdict] ?? pillar.verdict}
-        </span>
+        {showVerdict ? (
+          <span className="text-[11px] text-[#6b7280]">
+            {VERDICT_COPY[pillar.verdict] ?? pillar.verdict}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -112,16 +110,17 @@ function PillarCard({
 
 export function StockScorecard({
   intel,
+  ticker,
   isSubscribed = false,
 }: {
   intel: StockIntelPro | null;
+  ticker: string;
   isSubscribed?: boolean;
 }) {
   if (!intel) return null;
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Header: overall + 4 pillar columns */}
       <section className="grid grid-cols-1 xl:grid-cols-[minmax(220px,_280px)_1fr] gap-6 md:gap-8 items-start">
         <div className="flex flex-col gap-2">
           <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
@@ -134,7 +133,9 @@ export function StockScorecard({
             <span className="text-[20px] font-medium text-[#9ca3af]">/ 100</span>
           </div>
           <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#6b7280]">
-            {VERDICT_COPY[intel.overall.verdict] ?? intel.overall.verdict} · {intel.overall.stance}-tilted
+            {isSubscribed
+              ? `${VERDICT_COPY[intel.overall.verdict] ?? intel.overall.verdict} · ${intel.overall.stance}-tilted`
+              : "Scores are free · Pro unlocks the call"}
           </span>
           <p className="text-[13px] text-[#6b7280] leading-relaxed mt-1 max-w-[260px]">
             Composite of valuation, growth, quality &amp; momentum versus sector peers.
@@ -145,7 +146,7 @@ export function StockScorecard({
               {intel.industry_label ? ` · ${intel.industry_label}` : ""}
             </span>
           )}
-          {intel.catalysts.length > 0 && (
+          {isSubscribed && intel.catalysts.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {intel.catalysts.map((c, i) => {
                 const tone = urgencyTone(c.urgency);
@@ -169,12 +170,21 @@ export function StockScorecard({
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(148px,1fr))] gap-3">
           {PILLAR_ORDER.map((name) => (
-            <PillarCard key={name} name={name} pillar={intel.pillars[name]} />
+            <PillarCard
+              key={name}
+              name={name}
+              pillar={intel.pillars[name]}
+              showVerdict={isSubscribed}
+            />
           ))}
         </div>
       </section>
 
-      <PillarBreakdown pillars={intel.pillars} isSubscribed={isSubscribed} />
+      {isSubscribed ? (
+        <PillarBreakdown pillars={intel.pillars} isSubscribed={isSubscribed} />
+      ) : (
+        <StockProPaywall ticker={ticker} intel={intel} surface="stock_pro" />
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@ type Props = {
   timeline?: TimelineEvent[] | null;
   tier: "ai_launch" | "ai_personal" | "free";
   isSubscribed: boolean;
+  isSignedIn: boolean;
   isTracked: boolean;
   priceUpdatedAt?: string;
   market: "US" | "IN";
@@ -200,6 +201,7 @@ export function StockSideRail({
   timeline,
   tier,
   isSubscribed,
+  isSignedIn,
   isTracked,
   priceUpdatedAt,
   market,
@@ -283,7 +285,7 @@ export function StockSideRail({
       </div>
 
       {/* Scorecard mini - hidden on mobile (available in Fundamentals tab) */}
-      {intelPro && (
+      {intelPro && isSignedIn && (
         <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">

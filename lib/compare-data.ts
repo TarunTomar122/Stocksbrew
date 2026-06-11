@@ -45,7 +45,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Watchlist intelligence", stocksbrew: "Radar briefs + daily digest", competitor: "Stock pages + screener exports" },
       { dimension: "Alerts", stocksbrew: "Email on buy/sell zones (Pro)", competitor: "Price and news alerts (plan-dependent)" },
       { dimension: "Free tier", stocksbrew: "3 Radar stocks, Should I Buy, Earnings Intel", competitor: "Free tier on tickertape.in" },
-      { dimension: "Paid entry", stocksbrew: "Pro ~$9/mo unlimited Radar", competitor: "See Tickertape pricing page" },
+      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr unlimited Radar", competitor: "See Tickertape pricing page" },
     ],
     stocksbrewStrengths: [
       "Clear US watchlist directives on Radar",
@@ -92,7 +92,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "How much does each cost?",
         answer:
-          "stocksbrew is free for 3 Radar stocks; Pro is $9/month. Tickertape offers free and paid tiers on tickertape.in; see their pricing page for current plans.",
+          "stocksbrew is free for 3 Radar stocks; Pro is $12/month or $99/year. Tickertape offers free and paid tiers on tickertape.in; see their pricing page for current plans.",
       },
       {
         question: "Can I use both tools together?",

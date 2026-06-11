@@ -1,3 +1,5 @@
+import { ReturnsPriceChart } from "@/components/returns-price-chart";
+import { PRICE_HISTORY_CHART_MIN, type PriceHistoryPoint } from "@/lib/price-history-chart";
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
 import { SHOW_DATA_FRESHNESS_UI, freshnessInfo } from "@/lib/freshness";
 
@@ -6,6 +8,8 @@ type Props = {
   fundamentals?: StockFundamentals | null;
   currentPrice?: number;
   currency?: string;
+  ticker?: string;
+  priceHistory?: PriceHistoryPoint[];
   isSubscribed?: boolean;
   fundamentalsUpdatedAt?: string;
 };
@@ -148,6 +152,8 @@ export function StockFactsPanel({
   fundamentals,
   currentPrice,
   currency = "$",
+  ticker = "",
+  priceHistory = [],
   isSubscribed = false,
   fundamentalsUpdatedAt,
 }: Props) {
@@ -316,7 +322,10 @@ export function StockFactsPanel({
             </h3>
             <span className="text-[12px] text-[#6b7280]">Price action</span>
           </div>
-          <div className="flex flex-col gap-3 max-w-[640px]">
+          <div className="flex flex-col gap-5 max-w-[640px]">
+            {ticker && priceHistory.length >= PRICE_HISTORY_CHART_MIN ? (
+              <ReturnsPriceChart series={priceHistory} ticker={ticker} currency={currency} />
+            ) : null}
             <ReturnBar label="1 month" value={returns.one_month_pct} />
             <ReturnBar label="3 months" value={returns.three_month_pct} />
             <ReturnBar label="6 months" value={returns.six_month_pct} />

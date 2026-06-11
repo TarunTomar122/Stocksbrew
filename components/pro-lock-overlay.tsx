@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
+import {
+  type PaywallSurface,
+  trackPaywallShown,
+  trackPaywallUnlockClicked,
+} from "@/lib/product-analytics";
 
 type Props = {
   title?: string;
   description?: string;
   /** Up to 3 short, concrete value points shown as a checklist. */
   benefits?: string[];
+  surface: PaywallSurface;
+  ticker?: string;
 };
 
 /**
@@ -21,16 +28,31 @@ export function ProLockCard({
   title = "This one needs Pro",
   description = "Get the read, not just the raw numbers.",
   benefits,
+  surface,
+  ticker,
 }: Props) {
   const { user } = useUser();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    trackPaywallShown({
+      surface,
+      ticker,
+      signedIn: Boolean(user),
+    });
+  }, [surface, ticker, user]);
+
   async function handleUnlock() {
+    trackPaywallUnlockClicked({
+      surface,
+      ticker,
+      signedIn: Boolean(user),
+    });
     if (!user) {
       setBusy(true);
       try {
-        await signInWithGoogle();
+        await signInWithGoogle({ surface: "paywall" });
         router.push("/subscribe");
       } catch (err) {
         console.error("sign-in failed", err);
@@ -82,7 +104,7 @@ export function ProLockCard({
         {!busy && <span aria-hidden>→</span>}
       </button>
       <span className="text-[11px] font-medium text-[#9ca3af]">
-        3 days free, then $9/mo. Cancel anytime.
+        3 days free, then $12/mo. Cancel anytime.
       </span>
     </div>
   );

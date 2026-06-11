@@ -9,7 +9,6 @@ import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
-import { LaunchBanner } from "@/components/launch-banner";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -121,11 +120,6 @@ export const metadata: Metadata = {
   },
 };
 
-async function SubscriptionBannerGate() {
-  const { isSubscribed } = await getLayoutUserData();
-  return isSubscribed ? null : <LaunchBanner />;
-}
-
 const getLayoutUserData = cache(async () => {
   const market = getCurrentMarket();
   const session = await getSessionUser();
@@ -218,9 +212,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers initialAuthed={hasSessionCookie}>
-          <Suspense fallback={null}>
-            <SubscriptionBannerGate />
-          </Suspense>
           <Suspense fallback={<HeaderFallback />}>
             <HeaderData />
           </Suspense>

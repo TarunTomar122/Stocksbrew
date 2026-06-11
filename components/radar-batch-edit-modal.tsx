@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
-import type { SearchEntry } from "@/lib/search";
+import {
+  fetchSearchTypeahead,
+  getClientSearchIndex,
+  prefetchSearchIndex,
+} from "@/lib/search-index-client";
+import { filterSearchEntries, type SearchEntry } from "@/lib/search-shared";
 
 type PositionType = "holding" | "watchlist";
 
@@ -46,9 +51,11 @@ export function RadarBatchEditModal({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(initialSearchIndex);
+  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(() =>
+    initialSearchIndex.length > 0 ? initialSearchIndex : getClientSearchIndex(),
+  );
+  const [typeaheadResults, setTypeaheadResults] = useState<SearchEntry[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchRequested, setSearchRequested] = useState(initialSearchIndex.length > 0);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [items, setItems] = useState<StagedItem[]>(() => [...initialItems]);
   const [submitting, setSubmitting] = useState(false);
@@ -68,43 +75,71 @@ export function RadarBatchEditModal({
     originalIds.current = new Set(initialItems.map((i) => i.instrument_id));
     setQuery("");
     setError(null);
+    setSearchError(null);
+    setTypeaheadResults([]);
     setExtractInfo(null);
     setExtractError(null);
   }, [open, initialItems]);
 
   useEffect(() => {
-    if (!open || searchIndex.length > 0 || searchLoading || searchRequested) return;
+    if (!open) return;
+
     let cancelled = false;
-    setSearchRequested(true);
-    setSearchLoading(true);
-    setSearchError(null);
-    fetch("/api/search-index?market=US")
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("search_index_failed"))))
-      .then((data) => {
+    prefetchSearchIndex("US")
+      .then((entries) => {
         if (cancelled) return;
-        const entries = Array.isArray(data?.entries) ? data.entries : [];
-        setSearchIndex(
-          entries
-            .map((entry: Partial<SearchEntry>) => ({
-              instrument_id: String(entry.instrument_id || "").toUpperCase(),
-              ticker: String(entry.ticker || "").toUpperCase(),
-              name: String(entry.name || entry.ticker || "").trim(),
-              price: typeof entry.price === "number" ? entry.price : undefined,
-              day_change_pct: typeof entry.day_change_pct === "number" ? entry.day_change_pct : undefined,
-            }))
-            .filter((entry: SearchEntry) => entry.instrument_id && entry.ticker),
-        );
+        if (entries.length > 0) {
+          setSearchIndex(entries);
+          setSearchError(null);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSearchError("Could not load stock search. Try screenshot upload or reopen.");
-      })
-      .finally(() => {
-        if (!cancelled) setSearchLoading(false);
+        // Full index failed — typeahead fallback handles search per query.
       });
+
     return () => {
       cancelled = true;
     };
-  }, [open, searchIndex.length, searchLoading, searchRequested]);
+  }, [open]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setTypeaheadResults([]);
+      return;
+    }
+    if (searchIndex.length > 0) {
+      setTypeaheadResults([]);
+      setSearchError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchLoading(true);
+    setSearchError(null);
+    const timer = window.setTimeout(() => {
+      fetchSearchTypeahead(q, "US", 20)
+        .then((entries) => {
+          if (cancelled) return;
+          setTypeaheadResults(entries);
+          setSearchError(null);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setTypeaheadResults([]);
+            setSearchError("Search is temporarily unavailable. Try again in a moment.");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setSearchLoading(false);
+        });
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query, searchIndex.length]);
 
   const existingIds = useMemo(() => new Set(items.map((i) => i.instrument_id)), [items]);
 
@@ -116,25 +151,11 @@ export function RadarBatchEditModal({
   }, [items]);
 
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return [] as SearchEntry[];
-    return searchIndex
-      .map((entry) => {
-        const ticker = entry.ticker.toLowerCase();
-        const name = entry.name.toLowerCase();
-        let score = 0;
-        if (ticker === q) score = 100;
-        else if (ticker.startsWith(q)) score = 80;
-        else if (name.startsWith(q)) score = 60;
-        else if (ticker.includes(q)) score = 45;
-        else if (name.includes(q)) score = 25;
-        return { entry, score };
-      })
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 20)
-      .map((x) => x.entry);
-  }, [query, searchIndex]);
+    if (searchIndex.length > 0) return filterSearchEntries(searchIndex, q, 20);
+    return typeaheadResults;
+  }, [query, searchIndex, typeaheadResults]);
 
   function upsert(entry: SearchEntry, positionType: PositionType) {
     setItems((prev) => {
@@ -173,18 +194,6 @@ export function RadarBatchEditModal({
     );
   }
 
-  function updateHolding(instrumentId: string, field: keyof StagedHolding, rawValue: string) {
-    const parsed = rawValue.trim() === "" ? null : Number(rawValue);
-    const value = parsed !== null && Number.isFinite(parsed) ? parsed : null;
-    setItems((prev) =>
-      prev.map((i) =>
-        i.instrument_id === instrumentId
-          ? { ...i, holding: { ...(i.holding ?? {}), [field]: value } }
-          : i,
-      ),
-    );
-  }
-
   async function onSubmit() {
     setError(null);
     if (!isSubscribed && items.length > freeLimit) {
@@ -205,13 +214,16 @@ export function RadarBatchEditModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({
-            instrument_id: i.instrument_id,
-            position_type: i.position_type,
-            ...(i.position_type === "holding" && i.holding
-              ? { holding: { ...i.holding, source: "manual" } }
-              : {}),
-          })),
+          items: items.map((i) => {
+            const initial = initialItems.find((x) => x.instrument_id === i.instrument_id);
+            const holding =
+              i.position_type === "holding" ? i.holding ?? initial?.holding : undefined;
+            return {
+              instrument_id: i.instrument_id,
+              position_type: i.position_type,
+              ...(holding ? { holding: { ...holding, source: "manual" as const } } : {}),
+            };
+          }),
         }),
       });
 
@@ -423,64 +435,37 @@ export function RadarBatchEditModal({
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
                     return (
-                      <li key={item.instrument_id} className={`flex flex-col gap-2 px-4 py-3 transition-colors ${isNew ? "bg-[#f0fdf4]" : ""}`}>
-                        <div className="flex items-center gap-2.5">
-                          <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <p className="truncate text-[13px] font-semibold text-[#111111]">{item.ticker}</p>
-                              {isNew && (
-                                <span className="shrink-0 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-[#16a34a]">New</span>
-                              )}
-                            </div>
-                            <p className="truncate text-[11px] text-[#9ca3af]">{item.name}</p>
+                      <li key={item.instrument_id} className={`flex items-center gap-2.5 px-4 py-3 transition-colors ${isNew ? "bg-[#f0fdf4]" : ""}`}>
+                        <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-[13px] font-semibold text-[#111111]">{item.ticker}</p>
+                            {isNew && (
+                              <span className="shrink-0 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-[#16a34a]">New</span>
+                            )}
                           </div>
-                          <div className="shrink-0 flex items-center rounded-full border border-[#e5e7eb] bg-[#f9fafb] p-0.5">
-                            <button
-                              type="button"
-                              onClick={() => setPosition(item.instrument_id, "holding")}
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
-                            >Hold</button>
-                            <button
-                              type="button"
-                              onClick={() => setPosition(item.instrument_id, "watchlist")}
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
-                            >Watch</button>
-                          </div>
+                          <p className="truncate text-[11px] text-[#9ca3af]">{item.name}</p>
+                        </div>
+                        <div className="shrink-0 flex items-center rounded-full border border-[#e5e7eb] bg-[#f9fafb] p-0.5">
                           <button
                             type="button"
-                            onClick={() => remove(item.instrument_id)}
-                            className="shrink-0 rounded-full p-1.5 text-[#d1d5db] hover:text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
-                            aria-label={`Remove ${item.ticker}`}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                          </button>
+                            onClick={() => setPosition(item.instrument_id, "holding")}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
+                          >Hold</button>
+                          <button
+                            type="button"
+                            onClick={() => setPosition(item.instrument_id, "watchlist")}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
+                          >Watch</button>
                         </div>
-                        {item.position_type === "holding" && (
-                          <div className="flex items-center gap-3 pl-10">
-                            <HoldingInput
-                              label="Shares"
-                              value={item.holding?.quantity ?? null}
-                              onChange={(v) => updateHolding(item.instrument_id, "quantity", v)}
-                              placeholder="0"
-                            />
-                            <HoldingInput
-                              label="Value"
-                              value={item.holding?.market_value ?? null}
-                              onChange={(v) => updateHolding(item.instrument_id, "market_value", v)}
-                              placeholder="$0"
-                              prefix="$"
-                            />
-                            <HoldingInput
-                              label="Avg cost"
-                              value={item.holding?.average_cost ?? null}
-                              onChange={(v) => updateHolding(item.instrument_id, "average_cost", v)}
-                              placeholder="$0"
-                              prefix="$"
-                              optional
-                            />
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => remove(item.instrument_id)}
+                          className="shrink-0 rounded-full p-1.5 text-[#d1d5db] hover:text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+                          aria-label={`Remove ${item.ticker}`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </button>
                       </li>
                     );
                   })}
@@ -497,11 +482,11 @@ export function RadarBatchEditModal({
               {query.trim().length > 0 && (
                 <div className="absolute inset-0 bg-white overflow-y-auto no-scrollbar">
                   <ul className="divide-y divide-[#f3f4f6]">
-                    {searchLoading ? (
+                    {searchLoading && results.length === 0 ? (
                       <li className="px-4 py-8 text-[13px] text-[#6b7280] text-center">
-                        Loading stock search...
+                        Searching…
                       </li>
-                    ) : searchError ? (
+                    ) : searchError && results.length === 0 ? (
                       <li className="px-4 py-8 text-[13px] text-[#ef4444] text-center">
                         {searchError}
                       </li>
@@ -588,44 +573,6 @@ export function RadarBatchEditModal({
         status={modalStatus}
       />
     </>
-  );
-}
-
-function HoldingInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  prefix,
-  optional,
-}: {
-  label: string;
-  value: number | null;
-  onChange: (raw: string) => void;
-  placeholder: string;
-  prefix?: string;
-  optional?: boolean;
-}) {
-  return (
-    <label className="flex flex-col gap-1 flex-1 min-w-0">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
-        {label}
-        {optional && <span className="ml-0.5 text-[#d1d5db]">(opt)</span>}
-      </span>
-      <div className="flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3 py-1.5 focus-within:border-[#111111] transition-colors">
-        {prefix && <span className="text-[12px] text-[#9ca3af] shrink-0">{prefix}</span>}
-        <input
-          type="number"
-          inputMode="decimal"
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-transparent text-[13px] text-[#111111] placeholder:text-[#d1d5db] outline-none focus:outline-none focus:ring-0 tabular-nums"
-          min="0"
-          step="any"
-        />
-      </div>
-    </label>
   );
 }
 

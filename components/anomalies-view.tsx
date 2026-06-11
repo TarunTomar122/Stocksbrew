@@ -38,7 +38,7 @@ function AnomalyRow({ item }: { item: AnomalyItem }) {
           )}
         </div>
         {item.headline && (
-          <span className="text-[11px] text-[#6b7280] truncate">{item.headline}</span>
+          <span className="text-[11px] leading-snug text-[#6b7280]">{item.headline}</span>
         )}
       </div>
 
@@ -79,7 +79,7 @@ function BiggestMoverCard({ item }: { item: AnomalyItem }) {
         <StockLogo ticker={item.ticker} logoUrl={item.logo_url ?? undefined} size={40} />
         <div className="flex flex-col min-w-0">
           <span className="text-[16px] font-semibold text-[#111111] tracking-[-0.01em]">{item.ticker}</span>
-          <span className="text-[11px] text-[#9ca3af] truncate">{item.name}</span>
+          <span className="text-[11px] leading-snug text-[#9ca3af]">{item.name}</span>
         </div>
         <span
           className="ml-auto shrink-0 inline-flex items-center gap-0.5 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums"
@@ -92,10 +92,10 @@ function BiggestMoverCard({ item }: { item: AnomalyItem }) {
         </span>
       </div>
       {item.headline && (
-        <p className="text-[12px] font-medium text-[#111111] leading-snug line-clamp-2">{item.headline}</p>
+        <p className="text-[12px] font-medium text-[#111111] leading-snug">{item.headline}</p>
       )}
       {showBrief && (
-        <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-3">{brief}</p>
+        <p className="text-[12px] text-[#6b7280] leading-relaxed">{brief}</p>
       )}
       {item.catalyst && (
         <span className="text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-[#f3f4f6] text-[#6b7280] w-fit">

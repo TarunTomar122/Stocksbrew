@@ -144,7 +144,7 @@ export default async function ComparePage({ params }: Props) {
           <p className="text-[13px] text-[#6b7280]">
             stocksbrew: free for 3 Radar stocks,{" "}
             <Link href="/subscribe" className="underline underline-offset-2 hover:text-[#111111]">
-              Pro at $9/month
+              Pro at $12/month
             </Link>
             . {page.competitorName}: see{" "}
             {page.competitorPricingUrl ? (

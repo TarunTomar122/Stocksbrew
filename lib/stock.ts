@@ -1,6 +1,10 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getAiUniverse, getPriceUniverse } from "@/lib/firestore";
+import type { PriceHistoryPoint } from "@/lib/price-history-chart";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
+
+export type { PriceHistoryPoint } from "@/lib/price-history-chart";
+export { PRICE_HISTORY_CHART_MIN } from "@/lib/price-history-chart";
 
 export type DataQuality = {
   confidence_score?: number;
@@ -216,6 +220,51 @@ export type StockSummary = {
   // tm_latest_prices read via getStockFundamentals.
   fundamentals?: StockFundamentals | null;
 };
+
+const PRICE_HISTORY_CHART_MAX = 252;
+
+function historyDayKey(iso?: string): string | null {
+  if (!iso) return null;
+  const day = iso.trim().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+export function buildPriceHistorySeries(
+  priceData?: Pick<LatestPrice, "history_window" | "quote" | "captured_at" | "updated_at"> | null,
+): PriceHistoryPoint[] {
+  if (!priceData) return [];
+
+  const pairs: PriceHistoryPoint[] = [];
+  for (const row of priceData.history_window ?? []) {
+    const close = row.quote?.current;
+    const date = historyDayKey(row.captured_at);
+    if (typeof close === "number" && Number.isFinite(close) && date) {
+      pairs.push({ date, close });
+    }
+  }
+
+  const latestClose = priceData.quote?.current;
+  const latestDate = historyDayKey(priceData.updated_at || priceData.captured_at);
+  if (typeof latestClose === "number" && Number.isFinite(latestClose) && latestDate) {
+    pairs.push({ date: latestDate, close: latestClose });
+  }
+
+  const byDate = new Map<string, number>();
+  for (const row of pairs.sort((a, b) => a.date.localeCompare(b.date))) {
+    byDate.set(row.date, row.close);
+  }
+
+  return [...byDate.entries()].map(([date, close]) => ({ date, close }));
+}
+
+/** Daily closes for the Returns chart. Capped to ~1Y of sessions. */
+export async function getStockPriceHistory(
+  instrumentId: string,
+): Promise<PriceHistoryPoint[]> {
+  const doc = await adminFirestore.collection("tm_latest_prices").doc(instrumentId).get();
+  if (!doc.exists) return [];
+  return buildPriceHistorySeries(doc.data() as LatestPrice).slice(-PRICE_HISTORY_CHART_MAX);
+}
 
 export type StockFacts = {
   instrument_id: string;

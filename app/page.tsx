@@ -28,6 +28,7 @@ import type { MarketTile } from "@/lib/market-tiles";
 import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
 import { getThematicScreens } from "@/lib/screens";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
 import { getMarketEvents } from "@/lib/market-events";
 import { HomeEventsStrip } from "@/components/home-events-strip";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -35,8 +36,6 @@ import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { LandingProPreview } from "@/components/landing-pro-preview";
 import { HeroSection } from "@/components/hero-section";
-import { getRecentCorrectCalls } from "@/lib/track-record";
-import { TrackRecordBar } from "@/components/track-record-bar";
 import { LandingFaq } from "@/components/landing-faq";
 import { LandingFinalCta } from "@/components/landing-final-cta";
 
@@ -404,10 +403,12 @@ async function HomeFinalCtaStream() {
 
 async function HomeAnomaliesStream() {
   const market = getCurrentMarket();
-  const [anomaliesData, core] = await Promise.all([
+  const [anomaliesData, premarketDoc, core] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
+    getPremarketMovers(market).catch(() => null),
     loadHomeCore(),
   ]);
+  if (isPremarketLive(premarketDoc, market)) return null;
   if (!anomaliesData || anomaliesData.anomalies.length === 0) return null;
   return (
     <DailyAnomalies
@@ -417,12 +418,6 @@ async function HomeAnomaliesStream() {
       isSubscribed={core.isSubscribed}
     />
   );
-}
-
-async function HomeTrackRecordStream() {
-  const market = getCurrentMarket();
-  const calls = await getRecentCorrectCalls(market).catch(() => []);
-  return <TrackRecordBar calls={calls} />;
 }
 
 async function HomeEventsStream() {
@@ -466,10 +461,6 @@ export default function HomePage() {
           }
         >
           <HomeHeroStream />
-        </Suspense>
-
-        <Suspense fallback={null}>
-          <HomeTrackRecordStream />
         </Suspense>
 
         <div className="flex flex-col items-center gap-2 text-center">

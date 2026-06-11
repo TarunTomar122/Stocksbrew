@@ -62,8 +62,9 @@ function scoreTone(v: number | null | undefined): string {
 }
 
 function extraMatchCell(row: ScreenMatchRow, screenId: string): string {
-  if (screenId === "oversold_quality" && typeof row.rsi_14 === "number") {
-    return `RSI ${row.rsi_14.toFixed(1)}`;
+  const rsi = row.rsi_14;
+  if (screenId === "oversold_quality" && typeof rsi === "number" && Number.isFinite(rsi)) {
+    return `RSI ${rsi.toFixed(1)}`;
   }
   if (screenId === "near_52w_high" && typeof row.from_52w_high_pct === "number") {
     return `${fmtPct(row.from_52w_high_pct, 2)} from high`;

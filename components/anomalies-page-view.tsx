@@ -6,8 +6,14 @@ import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import { TrackButton } from "@/components/track-button";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
-import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
-import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { hasRedditBrief, type RedditSnapshot, type RedditTicker } from "@/lib/reddit-cues-shared";
+import {
+  FeedLockedCard,
+  FeedPaywallSlot,
+  MarketAnomaliesPaywall,
+  RedditBuzzPaywall,
+} from "@/components/feed-pro-paywalls";
+import { getFeedPreviewLimit, PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,8 +34,12 @@ function AnomalyCard({ item, isTracked }: { item: AnomalyItem; isTracked: boolea
   const isUp = item.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
   const changeBg = isUp ? "#ecfdf5" : "#fef2f2";
-  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
-  const showBrief = brief && brief !== item.headline;
+  const title = (item.headline || "").trim();
+  const moveExplanation = item.move_explanation;
+  const explanationHeadline = (moveExplanation?.headline || "").trim();
+  const explanationBody = (moveExplanation?.why_it_matters || "").trim();
+  const whatChanged = (item.visual_summary?.what_changed || "").trim();
+  const showWhatChanged = !explanationBody && whatChanged && whatChanged !== title;
 
   return (
     <div className="group relative flex flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm">
@@ -40,7 +50,7 @@ function AnomalyCard({ item, isTracked }: { item: AnomalyItem; isTracked: boolea
             <span className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em] group-hover:text-[#0052ff] transition-colors">
               {item.ticker}
             </span>
-            <span className="text-[11px] text-[#9ca3af] truncate max-w-[120px]">{item.name}</span>
+            <span className="text-[11px] leading-snug text-[#9ca3af]">{item.name}</span>
           </div>
         </Link>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -71,13 +81,17 @@ function AnomalyCard({ item, isTracked }: { item: AnomalyItem; isTracked: boolea
           )}
         </div>
 
-        {item.headline && (
-          <p className="text-[13px] leading-snug font-medium text-[#111111]">{item.headline}</p>
-        )}
+        {(explanationHeadline || title) ? (
+          <p className="text-[13px] leading-snug font-medium text-[#111111]">{explanationHeadline || title}</p>
+        ) : null}
 
-        {showBrief && (
-          <p className="line-clamp-3 text-[12px] leading-snug text-[#6b7280]">{brief}</p>
-        )}
+        {explanationBody ? (
+          <p className="text-[12px] leading-relaxed text-[#6b7280]">{explanationBody}</p>
+        ) : null}
+
+        {showWhatChanged ? (
+          <p className="text-[12px] leading-relaxed text-[#6b7280]">{whatChanged}</p>
+        ) : null}
 
         <div className="mt-auto">
           {item.catalyst && item.catalyst.length <= 48 && (
@@ -188,7 +202,7 @@ function MobileTabBar({
           key={key}
           type="button"
           onClick={() => onSelect(key)}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-semibold transition-colors ${
             active === key ? "bg-[#111111] text-white" : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
           }`}
         >
@@ -206,9 +220,9 @@ function MobileTabBar({
 
 function SectionLabel({ label, count }: { label: string; count: number }) {
   return (
-    <div className="hidden md:flex items-center gap-2">
-      <span className="text-[15px] font-semibold text-[#111111] tracking-[-0.01em]">{label}</span>
-      <span className="text-[12px] font-semibold tabular-nums text-[#9ca3af]">{count}</span>
+    <div className="hidden md:flex items-center gap-2.5">
+      <span className="text-[24px] font-semibold text-[#111111] tracking-[-0.02em]">{label}</span>
+      <span className="text-[14px] font-semibold tabular-nums text-[#9ca3af]">{count}</span>
     </div>
   );
 }
@@ -232,8 +246,9 @@ export function AnomaliesPageView({
 }) {
   const [tab, setTab] = useState<Tab>("anomalies");
 
-  const hasReddit = reddit && (reddit.tickers?.length ?? 0) > 0;
-  const redditCount = reddit?.tickers?.length ?? 0;
+  const briefRedditTickers = (reddit?.tickers ?? []).filter(hasRedditBrief);
+  const hasReddit = briefRedditTickers.length > 0;
+  const redditCount = briefRedditTickers.length;
   // Cap the feed so the header counts always match what is actually on screen.
   const MAX_ANOMALIES = 12;
   const cappedAnomalies = anomalies.slice(0, MAX_ANOMALIES);
@@ -244,7 +259,7 @@ export function AnomaliesPageView({
   const anomalyLimit = getFeedPreviewLimit(isSubscribed, cappedAnomalies.length);
   const redditLimit = getFeedPreviewLimit(isSubscribed, 8);
   const visibleAnomalies = cappedAnomalies.slice(0, anomalyLimit);
-  const visibleReddit = (reddit?.tickers ?? []).slice(0, redditLimit);
+  const visibleReddit = briefRedditTickers.slice(0, redditLimit);
   const lockedAnomalyCount = Math.max(0, cappedAnomalies.length - visibleAnomalies.length);
   const lockedRedditCount = Math.max(0, redditCount - visibleReddit.length);
   const anomaliesFreshness = SHOW_DATA_FRESHNESS_UI
@@ -259,7 +274,7 @@ export function AnomaliesPageView({
   const showReddit = hasReddit && tab === "reddit";
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-10 md:gap-14">
       {/* Tab bar - mobile only, shown when reddit data exists */}
       {hasReddit && (
         <MobileTabBar
@@ -271,14 +286,14 @@ export function AnomaliesPageView({
       )}
 
       {/* Anomalies section - always visible on desktop, tab-controlled on mobile */}
-      <div className={tab === "reddit" ? "hidden md:flex md:flex-col md:gap-4" : "flex flex-col gap-4"}>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+      <div className={tab === "reddit" ? "hidden md:flex md:flex-col md:gap-6" : "flex flex-col gap-6"}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <SectionLabel label="Biggest moves" count={cappedAnomalies.length} />
               {lockedAnomalyCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
-            <p className="text-[12px] text-[#9ca3af]">
+            <p className="text-[13px] text-[#6b7280]">
               {anomaliesSummary}
               {relativeTime(generatedAt) && (
                 <> · Updated {relativeTime(generatedAt)}</>
@@ -288,7 +303,7 @@ export function AnomaliesPageView({
               ) : null}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-[12px] font-semibold tabular-nums text-[#10b981]">
               ▲ {anomalyUpCount} surging
             </span>
@@ -302,27 +317,40 @@ export function AnomaliesPageView({
           {visibleAnomalies.map((item) => (
             <AnomalyCard key={item.ticker} item={item} isTracked={trackedIds.has(item.instrument_id)} />
           ))}
-          {!isSubscribed && lockedAnomalyCount > 0 && (
-            <Link
-              href="/subscribe"
-              className="flex min-h-[176px] flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center"
-            >
-              <p className="text-[15px] font-semibold text-[#111111]">+{lockedAnomalyCount} more unusual moves</p>
-              <p className="text-[12px] text-[#6b7280]">See every name moving outside its normal range, and why.</p>
-            </Link>
-          )}
+          {!isSubscribed && lockedAnomalyCount > 0 ? (
+            <FeedLockedCard
+              label={`${PRO_LOCKED_FEED_TEASER} more unusual moves`}
+              description="See every mover and why."
+            />
+          ) : null}
         </div>
+
+        {!isSubscribed && lockedAnomalyCount > 0 ? (
+          <FeedPaywallSlot>
+            <MarketAnomaliesPaywall
+              anomalies={cappedAnomalies}
+              upCount={anomalyUpCount}
+              downCount={anomalyDownCount}
+            />
+          </FeedPaywallSlot>
+        ) : null}
       </div>
 
       {/* Reddit section - always visible on desktop (below anomalies), tab-controlled on mobile */}
       {hasReddit && (
-        <div className={tab === "anomalies" ? "hidden md:flex md:flex-col md:gap-4" : "flex flex-col gap-4"}>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+        <div
+          className={
+            tab === "anomalies"
+              ? "hidden md:flex md:flex-col md:gap-6 md:pt-14"
+              : "flex flex-col gap-6"
+          }
+        >
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <SectionLabel label="Reddit buzz" count={redditCount} />
               {lockedRedditCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             </div>
-            <p className="text-[12px] text-[#9ca3af]">
+            <p className="text-[13px] text-[#6b7280]">
               {reddit!.post_count} posts scanned
               {relativeTime(reddit?.generated_at) && (
                 <> · Updated {relativeTime(reddit?.generated_at)}</>
@@ -336,25 +364,24 @@ export function AnomaliesPageView({
             {visibleReddit.map((item) => (
               <RedditCard key={item.ticker} item={item} isTracked={trackedIds.has(`US_${item.ticker}`)} />
             ))}
-            {!isSubscribed && lockedRedditCount > 0 && (
-              <Link
-                href="/subscribe"
-                className="flex min-h-[176px] flex-col items-center justify-center gap-3 rounded-[20px] border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center hover:border-[#111111] hover:bg-white transition-colors"
-              >
-                <div className="w-9 h-9 rounded-full bg-[#f3f4f6] flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                    <rect x="3" y="7" width="10" height="8" rx="2" stroke="#6b7280" strokeWidth="1.4" />
-                    <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
-                    <circle cx="8" cy="11" r="1" fill="#6b7280" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-[13px] font-semibold text-[#111111]">+{lockedRedditCount} more names buzzing</p>
-                  <p className="text-[11px] text-[#9ca3af] mt-0.5">See the full crowd read and what is driving it.</p>
-                </div>
-              </Link>
-            )}
+            {!isSubscribed && lockedRedditCount > 0 ? (
+              <FeedLockedCard
+                label={`${PRO_LOCKED_FEED_TEASER} more names buzzing`}
+                description="See the full crowd read."
+              />
+            ) : null}
           </div>
+
+          {!isSubscribed && lockedRedditCount > 0 ? (
+            <FeedPaywallSlot>
+              <RedditBuzzPaywall
+                tickers={briefRedditTickers}
+                postCount={reddit!.post_count}
+                bullCount={briefRedditTickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length}
+                bearCount={briefRedditTickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length}
+              />
+            </FeedPaywallSlot>
+          ) : null}
         </div>
       )}
     </div>

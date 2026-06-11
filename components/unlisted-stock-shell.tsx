@@ -6,7 +6,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockDiscoveryModal } from "@/components/unlisted-stock-discovery-modal";
-import type { RedditTickerContext } from "@/lib/reddit-cues";
+import type { RedditTickerContext } from "@/lib/reddit-cues-shared";
 
 type Props = {
   ticker: string;

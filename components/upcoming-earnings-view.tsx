@@ -1,5 +1,5 @@
 import { PreEarningsEventCard } from "@/components/pre-earnings-event-card";
-import { ProLockOverlay } from "@/components/pro-lock-overlay";
+import { UpcomingEarningsPaywall } from "@/components/upcoming-earnings-paywall";
 import { groupUpcomingByReportDate } from "@/lib/market-events-shared";
 import type { PreEarningsCardQuote, PreEarningsIntelDoc } from "@/lib/pre-earnings-intel-shared";
 
@@ -54,61 +54,49 @@ export function UpcomingEarningsView({
             No upcoming setups right now. Check back as more companies enter the reporting window.
           </p>
         </div>
-      ) : (
-        <div className="relative">
-          <div
-            className={`flex flex-col gap-10 ${!isSubscribed ? "max-h-[520px] overflow-hidden rounded-[20px]" : ""}`}
-          >
-            <p className="text-[13px] text-[#6b7280]">
-              Pre-earnings research · next 7 days
-            </p>
-            {upcomingSections.map((section) => (
-              <section key={`upcoming-${section.dateKey}`} className="flex flex-col gap-4">
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-[#b45309]">
-                    {section.label}
-                  </h2>
-                  {section.dateKey !== "unknown" ? (
-                    <span className="text-[12px] font-medium tabular-nums text-[#9ca3af]">
-                      {section.dateKey}
-                    </span>
-                  ) : null}
-                  <span className="text-[12px] text-[#9ca3af]">
-                    · {section.events.length} setup
-                    {section.events.length === 1 ? "" : "s"}
+      ) : isSubscribed ? (
+        <div className="flex flex-col gap-10">
+          <p className="text-[13px] text-[#6b7280]">Pre-earnings research · next 7 days</p>
+          {upcomingSections.map((section) => (
+            <section key={`upcoming-${section.dateKey}`} className="flex flex-col gap-4">
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-[#b45309]">
+                  {section.label}
+                </h2>
+                {section.dateKey !== "unknown" ? (
+                  <span className="text-[12px] font-medium tabular-nums text-[#9ca3af]">
+                    {section.dateKey}
                   </span>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-                  {section.events.map((event) => {
-                    const doc = upcoming.find(
-                      (row) => row.ticker === event.ticker && row.event_date === event.event_date,
-                    );
-                    if (!doc) return null;
-                    return (
-                      <PreEarningsEventCard
-                        key={doc.doc_id}
-                        doc={doc}
-                        name={namesByTicker?.get(doc.ticker.toUpperCase())}
-                        quote={quoteByInstrumentId?.get(doc.instrument_id)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
-          {!isSubscribed ? (
-            <ProLockOverlay
-              title="Know the setup before the print"
-              description="Our read on each earnings event ahead of the date, so you are positioned before the number drops."
-              benefits={[
-                "Whether we expect a beat, miss, or inline print",
-                "How the stock is likely to trade after",
-                "Whether to act, hold, or stay out",
-              ]}
-            />
-          ) : null}
+                ) : null}
+                <span className="text-[12px] text-[#9ca3af]">
+                  · {section.events.length} setup
+                  {section.events.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+                {section.events.map((event) => {
+                  const doc = upcoming.find(
+                    (row) => row.ticker === event.ticker && row.event_date === event.event_date,
+                  );
+                  if (!doc) return null;
+                  return (
+                    <PreEarningsEventCard
+                      key={doc.doc_id}
+                      doc={doc}
+                      name={namesByTicker?.get(doc.ticker.toUpperCase())}
+                      quote={quoteByInstrumentId?.get(doc.instrument_id)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
+      ) : (
+        <UpcomingEarningsPaywall
+          setupCount={upcoming.length}
+          tickers={[...new Set(upcoming.map((doc) => doc.ticker.toUpperCase()))]}
+        />
       )}
 
       <p className="text-[11px] text-[#9ca3af]">Not investment advice.</p>

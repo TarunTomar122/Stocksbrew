@@ -24,6 +24,7 @@ export async function GET() {
     ["/", "1.0", "hourly"],
     ["/heat", "0.9", "hourly"],
     ["/anomalies", "0.9", "hourly"],
+    ["/premarket", "0.9", "hourly"],
     ["/events", "0.9", "hourly"],
     ["/news", "0.9", "hourly"],
     ["/screens", "0.9", "daily"],

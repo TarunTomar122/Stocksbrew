@@ -217,8 +217,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [requestQuery, setRequestQuery] = useState<string | null>(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -282,6 +286,22 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      setTimeout(() => mobileInputRef.current?.focus(), 50);
+    } else {
+      setQuery("");
+    }
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileSearchOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   function navigateTo(entry: SearchEntry) {
     captureEvent("stock_search_selected", {
       ticker: entry.ticker,
@@ -327,28 +347,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   }
 
   const showDropdown = open && query.trim().length > 0;
-  const [requestQuery, setRequestQuery] = useState<string | null>(null);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const mobileInputRef = useRef<HTMLInputElement>(null);
-  const pathname = usePathname();
-
-  // Focus mobile input when overlay opens
-  useEffect(() => {
-    if (mobileSearchOpen) {
-      setTimeout(() => mobileInputRef.current?.focus(), 50);
-    } else {
-      setQuery("");
-    }
-  }, [mobileSearchOpen]);
-
-  // Close mobile search on ESC
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMobileSearchOpen(false);
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
 
   const navItems = NAV_ITEMS.filter((item) => !item.authOnly || user || initialAuthed);
   const allItems = [...NAV_ITEMS, ...MORE_ITEMS];

@@ -36,6 +36,7 @@ import {
   getStockFacts,
   getStockIntelPro,
   getStockIntelligenceDoc,
+  getStockPriceHistory,
   getStockSummary,
   normalizeStockSymbolParam,
   type SentimentBreakdown,
@@ -159,6 +160,7 @@ export default async function StockPage({ params }: Props) {
   }
 
   const session = await sessionPromise;
+  const isSignedIn = Boolean(session);
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const tracked = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
@@ -178,6 +180,7 @@ export default async function StockPage({ params }: Props) {
     instrumentView,
     technicals,
     intelPro,
+    priceHistory,
     stockFacts,
     marketMovers,
     priceCoreOverrides,
@@ -195,6 +198,7 @@ export default async function StockPage({ params }: Props) {
       : Promise.resolve(null),
     getLatestTechnicals(stock.instrument_id).catch(() => null),
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
+    getStockPriceHistory(stock.instrument_id).catch(() => []),
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
     getPriceCoreOverrides(market).catch(() => [] as string[]),
@@ -247,8 +251,11 @@ export default async function StockPage({ params }: Props) {
   const rsiValue = technicals?.rsi_14?.value;
   const formatPriceForBar = (v: number): string =>
     `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const has52W = typeof week52High === "number" && typeof week52Low === "number";
-  const hasRsi = typeof rsiValue === "number";
+  const has52W =
+    Number.isFinite(week52High) &&
+    Number.isFinite(week52Low) &&
+    week52High! > week52Low!;
+  const hasRsi = Number.isFinite(rsiValue);
 
   const overviewContent = (
     <section className="flex flex-col gap-10">
@@ -294,6 +301,8 @@ export default async function StockPage({ params }: Props) {
         fundamentals={fundamentals}
         currentPrice={stock.price}
         currency={currency}
+        ticker={stock.ticker}
+        priceHistory={priceHistory}
         isSubscribed={subscribed}
         fundamentalsUpdatedAt={stockFacts?.captured_at}
       />
@@ -315,7 +324,7 @@ export default async function StockPage({ params }: Props) {
 
   const fundamentalsContent = (
     <section className="flex flex-col gap-6">
-      <StockScorecard intel={intelPro} isSubscribed={subscribed} />
+      <StockScorecard intel={intelPro} ticker={stock.ticker} isSubscribed={subscribed} />
       {hasAI && (
         <>
           <ComparativeContextRow context={intelligence?.comparative_context} />
@@ -364,10 +373,14 @@ export default async function StockPage({ params }: Props) {
       {earningsIntel ? <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} /> : null}
     </div>
   ) : (
-    <PremiumTabLock
-      title="Earnings intel is Pro-only"
-      description="Unlock pre-earnings setups and post-earnings reads: expected EPS, likely stock move, and what to do."
-    />
+    <section className="flex items-center justify-center overflow-hidden rounded-3xl border border-[#e5e7eb] bg-[#fafafa] p-6 sm:p-8">
+      <ProLockCard
+        surface="stock_tab"
+        ticker={stock.ticker}
+        title="Earnings intel is Pro-only"
+        description="Unlock pre-earnings setups and post-earnings reads: expected EPS, likely stock move, and what to do."
+      />
+    </section>
   );
 
   const aiContent = subscribed ? (
@@ -412,17 +425,7 @@ export default async function StockPage({ params }: Props) {
         onDemandError={onDemandJob?.error}
       />
     )
-  ) : (
-    <PremiumTabLock
-      title={`What does the news actually mean for ${stock.ticker}?`}
-      description="Pro reads every fresh headline, scores the setup, and gives you the stance before the next move."
-      benefits={[
-        "A clear stance: buy, hold, sell, or watch",
-        "The catalysts and risks that actually matter",
-        "Sentiment read from news and the crowd",
-      ]}
-    />
-  );
+  ) : null;
 
   return (
     <main className="flex-grow">
@@ -441,6 +444,7 @@ export default async function StockPage({ params }: Props) {
             timeline={hasAI ? instrumentView?.timeline : null}
             tier={tier}
             isSubscribed={subscribed}
+            isSignedIn={isSignedIn}
             isTracked={isTracked}
             priceUpdatedAt={stock.captured_at}
             market={market}
@@ -453,6 +457,7 @@ export default async function StockPage({ params }: Props) {
               fundamentals={fundamentalsContent}
               earnings={earningsContent}
               ai={aiContent}
+              showAiTab={!subscribed || Boolean(aiContent)}
               isSubscribed={subscribed}
             />
           </StockScrollRail>
@@ -462,10 +467,3 @@ export default async function StockPage({ params }: Props) {
   );
 }
 
-function PremiumTabLock({ title, description, benefits }: { title: string; description: string; benefits?: string[] }) {
-  return (
-    <section className="relative flex items-center justify-center overflow-hidden rounded-3xl border border-[#e5e7eb] bg-gradient-to-b from-[#f8fafc] via-[#f3f4f6] to-[#eef2ff] p-6 sm:p-8">
-      <ProLockCard title={title} description={description} benefits={benefits} />
-    </section>
-  );
-}

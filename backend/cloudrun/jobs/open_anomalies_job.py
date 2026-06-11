@@ -18,7 +18,7 @@ def main() -> None:
     parser.add_argument("--market", choices=["US", "IN"], required=True)
     parser.add_argument("--universe", required=True)
     parser.add_argument("--threshold-pct", type=float, default=2.0)
-    parser.add_argument("--limit", type=int, default=24)
+    parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--per-stock-cap", type=int, default=3)
     parser.add_argument("--chunk-workers", type=int, default=4)
     args = parser.parse_args()
@@ -44,6 +44,7 @@ def main() -> None:
         str(args.per_stock_cap),
         "--chunk-workers",
         str(args.chunk_workers),
+        "--explain-hard-moves",
     ])
     market_only = ["--market", args.market]
     universe_pair = ["--ai-universe", args.universe, "--price-universe", args.universe]

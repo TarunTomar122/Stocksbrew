@@ -114,7 +114,7 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
     // Not signed in — sign in first, then track
     if (!user) {
       try {
-        await signInWithGoogle();
+        await signInWithGoogle({ surface: "radar_bulk" });
         captureEvent("radar_bulk_signin_succeeded", {
           count: instrumentIds.length,
           position_type: positionType,

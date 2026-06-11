@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
@@ -140,6 +140,17 @@ function fmtShares(qty: number | null | undefined): string {
   if (qty >= 1000) return qty.toLocaleString(undefined, { maximumFractionDigits: 0 });
   if (Number.isInteger(qty)) return String(qty);
   return qty.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function holdingHasShares(row: WatchlistRow): boolean {
+  const qty = num(row.holding?.quantity);
+  if (qty !== null && qty > 0) return true;
+  const val = num(row.holding?.market_value);
+  return val !== null && val > 0;
+}
+
+function allHoldingsHaveShares(rows: WatchlistRow[]): boolean {
+  return rows.length > 0 && rows.every(holdingHasShares);
 }
 
 function fmtHoldingValue(row: WatchlistRow): string {
@@ -420,6 +431,13 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
   };
   const sourceRows = tab === "holdings" ? holdings : watching;
   const rows = sourceRows.map((row) => mergeHoldingPatch(row, holdingPatches[row.instrument_id]));
+  const mergedHoldings = useMemo(
+    () => holdings.map((row) => mergeHoldingPatch(row, holdingPatches[row.instrument_id])),
+    [holdings, holdingPatches],
+  );
+  const allSharesEntered = allHoldingsHaveShares(mergedHoldings);
+  const showSharesColumn = tab === "holdings" && (bulkEditing || allSharesEntered);
+  const showValueColumn = tab === "holdings" && allSharesEntered;
 
   useEffect(() => {
     if (tab !== "holdings" && bulkEditing) {
@@ -585,11 +603,11 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                     <th className="px-4 py-3 font-semibold">Ticker</th>
                     <th className="px-3 py-3 text-right font-semibold">Price</th>
                     <th className="px-3 py-3 text-right font-semibold">Change</th>
-                    {tab === "holdings" && (
-                      <>
-                        <th className="px-3 py-3 text-right font-semibold">Shares</th>
-                        <th className="px-3 py-3 text-right font-semibold">Value</th>
-                      </>
+                    {showSharesColumn && (
+                      <th className="px-3 py-3 text-right font-semibold">Shares</th>
+                    )}
+                    {showValueColumn && (
+                      <th className="px-3 py-3 text-right font-semibold">Value</th>
                     )}
                     <th className="px-3 py-3 text-right font-semibold">Runway</th>
                     <th className="px-4 py-3 font-semibold">Directive</th>
@@ -601,8 +619,8 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                     <LedgerRow
                       key={row.instrument_id}
                       row={row}
-                      showHoldingValue={tab === "holdings"}
-                      showShares={tab === "holdings"}
+                      showHoldingValue={showValueColumn}
+                      showShares={showSharesColumn}
                       onSharesSaved={applyHoldingPatch}
                       bulkEditing={bulkEditing}
                     />

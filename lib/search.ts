@@ -1,29 +1,19 @@
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getHomeView } from "@/lib/home-view";
+import {
+  dedupeSearchEntries,
+  type SearchEntry,
+} from "@/lib/search-shared";
 
-export type SearchEntry = {
-  instrument_id: string;
-  ticker: string;
-  name: string;
-  price?: number;
-  day_change_pct?: number;
-};
-
-/** Drop alternate share classes when the canonical ticker is already indexed. */
-const SEARCH_TICKER_SUPPRESSED_BY: Record<string, string> = {
-  GOOG: "GOOGL",
-};
-
-export function dedupeSearchEntries(entries: SearchEntry[]): SearchEntry[] {
-  const tickers = new Set(entries.map((entry) => entry.ticker.toUpperCase()));
-  return entries.filter((entry) => {
-    const ticker = entry.ticker.toUpperCase();
-    const preferred = SEARCH_TICKER_SUPPRESSED_BY[ticker];
-    return !(preferred && tickers.has(preferred));
-  });
-}
+export type { SearchEntry } from "@/lib/search-shared";
+export {
+  dedupeSearchEntries,
+  filterSearchEntries,
+  scoreSearchEntry,
+} from "@/lib/search-shared";
 
 async function getSearchIndexUncached(
   market: "US" | "IN" = "US"
@@ -64,3 +54,12 @@ async function getSearchIndexUncached(
 // fulfillment and universe updates immediately. Keep only request-local
 // memoization here; do not cross-request cache it.
 export const getSearchIndex = cache(getSearchIndexUncached);
+
+/** Cached catalog for interactive search APIs (short TTL, not SSR render paths). */
+export function getSearchIndexForApi(market: "US" | "IN" = "US"): Promise<SearchEntry[]> {
+  return unstable_cache(
+    async () => getSearchIndexUncached(market),
+    ["search-index-api", market],
+    { revalidate: 300 },
+  )();
+}

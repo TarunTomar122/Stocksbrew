@@ -12,6 +12,8 @@ type Props = {
   fundamentals: ReactNode;
   earnings?: ReactNode | null;
   ai: ReactNode | null;
+  /** Keep AI brief visible in the tab bar even when body content is Pro-gated. */
+  showAiTab?: boolean;
   isSubscribed: boolean;
 };
 
@@ -43,13 +45,14 @@ export function StockPageTabs({
   fundamentals,
   earnings,
   ai,
+  showAiTab = false,
   isSubscribed,
 }: Props) {
   const [active, setActive] = useState<TabKey>("overview");
   const clickLockUntil = useRef(0);
   const scrollRootRef = useStockScrollRoot();
   const visible = BASE_TABS.filter((t) => {
-    if (t.key === "ai" && !ai) return false;
+    if (t.key === "ai" && !ai && !showAiTab) return false;
     if (t.key === "earnings" && !earnings) return false;
     return true;
   });
@@ -103,10 +106,12 @@ export function StockPageTabs({
   }, [visible, scrollRootRef]);
 
   function goTo(key: TabKey) {
-    const el = document.getElementById(`stock-section-${key}`);
+    const targetKey =
+      !isSubscribed && showAiTab && key === "ai" ? "fundamentals" : key;
+    const el = document.getElementById(`stock-section-${targetKey}`);
     if (!el) return;
     clickLockUntil.current = Date.now() + 800;
-    setActive(key);
+    setActive(targetKey);
     const root = resolveScrollRoot(scrollRootRef);
     const offset = scrollOffset(Boolean(root));
     if (root) {
@@ -168,21 +173,25 @@ export function StockPageTabs({
       </div>
 
       <div className="flex flex-col gap-20 mt-6">
-      {visible.map((t, i) => (
-        <section
-          key={t.key}
-          id={`stock-section-${t.key}`}
-          className="scroll-mt-32 flex flex-col gap-6"
-        >
-          {/* Section heading with divider - skip top border on first section */}
-          <div className={`flex flex-col gap-4 ${i > 0 ? "pt-8 border-t-2 border-[#e5e7eb]" : ""}`}>
-            <h2 className="text-[26px] md:text-[30px] font-semibold text-[#111111] tracking-[-0.03em] leading-none">
-              {t.label}
-            </h2>
-          </div>
-          {content[t.key]}
-        </section>
-      ))}
+      {visible.map((t, i) => {
+        const hideLockedAiBody = !isSubscribed && showAiTab && t.key === "ai" && !ai;
+        if (hideLockedAiBody) return null;
+
+        return (
+          <section
+            key={t.key}
+            id={`stock-section-${t.key}`}
+            className="scroll-mt-32 flex flex-col gap-6"
+          >
+            <div className={`flex flex-col gap-4 ${i > 0 ? "pt-8 border-t-2 border-[#e5e7eb]" : ""}`}>
+              <h2 className="text-[26px] md:text-[30px] font-semibold text-[#111111] tracking-[-0.03em] leading-none">
+                {t.label}
+              </h2>
+            </div>
+            {content[t.key]}
+          </section>
+        );
+      })}
       </div>
     </div>
   );

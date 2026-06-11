@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { signInWithGoogle } from "@/lib/sign-in";
+import {
+  trackPaywallShown,
+  trackPaywallUnlockClicked,
+} from "@/lib/product-analytics";
 import { TrackButton } from "@/components/track-button";
 
 type Props = {
@@ -73,6 +76,15 @@ export function LockedAiBrief({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (loading || (user && isSubscribed)) return;
+    trackPaywallShown({
+      surface: "locked_ai_brief",
+      ticker,
+      signedIn: Boolean(user),
+    });
+  }, [loading, user, isSubscribed, ticker]);
+
   if (loading) return null;
   if (user && isSubscribed) {
     return (
@@ -93,11 +105,13 @@ export function LockedAiBrief({
         body: "Free covers the launch list. Pro brings this same AI layer to any ticker you add to Radar.",
         label: "Sign in with Google",
         onClick: async () => {
+          trackPaywallUnlockClicked({
+            surface: "locked_ai_brief",
+            ticker,
+            signedIn: false,
+          });
           try {
-            const auth = getFirebaseAuth();
-            const provider = new GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: "select_account" });
-            await signInWithPopup(auth, provider);
+            await signInWithGoogle({ surface: "locked_ai_brief" });
             router.refresh();
           } catch {
             setError("Sign-in cancelled or failed.");
@@ -108,7 +122,14 @@ export function LockedAiBrief({
         title: `Get the stance on ${ticker} every morning`,
         body: "Turn this into a monitored name: stocksbrew reads the latest news, scores the setup, and shows what matters before the next move.",
         label: "Get Pro",
-        onClick: () => router.push("/subscribe"),
+        onClick: () => {
+          trackPaywallUnlockClicked({
+            surface: "locked_ai_brief",
+            ticker,
+            signedIn: true,
+          });
+          router.push("/subscribe");
+        },
       };
 
   return (

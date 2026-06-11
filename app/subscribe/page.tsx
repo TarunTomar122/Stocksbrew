@@ -65,7 +65,7 @@ export default async function SubscribePage({ searchParams }: Props) {
                 hourglass_top
               </span>
             </span>
-            <p className="text-[16px] font-semibold text-[#111111]">Payment received - activating your Pro…</p>
+            <p className="text-[16px] font-semibold text-[#111111]">Payment received. Activating your Pro…</p>
             <p className="text-[14px] text-[#6b7280] max-w-sm">
               We&apos;re syncing your subscription with Dodo. This usually takes a few seconds.
             </p>

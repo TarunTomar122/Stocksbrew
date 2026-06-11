@@ -189,27 +189,28 @@ function collectSignals({
   }
 
   // 4. RSI extreme (US has reliable RSI; skip non-actionable neutral state)
-  const rsi = technicals?.rsi_14;
-  if (typeof rsi?.value === "number") {
-    if (rsi.state === "overbought" || rsi.value >= 70) {
+  const rsiValue = technicals?.rsi_14?.value;
+  const rsiState = technicals?.rsi_14?.state;
+  if (typeof rsiValue === "number" && Number.isFinite(rsiValue)) {
+    if (rsiState === "overbought" || rsiValue >= 70) {
       out.push({
         emoji: "🔥",
         bg: "#fef3c7",
         label: "RSI stretched",
-        headline: `${Math.round(rsi.value)}`,
+        headline: `${Math.round(rsiValue)}`,
         supporting: "Overbought - pullback risk",
         tone: "warn",
-        importance: 78 + Math.min(10, rsi.value - 70),
+        importance: 78 + Math.min(10, rsiValue - 70),
       });
-    } else if (rsi.state === "oversold" || rsi.value <= 30) {
+    } else if (rsiState === "oversold" || rsiValue <= 30) {
       out.push({
         emoji: "💧",
         bg: "#eff6ff",
         label: "RSI washed",
-        headline: `${Math.round(rsi.value)}`,
+        headline: `${Math.round(rsiValue)}`,
         supporting: "Oversold - bounce setup",
         tone: "warn",
-        importance: 78 + Math.min(10, 30 - rsi.value),
+        importance: 78 + Math.min(10, 30 - rsiValue),
       });
     }
   }

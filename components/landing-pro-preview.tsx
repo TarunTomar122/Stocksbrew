@@ -73,7 +73,7 @@ const JUDGMENT_SIDE = [
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Subscribe - $9/mo" : "Sign in & start free";
+  const ctaLabel = isSignedIn ? "Subscribe - $12/mo" : "Sign in & start free";
 
   return (
     <section className="flex flex-col gap-20">
@@ -162,20 +162,14 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1] text-center">
             Try it free for 3 days.
           </h2>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-3 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#92400e]">
-            <span aria-hidden>🚀</span>
-            Launch-week pricing
-          </span>
         </div>
 
         <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 md:grid-cols-2 gap-5">
           <PricingCard
             tag="Monthly"
-            price="$9"
+            price="$12"
             period="/ month"
-            strike="$12"
-            save="Save 25%"
-            trial="3 days free, then $9/mo"
+            trial="3 days free, then $12/mo"
             isSignedIn={isSignedIn}
             ctaLabel={ctaLabel}
           />
@@ -183,7 +177,6 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
             tag="Yearly"
             price="$99"
             period="/ year"
-            strike="$144"
             save="Save 31%"
             trial="3 days free, then $99/yr"
             highlight
@@ -219,8 +212,8 @@ function PricingCard({
   tag: string;
   price: string;
   period: string;
-  strike: string;
-  save: string;
+  strike?: string;
+  save?: string;
   trial: string;
   highlight?: boolean;
   isSignedIn: boolean;
@@ -241,18 +234,22 @@ function PricingCard({
         <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
           {tag}
         </span>
-        <span className="text-[10px] font-semibold tracking-[0.06em] uppercase text-[#10b981]">
-          {save}
-        </span>
+        {save ? (
+          <span className="text-[10px] font-semibold tracking-[0.06em] uppercase text-[#10b981]">
+            {save}
+          </span>
+        ) : <span />}
       </div>
       <div className="flex items-baseline gap-3 flex-wrap">
         <span className="text-[48px] md:text-[56px] font-semibold tracking-[-0.03em] text-[#111111] leading-none">
           {price}
         </span>
         <span className="text-[16px] font-medium text-[#6b7280]">{period}</span>
-        <span className="text-[15px] font-medium text-[#9ca3af] line-through tabular-nums">
-          {strike}
-        </span>
+        {strike ? (
+          <span className="text-[15px] font-medium text-[#9ca3af] line-through tabular-nums">
+            {strike}
+          </span>
+        ) : null}
       </div>
       <ul className="flex flex-col gap-2">
         {PRO_BULLETS.map((line) => (

@@ -10,6 +10,7 @@ import {
   syncReasonMessage,
   type SyncReason,
 } from "@/lib/subscription-recovery-copy";
+import { trackSubscriptionConverted } from "@/lib/product-analytics";
 
 type SyncResult = {
   subscribed: boolean;
@@ -80,6 +81,10 @@ export function SubscriptionActivator({
           reason: "dodo_lookup_failed" as const,
         }));
         if (result.subscribed) {
+          trackSubscriptionConverted({
+            subscription_id: subscriptionId ?? null,
+            source: "activator_sync",
+          });
           router.refresh();
           return;
         }
@@ -110,6 +115,10 @@ export function SubscriptionActivator({
     try {
       const result = await callSync(subscriptionId);
       if (result.subscribed) {
+        trackSubscriptionConverted({
+          subscription_id: subscriptionId ?? null,
+          source: "activator_sync",
+        });
         router.refresh();
       } else {
         setMessage(syncReasonMessage(result.reason));

@@ -1,8 +1,9 @@
 import Link from "next/link";
-import type { RedditSnapshot, RedditTicker } from "@/lib/reddit-cues";
+import { hasRedditBrief, type RedditSnapshot, type RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
-import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { FeedLockedCard, FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
+import { getFeedPreviewLimit, PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
@@ -70,30 +71,31 @@ function TickerCard({ item }: { item: RedditTicker }) {
 }
 
 export function RedditCues({ data, isSubscribed = false }: Props) {
-  if (!data.tickers || data.tickers.length === 0) return null;
+  const briefTickers = (data.tickers ?? []).filter(hasRedditBrief);
+  if (briefTickers.length === 0) return null;
   const maxCards = 8;
   const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
-  const visible = data.tickers.slice(0, visibleLimit);
-  const lockedCount = Math.max(0, Math.min(data.tickers.length, maxCards) - visible.length);
+  const visible = briefTickers.slice(0, visibleLimit);
+  const lockedCount = Math.max(0, Math.min(briefTickers.length, maxCards) - visible.length);
 
-  const bulls = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length;
-  const bears = data.tickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
+  const bulls = briefTickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length;
+  const bears = briefTickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
   const freshness = SHOW_DATA_FRESHNESS_UI
     ? freshnessInfo(data.generated_at, MARKET_FEED_FRESHNESS)
     : null;
 
   return (
-    <section className="flex flex-col gap-5">
+    <section className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2.5">
             <Link
               href="/anomalies"
-              className="group/title inline-flex items-center gap-1.5 text-[18px] font-semibold tracking-[-0.015em] text-[#111111] hover:text-[#0052ff] transition-colors"
+              className="group/title inline-flex items-center gap-1.5 text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-[#111111] hover:text-[#0052ff] transition-colors"
             >
               Reddit Buzz
-              <span className="text-[14px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
+              <span className="text-[16px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
             </Link>
             {lockedCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             <span
@@ -137,27 +139,23 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
             <TickerCard item={item} />
           </div>
         ))}
-        {!isSubscribed && lockedCount > 0 && (
+        {!isSubscribed && lockedCount > 0 ? (
           <div className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
-            <Link
-              href="/subscribe"
-              className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center hover:border-[#111111] hover:bg-white transition-colors"
-            >
-              <div className="w-9 h-9 rounded-full bg-[#f3f4f6] flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <rect x="3" y="7" width="10" height="8" rx="2" stroke="#6b7280" strokeWidth="1.4" />
-                  <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
-                  <circle cx="8" cy="11" r="1" fill="#6b7280" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-[#111111]">+{lockedCount} more names</p>
-                <p className="text-[11px] text-[#9ca3af] mt-0.5">Unlock with Pro</p>
-              </div>
-            </Link>
+            <FeedLockedCard label={`${PRO_LOCKED_FEED_TEASER} more names`} />
           </div>
-        )}
+        ) : null}
       </div>
+
+      {!isSubscribed && lockedCount > 0 ? (
+        <FeedPaywallSlot>
+          <RedditBuzzPaywall
+            tickers={briefTickers}
+            postCount={data.post_count}
+            bullCount={bulls}
+            bearCount={bears}
+          />
+        </FeedPaywallSlot>
+      ) : null}
     </section>
   );
 }

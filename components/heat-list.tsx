@@ -136,7 +136,7 @@ const COL_TRACK  = "w-8";
 function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: HeatRow; trackedIds: string[]; isSubscribed: boolean; showReason?: boolean }) {
   const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
   const heatColor = heatScoreColor(Math.min(100, Math.max(0, row.heat_score)));
-  const rsi = typeof row.rsi_14 === "number" ? Math.round(row.rsi_14) : null;
+  const rsi = Number.isFinite(row.rsi_14) ? Math.round(row.rsi_14!) : null;
   const rsiBadge = rsiMeta(row.rsi_14_state);
 
   return (

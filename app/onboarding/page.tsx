@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import {
+  trackOnboardingCompleted,
+  trackOnboardingStarted,
+} from "@/lib/product-analytics";
 
 async function startCheckout(): Promise<string> {
   const auth = getFirebaseAuth();
@@ -159,13 +163,17 @@ export default function OnboardingPage() {
     setCheckoutError(null);
     try {
       const url = await startCheckout();
-      await finish();
+      await finish("subscribe");
       window.location.href = url;
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Something went wrong");
       setCheckoutLoading(false);
     }
   }
+
+  useEffect(() => {
+    trackOnboardingStarted();
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -176,8 +184,9 @@ export default function OnboardingPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [slide, total]);
 
-  async function finish() {
+  async function finish(via: "skip" | "subscribe" | "finish" = "finish") {
     try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
+    trackOnboardingCompleted({ via });
     // Persist completion server-side so onboarding does not reappear on
     // storage-isolated browsers/devices.
     try {
@@ -205,7 +214,7 @@ export default function OnboardingPage() {
         </div>
         <button
           type="button"
-          onClick={async () => { await finish(); router.push("/"); }}
+          onClick={async () => { await finish("skip"); router.push("/"); }}
           className="text-[13px] font-medium text-[#9ca3af] hover:text-[#6b7280] transition-colors"
         >
           Skip
@@ -256,13 +265,13 @@ export default function OnboardingPage() {
               disabled={checkoutLoading}
               className="inline-flex items-center gap-2 h-11 rounded-full bg-[#111111] px-7 text-[14px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform disabled:opacity-60 disabled:cursor-wait"
             >
-              {checkoutLoading ? "Opening checkout…" : "Unlock everything - $9/mo"}
+              {checkoutLoading ? "Opening checkout…" : "Unlock everything - $12/mo"}
               {!checkoutLoading && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>}
             </button>
             {checkoutError && <p className="text-[12px] text-[#ef4444]">{checkoutError}</p>}
             <button
               type="button"
-              onClick={async () => { await finish(); router.push("/"); }}
+              onClick={async () => { await finish("skip"); router.push("/"); }}
               className="text-[12px] text-[#9ca3af] hover:text-[#6b7280] transition-colors"
             >
               No thanks, I don't want my stocks to make money 😢

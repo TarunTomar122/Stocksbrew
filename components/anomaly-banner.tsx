@@ -11,6 +11,9 @@ function fmtPct(v: number): string {
 export function AnomalyBanner({ anomaly }: Props) {
   const isUp = anomaly.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
+  const explanation = anomaly.move_explanation;
+  const explainText = explanation?.why_it_matters?.trim();
+  const explainHeadline = explanation?.headline?.trim();
 
   return (
     <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-5">
@@ -29,11 +32,16 @@ export function AnomalyBanner({ anomaly }: Props) {
         </div>
 
         {/* Headline */}
-        {anomaly.headline && (
+        {(explainHeadline || anomaly.headline) && (
           <p className="text-[14px] font-semibold text-[#111111] leading-snug">
-            {anomaly.headline}
+            {explainHeadline || anomaly.headline}
           </p>
         )}
+        {explainText ? (
+          <p className="text-[12px] leading-relaxed text-[#6b7280]">
+            {explainText}
+          </p>
+        ) : null}
       </div>
     </div>
   );

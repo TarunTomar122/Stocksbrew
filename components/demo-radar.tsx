@@ -140,7 +140,7 @@ export function DemoRadar() {
     if (user) { router.refresh(); return; }
     setBusy(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle({ surface: "demo_radar" });
       await syncServerSession().catch(() => undefined);
       router.refresh();
     } catch { setBusy(false); }

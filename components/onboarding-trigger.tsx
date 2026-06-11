@@ -9,20 +9,21 @@ const PROFILE_TIMEOUT_MS = 8000;
 const PROFILE_RETRY_DELAY_MS = 350;
 const PROFILE_MAX_ATTEMPTS = 3;
 
+function hasLocalOnboardingFlag(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function OnboardingTrigger() {
   const { user, initialAuthed } = useUser();
   const router = useRouter();
   const prevUserId = useRef<string | null>(null);
+  const hadSessionOnMount = useRef(initialAuthed);
   const [booting, setBooting] = useState(false);
   const [showNetworkHelp, setShowNetworkHelp] = useState(false);
-
-  // On mount: if user was already signed in, mark them as seen so we never trigger
-  useEffect(() => {
-    if (initialAuthed && user) {
-      prevUserId.current = user.uid;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -31,8 +32,35 @@ export function OnboardingTrigger() {
       setShowNetworkHelp(false);
       return;
     }
-    // User was already set on mount - not a fresh sign-in
+
     if (prevUserId.current === user.uid) return;
+
+    // Returning visit: server cookie was already valid before Firebase resolved.
+    // Do not treat that as a fresh sign-in or block the homepage.
+    if (hadSessionOnMount.current || hasLocalOnboardingFlag()) {
+      prevUserId.current = user.uid;
+      if (hasLocalOnboardingFlag()) return;
+      void (async () => {
+        try {
+          const res = await fetch("/api/user/profile", { cache: "no-store" });
+          if (!res.ok) return;
+          const payload = (await res.json()) as { onboarding_completed?: boolean };
+          if (payload.onboarding_completed) {
+            try {
+              localStorage.setItem(STORAGE_KEY, "1");
+            } catch {
+              // best effort
+            }
+          } else {
+            router.push("/onboarding");
+          }
+        } catch {
+          // best effort
+        }
+      })();
+      return;
+    }
+
     prevUserId.current = user.uid;
 
     let cancelled = false;

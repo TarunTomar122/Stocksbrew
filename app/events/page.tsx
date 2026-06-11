@@ -44,7 +44,7 @@ export default async function EventsPage() {
     getMarketEvents(market).catch(() => null),
     listUpcomingPreEarningsIntel(market, 7).catch(() => []),
     getPremarketMovers(market).catch(() => null),
-    getSectorRegimes(market).catch(() => ({ sectors: new Map(), macro: null })),
+    getSectorRegimes(market).catch(() => ({ sectors: {}, macro: null })),
   ]);
   const showPremarket = isPremarketLive(premarketDoc, market);
 

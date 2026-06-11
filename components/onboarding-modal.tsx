@@ -245,7 +245,7 @@ export function OnboardingModal({ onClose }: Props) {
               onClick={onClose}
               className="inline-flex w-full items-center justify-center gap-2 h-11 rounded-full bg-[#111111] text-[14px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
             >
-              Unlock everything - $9/mo
+              Unlock everything - $12/mo
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
             </Link>
             <button

@@ -21,7 +21,11 @@ export function LandingFinalCta({
       </p>
       <div className="mx-auto mt-7 max-w-[280px]">
         {/* white-button variant (highlight=false) so it reads on the dark panel */}
-        <LandingProPricingCta isSignedIn={isSignedIn} ctaLabel={ctaLabel} />
+        <LandingProPricingCta
+          isSignedIn={isSignedIn}
+          ctaLabel={ctaLabel}
+          surface="landing_final_cta"
+        />
       </div>
       <p className="mt-3 text-[11px] font-medium text-[#6b7280]">
         Cancel anytime, one click. Not investment advice.

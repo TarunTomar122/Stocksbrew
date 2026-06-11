@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from typing import Any
 
 from backend.instrument_universe import list_instruments
+from backend.pre_earnings_enrichment import tavily_search
 from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
 
@@ -85,6 +87,135 @@ def _is_directionally_stale(text: str, direction: str) -> bool:
     return any(term in lower for term in (" rose ", " rallies ", " rallied ", " up ", " surge ", " breakout "))
 
 
+_CAUSE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("earnings", ("earnings", "eps", "revenue", "quarter", "results")),
+    ("guidance", ("guidance", "forecast", "outlook", "cut outlook", "raised outlook")),
+    ("analyst_action", ("downgrade", "upgrade", "price target", "initiated", "analyst")),
+    ("company_news", ("deal", "contract", "acquisition", "offering", "sec", "lawsuit", "fda", "approval", "investigation")),
+    ("sector_sympathy", ("sector", "industry", "peers", "chip", "software", "retail", "banks")),
+)
+
+
+def _classify_cause(text: str) -> str:
+    lower = f" {text.lower()} "
+    for cause, keywords in _CAUSE_KEYWORDS:
+        if any(keyword in lower for keyword in keywords):
+            return cause
+    return "unclear"
+
+
+def _evidence_from_intel(intel_doc: dict[str, Any] | None, direction: str) -> dict[str, Any] | None:
+    intel = intel_doc or {}
+    bits = [
+        str(intel.get("headline") or ""),
+        str(intel.get("today_brief") or intel.get("body") or ""),
+        str(intel.get("catalyst") or ""),
+        *[str(item or "") for item in (intel.get("key_points") or [])[:3]],
+    ]
+    text = " ".join(bit.strip() for bit in bits if bit and str(bit).strip())
+    if not text or _is_directionally_stale(text, direction):
+        return None
+    news_count = int(intel.get("news_count") or 0)
+    cause = _classify_cause(text)
+    if news_count <= 0 and cause == "unclear":
+        return None
+    headline = str(intel.get("headline") or "").strip() or "Fresh internal news likely explains the move."
+    why = str(intel.get("today_brief") or intel.get("body") or "").strip()
+    if not why:
+        points = [str(item or "").strip() for item in (intel.get("key_points") or []) if str(item or "").strip()]
+        why = points[0] if points else headline
+    return {
+        "cause_type": cause if cause != "unclear" else "company_news",
+        "headline": headline[:180],
+        "why_it_matters": why[:260],
+        "confidence": "high" if news_count >= 2 or cause != "unclear" else "medium",
+        "searched_externally": False,
+        "evidence": [],
+    }
+
+
+def _search_move_explanation(ticker: str, name: str, day_change_pct: float) -> dict[str, Any] | None:
+    api_key = os.getenv("TAVILY_API_KEY", "").strip()
+    if not api_key:
+        return None
+    direction = "up" if day_change_pct >= 0 else "down"
+    query = f"{ticker} {name} stock {direction} {abs(day_change_pct):.1f}% today why"
+    print(f"  [tavily anomaly] {ticker}: {query[:80]}...", flush=True)
+    result = tavily_search(query, api_key=api_key)
+    if not result.get("ok"):
+        return None
+    rows = [row for row in (result.get("results") or []) if isinstance(row, dict)]
+    if not rows:
+        return None
+    joined = " ".join(
+        f"{row.get('title') or ''} {row.get('content') or ''}"
+        for row in rows[:3]
+    )
+    cause = _classify_cause(joined)
+    if cause == "unclear":
+        return {
+            "cause_type": "unclear",
+            "headline": "No clear company-specific driver surfaced yet.",
+            "why_it_matters": "The move is large, but fresh search results did not identify a credible single catalyst.",
+            "confidence": "low",
+            "searched_externally": True,
+            "evidence": [
+                {
+                    "title": str(row.get("title") or "")[:160],
+                    "url": str(row.get("url") or "")[:500],
+                }
+                for row in rows[:2]
+                if row.get("url")
+            ],
+        }
+    best = rows[0]
+    title = str(best.get("title") or "").strip()
+    content = str(best.get("content") or "").strip()
+    return {
+        "cause_type": cause,
+        "headline": title[:180] if title else f"{ticker} move has a fresh news driver.",
+        "why_it_matters": content[:260] if content else title[:260],
+        "confidence": "medium",
+        "searched_externally": True,
+        "evidence": [
+            {
+                "title": str(row.get("title") or "")[:160],
+                "url": str(row.get("url") or "")[:500],
+            }
+            for row in rows[:3]
+            if row.get("url")
+        ],
+    }
+
+
+def _move_explanation(
+    *,
+    instrument: dict[str, Any],
+    intel_doc: dict[str, Any] | None,
+    day_change_pct: float,
+    external_search: bool,
+) -> dict[str, Any] | None:
+    if abs(day_change_pct) < 4:
+        return None
+    ticker = str(instrument.get("ticker") or "").strip().upper()
+    name = str(instrument.get("name") or ticker)
+    direction = "up" if day_change_pct >= 0 else "down"
+    internal = _evidence_from_intel(intel_doc, direction)
+    if internal and internal.get("confidence") == "high":
+        return internal
+    searched = _search_move_explanation(ticker, name, day_change_pct) if external_search else None
+    if searched:
+        return searched
+    return internal or {
+        "cause_type": "unclear",
+        "headline": "No clear driver found for the move yet.",
+        "why_it_matters": "The price move crossed our hard-move threshold, but current evidence does not explain it cleanly.",
+        "confidence": "low",
+        "searched_externally": bool(external_search),
+        "evidence": [],
+    }
+
+
 def _run_intelligence_fill_for_missing(
     *,
     market: str,
@@ -128,6 +259,9 @@ def _pick_row(
     instrument: dict[str, Any],
     quote_doc: dict[str, Any],
     intel_doc: dict[str, Any] | None,
+    *,
+    explain_moves: bool,
+    external_search: bool,
 ) -> dict[str, Any] | None:
     quote = (quote_doc or {}).get("quote") or {}
     price = _to_float(quote.get("current"))
@@ -161,6 +295,16 @@ def _pick_row(
     visual_summary = (intel_doc or {}).get("visual_summary")
     if not isinstance(visual_summary, dict):
         visual_summary = None
+    move_explanation = (
+        _move_explanation(
+            instrument=instrument,
+            intel_doc=intel_doc,
+            day_change_pct=day_change_pct,
+            external_search=external_search,
+        )
+        if explain_moves
+        else None
+    )
 
     if not headline:
         sector = str(instrument.get("sector") or "").strip()
@@ -203,6 +347,7 @@ def _pick_row(
         "risk": (intel_doc or {}).get("risk"),
         "key_points": key_points,
         "visual_summary": visual_summary,
+        "move_explanation": move_explanation,
         "overall_verdict": (intel_doc or {}).get("overall_verdict"),
         "comparative_context": (intel_doc or {}).get("comparative_context")
         if isinstance((intel_doc or {}).get("comparative_context"), dict)
@@ -220,6 +365,7 @@ def main() -> None:
     parser.add_argument("--per-stock-cap", type=int, default=3)
     parser.add_argument("--per-stock-lookback-hours", type=int, default=168)
     parser.add_argument("--chunk-workers", type=int, default=4)
+    parser.add_argument("--explain-hard-moves", action="store_true")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -290,11 +436,13 @@ def main() -> None:
                 intelligence[instrument_id] = doc
 
     rows: list[dict[str, Any]] = []
-    for instrument_id in selected_ids:
+    for index, instrument_id in enumerate(selected_ids):
         row = _pick_row(
             by_id.get(instrument_id) or {},
             prices.get(instrument_id) or {},
             intelligence.get(instrument_id),
+            explain_moves=bool(args.explain_hard_moves),
+            external_search=bool(args.explain_hard_moves) and index < 12,
         )
         if row:
             rows.append(row)

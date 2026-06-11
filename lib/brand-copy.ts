@@ -17,12 +17,12 @@ export const MEDIUM_DESCRIPTION =
 export const LONG_DESCRIPTION =
   "stocksbrew gives you personalized recommendations on what to do with each stock you follow. We combine fundamentals, news, Reddit, earnings, and price action into one clear call: buy, hold, sell, or watch. Add names to Radar, set triggers, and get emailed when something moves into a buy or sell zone. Built for US markets today. Not investment advice. Not a broker.";
 
-export const HERO_HEADLINE = "The easiest way to find and analyze US stocks.";
-export const HERO_HEADLINE_LEAD = "The easiest way to find and analyze ";
-export const HERO_HEADLINE_EMPHASIS = "US stocks.";
+export const HERO_HEADLINE = "Stop guessing. Know when to buy, hold, or sell US stocks.";
+export const HERO_HEADLINE_LEAD = "Stop guessing. Know when to ";
+export const HERO_HEADLINE_EMPHASIS = "buy, hold, or sell US stocks.";
 
 export const HERO_SUBHEAD =
-  "stocksbrew scans fundamentals, news, and price action, then tells you to buy, hold, sell, or avoid.";
+  "stocksbrew reads the fundamentals, the news, and the Reddit noise, then gives you the call in plain English.";
 
 export const ABOUT_PILLARS = [
   {

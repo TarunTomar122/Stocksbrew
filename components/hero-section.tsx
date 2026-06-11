@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { trackLandingCtaClicked } from "@/lib/product-analytics";
 import { StockLogo } from "@/components/stock-logo";
 import { HERO_HEADLINE_EMPHASIS, HERO_HEADLINE_LEAD, HERO_SUBHEAD } from "@/lib/brand-copy";
 
@@ -111,6 +112,8 @@ function verdictStyle(v: string): { text: string; bg: string } {
 }
 
 function HeroChipCard({ chip }: { chip: HeroChip }) {
+  const { user } = useUser();
+  const locked = !user;
   return (
     <div className="shrink-0 self-stretch transition-transform duration-200 ease-out hover:-translate-y-1">
       <StockVerdictChip
@@ -119,6 +122,7 @@ function HeroChipCard({ chip }: { chip: HeroChip }) {
         verdict={chip.verdict}
         directive={chip.directive}
         dayChangePct={chip.dayChangePct}
+        locked={locked}
       />
     </div>
   );
@@ -131,6 +135,7 @@ function StockVerdictChip({
   directive,
   dayChangePct,
   compact,
+  locked,
 }: {
   ticker: string;
   name: string;
@@ -138,6 +143,7 @@ function StockVerdictChip({
   directive: string;
   dayChangePct: number;
   compact?: boolean;
+  locked?: boolean;
 }) {
   const up = dayChangePct >= 0;
   const changeColor = up ? "#10b981" : "#ef4444";
@@ -177,14 +183,14 @@ function StockVerdictChip({
           compact ? "text-[10px] line-clamp-2" : "text-[12px] line-clamp-2"
         }`}
       >
-        {directive}
+        {locked ? "Sign in to reveal the call on this stock." : directive}
       </p>
 
       <span
         className={`mt-auto self-start font-bold rounded-md ${compact ? "text-[10px] px-1.5 py-0.5" : "text-[12px] px-2 py-0.5"}`}
-        style={{ color: verdictStyle(verdict).text, background: verdictStyle(verdict).bg }}
+        style={locked ? { color: "#374151", background: "#f3f4f6" } : { color: verdictStyle(verdict).text, background: verdictStyle(verdict).bg }}
       >
-        {verdict}
+        {locked ? "Locked" : verdict}
       </span>
     </div>
   );
@@ -212,13 +218,18 @@ export function HeroSection({
   const displayChips = chips && chips.length > 0 ? chips : DEFAULT_HERO_CHIPS;
 
   async function startTracking() {
+    trackLandingCtaClicked({
+      surface: "hero",
+      signedIn: Boolean(user),
+      destination: user ? "/watchlist" : "/watchlist",
+    });
     if (user) {
       router.push("/watchlist");
       return;
     }
     setBusy(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle({ surface: "hero" });
       await syncServerSession().catch(() => undefined);
       router.push("/watchlist");
     } catch (err) {

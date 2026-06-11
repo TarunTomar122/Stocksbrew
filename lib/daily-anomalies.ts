@@ -29,6 +29,14 @@ export type AnomalyItem = {
     why_it_matters?: string;
     what_to_watch?: string;
   } | null;
+  move_explanation?: {
+    cause_type?: string;
+    headline?: string;
+    why_it_matters?: string;
+    confidence?: "high" | "medium" | "low" | string;
+    searched_externally?: boolean;
+    evidence?: Array<{ title?: string; url?: string }>;
+  } | null;
   overall_verdict: string | null;
   comparative_context: {
     day_change_pct?: number;

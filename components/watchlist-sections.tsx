@@ -830,7 +830,7 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, boo
             </div>
             <Link href="/subscribe"
               className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]">
-              Unlock Pro · $9/mo →
+              Unlock Pro · $12/mo →
             </Link>
           </div>
         ) : undefined}
@@ -865,14 +865,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
     );
   }
   if (state === "partial") {
-    return (
-      <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
-        <div className="flex flex-col gap-0.5">
-          <p className="text-[12px] font-semibold text-[#92400e]">{enteredCount} of {totalHoldings} holdings have shares entered</p>
-          <p className="text-[11px] text-[#b45309] leading-snug">Fill in all holdings to enable dollar-weighted scores, sector allocation, and position-aware risk flags.</p>
-        </div>
-      </div>
-    );
+    return null;
   }
   const riskColor = riskLabel === "high" ? "text-[#dc2626]" : riskLabel === "medium" ? "text-[#b45309]" : "text-[#047857]";
   return (

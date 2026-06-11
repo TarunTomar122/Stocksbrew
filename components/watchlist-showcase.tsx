@@ -433,7 +433,7 @@ export function WatchlistShowcase() {
               {user ? "Get Pro" : signingIn ? "Signing in…" : "Sign in"}
             </button>
             <span className="text-[12px] text-white/65">
-              Pro $9/mo · cancel anytime
+              Pro $12/mo · cancel anytime
             </span>
           </div>
         </div>

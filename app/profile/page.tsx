@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { ProfileSubscription } from "@/components/profile-subscription";
 import { ProfileFounderFeedback } from "@/components/profile-founder-feedback";
+import { DeleteAccountButton } from "@/components/delete-account-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceToggle } from "@/components/preference-toggle";
 import { ProfileRadarHighlight } from "@/components/profile-radar-highlight";
@@ -111,12 +112,12 @@ export default async function ProfilePage() {
           <ProfileFounderFeedback />
         </section>
 
-        {/* ─── Danger zone ─────────────────────────────────── */}
-        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-4">
+        {/* ─── Session & account ───────────────────────────── */}
+        <section className="bg-surface-container-lowest brutalist-border p-6 flex flex-col gap-5">
           <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary">
             Session
           </span>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-on-surface">Sign out</p>
               <p className="text-[12px] text-on-surface-variant">
@@ -124,6 +125,18 @@ export default async function ProfilePage() {
               </p>
             </div>
             <SignOutButton />
+          </div>
+          <div className="border-t border-outline-variant/20 pt-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-on-surface">Delete account</p>
+              <p className="text-[12px] text-on-surface-variant">
+                Permanently removes your account, Radar, and saved preferences.
+                {hasBillableSubscription
+                  ? " Your subscription will be scheduled to cancel at period end."
+                  : ""}
+              </p>
+            </div>
+            <DeleteAccountButton hasBillableSubscription={hasBillableSubscription} />
           </div>
         </section>
 

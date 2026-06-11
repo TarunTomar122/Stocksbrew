@@ -10,11 +10,8 @@ export function LaunchBanner() {
   return (
     <div className="relative z-[60] flex items-center justify-center gap-3 bg-[#111111] px-10 py-2.5 text-white">
       <span className="text-[13px] font-medium leading-none whitespace-nowrap">
-        🎉{" "}
-        <span className="font-semibold">Launch week</span>
-        {" - "}
-        <span className="font-bold text-[#10b981]">25% off</span>
-        <span className="hidden sm:inline"> your first year</span>
+        Try stocksbrew Pro free for 3 days
+        <span className="hidden sm:inline"> · then $12/mo or $99/yr</span>
       </span>
       <Link
         href="/subscribe"

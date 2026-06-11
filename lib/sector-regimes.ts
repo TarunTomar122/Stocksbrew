@@ -43,10 +43,10 @@ export function slugifySector(value: string): string {
 
 async function getSectorRegimesUncached(
   market: "US" | "IN" = "US",
-): Promise<{ sectors: Map<string, SectorRegimeDoc>; macro: MacroRegimeDoc | null }> {
+): Promise<{ sectors: Record<string, SectorRegimeDoc>; macro: MacroRegimeDoc | null }> {
   const prefix = `${market.toUpperCase()}__`;
   const snap = await adminFirestore.collection("tm_sector_regimes").get();
-  const sectors = new Map<string, SectorRegimeDoc>();
+  const sectors: Record<string, SectorRegimeDoc> = {};
   let macro: MacroRegimeDoc | null = null;
 
   for (const doc of snap.docs) {
@@ -59,12 +59,13 @@ async function getSectorRegimesUncached(
       continue;
     }
     if (!data?.regime) continue;
-    sectors.set(slug, { ...(data as SectorRegimeDoc), sector_slug: slug });
+    sectors[slug] = { ...(data as SectorRegimeDoc), sector_slug: slug };
   }
 
   return { sectors, macro };
 }
 
+// unstable_cache JSON-serializes return values — never return Map/Set here.
 export const getSectorRegimes = unstable_cache(
   getSectorRegimesUncached,
   ["sector-regimes"],
@@ -118,15 +119,15 @@ export async function getBookRegimeRead(
 ): Promise<BookRegimeRead | null> {
   if (exposure.length === 0) return null;
   const { sectors, macro } = await getSectorRegimes(market).catch(() => ({
-    sectors: new Map<string, SectorRegimeDoc>(),
+    sectors: {} as Record<string, SectorRegimeDoc>,
     macro: null,
   }));
-  if (sectors.size === 0 && !macro) return null;
+  if (Object.keys(sectors).length === 0 && !macro) return null;
 
   const joined: BookRegimeRead["sectors"] = [];
   for (const exp of [...exposure].sort((a, b) => b.weightPct - a.weightPct)) {
     const slug = slugifySector(exp.sector);
-    const regime = sectors.get(slug);
+    const regime = sectors[slug];
     if (!regime) continue;
     joined.push({
       sector: exp.sector,

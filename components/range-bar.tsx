@@ -100,6 +100,8 @@ type RsiProps = {
 // Dedicated RSI strip with overbought/oversold zones drawn into the gradient.
 // Goes 0–100, marker at the current value.
 export function RsiStrength({ value, state }: RsiProps) {
+  if (!Number.isFinite(value)) return null;
+
   const clamped = Math.max(0, Math.min(100, value));
   const verdict =
     state === "overbought" || value >= 70

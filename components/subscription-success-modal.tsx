@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { captureEvent } from "@/lib/posthog";
+import { trackSubscriptionConverted } from "@/lib/product-analytics";
 
 type Props = {
   open: boolean;
@@ -30,8 +30,9 @@ export function SubscriptionSuccessModal({ open, subscriptionId }: Props) {
     } catch {
       // Session storage may be unavailable; still show the modal once.
     }
-    captureEvent("subscription_converted", {
+    trackSubscriptionConverted({
       subscription_id: subscriptionId ?? null,
+      source: "success_modal",
     });
     setVisible(true);
   }, [open, storageKey]);

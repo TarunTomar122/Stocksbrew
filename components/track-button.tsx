@@ -63,7 +63,7 @@ export function TrackButton({
 
     // Not signed in → open Google sign-in popup.
     if (!user) {
-      signInWithGoogle()
+      signInWithGoogle({ surface: "radar_track" })
         .then(() => {
           captureEvent("radar_signin_succeeded", {
             ticker,

@@ -49,7 +49,7 @@ import {
   type BookBuzz,
   type BookPremarket,
 } from "@/components/radar-signals-on-book";
-import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
+import { getPremarketMovers, isPremarketLive, type PremarketMovers } from "@/lib/premarket";
 import { getSectorRegimes, slugifySector, REGIME_LABEL } from "@/lib/sector-regimes";
 import { ConnectedReadCard, SignalChips, type SignalChip } from "@/components/connected-read-card";
 import type { DailyAnomaliesDoc } from "@/lib/daily-anomalies";
@@ -70,7 +70,7 @@ export type LivePick = {
 function buildLivePicks(
   anomaliesDoc: DailyAnomaliesDoc | null,
   redditSnap: RedditSnapshot | null,
-  regimes: Map<string, SectorRegimeDoc>,
+  regimes: Record<string, SectorRegimeDoc>,
   market: "US" | "IN",
   exclude: Set<string>,
   max = 6,
@@ -133,7 +133,7 @@ function buildLivePicks(
       chips.push({ kind: "buzz", label: "Reddit buzz" });
       weight += 2;
     }
-    const regime = acc.sector ? regimes.get(slugifySector(acc.sector)) : undefined;
+    const regime = acc.sector ? regimes[slugifySector(acc.sector)] : undefined;
     if (regime) {
       chips.push({ kind: "regime", label: REGIME_LABEL[regime.regime] });
       weight += 1;
@@ -308,7 +308,8 @@ export default async function WatchlistPage() {
     getRedditCues(regimeMarket).catch(() => null),
     getPremarketMovers(regimeMarket).catch(() => null),
   ]);
-  const bookPremarket: BookPremarket[] = isPremarketLive(premarketDoc, regimeMarket)
+  const premarketLive = isPremarketLive(premarketDoc, regimeMarket);
+  const bookPremarket: BookPremarket[] = premarketLive
     ? rows
         .map((r) => {
           const t = String(r.ticker || "").trim().toUpperCase();
@@ -325,16 +326,19 @@ export default async function WatchlistPage() {
         .filter((x): x is BookPremarket => x !== null)
         .sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct))
     : [];
-  const bookAnomalies: BookAnomaly[] = (anomaliesDoc?.anomalies ?? [])
-    .filter((a) => trackedTickers.has(String(a.ticker || "").trim().toUpperCase()))
-    .map((a) => ({
-      ticker: a.ticker,
-      name: a.name || a.ticker,
-      logoUrl: a.logo_url ?? null,
-      dayChangePct: typeof a.day_change_pct === "number" ? a.day_change_pct : null,
-      headline: a.headline ?? a.today_brief ?? null,
-      market: regimeMarket,
-    }));
+  // Day-change anomalies are yesterday's close until the regular session opens.
+  const bookAnomalies: BookAnomaly[] = premarketLive
+    ? []
+    : (anomaliesDoc?.anomalies ?? [])
+        .filter((a) => trackedTickers.has(String(a.ticker || "").trim().toUpperCase()))
+        .map((a) => ({
+          ticker: a.ticker,
+          name: a.name || a.ticker,
+          logoUrl: a.logo_url ?? null,
+          dayChangePct: typeof a.day_change_pct === "number" ? a.day_change_pct : null,
+          headline: a.headline ?? a.today_brief ?? null,
+          market: regimeMarket,
+        }));
   const bookBuzz: BookBuzz[] = (redditSnap?.tickers ?? [])
     .filter((t) => trackedTickers.has(String(t.ticker || "").trim().toUpperCase()))
     .map((t) => ({
@@ -350,10 +354,16 @@ export default async function WatchlistPage() {
   let livePicks: LivePick[] = [];
   if (rows.length === 0) {
     const { sectors: regimeMap } = await getSectorRegimes(regimeMarket).catch(() => ({
-      sectors: new Map(),
+      sectors: {} as Record<string, SectorRegimeDoc>,
       macro: null,
     }));
-    livePicks = buildLivePicks(anomaliesDoc, redditSnap, regimeMap, regimeMarket, trackedTickers);
+    livePicks = buildLivePicks(
+      premarketLive ? null : anomaliesDoc,
+      redditSnap,
+      regimeMap,
+      regimeMarket,
+      trackedTickers,
+    );
   }
   const suggestions = (watchlistView?.suggestions || radar.suggestions || []) as Dict[];
   const brief = ((watchlistView?.brief || radar.brief) ?? null) as WatchlistBrief | null;
@@ -452,7 +462,7 @@ export default async function WatchlistPage() {
 
   // ── live tape items ─────────────────────────────────────────────────────────
   const flatAlerts = flattenAlerts(rows);
-  const tapeItems = buildTapeItems(rows, flatAlerts);
+  const tapeItems = buildTapeItems(rows, flatAlerts, premarketLive ? premarketDoc : null);
 
   // ── ledger groupings ────────────────────────────────────────────────────────
   const holdings = rows.filter((r) => r.position_type === "holding").sort(byAttention);
@@ -693,6 +703,18 @@ function HeaderStrip({
         </div>
 
         <div className="flex items-center gap-2 self-start mt-2">
+          <Link
+            href="/watchlist/portfolio"
+            className="rebalance-btn group relative inline-flex w-fit items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span
+              className="material-symbols-outlined relative z-10"
+              style={{ fontSize: 14, fontVariationSettings: "'wght' 600" }}
+            >
+              balance
+            </span>
+            <span className="relative z-10">Rebalance</span>
+          </Link>
           {atLimit ? (
             <Link
               href="/subscribe"
@@ -767,6 +789,30 @@ function LiveTape({ items }: { items: TapeItem[] }) {
 }
 
 const tapeStyles = `
+@keyframes rebalance-shine {
+  0%, 72% { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(220%) skewX(-12deg); }
+}
+.rebalance-btn {
+  background: linear-gradient(135deg, #0a0a0a 0%, #2a2a2a 42%, #141414 72%, #111111 100%);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+}
+.rebalance-btn::before {
+  content: "";
+  position: absolute;
+  inset: -20% -40%;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.42) 50%,
+    transparent 62%
+  );
+  animation: rebalance-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
 @keyframes radar-tape-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -780,27 +826,52 @@ const tapeStyles = `
 }
 `;
 
-function buildTapeItems(rows: WatchlistRow[], flatAlerts: FlatAlert[]): TapeItem[] {
+function buildTapeItems(
+  rows: WatchlistRow[],
+  flatAlerts: FlatAlert[],
+  premarketDoc: PremarketMovers | null = null,
+): TapeItem[] {
   const items: TapeItem[] = [];
 
-  // top day-changers first
-  const sortedRows = [...rows]
-    .filter((r) => typeof r.day_change_pct === "number")
-    .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))
-    .slice(0, 6);
-  for (const r of sortedRows) {
-    const pct = r.day_change_pct ?? 0;
-    if (Math.abs(pct) < 1.5) continue;
-    items.push({
-      ticker: r.ticker,
-      body: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-      tone: pct >= 0 ? "bull" : "bear",
-    });
+  if (premarketDoc?.by_ticker) {
+    const gaps = rows
+      .map((r) => {
+        const ticker = String(r.ticker || "").trim().toUpperCase();
+        const hit = ticker ? premarketDoc.by_ticker[ticker] : undefined;
+        if (!hit) return null;
+        return { ticker: r.ticker, gapPct: hit.pre_market_change_pct };
+      })
+      .filter((row): row is { ticker: string; gapPct: number } => row !== null)
+      .sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct))
+      .slice(0, 6);
+    for (const row of gaps) {
+      if (Math.abs(row.gapPct) < 1.5) continue;
+      items.push({
+        ticker: row.ticker,
+        body: `pre-market ${row.gapPct >= 0 ? "+" : ""}${row.gapPct.toFixed(2)}%`,
+        tone: row.gapPct >= 0 ? "bull" : "bear",
+      });
+    }
+  } else {
+    const sortedRows = [...rows]
+      .filter((r) => typeof r.day_change_pct === "number")
+      .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))
+      .slice(0, 6);
+    for (const r of sortedRows) {
+      const pct = r.day_change_pct ?? 0;
+      if (Math.abs(pct) < 1.5) continue;
+      items.push({
+        ticker: r.ticker,
+        body: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
+        tone: pct >= 0 ? "bull" : "bear",
+      });
+    }
   }
   // then alerts not already represented
   const seen = new Set(items.map((i) => i.ticker));
   for (const f of flatAlerts.slice(0, 8)) {
     if (seen.has(f.ticker)) continue;
+    if (premarketDoc && /moved .* today/i.test(f.message)) continue;
     items.push({ ticker: f.ticker, body: f.message, tone: f.tone });
     seen.add(f.ticker);
   }
@@ -1470,7 +1541,7 @@ function YourBookSection({
               href="/subscribe"
               className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]"
             >
-              Get Pro · $9/mo →
+              Get Pro · $12/mo →
             </Link>
           </div>
         ) : undefined}
@@ -1511,18 +1582,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
   }
 
   if (state === "partial") {
-    return (
-      <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
-        <div className="flex flex-col gap-0.5">
-          <p className="text-[12px] font-semibold text-[#92400e]">
-            {enteredCount} of {totalHoldings} holdings have shares entered
-          </p>
-          <p className="text-[11px] text-[#b45309] leading-snug">
-            Fill in all holdings to enable dollar-weighted scores, sector allocation, and position-aware risk flags.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Full / position-aware state. The old green "Position-aware · largest position
@@ -2802,7 +2862,7 @@ function UnsubscribedState({
         <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-5 md:p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">Pro · $9/mo</span>
+              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">Pro · $12/mo</span>
               <h3 className="text-[16px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
                 Stop guessing on the stocks you hold
               </h3>

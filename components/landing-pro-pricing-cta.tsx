@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { type AuthSurface, trackLandingCtaClicked } from "@/lib/product-analytics";
 
 async function syncServerSession(): Promise<void> {
   const u = getFirebaseAuth().currentUser;
@@ -21,17 +22,24 @@ export function LandingProPricingCta({
   isSignedIn,
   highlight,
   ctaLabel,
+  surface = "landing_pro_preview",
 }: {
   isSignedIn: boolean;
   highlight?: boolean;
   ctaLabel: string;
+  surface?: AuthSurface;
 }) {
   const [busy, setBusy] = useState(false);
 
   async function signInThenSubscribe() {
+    trackLandingCtaClicked({
+      surface,
+      signedIn: false,
+      destination: "/subscribe",
+    });
     setBusy(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle({ surface });
     } catch {
       setBusy(false);
       return;
@@ -52,7 +60,17 @@ export function LandingProPricingCta({
 
   if (isSignedIn) {
     return (
-      <Link href="/subscribe" className={className}>
+      <Link
+        href="/subscribe"
+        className={className}
+        onClick={() =>
+          trackLandingCtaClicked({
+            surface,
+            signedIn: true,
+            destination: "/subscribe",
+          })
+        }
+      >
         {ctaLabel}
         <span aria-hidden className="ml-1">
           →

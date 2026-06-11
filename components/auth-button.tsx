@@ -15,7 +15,7 @@ export function AuthButton() {
     captureEvent("auth_sign_in_clicked", { surface: "header" });
     setBusy(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle({ surface: "header" });
       captureEvent("auth_sign_in_succeeded", { surface: "header" });
     } catch (err) {
       console.error("sign-in failed", err);

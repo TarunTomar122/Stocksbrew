@@ -3,7 +3,8 @@ import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
-import { getFeedPreviewLimit } from "@/lib/pro-features";
+import { FeedLockedCard, FeedPaywallSlot, MarketAnomaliesPaywall } from "@/components/feed-pro-paywalls";
+import { getFeedPreviewLimit, PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
@@ -26,8 +27,12 @@ function fmtPct(v: number): string {
 function AnomalyCard({ item }: { item: AnomalyItem }) {
   const isUp = item.direction === "up";
   const changeColor = isUp ? "#10b981" : "#ef4444";
-  const brief = (item.today_brief || item.key_points?.[0] || "").trim();
-  const showBrief = brief && brief !== item.headline;
+  const title = (item.headline || "").trim();
+  const moveExplanation = item.move_explanation;
+  const explanationHeadline = (moveExplanation?.headline || "").trim();
+  const explanationBody = (moveExplanation?.why_it_matters || "").trim();
+  const whatChanged = (item.visual_summary?.what_changed || "").trim();
+  const showWhatChanged = !explanationBody && whatChanged && whatChanged !== title;
 
   return (
     <Link
@@ -42,7 +47,7 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
             <span className="text-[14px] font-semibold text-[#111111] tracking-tight group-hover:text-[#0052ff] transition-colors">
               {item.ticker}
             </span>
-            <span className="text-[11px] text-[#9ca3af] truncate max-w-[120px]">
+            <span className="text-[11px] leading-snug text-[#9ca3af]">
               {item.name}
             </span>
           </div>
@@ -70,18 +75,23 @@ function AnomalyCard({ item }: { item: AnomalyItem }) {
         )}
       </div>
 
-      {/* Headline */}
-      {item.headline && (
-        <p className="line-clamp-2 text-[13px] leading-snug text-[#111111]">
-          {item.headline}
+      {(explanationHeadline || title) ? (
+        <p className="text-[13px] leading-snug font-medium text-[#111111]">
+          {explanationHeadline || title}
         </p>
-      )}
+      ) : null}
 
-      {showBrief && (
-        <p className="line-clamp-2 text-[12px] leading-snug text-[#6b7280]">
-          {brief}
+      {explanationBody ? (
+        <p className="text-[12px] leading-relaxed text-[#6b7280]">
+          {explanationBody}
         </p>
-      )}
+      ) : null}
+
+      {showWhatChanged ? (
+        <p className="text-[12px] leading-relaxed text-[#6b7280]">
+          {whatChanged}
+        </p>
+      ) : null}
 
       {/* Catalyst - only short labels, not full sentences */}
       <div className="mt-auto min-h-[20px]">
@@ -109,17 +119,17 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
   const downs = anomalies.filter((a) => a.direction === "down");
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <Link
               href="/anomalies"
-              className="group/title inline-flex items-center gap-1.5 text-[18px] font-semibold text-[#111111] tracking-[-0.015em] hover:text-[#0052ff] transition-colors"
+              className="group/title inline-flex items-center gap-1.5 text-[22px] md:text-[24px] font-semibold text-[#111111] tracking-[-0.02em] hover:text-[#0052ff] transition-colors"
             >
               Market Anomalies
-              <span className="text-[14px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
+              <span className="text-[16px] text-[#9ca3af] group-hover/title:text-[#0052ff] group-hover/title:translate-x-0.5 transition-all">→</span>
             </Link>
             {lockedCount > 0 && <ProBadge isSubscribed={isSubscribed} />}
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#6b7280]">
@@ -160,27 +170,18 @@ export function DailyAnomalies({ anomalies, summary, generatedAt, isSubscribed =
             <AnomalyCard item={item} />
           </div>
         ))}
-        {!isSubscribed && lockedCount > 0 && (
+        {!isSubscribed && lockedCount > 0 ? (
           <div className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
-            <Link
-              href="/subscribe"
-              className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d1d5db] bg-[#f9fafb] p-4 text-center hover:border-[#111111] hover:bg-white transition-colors"
-            >
-              <div className="w-9 h-9 rounded-full bg-[#f3f4f6] flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <rect x="3" y="7" width="10" height="8" rx="2" stroke="#6b7280" strokeWidth="1.4" />
-                  <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
-                  <circle cx="8" cy="11" r="1" fill="#6b7280" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-[#111111]">+{lockedCount} more moves</p>
-                <p className="text-[11px] text-[#9ca3af] mt-0.5">Unlock with Pro</p>
-              </div>
-            </Link>
+            <FeedLockedCard label={`${PRO_LOCKED_FEED_TEASER} more moves`} />
           </div>
-        )}
+        ) : null}
       </div>
+
+      {!isSubscribed && lockedCount > 0 ? (
+        <FeedPaywallSlot>
+          <MarketAnomaliesPaywall anomalies={anomalies} upCount={ups.length} downCount={downs.length} />
+        </FeedPaywallSlot>
+      ) : null}
     </section>
   );
 }
