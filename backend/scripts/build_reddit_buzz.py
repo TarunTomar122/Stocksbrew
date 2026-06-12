@@ -6,7 +6,7 @@ import json
 import os
 import re
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -37,6 +37,8 @@ DEFAULT_SUBREDDITS = [
     "pennystocks",
 ]
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+DEFAULT_SUBREDDIT_BATCH_SIZE = 4
+DEFAULT_CACHE_HOURS = 48
 
 TICKER_EXTRACTION_PROMPT = """You extract stock buzz from Reddit posts.
 Return JSON object:
@@ -128,6 +130,130 @@ def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def _post_cache_id(market: str, subreddit: str) -> str:
+    safe_subreddit = re.sub(r"[^A-Za-z0-9_-]+", "_", str(subreddit or "").strip())
+    return f"{market.upper()}__{safe_subreddit}"
+
+
+def _post_key(post: dict[str, Any]) -> str:
+    raw = str(post.get("id") or "").strip()
+    if raw:
+        return raw
+    return f"{post.get('subreddit', '')}:{post.get('url', '')}:{post.get('title', '')}"
+
+
+def _prune_cached_posts(posts: list[dict[str, Any]], cache_hours: int) -> list[dict[str, Any]]:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max(1, cache_hours))
+    kept: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for post in posts:
+        if not isinstance(post, dict):
+            continue
+        key = _post_key(post)
+        if not key or key in seen:
+            continue
+        published = _parse_datetime(post.get("published"))
+        if published and published < cutoff:
+            continue
+        seen.add(key)
+        kept.append(post)
+    kept.sort(key=lambda row: str(row.get("published") or ""), reverse=True)
+    return kept
+
+
+def _load_cached_posts(store: TraceMoneyStore, market: str, cache_hours: int) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    docs = (
+        store.db.collection("reddit_post_cache")
+        .where("market", "==", market.upper())
+        .stream()
+    )
+    for doc in docs:
+        payload = doc.to_dict() or {}
+        rows.extend(post for post in (payload.get("posts") or []) if isinstance(post, dict))
+    return _prune_cached_posts(rows, cache_hours)
+
+
+def _write_subreddit_cache(
+    store: TraceMoneyStore,
+    *,
+    market: str,
+    subreddit: str,
+    fetched_posts: list[dict[str, Any]],
+    cache_hours: int,
+) -> int:
+    ref = store.db.collection("reddit_post_cache").document(_post_cache_id(market, subreddit))
+    current = ref.get()
+    existing = []
+    if current.exists:
+        existing = [
+            post
+            for post in ((current.to_dict() or {}).get("posts") or [])
+            if isinstance(post, dict)
+        ]
+
+    by_id = {_post_key(post): post for post in existing if _post_key(post)}
+    before = len(by_id)
+    for post in fetched_posts:
+        key = _post_key(post)
+        if key:
+            by_id[key] = post
+    posts = _prune_cached_posts(list(by_id.values()), cache_hours)
+    ref.set(
+        {
+            "market": market.upper(),
+            "subreddit": subreddit,
+            "updated_at": _utc_now(),
+            "cache_hours": max(1, cache_hours),
+            "post_count": len(posts),
+            "posts": posts[:250],
+        }
+    )
+    return max(0, len(by_id) - before)
+
+
+def _select_subreddit_batch(
+    store: TraceMoneyStore,
+    *,
+    market: str,
+    subreddits: list[str],
+    batch_size: int,
+) -> list[str]:
+    if not subreddits:
+        return []
+    if batch_size <= 0 or batch_size >= len(subreddits):
+        return subreddits
+
+    ref = store.db.collection("reddit_pipeline_state").document(market.upper())
+    snap = ref.get()
+    current = int((snap.to_dict() or {}).get("next_subreddit_index") or 0) if snap.exists else 0
+    start = current % len(subreddits)
+    selected = [subreddits[(start + offset) % len(subreddits)] for offset in range(batch_size)]
+    ref.set(
+        {
+            "market": market.upper(),
+            "next_subreddit_index": (start + batch_size) % len(subreddits),
+            "last_selected_subreddits": selected,
+            "updated_at": _utc_now(),
+        },
+        merge=True,
+    )
+    return selected
 
 
 def _strip_html(raw: str) -> str:
@@ -335,6 +461,8 @@ def main() -> None:
     parser.add_argument("--max-top-posts", type=int, default=12)
     parser.add_argument("--timeout-seconds", type=int, default=12)
     parser.add_argument("--llm-timeout-seconds", type=int, default=120)
+    parser.add_argument("--subreddit-batch-size", type=int, default=DEFAULT_SUBREDDIT_BATCH_SIZE)
+    parser.add_argument("--cache-hours", type=int, default=DEFAULT_CACHE_HOURS)
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -343,13 +471,35 @@ def main() -> None:
         raise ValueError(f"No active universe configured for {args.market}")
 
     subreddits = [s.strip().lstrip("r/") for s in args.subreddits.split(",") if s.strip()]
-    posts: list[dict[str, Any]] = []
-    for subreddit in subreddits:
+    selected_subreddits = _select_subreddit_batch(
+        store,
+        market=args.market,
+        subreddits=subreddits,
+        batch_size=max(0, args.subreddit_batch_size),
+    )
+    fetched_posts: list[dict[str, Any]] = []
+    fetch_failures: list[dict[str, str]] = []
+    new_cache_posts = 0
+    for subreddit in selected_subreddits:
         try:
             rows = _fetch_rss(subreddit, args.timeout_seconds)
-            posts.extend(rows[: args.posts_per_subreddit])
+            selected_rows = rows[: args.posts_per_subreddit]
+            fetched_posts.extend(selected_rows)
+            new_cache_posts += _write_subreddit_cache(
+                store,
+                market=args.market,
+                subreddit=subreddit,
+                fetched_posts=selected_rows,
+                cache_hours=args.cache_hours,
+            )
         except Exception as exc:
-            print({"stage": "reddit_scan_failed", "subreddit": subreddit, "error": str(exc)})
+            error = str(exc)
+            fetch_failures.append({"subreddit": subreddit, "error": error})
+            print({"stage": "reddit_scan_failed", "subreddit": subreddit, "error": error})
+
+    posts = _load_cached_posts(store, args.market, args.cache_hours)
+    if not posts:
+        posts = fetched_posts
 
     supported_tickers = _load_supported_tickers(store, args.market)
 
@@ -440,7 +590,12 @@ def main() -> None:
         "market": args.market,
         "generated_at": _utc_now(),
         "post_count": len(posts),
+        "posts_fetched_this_run": len(fetched_posts),
+        "new_cached_posts_this_run": new_cache_posts,
         "subreddit_count": len(subreddits),
+        "subreddits_scanned_this_run": selected_subreddits,
+        "fetch_failures": fetch_failures,
+        "cache_hours": max(1, args.cache_hours),
         "subreddits": subreddits,
         "market_mood": mood,
         "ticker_count": len(tickers_payload),
@@ -466,6 +621,10 @@ def main() -> None:
     print({
         "market": args.market,
         "post_count": len(posts),
+        "posts_fetched_this_run": len(fetched_posts),
+        "new_cached_posts_this_run": new_cache_posts,
+        "subreddits_scanned_this_run": selected_subreddits,
+        "fetch_failures": len(fetch_failures),
         "ticker_count": len(tickers_payload),
         "llm": bool(llm_data),
         "llm_ticker_count": llm_ticker_count,

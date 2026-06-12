@@ -324,6 +324,8 @@ def main() -> None:
     parser.add_argument("--upcoming-days", type=int, default=7)
     parser.add_argument("--max-events", type=int, default=20)
     parser.add_argument("--skip-if-fresh-hours", type=int, default=0)
+    parser.add_argument("--reddit-subreddit-batch-size", type=int, default=4)
+    parser.add_argument("--reddit-cache-hours", type=int, default=48)
     parser.add_argument("--model", default="")
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
@@ -579,6 +581,13 @@ def main() -> None:
             single_extra_args = ["--limit", str(max(0, args.limit))]
         elif args.lane == "weekly_newsletter":
             single_extra_args = ["--limit", str(max(0, args.limit))]
+        elif args.lane == "reddit_buzz":
+            single_extra_args = [
+                "--subreddit-batch-size",
+                str(max(0, args.reddit_subreddit_batch_size)),
+                "--cache-hours",
+                str(max(1, args.reddit_cache_hours)),
+            ]
         elif args.lane == "stock_facts":
             single_extra_args = [
                 "--limit",

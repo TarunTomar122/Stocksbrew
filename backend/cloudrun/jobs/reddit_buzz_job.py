@@ -14,6 +14,8 @@ def main() -> None:
     parser.add_argument("--posts-per-subreddit", type=int, default=25)
     parser.add_argument("--max-tickers", type=int, default=20)
     parser.add_argument("--max-top-posts", type=int, default=12)
+    parser.add_argument("--subreddit-batch-size", type=int, default=4)
+    parser.add_argument("--cache-hours", type=int, default=48)
     parser.add_argument("--promote-min-mentions", type=int, default=1)
     parser.add_argument("--promote-min-confidence", type=float, default=0.55)
     parser.add_argument("--promote-max-add", type=int, default=8)
@@ -35,6 +37,10 @@ def main() -> None:
         str(args.max_tickers),
         "--max-top-posts",
         str(args.max_top_posts),
+        "--subreddit-batch-size",
+        str(max(0, args.subreddit_batch_size)),
+        "--cache-hours",
+        str(max(1, args.cache_hours)),
     ]
     print({"run_id": args.run_id, "lane": args.lane, "cmd": " ".join(cmd)})
     subprocess.run(cmd, check=True)
