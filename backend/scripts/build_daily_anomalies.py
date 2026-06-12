@@ -55,7 +55,6 @@ def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict
                 "generated_at": payload.get("generated_at"),
                 "enriched_at": payload.get("enriched_at"),
                 "date": payload.get("date"),
-                "summary": payload.get("summary"),
                 "anomaly": row,
             },
         )
@@ -127,7 +126,7 @@ def _evidence_from_intel(intel_doc: dict[str, Any] | None, direction: str) -> di
     return {
         "cause_type": cause if cause != "unclear" else "company_news",
         "headline": headline[:180],
-        "why_it_matters": why[:260],
+        "why_it_matters": why,
         "confidence": "high" if news_count >= 2 or cause != "unclear" else "medium",
         "searched_externally": False,
         "evidence": [],
@@ -174,7 +173,7 @@ def _search_move_explanation(ticker: str, name: str, day_change_pct: float) -> d
     return {
         "cause_type": cause,
         "headline": title[:180] if title else f"{ticker} move has a fresh news driver.",
-        "why_it_matters": content[:260] if content else title[:260],
+        "why_it_matters": content if content else title,
         "confidence": "medium",
         "searched_externally": True,
         "evidence": [
@@ -255,6 +254,45 @@ def _run_intelligence_fill_for_missing(
     subprocess.run(cmd, check=True)
 
 
+def _tracked_instrument_ids(store: TraceMoneyStore, market: str) -> list[str]:
+    prefix = f"{market.upper()}_"
+    seen: set[str] = set()
+    out: list[str] = []
+    for user in store.list_subscribed_users():
+        tracked = user.get("tracked_stocks") or []
+        if not isinstance(tracked, list):
+            continue
+        for raw in tracked:
+            instrument_id = str(raw or "").strip().upper()
+            if not instrument_id or not instrument_id.startswith(prefix) or instrument_id in seen:
+                continue
+            seen.add(instrument_id)
+            out.append(instrument_id)
+    return out
+
+
+def _load_scan_instruments(
+    store: TraceMoneyStore,
+    *,
+    market: str,
+    universe_id: str,
+    include_tracked: bool,
+) -> list[dict[str, Any]]:
+    rows = list_instruments(market, universe_id)
+    by_id = {
+        str(row.get("instrument_id") or "").strip().upper(): row
+        for row in rows
+        if str(row.get("instrument_id") or "").strip()
+    }
+    if include_tracked:
+        missing_ids = [iid for iid in _tracked_instrument_ids(store, market) if iid not in by_id]
+        for row in store.list_instruments(market, missing_ids):
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            if instrument_id:
+                by_id[instrument_id] = row
+    return list(by_id.values())
+
+
 def _pick_row(
     instrument: dict[str, Any],
     quote_doc: dict[str, Any],
@@ -288,7 +326,7 @@ def _pick_row(
     )
     if raw_brief and _is_directionally_stale(raw_brief, direction):
         raw_brief = None
-    brief = key_points[0] if key_points else raw_brief
+    brief = raw_brief or (key_points[0] if key_points else None)
     label = str((intel_doc or {}).get("overall_label") or "").strip() or None
     score = (intel_doc or {}).get("overall_score")
     overall_score = int(score) if isinstance(score, (int, float)) else None
@@ -366,6 +404,7 @@ def main() -> None:
     parser.add_argument("--per-stock-lookback-hours", type=int, default=168)
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--explain-hard-moves", action="store_true")
+    parser.add_argument("--exclude-tracked", action="store_true")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -373,7 +412,12 @@ def main() -> None:
     if not universe_id:
         raise ValueError(f"No active universe configured for {args.market}")
 
-    instruments = list_instruments(args.market, universe_id)
+    instruments = _load_scan_instruments(
+        store,
+        market=args.market,
+        universe_id=universe_id,
+        include_tracked=not bool(args.exclude_tracked),
+    )
     by_id = {
         str(row.get("instrument_id") or "").strip().upper(): row
         for row in instruments
@@ -449,7 +493,6 @@ def main() -> None:
 
     up_count = sum(1 for row in rows if str(row.get("direction")) == "up")
     down_count = sum(1 for row in rows if str(row.get("direction")) == "down")
-    summary = f"{len(rows)} stocks moved {args.threshold_pct:.1f}%+ today ({up_count} up, {down_count} down)."
 
     payload = {
         "market": args.market,
@@ -460,7 +503,6 @@ def main() -> None:
         "threshold_pct": float(args.threshold_pct),
         "up_count": up_count,
         "down_count": down_count,
-        "summary": summary,
         "anomalies": rows,
         "universe_id": universe_id,
     }
@@ -477,9 +519,11 @@ def main() -> None:
             "threshold_pct": args.threshold_pct,
             "limit": args.limit,
             "enrich_missing": bool(args.enrich_missing),
+            "include_tracked": not bool(args.exclude_tracked),
+            "scan_count": len(instrument_ids),
         },
     )
-    print({"market": args.market, "selected": len(selected_ids), "written": len(rows)})
+    print({"market": args.market, "scanned": len(instrument_ids), "selected": len(selected_ids), "written": len(rows)})
 
 
 if __name__ == "__main__":
