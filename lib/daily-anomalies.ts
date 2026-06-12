@@ -54,7 +54,8 @@ export type DailyAnomaliesDoc = {
   threshold_pct: number;
   up_count: number;
   down_count: number;
-  summary: string;
+  /** @deprecated No longer written or shown in the UI. */
+  summary?: string;
   anomalies: AnomalyItem[];
   enriched_at?: string;
 };
@@ -65,7 +66,6 @@ type DailyAnomalyTickerDoc = {
   generated_at?: string;
   enriched_at?: string;
   date?: string;
-  summary?: string;
   anomaly?: AnomalyItem;
 };
 
@@ -86,23 +86,48 @@ export const getDailyAnomalies = unstable_cache(
   { revalidate: 120 },
 );
 
+function normalizeAnomalyTicker(ticker: string): string {
+  return ticker.trim().toUpperCase();
+}
+
+/** Match a ticker against today's anomaly feed (case-insensitive). */
+export function findAnomalyInFeed(
+  anomalies: AnomalyItem[] | null | undefined,
+  ticker: string,
+): AnomalyItem | null {
+  const normalized = normalizeAnomalyTicker(ticker);
+  if (!normalized || !anomalies?.length) return null;
+  return anomalies.find((row) => normalizeAnomalyTicker(row.ticker) === normalized) ?? null;
+}
+
 async function getDailyAnomalyForTickerUncached(
   market: "US" | "IN" = "US",
   ticker: string,
 ): Promise<AnomalyItem | null> {
-  const normalized = ticker.trim().toUpperCase();
+  const normalized = normalizeAnomalyTicker(ticker);
   if (!normalized) return null;
+
+  // Prefer the latest feed. Per-ticker docs are a read-model optimization and
+  // can briefly lag after a rebuild, which is bad on stock pages where stale
+  // move explanations are very visible.
+  const feed = await getDailyAnomaliesUncached(market);
+  const latest = findAnomalyInFeed(feed?.anomalies, normalized);
+  if (latest) return latest;
+
   const doc = await adminFirestore
     .collection("tm_daily_anomaly_tickers")
     .doc(`${market}__${normalized}`)
     .get();
-  if (!doc.exists) return null;
-  const data = doc.data() as DailyAnomalyTickerDoc;
-  return data.anomaly ?? null;
+  if (doc.exists) {
+    const data = doc.data() as DailyAnomalyTickerDoc;
+    if (data.anomaly) return data.anomaly;
+  }
+
+  return null;
 }
 
 export const getDailyAnomalyForTicker = unstable_cache(
   getDailyAnomalyForTickerUncached,
-  ["daily-anomaly-for-ticker"],
+  ["daily-anomaly-for-ticker-v2"],
   { revalidate: 120 },
 );
