@@ -1,16 +1,47 @@
 from __future__ import annotations
 
 import argparse
-import os
+import json
 import subprocess
 import sys
 from datetime import datetime, timezone
 from typing import Any
 
+import requests
+
+from backend.llm_client import json_response_format, llm_api_key, llm_api_url, llm_headers, llm_model, parse_json_content, schema_system_prompt
 from backend.instrument_universe import list_instruments
-from backend.pre_earnings_enrichment import tavily_search
 from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
+
+
+OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+MOVE_EXPLAINER_PROMPT = """You explain sharp single-stock moves for a market app.
+
+You receive the ticker, company name, today's price move, and the latest internal news items for that stock.
+
+Decide whether those news items plausibly explain today's sudden move.
+
+Rules:
+- Use only the supplied news items. Do not infer from old market memory.
+- If the items are unrelated, stale, contradictory, or do not explain the move, return can_explain=false.
+- If they explain the move, write a plain-English headline and explanation.
+- Keep headline under 12 words.
+- Keep why_it_matters to 1-2 complete sentences, 35-55 words total.
+- Do not mention that you are an AI or that evidence was supplied.
+"""
+
+MOVE_EXPLAINER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "can_explain": {"type": "boolean"},
+        "cause_type": {"type": "string"},
+        "headline": {"type": "string"},
+        "why_it_matters": {"type": "string"},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+    },
+    "required": ["can_explain", "cause_type", "headline", "why_it_matters", "confidence"],
+}
 
 
 def _now_iso() -> str:
@@ -79,113 +110,93 @@ def _to_float(value: Any) -> float | None:
     return None
 
 
-def _is_directionally_stale(text: str, direction: str) -> bool:
-    lower = f" {text.lower()} "
-    if direction == "up":
-        return any(term in lower for term in (" fell ", " drops ", " dropped ", " down ", " decline", " selloff", " pullback "))
-    return any(term in lower for term in (" rose ", " rallies ", " rallied ", " up ", " surge ", " breakout "))
-
-
-_CAUSE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("earnings", ("earnings", "eps", "revenue", "quarter", "results")),
-    ("guidance", ("guidance", "forecast", "outlook", "cut outlook", "raised outlook")),
-    ("analyst_action", ("downgrade", "upgrade", "price target", "initiated", "analyst")),
-    ("company_news", ("deal", "contract", "acquisition", "offering", "sec", "lawsuit", "fda", "approval", "investigation")),
-    ("sector_sympathy", ("sector", "industry", "peers", "chip", "software", "retail", "banks")),
-)
-
-
-def _classify_cause(text: str) -> str:
-    lower = f" {text.lower()} "
-    for cause, keywords in _CAUSE_KEYWORDS:
-        if any(keyword in lower for keyword in keywords):
-            return cause
-    return "unclear"
-
-
-def _evidence_from_intel(intel_doc: dict[str, Any] | None, direction: str) -> dict[str, Any] | None:
+def _latest_timeline_items(intel_doc: dict[str, Any] | None, *, limit: int = 3) -> list[dict[str, Any]]:
     intel = intel_doc or {}
-    bits = [
-        str(intel.get("headline") or ""),
-        str(intel.get("today_brief") or intel.get("body") or ""),
-        str(intel.get("catalyst") or ""),
-        *[str(item or "") for item in (intel.get("key_points") or [])[:3]],
-    ]
-    text = " ".join(bit.strip() for bit in bits if bit and str(bit).strip())
-    if not text or _is_directionally_stale(text, direction):
-        return None
-    news_count = int(intel.get("news_count") or 0)
-    cause = _classify_cause(text)
-    if news_count <= 0 and cause == "unclear":
-        return None
-    headline = str(intel.get("headline") or "").strip() or "Fresh internal news likely explains the move."
-    why = str(intel.get("today_brief") or intel.get("body") or "").strip()
-    if not why:
-        points = [str(item or "").strip() for item in (intel.get("key_points") or []) if str(item or "").strip()]
-        why = points[0] if points else headline
+    rows = [row for row in (intel.get("timeline") or []) if isinstance(row, dict)]
+    rows.sort(key=lambda row: str(row.get("timestamp") or ""), reverse=True)
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        title = str(row.get("title") or "").strip()
+        summary = str(row.get("summary") or "").strip()
+        if not title and not summary:
+            continue
+        out.append(
+            {
+                "date": str(row.get("timestamp") or "").strip()[:10],
+                "source": str(row.get("source_name") or "").strip(),
+                "title": title,
+                "summary": summary,
+                "url": str(row.get("article_url") or "").strip(),
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _fallback_move_explanation() -> dict[str, Any]:
     return {
-        "cause_type": cause if cause != "unclear" else "company_news",
-        "headline": headline[:180],
-        "why_it_matters": why,
-        "confidence": "high" if news_count >= 2 or cause != "unclear" else "medium",
+        "cause_type": "unclear",
+        "headline": "No clear company-specific driver surfaced yet.",
+        "why_it_matters": "The move is large, but current internal news and intelligence do not explain it cleanly.",
+        "confidence": "low",
         "searched_externally": False,
         "evidence": [],
     }
 
 
-def _search_move_explanation(ticker: str, name: str, day_change_pct: float) -> dict[str, Any] | None:
-    api_key = os.getenv("TAVILY_API_KEY", "").strip()
+def _llm_move_explanation(
+    *,
+    instrument: dict[str, Any],
+    day_change_pct: float,
+    articles: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not articles:
+        return None
+    api_key = llm_api_key()
     if not api_key:
         return None
-    direction = "up" if day_change_pct >= 0 else "down"
-    query = f"{ticker} {name} stock {direction} {abs(day_change_pct):.1f}% today why"
-    print(f"  [tavily anomaly] {ticker}: {query[:80]}...", flush=True)
-    result = tavily_search(query, api_key=api_key)
-    if not result.get("ok"):
-        return None
-    rows = [row for row in (result.get("results") or []) if isinstance(row, dict)]
-    if not rows:
-        return None
-    joined = " ".join(
-        f"{row.get('title') or ''} {row.get('content') or ''}"
-        for row in rows[:3]
-    )
-    cause = _classify_cause(joined)
-    if cause == "unclear":
-        return {
-            "cause_type": "unclear",
-            "headline": "No clear company-specific driver surfaced yet.",
-            "why_it_matters": "The move is large, but fresh search results did not identify a credible single catalyst.",
-            "confidence": "low",
-            "searched_externally": True,
-            "evidence": [
-                {
-                    "title": str(row.get("title") or "")[:160],
-                    "url": str(row.get("url") or "")[:500],
-                }
-                for row in rows[:2]
-                if row.get("url")
-            ],
-        }
-    best = rows[0]
-    title = str(best.get("title") or "").strip()
-    content = str(best.get("content") or "").strip()
-    return {
-        "cause_type": cause,
-        "headline": title[:180] if title else f"{ticker} move has a fresh news driver.",
-        "why_it_matters": content if content else title,
-        "confidence": "medium",
-        "searched_externally": True,
-        "evidence": [
-            {
-                "title": str(row.get("title") or "")[:160],
-                "url": str(row.get("url") or "")[:500],
-            }
-            for row in rows[:3]
-            if row.get("url")
-        ],
+    payload = {
+        "ticker": str(instrument.get("ticker") or "").strip().upper(),
+        "company": str(instrument.get("name") or instrument.get("ticker") or "").strip(),
+        "day_change_pct": day_change_pct,
+        "direction": "up" if day_change_pct >= 0 else "down",
+        "latest_articles": articles,
     }
-
+    try:
+        resp = requests.post(
+            llm_api_url(),
+            headers=llm_headers(api_key),
+            json={
+                "model": llm_model(OPENAI_DEFAULT_MODEL),
+                "temperature": 0.0,
+                "messages": [
+                    {"role": "system", "content": schema_system_prompt(MOVE_EXPLAINER_PROMPT, MOVE_EXPLAINER_SCHEMA)},
+                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+                ],
+                "response_format": json_response_format(),
+            },
+            timeout=35,
+        )
+        resp.raise_for_status()
+        parsed = parse_json_content(resp.json()["choices"][0]["message"]["content"])
+    except Exception as exc:
+        print(f"  [move explainer] failed {payload['ticker']}: {exc}", flush=True)
+        return None
+    if not parsed.get("can_explain"):
+        return None
+    headline = str(parsed.get("headline") or "").strip()
+    why = str(parsed.get("why_it_matters") or "").strip()
+    if not headline or not why:
+        return None
+    return {
+        "cause_type": str(parsed.get("cause_type") or "company_news").strip() or "company_news",
+        "headline": headline,
+        "why_it_matters": why,
+        "confidence": str(parsed.get("confidence") or "medium").strip() or "medium",
+        "searched_externally": False,
+        "evidence": [{"title": row.get("title"), "url": row.get("url")} for row in articles if row.get("url")],
+    }
 
 def _move_explanation(
     *,
@@ -196,23 +207,12 @@ def _move_explanation(
 ) -> dict[str, Any] | None:
     if abs(day_change_pct) < 4:
         return None
-    ticker = str(instrument.get("ticker") or "").strip().upper()
-    name = str(instrument.get("name") or ticker)
-    direction = "up" if day_change_pct >= 0 else "down"
-    internal = _evidence_from_intel(intel_doc, direction)
-    if internal and internal.get("confidence") == "high":
-        return internal
-    searched = _search_move_explanation(ticker, name, day_change_pct) if external_search else None
-    if searched:
-        return searched
-    return internal or {
-        "cause_type": "unclear",
-        "headline": "No clear driver found for the move yet.",
-        "why_it_matters": "The price move crossed our hard-move threshold, but current evidence does not explain it cleanly.",
-        "confidence": "low",
-        "searched_externally": bool(external_search),
-        "evidence": [],
-    }
+    explanation = _llm_move_explanation(
+        instrument=instrument,
+        day_change_pct=day_change_pct,
+        articles=_latest_timeline_items(intel_doc, limit=3),
+    )
+    return explanation or _fallback_move_explanation()
 
 
 def _run_intelligence_fill_for_missing(
@@ -324,8 +324,6 @@ def _pick_row(
         ).strip()
         or None
     )
-    if raw_brief and _is_directionally_stale(raw_brief, direction):
-        raw_brief = None
     brief = raw_brief or (key_points[0] if key_points else None)
     label = str((intel_doc or {}).get("overall_label") or "").strip() or None
     score = (intel_doc or {}).get("overall_score")

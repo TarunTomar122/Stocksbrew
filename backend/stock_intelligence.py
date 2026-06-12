@@ -242,7 +242,7 @@ Fields to write:
 
 - **headline**: Under 12 words. An insight, not a price move. BAD: "NVDA rises on earnings." GOOD: "Data-center demand is outpacing bull-case estimates."
 
-- **body**: A simple, factual 2-3 sentence NEWS OVERVIEW of what is actually happening with this stock RIGHT NOW. Ground every sentence in the dated `recent_news` items (and `reddit_buzz` if present). Plain English, current, no jargon. If `recent_news` is empty or every item is more than ~4 days older than `today`, say coverage has gone quiet and briefly note the last real development. Do NOT narrate the price. Never open with "[Company] has seen..." - lead with the actual development.
+- **body**: A simple, factual NEWS OVERVIEW of what is actually happening with this stock RIGHT NOW. Write 1-2 complete sentences, 35-55 words total. Ground every sentence in the dated `recent_news` items (and `reddit_buzz` if present). Plain English, current, no jargon. If `recent_news` is empty or every item is more than ~4 days older than `today`, say coverage has gone quiet and briefly note the last real development. Do NOT narrate the price. Never open with "[Company] has seen..." - lead with the actual development. End on a complete sentence.
 
 - **key_findings**: 2-4 short, punchy takeaways. Each one a different insight the user wouldn't get from the chart. Frame facts as implications: not "analyst set $200 target" but "Street consensus is 15% above current price - the market hasn't caught up to the upgrade cycle yet."
 
@@ -282,6 +282,7 @@ Fields to write:
 STYLE:
 - Conversational, sharp, zero filler
 - Short sentences mixed with longer ones
+- Keep user-facing fields naturally short through writing, not truncation: body 35-55 words, catalyst/risk/rationale one complete sentence each.
 - NO: "investors should monitor", "well-positioned", "could potentially", "it's worth noting"
 - If evidence is thin, say what the silence means - not just "limited coverage"
 - Do not repeat the same fact across headline/body/key_findings/thesis/drivers/catalyst/risk.
@@ -598,7 +599,7 @@ NO_NEWS_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium mark
 The user sees the price chart. Don't describe the price. Tell them what the quiet means.
 
 - **headline**: Under 12 words. Not "limited coverage for AMD." Something insightful about the silence: "AMD is quietly holding gains while the street looks elsewhere."
-- **body**: 2-3 short sentences. What does the technical and analyst picture tell someone holding this stock? Is this stock coiled, exhausted, or just boring? Use \\n\\n for breaks.
+- **body**: 1-2 complete sentences, 35-55 words total. What does the technical and analyst picture tell someone holding this stock? Is this stock coiled, exhausted, or just boring? End on a complete sentence.
 - **key_findings**: 2-3 punchy insights from the numbers - analyst target gap, RSI, distance from highs, what these imply.
 - **catalyst**: What could break the silence. Be specific.
 - **risk**: What the lack of coverage might be hiding.
@@ -608,7 +609,7 @@ The user sees the price chart. Don't describe the price. Tell them what the quie
 - **catalyst_cards**: 1-3 trigger cards.
 - **risk_cards**: 1-3 downside cards.
 
-STYLE: Conversational, sharp, zero filler. Short paragraphs.
+STYLE: Conversational, sharp, zero filler. Keep user-facing fields naturally short through writing, not truncation.
 Do not repeat the same fact across body/key_findings/thesis/drivers/catalyst/risk.
 """
 
