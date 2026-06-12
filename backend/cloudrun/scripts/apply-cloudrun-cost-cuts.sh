@@ -24,12 +24,10 @@ SCHED_JOBS=(
   tikrr-open-briefs
   tikrr-open-anomalies
   tikrr-reddit-buzz
-  tikrr-reddit-buzz-midday
   tikrr-zone-briefs
   tikrr-market-events-open
   tikrr-market-events-close
   tikrr-close-anomalies
-  tikrr-close-reddit-buzz
   tikrr-open-emails
   tikrr-intraday-price
   tikrr-postclose
@@ -60,7 +58,6 @@ RUN_JOBS=(
   tikrr-price-core-intraday
   tikrr-open-anomalies
   tikrr-reddit-buzz
-  tikrr-reddit-buzz-midday
   tikrr-market-open-email
   tikrr-daily-postclose
   tikrr-on-demand-news
