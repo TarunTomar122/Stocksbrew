@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { EarningsIntelDoc, EarningsIntelScenario } from "@/lib/earnings-intel";
 import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
+import { isMissingActualEarningsCopy } from "@/lib/earnings-facts";
 import { cleanEarningsProse } from "@/lib/pre-earnings-intel-shared";
 
 function formatEventDate(iso: string): string {
@@ -35,8 +36,10 @@ function factItems(facts: EarningsIntelDoc["report"]["facts"]): FactItem[] {
   const guidance = facts.guidance_signal?.trim();
   const reported = facts.reported_vs_expected?.trim();
   if (price) out.push({ icon: "show_chart", label: "Price reaction", value: price });
-  if (reported) out.push({ icon: "analytics", label: "Reported vs expected", value: reported });
   if (guidance) out.push({ icon: "flag", label: "Guidance signal", value: guidance });
+  if (reported && !isMissingActualEarningsCopy(reported)) {
+    out.push({ icon: "analytics", label: "Reported vs expected", value: reported });
+  }
   return out.slice(0, 3);
 }
 

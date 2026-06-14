@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { PieChart, Pie, Cell, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+import { ProCtaLink } from "@/components/pro-cta";
 import { StockLogo } from "@/components/stock-logo";
 import { PortfolioSearch } from "@/components/portfolio-search";
 import { ScreenshotUpload } from "@/components/screenshot-upload";
@@ -601,12 +602,9 @@ function ProCTA() {
         </ul>
       </div>
       <div className="flex flex-col items-start md:items-center gap-3 shrink-0">
-        <Link
-          href="/subscribe"
-          className="inline-flex items-center justify-center h-12 rounded-full bg-[#111111] px-8 text-[14px] font-semibold text-white hover:bg-black transition-colors"
-        >
+        <ProCtaLink href="/subscribe" size="lg" showStar className="px-8">
           Start your Radar →
-        </Link>
+        </ProCtaLink>
         <Link
           href="/watchlist"
           className="text-[12px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors"

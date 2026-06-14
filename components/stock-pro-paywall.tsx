@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
+import { ProCtaButton } from "@/components/pro-cta";
 import {
   type PaywallSurface,
   trackPaywallShown,
@@ -152,16 +153,13 @@ export function StockProPaywall({
         </ul>
 
         <div className="flex flex-col gap-2 sm:max-w-[280px]">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={handleUnlock}
-            className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-[#111111] px-6 py-3 text-[14px] font-semibold text-white transition-transform hover:-translate-y-[1px] active:translate-y-0 disabled:cursor-wait disabled:opacity-60"
-          >
-            {busy ? "Signing you in…" : user ? "Start 3 days free" : "Sign in and start free"}
+          <ProCtaButton type="button" disabled={busy} onClick={handleUnlock} fullWidth showStar>
+            {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in and choose Pro"}
             {!busy && <span aria-hidden>→</span>}
-          </button>
-          <span className="text-[11px] text-[#9ca3af]">3 days free, then $12/mo. Cancel anytime.</span>
+          </ProCtaButton>
+          <span className="text-[11px] text-[#9ca3af]">
+            Yearly includes 3 days free. Monthly starts today.
+          </span>
         </div>
       </div>
 

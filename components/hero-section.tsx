@@ -8,7 +8,7 @@ import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { trackLandingCtaClicked } from "@/lib/product-analytics";
 import { StockLogo } from "@/components/stock-logo";
-import { HERO_HEADLINE_EMPHASIS, HERO_HEADLINE_LEAD, HERO_SUBHEAD } from "@/lib/brand-copy";
+import { HERO_HEADLINE_LEAD, HERO_SUBHEAD } from "@/lib/brand-copy";
 
 type IndexData = {
   ticker: string;
@@ -111,6 +111,27 @@ function verdictStyle(v: string): { text: string; bg: string } {
   return VERDICT_STYLES[v] ?? VERDICT_STYLES.Hold;
 }
 
+function directiveTeaser(directive: string): string {
+  const trimmed = directive.trim();
+  if (!trimmed) return "Get the buy/sell signal for this stock.";
+  const end = trimmed.search(/[.!?]\s/);
+  if (end === -1) return trimmed;
+  return trimmed.slice(0, end + 1);
+}
+
+function HeroHeadline() {
+  return (
+    <h1 className="max-w-[720px] flex flex-col items-center font-semibold leading-[1.08] tracking-[-0.04em]">
+      <span className="text-[32px] text-[#9ca3af] sm:text-[40px] md:text-[48px] xl:text-[52px]">
+        {HERO_HEADLINE_LEAD}
+      </span>
+      <span className="text-[36px] text-[#111111] sm:text-[44px] md:text-[54px] xl:text-[62px] tracking-[-0.05em]">
+        and what to do next.
+      </span>
+    </h1>
+  );
+}
+
 function HeroChipCard({ chip }: { chip: HeroChip }) {
   const { user } = useUser();
   const locked = !user;
@@ -183,14 +204,20 @@ function StockVerdictChip({
           compact ? "text-[10px] line-clamp-2" : "text-[12px] line-clamp-2"
         }`}
       >
-        {locked ? "Sign in to reveal the call on this stock." : directive}
+        {locked ? directiveTeaser(directive) : directive}
       </p>
 
       <span
-        className={`mt-auto self-start font-bold rounded-md ${compact ? "text-[10px] px-1.5 py-0.5" : "text-[12px] px-2 py-0.5"}`}
-        style={locked ? { color: "#374151", background: "#f3f4f6" } : { color: verdictStyle(verdict).text, background: verdictStyle(verdict).bg }}
+        className={`mt-auto self-start font-bold rounded-md ${compact ? "text-[10px] px-1.5 py-0.5" : "text-[12px] px-2 py-0.5"} ${
+          locked ? "rounded-full" : ""
+        }`}
+        style={
+          locked
+            ? { color: "#ffffff", background: "#111111" }
+            : { color: verdictStyle(verdict).text, background: verdictStyle(verdict).bg }
+        }
       >
-        {locked ? "Locked" : verdict}
+        {locked ? "Unlock" : verdict}
       </span>
     </div>
   );
@@ -244,10 +271,7 @@ export function HeroSection({
     <section className="w-full bg-white">
       <div className="flex flex-col items-center gap-10 md:gap-12 pt-10 md:pt-14 pb-10">
         <div className="flex w-full max-w-[1120px] flex-col items-center gap-6 px-4 text-center md:gap-7 lg:px-6">
-          <h1 className="max-w-[720px] text-[32px] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-[40px] md:text-[48px] xl:text-[54px]">
-            <span className="text-[#9ca3af]">{HERO_HEADLINE_LEAD}</span>
-            <span className="text-[#111111]">{HERO_HEADLINE_EMPHASIS}</span>
-          </h1>
+          <HeroHeadline />
           <p className="max-w-[600px] text-[16px] leading-[1.6] text-[#6b7280] md:text-[19px]">
             {HERO_SUBHEAD}
           </p>

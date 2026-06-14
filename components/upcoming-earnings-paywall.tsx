@@ -9,6 +9,7 @@ import {
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
+import { ProCtaButton } from "@/components/pro-cta";
 import { StockLogo } from "@/components/stock-logo";
 import { signInWithGoogle } from "@/lib/sign-in";
 
@@ -300,17 +301,12 @@ export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
           ) : null}
 
           <div className="flex flex-col gap-2.5 pt-1 sm:max-w-[320px]">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleUnlock}
-              className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-[#111111] px-6 py-3.5 text-[14px] font-semibold tracking-tight text-white transition-transform hover:-translate-y-[1px] active:translate-y-0 disabled:cursor-wait disabled:opacity-60"
-            >
-              {busy ? "Signing you in…" : user ? "Start 3 days free" : "Sign in & start free"}
+            <ProCtaButton type="button" disabled={busy} onClick={handleUnlock} fullWidth showStar>
+              {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in & choose Pro"}
               {!busy && <span aria-hidden>→</span>}
-            </button>
+            </ProCtaButton>
             <span className="text-center text-[11px] font-medium text-[#9ca3af] sm:text-left">
-              3 days free, then $12/mo. Cancel anytime.
+              Yearly includes 3 days free. Monthly starts today.
             </span>
           </div>
         </div>

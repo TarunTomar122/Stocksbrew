@@ -9,7 +9,7 @@ export function LandingFinalCta({
 }) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Start your 3-day trial" : "Sign in & start free";
+  const ctaLabel = isSignedIn ? "Choose Pro" : "Sign in & choose Pro";
 
   return (
     <section className="mx-auto w-full max-w-[760px] rounded-[32px] border border-[#e5e7eb] bg-[#0a0a0a] px-6 py-12 md:px-12 md:py-16 text-center">
@@ -17,7 +17,7 @@ export function LandingFinalCta({
         Stop guessing what to do with your stocks.
       </h2>
       <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-[#9ca3af]">
-        Point stocksbrew at your watchlist and get a clear call on every name, with the reasoning behind it. Three days free.
+        Point stocksbrew at your watchlist and get a clear call on every name, with the reasoning behind it.
       </p>
       <div className="mx-auto mt-7 max-w-[280px]">
         {/* white-button variant (highlight=false) so it reads on the dark panel */}
@@ -28,7 +28,7 @@ export function LandingFinalCta({
         />
       </div>
       <p className="mt-3 text-[11px] font-medium text-[#6b7280]">
-        Cancel anytime, one click. Not investment advice.
+        Yearly includes 3 days free. Monthly starts today. Not investment advice.
       </p>
     </section>
   );

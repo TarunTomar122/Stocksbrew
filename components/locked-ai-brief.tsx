@@ -9,6 +9,7 @@ import {
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
+import { proCtaClassName } from "@/components/pro-cta";
 import { TrackButton } from "@/components/track-button";
 
 type Props = {
@@ -158,7 +159,7 @@ export function LockedAiBrief({
           <button
             type="button"
             onClick={() => cta.onClick()}
-            className="inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+            className={proCtaClassName({ size: "sm", className: "h-[40px]", fullWidth: true })}
           >
             {cta.label}
           </button>

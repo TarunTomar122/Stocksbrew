@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ProCtaLink } from "@/components/pro-cta";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
@@ -10,7 +11,7 @@ import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { RadarLedger } from "@/components/radar-ledger";
-import { BookEventsPanel, TodayMarketEvents } from "@/components/radar-activity";
+import { TodayMarketEvents } from "@/components/radar-activity";
 import { partitionActivityEvents, type RadarActivityEvent } from "@/lib/activity-events";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { TrackButton } from "@/components/track-button";
@@ -21,7 +22,8 @@ import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { RadarEarningsReadyBanner } from "@/components/radar-earnings-ready-banner";
 import { RadarEarningsUpcomingBanner } from "@/components/radar-earnings-upcoming-banner";
 import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-workspace";
-import { BuildingStateRefresher } from "@/components/building-state-refresher";
+import { RadarBuildingState } from "@/components/radar-building-state";
+import { RadarEmptyBuildingGate } from "@/components/radar-empty-building-gate";
 import { getInstruments } from "@/lib/firestore";
 import {
   filterEarningsIntelThisWeek,
@@ -381,13 +383,16 @@ export default async function WatchlistPage() {
   const viewSourceVersion = Number(watchlistView?.source_version ?? 0);
   const todayVersionApplied = Number(watchlistView?.today_version_applied ?? viewSourceVersion);
   const diagnosisVersionApplied = Number(watchlistView?.diagnosis_version_applied ?? viewSourceVersion);
+  const radarStillMaterializing = missingMaterializedIds.length > 0;
   const hasVersionLag =
-    Number.isFinite(userSourceVersion) &&
-    Number.isFinite(viewSourceVersion) &&
-    userSourceVersion > 0 &&
-    viewSourceVersion > 0 &&
-    viewSourceVersion < userSourceVersion;
-  const pendingCount = hasVersionLag ? rows.filter((row) => row.price === null).length : 0;
+    tracked.length > 0 &&
+    (radarStillMaterializing ||
+      (Number.isFinite(userSourceVersion) &&
+        Number.isFinite(viewSourceVersion) &&
+        userSourceVersion > viewSourceVersion));
+  const pendingCount = hasVersionLag
+    ? Math.max(missingMaterializedIds.length, rows.filter((row) => row.price === null).length)
+    : 0;
   const shouldShowUpdatingBanner = hasVersionLag;
   const isTodayRefreshing =
     hasVersionLag &&
@@ -424,28 +429,38 @@ export default async function WatchlistPage() {
   }
 
   if (!isSubscribed && rows.length === 0) {
-    return <UnsubscribedState tracked={tracked} livePicks={livePicks} />;
+    return (
+      <RadarEmptyBuildingGate trackedCount={tracked.length}>
+        <UnsubscribedState tracked={tracked} livePicks={livePicks} />
+      </RadarEmptyBuildingGate>
+    );
   }
   // Free users with rows get the full Radar — the only difference is the 3-stock
   // limit enforced at /api/track time, not at display time.
   if (rows.length === 0) {
-    // Stocks have been added but the radar hasn't finished building yet — show a
-    // "we're on it" loading state instead of the empty onboarding screen.
     if (tracked.length > 0) {
-      return <BuildingState trackedCount={tracked.length} />;
+      return <RadarBuildingState trackedCount={tracked.length} />;
     }
     return (
-      <main className="flex-grow">
-        <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
-          <BareHeader rowsCount={tracked.length} builtAt={builtAt} />
-          <EmptyState
-            suggestions={suggestions}
-            trackedIds={new Set(tracked)}
-            isSubscribed={isSubscribed}
-          />
-        </div>
-      </main>
+      <RadarEmptyBuildingGate trackedCount={0}>
+        <main className="flex-grow">
+          <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
+            <BareHeader rowsCount={tracked.length} builtAt={builtAt} />
+            <EmptyState
+              suggestions={suggestions}
+              trackedIds={new Set(tracked)}
+              isSubscribed={isSubscribed}
+            />
+          </div>
+        </main>
+      </RadarEmptyBuildingGate>
     );
+  }
+
+  // Stub rows exist before the materialized view lands — show the building screen
+  // instead of an empty-looking book with null scores.
+  if (radarStillMaterializing && missingMaterializedIds.length === tracked.length) {
+    return <RadarBuildingState trackedCount={tracked.length} />;
   }
 
   // ── derive directives, ordered by urgency ───────────────────────────────────
@@ -529,8 +544,7 @@ export default async function WatchlistPage() {
 
   // ── activity events ─────────────────────────────────────────────────────────
   const activityEvents = buildActivityEvents(eventRadar, brief);
-  const { yourBook: yourBookEvents, marketWide: marketWideEvents } =
-    partitionActivityEvents(activityEvents);
+  const { marketWide: marketWideEvents } = partitionActivityEvents(activityEvents);
 
   const positionAware = Boolean(portfolio.position_aware);
   const holdingsWithValues = holdings.filter((r) => r.holding && (r.holding.quantity != null || r.holding.market_value != null));
@@ -608,7 +622,6 @@ export default async function WatchlistPage() {
           watching={watching}
           earningsReadyThisWeek={earningsReadyThisWeek}
           earningsUpcomingThisWeek={earningsUpcomingThisWeek}
-          bookEvents={yourBookEvents}
           suggestions={suggestions}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
@@ -716,12 +729,9 @@ function HeaderStrip({
             <span className="relative z-10">Rebalance</span>
           </Link>
           {atLimit ? (
-            <Link
-              href="/subscribe"
-              className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
-            >
+            <ProCtaLink href="/subscribe" size="sm" showStar className="text-[12px]">
               Track every stock you hold →
-            </Link>
+            </ProCtaLink>
           ) : (
             <RadarBatchEditModal
               initialItems={rows.map((r) => ({
@@ -1433,7 +1443,6 @@ function YourBookSection({
   watching,
   earningsReadyThisWeek,
   earningsUpcomingThisWeek,
-  bookEvents,
   suggestions,
   isSubscribed,
   trackedCount,
@@ -1444,7 +1453,6 @@ function YourBookSection({
   watching: WatchlistRow[];
   earningsReadyThisWeek: EarningsIntelDoc[];
   earningsUpcomingThisWeek: PreEarningsIntelDoc[];
-  bookEvents: RadarActivityEvent[];
   suggestions: Dict[];
   isSubscribed: boolean;
   trackedCount: number;
@@ -1503,7 +1511,6 @@ function YourBookSection({
             </div>
           ) : null
         }
-        bookEventsSlot={<BookEventsPanel events={bookEvents} layout="full" />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             {/* Subtle gradient glow */}
@@ -1537,12 +1544,9 @@ function YourBookSection({
               </div>
             </div>
 
-            <Link
-              href="/subscribe"
-              className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]"
-            >
+            <ProCtaLink href="/subscribe" size="sm" showStar className="h-[40px] whitespace-nowrap">
               Get Pro · $12/mo →
-            </Link>
+            </ProCtaLink>
           </div>
         ) : undefined}
       />
@@ -2492,42 +2496,6 @@ function BareHeader({ rowsCount, builtAt }: { rowsCount: number; builtAt?: strin
 }
 
 // =============================================================================
-// BUILDING STATE — shown when stocks are tracked but radar hasn't built yet
-// =============================================================================
-
-function BuildingState({ trackedCount }: { trackedCount: number }) {
-  return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
-        <header className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">stocksbrew · Radar</span>
-          <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">Radar</h1>
-        </header>
-        <div className="rounded-3xl border border-[#e5e7eb] bg-white p-10 md:p-14 flex flex-col items-center gap-5 text-center">
-          {/* Animated radar pulse rings */}
-          <div className="relative flex h-16 w-16 items-center justify-center">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0052ff] opacity-10" style={{ animationDuration: "1.8s" }} />
-            <span className="absolute inline-flex h-12 w-12 animate-ping rounded-full bg-[#0052ff] opacity-15" style={{ animationDuration: "1.8s", animationDelay: "0.3s" }} />
-            <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#eff6ff]">
-              <span className="material-symbols-outlined text-[#0052ff]" style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}>radar</span>
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-[20px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
-              Building your Radar…
-            </p>
-            <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-sm">
-              We&apos;re fetching prices, running analysis, and setting up alerts for your {trackedCount} {trackedCount === 1 ? "stock" : "stocks"}. This usually takes under a minute.
-            </p>
-          </div>
-          <BuildingStateRefresher />
-        </div>
-      </div>
-    </main>
-  );
-}
-
-// =============================================================================
 // POPULAR_FALLBACK
 // =============================================================================
 
@@ -2672,12 +2640,9 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
             <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
               Your stocks
             </h2>
-            <Link
-              href="/subscribe"
-              className="inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-4 text-[12px] font-semibold text-white"
-            >
+            <ProCtaLink href="/subscribe" size="sm" showStar className="h-[36px] px-4 text-[12px]">
               Upgrade for unlimited stocks
-            </Link>
+            </ProCtaLink>
           </div>
           <p className="text-[12px] text-[#6b7280]">
             Prices are loading. Your analysis will appear here once the next radar cycle runs.
@@ -2743,12 +2708,9 @@ function UnsubscribedState({
 
             <div className="flex items-center gap-2 self-start mt-2">
               {atLimit ? (
-                <Link
-                  href="/subscribe"
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
-                >
+                <ProCtaLink href="/subscribe" size="sm" showStar className="text-[12px]">
                   Track every stock you hold →
-                </Link>
+                </ProCtaLink>
               ) : (
                 <RadarBatchEditModal
                   initialItems={[]}
@@ -2867,12 +2829,9 @@ function UnsubscribedState({
                 Stop guessing on the stocks you hold
               </h3>
             </div>
-            <Link
-              href="/subscribe"
-              className="shrink-0 inline-flex items-center justify-center h-[36px] rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white hover:bg-black transition-colors"
-            >
+            <ProCtaLink href="/subscribe" size="sm" showStar className="h-[36px] px-5 text-[12px]">
               See plans →
-            </Link>
+            </ProCtaLink>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <FeatureCard emoji="🎯" iconBg="#ecfdf5" title="AI briefs" body="Buy / hold / sell directive for every stock you track, every morning." />

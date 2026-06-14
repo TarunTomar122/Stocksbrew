@@ -16,6 +16,7 @@ const COLUMNS: Column[] = [
       { label: "Screens", href: "/screens" },
       { label: "News", href: "/news" },
       { label: "Market Anomalies", href: "/anomalies" },
+      { label: "Reddit buzz", href: "/reddit-buzz" },
       { label: "Pre-market movers", href: "/premarket" },
       { label: "Trump Logic", href: "/trump-logic" },
       { label: "Radar", href: "/watchlist" },

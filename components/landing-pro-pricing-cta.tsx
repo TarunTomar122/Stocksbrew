@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { proCtaClassName } from "@/components/pro-cta";
 import { type AuthSurface, trackLandingCtaClicked } from "@/lib/product-analytics";
 
 async function syncServerSession(): Promise<void> {
@@ -52,11 +53,11 @@ export function LandingProPricingCta({
     window.location.assign("/subscribe");
   }
 
-  const className = `inline-flex w-full items-center justify-center h-[48px] px-6 rounded-full text-[14px] font-semibold tracking-tight transition-transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-wait disabled:hover:translate-y-0 ${
-    highlight
-      ? "bg-[#111111] text-white"
-      : "bg-white text-[#111111] border border-[#111111]"
-  }`;
+  const className = proCtaClassName({
+    size: "lg",
+    fullWidth: true,
+    variant: highlight ? "fill" : "outline",
+  });
 
   if (isSignedIn) {
     return (

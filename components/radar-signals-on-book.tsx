@@ -141,7 +141,7 @@ export function RadarSignalsOnBook({
 
         {buzz.length > 0 && (
           <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
-            <LensHeader icon="💬" label="Buzzing on Reddit" count={buzz.length} href="/anomalies" />
+            <LensHeader icon="💬" label="Buzzing on Reddit" count={buzz.length} href="/reddit-buzz" />
             <div className="flex flex-col divide-y divide-[#f3f4f6]">
               {buzz.slice(0, 4).map((b) => {
                 const tone = sentimentTone(b.sentiment);

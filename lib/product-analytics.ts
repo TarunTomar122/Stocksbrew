@@ -110,7 +110,7 @@ export function trackSubscribeSigninSucceeded(props: {
 
 export function trackSubscriptionConverted(props: {
   subscription_id?: string | null;
-  source?: "success_modal" | "activator_sync";
+  source?: "success_modal" | "activator_sync" | "dev_activate";
 }) {
   const id = props.subscription_id ?? "latest";
   const key = `subscription_converted:${id}`;

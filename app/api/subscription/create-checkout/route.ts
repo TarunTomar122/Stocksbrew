@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const trialEligible = isTrialEligible(userDoc);
+  const trialEligible = effectivePeriod === "yearly" && isTrialEligible(userDoc);
 
   // 6. Create Dodo checkout session
   const dodoPayload: Record<string, unknown> = {
@@ -87,11 +87,11 @@ export async function POST(req: NextRequest) {
     ],
     metadata: {
       user_id: uid,
-      plan: period,
+      plan: effectivePeriod,
     },
     return_url: `${appUrl}/subscribe`,
   };
-  // Dodo always applies the product trial on new checkouts unless we override it.
+  // Dodo applies product-level trials unless overridden. Only yearly may trial.
   if (!trialEligible) {
     dodoPayload.subscription_data = { trial_period_days: 0 };
   }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     email: email ?? null,
     type: "checkout_started",
     payload: {
-      plan: period,
+      plan: effectivePeriod,
       checkout_session_id: session.id ?? null,
       trial_eligible: trialEligible,
     },

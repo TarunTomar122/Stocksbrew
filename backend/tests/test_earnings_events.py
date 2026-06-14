@@ -1,4 +1,5 @@
-from backend.earnings_actuals import pick_actual_for_event
+from backend.earnings_actuals import fetch_yfinance_quarterly_actuals, pick_actual_for_event
+from backend.earnings_copy import earnings_evidence_lines, is_missing_actual_copy
 from backend.scripts import build_earnings_intel
 from backend.scripts import build_market_events
 
@@ -93,6 +94,120 @@ def test_recent_reporter_instrument_ids_dedupes_and_scopes(monkeypatch) -> None:
     )
 
     assert ids == ["US_AAPL"]
+
+
+def test_yfinance_actuals_match_report_date() -> None:
+    rows = fetch_yfinance_quarterly_actuals("ORCL")
+    actual = pick_actual_for_event(rows, "2026-06-10")
+    assert actual is not None
+    assert actual["reported_eps"] == 2.11
+    assert actual["estimated_eps"] == 1.96
+
+
+def test_earnings_evidence_skips_missing_actual_disclaimer() -> None:
+    facts = {
+        "reported_vs_expected": "Actual EPS is not yet available; no beat or miss can be confirmed.",
+        "price_reaction": "Stock fell 4.2% on the report day.",
+        "guidance_signal": "Management raised full-year cloud growth outlook.",
+    }
+    assert is_missing_actual_copy(facts["reported_vs_expected"]) is True
+    assert earnings_evidence_lines(facts) == [
+        "Stock fell 4.2% on the report day.",
+        "Management raised full-year cloud growth outlook.",
+    ]
+
+
+def test_market_events_skips_reports_older_than_two_weeks() -> None:
+    class Snap:
+        def __init__(self, doc_id: str, payload: dict):
+            self.id = doc_id
+            self._payload = payload
+
+        def to_dict(self):
+            return self._payload
+
+    class Collection:
+        def stream(self):
+            return [
+                Snap(
+                    "US__US_OLD__latest",
+                    {
+                        "ticker": "OLD",
+                        "instrument_id": "US_OLD",
+                        "event_date": "2026-05-20",
+                        "generated_at": "2026-05-21T00:00:00+00:00",
+                        "report": {"headline": "Old", "summary": "Old"},
+                    },
+                ),
+                Snap(
+                    "US__US_NEW__latest",
+                    {
+                        "ticker": "NEW",
+                        "instrument_id": "US_NEW",
+                        "event_date": "2026-06-10",
+                        "generated_at": "2026-06-11T00:00:00+00:00",
+                        "report": {"headline": "New", "summary": "New"},
+                    },
+                ),
+            ]
+
+    class Store:
+        db = type("Db", (), {"collection": lambda self, _name: Collection()})()
+
+        def get_latest_prices(self, _ids):
+            return {}
+
+    events = build_market_events._events_from_earnings(
+        "US",
+        Store(),
+        10,
+    )
+    assert [event["ticker"] for event in events] == ["NEW"]
+
+
+def test_market_events_earnings_evidence_skips_disclaimer(monkeypatch) -> None:
+    class Store:
+        db = None
+
+        def get_latest_prices(self, _ids):
+            return {}
+
+    facts = {
+        "reported_vs_expected": "Actual EPS is not yet available.",
+        "price_reaction": "Stock rose 3.1% on the report day.",
+        "guidance_signal": "Guidance was reiterated.",
+    }
+    intel_rows = [
+        {
+            "ticker": "ORCL",
+            "instrument_id": "US_ORCL",
+            "event_date": "2026-06-10",
+            "generated_at": "2026-06-12T00:00:00+00:00",
+            "report": {
+                "headline": "Oracle update",
+                "summary": "Summary",
+                "facts": facts,
+                "confidence": {"score_0_100": 80},
+            },
+        }
+    ]
+
+    class Snap:
+        id = "US__US_ORCL__latest"
+
+        def to_dict(self):
+            return intel_rows[0]
+
+    class Collection:
+        def stream(self):
+            return [Snap()]
+
+    Store.db = type("Db", (), {"collection": lambda self, _name: Collection()})()
+    events = build_market_events._events_from_earnings("US", Store(), 5)
+    assert events[0]["evidence"] == [
+        "Stock rose 3.1% on the report day.",
+        "Guidance was reiterated.",
+    ]
 
 
 def test_market_events_ranks_before_final_limit(monkeypatch) -> None:

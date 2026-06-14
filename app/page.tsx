@@ -1,7 +1,6 @@
 import { Suspense, cache } from "react";
 import { DailyAnomalies } from "@/components/daily-anomalies";
 import { HomeHeroStream } from "@/components/home-hero-stream";
-import { HomeContent } from "@/components/home-content";
 import { MarketCues } from "@/components/market-cues";
 import { SectorSpotlights } from "@/components/sector-spotlights";
 import { WatchlistShowcase } from "@/components/watchlist-showcase";
@@ -17,9 +16,7 @@ import {
 } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
 import type { MarketMoversDoc, SnapshotRow } from "@/lib/types";
-import type { NewsArticle } from "@/lib/news";
-import { getHomeNews, getHomeView } from "@/lib/home-view";
-import { getNewsFeed } from "@/lib/news";
+import { getHomeView } from "@/lib/home-view";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
 import { buildMoversFromSnapshot } from "@/lib/market-movers";
@@ -29,15 +26,17 @@ import { MOCKED_GAINERS, MOCKED_LOSERS } from "@/lib/mocks";
 import { getThematicScreens } from "@/lib/screens";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
-import { getMarketEvents } from "@/lib/market-events";
-import { HomeEventsStrip } from "@/components/home-events-strip";
 import { getRedditCues } from "@/lib/reddit-cues";
-import { RedditCues } from "@/components/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { LandingProPreview } from "@/components/landing-pro-preview";
 import { HeroSection } from "@/components/hero-section";
 import { LandingFaq } from "@/components/landing-faq";
 import { LandingFinalCta } from "@/components/landing-final-cta";
+import {
+  HOME_LIVE_FEED_EYEBROW,
+  HOME_LIVE_FEED_HEADLINE,
+  HOME_LIVE_FEED_SUBHEAD,
+} from "@/lib/brand-copy";
 
 function rowToStock(s: SnapshotRow) {
   return {
@@ -219,16 +218,6 @@ const loadHomeCore = cache(async () => {
   };
 });
 
-const loadHomeSupplemental = cache(async () => {
-  const market = getCurrentMarket();
-  const homeNews = await getHomeNews(market).catch(() => null);
-  let news: NewsArticle[] = homeNews?.news ?? [];
-  if (news.length === 0) {
-    news = await getNewsFeed(market, 30).catch(() => []);
-  }
-  return { news };
-});
-
 function SkeletonBlock({ className = "" }: { className?: string }) {
   return (
     <div
@@ -271,58 +260,6 @@ function HomeMarketFallback() {
         <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5">
           <SkeletonBlock className="h-5 w-28" />
           <SkeletonBlock className="mt-5 h-40 w-full rounded-xl" />
-        </div>
-      </section>
-    </>
-  );
-}
-
-function HomeContentFallback() {
-  return (
-    <>
-      <section className="grid grid-cols-1 gap-6 animate-pulse lg:grid-cols-3">
-        <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5 lg:col-span-2">
-          <SkeletonBlock className="h-5 w-36" />
-          <div className="mt-4 flex gap-2">
-            <SkeletonBlock className="h-8 w-24 rounded-full" />
-            <SkeletonBlock className="h-8 w-24 rounded-full" />
-          </div>
-          <div className="mt-5 flex flex-col gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 border-t border-[#f3f4f6] pt-3">
-                <SkeletonBlock className="h-8 w-8 rounded-full" />
-                <div className="min-w-0 flex-1">
-                  <SkeletonBlock className="h-4 w-44 max-w-full" />
-                  <SkeletonBlock className="mt-2 h-3 w-16" />
-                </div>
-                <SkeletonBlock className="h-4 w-16" />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-[24px] border border-[#e5e7eb] bg-white p-5">
-          <SkeletonBlock className="h-5 w-28" />
-          <div className="mt-5 flex flex-col gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="border-t border-[#f3f4f6] pt-4">
-                <SkeletonBlock className="h-4 w-full" />
-                <SkeletonBlock className="mt-2 h-3 w-32" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[24px] border border-[#e5e7eb] bg-white p-5 animate-pulse">
-        <SkeletonBlock className="h-5 w-40" />
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-[#f3f4f6] p-4">
-              <SkeletonBlock className="h-4 w-28" />
-              <SkeletonBlock className="mt-3 h-10 w-full" />
-              <SkeletonBlock className="mt-4 h-3 w-20" />
-            </div>
-          ))}
         </div>
       </section>
     </>
@@ -401,11 +338,12 @@ async function HomeFinalCtaStream() {
   );
 }
 
-async function HomeAnomaliesStream() {
+async function HomeLiveFeedStream() {
   const market = getCurrentMarket();
-  const [anomaliesData, premarketDoc, core] = await Promise.all([
+  const [anomaliesData, premarketDoc, redditData, core] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getPremarketMovers(market).catch(() => null),
+    getRedditCues(market).catch(() => null),
     loadHomeCore(),
   ]);
   if (isPremarketLive(premarketDoc, market)) return null;
@@ -413,41 +351,10 @@ async function HomeAnomaliesStream() {
   return (
     <DailyAnomalies
       anomalies={anomaliesData.anomalies}
-      summary={anomaliesData.summary}
       generatedAt={anomaliesData.enriched_at || anomaliesData.generated_at}
+      reddit={redditData}
       isSubscribed={core.isSubscribed}
     />
-  );
-}
-
-async function HomeEventsStream() {
-  const market = getCurrentMarket();
-  const data = await getMarketEvents(market).catch(() => null);
-  if (!data || data.events.length === 0) return null;
-  return <HomeEventsStrip events={data.events} generatedAt={data.generated_at} />;
-}
-
-async function HomeRedditStream() {
-  const market = getCurrentMarket();
-  const [data, core] = await Promise.all([
-    getRedditCues(market).catch(() => null),
-    loadHomeCore(),
-  ]);
-  if (!data || !data.tickers?.length) return null;
-  return <RedditCues data={data} isSubscribed={core.isSubscribed} />;
-}
-
-async function HomeContentStream() {
-  const [core, supplemental] = await Promise.all([loadHomeCore(), loadHomeSupplemental()]);
-  return (
-    <>
-      <HomeContent
-        stocks={core.allStocks}
-        news={supplemental.news}
-        launchTickers={core.launchTickers}
-        market={core.market}
-      />
-    </>
   );
 }
 
@@ -464,35 +371,23 @@ export default function HomePage() {
         </Suspense>
 
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
-            Live, right now
+          <span className="text-[11px] font-semibold tracking-[0.14em] uppercase text-[#9ca3af]">
+            {HOME_LIVE_FEED_EYEBROW}
           </span>
           <h2 className="text-[26px] md:text-[34px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1] max-w-xl">
-            This is stocksbrew thinking, out loud.
+            {HOME_LIVE_FEED_HEADLINE}
           </h2>
           <p className="max-w-md text-[14px] leading-relaxed text-[#6b7280]">
-            Everything below is free and updates through the day. Pro points the same read at the stocks you track.
+            {HOME_LIVE_FEED_SUBHEAD}
           </p>
         </div>
 
-        <Suspense fallback={<HomeSignalStreamFallback title="events" />}>
-          <HomeEventsStream />
-        </Suspense>
-
-        <Suspense fallback={<HomeSignalStreamFallback title="anomalies" />}>
-          <HomeAnomaliesStream />
-        </Suspense>
-
-        <Suspense fallback={<HomeSignalStreamFallback title="reddit" />}>
-          <HomeRedditStream />
+        <Suspense fallback={<HomeSignalStreamFallback title="live-feed" />}>
+          <HomeLiveFeedStream />
         </Suspense>
 
         <Suspense fallback={<HomeMarketFallback />}>
           <HomeMarketStream />
-        </Suspense>
-
-        <Suspense fallback={<HomeContentFallback />}>
-          <HomeContentStream />
         </Suspense>
 
         {/* Conversion close: pitch + pricing, then proof, objections, and the ask */}

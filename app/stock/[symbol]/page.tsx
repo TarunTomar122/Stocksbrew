@@ -49,6 +49,7 @@ import { currencySymbolFor } from "@/lib/utils";
 import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
 import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
 import { getPreEarningsIntelUpcoming } from "@/lib/pre-earnings-intel";
+import { shouldShowPreEarningsIntel } from "@/lib/pre-earnings-intel-shared";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const revalidate = 60;
@@ -147,6 +148,9 @@ export default async function StockPage({ params }: Props) {
     const redditTickerContext =
       resolveRedditContextForSymbol(snapUs, normalizedTicker) ??
       resolveRedditContextForSymbol(snapIn, normalizedTicker);
+    const session = await sessionPromise;
+    const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+    const subscribed = resolveIsSubscribed(userDoc);
 
     return (
       <main className="flex-grow">
@@ -154,6 +158,7 @@ export default async function StockPage({ params }: Props) {
           ticker={normalizedTicker}
           market={cookieMarket}
           redditTickerContext={redditTickerContext}
+          isSubscribed={subscribed}
         />
       </main>
     );
@@ -212,6 +217,9 @@ export default async function StockPage({ params }: Props) {
       ? getPreEarningsIntelUpcoming(market, stock.instrument_id).catch(() => null)
       : Promise.resolve(null),
   ]);
+  const activePreEarningsIntel = shouldShowPreEarningsIntel(preEarningsIntel, earningsIntel)
+    ? preEarningsIntel
+    : null;
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);
   const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
@@ -259,10 +267,12 @@ export default async function StockPage({ params }: Props) {
 
   const overviewContent = (
     <section className="flex flex-col gap-10">
-      {anomaly && <AnomalyBanner anomaly={anomaly} />}
-      {subscribed && preEarningsIntel ? (
+      {anomaly && (
+        <AnomalyBanner anomaly={anomaly} liveDayChangePct={stock.day_change_pct} isSubscribed={subscribed} />
+      )}
+      {subscribed && activePreEarningsIntel ? (
         <a href="#stock-section-earnings" className="block scroll-mt-32">
-          <PreEarningsSetupCard doc={preEarningsIntel} ticker={stock.ticker} compact />
+          <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} compact />
         </a>
       ) : null}
       <SignalDeck
@@ -357,13 +367,13 @@ export default async function StockPage({ params }: Props) {
   const showCards = hasAI && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
   const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
 
-  const hasEarningsContent = Boolean(preEarningsIntel || earningsIntel);
+  const hasEarningsContent = Boolean(activePreEarningsIntel || earningsIntel);
   const earningsContent = !hasEarningsContent ? null : subscribed ? (
     <div className="flex flex-col gap-10">
-      {preEarningsIntel ? (
-        <PreEarningsSetupCard doc={preEarningsIntel} ticker={stock.ticker} />
+      {activePreEarningsIntel ? (
+        <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} />
       ) : null}
-      {preEarningsIntel && earningsIntel ? (
+      {activePreEarningsIntel && earningsIntel ? (
         <div className="flex flex-col gap-2 pt-4 border-t-2 border-[#e5e7eb]">
           <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
             After the print
@@ -466,4 +476,3 @@ export default async function StockPage({ params }: Props) {
     </main>
   );
 }
-

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
-import { EarningsScenarioBar } from "@/components/earnings-scenario-bar";
 import type { MarketEvent } from "@/lib/market-events-shared";
+import { earningsIntelHref, firstSentence, pickEarningsHookLine } from "@/lib/earnings-facts";
 import { relativeTime } from "@/lib/freshness";
 
 function fmtPrice(v: number, market: MarketEvent["market"]): string {
@@ -22,8 +22,9 @@ function EarningsEventCard({ event }: { event: MarketEvent }) {
     ? event.day_change_pct! >= 0
     : event.direction === "positive";
   const changeColor = isUp ? "#10b981" : "#ef4444";
-  const detail = (event.body || event.evidence.find((e) => e.trim()) || "").trim();
-  const showDetail = detail && detail !== event.title;
+  const copy = firstSentence(
+    String(event.body ?? "").trim() || pickEarningsHookLine(event.evidence, event.title),
+  );
 
   const dayChangeAbs =
     hasPrice && hasChange
@@ -32,7 +33,7 @@ function EarningsEventCard({ event }: { event: MarketEvent }) {
 
   return (
     <Link
-      href={event.ticker ? `/stock/${encodeURIComponent(event.ticker)}` : "/events"}
+      href={event.ticker ? earningsIntelHref(event.ticker) : "/events"}
       className="group flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
       <div className="flex items-start justify-between gap-2">
@@ -81,19 +82,12 @@ function EarningsEventCard({ event }: { event: MarketEvent }) {
         </div>
       )}
 
-      {event.title ? (
-        <p className="line-clamp-2 text-[13px] leading-snug text-[#111111] group-hover:text-[#0052ff]">
-          {event.title}
+      {copy ? (
+        <p className="text-[13px] leading-relaxed text-[#111111] group-hover:text-[#0052ff]">
+          {copy}
         </p>
       ) : null}
 
-      {showDetail && (
-        <p className="line-clamp-2 text-[12px] leading-snug text-[#6b7280]">{detail}</p>
-      )}
-
-      <div className="mt-auto min-h-[20px]">
-        <EarningsScenarioBar scenarios={event.scenarios} compact />
-      </div>
     </Link>
   );
 }

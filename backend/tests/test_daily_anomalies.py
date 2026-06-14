@@ -57,7 +57,9 @@ class DailyAnomaliesTest(unittest.TestCase):
         self.assertFalse(explanation["searched_externally"])
 
     def test_move_explanation_falls_back_when_llm_cannot_explain(self) -> None:
-        with patch.object(build_daily_anomalies, "_llm_move_explanation", return_value=None):
+        with patch.object(build_daily_anomalies, "_llm_move_explanation", return_value=None), patch.object(
+            build_daily_anomalies, "_llm_internal_context_move_explanation", return_value=None
+        ):
             explanation = build_daily_anomalies._move_explanation(
                 instrument={"ticker": "ABC", "name": "ABC Corp"},
                 intel_doc={"timeline": [{"timestamp": "2026-06-12T12:00:00Z", "title": "Unrelated item", "summary": "No stock catalyst."}]},
@@ -68,6 +70,37 @@ class DailyAnomaliesTest(unittest.TestCase):
         self.assertIsNotNone(explanation)
         self.assertEqual(explanation["cause_type"], "unclear")
         self.assertFalse(explanation["searched_externally"])
+
+    def test_move_explanation_uses_internal_context_after_news_rejected(self) -> None:
+        with patch.object(build_daily_anomalies, "_llm_move_explanation", return_value=None), patch.object(
+            build_daily_anomalies,
+            "_llm_internal_context_move_explanation",
+            return_value={
+                "cause_type": "internal_context",
+                "headline": "ABC rerates on valuation gap",
+                "why_it_matters": "The move looks like positioning around valuation and technical setup, not a confirmed news catalyst.",
+                "confidence": "medium",
+                "searched_externally": False,
+                "evidence": [],
+            },
+        ) as internal:
+            explanation = build_daily_anomalies._move_explanation(
+                instrument={"ticker": "ABC", "name": "ABC Corp", "sector": "Technology"},
+                intel_doc={
+                    "timeline": [{"timestamp": "2026-06-12T12:00:00Z", "title": "Unrelated item", "summary": "No stock catalyst."}],
+                    "today_brief": "ABC is consolidating above analyst targets.",
+                    "key_points": ["Analyst target is below current price."],
+                    "news_count": 0,
+                    "source_count": 0,
+                },
+                day_change_pct=8.1,
+                external_search=True,
+            )
+
+        internal.assert_called_once()
+        self.assertIsNotNone(explanation)
+        self.assertEqual(explanation["cause_type"], "internal_context")
+        self.assertEqual(explanation["confidence"], "medium")
 
 
 if __name__ == "__main__":

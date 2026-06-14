@@ -192,8 +192,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
   const pillarAverages = computePillarAverages(rows);
   const factorTilt = asDict(portfolio.factor_tilt);
   const activityEvents = buildActivityEvents(eventRadar, brief);
-  const { yourBook: yourBookEvents, marketWide: marketWideEvents } =
-    partitionActivityEvents(activityEvents);
+  const { marketWide: marketWideEvents } = partitionActivityEvents(activityEvents);
 
   const userInfo = users.find((u) => u.uid === userId);
 
@@ -233,7 +232,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
             />
             <YourBookSection
               holdings={holdings} watching={watching}
-              earningsReadyThisWeek={earningsReadyThisWeek} bookEvents={yourBookEvents}
+              earningsReadyThisWeek={earningsReadyThisWeek}
               suggestions={suggestions} isSubscribed={true}
               trackedCount={tracked.length} portfolio={portfolio}
             />

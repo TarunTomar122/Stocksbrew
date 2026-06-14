@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { ProCtaLink } from "@/components/pro-cta";
+
 // ─── Slide 1: AI Directive demo ───────────────────────────────────────────────
 
 function DirectiveSlide() {
@@ -240,14 +242,16 @@ export function OnboardingModal({ onClose }: Props) {
         {/* Last slide: subscribe CTA */}
         {isLast && (
           <div className="flex flex-col gap-3 px-6 py-5 border-t border-[#f3f4f6]">
-            <Link
+            <ProCtaLink
               href="/subscribe"
               onClick={onClose}
-              className="inline-flex w-full items-center justify-center gap-2 h-11 rounded-full bg-[#111111] text-[14px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+              fullWidth
+              showStar
+              className="h-11 gap-2"
             >
               Unlock everything - $12/mo
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
-            </Link>
+            </ProCtaLink>
             <button
               type="button"
               onClick={onClose}

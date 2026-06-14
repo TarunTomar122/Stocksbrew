@@ -8,6 +8,7 @@ import { AuthButton } from "@/components/auth-button";
 import { TrackButton } from "@/components/track-button";
 import { StockRequestModal } from "@/components/stock-request-modal";
 import { ProBadge } from "@/components/pro-badge";
+import { ProCtaLink } from "@/components/pro-cta";
 import { useUser } from "@/lib/auth-context";
 import { captureEvent } from "@/lib/posthog";
 import type { Market } from "@/lib/types";
@@ -22,24 +23,24 @@ type Props = {
 
 type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean };
 
-// Primary nav leads with the surfaces that carry Pro value (Events has upcoming
-// setups, Anomalies is Pro-gated) plus the user's own Radar.
+// Primary nav: Top Movers, Reddit buzz, then the user's Radar.
 const NAV_ITEMS: NavItem[] = [
-  { href: "/events",    label: "Events",           icon: "bolt" },
-  { href: "/anomalies", label: "Market Anomalies", icon: "trending_up" },
-  { href: "/watchlist", label: "Radar",            icon: "radar" },
+  { href: "/anomalies",   label: "Top Movers",  icon: "trending_up" },
+  { href: "/reddit-buzz", label: "Reddit buzz", icon: "forum" },
+  { href: "/watchlist",   label: "Radar",       icon: "radar" },
 ];
 
 // Free, browse-only surfaces. Demoted into a "More" menu so they do not crowd
 // out the conversion path while staying one click away.
 const MORE_ITEMS: NavItem[] = [
+  { href: "/events",       label: "Events",       icon: "bolt" },
   { href: "/heat",         label: "Hot Stocks",   icon: "local_fire_department" },
   { href: "/screens",      label: "Screens",      icon: "tune" },
   { href: "/trump-logic",  label: "Trump Logic",  icon: "campaign", beta: true },
 ];
 
 /** Mobile strip order: conversion items first, free browse items last. */
-const MOBILE_HEADER_ORDER = ["/events", "/anomalies", "/watchlist", "/heat", "/screens", "/trump-logic"] as const;
+const MOBILE_HEADER_ORDER = ["/anomalies", "/reddit-buzz", "/watchlist", "/events", "/heat", "/screens", "/trump-logic"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
@@ -199,13 +200,9 @@ function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
 
 function GoProPill({ className = "" }: { className?: string }) {
   return (
-    <Link
-      href="/subscribe"
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-2 text-[13px] font-semibold text-white transition-transform hover:-translate-y-[1px] active:translate-y-0 ${className}`}
-    >
-      <span aria-hidden className="text-[#fcd34d]">★</span>
+    <ProCtaLink href="/subscribe" size="sm" showStar className={className}>
       Go Pro
-    </Link>
+    </ProCtaLink>
   );
 }
 
@@ -555,13 +552,14 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             aria-label="Primary"
           >
             {showGoPro && (
-              <Link
+              <ProCtaLink
                 href="/subscribe"
-                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#111111] px-3 py-1.5 text-[13px] font-semibold text-white"
+                size="sm"
+                showStar
+                className="whitespace-nowrap px-3 py-1.5"
               >
-                <span aria-hidden className="text-[#fcd34d]">★</span>
                 Go Pro
-              </Link>
+              </ProCtaLink>
             )}
             {mobileHeaderItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");

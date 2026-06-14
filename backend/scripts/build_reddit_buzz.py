@@ -64,6 +64,9 @@ Return JSON object:
 Rules:
 - Output valid JSON only.
 - Use only US stock tickers; no crypto.
+- `candidate_tickers` is a deterministic pre-scan of supported tickers found in the posts.
+- Prefer producing ticker narratives for candidate tickers with concrete post evidence.
+- Do not return mention-count filler. If the posts do not explain a ticker narrative, omit that ticker.
 - No filler language like "users are saying"; explain the market narrative directly.
 - Confidence must be 0..1 and should be low when ticker/company mapping is uncertain.
 """
@@ -318,6 +321,76 @@ def _extract_heuristic_candidates(text: str) -> list[str]:
     return out
 
 
+def _post_supported_tickers(post: dict[str, Any], supported_tickers: set[str]) -> list[str]:
+    text = f"{post.get('title', '')} {post.get('selftext', '')}"
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for token in _extract_heuristic_candidates(text):
+        if token in STOPWORDS or token in HEURISTIC_AMBIGUOUS_TICKERS or len(token) <= 1:
+            continue
+        if token not in supported_tickers or token in seen:
+            continue
+        seen.add(token)
+        tickers.append(token)
+    return tickers
+
+
+def _brief_text(value: Any, limit: int = 420) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:")
+    return f"{cut}..."
+
+
+def _build_llm_context(
+    posts: list[dict[str, Any]],
+    *,
+    supported_tickers: set[str],
+    max_posts: int = 160,
+    max_ticker_examples: int = 4,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    ticker_stats: dict[str, dict[str, Any]] = {}
+    enriched_posts: list[dict[str, Any]] = []
+    for post in posts:
+        tickers = _post_supported_tickers(post, supported_tickers)
+        enriched = dict(post)
+        enriched["_supported_tickers"] = tickers
+        enriched_posts.append(enriched)
+        for ticker in tickers:
+            stats = ticker_stats.setdefault(ticker, {"ticker": ticker, "mentions": 0, "examples": []})
+            stats["mentions"] += 1
+            if len(stats["examples"]) < max_ticker_examples:
+                stats["examples"].append(
+                    {
+                        "subreddit": str(post.get("subreddit") or ""),
+                        "title": _brief_text(post.get("title"), 180),
+                    }
+                )
+
+    candidate_tickers = sorted(
+        ticker_stats.values(),
+        key=lambda row: (int(row.get("mentions") or 0), len(row.get("examples") or [])),
+        reverse=True,
+    )
+
+    relevant_posts = [post for post in enriched_posts if post.get("_supported_tickers")]
+    filler_posts = [post for post in enriched_posts if not post.get("_supported_tickers")]
+    selected_posts = (relevant_posts + filler_posts)[:max_posts]
+    llm_posts = [
+        {
+            "index": index,
+            "subreddit": str(post.get("subreddit") or ""),
+            "published": str(post.get("published") or ""),
+            "title": _brief_text(post.get("title"), 220),
+            "body": _brief_text(post.get("selftext"), 360),
+            "candidate_tickers": post.get("_supported_tickers") or [],
+        }
+        for index, post in enumerate(selected_posts, start=1)
+    ]
+    return candidate_tickers, llm_posts
+
+
 def _heuristic_fallback(
     posts: list[dict[str, Any]],
     max_tickers: int,
@@ -419,19 +492,23 @@ def _resolve_llm_config() -> tuple[str, str, str] | None:
     return api_key, model, llm_api_url()
 
 
-def _llm_extract(posts: list[dict[str, Any]], *, timeout_seconds: int) -> dict[str, Any] | None:
+def _llm_extract(
+    posts: list[dict[str, Any]],
+    *,
+    supported_tickers: set[str],
+    timeout_seconds: int,
+) -> dict[str, Any] | None:
     resolved = _resolve_llm_config()
     if not resolved:
         return None
     api_key, model, endpoint = resolved
     if not api_key:
         return None
-    post_lines = []
-    for index, post in enumerate(posts[:160], start=1):
-        post_lines.append(
-            f"[{index}] r/{post.get('subreddit','')} | {post.get('title','')}\n{str(post.get('selftext',''))[:220]}"
-        )
-    user_payload = {"posts": post_lines}
+    candidate_tickers, llm_posts = _build_llm_context(posts, supported_tickers=supported_tickers)
+    user_payload = {
+        "candidate_tickers": candidate_tickers[:80],
+        "posts": llm_posts,
+    }
     resp = requests.post(
         endpoint,
         headers=llm_headers(api_key),
@@ -505,7 +582,11 @@ def main() -> None:
 
     llm_data: dict[str, Any] | None = None
     try:
-        llm_data = _llm_extract(posts, timeout_seconds=args.llm_timeout_seconds)
+        llm_data = _llm_extract(
+            posts,
+            supported_tickers=supported_tickers,
+            timeout_seconds=args.llm_timeout_seconds,
+        )
     except Exception as exc:
         print({"stage": "reddit_llm_failed", "error": str(exc)})
 
@@ -514,10 +595,10 @@ def main() -> None:
             "title": str(post.get("title") or ""),
             "subreddit": str(post.get("subreddit") or ""),
             "summary": str(post.get("title") or ""),
-            "tickers": [],
+            "tickers": _post_supported_tickers(post, supported_tickers),
             "url": post.get("url"),
             "permalink": post.get("permalink"),
-            "body": str(post.get("selftext") or "")[:800],
+            "body": _brief_text(post.get("selftext"), 800),
         }
         for post in posts[: max(0, args.max_top_posts)]
     ]
@@ -574,14 +655,10 @@ def main() -> None:
                     notable.append(why)
                 elif title:
                     notable.append(title)
-        before_supplement = len(tickers_payload)
-        tickers_payload = _supplement_with_heuristics(
-            posts=posts,
-            existing=tickers_payload,
-            max_tickers=max(0, args.max_tickers),
-            supported_tickers=supported_tickers,
-        )
-        heuristic_supplement_count = max(0, len(tickers_payload) - before_supplement)
+        if not tickers_payload:
+            heuristic_only = True
+            tickers_payload, mood, notable = _heuristic_fallback(posts, args.max_tickers, supported_tickers)
+            heuristic_supplement_count = len(tickers_payload)
     else:
         heuristic_only = True
         tickers_payload, mood, notable = _heuristic_fallback(posts, args.max_tickers, supported_tickers)

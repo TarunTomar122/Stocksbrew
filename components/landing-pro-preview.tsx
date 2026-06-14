@@ -9,167 +9,84 @@ type Feature = {
   icon: string;
   iconBg: string;
   iconFg: string;
-  label: string;
   title: string;
   body: string;
-  example: string;
 };
 
-// The interpretation layer, framed as "what happens when we point it at your stocks."
 const FEATURES: Feature[] = [
   {
     icon: "verified",
     iconBg: "#eff6ff",
     iconFg: "#0052ff",
-    label: "The call",
-    title: "A verdict on every name, with the reasoning",
-    body: "Buy, hold, sell, or watch on each stock you track. Not a score you have to interpret. The actual call, and why.",
-    example: "NVDA: trim into strength above $220. Valuation rich, momentum fading.",
+    title: "The call",
+    body: "Buy, hold, sell, or watch. Not another score to decode.",
   },
   {
-    icon: "monitoring",
-    iconBg: "#f0fdf4",
-    iconFg: "#16a34a",
-    label: "Before the print",
-    title: "Our read on earnings before they report",
-    body: "We call the beat or miss and how the stock reacts, before the number drops. Then we show you if we were right.",
-    example: "HPE: EPS beat likely, setup bullish. Reported, stock rose 30%.",
+    icon: "bolt",
+    iconBg: "#fff7ed",
+    iconFg: "#ea580c",
+    title: "The reason",
+    body: "Why a stock moved, what changed, and what matters next.",
   },
   {
     icon: "hub",
     iconBg: "#fef3c7",
     iconFg: "#92400e",
-    label: "The whole book",
-    title: "What your portfolio is really exposed to",
-    body: "Concentration, overlapping bets, and the gap you cannot see. We read the book, not just the tickers.",
-    example: "67% in Technology. One rate shock hits all of it at once.",
-  },
-  {
-    icon: "sensors",
-    iconBg: "#fef2f2",
-    iconFg: "#dc2626",
-    label: "The signal",
-    title: "Anomalies and Reddit, read for you",
-    body: "When a name you track moves on something real, or the crowd turns, you hear what it means in plain language.",
-    example: "ZS down 6%. Growth outlook cut, analyst downgrade. Not noise.",
+    title: "Your book",
+    body: "Where you are crowded, what you are missing, and which names deserve attention.",
   },
 ];
 
-// One contrast block. Other apps stop at data; stocksbrew adds the judgment.
-const DATA_SIDE = [
-  "Price charts and candlesticks",
-  "P/E, market cap, revenue tables",
-  "A news headline list you scroll",
-  "You do the thinking",
-];
-
-const JUDGMENT_SIDE = [
-  "A clear call on every stock: buy, hold, sell, watch",
-  "EPS predictions before the print, with a track record",
-  "Anomalies and Reddit chatter read and explained",
-  "Sector regime: what is rotating, what is heating up",
+export const PRO_BULLETS = [
+  "Calls on every Radar stock",
+  "Why big moves happened",
+  "Reddit and news read for you",
+  "Portfolio crowding and gaps",
+  "Earnings setups before the print",
+  "Cancel anytime",
 ];
 
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Subscribe - $12/mo" : "Sign in & start free";
+  const ctaLabel = isSignedIn ? "Subscribe - $12/mo" : "Sign in & choose Pro";
 
   return (
-    <section className="flex flex-col gap-20">
-      {/* Category: data vs judgment */}
+    <section className="flex flex-col gap-16">
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-3 text-center max-w-2xl mx-auto">
-          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
-            Why stocksbrew
-          </span>
-          <h2 className="text-[28px] md:text-[38px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
-            The numbers are everywhere. The judgment is not.
-          </h2>
-          <p className="text-[15px] leading-relaxed text-[#6b7280] max-w-lg">
-            Every broker and finance app hands you the same data. None of them tell you what to do with it.
-            That is the part we built.
-          </p>
-        </div>
-
-        <div className="mx-auto grid w-full max-w-[820px] grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="flex flex-col gap-4 rounded-3xl border border-[#e5e7eb] bg-[#fafafa] p-6 md:p-7">
-            <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
-              Every other app
-            </span>
-            <ul className="flex flex-col gap-2.5">
-              {DATA_SIDE.map((line) => (
-                <li key={line} className="flex items-start gap-2 text-[14px] text-[#6b7280]">
-                  <span
-                    aria-hidden
-                    className="material-symbols-outlined text-[#9ca3af] mt-0.5"
-                    style={{ fontSize: 18 }}
-                  >
-                    remove
-                  </span>
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="flex flex-col gap-4 rounded-3xl border-2 border-[#111111] bg-white p-6 md:p-7 shadow-[0_18px_50px_rgba(17,24,39,0.06)]">
-            <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
-              stocksbrew
-            </span>
-            <ul className="flex flex-col gap-2.5">
-              {JUDGMENT_SIDE.map((line) => (
-                <li key={line} className="flex items-start gap-2 text-[14px] font-medium text-[#111111]">
-                  <span
-                    aria-hidden
-                    className="material-symbols-outlined text-[#10b981] mt-0.5"
-                    style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
-                  >
-                    check_circle
-                  </span>
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Point it at your stocks */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-3 text-center max-w-2xl mx-auto">
-          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#0052ff]">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0052ff]">
             stocksbrew Pro
           </span>
-          <h2 className="text-[28px] md:text-[38px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1]">
-            Point all of that at the stocks you actually own.
+          <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-[#111111] md:text-[38px]">
+            Know what to do with the stocks you care about.
           </h2>
-          <p className="text-[15px] leading-relaxed text-[#6b7280] max-w-lg">
-            Free shows you stocksbrew thinking about the market. Pro turns it on your watchlist and your portfolio.
+          <p className="max-w-lg text-[15px] leading-relaxed text-[#6b7280]">
+            stocksbrew reads the price action, news, earnings, Reddit chatter, and fundamentals,
+            then gives you the call in plain English.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {FEATURES.map((f) => (
-            <FeatureCard key={f.label} feature={f} />
+        <div className="mx-auto grid w-full max-w-[920px] grid-cols-1 gap-4 md:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <FeatureCard key={feature.title} feature={feature} />
           ))}
         </div>
       </div>
 
-      {/* Pricing */}
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2">
-          <h2 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.1] text-center">
-            Try it free for 3 days.
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h2 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-[#111111] md:text-[40px]">
+            Pick the plan that fits.
           </h2>
         </div>
 
-        <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 gap-5 md:grid-cols-2">
           <PricingCard
             tag="Monthly"
             price="$12"
             period="/ month"
-            trial="3 days free, then $12/mo"
+            note="Monthly starts today"
             isSignedIn={isSignedIn}
             ctaLabel={ctaLabel}
           />
@@ -189,22 +106,13 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   );
 }
 
-export const PRO_BULLETS = [
-  "Unlimited stocks on your Radar (free is capped at 3)",
-  "A clear call on every stock: buy, hold, sell, or watch, with the reasoning",
-  "Pre-earnings setups: our read before the print, with the track record",
-  "Portfolio diagnosis: concentration, overlap, and the gaps you cannot see",
-  "Anomalies, Reddit buzz, and email alerts when something moves",
-  "Cancel anytime, one click, no questions asked",
-];
-
 function PricingCard({
   tag,
   price,
   period,
-  strike,
   save,
   trial,
+  note,
   highlight,
   isSignedIn,
   ctaLabel,
@@ -212,54 +120,49 @@ function PricingCard({
   tag: string;
   price: string;
   period: string;
-  strike?: string;
   save?: string;
-  trial: string;
+  trial?: string;
+  note?: string;
   highlight?: boolean;
   isSignedIn: boolean;
   ctaLabel: string;
 }) {
   return (
     <article
-      className={`relative flex flex-col gap-5 rounded-[28px] border bg-white p-7 md:p-8 shadow-[0_18px_50px_rgba(17,24,39,0.04)] ${
+      className={`relative flex flex-col gap-5 rounded-[28px] border bg-white p-7 shadow-[0_18px_50px_rgba(17,24,39,0.04)] md:p-8 ${
         highlight ? "border-[#111111] shadow-[0_24px_70px_rgba(17,24,39,0.10)]" : "border-[#e5e7eb]"
       }`}
     >
-      {highlight && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center rounded-full bg-[#111111] px-3 py-1 text-[10px] font-semibold tracking-[0.12em] uppercase text-white">
+      {highlight ? (
+        <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center rounded-full bg-[#111111] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
           Best value
         </span>
-      )}
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af]">
           {tag}
         </span>
         {save ? (
-          <span className="text-[10px] font-semibold tracking-[0.06em] uppercase text-[#10b981]">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#10b981]">
             {save}
-          </span>
-        ) : <span />}
-      </div>
-      <div className="flex items-baseline gap-3 flex-wrap">
-        <span className="text-[48px] md:text-[56px] font-semibold tracking-[-0.03em] text-[#111111] leading-none">
-          {price}
-        </span>
-        <span className="text-[16px] font-medium text-[#6b7280]">{period}</span>
-        {strike ? (
-          <span className="text-[15px] font-medium text-[#9ca3af] line-through tabular-nums">
-            {strike}
           </span>
         ) : null}
       </div>
+
+      <div className="flex flex-wrap items-baseline gap-3">
+        <span className="text-[48px] font-semibold leading-none tracking-[-0.03em] text-[#111111] md:text-[56px]">
+          {price}
+        </span>
+        <span className="text-[16px] font-medium text-[#6b7280]">{period}</span>
+      </div>
+
       <ul className="flex flex-col gap-2">
         {PRO_BULLETS.map((line) => (
-          <li
-            key={line}
-            className="flex items-start gap-2 text-[13px] text-[#374151]"
-          >
+          <li key={line} className="flex items-start gap-2 text-[13px] text-[#374151]">
             <span
               aria-hidden
-              className="material-symbols-outlined text-[#10b981] mt-0.5"
+              className="material-symbols-outlined mt-0.5 text-[#10b981]"
               style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
             >
               check_circle
@@ -268,17 +171,20 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <div className="flex flex-col gap-2 pt-2 border-t border-[#f3f4f6] mt-auto">
-        <span className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#d1fae5] py-2 text-[12px] font-semibold text-[#065f46]">
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-            <circle cx="6.5" cy="6.5" r="6.5" fill="#10b981" fillOpacity="0.2"/>
-            <path d="M3.5 6.5l2 2 4-4" stroke="#10b981" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          {trial}
-        </span>
+
+      <div className="mt-auto flex flex-col gap-2 border-t border-[#f3f4f6] pt-2">
+        {trial ? (
+          <span className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#d1fae5] py-2 text-[12px] font-semibold text-[#065f46]">
+            {trial}
+          </span>
+        ) : note ? (
+          <span className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#f3f4f6] py-2 text-[12px] font-semibold text-[#6b7280]">
+            {note}
+          </span>
+        ) : null}
         <LandingProPricingCta isSignedIn={isSignedIn} highlight={highlight} ctaLabel={ctaLabel} />
-        <span className="text-[11px] font-medium text-[#9ca3af] text-center">
-          Cancel anytime, no questions asked
+        <span className="text-center text-[11px] font-medium text-[#9ca3af]">
+          Cancel anytime
         </span>
       </div>
     </article>
@@ -288,34 +194,20 @@ function PricingCard({
 function FeatureCard({ feature }: { feature: Feature }) {
   return (
     <article className="flex flex-col gap-4 rounded-3xl border border-[#e5e7eb] bg-white p-6 md:p-7">
-      <div className="flex items-start justify-between gap-3">
-        <span
-          aria-hidden
-          className="flex h-11 w-11 items-center justify-center rounded-2xl"
-          style={{ background: feature.iconBg, color: feature.iconFg }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 22, fontVariationSettings: "'wght' 600" }}
-          >
-            {feature.icon}
-          </span>
-        </span>
-        <span className="inline-flex items-center rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[10px] font-semibold tracking-[0.1em] uppercase text-[#6b7280]">
-          {feature.label}
-        </span>
-      </div>
-
-      <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-[#111111] leading-snug">
-        {feature.title}
-      </h3>
-      <p className="text-[14px] leading-relaxed text-[#6b7280]">{feature.body}</p>
-
-      <div
-        className="mt-1 rounded-xl px-3 py-2.5 text-[12px] font-medium leading-snug"
-        style={{ background: `${feature.iconBg}80`, color: feature.iconFg }}
+      <span
+        aria-hidden
+        className="flex h-11 w-11 items-center justify-center rounded-2xl"
+        style={{ background: feature.iconBg, color: feature.iconFg }}
       >
-        {feature.example}
+        <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: "'wght' 600" }}>
+          {feature.icon}
+        </span>
+      </span>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-[20px] font-semibold leading-snug tracking-[-0.02em] text-[#111111]">
+          {feature.title}
+        </h3>
+        <p className="text-[14px] leading-relaxed text-[#6b7280]">{feature.body}</p>
       </div>
     </article>
   );

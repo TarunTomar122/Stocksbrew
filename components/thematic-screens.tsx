@@ -7,6 +7,7 @@ import { relativeTime } from "@/lib/freshness";
 import type { ThematicScreensDoc, ScreenMatchRow } from "@/lib/screens";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
+import { ProCtaLink } from "@/components/pro-cta";
 
 type Props = {
   doc?: ThematicScreensDoc | null;
@@ -255,12 +256,9 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
             <p className="mt-1 text-[13px] text-[#6b7280] max-w-[420px] mx-auto leading-relaxed">
               Subscribe to unlock the full list, updated daily.
             </p>
-            <Link
-              href="/subscribe"
-              className="mt-4 inline-flex items-center justify-center h-[40px] px-6 rounded-full bg-[#111111] text-white text-[13px] font-semibold hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-            >
+            <ProCtaLink href="/subscribe" className="mt-4" showStar>
               Subscribe
-            </Link>
+            </ProCtaLink>
           </div>
         )}
 

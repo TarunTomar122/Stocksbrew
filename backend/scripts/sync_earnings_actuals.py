@@ -27,6 +27,7 @@ from typing import Any
 
 from backend.earnings_actuals import (
     fetch_quarterly_actuals,
+    fetch_yfinance_quarterly_actuals,
     pick_actual_for_event,
     summarize_surprise,
 )
@@ -85,7 +86,7 @@ def _list_recent_events(
     return [payload for _date, payload in out[: max(1, max_events)]]
 
 
-def _enrichment_from_actual(actual: dict[str, Any]) -> dict[str, Any]:
+def _enrichment_from_actual(actual: dict[str, Any], *, source: str) -> dict[str, Any]:
     return {
         "reported_eps": actual.get("reported_eps"),
         "estimated_eps": actual.get("estimated_eps"),
@@ -94,6 +95,7 @@ def _enrichment_from_actual(actual: dict[str, Any]) -> dict[str, Any]:
         "surprise_label": summarize_surprise(actual),
         "actuals_reported_date": actual.get("reported_date"),
         "actuals_fiscal_date_ending": actual.get("fiscal_date_ending"),
+        "actuals_source": source,
         "actuals_captured_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -149,11 +151,18 @@ def main() -> None:
         actual = pick_actual_for_event(
             actuals, event_date, tolerance_days=args.tolerance_days
         )
+        source = "alphavantage"
+        if actual is None:
+            yf_actuals = fetch_yfinance_quarterly_actuals(ticker)
+            actual = pick_actual_for_event(
+                yf_actuals, event_date, tolerance_days=args.tolerance_days
+            )
+            source = "yfinance"
         if actual is None:
             missing += 1
             results.append({"ticker": ticker, "event_date": event_date, "status": "no_actual"})
         else:
-            enrichment = _enrichment_from_actual(actual)
+            enrichment = _enrichment_from_actual(actual, source=source)
             if args.write:
                 store.db.collection("tm_earnings_events").document(doc_id).set(
                     enrichment, merge=True

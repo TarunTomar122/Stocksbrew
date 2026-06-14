@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
-import { getRedditCues } from "@/lib/reddit-cues";
 import { getCurrentMarket } from "@/lib/market";
 import { AnomaliesPageView } from "@/components/anomalies-page-view";
 import { getSessionUser } from "@/lib/auth-server";
@@ -10,31 +9,29 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Market Anomalies - Unusual Stock Moves Today",
+  title: "Today's Big Moves - Surging and Dropping Stocks",
   description:
-    "Stocks with the biggest unusual price moves today. See what's surging, what's dropping, and why.",
+    "Stocks with the biggest price moves today. Top gainers, top losers, and a short read on each.",
   alternates: { canonical: "/anomalies" },
   openGraph: {
-    title: "Market Anomalies · stocksbrew",
-    description: "Stocks with unusual price moves today - what's surging, what's dropping, and why.",
+    title: "Today's big moves · stocksbrew",
+    description: "Top gainers, top losers, and what's behind today's biggest stock moves.",
     url: "https://www.stocksbrew.online/anomalies",
   },
   twitter: {
-    title: "Market Anomalies · stocksbrew",
-    description: "Stocks with unusual price moves today - what's surging, what's dropping, and why.",
+    title: "Today's big moves · stocksbrew",
+    description: "Top gainers, top losers, and what's behind today's biggest stock moves.",
   },
 };
 
 export default async function AnomaliesPage() {
   const market = getCurrentMarket();
-  const session = await getSessionUser();
-  const [data, reddit, userDoc] = await Promise.all([
+  const [data, session] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
-    getRedditCues(market).catch(() => null),
-    session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
+    getSessionUser(),
   ]);
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const trackedIds = new Set<string>(Array.isArray(userDoc?.tracked_stocks) ? userDoc.tracked_stocks : []);
 
   const isEmpty = !data || data.anomalies.length === 0;
 
@@ -51,12 +48,9 @@ export default async function AnomaliesPage() {
           </div>
         ) : (
           <AnomaliesPageView
-            anomalies={[...data.anomalies].sort((a, b) => Math.abs(b.day_change_pct) - Math.abs(a.day_change_pct))}
-            summary={data.summary}
+            anomalies={data.anomalies}
             generatedAt={data.enriched_at || data.generated_at}
-            reddit={reddit}
             isSubscribed={isSubscribed}
-            trackedIds={trackedIds}
           />
         )}
 

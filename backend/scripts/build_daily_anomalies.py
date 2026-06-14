@@ -43,6 +43,32 @@ MOVE_EXPLAINER_SCHEMA = {
     "required": ["can_explain", "cause_type", "headline", "why_it_matters", "confidence"],
 }
 
+INTERNAL_MOVE_CONTEXT_PROMPT = """You write non-generic context for a sharp stock move when fresh company-news evidence is absent or weak.
+
+Use only the supplied internal stock data. Do not invent or imply a confirmed news catalyst.
+
+Frame the move as what it likely reflects: valuation gap, factor scores, analyst target gap, technical setup, sector/industry, positioning, upcoming catalysts, and risk.
+
+Rules:
+- If news_count/source_count is 0 or evidence is weak, confidence must be low or medium, never high.
+- Keep headline under 12 words.
+- Keep why_it_matters to 1-2 complete sentences.
+- Avoid generic phrases like "top mover", "price momentum", or "against the broader tape".
+- Be concrete and honest when there is no clean catalyst.
+"""
+
+INTERNAL_MOVE_CONTEXT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "headline": {"type": "string"},
+        "why_it_matters": {"type": "string"},
+        "confidence": {"type": "string", "enum": ["low", "medium"]},
+        "is_generic": {"type": "boolean"},
+    },
+    "required": ["headline", "why_it_matters", "confidence", "is_generic"],
+    "additionalProperties": False,
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -198,6 +224,99 @@ def _llm_move_explanation(
         "evidence": [{"title": row.get("title"), "url": row.get("url")} for row in articles if row.get("url")],
     }
 
+
+def _internal_move_payload(
+    *,
+    instrument: dict[str, Any],
+    intel_doc: dict[str, Any] | None,
+    day_change_pct: float,
+) -> dict[str, Any]:
+    intel = intel_doc or {}
+    visual = intel.get("visual_summary") if isinstance(intel.get("visual_summary"), dict) else {}
+    return {
+        "ticker": str(instrument.get("ticker") or intel.get("ticker") or "").strip().upper(),
+        "company": str(instrument.get("name") or intel.get("name") or instrument.get("ticker") or "").strip(),
+        "sector": str(instrument.get("sector") or intel.get("sector") or "").strip(),
+        "industry": str(instrument.get("industry") or intel.get("industry") or "").strip(),
+        "day_change_pct": day_change_pct,
+        "headline": str(intel.get("headline") or "").strip(),
+        "today_brief": str(intel.get("today_brief") or intel.get("body") or "").strip(),
+        "thesis": str(intel.get("thesis") or "").strip(),
+        "risk": str(intel.get("risk") or "").strip(),
+        "catalyst": str(intel.get("catalyst") or "").strip(),
+        "overall_label": str(intel.get("overall_label") or "").strip(),
+        "overall_score": intel.get("overall_score"),
+        "key_points": [str(p).strip() for p in (intel.get("key_points") or []) if str(p).strip()][:4],
+        "visual_summary": visual,
+        "news_count": int(intel.get("news_count") or 0),
+        "source_count": int(intel.get("source_count") or 0),
+        "comparative_context": intel.get("comparative_context")
+        if isinstance(intel.get("comparative_context"), dict)
+        else None,
+    }
+
+
+def _llm_internal_context_move_explanation(
+    *,
+    instrument: dict[str, Any],
+    intel_doc: dict[str, Any] | None,
+    day_change_pct: float,
+) -> dict[str, Any] | None:
+    api_key = llm_api_key()
+    if not api_key:
+        return None
+    payload = _internal_move_payload(
+        instrument=instrument,
+        intel_doc=intel_doc,
+        day_change_pct=day_change_pct,
+    )
+    if not any(
+        payload.get(key)
+        for key in ("today_brief", "thesis", "risk", "catalyst", "key_points", "visual_summary")
+    ):
+        return None
+    try:
+        resp = requests.post(
+            llm_api_url(),
+            headers=llm_headers(api_key),
+            json={
+                "model": llm_model(OPENAI_DEFAULT_MODEL),
+                "temperature": 0.1,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": schema_system_prompt(INTERNAL_MOVE_CONTEXT_PROMPT, INTERNAL_MOVE_CONTEXT_SCHEMA),
+                    },
+                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+                ],
+                "response_format": json_response_format(),
+            },
+            timeout=35,
+        )
+        resp.raise_for_status()
+        parsed = parse_json_content(resp.json()["choices"][0]["message"]["content"])
+    except Exception as exc:
+        print(f"  [move internal context] failed {payload['ticker']}: {exc}", flush=True)
+        return None
+    if parsed.get("is_generic"):
+        return None
+    headline = str(parsed.get("headline") or "").strip()
+    why = str(parsed.get("why_it_matters") or "").strip()
+    if not headline or not why:
+        return None
+    confidence = str(parsed.get("confidence") or "low").strip().lower()
+    if confidence not in {"low", "medium"}:
+        confidence = "medium"
+    return {
+        "cause_type": "internal_context",
+        "headline": headline,
+        "why_it_matters": why,
+        "confidence": confidence,
+        "searched_externally": False,
+        "evidence": [],
+    }
+
+
 def _move_explanation(
     *,
     instrument: dict[str, Any],
@@ -212,7 +331,14 @@ def _move_explanation(
         day_change_pct=day_change_pct,
         articles=_latest_timeline_items(intel_doc, limit=3),
     )
-    return explanation or _fallback_move_explanation()
+    if explanation:
+        return explanation
+    internal = _llm_internal_context_move_explanation(
+        instrument=instrument,
+        intel_doc=intel_doc,
+        day_change_pct=day_change_pct,
+    )
+    return internal or _fallback_move_explanation()
 
 
 def _run_intelligence_fill_for_missing(

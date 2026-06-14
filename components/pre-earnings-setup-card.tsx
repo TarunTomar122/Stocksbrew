@@ -118,7 +118,7 @@ export function PreEarningsSetupCard({ doc, ticker, compact = false }: Props) {
         >
           {headline}
         </h3>
-        <p className={`leading-relaxed text-[#374151] ${compact ? "text-sm line-clamp-2" : "text-base"}`}>
+        <p className={`leading-relaxed text-[#374151] ${compact ? "text-sm" : "text-base"}`}>
           {summary}
         </p>
       </div>

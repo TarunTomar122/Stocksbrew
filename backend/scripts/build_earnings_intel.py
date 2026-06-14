@@ -43,8 +43,11 @@ TENSE / TIMING:
 ACTUALS:
 - If payload.reported_actuals.available is true, the beat/miss is REAL: compare reported_eps to estimated_eps
   and use eps_surprise_pct / surprise_label. State the actual reported number, not the estimate.
-- If payload.reported_actuals.available is false, the actual result is NOT in yet. Say so plainly.
-  Do NOT present the estimate (eps_estimate) as if it were the reported result, and do NOT claim a beat or miss.
+- If payload.reported_actuals.available is false, you still must write a useful post-earnings card WITHOUT EPS.
+  Ground facts.reported_vs_expected in payload.price_reaction_window, post_earnings_news, and guidance tone.
+  Lead with how the stock traded and what management/news emphasized. Never open with "Actual EPS is not
+  available", "cannot confirm beat/miss", or similar pipeline disclaimers. You may cite the consensus
+  estimate only as pre-print context, never as the reported result, and never claim a beat/miss.
 
 ANTI-GIMMICK:
 - Ban vague, recyclable filler: "watch next year's guidance", "monitor the earnings call",

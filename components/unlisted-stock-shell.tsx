@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
-import { StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
+import { StockRedditBuzzLockedRail, StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockDiscoveryModal } from "@/components/unlisted-stock-discovery-modal";
 import type { RedditTickerContext } from "@/lib/reddit-cues-shared";
@@ -12,9 +12,10 @@ type Props = {
   ticker: string;
   market: "US" | "IN";
   redditTickerContext: RedditTickerContext | null;
+  isSubscribed: boolean;
 };
 
-export function UnlistedStockShell({ ticker, market, redditTickerContext }: Props) {
+export function UnlistedStockShell({ ticker, market, redditTickerContext, isSubscribed }: Props) {
   const [showModal, setShowModal] = useState(true);
 
   return (
@@ -43,7 +44,13 @@ export function UnlistedStockShell({ ticker, market, redditTickerContext }: Prop
               </p>
             </div>
 
-            {redditTickerContext ? <StockRedditBuzzRail context={redditTickerContext} /> : null}
+            {redditTickerContext ? (
+              isSubscribed ? (
+                <StockRedditBuzzRail context={redditTickerContext} />
+              ) : (
+                <StockRedditBuzzLockedRail />
+              )
+            ) : null}
           </aside>
 
           <section className="flex flex-col gap-6 min-w-0">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import { ProCtaLink } from "@/components/pro-cta";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { flushWatchlistRebuild, scheduleWatchlistRebuild } from "@/lib/radar-client-refresh";
 import { captureEvent } from "@/lib/posthog";
@@ -203,12 +204,9 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
               Free Radar tracks up to {result.limitAt} stocks. Upgrade to Pro to add your full portfolio. {result.skipped.length} more waiting.
             </p>
             <div className="flex items-center gap-2 mt-1">
-              <a
-                href="/subscribe"
-                className="inline-flex items-center h-8 rounded-full bg-[#111111] px-4 text-[12px] font-semibold text-white hover:bg-black transition-colors"
-              >
+              <ProCtaLink href="/subscribe" size="sm" showStar className="h-8 px-4 text-[12px]">
                 Upgrade to Pro
-              </a>
+              </ProCtaLink>
               <button
                 onClick={() => router.push("/watchlist")}
                 className="text-[12px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors"

@@ -43,6 +43,52 @@ export type EarningsIntelDoc = {
   };
 };
 
+/** Post-earnings surfaces only show reports from this window. */
+export const EARNINGS_RECENT_MAX_DAYS = 14;
+
+function parseEventDateUtc(eventDate: string): Date | null {
+  const iso = eventDate.trim().split("T", 1)[0];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const event = new Date(`${iso}T12:00:00.000Z`);
+  return Number.isFinite(event.getTime()) ? event : null;
+}
+
+export function daysSinceEventDate(eventDate: string, ref = new Date()): number | null {
+  const event = parseEventDateUtc(eventDate);
+  if (!event) return null;
+  const today = new Date(
+    Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate()),
+  );
+  const eventDay = new Date(
+    Date.UTC(event.getUTCFullYear(), event.getUTCMonth(), event.getUTCDate()),
+  );
+  return Math.round((today.getTime() - eventDay.getTime()) / 86_400_000);
+}
+
+export function isEventDateWithinRecentWindow(
+  eventDate: string,
+  maxDays = EARNINGS_RECENT_MAX_DAYS,
+  ref = new Date(),
+): boolean {
+  const delta = daysSinceEventDate(eventDate, ref);
+  if (delta === null) return false;
+  return delta >= 0 && delta <= maxDays;
+}
+
+export function filterEarningsIntelRecent(
+  docs: EarningsIntelDoc[],
+  maxDays = EARNINGS_RECENT_MAX_DAYS,
+  ref = new Date(),
+): EarningsIntelDoc[] {
+  return docs
+    .filter((d) => isEventDateWithinRecentWindow(d.event_date, maxDays, ref))
+    .sort((a, b) => {
+      const ea = Date.parse(`${a.event_date}T12:00:00.000Z`);
+      const eb = Date.parse(`${b.event_date}T12:00:00.000Z`);
+      return (Number.isFinite(eb) ? eb : 0) - (Number.isFinite(ea) ? ea : 0);
+    });
+}
+
 /** Monday–Sunday week (UTC) containing `ref`. */
 export function isEventDateInCurrentWeek(eventDate: string, ref = new Date()): boolean {
   const iso = eventDate.trim().split("T", 1)[0];
@@ -122,7 +168,9 @@ export async function listAllEarningsIntelDocs(): Promise<EarningsIntelDoc[]> {
     }
   }
 
-  return [...byTicker.values()].sort((a, b) => docGeneratedMs(b) - docGeneratedMs(a));
+  return filterEarningsIntelRecent(
+    [...byTicker.values()].sort((a, b) => docGeneratedMs(b) - docGeneratedMs(a)),
+  );
 }
 
 /** All published earnings intel reports for sitemap generation. */

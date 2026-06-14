@@ -284,7 +284,6 @@ async function main() {
     threshold_pct: MIN_ABS_CHANGE_PCT,
     up_count: anomalies.filter(a => a.direction === "up").length,
     down_count: anomalies.filter(a => a.direction === "down").length,
-    summary: buildSummary(anomalies),
     anomalies,
   };
 
@@ -296,28 +295,13 @@ async function main() {
   await db.collection("tm_daily_anomalies").doc(`${MARKET}__latest`).set(report);
   console.log(`✅ Wrote tm_daily_anomalies/${MARKET}__latest`);
 
-  // 6. Print summary
-  console.log(`\n📊 Summary: ${report.summary}`);
+  // 6. Print results
+  console.log(`\n📊 ${anomalies.length} anomalies (${report.up_count} up, ${report.down_count} down)`);
   anomalies.forEach(a => {
     const arrow = a.direction === "up" ? "📈" : "📉";
     const src = a.llm_enriched ? " (LLM)" : "";
     console.log(`  ${arrow} ${a.ticker}: ${a.day_change_pct > 0 ? "+" : ""}${a.day_change_pct}% - ${a.headline || "No headline"}${src}`);
   });
-}
-
-function buildSummary(anomalies) {
-  const ups = anomalies.filter(a => a.direction === "up");
-  const downs = anomalies.filter(a => a.direction === "down");
-  const parts = [];
-  if (ups.length) {
-    const top = ups[0];
-    parts.push(`${ups.length} stocks surging (led by ${top.ticker} +${top.day_change_pct}%)`);
-  }
-  if (downs.length) {
-    const bot = downs[0];
-    parts.push(`${downs.length} stocks dropping (worst: ${bot.ticker} ${bot.day_change_pct}%)`);
-  }
-  return parts.join("; ");
 }
 
 function round(n) {

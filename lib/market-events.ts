@@ -1,7 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
-import { resolveEventScenarios } from "@/lib/earnings-scenario-weights";
+import { EARNINGS_RECENT_MAX_DAYS, isEventDateWithinRecentWindow } from "@/lib/earnings-intel";
 import { getLatestPrices } from "@/lib/firestore";
 import {
   sortEventsByReportDate,
@@ -32,24 +31,6 @@ export type MarketEventsDoc = {
   counts_by_kind: Record<string, number>;
 };
 
-async function attachScenarios(
-  events: MarketEvent[],
-  market: "US" | "IN",
-): Promise<MarketEvent[]> {
-  const ids = [...new Set(events.map((e) => e.instrument_id).filter(Boolean))];
-  if (ids.length === 0) return events;
-
-  const intelDocs = await getLatestEarningsIntelForInstruments(market, ids);
-  const byInstrument = new Map(intelDocs.map((doc) => [doc.instrument_id, doc]));
-
-  return events.map((event) => {
-    const doc = byInstrument.get(event.instrument_id);
-    const scenarios = resolveEventScenarios(event, doc?.report);
-    if (!scenarios?.length) return event;
-    return { ...event, scenarios };
-  });
-}
-
 async function attachQuotes(events: MarketEvent[]): Promise<MarketEvent[]> {
   const ids = [...new Set(events.map((e) => e.instrument_id).filter(Boolean))];
   if (ids.length === 0) return events;
@@ -70,7 +51,12 @@ async function attachQuotes(events: MarketEvent[]): Promise<MarketEvent[]> {
 }
 
 function earningsOnly(doc: MarketEventsDoc): MarketEventsDoc {
-  const events = doc.events.filter((e) => e.kind === "earnings");
+  const events = doc.events.filter(
+    (e) =>
+      e.kind === "earnings" &&
+      Boolean(e.event_date) &&
+      isEventDateWithinRecentWindow(String(e.event_date), EARNINGS_RECENT_MAX_DAYS),
+  );
   const up = events.filter((e) => e.direction === "positive").length;
   const down = events.filter((e) => e.direction === "negative").length;
   return {
@@ -86,8 +72,8 @@ function earningsOnly(doc: MarketEventsDoc): MarketEventsDoc {
     },
     summary:
       events.length > 0
-        ? `${events.length} fresh earnings report${events.length === 1 ? "" : "s"} (${up} positive tone, ${down} negative tone).`
-        : "No fresh earnings reports right now.",
+        ? `${events.length} earnings report${events.length === 1 ? "" : "s"} from the last ${EARNINGS_RECENT_MAX_DAYS} days (${up} positive tone, ${down} negative tone).`
+        : "No earnings reports from the last 2 weeks right now.",
   };
 }
 
@@ -101,7 +87,7 @@ async function getMarketEventsUncached(
   if (!doc.exists) return null;
   const filtered = earningsOnly(doc.data() as MarketEventsDoc);
   const quoted = await attachQuotes(filtered.events);
-  const events = sortEventsByReportDate(await attachScenarios(quoted, market));
+  const events = sortEventsByReportDate(quoted);
   return { ...filtered, events };
 }
 

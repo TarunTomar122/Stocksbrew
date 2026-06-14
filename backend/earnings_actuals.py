@@ -41,6 +41,59 @@ def _parse_date(value: str) -> datetime | None:
         return None
 
 
+def _yf_index_date(value: Any) -> str:
+    try:
+        if hasattr(value, "to_pydatetime"):
+            return value.to_pydatetime().strftime("%Y-%m-%d")
+        text = str(value or "").strip()
+        if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+            return text[:10]
+    except Exception:
+        pass
+    return ""
+
+
+def fetch_yfinance_quarterly_actuals(ticker: str) -> list[dict[str, Any]]:
+    """Yahoo fallback when Alpha Vantage actuals are missing or rate-limited."""
+    try:
+        import yfinance as yf
+    except Exception:
+        return []
+    try:
+        frame = yf.Ticker(ticker.upper().strip()).earnings_dates
+    except Exception:
+        return []
+    if frame is None or getattr(frame, "empty", True):
+        return []
+
+    out: list[dict[str, Any]] = []
+    for idx, row in frame.iterrows():
+        reported_eps = _to_float(row.get("Reported EPS"))
+        if reported_eps is None:
+            continue
+        estimated_eps = _to_float(row.get("EPS Estimate"))
+        surprise_pct = _to_float(row.get("Surprise(%)"))
+        surprise = (
+            reported_eps - estimated_eps
+            if estimated_eps is not None and reported_eps is not None
+            else None
+        )
+        reported_date = _yf_index_date(idx)
+        if not reported_date:
+            continue
+        out.append(
+            {
+                "fiscal_date_ending": "",
+                "reported_date": reported_date,
+                "reported_eps": reported_eps,
+                "estimated_eps": estimated_eps,
+                "surprise": surprise,
+                "surprise_pct": surprise_pct,
+            }
+        )
+    return out
+
+
 def fetch_quarterly_actuals(
     ticker: str,
     *,

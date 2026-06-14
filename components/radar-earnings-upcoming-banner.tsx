@@ -74,9 +74,14 @@ export function RadarEarningsUpcomingBanner({ docs }: Props) {
                       {days === 1 ? "Tomorrow" : formatEventDate(doc.event_date)}
                     </span>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-[#4b5563]">
+                  <p className="mt-0.5 text-[12px] leading-snug text-[#4b5563]">
                     {cleanEarningsProse(doc.report?.headline || "Setup before the print")}
                   </p>
+                  {doc.report?.summary ? (
+                    <p className="mt-1 text-[12px] leading-relaxed text-[#4b5563]">
+                      {cleanEarningsProse(doc.report.summary)}
+                    </p>
+                  ) : null}
                   {tags.length > 0 ? (
                     <p className="mt-1 text-[10px] font-medium text-[#9ca3af]">
                       {tags.join(" · ")}

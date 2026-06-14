@@ -78,7 +78,11 @@ export default async function SubscribePage({ searchParams }: Props) {
           </div>
         )}
 
-        <SubscribePricing isSubscribed={isSubscribed} market={market} />
+        <SubscribePricing
+          isSubscribed={isSubscribed}
+          justSubscribed={callbackSuccess}
+          market={market}
+        />
 
         {/* Trust row */}
         <div className="flex flex-wrap items-center justify-center gap-6 text-[12px] text-[#9ca3af]">

@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { DODO_BASE, dodoHeaders } from "@/lib/dodo";
+import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+
+const CANCEL_REASONS = new Set([
+  "too_expensive",
+  "not_using_enough",
+  "missing_stocks",
+  "calls_not_helpful",
+  "technical_issue",
+  "other",
+]);
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization") ?? "";
@@ -10,12 +20,19 @@ export async function POST(req: NextRequest) {
   }
 
   let uid: string;
+  let email: string | null = null;
   try {
     const decoded = await adminAuth.verifyIdToken(idToken);
     uid = decoded.uid;
+    email = decoded.email ?? null;
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
+
+  const body = await req.json().catch(() => ({}));
+  const reason = CANCEL_REASONS.has(body.reason) ? body.reason : "other";
+  const feedback = typeof body.feedback === "string" ? body.feedback.trim().slice(0, 1000) : "";
+  const retentionCode = typeof body.retentionCode === "string" ? body.retentionCode.trim().slice(0, 64) : "";
 
   const snap = await adminFirestore.collection("users").doc(uid).get();
   const userDoc = snap.data();
@@ -41,7 +58,30 @@ export async function POST(req: NextRequest) {
   await adminFirestore
     .collection("users")
     .doc(uid)
-    .set({ cancelAtPeriodEnd: true }, { merge: true });
+    .set(
+      {
+        cancelAtPeriodEnd: true,
+        cancellationSurvey: {
+          reason,
+          feedback,
+          retentionCode,
+          submittedAt: new Date().toISOString(),
+        },
+      },
+      { merge: true },
+    );
+
+  await recordLifecycleEvent({
+    uid,
+    email,
+    type: "subscription_cancel_scheduled",
+    payload: {
+      subscription_id: subscriptionId,
+      reason,
+      feedback,
+      retention_code: retentionCode,
+    },
+  }).catch(() => undefined);
 
   return NextResponse.json({ cancelled: true });
 }

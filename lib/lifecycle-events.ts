@@ -4,6 +4,7 @@ export type LifecycleEventType =
   | "track_blocked_subscription_required"
   | "checkout_started"
   | "subscription_converted"
+  | "subscription_cancel_scheduled"
   | "first_radar_item_email_sent";
 
 export async function recordLifecycleEvent(params: {

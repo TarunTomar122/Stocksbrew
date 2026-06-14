@@ -115,7 +115,7 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
                     <h3 className="mt-3 text-lg font-semibold leading-snug tracking-tight text-[#111111] group-hover:text-[#0052ff] sm:text-xl">
                       {doc.report?.headline || `${doc.ticker} earnings update`}
                     </h3>
-                    <p className="mt-2 line-clamp-2 text-base leading-relaxed text-[#4b5563]">
+                    <p className="mt-2 text-base leading-relaxed text-[#4b5563]">
                       {doc.report?.summary || "Open full report"}
                     </p>
                     <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#111111]">

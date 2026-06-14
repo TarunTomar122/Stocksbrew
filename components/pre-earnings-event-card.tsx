@@ -93,11 +93,16 @@ export function PreEarningsEventCard({ doc, name, logoUrl, quote }: Props) {
         ) : null}
       </div>
 
-      <p className="line-clamp-2 text-[13px] font-medium leading-snug text-[#111111] group-hover:text-[#b45309] transition-colors">
+      <p className="text-[13px] font-medium leading-snug text-[#111111] group-hover:text-[#b45309] transition-colors">
         {cleanEarningsProse(
           doc.report?.headline || doc.report?.summary || "Pre-earnings setup",
         )}
       </p>
+      {doc.report?.summary && doc.report?.headline ? (
+        <p className="text-[12px] leading-relaxed text-[#4b5563]">
+          {cleanEarningsProse(doc.report.summary)}
+        </p>
+      ) : null}
 
       <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
         {outlookText ? (

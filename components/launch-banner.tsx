@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+
+import { ProCtaLink } from "@/components/pro-cta";
 
 export function LaunchBanner() {
   const [dismissed, setDismissed] = useState(false);
@@ -13,12 +14,9 @@ export function LaunchBanner() {
         Try stocksbrew Pro free for 3 days
         <span className="hidden sm:inline"> · then $12/mo or $99/yr</span>
       </span>
-      <Link
-        href="/subscribe"
-        className="shrink-0 rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#111111] hover:bg-[#f3f4f6] transition-colors"
-      >
+      <ProCtaLink href="/subscribe" size="sm" className="px-3 py-1 text-[12px]">
         Subscribe →
-      </Link>
+      </ProCtaLink>
       <button
         type="button"
         aria-label="Dismiss"

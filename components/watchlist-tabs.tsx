@@ -286,7 +286,7 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
             <DailySummary rows={watching} label="Watching" />
             <ul className="divide-y divide-[#f3f4f6]">
               {watching.length === 0
-                ? <EmptyList message="Nothing in Watching - bookmark tickers from the search bar." />
+                ? <EmptyList message="Nothing in Watching - add tickers from the search bar." />
                 : watching.map((r) => <StockRow key={r.instrument_id} row={r} />)}
             </ul>
           </>
@@ -313,7 +313,7 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
         <DesktopColumn title="Watching" count={watching.length}>
           <DailySummary rows={watching} label="Watching" />
           {watching.length === 0
-            ? <EmptyList message="Nothing in Watching - bookmark tickers from the search bar." />
+            ? <EmptyList message="Nothing in Watching - add tickers from the search bar." />
             : watching.map((r) => <StockRow key={r.instrument_id} row={r} />)}
         </DesktopColumn>
         <DesktopColumn title="Ideas" count={suggestions.slice(0, 8).length}>

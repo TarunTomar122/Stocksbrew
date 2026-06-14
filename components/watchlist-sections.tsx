@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { ProCtaLink } from "@/components/pro-cta";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { RadarLedger } from "@/components/radar-ledger";
-import { BookEventsPanel, TodayMarketEvents } from "@/components/radar-activity";
+import { TodayMarketEvents } from "@/components/radar-activity";
 import type { RadarActivityEvent } from "@/lib/activity-events";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
 import { TrackButton } from "@/components/track-button";
@@ -464,10 +465,9 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
         </div>
         <div className="flex items-center gap-2 self-start mt-2">
           {atLimit ? (
-            <Link href="/subscribe"
-              className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#111111] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-black transition-colors">
+            <ProCtaLink href="/subscribe" size="sm" showStar className="text-[12px]">
               Upgrade to track more →
-            </Link>
+            </ProCtaLink>
           ) : (
             <RadarBatchEditModal
               isSubscribed={isSubscribed}
@@ -775,9 +775,10 @@ function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: D
 // § 01 · YOUR BOOK
 // =============================================================================
 
-export function YourBookSection({ holdings, watching, earningsReadyThisWeek, bookEvents, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
+export function YourBookSection({ holdings, watching, earningsReadyThisWeek, suggestions, isSubscribed, trackedCount, refreshing, portfolio }: {
   holdings: WatchlistRow[]; watching: WatchlistRow[];
-  earningsReadyThisWeek: EarningsIntelDoc[]; bookEvents: RadarActivityEvent[]; suggestions: Dict[];
+  earningsReadyThisWeek: EarningsIntelDoc[];
+  suggestions: Dict[];
   isSubscribed: boolean; trackedCount: number; refreshing?: boolean; portfolio?: Dict;
 }) {
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -803,7 +804,6 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, boo
       <YourBookLayout
         holdings={holdings} watching={watching} suggestions={suggestionList}
         earningsReadySlot={earningsReadyThisWeek.length > 0 ? <RadarEarningsReadyBanner docs={earningsReadyThisWeek} /> : null}
-        bookEventsSlot={<BookEventsPanel events={bookEvents} layout="full" />}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(129,140,248,0.25)_0%,transparent_55%)]" />
@@ -828,10 +828,9 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, boo
                 ))}
               </div>
             </div>
-            <Link href="/subscribe"
-              className="relative shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-white px-5 text-[13px] font-semibold text-[#1e1b4b] hover:-translate-y-[1px] active:translate-y-0 transition-transform whitespace-nowrap shadow-[0_4px_20px_rgba(129,140,248,0.3)]">
+            <ProCtaLink href="/subscribe" size="sm" showStar className="h-[40px] whitespace-nowrap">
               Unlock Pro · $12/mo →
-            </Link>
+            </ProCtaLink>
           </div>
         ) : undefined}
       />

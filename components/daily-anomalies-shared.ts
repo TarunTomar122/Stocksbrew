@@ -7,6 +7,9 @@ export const TOP_MOVES_LIMIT = 10;
 
 export const MOVES_SECTION_TAGLINE = "Top 10 gainers and losers, and why they're moving.";
 
+export const ANOMALY_NO_NEWS_COPY =
+  "We didn't find company-specific news explaining today's move yet.";
+
 const VERDICT_STYLES: Record<string, { text: string; bg: string }> = {
   Buy: { text: "#10b981", bg: "#ecfdf5" },
   Accumulate: { text: "#10b981", bg: "#ecfdf5" },
@@ -24,7 +27,30 @@ export function isDisplayableMove(item: AnomalyItem): boolean {
   return Number.isFinite(item.day_change_pct) && Math.abs(item.day_change_pct) <= MAX_DISPLAY_MOVE_PCT;
 }
 
+const WEAK_MOVE_HEADLINE = "No clear company-specific driver surfaced yet.";
+
+export function isWeakMoveExplanation(item: AnomalyItem): boolean {
+  const explanation = item.move_explanation;
+  if (!explanation) return false;
+  if (String(explanation.cause_type || "").toLowerCase() === "unclear") return true;
+  const headline = String(explanation.headline || "").trim();
+  if (headline === WEAK_MOVE_HEADLINE || headline.startsWith("No clear company-specific")) return true;
+  const why = String(explanation.why_it_matters || "").trim();
+  return why.startsWith("The move is large, but current internal");
+}
+
+export function topMoverHeadline(item: AnomalyItem): string {
+  const ticker = item.ticker.trim().toUpperCase();
+  const side = item.direction === "up" ? "up" : "down";
+  const sector = item.sector?.trim();
+  if (sector) return `${ticker} is a top ${side} mover in ${sector}.`;
+  return `${ticker} is a top ${side} mover today.`;
+}
+
 export function anomalyHeadline(item: AnomalyItem): string {
+  if (isWeakMoveExplanation(item)) {
+    return topMoverHeadline(item);
+  }
   const headline =
     item.move_explanation?.headline?.trim() ||
     item.headline?.trim() ||
@@ -33,6 +59,10 @@ export function anomalyHeadline(item: AnomalyItem): string {
 }
 
 export function anomalyDetail(item: AnomalyItem): string | null {
+  if (isWeakMoveExplanation(item)) {
+    return ANOMALY_NO_NEWS_COPY;
+  }
+
   const candidates = [
     item.move_explanation?.why_it_matters?.trim(),
     item.today_brief?.trim(),
@@ -49,6 +79,7 @@ export function anomalyDetail(item: AnomalyItem): string | null {
 }
 
 export function anomalyWatchLine(item: AnomalyItem): string | null {
+  if (isWeakMoveExplanation(item)) return null;
   const watch = item.visual_summary?.what_to_watch?.trim();
   if (!watch) return null;
   const headline = anomalyHeadline(item);
@@ -69,18 +100,26 @@ export function fmtMovePrice(v: number): string {
   return v.toFixed(2);
 }
 
-export function splitDisplayableMoves(anomalies: AnomalyItem[]): {
+export function splitDisplayableMoves(
+  anomalies: AnomalyItem[],
+  opts?: { explainedOnly?: boolean; limit?: number },
+): {
   ups: AnomalyItem[];
   downs: AnomalyItem[];
 } {
   const displayable = anomalies.filter(isDisplayableMove);
+  const explainedOnly = opts?.explainedOnly ?? false;
+  const limit = opts?.limit ?? TOP_MOVES_LIMIT;
+
   const ups = displayable
     .filter((a) => a.direction === "up")
+    .filter((a) => !explainedOnly || !isWeakMoveExplanation(a))
     .sort((a, b) => b.day_change_pct - a.day_change_pct)
-    .slice(0, TOP_MOVES_LIMIT);
+    .slice(0, limit);
   const downs = displayable
     .filter((a) => a.direction === "down")
+    .filter((a) => !explainedOnly || !isWeakMoveExplanation(a))
     .sort((a, b) => a.day_change_pct - b.day_change_pct)
-    .slice(0, TOP_MOVES_LIMIT);
+    .slice(0, limit);
   return { ups, downs };
 }

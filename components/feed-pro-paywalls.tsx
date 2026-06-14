@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
 import { useUser } from "@/lib/auth-context";
+import { ProCtaButton } from "@/components/pro-cta";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import {
@@ -225,17 +226,12 @@ function ContextualFeedPaywallShell({
           ) : null}
 
           <div className="flex flex-col gap-2 pt-0.5 sm:max-w-[300px]">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleUnlock}
-              className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-[#111111] px-6 py-3 text-[14px] font-semibold tracking-tight text-white transition-transform hover:-translate-y-[1px] active:translate-y-0 disabled:cursor-wait disabled:opacity-60"
-            >
-              {busy ? "Signing you in…" : user ? "Start 3 days free" : "Sign in & start free"}
+            <ProCtaButton type="button" disabled={busy} onClick={handleUnlock} fullWidth showStar>
+              {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in & choose Pro"}
               {!busy && <span aria-hidden>→</span>}
-            </button>
+            </ProCtaButton>
             <span className="text-center text-[11px] font-medium text-[#9ca3af] sm:text-left">
-              3 days free, then $12/mo. Cancel anytime.
+              Yearly includes 3 days free. Monthly starts today.
             </span>
           </div>
         </div>
@@ -499,7 +495,7 @@ export function MarketAnomaliesPaywall({
       surface="market_anomalies"
       theme={THEMES.anomaly}
       title="See why every mover is acting up"
-      description={`${total} unusual moves today — ${upCount} surging, ${downCount} dropping. Pro unlocks ${PRO_LOCKED_FEED_TEASER} with the full read on what changed and why each stock moved.`}
+      description={`See the full read on what changed and why each stock moved. Pro unlocks ${PRO_LOCKED_FEED_TEASER} more movers.`}
       benefits={ANOMALY_BENEFITS}
       tickerPills={{ label: "Moving today", tickers }}
       exampleTitle="Example anomaly card"
@@ -514,21 +510,27 @@ export function RedditBuzzPaywall({
   postCount,
   bullCount,
   bearCount,
+  neutralCount = 0,
 }: {
   tickers: RedditTicker[];
   postCount: number;
   bullCount: number;
   bearCount: number;
+  neutralCount?: number;
 }) {
   const example = tickers[0] ?? GENERIC_REDDIT;
   const tickerList = tickers.map((item) => item.ticker.toUpperCase());
+  const moodSummary =
+    neutralCount > 0
+      ? `${bullCount} bullish, ${neutralCount} neutral, ${bearCount} bearish`
+      : `${bullCount} bullish, ${bearCount} bearish`;
 
   return (
     <ContextualFeedPaywallShell
       surface="reddit_buzz"
       theme={THEMES.reddit}
       title="Read the crowd, not just the tickers"
-      description={`${postCount} posts scanned · ${bullCount} bullish, ${bearCount} bearish. Pro unlocks ${PRO_LOCKED_FEED_TEASER} buzzing names with narrative summaries and catalyst themes.`}
+      description={`${postCount} posts scanned · ${moodSummary}. Pro unlocks ${PRO_LOCKED_FEED_TEASER} buzzing names with narrative summaries and catalyst themes.`}
       benefits={REDDIT_BENEFITS}
       tickerPills={{ label: "Buzzing on Reddit", tickers: tickerList }}
       exampleTitle="Example buzz card"

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { proCtaClassName } from "@/components/pro-cta";
 import { TrackButton } from "@/components/track-button";
 
 type Props = {
@@ -114,6 +115,7 @@ export function TierCTA({
           label: "Get Pro",
           onClick: () => router.push("/subscribe"),
         }}
+        primaryProStyle
         error={error}
       />
     );
@@ -160,11 +162,12 @@ type CtaCardProps = {
   title: string;
   body: string;
   primary?: { label: string; onClick: () => void | Promise<void> };
+  primaryProStyle?: boolean;
   action?: ReactNode;
   error?: string | null;
 };
 
-function CtaCard({ title, body, primary, action, error }: CtaCardProps) {
+function CtaCard({ title, body, primary, primaryProStyle = false, action, error }: CtaCardProps) {
   return (
     <div className="rounded-2xl border border-[#e5e7eb] bg-white px-5 py-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -178,7 +181,11 @@ function CtaCard({ title, body, primary, action, error }: CtaCardProps) {
           <button
             type="button"
             onClick={() => primary.onClick()}
-            className="shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+            className={
+              primaryProStyle
+                ? proCtaClassName({ size: "sm", className: "h-[40px]" })
+                : "shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+            }
           >
             {primary.label}
           </button>

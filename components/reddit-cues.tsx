@@ -3,7 +3,7 @@ import { hasRedditBrief, type RedditSnapshot, type RedditTicker } from "@/lib/re
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
 import { FeedLockedCard, FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
-import { getFeedPreviewLimit, PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
+import { PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
@@ -74,7 +74,7 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
   const briefTickers = (data.tickers ?? []).filter(hasRedditBrief);
   if (briefTickers.length === 0) return null;
   const maxCards = 8;
-  const visibleLimit = getFeedPreviewLimit(isSubscribed, maxCards);
+  const visibleLimit = isSubscribed ? maxCards : 1;
   const visible = briefTickers.slice(0, visibleLimit);
   const lockedCount = Math.max(0, Math.min(briefTickers.length, maxCards) - visible.length);
 
@@ -91,7 +91,7 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2.5">
             <Link
-              href="/anomalies"
+              href="/reddit-buzz"
               className="group/title inline-flex items-center gap-1.5 text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-[#111111] hover:text-[#0052ff] transition-colors"
             >
               Reddit Buzz

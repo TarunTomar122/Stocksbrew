@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { anomalyDetail } from "@/components/daily-anomalies-shared";
+import {
+  ANOMALY_NO_NEWS_COPY,
+  anomalyDetail,
+  anomalyHeadline,
+  isWeakMoveExplanation,
+  splitDisplayableMoves,
+  topMoverHeadline,
+} from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 
 function item(overrides: Partial<AnomalyItem> = {}): AnomalyItem {
@@ -47,5 +54,40 @@ describe("anomalyDetail", () => {
     );
 
     expect(detail).toBe(moveExplanation);
+  });
+
+  it("uses plain no-news copy for weak move explainers", () => {
+    const row = item({
+      ticker: "SMR",
+      sector: "Utilities",
+      direction: "up",
+      move_explanation: {
+        cause_type: "unclear",
+        headline: "No clear company-specific driver surfaced yet.",
+        why_it_matters:
+          "The move is large, but current internal news and intelligence do not explain it cleanly.",
+      },
+    });
+
+    expect(isWeakMoveExplanation(row)).toBe(true);
+    expect(topMoverHeadline(row)).toBe("SMR is a top up mover in Utilities.");
+    expect(anomalyHeadline(row)).toBe("SMR is a top up mover in Utilities.");
+    expect(anomalyDetail(row)).toBe(ANOMALY_NO_NEWS_COPY);
+  });
+});
+
+describe("splitDisplayableMoves", () => {
+  it("drops weak explainers when explainedOnly is set", () => {
+    const anomalies = [
+      item({ ticker: "ARM", day_change_pct: 9, move_explanation: { cause_type: "unclear" } }),
+      item({
+        ticker: "NVDA",
+        day_change_pct: 8,
+        move_explanation: { why_it_matters: "AI demand drove the move." },
+      }),
+    ];
+
+    const { ups } = splitDisplayableMoves(anomalies, { explainedOnly: true });
+    expect(ups.map((row) => row.ticker)).toEqual(["NVDA"]);
   });
 });

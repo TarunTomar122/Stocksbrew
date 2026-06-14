@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { proCtaClassName } from "@/components/pro-cta";
 import { ShouldIBuySearch } from "@/components/should-i-buy-search";
 import { ShouldIBuyShare } from "@/components/should-i-buy-share";
 import { StockLogo } from "@/components/stock-logo";
@@ -315,7 +316,7 @@ function FullVerdictPanel({
             <div className="rounded-[12px] border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3 text-center">
               <p className="text-[13px] font-semibold text-[#111111]">Free shows verdict + score.</p>
               <p className="text-[12px] text-[#6b7280] mt-1">Pro unlocks pillar breakdown, reasons, and RSI context.</p>
-              <Link href="/subscribe" className="mt-3 inline-flex items-center justify-center h-[34px] rounded-full bg-[#111111] px-4 text-[12px] font-semibold text-white">
+              <Link href="/subscribe" className={`mt-3 ${proCtaClassName({ size: "sm", className: "h-[34px] px-4 text-[12px]" })}`}>
                 Unlock Pro
               </Link>
             </div>

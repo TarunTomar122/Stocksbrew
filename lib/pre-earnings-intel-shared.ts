@@ -47,7 +47,7 @@ export type PreEarningsIntelDoc = {
 export function daysUntilEventDate(eventDate: string, ref = new Date()): number | null {
   const iso = eventDate.trim().split("T", 1)[0];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-  const event = new Date(`${iso}T12:00:00.000Z`);
+  const event = new Date(`${iso}T00:00:00.000Z`);
   if (!Number.isFinite(event.getTime())) return null;
   const today = new Date(
     Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate()),
@@ -55,14 +55,36 @@ export function daysUntilEventDate(eventDate: string, ref = new Date()): number 
   return Math.round((event.getTime() - today.getTime()) / 86_400_000);
 }
 
-/** True when print is today..maxDays calendar days ahead (UTC). */
+/** True when print is 1..maxDays calendar days ahead (UTC). Excludes report day and past dates. */
 export function isWithinPreEarningsWindow(
   eventDate: string,
   maxDays = 7,
   ref = new Date(),
 ): boolean {
   const delta = daysUntilEventDate(eventDate, ref);
-  return delta !== null && delta >= 0 && delta <= maxDays;
+  return delta !== null && delta > 0 && delta <= maxDays;
+}
+
+function eventDayKey(eventDate: string): string | null {
+  const iso = eventDate.trim().split("T", 1)[0];
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
+}
+
+/** Hide stale pre-earnings once the print date has arrived or post-earnings covers it. */
+export function shouldShowPreEarningsIntel(
+  pre: PreEarningsIntelDoc | null | undefined,
+  post?: { event_date?: string | null } | null,
+  maxDays = 7,
+  ref = new Date(),
+): pre is PreEarningsIntelDoc {
+  if (!pre?.event_date) return false;
+  if (!isWithinPreEarningsWindow(pre.event_date, maxDays, ref)) return false;
+
+  const preDay = eventDayKey(pre.event_date);
+  const postDay = eventDayKey(String(post?.event_date ?? ""));
+  if (preDay && postDay && postDay >= preDay) return false;
+
+  return true;
 }
 
 export function filterPreEarningsWithinDays(

@@ -5,6 +5,42 @@ type Props = {
   context: RedditTickerContext;
 };
 
+export function StockRedditBuzzLockedRail() {
+  return (
+    <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+              Reddit Buzz
+            </h3>
+            <span className="inline-flex items-center gap-1 rounded-full border border-[#ffedd5] bg-[#fff7ed] px-2 py-0.5 text-[9px] font-semibold text-[#c2410c] shrink-0">
+              Pro
+            </span>
+          </div>
+          <p className="text-[11px] text-[#9ca3af]">
+            Retail chatter and sentiment are locked on stock pages.
+          </p>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafafa] px-4 py-5">
+        <p className="text-[13px] font-semibold text-[#111111]">
+          Unlock Reddit reads for this stock.
+        </p>
+        <p className="mt-1 text-[12px] leading-relaxed text-[#6b7280]">
+          See the posts, catalysts, and roll-up sentiment behind Reddit buzz.
+        </p>
+        <Link
+          href="/subscribe"
+          className="mt-4 inline-flex rounded-full bg-[#111111] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#0052ff]"
+        >
+          Unlock Pro
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function timeAgo(iso: string): string {
   if (!iso) return "-";
   const diff = Date.now() - new Date(iso).getTime();

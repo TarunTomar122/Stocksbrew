@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
+import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import {
   fetchSearchTypeahead,
   getClientSearchIndex,
@@ -240,6 +241,11 @@ export function RadarBatchEditModal({
       }
 
       setModalStatus("success");
+      const initialIds = new Set(initialItems.map((i) => i.instrument_id));
+      const addedCount = items.filter((i) => !initialIds.has(i.instrument_id)).length;
+      if (addedCount > 0) {
+        dispatchRadarTrackChanged({ action: "add", count: addedCount });
+      }
       setTimeout(() => {
         setModalOpen(false);
         setOpen(false);

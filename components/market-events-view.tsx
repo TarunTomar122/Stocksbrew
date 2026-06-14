@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
-import { EarningsScenarioBar } from "@/components/earnings-scenario-bar";
+import { earningsIntelHref, firstSentence, pickEarningsHookLine } from "@/lib/earnings-facts";
 import {
   groupEventsByReportDate,
   type MarketEvent,
@@ -18,18 +18,16 @@ function fmtPrice(v: number, market: MarketEvent["market"]): string {
 }
 
 
-function hookLine(event: MarketEvent): string {
-  const first = event.evidence.find((e) => e.trim());
-  if (first && first.length <= 120) return first;
-  return event.title;
+function cardCopy(event: MarketEvent): string {
+  const body = String(event.body ?? "").trim();
+  const raw = body || pickEarningsHookLine(event.evidence, event.title);
+  return firstSentence(raw);
 }
 
 function EventCard({ event, predicted }: { event: MarketEvent; predicted?: boolean }) {
-  const href = event.ticker
-    ? `/stock/${encodeURIComponent(event.ticker)}`
-    : null;
+  const href = event.ticker ? earningsIntelHref(event.ticker) : null;
   const hasPrice = typeof event.price === "number";
-  const hook = hookLine(event);
+  const copy = cardCopy(event);
 
   const inner = (
     <>
@@ -69,16 +67,12 @@ function EventCard({ event, predicted }: { event: MarketEvent; predicted?: boole
         </span>
       )}
 
-      {hook && (
-        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-[#111111] group-hover:text-[#0052ff] transition-colors">
-          {hook}
+      {copy ? (
+        <p className="text-[13px] font-medium leading-relaxed text-[#111111] group-hover:text-[#0052ff] transition-colors">
+          {copy}
         </p>
-      )}
+      ) : null}
 
-      <EarningsScenarioBar
-        scenarios={event.scenarios}
-        className="mt-auto pt-1"
-      />
     </>
   );
 

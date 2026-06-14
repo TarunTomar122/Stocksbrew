@@ -10,9 +10,12 @@ and /anomalies — this feed is earnings-only so those surfaces don't overlap.
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
+RECENT_EARNINGS_DAYS = 14
+
+from backend.earnings_copy import earnings_evidence_lines
 from backend.storage import TraceMoneyStore
 
 
@@ -75,6 +78,24 @@ def _text(value: Any) -> str:
 
 def _clip(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
+
+
+def _event_date_within_recent_window(
+    event_date: str,
+    *,
+    max_days: int = RECENT_EARNINGS_DAYS,
+    today: date | None = None,
+) -> bool:
+    raw = _text(event_date)[:10]
+    if not raw:
+        return False
+    try:
+        reported = datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return False
+    ref = today or datetime.now(timezone.utc).date()
+    delta = (ref - reported).days
+    return 0 <= delta <= max(0, max_days)
 
 
 def _list_strings(value: Any, cap: int) -> list[str]:
@@ -238,24 +259,20 @@ def _events_from_earnings(market: str, store: TraceMoneyStore, max_events: int) 
     for data in by_ticker.values():
         ticker = _text(data.get("ticker")).upper()
         instrument_id = _text(data.get("instrument_id"))
+        event_date = _text(data.get("event_date"))
+        if not _event_date_within_recent_window(event_date):
+            continue
         report = data.get("report") if isinstance(data.get("report"), dict) else {}
         title = _text(report.get("headline")) or f"{ticker} earnings update"
         body = _text(report.get("summary"))
         confidence = report.get("confidence") if isinstance(report.get("confidence"), dict) else {}
         conf_score = _to_float(confidence.get("score_0_100"))
         facts = report.get("facts") if isinstance(report.get("facts"), dict) else {}
-        evidence: list[str] = []
-        rve = _text(facts.get("reported_vs_expected"))
-        if rve:
-            evidence.append(rve)
+        evidence = earnings_evidence_lines(facts)
         guidance = _text(facts.get("guidance_signal"))
-        if guidance:
-            evidence.append(guidance)
         reaction = _text(facts.get("price_reaction"))
-        if reaction:
-            evidence.append(reaction)
         # Lean on guidance/price-reaction wording for tone.
-        blob = f"{guidance} {reaction} {body}".lower()
+        blob = f"{guidance} {reaction} {body} {' '.join(evidence)}".lower()
         if any(w in blob for w in ("beat", "raised", "above", "surge", "jump", "strong")):
             direction = "positive"
         elif any(w in blob for w in ("miss", "cut", "below", "drop", "fell", "weak")):
@@ -280,7 +297,7 @@ def _events_from_earnings(market: str, store: TraceMoneyStore, max_events: int) 
                 "direction": direction,
                 "urgency": round(urgency, 1),
                 "evidence": evidence[:3],
-                "event_date": _text(data.get("event_date")),
+                "event_date": event_date,
                 "generated_at": _text(data.get("generated_at")),
                 "source": "earnings",
             }
@@ -324,10 +341,11 @@ def build_for_market(store: TraceMoneyStore, market: str, limit: int, earnings_c
     up = sum(1 for e in ranked if e["direction"] == "positive")
     down = sum(1 for e in ranked if e["direction"] == "negative")
     summary = (
-        f"{len(ranked)} fresh earnings report{'s' if len(ranked) != 1 else ''} "
+        f"{len(ranked)} earnings report{'s' if len(ranked) != 1 else ''} "
+        f"from the last {RECENT_EARNINGS_DAYS} days "
         f"({up} positive tone, {down} negative tone)."
         if ranked
-        else "No fresh earnings reports right now."
+        else f"No earnings reports from the last {RECENT_EARNINGS_DAYS} days right now."
     )
 
     payload = {

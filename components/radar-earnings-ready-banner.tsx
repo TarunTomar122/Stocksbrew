@@ -58,9 +58,14 @@ export function RadarEarningsReadyBanner({ docs }: Props) {
                     {formatEventDate(doc.event_date)}
                   </span>
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-[#4b5563]">
+                <p className="mt-0.5 text-[12px] leading-snug text-[#4b5563]">
                   {doc.report?.headline || "Report ready to read"}
                 </p>
+                {doc.report?.summary ? (
+                  <p className="mt-1 text-[12px] leading-relaxed text-[#4b5563]">
+                    {doc.report.summary}
+                  </p>
+                ) : null}
               </div>
             </Link>
           </li>

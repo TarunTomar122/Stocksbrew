@@ -102,47 +102,153 @@ function Stat({
   );
 }
 
-function ReturnBar({ label, value }: { label: string; value?: number | null }) {
+function ReturnTile({ label, value }: { label: string; value?: number | null }) {
   const has = typeof value === "number" && Number.isFinite(value);
   const positive = has && value! >= 0;
-  const width = has ? Math.min(100, Math.max(6, Math.abs(value!) * 1.2)) : 0;
   return (
-    <div className="flex items-center gap-4">
-      <span className="text-[12px] font-medium tracking-[0.06em] uppercase text-[#9ca3af] w-20 shrink-0">
+    <div className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-3">
+      <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
         {label}
       </span>
-      <div className="flex-1 h-1.5 rounded-full bg-[#f3f4f6] overflow-hidden">
-        <div
-          className={`h-full rounded-full ${positive ? "bg-[#10b981]" : "bg-[#ef4444]"}`}
-          style={{ width: `${width}%` }}
-        />
-      </div>
-      <span
-        className={`text-[13px] font-semibold tabular-nums w-16 text-right ${
+      <p
+        className={`mt-1 text-[18px] font-semibold tabular-nums leading-none ${
           has ? (positive ? "text-[#10b981]" : "text-[#ef4444]") : "text-[#9ca3af]"
         }`}
       >
         {formatPct(value)}
-      </span>
+      </p>
     </div>
   );
 }
 
-function OwnershipDonut({ pct }: { pct: number }) {
-  const clamped = Math.max(0, Math.min(100, pct));
+function formatInstOwnershipPct(pct: number): string {
+  if (pct > 100) return ">99%";
+  return `${pct.toFixed(1)}%`;
+}
+
+function ownershipSummary(pct: number, ticker: string): string {
+  if (pct >= 85) {
+    return `Big funds own most of ${ticker}. Typical for a large U.S. stock.`;
+  }
+  if (pct >= 60) {
+    return `Institutions hold the majority of ${ticker}'s shares.`;
+  }
+  if (pct >= 40) {
+    return `Institutions own a sizable slice of ${ticker}, with more room for retail holders.`;
+  }
+  return `Institutions own a smaller share of ${ticker} than many large caps.`;
+}
+
+function formatFilingPeriod(date?: string): string | null {
+  if (!date?.trim()) return null;
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  const quarter = Math.floor(parsed.getMonth() / 3) + 1;
+  return `Q${quarter} ${parsed.getFullYear()} filing`;
+}
+
+function describeHolderMove(change?: string): { label: string; tone: "up" | "down" | "neutral" } {
+  if (!change?.trim()) return { label: "n/a", tone: "neutral" };
+  const raw = change.trim();
+  if (/^new$/i.test(raw)) return { label: "New position", tone: "up" };
+  const num = Number.parseFloat(raw.replace("%", ""));
+  if (!Number.isFinite(num)) return { label: raw, tone: "neutral" };
+  if (num < 0) return { label: `Trimmed ${Math.abs(num).toFixed(1)}% of stake`, tone: "down" };
+  if (num > 0) return { label: `Added ${num.toFixed(1)}% to stake`, tone: "up" };
+  return { label: "Unchanged", tone: "neutral" };
+}
+
+function parseHolderMove(change?: string): {
+  verb: string;
+  detail: string;
+  tone: "up" | "down" | "neutral";
+} {
+  const { label, tone } = describeHolderMove(change);
+  if (label === "New position") return { verb: "New", detail: "position", tone };
+  const pct = label.match(/[\d.]+/)?.[0];
+  if (label.startsWith("Trimmed")) {
+    return { verb: "Trimmed", detail: pct ? `${pct}%` : "stake", tone };
+  }
+  if (label.startsWith("Added")) {
+    return { verb: "Added", detail: pct ? `${pct}%` : "stake", tone };
+  }
+  return { verb: label, detail: "", tone };
+}
+
+function holderInitials(name: string): string {
+  const cleaned = name.replace(/,.*$/, "").trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+  return cleaned.slice(0, 2).toUpperCase();
+}
+
+const HOLDER_MOVE_STYLES = {
+  up: { pill: "bg-[#ecfdf5] text-[#047857]", detail: "text-[#10b981]" },
+  down: { pill: "bg-[#fef2f2] text-[#b91c1c]", detail: "text-[#ef4444]" },
+  neutral: { pill: "bg-[#f3f4f6] text-[#6b7280]", detail: "text-[#6b7280]" },
+} as const;
+
+function HolderMoveRow({
+  name,
+  date,
+  changePct,
+}: {
+  name: string;
+  date?: string;
+  changePct?: string;
+}) {
+  const move = parseHolderMove(changePct);
+  const filing = formatFilingPeriod(date);
+  const styles = HOLDER_MOVE_STYLES[move.tone];
+
   return (
-    <div
-      className="grid h-[88px] w-[88px] place-items-center rounded-full shrink-0"
-      style={{
-        background: `conic-gradient(#7c3aed ${clamped}%, #f3f4f6 ${clamped}% 100%)`,
-      }}
-      aria-hidden
-    >
-      <div className="grid h-[68px] w-[68px] place-items-center rounded-full bg-white">
-        <span className="text-[16px] font-semibold tabular-nums text-[#111111]">
-          {clamped.toFixed(1)}%
-        </span>
+    <li className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[#fafafa] sm:gap-4 sm:px-5">
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f5f3ff] text-[11px] font-bold tracking-tight text-[#7c3aed]"
+        aria-hidden
+      >
+        {holderInitials(name)}
       </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-[#111111]">{name}</p>
+        {filing ? <p className="mt-0.5 text-[11px] text-[#9ca3af]">{filing}</p> : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${styles.pill}`}>
+          {move.verb}
+        </span>
+        {move.detail ? (
+          <span className={`min-w-[2.5rem] text-right text-[12px] font-bold tabular-nums ${styles.detail}`}>
+            {move.detail}
+          </span>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function formatHolderCount(value?: string | number | null): string | null {
+  if (value == null || value === "") return null;
+  const num = typeof value === "number" ? value : Number.parseInt(String(value).replace(/,/g, ""), 10);
+  if (Number.isFinite(num)) return num.toLocaleString();
+  return String(value);
+}
+
+function isMeaningfulHoldingsValue(label?: string): boolean {
+  if (!label?.trim()) return false;
+  if (/[BMT]/i.test(label)) return true;
+  const num = Number.parseFloat(label.replace(/[^\d.]/g, ""));
+  return Number.isFinite(num) && num >= 1_000_000;
+}
+
+function OwnershipTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-3">
+      <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+        {label}
+      </span>
+      <p className="mt-1 text-[17px] font-semibold leading-snug text-[#111111]">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] leading-snug text-[#9ca3af]">{hint}</p> : null}
     </div>
   );
 }
@@ -322,86 +428,98 @@ export function StockFactsPanel({
             </h3>
             <span className="text-[12px] text-[#6b7280]">Price action</span>
           </div>
-          <div className="flex flex-col gap-5 max-w-[640px]">
+          <div className="flex w-full max-w-[640px] flex-col gap-5">
             {ticker && priceHistory.length >= PRICE_HISTORY_CHART_MIN ? (
               <ReturnsPriceChart series={priceHistory} ticker={ticker} currency={currency} />
             ) : null}
-            <ReturnBar label="1 month" value={returns.one_month_pct} />
-            <ReturnBar label="3 months" value={returns.three_month_pct} />
-            <ReturnBar label="6 months" value={returns.six_month_pct} />
-            <ReturnBar label="1 year" value={returns.one_year_pct} />
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              <ReturnTile label="1 month" value={returns.one_month_pct} />
+              <ReturnTile label="3 months" value={returns.three_month_pct} />
+              <ReturnTile label="6 months" value={returns.six_month_pct} />
+              <ReturnTile label="1 year" value={returns.one_year_pct} />
+            </div>
           </div>
         </section>
       )}
 
-      {/* Ownership */}
+      {/* Who owns it */}
       {hasOwnership && (
-        <section className="flex flex-col gap-4 pt-8 border-t border-[#e5e7eb]">
-          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
-            Ownership
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-8 items-start">
-            <div className="flex items-center gap-5">
-              {typeof instPct === "number" && <OwnershipDonut pct={instPct} />}
-              <div className="flex flex-col gap-3">
-                {typeof instPct === "number" && (
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[#9ca3af]">
-                      Institutional
-                    </span>
-                    <span className="text-[13px] text-[#6b7280]">
-                      footprint of total float
-                    </span>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                  {inst?.total_holders && (
-                    <Stat label="Holders" value={inst.total_holders} />
-                  )}
-                  {inst?.total_value_label && (
-                    <Stat label="Value" value={inst.total_value_label} />
-                  )}
-                </div>
-              </div>
+        <section className="flex flex-col gap-5 pt-8 border-t border-[#e5e7eb]">
+          <div className="flex items-start gap-3.5">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f5f3ff] text-[#7c3aed]"
+              aria-hidden
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 22, fontVariationSettings: "'wght' 500" }}
+              >
+                corporate_fare
+              </span>
+            </span>
+            <div className="flex min-w-0 flex-col gap-1">
+              <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[22px]">
+                Who owns it
+              </h3>
+              {typeof instPct === "number" && ticker ? (
+                <p className="max-w-2xl text-[14px] leading-relaxed text-[#6b7280] md:text-[15px]">
+                  {ownershipSummary(instPct, ticker)}
+                </p>
+              ) : null}
             </div>
-
-            {topHolders.length > 0 && (
-              <div className="relative flex flex-col gap-2 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[#9ca3af]">
-                  Top holders
-                </span>
-                <ul className="flex flex-col">
-                  {topHolders.slice(0, 5).map((h) => {
-                    const isNeg = h.change_pct?.startsWith("-");
-                    return (
-                      <li
-                        key={`${h.name}-${h.date}`}
-                        className="flex items-center justify-between gap-3 py-2 border-t border-[#f3f4f6] first:border-t-0"
-                      >
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[13px] font-semibold text-[#111111] truncate">
-                            {h.name}
-                          </span>
-                          <span className="text-[11px] text-[#6b7280]">{h.date}</span>
-                        </div>
-                        <span
-                          className={`shrink-0 text-[12px] font-semibold tabular-nums ${
-                            h.change_pct
-                              ? isNeg
-                                ? "text-[#ef4444]"
-                                : "text-[#10b981]"
-                              : "text-[#6b7280]"
-                          }`}
-                        >
-                          {h.change_pct || h.market_value || "-"}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
           </div>
+
+          <div className="grid max-w-3xl grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {typeof instPct === "number" ? (
+              <OwnershipTile
+                label="Fund-owned"
+                value={formatInstOwnershipPct(instPct)}
+                hint="of shares outstanding"
+              />
+            ) : null}
+            {formatHolderCount(inst?.total_holders) ? (
+              <OwnershipTile
+                label="Institutions"
+                value={formatHolderCount(inst?.total_holders)!}
+                hint="reporting holders"
+              />
+            ) : null}
+            {topHolders[0]?.name ? (
+              <OwnershipTile
+                label="Largest holder"
+                value={topHolders[0].name}
+                hint="latest filing"
+              />
+            ) : null}
+            {isMeaningfulHoldingsValue(inst?.total_value_label) ? (
+              <OwnershipTile
+                label="Institutional value"
+                value={inst!.total_value_label!}
+                hint="total reported"
+              />
+            ) : null}
+          </div>
+
+          {topHolders.length > 0 ? (
+            <div className="max-w-3xl overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+              <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-3 sm:px-5">
+                <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#6b7280]">
+                  Recent filing moves
+                </span>
+                <span className="text-[11px] text-[#9ca3af]">13F · quarterly</span>
+              </div>
+              <ul className="divide-y divide-[#f3f4f6]">
+                {topHolders.slice(0, 5).map((h) => (
+                  <HolderMoveRow
+                    key={`${h.name}-${h.date}`}
+                    name={h.name ?? "Unknown"}
+                    date={h.date}
+                    changePct={h.change_pct}
+                  />
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </section>
       )}
 

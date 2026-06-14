@@ -7,11 +7,41 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { captureEvent } from "@/lib/posthog";
-import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
+import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
+import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 
 type Variant = "pill" | "icon";
 type PositionType = "watchlist" | "holding";
+
+function RadarTrackIcon({ tracked, size = 18 }: { tracked: boolean; size?: number }) {
+  if (tracked) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden>
+        <circle cx="10" cy="10" r="9" fill="currentColor" />
+        <path
+          d="M6.5 10.5 9 13l4.5-5.5"
+          stroke="white"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden>
+      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10 6.5v7M6.5 10h7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 type Props = {
   ticker: string;
@@ -50,8 +80,11 @@ export function TrackButton({
   const [modalTitle, setModalTitle] = useState("");
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
 
-  function triggerBackgroundRefresh() {
-    triggerRadarBackgroundRefresh(router);
+  function triggerBackgroundRefresh(action: "add" | "remove", count = 1) {
+    if (action === "add") {
+      dispatchRadarTrackChanged({ action: "add", count });
+    }
+    flushWatchlistRebuild(router, 0);
   }
 
   useEffect(() => {
@@ -107,7 +140,7 @@ export function TrackButton({
           setLocalTracked(false);
           setModalStatus("success");
           captureEvent("radar_remove_clicked", { instrument_id: instrumentId, ticker });
-          triggerBackgroundRefresh();
+          triggerBackgroundRefresh("remove");
         } finally {
           setPendingOp(null);
           setTimeout(() => setModalOpen(false), 900);
@@ -175,7 +208,7 @@ export function TrackButton({
           position_type: positionType,
         });
         setOpen(false);
-        triggerBackgroundRefresh();
+        triggerBackgroundRefresh("add");
       } finally {
         setPendingOp(null);
         setTimeout(() => setModalOpen(false), 900);
@@ -201,19 +234,7 @@ export function TrackButton({
           aria-label={`${ticker} is on your Radar`}
           title="On your Radar"
         >
-          <svg
-            width="18"
-            height="20"
-            viewBox="0 0 16 18"
-            fill="currentColor"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M2 1.5h12v15l-6-4-6 4v-15z" />
-          </svg>
+          <RadarTrackIcon tracked />
         </span>
       );
     }
@@ -259,19 +280,7 @@ export function TrackButton({
           }`}
           title={label}
         >
-          <svg
-            width="18"
-            height="20"
-            viewBox="0 0 16 18"
-            fill={localTracked ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M2 1.5h12v15l-6-4-6 4v-15z" />
-          </svg>
+          <RadarTrackIcon tracked={localTracked} />
         </button>
       ) : (
         <div className="flex flex-col gap-1.5">

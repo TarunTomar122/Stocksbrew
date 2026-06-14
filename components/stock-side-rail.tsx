@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
-import { StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
+import { StockRedditBuzzLockedRail, StockRedditBuzzRail } from "@/components/stock-reddit-buzz-rail";
 import { TrackButton } from "@/components/track-button";
 import { sectorSlug } from "@/lib/sector";
 import type { RedditTickerContext } from "@/lib/reddit-cues";
@@ -340,9 +340,13 @@ export function StockSideRail({
 
       {/* Reddit buzz - hidden on mobile */}
       {redditTickerContext && (
-        <div className="hidden lg:block">
-          <StockRedditBuzzRail context={redditTickerContext} />
-        </div>
+        isSubscribed ? (
+          <div className="hidden lg:block">
+            <StockRedditBuzzRail context={redditTickerContext} />
+          </div>
+        ) : (
+          <StockRedditBuzzLockedRail />
+        )
       )}
 
       {/* Latest news - hidden on mobile */}
