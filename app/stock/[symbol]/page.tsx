@@ -124,6 +124,36 @@ function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
   return Boolean(String(intelligence?.directive?.text ?? "").trim());
 }
 
+function numericDirectiveTrigger(intelligence: StockIntelligenceDoc | null): number | null {
+  const raw = intelligence?.directive?.trigger_value;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const match = raw.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const value = Number(match[0]);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function isSplitScaleStaleBrief(
+  intelligence: StockIntelligenceDoc | null,
+  currentPrice: number,
+  latestPriceAt?: string,
+): boolean {
+  const generatedAt = intelligence?.generated_at;
+  const trigger = numericDirectiveTrigger(intelligence);
+  if (!generatedAt || !latestPriceAt || !trigger || !Number.isFinite(currentPrice) || currentPrice <= 0) {
+    return false;
+  }
+
+  const generatedMs = new Date(generatedAt).getTime();
+  const priceMs = new Date(latestPriceAt).getTime();
+  if (!Number.isFinite(generatedMs) || !Number.isFinite(priceMs) || generatedMs >= priceMs) {
+    return false;
+  }
+
+  const ratio = Math.max(trigger / currentPrice, currentPrice / trigger);
+  return ratio >= 4;
+}
+
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
   const sessionPromise = getSessionUser();
@@ -349,6 +379,7 @@ export default async function StockPage({ params }: Props) {
 
   const aiSource = intelligence?.source ?? "";
   const aiCoverageType = intelligence?.coverage_type ?? "";
+  const isPriceStaleBrief = hasAI && isSplitScaleStaleBrief(intelligence, stock.price, stock.captured_at);
   const isNoMajorNewsTagged = aiCoverageType === "on_demand_no_news";
   const hasNewsBackedBrief = hasDirectiveBrief(intelligence);
   const isFallbackBrief =
@@ -356,16 +387,18 @@ export default async function StockPage({ params }: Props) {
     aiSource === "rules" ||
     aiCoverageType === "on_demand_fallback" ||
     intelligence?.data_quality?.freshness_status === "pending";
-  const showBriefStatus = hasAI && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsTagged));
+  const showBriefStatus =
+    hasAI && !isPriceStaleBrief && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsTagged));
   // Prefer full AI brief when directive/synthesis exists, even if coverage is tagged no-news.
-  const showNoMajorNewsPanel = hasAI && isNoMajorNewsTagged && !hasNewsBackedBrief;
+  const showNoMajorNewsPanel = hasAI && !isPriceStaleBrief && isNoMajorNewsTagged && !hasNewsBackedBrief;
   const showFullNewsBrief =
     hasAI &&
+    !isPriceStaleBrief &&
     !showBriefStatus &&
     (hasNewsBackedBrief || (hasBriefText(intelligence) && !isNoMajorNewsTagged));
   const showSynthesis = showFullNewsBrief;
-  const showCards = hasAI && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
-  const showSentiment = hasAI && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
+  const showCards = hasAI && !isPriceStaleBrief && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
+  const showSentiment = hasAI && !isPriceStaleBrief && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
 
   const hasEarningsContent = Boolean(activePreEarningsIntel || earningsIntel);
   const earningsContent = !hasEarningsContent ? null : subscribed ? (
@@ -400,6 +433,13 @@ export default async function StockPage({ params }: Props) {
           <AiBriefStatus
             ticker={stock.ticker}
             generatedAt={intelligence?.generated_at}
+          />
+        )}
+        {isPriceStaleBrief && (
+          <AiBriefStatus
+            ticker={stock.ticker}
+            generatedAt={intelligence?.generated_at}
+            mode="price_stale"
           />
         )}
         {showNoMajorNewsPanel && (

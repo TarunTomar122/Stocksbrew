@@ -1,7 +1,7 @@
 type Props = {
   ticker: string;
   generatedAt?: string;
-  mode?: "researching" | "no_major_news";
+  mode?: "researching" | "no_major_news" | "price_stale";
   brief?: string;
 };
 
@@ -33,16 +33,21 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
   const timestamp = formatGeneratedAt(generatedAt);
   const relative = formatRelative(generatedAt);
   const noMajorNews = mode === "no_major_news";
+  const priceStale = mode === "price_stale";
 
-  const eyebrow = noMajorNews ? "Fundamentals brief" : "Research in progress";
-  const subtitle = noMajorNews
+  const eyebrow = priceStale ? "Brief refresh needed" : noMajorNews ? "Fundamentals brief" : "Research in progress";
+  const subtitle = priceStale
+    ? "The latest quote changed enough that old price levels are no longer reliable"
+    : noMajorNews
     ? "No major news today · switches to full coverage when fresh articles land"
     : "News, fundamentals, and scorecard feed into your AI brief";
-  const title = noMajorNews
+  const title = priceStale
+    ? `${ticker} · waiting for refreshed price levels`
+    : noMajorNews
     ? `${ticker} · fundamentals-based read`
     : `Researching ${ticker}`;
 
-  const dotColor = noMajorNews ? "#9ca3af" : "#f59e0b";
+  const dotColor = priceStale ? "#f59e0b" : noMajorNews ? "#9ca3af" : "#f59e0b";
 
   return (
     <section className="relative overflow-hidden rounded-[20px] border border-[#e5e7eb] bg-white px-6 py-6 md:px-7 md:py-7">
@@ -80,7 +85,12 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
               </p>
             ) : null}
 
-            {!noMajorNews && (
+            {priceStale ? (
+              <p className="text-[14px] leading-relaxed text-[#6b7280]">
+                We hid the previous AI brief because its trigger price no longer matches the
+                current quote. The next intelligence run will rebuild this with fresh levels.
+              </p>
+            ) : !noMajorNews && (
               <p className="text-[14px] leading-relaxed text-[#6b7280]">
                 stocksbrew is pulling recent news, fundamentals, technicals, and scorecard
                 data into our model. This tab will show stance, catalysts, risks, and sentiment
@@ -97,7 +107,13 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
         </div>
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-[#f3f4f6] pt-4 text-[12px]">
-          {noMajorNews ? (
+          {priceStale ? (
+            <>
+              <StatusInline done label="Latest quote updated" />
+              <StatusInline done label="Old price trigger hidden" />
+              <StatusInline done={false} label="AI refresh pending" />
+            </>
+          ) : noMajorNews ? (
             <>
               <StatusInline done label="Fundamentals updated" />
               <StatusInline done label="No major news detected" />

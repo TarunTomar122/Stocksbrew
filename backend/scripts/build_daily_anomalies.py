@@ -317,6 +317,90 @@ def _llm_internal_context_move_explanation(
     }
 
 
+def _clean_sentence(value: Any, *, max_chars: int = 170) -> str:
+    text = " ".join(str(value or "").strip().split())
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return text
+    cut = text[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:")
+    return f"{cut}."
+
+
+def _clean_clause(value: Any, *, max_chars: int = 120) -> str:
+    text = " ".join(str(value or "").strip().split()).rstrip(" .")
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:")
+
+
+def _structured_internal_context_move_explanation(
+    *,
+    instrument: dict[str, Any],
+    intel_doc: dict[str, Any] | None,
+    day_change_pct: float,
+) -> dict[str, Any] | None:
+    payload = _internal_move_payload(
+        instrument=instrument,
+        intel_doc=intel_doc,
+        day_change_pct=day_change_pct,
+    )
+    ticker = str(payload.get("ticker") or "").strip().upper()
+    if not ticker:
+        return None
+
+    visual = payload.get("visual_summary") if isinstance(payload.get("visual_summary"), dict) else {}
+    drivers = [row for row in (visual.get("drivers") or []) if isinstance(row, dict)]
+    key_points = [str(p).strip() for p in (payload.get("key_points") or []) if str(p).strip()]
+    thesis = str(payload.get("thesis") or "").strip()
+    brief = str(payload.get("today_brief") or "").strip()
+
+    positive_drivers = [
+        row
+        for row in drivers
+        if str(row.get("direction") or "").lower() in {"up", "mixed", ""}
+        and (str(row.get("label") or "").strip() or str(row.get("detail") or "").strip())
+    ]
+    negative_drivers = [
+        row
+        for row in drivers
+        if str(row.get("direction") or "").lower() == "down"
+        and (str(row.get("label") or "").strip() or str(row.get("detail") or "").strip())
+    ]
+    primary = positive_drivers[0] if day_change_pct >= 0 and positive_drivers else drivers[0] if drivers else None
+    counter = negative_drivers[0] if negative_drivers else None
+
+    primary_label = _clean_clause((primary or {}).get("label"), max_chars=70)
+    primary_detail = _clean_clause((primary or {}).get("detail"), max_chars=125)
+    counter_label = _clean_clause((counter or {}).get("label"), max_chars=70)
+    counter_detail = _clean_clause((counter or {}).get("detail"), max_chars=115)
+
+    anchor = primary_detail or _clean_clause(key_points[0] if key_points else "", max_chars=125) or _clean_clause(thesis, max_chars=125) or _clean_clause(brief, max_chars=125)
+    if not anchor:
+        return None
+
+    direction = "rise" if day_change_pct >= 0 else "drop"
+    headline_base = primary_label or thesis or key_points[0] or f"{ticker} setup reprices"
+    headline = _clean_sentence(f"{ticker} {direction} reflects {headline_base}", max_chars=92)
+
+    why = f"The move looks like investors leaning into {anchor}."
+    if counter_detail or counter_label:
+        why += f" {counter_detail or counter_label}. That keeps the read from being a clean catalyst."
+    else:
+        why += " We did not find a clean company-specific catalyst in current coverage."
+
+    return {
+        "cause_type": "internal_context",
+        "headline": headline,
+        "why_it_matters": why,
+        "confidence": "low",
+        "searched_externally": False,
+        "evidence": [],
+    }
+
+
 def _move_explanation(
     *,
     instrument: dict[str, Any],
@@ -338,6 +422,15 @@ def _move_explanation(
         intel_doc=intel_doc,
         day_change_pct=day_change_pct,
     )
+    if internal:
+        return internal
+    structured = _structured_internal_context_move_explanation(
+        instrument=instrument,
+        intel_doc=intel_doc,
+        day_change_pct=day_change_pct,
+    )
+    if structured:
+        return structured
     return internal or _fallback_move_explanation()
 
 
