@@ -4,6 +4,7 @@ import unittest
 
 from backend.models import Article
 from backend.stock_intelligence import (
+    _normalize_catalyst_cards,
     _stock_market_regime,
     _summarize_price_context,
     build_stock_intelligence_docs,
@@ -229,6 +230,44 @@ class StockIntelligenceTest(unittest.TestCase):
         assert result is not None
         self.assertEqual(result["sector"]["sector"], "Software")
         self.assertEqual(result["sector"]["leadership_stocks"], ["CRWD", "MSFT"])
+
+    def test_normalize_catalyst_cards_uses_upcoming_earnings_date(self) -> None:
+        cards = [
+            {
+                "event": "Earnings Apr 22 AMC",
+                "detail": "The model should not invent this date.",
+                "window": "Apr 22",
+                "expected_impact": 1,
+                "priced_in": "med",
+            }
+        ]
+        out = _normalize_catalyst_cards(
+            cards,
+            earnings={"status": "upcoming", "event_date": "2026-06-20"},
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["window"], "2026-06-20")
+        self.assertEqual(out[0]["event"], "Earnings Jun 20")
+
+    def test_normalize_catalyst_cards_strips_reported_earnings_date(self) -> None:
+        cards = [
+            {
+                "event": "Earnings Apr 22 AMC",
+                "detail": "Reported print from Apr 22 should not look upcoming.",
+                "window": "Apr 22",
+                "expected_impact": 1,
+                "priced_in": "med",
+            }
+        ]
+        out = _normalize_catalyst_cards(
+            cards,
+            earnings={"status": "reported", "event_date": "2026-04-22"},
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["window"], "post-earnings")
+        self.assertEqual(out[0]["event"], "Earnings setup")
+        self.assertNotIn("Apr 22", out[0]["event"])
+        self.assertNotIn("Apr 22", out[0]["window"])
 
 
 if __name__ == "__main__":

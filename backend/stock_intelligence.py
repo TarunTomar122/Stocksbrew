@@ -262,6 +262,8 @@ Fields to write:
   - event: short event name (3-6 words). Example: "Foxconn revenue report"
   - detail: ONE sentence explaining why this matters for the stock. Example: "Foxconn is a key Nvidia supplier - strong revenue hints at AI server demand holding up through Q2."
   - window, expected_impact (-2 to 2), priced_in ("low" | "med" | "high")
+  - If a catalyst card is earnings-based, the only allowed date source is `earnings.event_date` from the payload, and only when `earnings.status` is "upcoming". In that case `window` must copy that exact future ISO date or a short label derived from it. Do not invent a different date, and do not use a reported/past earnings date as if it were upcoming.
+  - If earnings are reported or missing, do not put a date in the catalyst card. Use a non-date window like "near-term", "week", or "quarter" instead.
 - **risk_cards**: 1-3 objects with keys:
   - risk: short risk name (3-6 words)
   - detail: ONE sentence explaining the downside scenario concretely.
@@ -367,6 +369,7 @@ EARNINGS - RESPECT THE TIMING:
   - If `lead` is false (reported but older): mention the result only as backdrop ("since its <month> beat...") and let current news lead the overview.
 - status == "upcoming": earnings reports in `days_until` days on `event_date`. You MAY frame it as a near-term catalyst and the directive may be a watch (e.g. "Watch earnings <date>"). Use the `event_date` exactly - never invent a different date.
 - Only the `earnings` block (and `recent_news`) may anchor an earnings reference. Never reuse an earnings date from anywhere else.
+- For catalyst_cards, earnings dates are even stricter: only an upcoming earnings block may supply a date, and the date must be copied exactly from `earnings.event_date`. If the payload does not have an upcoming earnings block, do not include an earnings date in any catalyst card.
 
 EVIDENCE DISCIPLINE - THIS IS CRITICAL:
 - Every driver, catalyst_card, and risk_card MUST be grounded in a specific fact from the evidence OR fundamentals block. If neither supports it, don't write it.
@@ -1599,6 +1602,98 @@ def _drop_stale_catalysts(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return kept
 
 
+def _earnings_event_date(earnings: dict[str, Any] | None) -> str | None:
+    if not isinstance(earnings, dict):
+        return None
+    if str(earnings.get("status") or "").strip().lower() != "upcoming":
+        return None
+    event_date = str(earnings.get("event_date") or "").strip()[:10]
+    if not event_date:
+        return None
+    try:
+        parsed = datetime.fromisoformat(event_date).date()
+    except Exception:
+        return None
+    today = datetime.now(timezone.utc).date()
+    if parsed < today:
+        return None
+    return parsed.isoformat()
+
+
+def _looks_like_earnings_card(card: dict[str, Any]) -> bool:
+    text = " ".join(
+        str(card.get(field) or "").strip()
+        for field in ("event", "detail", "window")
+    ).lower()
+    return "earnings" in text
+
+
+def _normalize_catalyst_cards(
+    cards: list[dict[str, Any]],
+    *,
+    earnings: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Keep catalyst cards grounded in the payload's actual earnings timing.
+
+    The model may talk about earnings as a catalyst, but it is only allowed to
+    attach a concrete date when the payload has a future earnings block. We
+    normalize those cards to the canonical payload date here so the rendered
+    brief never shows an invented or stale print.
+    """
+    upcoming_earnings_date = _earnings_event_date(earnings)
+    upcoming_earnings_label = ""
+    if upcoming_earnings_date:
+        try:
+            upcoming_earnings_label = datetime.fromisoformat(upcoming_earnings_date).strftime("%b %d")
+        except Exception:
+            upcoming_earnings_label = upcoming_earnings_date
+
+    normalized: list[dict[str, Any]] = []
+    for raw_card in cards:
+        if not isinstance(raw_card, dict):
+            continue
+        card = dict(raw_card)
+        event = " ".join(str(card.get("event") or "").split()).strip()
+        detail = " ".join(str(card.get("detail") or "").split()).strip()
+        window = " ".join(str(card.get("window") or "").split()).strip()
+        text = " ".join(part for part in [event, detail, window] if part).lower()
+        earnings_like = "earnings" in text
+        date_hint = (
+            _parse_window_date_iso(event)
+            or _parse_window_date_iso(detail)
+            or _parse_window_date_iso(window)
+        )
+
+        if earnings_like:
+            if upcoming_earnings_date:
+                card["window"] = upcoming_earnings_date
+                if date_hint and date_hint != upcoming_earnings_date:
+                    card["event"] = f"Earnings {upcoming_earnings_label}".strip()
+                elif not event:
+                    card["event"] = f"Earnings {upcoming_earnings_label}".strip()
+                normalized.append(card)
+                continue
+
+            # Reported or missing earnings should not surface a concrete date.
+            card["window"] = "post-earnings" if isinstance(earnings, dict) and str(earnings.get("status") or "").strip().lower() == "reported" else "near-term"
+            if event and _parse_window_date_iso(event):
+                card["event"] = "Earnings setup"
+            elif not event:
+                card["event"] = "Earnings setup"
+            if detail and _parse_window_date_iso(detail):
+                card["detail"] = re.sub(
+                    r"\b(\d{4}-\d{2}-\d{2})\b",
+                    "",
+                    detail,
+                ).strip(" ,.-")
+            normalized.append(card)
+            continue
+
+        normalized.append(card)
+
+    return _drop_stale_catalysts(normalized)
+
+
 def _score_from_sentiment(value: float) -> int:
     score = 50 + (value * 50)
     return max(5, min(95, int(round(score))))
@@ -2727,7 +2822,6 @@ def build_stock_intelligence_docs(
                 and str(item.get("detail", "")).strip()
                 and "nothing concrete" not in str(item.get("event", "")).lower()
             ][:3]
-            catalyst_cards = _drop_stale_catalysts(catalyst_cards)
             risk_cards = [
                 item for item in raw_risk_cards
                 if isinstance(item, dict)
@@ -2806,6 +2900,8 @@ def build_stock_intelligence_docs(
                 "severity": 3,
                 "probability": 3,
             }]
+
+            catalyst_cards = _normalize_catalyst_cards(catalyst_cards, earnings=earnings_ctx)
 
         # Keep key points non-repetitive versus thesis/headline/body.
         dedupe_base = " ".join([thesis, headline, body]).lower()
