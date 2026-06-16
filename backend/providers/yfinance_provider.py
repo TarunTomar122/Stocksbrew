@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+import math
 import time
 from typing import Any
 
@@ -30,6 +31,79 @@ def _to_int(value: Any, default: int = 0) -> int:
             return default
 
 
+def _finite_positive(value: Any) -> float | None:
+    num = _to_float(value, default=float("nan"))
+    if not math.isfinite(num) or num <= 0:
+        return None
+    return num
+
+
+def _fast_info_get(fast_info: Any, key: str) -> Any:
+    if fast_info is None:
+        return None
+    getter = getattr(fast_info, "get", None)
+    if callable(getter):
+        return getter(key)
+    return getattr(fast_info, key, None)
+
+
+def _resolve_quote_fields(
+    *,
+    info: dict[str, Any],
+    fast_info: Any,
+    history_current: float,
+    history_previous_close: float,
+    history_open: float,
+    history_high: float,
+    history_low: float,
+    history_volume: float,
+    history_captured_at: str,
+) -> tuple[float, float, float, float, float, float, float, float, str]:
+    """Prefer Yahoo live market fields over incomplete daily history bars."""
+    current = (
+        _finite_positive(info.get("regularMarketPrice"))
+        or _finite_positive(info.get("currentPrice"))
+        or _finite_positive(info.get("postMarketPrice"))
+        or _finite_positive(_fast_info_get(fast_info, "lastPrice"))
+        or _finite_positive(history_current)
+    )
+    previous_close = (
+        _finite_positive(info.get("regularMarketPreviousClose"))
+        or _finite_positive(info.get("previousClose"))
+        or _finite_positive(_fast_info_get(fast_info, "previousClose"))
+        or _finite_positive(history_previous_close)
+    )
+    current = current or 0.0
+    previous_close = previous_close or 0.0
+
+    pct_raw = info.get("regularMarketChangePercent")
+    if pct_raw not in (None, "", "null"):
+        day_change_pct = _to_float(pct_raw, default=float("nan"))
+        if math.isfinite(day_change_pct):
+            day_change_abs = _to_float(info.get("regularMarketChange"), default=float("nan"))
+            if not math.isfinite(day_change_abs):
+                day_change_abs = current - previous_close
+        else:
+            day_change_abs = current - previous_close
+            day_change_pct = ((day_change_abs / previous_close) * 100.0) if previous_close else 0.0
+    else:
+        day_change_abs = current - previous_close
+        day_change_pct = ((day_change_abs / previous_close) * 100.0) if previous_close else 0.0
+
+    open_price = _finite_positive(info.get("regularMarketOpen")) or _finite_positive(history_open) or 0.0
+    high = _finite_positive(info.get("regularMarketDayHigh")) or _finite_positive(history_high) or 0.0
+    low = _finite_positive(info.get("regularMarketDayLow")) or _finite_positive(history_low) or 0.0
+    volume = _to_float(info.get("regularMarketVolume")) or history_volume
+
+    using_live = bool(
+        _finite_positive(info.get("regularMarketPrice"))
+        or _finite_positive(info.get("currentPrice"))
+        or _finite_positive(_fast_info_get(fast_info, "lastPrice"))
+    )
+    captured_at = datetime.now(timezone.utc).isoformat() if using_live else history_captured_at
+    return current, previous_close, open_price, high, low, volume, day_change_abs, day_change_pct, captured_at
+
+
 def yahoo_symbol_for(instrument: dict[str, Any]) -> str:
     explicit = str(instrument.get("quote_symbol_yahoo", "")).strip()
     if explicit:
@@ -52,10 +126,15 @@ def _history_metrics(history) -> tuple[float, float, float, float, float, float,
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, datetime.now(timezone.utc).isoformat()
     latest = history.iloc[-1]
     previous_close = float(history.iloc[-2]["Close"]) if len(history) > 1 else _to_float(latest.get("Open"))
-    current = _to_float(latest.get("Close"))
     open_price = _to_float(latest.get("Open"))
     high = _to_float(latest.get("High"))
     low = _to_float(latest.get("Low"))
+    current = _to_float(latest.get("Close"))
+    if not math.isfinite(current):
+        for fallback in (high, open_price, previous_close):
+            if math.isfinite(fallback) and fallback > 0:
+                current = fallback
+                break
     volume = _to_float(latest.get("Volume"))
     captured_at = getattr(latest.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
     if captured_at.tzinfo is None:
@@ -102,9 +181,21 @@ class YFinanceClient:
         yahoo_symbol = yahoo_symbol_for(instrument)
         ticker = yf.Ticker(yahoo_symbol)
         history = ticker.history(period="5d", interval="1d", auto_adjust=False)
-        current, previous_close, open_price, high, low, volume, captured_at = _history_metrics(history)
+        hist_current, hist_prev, hist_open, hist_high, hist_low, hist_volume, hist_captured_at = _history_metrics(history)
         fast_info = getattr(ticker, "fast_info", None)
         info = ticker.info or {}
+
+        current, previous_close, open_price, high, low, volume, day_change_abs, day_change_pct, captured_at = _resolve_quote_fields(
+            info=info,
+            fast_info=fast_info,
+            history_current=hist_current,
+            history_previous_close=hist_prev,
+            history_open=hist_open,
+            history_high=hist_high,
+            history_low=hist_low,
+            history_volume=hist_volume,
+            history_captured_at=hist_captured_at,
+        )
 
         market_cap = _to_float(info.get("marketCap")) or _to_float(getattr(fast_info, "get", lambda _key, _default=None: None)("marketCap"))
         pe_ttm = _to_float(info.get("trailingPE"))
@@ -133,9 +224,6 @@ class YFinanceClient:
                 beta = round(float(beta_raw), 2)
             except (TypeError, ValueError):
                 beta = None
-
-        day_change_abs = current - previous_close
-        day_change_pct = ((day_change_abs / previous_close) * 100.0) if previous_close else 0.0
 
         return {
             "symbol": str(instrument.get("ticker", yahoo_symbol)),
