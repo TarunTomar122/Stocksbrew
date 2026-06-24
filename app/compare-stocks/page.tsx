@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { CompareStocksInteractive } from "@/components/compare-stocks-interactive";
 import { CompareStocksLandingSections } from "@/components/compare-stocks-landing-sections";
+import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
 import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
 
@@ -29,8 +30,14 @@ export default async function CompareStocksPage() {
 
   return (
     <main className="flex-grow">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pt-8 md:px-10 lg:px-16">
+        <FreeToolBreadcrumb title="Compare stocks" />
+      </div>
       <CompareStocksInteractive searchIndex={searchIndex} />
       <CompareStocksLandingSections />
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
+        <FreeToolRelated currentHref="/compare-stocks" />
+      </div>
     </main>
   );
 }

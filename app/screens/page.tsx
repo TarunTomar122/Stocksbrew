@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
+import { ScreensTableView } from "@/components/screens-table-view";
 import { getCurrentMarket } from "@/lib/market";
 import { getThematicScreens } from "@/lib/screens";
-import { ScreensTableView } from "@/components/screens-table-view";
 
 export const dynamic = "force-dynamic";
 
@@ -14,23 +15,24 @@ export const metadata: Metadata = {
   alternates: { canonical: "/screens" },
   openGraph: {
     title: "Thematic Screens · stocksbrew",
-    description: "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
+    description:
+      "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
     url: "https://www.stocksbrew.online/screens",
   },
   twitter: {
     title: "Thematic Screens · stocksbrew",
-    description: "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
+    description:
+      "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
   },
 };
 
-
 function ScreensFallback() {
   return (
-    <div className="animate-pulse rounded-[24px] border border-[#e5e7eb] bg-white p-4">
-      <div className="mb-4 h-8 w-64 rounded bg-[#f3f4f6]" />
+    <div className="animate-pulse rounded-[24px] border border-outline-variant bg-surface p-4">
+      <div className="mb-4 h-8 w-64 rounded bg-surface-container" />
       <div className="flex flex-col gap-3">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-xl bg-[#f3f4f6]" />
+          <div key={i} className="h-16 rounded-xl bg-surface-container" />
         ))}
       </div>
     </div>
@@ -44,11 +46,9 @@ async function ScreensContentStream() {
 
   if (screens.length === 0) {
     return (
-      <div className="rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-16 text-center">
-        <h2 className="text-[18px] font-semibold text-[#111111]">
-          No screens are populated yet.
-        </h2>
-        <p className="text-[14px] text-[#6b7280] mt-2 max-w-[480px] mx-auto">
+      <div className="rounded-[24px] border border-outline-variant bg-surface px-6 py-16 text-center">
+        <h2 className="text-[18px] font-semibold text-on-surface">No screens are populated yet.</h2>
+        <p className="mx-auto mt-2 max-w-[480px] text-[14px] text-on-surface-variant">
           We&apos;re computing the latest scores. Check back in a few minutes.
         </p>
       </div>
@@ -59,32 +59,19 @@ async function ScreensContentStream() {
 }
 
 export default function ScreensIndexPage() {
-
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-12 md:py-16 flex flex-col gap-10">
-        <header className="flex flex-col gap-3 max-w-[720px]">
-          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">
-            Screens
+      <FreeToolPageFrame toolHref="/screens">
+        <div className="flex items-center gap-3 text-[12px] text-on-surface-variant">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-2.5 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" />
+            Updated daily
           </span>
-          <h1 className="text-[36px] md:text-[44px] font-semibold tracking-[-0.03em] text-[#111111] leading-[1.1]">
-            Curated screens, ranked by stocksbrew score.
-          </h1>
-          <p className="text-[16px] text-[#374151] leading-[1.55]">
-            Each screen filters stocks by a specific angle - growth, momentum, quality or valuation. Skip the screener and jump straight to the names that already fit.
-          </p>
-          <div className="flex items-center gap-3 mt-2 text-[12px] text-[#6b7280]">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-2.5 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-              Updated daily
-            </span>
-          </div>
-        </header>
-
+        </div>
         <Suspense fallback={<ScreensFallback />}>
           <ScreensContentStream />
         </Suspense>
-      </div>
+      </FreeToolPageFrame>
     </main>
   );
 }

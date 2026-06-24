@@ -114,9 +114,14 @@ export default function GuidesPage() {
         </section>
 
         <section className="flex flex-col gap-5">
-          <div>
-            <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Free tools</h2>
-            <p className="text-[14px] text-[#6b7280] mt-1">Live on stocksbrew. No paywall to try them.</p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Free tools</h2>
+              <p className="text-[14px] text-[#6b7280] mt-1">Live on stocksbrew. No paywall to try them.</p>
+            </div>
+            <Link href="/free-tools" className="text-[13px] font-medium text-[#111111] hover:text-[#0052ff] transition-colors">
+              View all free tools →
+            </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {FREE_TOOLS.map((tool) => (

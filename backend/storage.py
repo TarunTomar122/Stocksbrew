@@ -1071,9 +1071,39 @@ class TraceMoneyStore:
                 batch.set(collection.document(f"{market}__{instrument_id}"), payload, merge=True)
             batch.commit()
 
+    def append_directive_history(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
+        """Append each directive + the price it was issued at to an append-only
+        history, so we can later score "stocksbrew said ACCUMULATE @ $X, now +Y%".
+        Keyed by trading date so a same-day re-run is idempotent (one call/day/stock)."""
+        market_up = str(market or "").strip().upper()
+        for payload in docs_payload:
+            directive = payload.get("directive")
+            instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+            price_at_call = payload.get("current_price")
+            if not (isinstance(directive, dict) and instrument_id and isinstance(price_at_call, (int, float))):
+                continue
+            stance = str(directive.get("stance") or "").strip().lower()
+            if not stance:
+                continue
+            generated_at = str(payload.get("generated_at") or datetime.now(timezone.utc).isoformat())
+            date_key = generated_at[:10]  # YYYY-MM-DD
+            self.db.collection("tm_directive_history").document(instrument_id).collection("calls").document(date_key).set({
+                "instrument_id": instrument_id,
+                "market": market_up,
+                "stance": stance,
+                "text": str(directive.get("text") or "").strip(),
+                "rationale": str(directive.get("rationale") or "").strip(),
+                "confidence": str(directive.get("confidence") or "").strip(),
+                "trigger_type": str(directive.get("trigger_type") or "").strip(),
+                "trigger_value": directive.get("trigger_value"),
+                "price_at_call": float(price_at_call),
+                "generated_at": generated_at,
+            }, merge=True)
+
     def save_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
         self._replace_subcollection(namespace, "stock_intelligence", docs_payload, "instrument_id")
+        self.append_directive_history(market, docs_payload)
         namespace.set({
             "market": market,
             "universe_id": universe_id,
@@ -1087,6 +1117,7 @@ class TraceMoneyStore:
             instrument_id = str(payload.get("instrument_id") or "")
             if instrument_id:
                 namespace.collection("stock_intelligence").document(instrument_id).set(payload, merge=True)
+        self.append_directive_history(market, docs_payload)
         namespace.set({
             "market": market,
             "universe_id": universe_id,

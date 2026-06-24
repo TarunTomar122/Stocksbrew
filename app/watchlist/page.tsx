@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { ProCtaLink } from "@/components/pro-cta";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
+import { RadarHubStaticHeader, RadarPageSkeleton } from "@/components/radar-hub-skeleton";
 import { scrubLegacyBrand } from "@/lib/brand";
 import { getWatchlistView, overlayLatestPrices } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
@@ -27,6 +29,7 @@ import { RadarBuildingState } from "@/components/radar-building-state";
 import { RadarEmptyBuildingGate } from "@/components/radar-empty-building-gate";
 import { getInstruments } from "@/lib/firestore";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
+import { getRecentCorrectCalls } from "@/lib/track-record";
 import {
   filterEarningsIntelThisWeek,
   getLatestEarningsIntelForInstruments,
@@ -192,6 +195,19 @@ function computeSectorExposure(rows: WatchlistRow[]): SectorExposure[] {
 // =============================================================================
 
 export default async function WatchlistPage() {
+  const session = await getSessionUser();
+  if (!session) {
+    return <DemoRadar />;
+  }
+
+  return (
+    <Suspense fallback={<RadarPageSkeleton />}>
+      <WatchlistRadarStream />
+    </Suspense>
+  );
+}
+
+async function WatchlistRadarStream() {
   const SHOW_TEST_UPDATING_BANNER = false;
   const SHOW_SCENARIO_LAB = false;
   const session = await getSessionUser();
@@ -305,6 +321,15 @@ export default async function WatchlistPage() {
     return label ? { ...r, ticker: label.ticker || r.ticker, instrument_name: label.name } : r;
   });
   const regimeMarket = rows[0]?.market === "IN" ? "IN" : "US";
+  // "Called it" proof feed — earnings calls that landed. The free->pro hook.
+  const hubReceipts = (await getRecentCorrectCalls(regimeMarket).catch(() => [])).map((c) => ({
+    ticker: c.ticker,
+    name: c.name,
+    logoUrl: c.logoUrl,
+    call: c.call,
+    dayChangePct: c.dayChangePct,
+    eventDate: c.eventDate,
+  }));
   const bookRegime = await getBookRegimeRead(
     regimeMarket,
     computeSectorExposure(rows),
@@ -677,21 +702,26 @@ export default async function WatchlistPage() {
           />
         )}
 
-        <RadarHub
-          flagged={hubFlagged}
-          total={rows.length}
-          lead={hubLead ? { ticker: hubLead.row.ticker, stance: hubLead.directive.stance ?? "watch", chg: hubLead.row.day_change_pct } : null}
-          holdings={hubHoldings}
-          watching={hubWatching}
-          suggestions={hubSuggestions}
-          changed={hubChanged}
-          sectors={hubSectors}
-          factors={hubFactors}
-          regime={hubRegime}
-          isSubscribed={isSubscribed}
-          atLimit={!isSubscribed && rows.length >= 3}
-          builtLabel={builtAt ? formatRelative(builtAt) : undefined}
-        />
+        <RadarHubStaticHeader />
+        <div className="landing-stream-in">
+          <RadarHub
+            embedded
+            flagged={hubFlagged}
+            total={rows.length}
+            lead={hubLead ? { ticker: hubLead.row.ticker, stance: hubLead.directive.stance ?? "watch", chg: hubLead.row.day_change_pct } : null}
+            holdings={hubHoldings}
+            watching={hubWatching}
+            suggestions={hubSuggestions}
+            receipts={hubReceipts}
+            changed={hubChanged}
+            sectors={hubSectors}
+            factors={hubFactors}
+            regime={hubRegime}
+            isSubscribed={isSubscribed}
+            atLimit={!isSubscribed && rows.length >= 3}
+            builtLabel={builtAt ? formatRelative(builtAt) : undefined}
+          />
+        </div>
       </RadarWorkspace>
     </main>
   );

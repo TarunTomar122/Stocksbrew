@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
+import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
 import { TrumpLogicView } from "@/components/trump-logic-view";
 import { getCurrentMarket } from "@/lib/market";
 import { getTrumpLogic, type TrumpLogicSnapshot } from "@/lib/trump-logic";
@@ -14,19 +15,18 @@ export const metadata: Metadata = {
   alternates: { canonical: "/trump-logic" },
   openGraph: {
     title: "Trump Logic · market briefs",
-    description:
-      "What Trump said and what it could move — distilled for traders, not a post reader.",
+    description: "What Trump said and what it could move — distilled for traders, not a post reader.",
     url: "https://www.stocksbrew.online/trump-logic",
   },
 };
 
 function TrumpLogicFallback() {
   return (
-    <div className="flex flex-col gap-4 max-w-2xl animate-pulse">
-      <div className="h-10 w-64 rounded-lg bg-[#f3f4f6]" />
-      <div className="h-4 w-full max-w-lg rounded bg-[#f3f4f6]" />
+    <div className="flex max-w-2xl animate-pulse flex-col gap-4">
+      <div className="h-10 w-64 rounded-lg bg-surface-container" />
+      <div className="h-4 max-w-lg rounded bg-surface-container" />
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-48 rounded-[20px] border border-[#e5e7eb] bg-white" />
+        <div key={i} className="h-48 rounded-[20px] border border-outline-variant bg-surface" />
       ))}
     </div>
   );
@@ -48,20 +48,20 @@ async function TrumpLogicContent() {
   } catch (err) {
     console.error("[trump-logic] load failed:", err);
   }
-  return <TrumpLogicView data={data} />;
+  return <TrumpLogicView data={data} hideHeader />;
 }
 
 export default function TrumpLogicPage() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16 flex flex-col gap-10">
+      <FreeToolPageFrame toolHref="/trump-logic">
         <Suspense fallback={<TrumpLogicFallback />}>
           <TrumpLogicContent />
         </Suspense>
-        <footer className="text-[11px] text-[#9ca3af] max-w-3xl">
+        <footer className="max-w-3xl text-[11px] text-on-surface-variant">
           Briefs are AI-distilled from Truth Social. Source links on each card. Not investment advice.
         </footer>
-      </div>
+      </FreeToolPageFrame>
     </main>
   );
 }

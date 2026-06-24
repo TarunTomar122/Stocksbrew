@@ -16,6 +16,7 @@ import {
 
 type Props = {
   data: TrumpLogicSnapshot | null;
+  hideHeader?: boolean;
 };
 
 type SideTab = "bullish" | "bearish";
@@ -197,7 +198,7 @@ function MentionTable({
   );
 }
 
-export function TrumpLogicView({ data }: Props) {
+export function TrumpLogicView({ data, hideHeader = false }: Props) {
   const [mobileTab, setMobileTab] = useState<SideTab>("bullish");
 
   const { bullish, bearish, allRows } = useMemo(() => {
@@ -210,31 +211,42 @@ export function TrumpLogicView({ data }: Props) {
 
   if (!data || allRows.length === 0) {
     return (
-      <div className="flex flex-col gap-4 max-w-2xl">
-        <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.03em] text-[#111111]">
-          Trump Logic
-        </h1>
-        <p className="text-[15px] text-[#6b7280] leading-relaxed">
-          Stocks Trump mentioned on Truth Social and how they moved after.
-        </p>
+      <div className="flex max-w-2xl flex-col gap-4">
+        {!hideHeader ? (
+          <>
+            <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-on-surface md:text-[40px]">
+              Trump Logic
+            </h1>
+            <p className="text-[15px] leading-relaxed text-on-surface-variant">
+              Stocks Trump mentioned on Truth Social and how they moved after.
+            </p>
+          </>
+        ) : (
+          <p className="text-[15px] leading-relaxed text-on-surface-variant">
+            Stocks Trump mentioned on Truth Social and how they moved after.
+          </p>
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-8 md:gap-10">
-      <header className="flex flex-col gap-2 max-w-2xl">
-        <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.03em] text-[#111111]">
-          Trump Logic
-        </h1>
-        <p className="text-[15px] text-[#6b7280] leading-relaxed">
-          Stocks Trump mentioned on Truth Social, split bullish vs bearish, with price change after
-          each post.
-        </p>
-        {relativeTime(data.generated_at) ? (
-          <p className="text-[12px] text-[#9ca3af]">Updated {relativeTime(data.generated_at)}</p>
-        ) : null}
-      </header>
+      {!hideHeader ? (
+        <header className="flex max-w-2xl flex-col gap-2">
+          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-on-surface md:text-[40px]">
+            Trump Logic
+          </h1>
+          <p className="text-[15px] leading-relaxed text-on-surface-variant">
+            Stocks Trump mentioned on Truth Social, split bullish vs bearish, with price change after each post.
+          </p>
+          {relativeTime(data.generated_at) ? (
+            <p className="text-[12px] text-on-surface-variant">Updated {relativeTime(data.generated_at)}</p>
+          ) : null}
+        </header>
+      ) : relativeTime(data.generated_at) ? (
+        <p className="text-[12px] text-on-surface-variant">Updated {relativeTime(data.generated_at)}</p>
+      ) : null}
 
       {/* Desktop: side-by-side tables */}
       <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">

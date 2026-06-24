@@ -1,3 +1,5 @@
+import { ALL_FREE_TOOLS } from "@/lib/free-tools-hub-data";
+
 export type HubLink = {
   href: string;
   title: string;
@@ -20,55 +22,18 @@ export const START_PATHS: HubLink[] = [
     badge: "Path B",
   },
   {
-    href: "/should-i-buy",
+    href: "/free-tools",
     title: "Try free tools first",
-    description: "Run Should I Buy on a ticker, compare it with peers side by side, then explore Portfolio Analyzer, Heat, and Screens.",
+    description: "Run Should I Buy on a ticker, compare peers, then explore Heat, Screens, and the full free toolkit.",
     badge: "Path C",
   },
 ];
 
-export const FREE_TOOLS: HubLink[] = [
-  {
-    href: "/should-i-buy",
-    title: "Should I Buy",
-    description: "Free AI scorecard on any US ticker. Add winners to Radar in one click.",
-  },
-  {
-    href: "/compare-stocks",
-    title: "Compare Stocks",
-    description: "Line up 2 to 5 US tickers side by side. See price, scores, and returns with the best per row highlighted.",
-  },
-  {
-    href: "/portfolio",
-    title: "Portfolio Analyzer",
-    description: "Upload holdings and see concentration, overlap, and risk in your book.",
-  },
-  {
-    href: "/heat",
-    title: "Market Heat",
-    description: "Sector and theme momentum at a glance. Find where attention is moving.",
-  },
-  {
-    href: "/screens",
-    title: "Screens",
-    description: "Curated thematic screens updated with the market. Jump from idea to ticker.",
-  },
-  {
-    href: "/earnings-intel",
-    title: "Earnings Intel",
-    description: "Pre-earnings briefs and post-earnings read-throughs for watchlist names.",
-  },
-  {
-    href: "/news",
-    title: "News timeline",
-    description: "Filterable feed tied to your tickers. Less noise than a generic news app.",
-  },
-  {
-    href: "/position-size-calculator",
-    title: "Position Size Calculator",
-    description: "Compute shares, dollar risk, and R:R based on account size, risk, and stop-loss.",
-  },
-];
+export const FREE_TOOLS: HubLink[] = ALL_FREE_TOOLS.map(({ href, title, description }) => ({
+  href,
+  title,
+  description,
+}));
 
 export const COMPARISONS: HubLink[] = [
   {
@@ -148,7 +113,7 @@ export const GUIDES_FAQS = [
   {
     question: "What free tools does stocksbrew include?",
     answer:
-      "Should I Buy, Compare Stocks, Portfolio Analyzer, Market Heat, Screens, Earnings Intel, and a filterable news timeline. Radar tracking is free for up to three US tickers.",
+      "Should I Buy, Compare Stocks, Portfolio Analyzer, Market Heat, Screens, News, Trump Logic, IPO calendar, and more — all listed on the free tools page. Radar tracking is free for up to three US tickers.",
   },
   {
     question: "How is this different from a screener site?",

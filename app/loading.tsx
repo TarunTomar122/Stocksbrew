@@ -1,25 +1,31 @@
+import { TerminalLandingHeroCopy } from "@/components/terminal-landing-hero-copy";
+import { TerminalLandingProSection } from "@/components/terminal-landing-pro-section";
+import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
+import {
+  LandingHeroCommandSkeleton,
+  LandingScannerRedditSkeleton,
+  LandingSectorHeatSkeleton,
+  LandingTapeSkeleton,
+} from "@/components/terminal-landing-skeleton";
+
 export default function HomeLoading() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-8 md:py-10 flex flex-col gap-10 animate-pulse">
-        {/* Hero */}
-        <div className="h-[320px] md:h-[380px] w-full rounded-2xl bg-surface-container-low border border-outline-variant/30" />
+      <div className="landing-page bg-background text-on-surface">
+        <LandingTapeSkeleton />
 
-        {/* Movers grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-20 rounded-full bg-surface-container-low" />
-              <div className="h-9 w-20 rounded-full bg-surface-container-low" />
-              <div className="h-9 w-20 rounded-full bg-surface-container-low" />
-            </div>
-            <div className="h-[420px] rounded-2xl bg-surface-container-low border border-outline-variant/30" />
+        <header className="landing-hero-glow relative border-b border-outline-variant">
+          <div className="landing-inner grid items-center gap-12 py-16 md:py-24 lg:grid-cols-[1fr_1.12fr] lg:gap-14">
+            <TerminalLandingHeroCopy />
+            <LandingHeroCommandSkeleton />
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="h-5 w-24 rounded bg-surface-container-low" />
-            <div className="h-[420px] rounded-2xl bg-surface-container-low border border-outline-variant/30" />
-          </div>
-        </div>
+        </header>
+
+        <LandingScannerRedditSkeleton />
+        <LandingSectorHeatSkeleton />
+
+        <TerminalLandingProSection />
+        <TerminalLandingTestimonials />
       </div>
     </main>
   );

@@ -829,6 +829,7 @@ def build_no_news_intelligence_doc(
     instrument_id = instrument["instrument_id"]
     quote = (latest_price_doc or {}).get("quote") or {}
     day_change = _nn_to_float(quote.get("day_change_pct")) or 0.0
+    current_price = _nn_to_float(quote.get("current"))
 
     headline = str(brief.get("headline", "")).strip()
     body = str(brief.get("body", "")).strip()
@@ -874,6 +875,7 @@ def build_no_news_intelligence_doc(
             "risk_cards": risk_cards,
         },
         "directive": directive,
+        "current_price": current_price,
         "overall_label": "neutral",
         "overall_score": 50,
         "lanes": [
@@ -3057,6 +3059,7 @@ def build_stock_intelligence_docs(
                 "risk_cards": risk_cards,
             },
             "directive": directive,
+            "current_price": current_price,
             "overall_label": label,
             "overall_score": score,
             "lanes": [

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TrackButton } from "@/components/track-button";
 import type { StockTier } from "@/lib/ai-launch-tier";
 
-const CYAN = "#22d3ee";
+const ACCENT = "var(--accent-terminal)";
 
 const n = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -13,13 +14,13 @@ function verdictFor(score: number | null | undefined, label?: string | null): { 
   const l = (label || "").toLowerCase();
   if (l.includes("buy") || l.includes("accumulate") || l.includes("bull")) return { text: "BUY", color: "var(--signal-bullish)" };
   if (l.includes("avoid") || l.includes("sell") || l.includes("bear")) return { text: "AVOID", color: "var(--signal-bearish)" };
-  if (l.includes("hold") || l.includes("watch") || l.includes("trim")) return { text: "HOLD", color: CYAN };
+  if (l.includes("hold") || l.includes("watch") || l.includes("trim")) return { text: "HOLD", color: ACCENT };
   if (n(score)) {
     if (score! >= 70) return { text: "BUY", color: "var(--signal-bullish)" };
-    if (score! >= 45) return { text: "HOLD", color: CYAN };
+    if (score! >= 45) return { text: "HOLD", color: ACCENT };
     return { text: "AVOID", color: "var(--signal-bearish)" };
   }
-  return { text: "WATCH", color: CYAN };
+  return { text: "WATCH", color: ACCENT };
 }
 
 const CHART_UP = "0,44 26,40 52,42 78,34 104,36 130,28 156,30 182,22 208,24 234,16 260,18 286,9 320,6";
@@ -47,6 +48,7 @@ export function LandingHeroCommand({
   isTracked: boolean;
   tier: StockTier;
 }) {
+  const router = useRouter();
   const [hovered, setHovered] = useState(false);
   const [chartReady, setChartReady] = useState(false);
 
@@ -61,25 +63,25 @@ export function LandingHeroCommand({
   const moveColor = fUp ? "var(--signal-bullish)" : "var(--signal-bearish)";
   const evidence = featured.key_points.slice(0, 3);
   const stockHref = `/stock/${featured.ticker}`;
+  const panelBorder = "var(--shadow-card), inset 0 0 0 1px var(--outline-variant)";
+  const panelHover = "0 0 0 1px color-mix(in srgb, var(--landing-mint, var(--signal-bullish)) 28%, transparent), 0 18px 48px color-mix(in srgb, var(--landing-brand, var(--signal-bullish)) 8%, transparent)";
 
   return (
     <div
-      className="panel overflow-hidden transition-[box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5"
+      className="landing-card overflow-hidden transition-[box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5"
       style={{
-        boxShadow: hovered
-          ? "0 0 0 1px color-mix(in srgb, var(--signal-bullish) 22%, transparent), 0 18px 48px color-mix(in srgb, var(--background) 55%, transparent)"
-          : undefined,
+        boxShadow: hovered ? panelHover : panelBorder,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div
         className="flex items-center justify-between border-b px-4 py-2.5 font-mono text-[12px]"
-        style={{ borderColor: "var(--outline-variant)", background: "var(--surface-container)" }}
+        style={{ borderColor: "var(--outline-variant)", background: "color-mix(in srgb, var(--surface-container) 80%, var(--surface))" }}
       >
         <span className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, var(--signal-bearish) 70%, transparent)" }} />
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, " + CYAN + " 40%, transparent)" }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, var(--accent-terminal) 40%, transparent)" }} />
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, var(--signal-bullish) 60%, transparent)" }} />
           <span className="ml-3 text-on-surface-variant">sb://command-center</span>
         </span>
@@ -98,7 +100,14 @@ export function LandingHeroCommand({
           <span className="ml-0.5 inline-block w-[7px] animate-pulse bg-on-surface" style={{ height: "1em", verticalAlign: "-0.12em" }} aria-hidden />
         </div>
 
-        <div className="inset p-4">
+        <div
+          className="inset cursor-pointer p-4 transition-colors hover:bg-surface-container"
+          onClick={(event) => {
+            const target = event.target as HTMLElement;
+            if (target.closest("a,button,[role='button']")) return;
+            router.push(stockHref);
+          }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -182,7 +191,7 @@ export function LandingHeroCommand({
                   transitionDelay: `${180 + i * 90}ms`,
                 }}
               >
-                <span style={{ color: i === 2 ? CYAN : "var(--signal-bullish)" }}>▸</span>
+                <span style={{ color: i === 2 ? "var(--accent-terminal)" : "var(--signal-bullish)" }}>▸</span>
                 <span className="text-on-surface-variant">{e}</span>
               </div>
             ))}

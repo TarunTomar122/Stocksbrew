@@ -97,6 +97,10 @@ const config: Config = {
           bearish: "var(--signal-bearish)",
           neutral: "var(--signal-neutral)",
         },
+        "accent-terminal": "var(--accent-terminal)",
+        "landing-brand": "var(--landing-brand)",
+        "landing-mint": "var(--landing-mint)",
+        "landing-reddit": "var(--landing-reddit)",
       },
       fontFamily: {
         headline: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],

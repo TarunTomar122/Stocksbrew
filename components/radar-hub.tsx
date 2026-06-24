@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 
-const CYAN = "#22d3ee";
+const ACCENT = "var(--accent-terminal)";
 const STANCE: Record<string, string> = {
   accumulate: "var(--signal-bullish)",
   trim: "var(--signal-neutral)",
-  hold: CYAN,
-  watch: CYAN,
+  hold: ACCENT,
+  watch: ACCENT,
   avoid: "var(--signal-bearish)",
 };
 const ACTIONABLE = new Set(["accumulate", "trim", "avoid"]);
@@ -30,6 +30,44 @@ export type RadarChange = { ticker: string; tone: "up" | "down" | "neutral"; tex
 export type RadarSector = { label: string; pct: number };
 export type RadarFactor = { label: string; score: number };
 export type RadarSuggestion = { ticker: string; name?: string; reason?: string; market: "US" | "IN" };
+export type RadarReceipt = { ticker: string; name?: string; logoUrl?: string | null; call: string; dayChangePct: number | null; eventDate: string | null };
+
+function Receipts({ receipts }: { receipts: RadarReceipt[] }) {
+  if (receipts.length < 3) return null;
+  return (
+    <div className="mt-7">
+      <div className="mb-2 flex items-baseline gap-2 font-mono text-[12px]">
+        <span style={{ color: "var(--signal-bullish)" }}>$</span>
+        <span className="text-accent-terminal">called it</span>
+        <span className="text-on-surface-variant">— calls that landed before the print</span>
+      </div>
+      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+        {receipts.slice(0, 6).map((r) => {
+          const up = (r.dayChangePct ?? 0) >= 0;
+          return (
+            <Link
+              key={`${r.ticker}-${r.eventDate}`}
+              href={`/stock/${r.ticker}`}
+              className="panel flex w-[250px] shrink-0 flex-col gap-2 p-4 transition-colors hover:bg-surface-container"
+            >
+              <div className="flex items-center gap-2 font-mono text-[13px]">
+                <StockLogo ticker={r.ticker} logoUrl={r.logoUrl} market="US" size={22} />
+                <span className="font-bold text-on-surface">{r.ticker}</span>
+                {typeof r.dayChangePct === "number" && (
+                  <span className="ml-auto tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+                    {up ? "▲" : "▼"} {Math.abs(r.dayChangePct).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-[12.5px] leading-snug text-on-surface-variant">{r.call}</p>
+              <span className="font-mono text-[10px] uppercase tracking-wide text-on-surface-variant opacity-70">on earnings day</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function chg(v: number | null) {
   if (typeof v !== "number" || !Number.isFinite(v)) return null;
@@ -43,9 +81,13 @@ function chg(v: number | null) {
 const money = (v: number | null) => (typeof v === "number" ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
 
 function CallRow({ c }: { c: RadarCall }) {
-  const col = STANCE[c.stance?.toLowerCase()] ?? CYAN;
+  const col = STANCE[c.stance?.toLowerCase()] ?? ACCENT;
   return (
-    <Link href={`/stock/${c.ticker}`} className="block border-t px-5 py-4 transition-colors first:border-t-0 hover:bg-surface-container" style={{ borderColor: "var(--outline-variant)" }}>
+    <Link
+      href={`/stock/${c.ticker}`}
+      className="block border-t px-5 py-4 transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
+      style={{ borderColor: "var(--outline-variant)" }}
+    >
       <div className="flex items-center gap-3 font-mono text-[13px]">
         <StockLogo ticker={c.ticker} logoUrl={c.logoUrl} market={c.market} size={24} />
         <span className="font-bold text-on-surface">{c.ticker}</span>
@@ -112,6 +154,7 @@ export function RadarHub({
   holdings,
   watching,
   suggestions,
+  receipts,
   changed,
   sectors,
   factors,
@@ -119,6 +162,7 @@ export function RadarHub({
   isSubscribed,
   atLimit,
   builtLabel,
+  embedded = false,
 }: {
   flagged: number;
   total: number;
@@ -126,6 +170,7 @@ export function RadarHub({
   holdings: RadarCall[];
   watching: RadarCall[];
   suggestions: RadarSuggestion[];
+  receipts: RadarReceipt[];
   changed: RadarChange[];
   sectors: RadarSector[];
   factors: RadarFactor[];
@@ -133,19 +178,29 @@ export function RadarHub({
   isSubscribed: boolean;
   atLimit: boolean;
   builtLabel?: string;
+  embedded?: boolean;
 }) {
   const hasBook = sectors.length > 0 || factors.length > 0 || Boolean(regime);
-  const leadCol = lead ? STANCE[lead.stance?.toLowerCase()] ?? CYAN : CYAN;
+  const leadCol = lead ? STANCE[lead.stance?.toLowerCase()] ?? ACCENT : ACCENT;
   return (
-    <div className="mx-auto w-full max-w-4xl px-5 py-10">
-      {/* TOP-LINE */}
-      <div className="flex items-center gap-3">
-        <div className="font-mono text-[12px]" style={{ color: CYAN }}>// your radar</div>
-        {!isSubscribed && (
-          <Link href="/subscribe" className="ml-auto rounded px-2 py-1 font-mono text-[11px]" style={{ background: "color-mix(in srgb, var(--signal-neutral) 16%, transparent)", color: "var(--signal-neutral)" }}>FREE · {total}/3</Link>
-        )}
-      </div>
-      <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">The market, on your stocks.</h1>
+    <div className={embedded ? "mx-auto w-full max-w-4xl px-5 pb-10" : "mx-auto w-full max-w-4xl px-5 py-10"}>
+      {!embedded && (
+        <>
+          {/* TOP-LINE */}
+          <div className="flex items-center gap-3">
+            <div className="font-mono text-[12px] text-accent-terminal">// your radar</div>
+            {!isSubscribed && (
+              <Link href="/subscribe" className="ml-auto rounded px-2 py-1 font-mono text-[11px]" style={{ background: "color-mix(in srgb, var(--signal-neutral) 16%, transparent)", color: "var(--signal-neutral)" }}>FREE · {total}/3</Link>
+            )}
+          </div>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">The market, on your stocks.</h1>
+        </>
+      )}
+      {embedded && !isSubscribed && (
+        <div className="mb-2 flex justify-end">
+          <Link href="/subscribe" className="rounded px-2 py-1 font-mono text-[11px]" style={{ background: "color-mix(in srgb, var(--signal-neutral) 16%, transparent)", color: "var(--signal-neutral)" }}>FREE · {total}/3</Link>
+        </div>
+      )}
       <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-on-surface-variant">
         {flagged > 0 ? (
           <>
@@ -159,6 +214,9 @@ export function RadarHub({
         )}
       </p>
 
+      {/* CALLED IT — proof feed, the free hook */}
+      <Receipts receipts={receipts} />
+
       {/* THE CALLS — one table, holdings/watching tabs */}
       <CallTabs holdings={holdings} watching={watching} />
 
@@ -168,7 +226,12 @@ export function RadarHub({
           <div className="mb-2 font-mono text-[12px] text-on-surface-variant"><span style={{ color: "var(--signal-bullish)" }}>$</span> stocks worth watching</div>
           <div className="panel overflow-hidden">
             {suggestions.slice(0, 6).map((s) => (
-              <Link key={s.ticker} href={`/stock/${s.ticker}`} className="flex items-center gap-3 border-t px-5 py-3 font-mono text-[13px] transition-colors first:border-t-0 hover:bg-surface-container" style={{ borderColor: "var(--outline-variant)" }}>
+              <Link
+                key={s.ticker}
+                href={`/stock/${s.ticker}`}
+                className="flex items-center gap-3 border-t px-5 py-3 font-mono text-[13px] transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
+                style={{ borderColor: "var(--outline-variant)" }}
+              >
                 <StockLogo ticker={s.ticker} market={s.market} size={22} />
                 <span className="w-16 font-bold text-on-surface">{s.ticker}</span>
                 <span className="truncate text-on-surface-variant">{s.reason || s.name}</span>
@@ -186,7 +249,7 @@ export function RadarHub({
           <div className="panel p-1.5">
             {changed.map((e, i) => (
               <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 font-mono text-[13px]">
-                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: e.tone === "down" ? "var(--signal-bearish)" : e.tone === "up" ? "var(--signal-bullish)" : CYAN }} />
+                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: e.tone === "down" ? "var(--signal-bearish)" : e.tone === "up" ? "var(--signal-bullish)" : "var(--accent-terminal)" }} />
                 <span className="w-14 font-bold text-on-surface">{e.ticker}</span>
                 <span className="text-on-surface-variant">{e.text}</span>
               </div>

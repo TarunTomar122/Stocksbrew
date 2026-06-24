@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Radar // states</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<script>tailwind.config={theme:{extend:{colors:{bg:'#070b09',surface:'#0f1512',surface2:'#1a221c',line:'rgba(255,255,255,.06)',up:'#4ade80',down:'#fb7185',amber:'#fbbf24',cyan:'#22d3ee',t1:'#f1f4f7',t2:'#9aa3af',t3:'#5b6573'},fontFamily:{mono:['"JetBrains Mono"','monospace'],sans:['Inter','sans-serif']}}}};</script>
+<style>
+  body{background:#070b09}
+  .panel{background:#0f1512;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(74,222,128,.08)}
+  .inset{background:#14191f;border-radius:10px}
+  .chip{background:#14191f;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+  .blur{filter:blur(6px);user-select:none}
+  .alloc{height:13px;border-radius:99px;overflow:hidden;display:flex}.alloc>span{display:block;height:100%}
+  .switch{position:sticky;top:0;z-index:50;background:#05080699;backdrop-filter:blur(8px);border-bottom:1px solid rgba(255,255,255,.06)}
+  .sbtn{font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 12px;border-radius:8px;color:#9aa3af}
+  .sbtn.on{background:rgba(74,222,128,.14);color:#4ade80}
+</style>
+</head>
+<body class="font-sans text-t1 antialiased">
+
+<!-- SWITCHER -->
+<div class="switch px-5 py-3 flex flex-wrap gap-2 items-center">
+  <span class="font-mono text-[11px] text-t3 mr-2">radar state:</span>
+  <button class="sbtn on" onclick="show(0,this)">1 · logged out</button>
+  <button class="sbtn" onclick="show(1,this)">2 · 0 tracked</button>
+  <button class="sbtn" onclick="show(2,this)">3 · free, 3 tracked</button>
+  <button class="sbtn" onclick="show(3,this)">4 · pro, 15 tracked</button>
+</div>
+
+<!-- ================= STATE 1 — LOGGED OUT ================= -->
+<section data-state class="px-5 py-10">
+  <div class="max-w-4xl mx-auto">
+    <div class="font-mono text-[12px] text-cyan">// radar</div>
+    <h1 class="mt-1 text-3xl sm:text-5xl font-extrabold tracking-tight max-w-2xl">We watch your stocks and tell you what to do.</h1>
+    <p class="mt-3 max-w-2xl text-[16px] leading-relaxed text-t2">Add what you own or watch. Every day we read the news, the tape and Reddit, and give you one clear call on each: accumulate, trim, hold. <b class="text-t1">Free for 3 stocks.</b></p>
+    <div class="mt-5 flex gap-3">
+      <a href="#" class="rounded px-6 py-3 font-mono text-[14px] font-bold" style="background:#4ade80;color:#070b09">start free →</a>
+      <a href="#" class="rounded px-6 py-3 font-mono text-[14px] text-t1" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)">see how it works</a>
+    </div>
+
+    <div class="mt-9 mb-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> a live look at what Radar does</div>
+    <div class="relative">
+      <div class="space-y-3" id="lo-demo"></div>
+      <div class="absolute inset-x-0 bottom-0 h-40 flex items-end justify-center pb-2" style="background:linear-gradient(to bottom,transparent,#070b09)">
+        <a href="#" class="rounded px-6 py-3 font-mono text-[13px] font-bold" style="background:#4ade80;color:#070b09">sign up to see your own →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATE 2 — 0 TRACKED ================= -->
+<section data-state class="px-5 py-10 hidden">
+  <div class="max-w-3xl mx-auto">
+    <div class="font-mono text-[12px] text-cyan">// your radar</div>
+    <h1 class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight">Build your Radar.</h1>
+    <p class="mt-3 max-w-xl text-[15px] leading-relaxed text-t2">Add the stocks you own or watch. We tell you what to do on each, read the news and Reddit, and ping you the moment one moves. <b class="text-t1">Free for 3.</b></p>
+
+    <div class="mt-7 grid sm:grid-cols-2 gap-3">
+      <div class="panel p-5">
+        <p class="font-mono text-[11px] uppercase tracking-wide text-t2 mb-3">add a ticker</p>
+        <div class="inset flex items-center gap-2 px-3 py-2.5"><span class="text-t3">🔍</span><span class="font-mono text-[13px] text-t3">search NVDA, AAPL…</span></div>
+      </div>
+      <div class="panel p-5">
+        <p class="font-mono text-[11px] uppercase tracking-wide text-t2 mb-3">or import your portfolio</p>
+        <div class="inset flex items-center gap-2.5 px-3 py-2.5" style="border:1px dashed rgba(74,222,128,.25)"><span>📷</span><span class="text-[13px] text-t2">Drop a screenshot — we read your holdings</span></div>
+      </div>
+    </div>
+
+    <div class="mt-8 mb-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> moving today — tap to track</div>
+    <div class="panel overflow-hidden" id="empty-sugg"></div>
+
+    <div class="mt-9">
+      <p class="mb-3 font-mono text-[11px] uppercase tracking-wide text-t3">what your radar becomes</p>
+      <div class="panel p-5 blur" style="opacity:.5">
+        <div class="flex items-center gap-3 font-mono text-[13px]"><span class="font-bold">NVDA</span><span class="ml-auto text-up">▲ 2.95%</span></div>
+        <div class="mt-2 flex items-baseline gap-3"><span class="font-mono text-xl font-bold text-up">ACCUMULATE</span><span class="text-[13px] text-t2">add on dips under $200</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATE 3 — FREE, 3 TRACKED ================= -->
+<section data-state class="px-5 py-10 hidden">
+  <div class="max-w-3xl mx-auto">
+    <div class="flex items-center gap-3">
+      <div class="font-mono text-[12px] text-cyan">// your radar</div>
+      <span class="ml-auto font-mono text-[11px] rounded px-2 py-1" style="background:rgba(251,191,36,.14);color:#fbbf24">FREE · 3 of 3 used</span>
+    </div>
+    <h1 class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight">The market, on your stocks.</h1>
+    <p class="mt-3 max-w-2xl text-[15px] leading-relaxed text-t2"><b class="text-t1">2 of your 3 names moved today.</b> Here is why each one moved.</p>
+
+    <div class="mt-7 mb-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> your stocks today</div>
+    <div class="panel overflow-hidden" id="free-mine"></div>
+
+    <div class="mt-8 panel p-6 text-center" style="box-shadow:inset 0 0 0 1px rgba(74,222,128,.22)">
+      <p class="font-mono text-[11px] uppercase tracking-widest text-up mb-2">🔒 the call is Pro</p>
+      <p class="text-[16px] font-semibold">Free tells you why it moved. Pro tells you what to do.</p>
+      <p class="mt-1.5 text-[13px] text-t2 max-w-md mx-auto">Buy / trim / hold on every stock, alerts the moment one moves, your whole-book health, and no 3-stock cap.</p>
+      <a href="#" class="mt-4 inline-block rounded px-6 py-2.5 font-mono text-[13px] font-bold" style="background:#4ade80;color:#070b09">go Pro →</a>
+    </div>
+
+    <div class="mt-8 mb-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> your whole book <span class="text-t3">· Pro</span></div>
+    <div class="grid sm:grid-cols-3 gap-3 relative">
+      <div class="panel p-5 blur"><p class="font-mono text-[11px] text-t2">sector mix</p><div class="mt-3 alloc"><span style="width:56%;background:#fbbf24"></span><span style="width:44%;background:#2b3530"></span></div></div>
+      <div class="panel p-5 blur"><p class="font-mono text-[11px] text-t2">factor tilt</p><div class="mt-3 space-y-2"><div class="h-1.5 rounded bg-up" style="width:80%"></div><div class="h-1.5 rounded bg-down" style="width:30%"></div></div></div>
+      <div class="panel p-5 blur"><p class="font-mono text-[11px] text-t2">book health</p><p class="text-3xl font-extrabold text-up mt-2">B+</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATE 4 — PRO, 15 TRACKED ================= -->
+<section data-state class="px-5 py-8 hidden">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center gap-3 mb-6">
+      <div>
+        <div class="font-mono text-[12px] text-cyan">// your radar</div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-0.5">Good morning.</h1>
+        <p class="font-mono text-[12px] text-t2 mt-1">4 moves · 11 names steady · updated 8:45 AM ET</p>
+      </div>
+      <span class="ml-auto font-mono text-[11px] rounded px-2 py-1 self-start" style="background:rgba(74,222,128,.14);color:#4ade80">PRO · 15 stocks</span>
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_320px] gap-5 items-start">
+      <div>
+        <h2 class="text-xl font-bold tracking-tight">Do this today</h2>
+        <p class="text-[13px] text-t2 mb-3">The names that need a decision.</p>
+        <div class="space-y-3" id="pro-todo"></div>
+
+        <button onclick="tg('pro-steady','pro-steadyC',11)" class="mt-3 w-full panel px-5 py-3 flex items-center gap-3 font-mono text-[12px] text-t2 hover:bg-surface2 transition"><span class="w-1.5 h-1.5 rounded-full bg-t3"></span><span><b class="text-t1">8 holdings</b> steady — nothing to do today</span><span class="ml-auto text-t3" id="pro-steadyC">view all (8) ›</span></button>
+        <div class="panel overflow-hidden mt-2 hidden" id="pro-steady"></div>
+        <button onclick="tg('pro-watch','pro-watchC',7)" class="mt-2 w-full panel px-5 py-3 flex items-center gap-3 font-mono text-[12px] text-t2 hover:bg-surface2 transition"><span class="w-1.5 h-1.5 rounded-full bg-cyan"></span><span><b class="text-t1">7 on your watchlist</b> — tracking, not owned</span><span class="ml-auto text-t3" id="pro-watchC">view all (7) ›</span></button>
+        <div class="panel overflow-hidden mt-2 hidden" id="pro-watch"></div>
+
+        <div class="mt-6">
+          <h2 class="text-xl font-bold tracking-tight">How to lift your grade</h2>
+          <div class="grid sm:grid-cols-2 gap-3 mt-3" id="pro-improve"></div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="panel p-5">
+          <p class="font-mono text-[11px] uppercase tracking-wide text-t2">book health</p>
+          <div class="flex items-center gap-4 mt-3">
+            <div class="relative grid place-items-center" style="width:80px;height:80px"><svg width="80" height="80" class="-rotate-90"><circle cx="40" cy="40" r="34" fill="none" stroke="#1a221c" stroke-width="7"/><circle cx="40" cy="40" r="34" fill="none" stroke="#4ade80" stroke-width="7" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="53"/></svg><span class="absolute text-[24px] font-extrabold text-up">B+</span></div>
+            <div class="flex-1"><p class="text-[15px] font-semibold">Balanced, growth-led.</p><p class="text-[12px] text-t2 leading-snug mt-0.5">Held back by tech concentration and a low value tilt.</p></div>
+          </div>
+        </div>
+        <div class="panel p-5">
+          <div class="flex justify-between font-mono text-[11px] text-t2 mb-2"><span class="uppercase tracking-wide">sector mix</span><span class="text-amber">52% tech</span></div>
+          <div class="alloc"><span style="width:52%;background:#fbbf24"></span><span style="width:16%;background:#4ade80"></span><span style="width:10%;background:#22d3ee"></span><span style="width:22%;background:#2b3530"></span></div>
+          <p class="mt-3 pt-3 font-mono text-[11px] text-amber" style="border-top:1px solid rgba(255,255,255,.06)">⚠ concentrated in tech</p>
+        </div>
+        <div class="panel p-5"><p class="font-mono text-[11px] uppercase tracking-wide text-t2 mb-3">factor tilt</p><div class="space-y-2.5 font-mono text-[12px]" id="pro-factors"></div></div>
+        <div class="panel p-5"><p class="font-mono text-[11px] uppercase tracking-wide text-t2 mb-3">upcoming on your book</p><div class="space-y-2.5" id="pro-events"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+const STANCE={accumulate:'#4ade80',trim:'#fbbf24',hold:'#22d3ee',avoid:'#fb7185',watch:'#22d3ee'};
+const L=(t,s=26)=>`<img src="https://assets.parqet.com/logos/symbol/${t}?format=png" style="width:${s}px;height:${s}px;border-radius:6px;background:#fff;object-fit:contain;padding:${s>20?2:1}px;flex:none" onerror="this.style.display='none'"/>`;
+function spark(series,color){const w=170,h=44,min=Math.min(...series),max=Math.max(...series),rng=(max-min)||1;const pts=series.map((v,i)=>`${(i/(series.length-1)*w).toFixed(1)},${(h-((v-min)/rng)*h).toFixed(1)}`).join(' ');return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6"/></svg>`;}
+function conf(level){const col=level==='high'?'#4ade80':level==='low'?'#fb7185':'#fbbf24';return `<span class="font-mono text-[10px] text-t3 uppercase">confidence</span> <span class="font-mono text-[11px] font-bold uppercase" style="color:${col}">${level}</span>`;}
+
+function actionCard(c){const up=(c.chg??0)>=0;const col=STANCE[c.stance.toLowerCase()]||'#22d3ee';return `
+  <a href="#" class="panel p-5 block hover:bg-surface2 transition" style="box-shadow:inset 0 0 0 1px ${col}30, 0 0 28px ${col}10">
+    <div class="flex gap-4">
+      <div class="pt-0.5">${L(c.t)}<div class="font-mono text-[10px] text-t3 mt-1 text-center">${c.t}</div></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-baseline gap-2.5 flex-wrap"><span class="font-mono text-[16px] font-bold" style="color:${col}">${c.stance}</span><span class="text-[15px] font-semibold">${c.do}</span></div>
+        <p class="mt-1.5 text-[13px] text-t2 leading-snug max-w-md">${c.why}</p>
+        <div class="mt-2.5 flex flex-wrap gap-1.5">${c.chips.map(ch=>`<span class="chip px-2 py-0.5 font-mono text-[10.5px] text-t2">${ch}</span>`).join('')}</div>
+      </div>
+      <div class="hidden sm:flex flex-col items-end justify-between shrink-0">
+        ${c.px?`<div class="text-right font-mono text-[13px]"><div class="text-[16px]">$${c.px}</div><div class="${up?'text-up':'text-down'} text-[12px]">${up?'▲':'▼'} ${Math.abs(c.chg).toFixed(2)}%</div></div>`:`<span class="font-mono text-[11px] text-t3">no price move</span>`}
+        <div class="opacity-90">${spark(c.sr,col)}</div><div>${conf(c.conf)}</div>
+      </div>
+    </div>
+  </a>`;}
+
+const demo=[
+  {t:'NVDA',n:'NVIDIA',px:'228.40',chg:2.95,stance:'ACCUMULATE',do:'Add on a dip under $200',why:'Broke above its add zone; trend confirmed.',chips:['add zone < $200','breakout confirmed'],conf:'high',sr:[40,38,42,39,45,50,48,55,60,58,66,70]},
+  {t:'MU',n:'Micron',px:'1,133.99',chg:8.70,stance:'TRIM',do:'Take some off into strength',why:'Up 8.7% and running hot vs its 50-day.',chips:['your zone $1,200','momentum hot'],conf:'high',sr:[60,62,58,66,70,64,72,78,74,82,79,87]},
+  {t:'TSLA',n:'Tesla',px:'248.12',chg:-1.10,stance:'HOLD',do:'Wait for delivery numbers',why:'Range-bound into the print; mixed analyst view.',chips:['earnings soon'],conf:'med',sr:[50,52,49,53,48,51,47,50,46,49,48,47]},
+];
+document.getElementById('lo-demo').innerHTML=demo.map(actionCard).join('');
+
+const sugg=[['NVDA','NVIDIA',2.95],['SMCI','Super Micro',10.4],['TSLA','Tesla',-1.1],['PLTR','Palantir',5.8],['AMD','Adv. Micro',-2.7],['GLW','Corning',11.1]];
+document.getElementById('empty-sugg').innerHTML=sugg.map(([t,n,c])=>{const up=c>=0;return `
+  <div class="flex items-center gap-3 border-t border-line px-5 py-3 font-mono text-[13px] first:border-t-0">
+    ${L(t,22)}<span class="w-16 font-bold">${t}</span><span class="text-t3 flex-1 truncate">${n}</span>
+    <span class="${up?'text-up':'text-down'} w-20 text-right">${up?'▲':'▼'} ${Math.abs(c).toFixed(2)}%</span>
+    <button class="ml-3 rounded px-3 py-1 font-mono text-[12px] font-bold" style="background:rgba(74,222,128,.14);color:#4ade80">+ track</button>
+  </div>`;}).join('');
+
+const freeMine=[
+  ['NVDA','NVIDIA','228.40',2.95,'Up on data-center demand and a fresh analyst raise.'],
+  ['TSLA','Tesla','248.12',-1.10,'Cooling off ahead of the quarterly delivery numbers.'],
+  ['MU','Micron','1133.99',8.70,'Running hot on the AI memory capex cycle.'],
+];
+document.getElementById('free-mine').innerHTML=freeMine.map(([t,n,px,chg,why])=>{const up=chg>=0;return `
+  <div class="border-t border-line px-5 py-4 first:border-t-0">
+    <div class="flex items-center gap-3 font-mono text-[13px]">${L(t,24)}<span class="font-bold">${t}</span><span class="text-t3">${n}</span>
+      <span class="ml-auto flex flex-col items-end leading-tight"><span>$${px}</span><span class="${up?'text-up':'text-down'} text-[12px]">${up?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</span></span></div>
+    <p class="mt-2 text-[13px] text-t2">${why}</p>
+    <div class="mt-2 inset px-3 py-2 flex items-center gap-2"><span class="font-mono text-[11px] text-t3">our call:</span><span class="blur font-mono text-[13px] font-bold text-up">ACCUMULATE under $200</span><span class="ml-auto font-mono text-[11px] text-up">🔒 Pro</span></div>
+  </div>`;}).join('');
+
+// ---- PRO state ----
+const proTodo=[
+  {t:'MU',n:'Micron',px:'1,133.99',chg:8.70,stance:'TRIM',do:'Take some off into strength',why:'Hit your $1,200 zone and running hot vs its 50-day.',chips:['your zone $1,200','50-day break','momentum hot'],conf:'high',sr:[60,62,58,66,70,64,72,78,74,82,79,87]},
+  {t:'NVDA',n:'NVIDIA',px:'228.40',chg:2.95,stance:'ACCUMULATE',do:'Add on a dip under $200',why:'Broke above your add zone 2h ago; trend confirmed.',chips:['add zone < $200','breakout confirmed'],conf:'high',sr:[40,38,42,39,45,50,48,55,60,58,66,70]},
+  {t:'AVGO',n:'Broadcom',px:'1,684.00',chg:-3.10,stance:'HOLD',do:'Hold through the pullback',why:'Down on sector rotation, not company news. Thesis intact.',chips:['sector rotation','thesis intact'],conf:'med',sr:[80,82,79,77,74,76,72,70,68,71,67,64]},
+  {t:'PLTR',n:'Palantir',px:'82.10',chg:5.80,stance:'WATCH',do:'Watch for a reclaim of $85',why:'Buzzing on Reddit; needs to clear $85 to confirm.',chips:['reddit buzz','near trigger'],conf:'low',sr:[70,68,72,69,74,71,76,73,78,75,80,82]},
+];
+document.getElementById('pro-todo').innerHTML=proTodo.map(actionCard).join('');
+
+function quietRow(t,call,col,chg,sub){const up=chg>=0;return `
+  <a href="#" class="flex items-center gap-3 border-t border-line px-5 py-2.5 first:border-t-0 font-mono text-[12px] text-t2 hover:bg-surface2 transition">
+    ${L(t,18)}<span class="font-bold text-t1 w-14">${t}</span><span class="w-12" style="color:${col}">${call}</span><span class="text-t3 flex-1 truncate">${sub}</span>
+    <span class="${up?'text-up':'text-down'} w-16 text-right">${up?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</span></a>`;}
+const proSteady=[['AAPL',0.3],['MSFT',0.8],['GOOGL',-0.4],['AMZN',1.1],['META',0.6],['COST',-0.2],['V',0.4],['LLY',1.3]];
+document.getElementById('pro-steady').innerHTML=proSteady.map(([t,c])=>quietRow(t,'HOLD','#22d3ee',c,'no change')).join('');
+const proWatch=[['COIN',-2.3,'WATCH','#22d3ee','watch $240 support'],['RDDT',3.1,'ACCUMULATE','#4ade80','add under $60'],['SMCI',10.4,'AVOID','#fb7185','too volatile'],['SHOP',1.2,'WATCH','#22d3ee','reclaim $80'],['NET',-0.8,'WATCH','#22d3ee','base building'],['CRWD',2.0,'WATCH','#22d3ee','near highs'],['DDOG',-1.4,'WATCH','#22d3ee','watch $120']];
+document.getElementById('pro-watch').innerHTML=proWatch.map(([t,c,call,col,sub])=>quietRow(t,call,col,c,sub)).join('');
+
+const improve=[
+  {icon:'⚠',color:'#fbbf24',head:'Cut your tech concentration',body:'52% in one sector is your biggest risk. Heaviest semis: NVDA (12%), MU (9%).',mode:'trim',names:['NVDA','MU']},
+  {icon:'+',color:'#4ade80',head:'Add a value name to balance the tilt',body:'Value tilt is low (31). Cash-flow names outside tech:',mode:'add',names:[['JPM','241.30',0.6,'banks · steady cash flow'],['UNH','512.80',1.1,'healthcare · defensive']]},
+];
+document.getElementById('pro-improve').innerHTML=improve.map(s=>`
+  <div class="panel p-4">
+    <div class="flex items-start gap-2 mb-2.5"><span class="font-mono text-[14px] mt-0.5" style="color:${s.color}">${s.icon}</span><div class="flex-1"><p class="text-[14px] font-semibold">${s.head}</p><p class="mt-1 text-[12.5px] text-t2 leading-snug">${s.body}</p></div></div>
+    ${s.mode==='trim'?`<div class="flex flex-wrap gap-2">${s.names.map(t=>`<a href="#" class="chip flex items-center gap-1.5 px-2.5 py-1 font-mono text-[12px]">${L(t,16)}<span class="font-bold">${t}</span><span class="text-t3">trim →</span></a>`).join('')}</div>`
+    :`<div class="space-y-1.5">${s.names.map(([t,px,chg,why])=>{const up=chg>=0;return `<div class="inset flex items-center gap-2.5 px-3 py-2 font-mono text-[12px]">${L(t,18)}<span class="font-bold text-t1 w-12">${t}</span><span class="text-t3 flex-1 truncate hidden sm:block">${why}</span><span class="text-t2">$${px}</span><span class="${up?'text-up':'text-down'} w-12 text-right">${up?'▲':'▼'} ${Math.abs(chg).toFixed(1)}%</span><button class="rounded px-2.5 py-1 font-bold" style="background:rgba(74,222,128,.14);color:#4ade80">+ track</button></div>`;}).join('')}</div>`}
+  </div>`).join('');
+
+const factors=[['Growth','high',82,'#4ade80'],['Momentum','mid',58,'#f1f4f7'],['Quality','mid',61,'#f1f4f7'],['Value','low',31,'#fb7185']];
+document.getElementById('pro-factors').innerHTML=factors.map(([l,w,s,c])=>`<div><div class="flex justify-between"><span class="text-t2">${l}</span><span style="color:${c}">${w} · ${s}</span></div><div class="mt-1" style="height:5px;border-radius:99px;background:#1a221c;overflow:hidden"><span style="display:block;height:100%;width:${s}%;background:${c}"></span></div></div>`).join('');
+const events=[['MU','Micron earnings','in 3 days'],['NVDA','NVIDIA earnings','in 5 days'],['AAPL','Apple earnings','in 8 days']];
+document.getElementById('pro-events').innerHTML=events.map(([t,name,when])=>`<div class="flex items-center gap-2.5 font-mono text-[12px]">${L(t,20)}<span class="text-t1 flex-1 truncate">${name}</span><span class="text-t3">${when}</span></div>`).join('');
+
+// switcher
+const states=[...document.querySelectorAll('[data-state]')];
+function show(i,btn){states.forEach((s,idx)=>s.classList.toggle('hidden',idx!==i));document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');window.scrollTo(0,0);}
+function tg(id,cid,n){const el=document.getElementById(id),open=!el.classList.contains('hidden');el.classList.toggle('hidden');document.getElementById(cid).textContent=open?`view all (${n}) ›`:'hide ›';}
+</script>
+</body>
+</html>

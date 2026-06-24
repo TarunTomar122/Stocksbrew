@@ -99,3 +99,15 @@ export function isPremarketLive(
 
   return String(doc.market_state || "").toUpperCase().startsWith("PRE");
 }
+
+/** True when today's snapshot has at least one pre-market gapper. */
+export function hasPremarketDataForToday(
+  doc: PremarketMovers | null,
+  market: "US" | "IN" = "US",
+): boolean {
+  if (!doc || doc.market !== market) return false;
+  const todayEt = easternDateIso(easternParts());
+  const docDate = String(doc.date || "").slice(0, 10);
+  if (docDate !== todayEt) return false;
+  return (doc.gappers_up?.length ?? 0) + (doc.gappers_down?.length ?? 0) > 0;
+}

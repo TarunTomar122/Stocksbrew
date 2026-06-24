@@ -892,7 +892,7 @@ function MobileRow({
 
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-container-low transition-colors cursor-pointer ${
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer ${
         hasBorder ? "border-t border-outline-variant" : ""
       }`}
       onClick={() => router.push(href)}
@@ -977,7 +977,7 @@ function LedgerRow({
 
   return (
     <tr
-      className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low transition-colors cursor-pointer"
+      className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer"
       onClick={() => router.push(href)}
     >
       <td className="px-4 py-3">

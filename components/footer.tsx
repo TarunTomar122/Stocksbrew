@@ -11,43 +11,31 @@ const COLUMNS: Column[] = [
   {
     title: "Product",
     links: [
-      { label: "Markets", href: "/" },
-      { label: "Market Heat", href: "/heat" },
-      { label: "Screens", href: "/screens" },
-      { label: "News", href: "/news" },
       { label: "Market Pulse", href: "/pulse" },
-      { label: "Pre-market movers", href: "/premarket" },
-      { label: "Trump Logic", href: "/trump-logic" },
       { label: "Radar", href: "/watchlist" },
-    ],
-  },
-  {
-    title: "Earnings",
-    links: [
-      { label: "Upcoming setups", href: "/upcoming-events" },
-      { label: "Fresh reports", href: "/events" },
-      { label: "Earnings calendar", href: "/earnings" },
-      { label: "Earnings intel", href: "/earnings-intel" },
+      { label: "Pre-market movers", href: "/premarket" },
+      { label: "Earnings", href: "/earnings" },
     ],
   },
   {
     title: "Free tools",
     links: [
+      { label: "All free tools", href: "/free-tools" },
       { label: "Should I Buy?", href: "/should-i-buy" },
       { label: "Compare stocks", href: "/compare-stocks" },
       { label: "Portfolio Analyzer", href: "/portfolio" },
-      { label: "Position size calculator", href: "/position-size-calculator" },
-      { label: "IPO calendar", href: "/ipos" },
+      { label: "Position calculator", href: "/position-size-calculator" },
+      { label: "Market Heat", href: "/heat" },
+      { label: "Screens", href: "/screens" },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "Research guides", href: "/guides" },
-      { label: "Learn", href: "/learn" },
+      { label: "Learn & guides", href: "/resources" },
       { label: "Blog", href: "/blog" },
-      { label: "Compare tools", href: "/compare" },
       { label: "Use cases", href: "/use-cases" },
+      { label: "Compare stocksbrew", href: "/compare" },
     ],
   },
   {
@@ -56,11 +44,6 @@ const COLUMNS: Column[] = [
       { label: "About", href: "/about" },
       { label: "Pricing", href: "/subscribe" },
       { label: "Contact", href: "mailto:tomartarun2001@gmail.com", external: true },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
       { label: "Terms of service", href: "/legal/terms" },
       { label: "Privacy policy", href: "/legal/privacy" },
       { label: "Cookie policy", href: "/legal/cookies" },
@@ -73,22 +56,19 @@ export function Footer() {
   const year = new Date().getFullYear();
   return (
     <footer className="mt-16 bg-[#070b09] text-white">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-16">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-10">
-          {/* Wordmark + tagline */}
+      <div className="mx-auto w-full max-w-screen-2xl px-6 py-16 md:px-10 lg:px-16">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-6">
           <div className="col-span-2 flex flex-col gap-4">
-            <Link href="/" className="flex items-center gap-1.5 w-fit">
-              <span className="font-mono text-[19px] font-bold tracking-[-0.03em] text-white leading-none">
+            <Link href="/" className="flex w-fit items-center gap-1.5">
+              <span className="font-mono text-[19px] font-bold leading-none tracking-[-0.03em] text-white">
                 stocksbrew<span style={{ color: "#4ade80" }}>.</span>
               </span>
             </Link>
-            <p className="text-[14px] leading-[1.55] text-white/65 max-w-[320px]">
-              {SHORT_DESCRIPTION}
-            </p>
-            <div className="flex items-center gap-2 mt-2">
+            <p className="max-w-[320px] text-[14px] leading-[1.55] text-white/65">{SHORT_DESCRIPTION}</p>
+            <div className="mt-2 flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/85">
                 <span className="relative inline-flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75 animate-ping" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#10b981]" />
                 </span>
                 Live now
@@ -96,10 +76,9 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Link columns */}
           {COLUMNS.map((col) => (
             <div key={col.title} className="flex flex-col gap-3">
-              <h3 className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-white/55">
+              <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
                 {col.title}
               </h3>
               <ul className="flex flex-col gap-2.5">
@@ -108,14 +87,14 @@ export function Footer() {
                     {link.external ? (
                       <a
                         href={link.href}
-                        className="text-[14px] text-white/80 hover:text-white transition-colors"
+                        className="text-[14px] text-white/80 transition-colors hover:text-white"
                       >
                         {link.label}
                       </a>
                     ) : (
                       <Link
                         href={link.href}
-                        className="text-[14px] text-white/80 hover:text-white transition-colors"
+                        className="text-[14px] text-white/80 transition-colors hover:text-white"
                       >
                         {link.label}
                       </Link>
@@ -127,17 +106,27 @@ export function Footer() {
           ))}
         </div>
 
-          <div className="my-4">
-        <a href="https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch" target="_blank" rel="noopener noreferrer">
-  <img src="https://www.scrolllaunch.com/api/badge/tikrr" alt="Featured on ScrollLaunch" width="220" height="48" loading="lazy" />
-</a>
-</div>
-        <div className="mt-14 pt-6 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap">
-          <p className="text-[12px] text-white/55">
-            © {year} stocksbrew. All rights reserved.
-          </p>
-          <p className="text-[12px] text-white/45 max-w-[640px]">
-            stocksbrew provides market data and analytics for informational purposes only. Nothing here is investment advice. Past performance does not guarantee future results.
+        <div className="my-8">
+          <a
+            href="https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://www.scrolllaunch.com/api/badge/tikrr"
+              alt="Featured on ScrollLaunch"
+              width={220}
+              height={48}
+              loading="lazy"
+            />
+          </a>
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
+          <p className="text-[12px] text-white/55">© {year} stocksbrew. All rights reserved.</p>
+          <p className="max-w-[640px] text-[12px] text-white/45">
+            stocksbrew provides market data and analytics for informational purposes only. Nothing here is investment
+            advice. Past performance does not guarantee future results.
           </p>
         </div>
       </div>

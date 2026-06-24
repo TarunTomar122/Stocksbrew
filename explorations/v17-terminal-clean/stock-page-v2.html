@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NVDA // stocksbrew v2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script>tailwind.config={theme:{extend:{colors:{bg:'#f6f7f6',card:'#ffffff',ink:'#0e1217',t2:'#5b6473',t3:'#9aa3b2',line:'#e8eaed',chip:'#f1f3f2',green:'#15803d',green2:'#16a34a',greenbg:'#eafaf0',red:'#dc2626',redbg:'#fdecec',amber:'#b45309'},fontFamily:{mono:['"JetBrains Mono"','monospace'],sans:['Inter','sans-serif']}}}};</script>
+<style>
+  body{background:#f6f7f6}
+  .card{background:#fff;border:1px solid #e8eaed;border-radius:16px}
+  .chip{background:#f1f3f2;border-radius:8px}
+  .kick{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9aa3b2}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .barbg{height:6px;border-radius:99px;background:#eef0f0;overflow:hidden}.barbg>span{display:block;height:100%;border-radius:99px}
+  .tier{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#15803d;font-weight:600}
+</style>
+</head>
+<body class="font-sans text-ink antialiased">
+
+<!-- NAV -->
+<div class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-line">
+  <div class="max-w-6xl mx-auto px-5 h-14 flex items-center gap-5">
+    <span class="font-extrabold text-green text-[17px] tracking-tight">stocksbrew</span>
+    <a class="text-[14px] text-t2 font-medium" href="#">Pulse</a><a class="text-[14px] text-t2 font-medium" href="#">Radar</a>
+    <div class="flex-1 max-w-lg mx-auto chip flex items-center gap-2 px-3 py-2"><span class="text-t3">🔍</span><span class="text-[13px] text-t3">Search ticker…</span></div>
+    <div class="w-8 h-8 rounded-full bg-green/20"></div>
+  </div>
+</div>
+
+<div class="max-w-6xl mx-auto px-5 py-7">
+
+  <!-- HEADER (compact, price is secondary to the verdict) -->
+  <div class="flex items-center gap-3.5 mb-5">
+    <img src="https://assets.parqet.com/logos/symbol/NVDA?format=png" class="w-11 h-11 rounded-xl bg-white border border-line p-1 object-contain" onerror="this.style.display='none'"/>
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight leading-none">NVIDIA Corporation</h1>
+      <p class="mono text-[12px] text-t2 mt-1">NVDA · NASDAQ · Technology</p>
+    </div>
+    <div class="ml-auto text-right">
+      <div class="text-2xl font-extrabold tracking-tight">$200.04</div>
+      <div class="mono text-[13px] font-semibold text-red">▼ 4.13% today</div>
+    </div>
+    <button class="card px-3 py-2 text-[13px] font-medium">☆ Watch</button>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TIER 1 — THE VERDICT (hero). Answer first, then the play. -->
+  <!-- ========================================================= -->
+  <div class="card p-6 sm:p-7" style="background:linear-gradient(180deg,#f3fbf6,#ffffff);border-color:#cdeed8">
+    <div class="flex flex-wrap items-start gap-4">
+      <div class="flex-1 min-w-[260px]">
+        <div class="kick text-green/70">our call</div>
+        <div class="flex items-center gap-3 mt-1">
+          <h2 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-green">Accumulate</h2>
+          <!-- conviction as a 3-dot meter -->
+          <div class="flex flex-col gap-1 pt-1">
+            <div class="flex gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green2"></span><span class="w-2.5 h-2.5 rounded-full bg-green2"></span><span class="w-2.5 h-2.5 rounded-full bg-green2"></span></div>
+            <span class="mono text-[10px] text-t3">HIGH CONVICTION</span>
+          </div>
+        </div>
+        <p class="text-[16px] text-ink/80 leading-relaxed mt-3 max-w-xl">Pulling back inside an uptrend. Fundamentals support buying near recent lows around <b>$195</b>.</p>
+      </div>
+      <div class="text-right">
+        <div class="kick">if it dips to</div>
+        <div class="text-2xl font-extrabold text-green mt-1">$195.00</div>
+        <button class="mt-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold" style="background:#15803d">🔔 alert me at the zone</button>
+      </div>
+    </div>
+
+    <!-- THE DECISION RULER — new component: where price sits vs zone, MAs, high, target -->
+    <div class="mt-7">
+      <div id="ruler" class="relative" style="height:96px"></div>
+    </div>
+
+    <!-- why we're right / what flips it -->
+    <div class="grid sm:grid-cols-2 gap-3 mt-6">
+      <div class="chip p-4"><div class="kick text-green mb-1">why we like it</div><p class="text-[13.5px] text-ink/85 leading-snug">Dominant AI training GPU share and growth far above its sector, with price cooling into support.</p></div>
+      <div class="chip p-4"><div class="kick text-red mb-1">what flips this call</div><p class="text-[13.5px] text-ink/85 leading-snug">A close below the <b>200-day ($190)</b>, or AI-inference rivals taking real share from Broadcom.</p></div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TIER 2 — THE CASE (bull vs bear) + the chart            -->
+  <!-- ========================================================= -->
+  <div class="tier mt-8 mb-3">the case</div>
+  <div class="grid lg:grid-cols-2 gap-4 items-start">
+
+    <!-- bull/bear balance — new component -->
+    <div class="card p-5">
+      <div class="flex justify-between items-baseline">
+        <span class="kick">bull vs bear</span>
+        <span class="mono text-[12px] font-bold text-green">leans bullish</span>
+      </div>
+      <!-- balance beam -->
+      <div class="relative mt-4 mb-5" style="height:30px">
+        <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full" style="background:linear-gradient(90deg,#fdecec,#f1f3f2,#eafaf0)"></div>
+        <div class="absolute top-0 bottom-0 w-[3px] bg-ink/30" style="left:50%"></div>
+        <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-green2 border-4 border-white shadow" style="left:70%"></div>
+        <span class="absolute left-0 -bottom-1 mono text-[10px] text-red">bearish</span>
+        <span class="absolute right-0 -bottom-1 mono text-[10px] text-green">bullish</span>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="mono text-[11px] text-green2 mb-2">▲ 2 drivers</div>
+          <div class="space-y-2">
+            <div class="chip p-2.5"><p class="text-[12.5px] font-semibold">Dominant AI GPU share</p></div>
+            <div class="chip p-2.5"><p class="text-[12.5px] font-semibold">Growth far above sector</p></div>
+          </div>
+        </div>
+        <div>
+          <div class="mono text-[11px] text-red mb-2">▼ 1 risk</div>
+          <div class="space-y-2">
+            <div class="chip p-2.5"><p class="text-[12.5px] font-semibold">AI-inference competition</p><p class="text-[11px] text-t2 mt-0.5">Broadcom & ASICs eroding share</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- chart (now supporting) -->
+    <div class="card p-5">
+      <div class="flex justify-between items-baseline mb-1">
+        <span class="kick">price · 1 year</span>
+        <span class="mono text-[12px] text-t2">below 50-day, momentum cooling</span>
+      </div>
+      <div id="chart"></div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1 mono text-[10.5px] text-t2 mt-1">
+        <span><span class="inline-block w-3 h-[2px] align-middle" style="background:#15803d"></span> price</span>
+        <span><span class="inline-block w-3 h-[2px] align-middle border-t border-dashed" style="border-color:#9aa3b2"></span> 50d $209.81</span>
+        <span><span class="inline-block w-2.5 h-2.5 rounded-sm align-middle" style="background:#cdeed8"></span> accumulate zone</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TIER 3 — THE SCORECARD (rings + target + sentiment)      -->
+  <!-- ========================================================= -->
+  <div class="tier mt-8 mb-3">the scorecard</div>
+  <div class="grid lg:grid-cols-[1.3fr_1fr_1fr] gap-4 items-start">
+
+    <!-- pillar rings — new component -->
+    <div class="card p-5">
+      <div class="flex justify-between items-baseline mb-4"><span class="kick">fundamentals</span><span class="mono text-[13px] font-bold">87 <span class="text-t3 font-normal">/100 vs peers</span></span></div>
+      <div class="grid grid-cols-4 gap-2" id="rings"></div>
+      <p class="text-[12.5px] text-t2 mt-4 leading-snug">Elite <b class="text-green">growth</b> and <b class="text-green">quality</b>, fair <b>valuation</b>, but <b class="text-red">momentum</b> is cooling.</p>
+    </div>
+
+    <!-- analyst target as distance -->
+    <div class="card p-5">
+      <div class="kick mb-3">room to target</div>
+      <div class="text-[15px] text-t2">59 analysts, <b class="text-green">100% Buy</b></div>
+      <div class="flex items-end gap-2 mt-2">
+        <div><div class="mono text-[11px] text-t3">now</div><div class="text-[20px] font-extrabold">$200</div></div>
+        <div class="flex-1 px-1">
+          <div class="barbg" style="height:8px"><span style="width:67%;background:linear-gradient(90deg,#cdeed8,#15803d)"></span></div>
+        </div>
+        <div class="text-right"><div class="mono text-[11px] text-t3">target</div><div class="text-[20px] font-extrabold text-green">$299</div></div>
+      </div>
+      <div class="text-center mt-2 text-[13px] font-semibold text-green">+49.4% upside</div>
+      <div class="grid grid-cols-3 gap-1 mt-3 pt-3 border-t border-line mono text-[11px] text-center text-t2">
+        <span>low $720</span><span>·</span><span>high $1,420</span>
+      </div>
+    </div>
+
+    <!-- sentiment -->
+    <div class="card p-5">
+      <div class="kick mb-3">the crowd</div>
+      <div class="flex items-center gap-3">
+        <div class="relative grid place-items-center" style="width:72px;height:72px">
+          <svg width="72" height="72" class="-rotate-90"><circle cx="36" cy="36" r="30" fill="none" stroke="#eef0f0" stroke-width="7"/><circle cx="36" cy="36" r="30" fill="none" stroke="#16a34a" stroke-width="7" stroke-linecap="round" stroke-dasharray="188" stroke-dashoffset="51"/></svg>
+          <div class="absolute text-center"><div class="text-[18px] font-extrabold leading-none">73</div></div>
+        </div>
+        <div class="text-[13px]"><div class="font-bold text-green">Constructive</div><div class="text-t2 mt-0.5">133 Reddit posts · 72% positive</div></div>
+      </div>
+      <p class="text-[12.5px] text-t2 mt-3 leading-snug">Crowd is talking up a $6.3B compute deal and JPMorgan funding.</p>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TIER 4 — REFERENCE (quiet) + WHAT'S NEXT                 -->
+  <!-- ========================================================= -->
+  <div class="grid lg:grid-cols-[1.6fr_1fr] gap-4 items-start mt-8">
+    <div class="card p-5">
+      <div class="tier mb-3" style="color:#9aa3b2">the numbers</div>
+      <div class="grid sm:grid-cols-2 gap-x-8" id="keystats"></div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-line" id="fin"></div>
+    </div>
+    <div class="card p-5">
+      <div class="tier mb-3" style="color:#9aa3b2">what's next</div>
+      <div class="space-y-3" id="events"></div>
+      <div class="mt-4 pt-4 border-t border-line space-y-2.5" id="alerts"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---------- DECISION RULER ----------
+(function(){
+  const lo=145.5,hi=300,P=v=>((v-lo)/(hi-lo))*100;
+  const marks=[
+    {v:209.81,label:'50d',cls:'text-t2'},
+    {v:236.54,label:'52w high',cls:'text-t2'},
+  ];
+  const el=document.getElementById('ruler');
+  el.innerHTML=`
+    <!-- track -->
+    <div class="absolute left-0 right-0" style="top:46px;height:8px;border-radius:99px;background:#eef0f0"></div>
+    <!-- accumulate zone (<=195) -->
+    <div class="absolute" style="left:0;width:${P(195)}%;top:46px;height:8px;border-radius:99px 0 0 99px;background:#cdeed8"></div>
+    <!-- runway now->target -->
+    <div class="absolute" style="left:${P(200.04)}%;width:${P(298.93)-P(200.04)}%;top:46px;height:8px;background:linear-gradient(90deg,#15803d,#bfe6cd)"></div>
+    <!-- 200MA tick -->
+    <div class="absolute" style="left:${P(190.09)}%;top:40px;height:20px;width:2px;background:#9aa3b2"></div>
+    <div class="absolute mono text-[10px] text-t3" style="left:${P(190.09)}%;top:70px;transform:translateX(-50%)">200d $190</div>
+    <!-- other ticks -->
+    ${marks.map(m=>`<div class="absolute" style="left:${P(m.v)}%;top:42px;height:16px;width:2px;background:#cfd6dd"></div><div class="absolute mono text-[10px] ${m.cls}" style="left:${P(m.v)}%;top:70px;transform:translateX(-50%);white-space:nowrap">${m.label}</div>`).join('')}
+    <!-- accumulate zone label -->
+    <div class="absolute mono text-[10px] text-green font-semibold" style="left:0;top:18px">◂ accumulate ≤ $195</div>
+    <!-- NOW pin -->
+    <div class="absolute" style="left:${P(200.04)}%;top:26px;transform:translateX(-50%)">
+      <div class="px-2 py-0.5 rounded-md text-white text-[11px] font-bold mono whitespace-nowrap" style="background:#0e1217">NOW $200</div>
+      <div class="w-[2px] h-5 bg-ink mx-auto"></div>
+    </div>
+    <!-- TARGET pin -->
+    <div class="absolute text-right" style="right:0;top:18px">
+      <div class="mono text-[10px] text-green font-semibold">target $299 ▸</div>
+    </div>
+    <div class="absolute" style="left:${P(298.93)}%;top:42px;height:16px;width:2px;background:#15803d"></div>
+  `;
+})();
+
+// ---------- price chart ----------
+const series=[148,150,147,152,149,156,162,160,168,175,172,180,188,196,205,218,236,228,232,224,219,226,221,215,222,217,210,205,212,208,203,199,206,201,209,214,210,205,200,196,202,198,205,201,200.04];
+(function(){
+  const w=520,h=150,pad=6,min=140,max=240,Y=v=>h-pad-((v-min)/(max-min))*(h-2*pad),X=i=>pad+(i/(series.length-1))*(w-2*pad);
+  const line=series.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  document.getElementById('chart').innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="w-full" style="height:150px">
+    <rect x="${pad}" y="${Y(195)}" width="${w-2*pad}" height="${h-pad-Y(195)}" fill="#cdeed8" opacity=".45"/>
+    <line x1="${pad}" y1="${Y(209.81)}" x2="${w-pad}" y2="${Y(209.81)}" stroke="#9aa3b2" stroke-width="1" stroke-dasharray="5 4"/>
+    <polyline points="${line}" fill="none" stroke="#15803d" stroke-width="2"/>
+  </svg>`;
+})();
+
+// ---------- pillar rings ----------
+const rings=[['Growth',100,'#16a34a'],['Quality',93,'#16a34a'],['Valuation',95,'#16a34a'],['Momentum',58,'#dc2626']];
+document.getElementById('rings').innerHTML=rings.map(([l,s,c])=>{
+  const r=24,circ=2*Math.PI*r,off=circ*(1-s/100);
+  return `<div class="text-center">
+    <div class="relative grid place-items-center mx-auto" style="width:60px;height:60px">
+      <svg width="60" height="60" class="-rotate-90"><circle cx="30" cy="30" r="${r}" fill="none" stroke="#eef0f0" stroke-width="6"/><circle cx="30" cy="30" r="${r}" fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg>
+      <span class="absolute text-[14px] font-extrabold">${s}</span>
+    </div>
+    <div class="text-[11px] text-t2 mt-1">${l}</div>
+  </div>`;}).join('');
+
+// ---------- key stats ----------
+const ks=[['P/E (TTM)','30.6','reasonable'],['Revenue growth','+70.7%','fast'],['EPS next Y','+39.9%','strong'],['RSI (14)','42','neutral'],['Beta','2.20','volatile'],['Div yield','—','none'],['Market cap','$4.85T',''],['Revenue (TTM)','$253.49B','']];
+document.getElementById('keystats').innerHTML=ks.map(([l,v,n])=>`
+  <div class="flex items-center justify-between py-2 border-b border-line"><span class="text-[13px] text-t2">${l}</span><span class="flex items-center gap-2">${n?`<span class="text-[11px] text-t3">${n}</span>`:''}<span class="mono text-[13px] font-bold">${v}</span></span></div>`).join('');
+
+// ---------- financials ----------
+const fin=[['Revenue','$253.49B'],['Net income','$159.61B'],['EPS','$6.53'],['Op. income','$162.28B'],['Gross profit','$187.95B'],['Rev growth','+70.7%']];
+document.getElementById('fin').innerHTML=fin.map(([l,v])=>`<div class="chip p-2.5"><div class="mono text-[10.5px] text-t3">${l}</div><div class="text-[14px] font-extrabold mt-0.5">${v}</div></div>`).join('');
+
+// ---------- events + alerts ----------
+const events=[['📅','Earnings Release','May 20'],['💵','Dividend Ex-Date','Jul 2']];
+document.getElementById('events').innerHTML=events.map(([ic,l,d])=>`<div class="flex items-center gap-2.5"><span>${ic}</span><span class="text-[13px] flex-1 font-medium">${l}</span><span class="mono text-[12px] text-t2">${d}</span></div>`).join('');
+const alerts=[['Price below $195','Create'],['Earnings May 20','Remind me'],['RSI above 70','Create']];
+document.getElementById('alerts').innerHTML=alerts.map(([l,cta])=>`<div class="flex items-center gap-2.5"><span>🔔</span><span class="text-[13px] flex-1 text-t2">${l}</span><button class="mono text-[12px] text-green font-semibold">${cta}</button></div>`).join('');
+</script>
+</body>
+</html>

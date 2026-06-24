@@ -1,4 +1,5 @@
 import { PortfolioAnalyzer } from "@/components/portfolio-analyzer";
+import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
 import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
 
@@ -23,7 +24,13 @@ export default async function PortfolioPage() {
 
   return (
     <main className="flex-grow">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pt-8 md:px-10 lg:px-16">
+        <FreeToolBreadcrumb title="Portfolio Analyzer" />
+      </div>
       <PortfolioAnalyzer searchIndex={searchIndex} />
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
+        <FreeToolRelated currentHref="/portfolio" />
+      </div>
     </main>
   );
 }

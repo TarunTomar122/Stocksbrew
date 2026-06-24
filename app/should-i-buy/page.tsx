@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ShouldIBuyInteractive } from "@/components/should-i-buy-interactive";
 import { ShouldIBuyLandingSections } from "@/components/should-i-buy-landing-sections";
+import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
 import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
 import { getSessionUser } from "@/lib/auth-server";
@@ -35,8 +36,14 @@ export default async function ShouldIBuyPage() {
 
   return (
     <main className="flex-grow">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pt-8 md:px-10 lg:px-16">
+        <FreeToolBreadcrumb title="Should I Buy?" />
+      </div>
       <ShouldIBuyInteractive searchIndex={searchIndex} isSubscribed={isSubscribed} />
       <ShouldIBuyLandingSections />
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
+        <FreeToolRelated currentHref="/should-i-buy" />
+      </div>
     </main>
   );
 }

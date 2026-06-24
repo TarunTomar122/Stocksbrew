@@ -250,6 +250,7 @@ export type RadarStyleNewsFeedProps =
       variant: "market";
       articles: NewsArticle[];
       market: "US" | "IN";
+      hideTitle?: boolean;
     };
 
 const RADAR_COPY = {
@@ -318,6 +319,8 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       neutral,
     };
   }, [articlesForToneCounts]);
+
+  const hideTitle = variant === "market" && props.hideTitle;
 
   const title = variant === "radar" ? RADAR_COPY.title : "Market news";
   const subtitle =
@@ -391,10 +394,16 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
     <section className="flex flex-col gap-4 bg-surface p-3 md:p-5">
       <div className="flex shrink-0 flex-col gap-4 border-b border-[#ebebeb] pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
-          <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-on-surface md:text-[20px]">
-            {title}
-          </HeadingTag>
-          <p className="max-w-xl text-[13px] leading-relaxed text-[#737373]">{subtitle}</p>
+          {!hideTitle ? (
+            <>
+              <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-on-surface md:text-[20px]">
+                {title}
+              </HeadingTag>
+              <p className="max-w-xl text-[13px] leading-relaxed text-[#737373]">{subtitle}</p>
+            </>
+          ) : (
+            <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant">{subtitle}</p>
+          )}
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#b5b5b5]">
             {articles.length === 0
               ? "-"

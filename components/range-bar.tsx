@@ -9,6 +9,63 @@ type Props = {
   format: (v: number) => string;
 };
 
+const STRIP_PAD = 7;
+
+function clampPct(v: number) {
+  return Math.max(0, Math.min(100, v));
+}
+
+/** Dot-on-a-track used in stock hero (52w range, RSI). Marker sits in padded lane so it never clips. */
+export function PositionStrip({
+  pct,
+  trackBackground,
+  fillPct,
+  fillBackground,
+}: {
+  pct: number;
+  trackBackground: string;
+  fillPct?: number;
+  fillBackground?: string;
+}) {
+  const p = clampPct(pct);
+  return (
+    <div className="relative h-2">
+      <div className="absolute inset-0 rounded-full" style={{ background: trackBackground }} />
+      {fillPct != null && fillBackground && (
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{ width: `${clampPct(fillPct)}%`, background: fillBackground }}
+        />
+      )}
+      <div className="absolute inset-y-0" style={{ left: STRIP_PAD, right: STRIP_PAD }}>
+        <span
+          aria-hidden
+          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-surface ring-2 ring-on-surface"
+          style={{ left: `${p}%`, boxShadow: "0 1px 2px color-mix(in srgb, var(--on-surface) 18%, transparent)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function RsiZoneLabels() {
+  return (
+    <div className="relative mt-3 h-4 font-label text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+      <span className="absolute left-[15%] -translate-x-1/2">oversold</span>
+      <span className="absolute left-[50%] -translate-x-1/2">healthy</span>
+      <span className="absolute left-[85%] -translate-x-1/2">overbought</span>
+    </div>
+  );
+}
+
+const RSI_TRACK_BG =
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 16%, var(--surface-container-high)) 0%, var(--surface-container-high) 28%, color-mix(in srgb, var(--signal-bullish) 12%, var(--surface-container-high)) 50%, var(--surface-container-high) 72%, color-mix(in srgb, var(--signal-neutral) 14%, var(--surface-container-high)) 100%)";
+
+const WEEK52_FILL_BG =
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 14%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 18%, var(--surface-container-high)))";
+
+export { RSI_TRACK_BG, WEEK52_FILL_BG };
+
 // Cal/INDmoney-style range strip: a gradient bar with a dot marker at the
 // current value. Built to sit in narrow columns (3-up grid) so headers stack
 // vertically rather than fighting for horizontal room.

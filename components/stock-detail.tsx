@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import { PriceChart } from "@/components/price-chart";
+import { PositionStrip, RsiZoneLabels, RSI_TRACK_BG } from "@/components/range-bar";
+import { TodaysMoveCard, SocialConversationCard } from "@/components/stock-social-proof-card";
 import { FundamentalsBreakdown } from "@/components/fundamentals-breakdown";
 import { AlertButton } from "@/components/alert-button";
 import type {
@@ -90,11 +92,11 @@ type Props = {
 };
 
 const STANCE_ACCENT: Record<string, string> = {
-  accumulate: "#10b981",
-  trim: "#f59e0b",
-  watch: "#3b82f6",
-  avoid: "#ef4444",
-  hold: "#64748b",
+  accumulate: "var(--signal-bullish)",
+  trim: "var(--signal-neutral)",
+  watch: "var(--accent-terminal)",
+  avoid: "var(--signal-bearish)",
+  hold: "var(--on-surface-variant)",
 };
 const PILLAR_EMOJI: Record<string, string> = { growth: "🌱", momentum: "🚀", valuation: "🏷️", quality: "🏛️" };
 
@@ -110,6 +112,123 @@ function cap(v?: number | null): string | null {
   return `$${v.toLocaleString()}`;
 }
 
+/** Strip leading stance word from directive text ("Accumulate on dips…" → "on dips…"). */
+function directiveDetail(stance: string, text: string): string | null {
+  const s = stance.toLowerCase().trim();
+  const t = text.trim();
+  if (!t) return null;
+  const tLower = t.toLowerCase();
+  if (tLower === s) return null;
+  const rest = t.replace(new RegExp(`^${s}\\b[,\\s:.-]*`, "i"), "").trim();
+  if (!rest || rest.toLowerCase() === tLower) return null;
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
+
+/** Drop rationale clauses that repeat the action line or price trigger already on chart/alert. */
+function rationaleLines(
+  rationale: string,
+  text: string,
+  hasTriggerUi: boolean,
+  triggerPrice: number | null,
+): string[] {
+  const textLower = text.toLowerCase();
+  return rationale
+    .split(/;\s*/)
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .filter((clause) => {
+      const cLower = clause.toLowerCase();
+      if (textLower.length > 12 && (cLower.includes(textLower) || textLower.includes(cLower))) return false;
+      if (!hasTriggerUi || triggerPrice == null) return true;
+      const hasPrice = [triggerPrice.toFixed(0), triggerPrice.toFixed(2)].some((p) => clause.includes(p));
+      if (hasPrice && (cLower.includes("below") || cLower.includes("above") || cLower.includes("dip"))) return false;
+      return true;
+    });
+}
+
+// ---- premium primitives ---------------------------------------------------
+const KICKER = "font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant";
+
+function SectionLabel({ children, dot, className = "" }: { children: ReactNode; dot?: string; className?: string }) {
+  return (
+    <div className={`mb-3 flex items-center gap-2 ${className}`}>
+      {dot && <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: dot }} />}
+      <span className={KICKER}>{children}</span>
+    </div>
+  );
+}
+
+function MetaPill({ label, value }: { label?: string; value: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-1 text-[11px] text-on-surface-variant"
+      style={{ boxShadow: "inset 0 0 0 1px var(--outline-variant)" }}
+    >
+      {label && <span>{label}</span>}
+      <span className="font-semibold text-on-surface">{value}</span>
+    </span>
+  );
+}
+
+function BarsGlyph({ color }: { color: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill={color} aria-hidden>
+      <rect x="1" y="8.5" width="3" height="5.5" rx="1" />
+      <rect x="6.5" y="4.5" width="3" height="9.5" rx="1" />
+      <rect x="12" y="1.5" width="3" height="12.5" rx="1" />
+    </svg>
+  );
+}
+
+function convictionDots(confidence: string) {
+  const level = confidence.toLowerCase();
+  if (level === "high") return { filled: 3, color: "var(--signal-bullish)", label: "High" };
+  if (level === "med" || level === "medium") return { filled: 2, color: "var(--accent-terminal)", label: "Med" };
+  return { filled: 1, color: "var(--on-surface-variant)", label: "Low" };
+}
+
+function ConvictionDots({ confidence }: { confidence: string }) {
+  const { filled, color, label } = convictionDots(confidence);
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <span className={KICKER}>conviction</span>
+      <div
+        className="flex items-center gap-1.5"
+        role="img"
+        aria-label={`Conviction ${label}`}
+      >
+        {[1, 2, 3].map((i) => (
+          <span
+            key={i}
+            aria-hidden
+            className="h-2.5 w-2.5 rounded-full"
+            style={{
+              background: i <= filled ? color : "transparent",
+              boxShadow: i <= filled ? undefined : "inset 0 0 0 1px var(--outline-variant)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RedditGlyph() {
+  return (
+    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: "#FF4500" }} aria-hidden>
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <line x1="13" y1="13" x2="17.8" y2="6.4" stroke="#fff" strokeWidth="1.4" />
+        <circle cx="18.2" cy="5.6" r="1.9" fill="#fff" />
+        <circle cx="12" cy="13.4" r="6.4" fill="#fff" />
+        <circle cx="9.5" cy="13" r="1.1" fill="#FF4500" />
+        <circle cx="14.5" cy="13" r="1.1" fill="#FF4500" />
+        <path d="M9.1 16c1.6 1.2 4.2 1.2 5.8 0" stroke="#FF4500" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
 export function StockDetail(props: Props) {
   const { stock, market, currency, directive, visual, overview, overviewHeadline, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, cards, sentiment, comparative, timeline, peers, betterPeers, sectorLabel, reddit, subscribed, isTracked, tier, updatedLabel, lockedCall } = props;
 
@@ -117,10 +236,7 @@ export function StockDetail(props: Props) {
   const dayPct = stock.day_change_pct ?? 0;
   const dayAbs = stock.day_change_abs ?? 0;
   const up = dayPct >= 0;
-  const meta = [stock.ticker, stock.exchange, stock.sector].filter(Boolean).join(" · ");
-  const metaLine = [cap(fundamentals?.market_cap) && `Market cap ${cap(fundamentals?.market_cap)}`, ...(stock.index_memberships ?? []).slice(0, 2)]
-    .filter(Boolean)
-    .join("  ·  ");
+  const marketCapStr = cap(fundamentals?.market_cap);
 
   const target = analyst?.target_price;
   const upside = n(target) && stock.price > 0 ? (target! / stock.price - 1) * 100 : null;
@@ -178,88 +294,181 @@ export function StockDetail(props: Props) {
   const stance = (directive?.stance ?? "watch").toLowerCase();
   const accent = STANCE_ACCENT[stance] ?? STANCE_ACCENT.watch;
   const showAlert = directive && (directive.trigger_type === "price_below" || directive.trigger_type === "price_above") && typeof directive.trigger_value === "string" && directive.trigger_value.trim() !== "" && !Number.isNaN(Number(directive.trigger_value));
+  const triggerPrice = showAlert ? Number(directive!.trigger_value) : null;
+  const chartZoneBelow = stance === "accumulate" && directive?.trigger_type === "price_below" && triggerPrice != null ? triggerPrice : undefined;
+  const chartZoneAbove = stance === "trim" && directive?.trigger_type === "price_above" && triggerPrice != null ? triggerPrice : undefined;
+  const chartZoneLabel = chartZoneBelow != null
+    ? `accumulate below ${money(triggerPrice!)}`
+    : chartZoneAbove != null
+      ? `trim above ${money(triggerPrice!)}`
+      : undefined;
+  const hasTriggerUi = showAlert || chartZoneBelow != null || chartZoneAbove != null;
+  const callDetail = directive?.text ? directiveDetail(stance, directive.text) : null;
+  const callDetailIsTrigger =
+    callDetail != null && hasTriggerUi && /^(on\s+)?dips?\s+(below|above)\b/i.test(callDetail);
+  const callRationale = directive?.rationale
+    ? rationaleLines(directive.rationale, directive.text ?? "", hasTriggerUi, triggerPrice)
+    : [];
 
   const hasWhy = Boolean(overview || visual?.what_changed || visual?.why_it_matters || visual?.what_to_watch);
+
+  const hist = (priceHistory ?? []).filter((p) => n(p.close));
+  const w52 = n(fundamentals?.week_52_high) && n(fundamentals?.week_52_low) && fundamentals!.week_52_high! > fundamentals!.week_52_low!
+    ? { low: fundamentals!.week_52_low!, high: fundamentals!.week_52_high! } : null;
+  const hasChart = hist.length >= 5;
+  const showHero = hasChart || w52 || n(rsi) || directive?.text || lockedCall;
+  const last = hist.length ? hist[hist.length - 1].close : stock.price;
+  const maRead = n(sma50) ? (last >= sma50! ? "above its 50-day average, uptrend intact" : "below its 50-day average, momentum cooling") : null;
+  const rangePct = w52 ? Math.max(0, Math.min(100, ((stock.price - w52.low) / (w52.high - w52.low)) * 100)) : null;
+  const rangeNote = rangePct == null ? null : rangePct > 85 ? "near 52-week high" : rangePct < 15 ? "near 52-week low" : "mid-range";
+  const rsiLabel = !n(rsi) ? null : rsi! >= 70 ? "overbought" : rsi! <= 30 ? "oversold" : "healthy";
+  const rsiTone = !n(rsi) ? "var(--on-surface-variant)" : rsi! >= 70 || rsi! <= 30 ? "var(--signal-neutral)" : "var(--signal-bullish)";
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-5 sm:py-9">
       {/* HEADER — stacks on mobile, two columns on sm+ */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={44} />
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={56} />
           <div className="min-w-0">
-            <h1 className="text-[20px] font-bold leading-tight tracking-[-0.01em] text-on-surface sm:text-[22px]">{stock.name}</h1>
-            <p className="mt-0.5 font-mono text-[11px] text-on-surface-variant sm:text-[12px]">{meta}</p>
+            <h1 className="font-headline text-[22px] font-bold leading-tight tracking-[-0.02em] text-on-surface sm:text-[26px]">{stock.name}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[12px] text-on-surface-variant sm:text-[13px]">
+              <span className="font-semibold text-on-surface">{stock.ticker}</span>
+              {stock.exchange && (<><span aria-hidden>•</span><span>{stock.exchange}</span></>)}
+              {stock.sector && (<><span aria-hidden>•</span><span>{stock.sector}</span></>)}
+            </p>
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
           <div className="sm:text-right">
-            <p className="font-mono text-[22px] font-bold leading-none tabular-nums text-on-surface sm:text-2xl">{money(stock.price)}</p>
-            <p className="mt-1 font-mono text-[13px] tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+            <p className="font-mono text-[26px] font-bold leading-none tabular-nums text-on-surface sm:text-[30px]">{money(stock.price)}</p>
+            <p className="mt-1.5 font-mono text-[15px] font-semibold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
               {up ? "▲" : "▼"} {sign(dayPct, 2)}{dayAbs ? `  ${dayAbs >= 0 ? "+" : "−"}${money(Math.abs(dayAbs))} today` : ""}
             </p>
           </div>
           <TrackButton ticker={stock.ticker} instrumentId={stock.instrument_id} tier={tier} isSubscribed={subscribed} isTracked={isTracked} variant="icon" />
         </div>
       </header>
-      <p className="mt-3 flex items-center gap-2 font-mono text-[11px] text-on-surface-variant">
-        {metaLine}
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        {marketCapStr && <MetaPill label="Market Cap" value={marketCapStr} />}
+        {(stock.index_memberships ?? []).slice(0, 3).map((m) => <MetaPill key={m} value={m} />)}
         {updatedLabel && (
-          <span className="flex items-center gap-1.5">
-            {metaLine && <span>·</span>}
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--signal-bullish)" }} /> {updatedLabel}
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-on-surface-variant">
+            <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--signal-bullish)" }} />
+            {updatedLabel}
           </span>
         )}
-      </p>
+      </div>
 
       <div className="mt-8 flex flex-col gap-8">
-        {/* THE CALL */}
-        {directive?.text ? (
-          <section className="panel relative overflow-hidden p-6 md:p-7" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-container-low))` }}>
-            <span aria-hidden className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 select-none font-mono font-bold tracking-[-0.04em] text-[120px] leading-none opacity-[0.05]" style={{ color: accent }}>{stock.ticker}</span>
-            <div className="relative z-10 flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
-                <span style={{ color: accent }}>The call</span>
-                {directive.confidence && <span className="text-on-surface-variant sm:ml-auto">conviction: <span style={{ color: accent }}>{directive.confidence}</span></span>}
-                {showAlert && (
-                  <span className="text-on-surface-variant">
-                    <AlertButton ticker={stock.ticker} instrumentId={stock.instrument_id} condition={directive!.trigger_type === "price_below" ? "below" : "above"} targetPrice={Number(directive!.trigger_value)} directiveText={directive!.text} />
-                  </span>
+        {/* HERO — the call + price chart + range / RSI */}
+        {showHero && (
+          <section className="panel p-6 md:p-7">
+            {directive?.text ? (
+              <div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)` }}>
+                      <BarsGlyph color={accent} />
+                    </span>
+                    <span className="font-headline text-[22px] font-bold leading-none tracking-tight md:text-[26px]" style={{ color: accent }}>{stance.toUpperCase()}</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-2.5">
+                    {showAlert && (
+                      <AlertButton ticker={stock.ticker} instrumentId={stock.instrument_id} condition={directive!.trigger_type === "price_below" ? "below" : "above"} targetPrice={Number(directive!.trigger_value)} directiveText={directive!.text} />
+                    )}
+                    {directive.confidence && <ConvictionDots confidence={directive.confidence} />}
+                  </div>
+                </div>
+                {callDetail && !callDetailIsTrigger && (
+                  <p className="mt-4 max-w-[680px] text-[15px] leading-relaxed text-on-surface">{callDetail}</p>
+                )}
+                {callRationale.length > 0 && (
+                  <p className="mt-2 max-w-[680px] text-[14px] leading-[1.6] text-on-surface-variant">{callRationale.join(" ")}</p>
                 )}
               </div>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="font-mono text-[26px] md:text-[30px] font-bold leading-none tracking-tight" style={{ color: accent }}>{stance.toUpperCase()}</span>
-                <span className="text-[14px] md:text-[15px] text-on-surface-variant">{directive.text}</span>
+            ) : (
+              <div>{lockedCall}</div>
+            )}
+
+            {hasChart && (
+              <div className="mt-6">
+                <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-on-surface-variant">
+                  <span className="flex items-center gap-1.5"><span className="inline-block h-[2px] w-4 rounded-full" style={{ background: accent }} /> Price</span>
+                  {n(sma50) && <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: "var(--on-surface-variant)" }} /> 50-day MA <span className="font-mono font-semibold tabular-nums text-on-surface">{money(sma50!)}</span></span>}
+                  {n(sma200) && <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t-2 border-dotted" style={{ borderColor: "var(--on-surface-variant)" }} /> 200-day MA <span className="font-mono font-semibold tabular-nums text-on-surface">{money(sma200!)}</span></span>}
+                  {(chartZoneBelow != null || chartZoneAbove != null) && (
+                    <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: `color-mix(in srgb, ${accent} 22%, transparent)` }} /> {chartZoneBelow != null ? "Accumulate Zone" : "Trim Zone"}</span>
+                  )}
+                </div>
+                <PriceChart
+                  data={hist}
+                  sma50={sma50}
+                  sma200={sma200}
+                  currency={currency}
+                  zoneBelow={chartZoneBelow}
+                  zoneAbove={chartZoneAbove}
+                  zoneColor={accent}
+                  zoneLabel={chartZoneLabel?.toUpperCase()}
+                  lineColor={accent}
+                />
+                {maRead && <p className="mt-2.5 text-[13px] text-on-surface-variant">Trading <b className="text-on-surface">{maRead}</b>.</p>}
               </div>
-              {directive.rationale && <p className="max-w-[680px] text-[14px] leading-[1.6] text-on-surface-variant">{directive.rationale}</p>}
-            </div>
+            )}
+
+            {(w52 || n(rsi)) && (
+              <div className="mt-7 grid gap-6 border-t pt-6 sm:grid-cols-2" style={{ borderColor: "var(--outline-variant)" }}>
+                {w52 && (
+                  <div>
+                    <div className="mb-2.5 flex items-baseline justify-between">
+                      <span className={KICKER}>52-week range</span>
+                      {rangeNote && (
+                        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: rangePct! > 85 ? "var(--signal-bullish)" : rangePct! < 15 ? "var(--signal-bearish)" : "var(--on-surface-variant)" }}>
+                          {rangeNote}
+                        </span>
+                      )}
+                    </div>
+                    <PositionStrip
+                      pct={rangePct!}
+                      trackBackground="var(--surface-container-high)"
+                      fillPct={rangePct!}
+                      fillBackground="linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 38%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 12%, var(--surface-container-high)))"
+                    />
+                    <div className="mt-3 flex items-baseline justify-between gap-2 font-mono text-[12px] tabular-nums">
+                      <span className="text-on-surface-variant">{money(w52.low)}</span>
+                      <span><span className="text-on-surface-variant">NOW </span><span className="font-semibold text-on-surface">{money(stock.price)}</span></span>
+                      <span className="text-on-surface-variant">{money(w52.high)}</span>
+                    </div>
+                  </div>
+                )}
+                {n(rsi) && (
+                  <div>
+                    <div className="mb-2.5 flex items-baseline justify-between">
+                      <span className={KICKER}>RSI (14)</span>
+                      <span className="text-[11px] font-semibold" style={{ color: rsiTone }}>
+                        <span className="font-mono tabular-nums">{rsi!.toFixed(0)}</span>, {rsiLabel && rsiLabel.charAt(0).toUpperCase() + rsiLabel.slice(1)}
+                      </span>
+                    </div>
+                    <PositionStrip pct={rsi!} trackBackground={RSI_TRACK_BG} />
+                    <RsiZoneLabels />
+                  </div>
+                )}
+              </div>
+            )}
           </section>
-        ) : (
-          lockedCall
         )}
 
-        {/* WHY IT MOVED */}
-        {hasWhy && (
-          <section className="panel p-6 md:p-7">
-            <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">
-              Why it moved today · {up ? "▲" : "▼"} {sign(dayPct, 1)}
-            </p>
-            {overview ? (
-              <>
-                {overviewHeadline && <p className="mb-2 text-[16px] font-semibold leading-snug text-on-surface">{overviewHeadline}</p>}
-                <p className="max-w-[760px] text-[14px] leading-relaxed text-on-surface-variant">{overview}</p>
-              </>
-            ) : (
-              <div className="grid gap-5 sm:grid-cols-3">
-                {([["what changed", visual?.what_changed], ["why it matters", visual?.why_it_matters], ["what to watch", visual?.what_to_watch]] as const).map(([k, v]) =>
-                  v ? (
-                    <div key={k}>
-                      <p className="mb-1.5 font-mono text-[11px]" style={{ color: "var(--signal-bullish)" }}>{k}</p>
-                      <p className="text-[13px] leading-relaxed text-on-surface-variant">{v}</p>
-                    </div>
-                  ) : null,
-                )}
-              </div>
+        {/* TODAY'S MOVE + REDDIT SOCIAL CONVERSATION — side by side */}
+        {(hasWhy || reddit?.summary) && (
+          <section className={hasWhy && reddit?.summary ? "grid items-stretch gap-5 lg:grid-cols-2" : undefined}>
+            {hasWhy && (
+              <TodaysMoveCard dayPct={dayPct} up={up} overview={overview} overviewHeadline={overviewHeadline} visual={visual} />
+            )}
+            {reddit?.summary && (
+              <SocialConversationCard
+                ticker={stock.ticker}
+                reddit={{ summary: reddit.summary, sentiment: reddit.sentiment, mention_count: reddit.mention_count, catalysts: reddit.catalysts }}
+              />
             )}
           </section>
         )}
@@ -267,12 +476,12 @@ export function StockDetail(props: Props) {
         {/* WHY CARE — SIGNALS */}
         {topSignals.length > 0 && (
           <section>
-            <p className="mb-3 font-mono text-[12px] text-on-surface-variant"><span style={{ color: "var(--signal-bullish)" }}>$</span> why care today</p>
+            <SectionLabel dot="var(--signal-bullish)">why care today</SectionLabel>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               {topSignals.map((s) => (
                 <div key={s.label} className="inset p-3.5">
                   <div className="text-[15px]">{s.emoji}</div>
-                  <p className="mt-1 font-mono text-[11px] text-on-surface-variant">{s.label}</p>
+                  <p className="mt-1 text-[11px] text-on-surface-variant">{s.label}</p>
                   <p className="mt-0.5 font-mono text-[15px] font-bold tabular-nums" style={{ color: s.tone === "up" ? "var(--signal-bullish)" : s.tone === "down" ? "var(--signal-bearish)" : "var(--on-surface)" }}>{s.value}</p>
                   {s.sub && <p className="mt-0.5 text-[11px] leading-tight text-on-surface-variant">{s.sub}</p>}
                 </div>
@@ -285,14 +494,14 @@ export function StockDetail(props: Props) {
         <section className="grid gap-5 lg:grid-cols-2">
           {stats.length > 0 && (
             <div className="panel p-6">
-              <p className="mb-3 font-mono text-[12px] text-on-surface-variant">key stats · read</p>
-              <div className="font-mono text-[12px]">
+              <SectionLabel>key stats · read</SectionLabel>
+              <div className="text-[12px]">
                 {stats.map((s) => (
                   <div key={s.k} className="flex items-baseline justify-between gap-3 border-b py-2 last:border-0" style={{ borderColor: "var(--outline-variant)" }}>
                     <span className="text-on-surface-variant">{s.k}</span>
                     <span className="flex items-baseline gap-2 text-right">
                       {s.note && <span className="text-[10px]" style={{ color: s.tone === "neutral" ? "var(--on-surface-variant)" : toneColor[s.tone] }}>{s.note}</span>}
-                      <span className="font-bold tabular-nums" style={{ color: toneColor[s.tone] }}>{s.v}</span>
+                      <span className="font-mono font-bold tabular-nums" style={{ color: toneColor[s.tone] }}>{s.v}</span>
                     </span>
                   </div>
                 ))}
@@ -303,7 +512,7 @@ export function StockDetail(props: Props) {
             <div className="panel flex flex-col gap-5 p-6">
               {showAnalyst && (
                 <div>
-                  <p className="mb-1 font-mono text-[12px] text-on-surface-variant">analyst ratings</p>
+                  <SectionLabel className="mb-2">analyst ratings</SectionLabel>
                   {ratingTotal > 0 && <p className="mb-3 text-[13px] text-on-surface-variant">Based on {ratingTotal} analysts — <b style={{ color: "var(--signal-bullish)" }}>{buyPct}% rate it Buy</b></p>}
                   {n(target) && (
                     <div className="mb-4 flex items-end gap-2">
@@ -331,7 +540,7 @@ export function StockDetail(props: Props) {
               {sentiment && ((sentiment.lanes?.length ?? 0) > 0 || n(sentiment.overall_score)) && (
                 <div>
                   <div className="mb-3 flex items-baseline gap-2">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">sentiment</p>
+                    <p className="font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">sentiment</p>
                     {n(sentiment.overall_score) && <span className="ml-auto font-mono text-2xl font-bold tabular-nums text-on-surface">{Math.round(sentiment.overall_score!)}</span>}
                     {sentiment.overall_label && <span className="font-mono text-[11px] uppercase text-on-surface-variant">{sentiment.overall_label}</span>}
                   </div>
@@ -351,70 +560,10 @@ export function StockDetail(props: Props) {
           )}
         </section>
 
-        {/* WHERE IT SITS — chart + moving averages + 52w range + RSI */}
-        {(() => {
-          const hist = (priceHistory ?? []).filter((p) => n(p.close));
-          const w52 = n(fundamentals?.week_52_high) && n(fundamentals?.week_52_low) && fundamentals!.week_52_high! > fundamentals!.week_52_low!
-            ? { low: fundamentals!.week_52_low!, high: fundamentals!.week_52_high! } : null;
-          const hasChart = hist.length >= 5;
-          if (!hasChart && !w52 && !n(rsi)) return null;
-          const last = hist.length ? hist[hist.length - 1].close : stock.price;
-          const maRead = n(sma50) ? (last >= sma50! ? "above its 50-day average — uptrend intact" : "below its 50-day average — momentum cooling") : null;
-          const rangePct = w52 ? Math.max(0, Math.min(100, ((stock.price - w52.low) / (w52.high - w52.low)) * 100)) : null;
-          const rangeNote = rangePct == null ? null : rangePct > 85 ? "near 52-week high" : rangePct < 15 ? "near 52-week low" : "mid-range";
-          const rsiLabel = !n(rsi) ? null : rsi! >= 70 ? "overbought" : rsi! <= 30 ? "oversold" : "healthy";
-          const rsiTone = !n(rsi) ? "var(--on-surface)" : rsi! >= 70 || rsi! <= 30 ? "var(--signal-neutral)" : "var(--signal-bullish)";
-
-          return (
-            <section className="panel order-first p-6 md:p-7">
-              <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">where it sits today</p>
-
-              {hasChart && (
-                <div className="mb-6">
-                  <div className="mb-2 flex flex-wrap items-center gap-4 font-mono text-[10px] text-on-surface-variant">
-                    <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4" style={{ background: "var(--signal-bullish)" }} /> price</span>
-                    {n(sma50) && <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4" style={{ background: "var(--on-surface-variant)" }} /> 50-day MA <span className="text-on-surface">{money(sma50!)}</span></span>}
-                    {n(sma200) && <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4" style={{ background: "var(--signal-neutral)" }} /> 200-day MA <span className="text-on-surface">{money(sma200!)}</span></span>}
-                  </div>
-                  <PriceChart data={hist} sma50={sma50} sma200={sma200} currency={currency} />
-                  {maRead && <p className="mt-2 text-[13px] text-on-surface-variant">Trading <b className="text-on-surface">{maRead}</b>.</p>}
-                </div>
-              )}
-
-              <div className="grid gap-6 sm:grid-cols-2">
-                {w52 && (
-                  <div>
-                    <div className="mb-2 flex items-baseline justify-between font-mono text-[11px]">
-                      <span className="uppercase tracking-wide text-on-surface-variant">52-week range</span>
-                      {rangeNote && <span style={{ color: rangePct! > 85 ? "var(--signal-neutral)" : rangePct! < 15 ? "var(--signal-bullish)" : "var(--on-surface-variant)" }}>{rangeNote}</span>}
-                    </div>
-                    <div className="relative h-2 rounded-full" style={{ background: "linear-gradient(90deg, var(--signal-bearish), var(--signal-neutral), var(--signal-bullish))" }}>
-                      <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2" style={{ left: `${rangePct}%`, background: "var(--surface)", borderColor: "var(--on-surface)" }} />
-                    </div>
-                    <div className="mt-1.5 flex justify-between font-mono text-[11px] text-on-surface-variant"><span>{money(w52.low)}</span><span className="text-on-surface">now {money(stock.price)}</span><span>{money(w52.high)}</span></div>
-                  </div>
-                )}
-                {n(rsi) && (
-                  <div>
-                    <div className="mb-2 flex items-baseline justify-between font-mono text-[11px]">
-                      <span className="uppercase tracking-wide text-on-surface-variant">RSI (14)</span>
-                      <span style={{ color: rsiTone }}>{rsi!.toFixed(0)} · {rsiLabel}</span>
-                    </div>
-                    <div className="relative h-2 rounded-full" style={{ background: "linear-gradient(90deg, color-mix(in srgb,var(--signal-bullish) 50%,transparent), var(--surface-container-high), color-mix(in srgb,var(--signal-neutral) 60%,transparent))" }}>
-                      <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2" style={{ left: `${Math.max(0, Math.min(100, rsi!))}%`, background: "var(--surface)", borderColor: rsiTone }} />
-                    </div>
-                    <div className="mt-1.5 flex justify-between font-mono text-[11px] text-on-surface-variant"><span>oversold</span><span>healthy</span><span>overbought</span></div>
-                  </div>
-                )}
-              </div>
-            </section>
-          );
-        })()}
-
         {/* FUNDAMENTALS SCORES */}
         {pillars && (
           <section className="panel p-6">
-            <p className="mb-4 font-mono text-[12px] text-on-surface-variant">fundamentals · <span className="text-on-surface">{intelPro!.overall?.score ?? "–"}/100</span> vs sector peers</p>
+            <SectionLabel className="mb-4">fundamentals · <span className="font-mono text-on-surface">{intelPro!.overall?.score ?? "–"}/100</span> vs sector peers</SectionLabel>
             <FundamentalsBreakdown pillars={pillars} />
           </section>
         )}
@@ -442,7 +591,7 @@ export function StockDetail(props: Props) {
         {/* CATALYSTS · DRIVERS · RISKS */}
         {cards && ((cards.catalyst_cards?.length ?? 0) > 0 || (cards.drivers?.length ?? 0) > 0 || (cards.risk_cards?.length ?? 0) > 0) && (
           <section className="panel p-6 md:p-7">
-            <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">the read · catalysts, drivers, risks</p>
+            <p className="mb-4 font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">the read · catalysts, drivers, risks</p>
             <div className="grid gap-6 md:grid-cols-3">
               {(cards.catalyst_cards?.length ?? 0) > 0 && (
                 <div>
@@ -492,26 +641,6 @@ export function StockDetail(props: Props) {
           </section>
         )}
 
-        {/* REDDIT CROWD READ */}
-        {reddit?.summary && (
-          <section className="panel p-6">
-            <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">
-              <span style={{ color: "var(--signal-bullish)" }}>$</span> reddit crowd read
-              {n(reddit.mention_count) && <span className="normal-case tracking-normal">· {reddit.mention_count} mentions</span>}
-              {reddit.sentiment && (
-                <span className="ml-auto rounded px-2 py-0.5 text-[10px] normal-case tracking-normal" style={{ background: `color-mix(in srgb, ${reddit.sentiment === "bearish" ? "var(--signal-bearish)" : reddit.sentiment === "bullish" ? "var(--signal-bullish)" : "var(--signal-neutral)"} 16%, transparent)`, color: reddit.sentiment === "bearish" ? "var(--signal-bearish)" : reddit.sentiment === "bullish" ? "var(--signal-bullish)" : "var(--signal-neutral)" }}>{reddit.sentiment}</span>
-              )}
-            </div>
-            <p className="text-[14px] leading-relaxed text-on-surface-variant">{reddit.summary}</p>
-            {(reddit.catalysts?.length ?? 0) > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {reddit.catalysts!.map((c, i) => <span key={i} className="inset px-2 py-1 font-mono text-[10px] text-on-surface-variant">{c}</span>)}
-              </div>
-            )}
-          </section>
-        )}
-
-
         {/* COMPARATIVE CONTEXT */}
         {comparative && (n(comparative.vs_market_day_change_pct) || n(comparative.vs_sector_day_change_pct) || n(comparative.market_percentile)) && (
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -530,7 +659,7 @@ export function StockDetail(props: Props) {
         {/* FINANCIALS */}
         {facts?.financials && (cap(facts.financials.revenue) || n(facts.financials.eps_diluted)) && (
           <section className="panel p-6">
-            <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">financials{facts.financials.fiscal_year ? ` · ${facts.financials.fiscal_year}` : ""}</p>
+            <p className="mb-4 font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">financials{facts.financials.fiscal_year ? ` · ${facts.financials.fiscal_year}` : ""}</p>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {([["Revenue", cap(facts.financials.revenue)], ["Operating inc.", cap(facts.financials.operating_income)], ["Net income", cap(facts.financials.net_income)], ["EPS (diluted)", n(facts.financials.eps_diluted) ? money(facts.financials.eps_diluted!) : null], ["Rev growth", n(facts.financials.revenue_growth_yoy_pct) ? sign(facts.financials.revenue_growth_yoy_pct!) : null], ["Gross profit", cap(facts.financials.gross_profit)]] as const)
                 .filter(([, v]) => v)
@@ -558,7 +687,7 @@ export function StockDetail(props: Props) {
           const largest = holders[0]?.name;
           return (
             <section className="panel p-6">
-              <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">who owns it</p>
+              <p className="mb-3 font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">who owns it</p>
               <p className="text-[14px] leading-relaxed text-on-surface-variant">
                 {ownStr && (<>Institutions hold <b className="text-on-surface">{ownStr}</b> of the float{n(own) && own! >= 65 ? " — heavily institutionally owned" : ""}. </>)}
                 {largest && (<>Largest holder is <b className="text-on-surface">{largest}</b>. </>)}
@@ -572,17 +701,37 @@ export function StockDetail(props: Props) {
         {/* RECENT EVENTS */}
         {(timeline?.length ?? 0) > 0 && (
           <section className="panel p-6">
-            <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">recent events</p>
-            <div className="space-y-3">
-              {timeline!.slice(0, 6).map((e, i) => (
-                <div key={e.event_id ?? i} className="flex gap-3">
-                  <span className="mt-1.5 inline-block h-1.5 w-1.5 flex-none rounded-full" style={{ background: e.sentiment_label === "bearish" ? "var(--signal-bearish)" : e.sentiment_label === "bullish" ? "var(--signal-bullish)" : "var(--on-surface-variant)" }} />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-medium leading-snug text-on-surface">{e.title}</p>
-                    {(e.source_name || e.event_type) && <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-on-surface-variant">{[e.source_name, e.event_type].filter(Boolean).join(" · ")}</p>}
+            <p className="mb-4 font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">recent events</p>
+            <div className="space-y-1">
+              {timeline!.slice(0, 6).map((e, i) => {
+                const href = e.article_url?.trim();
+                const hasLink = Boolean(href);
+                const row = (
+                  <>
+                    <span className="mt-1.5 inline-block h-1.5 w-1.5 flex-none rounded-full" style={{ background: e.sentiment_label === "bearish" ? "var(--signal-bearish)" : e.sentiment_label === "bullish" ? "var(--signal-bullish)" : "var(--on-surface-variant)" }} />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[13px] font-medium leading-snug text-on-surface ${hasLink ? "group-hover:text-accent-terminal" : ""}`}>{e.title}</p>
+                      {(e.source_name || e.event_type) && <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-on-surface-variant">{[e.source_name, e.event_type].filter(Boolean).join(" · ")}</p>}
+                    </div>
+                    {hasLink && <span className="mt-0.5 shrink-0 font-mono text-[11px] text-on-surface-variant opacity-0 transition-opacity group-hover:opacity-100" aria-hidden>↗</span>}
+                  </>
+                );
+                return hasLink ? (
+                  <a
+                    key={e.event_id ?? i}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-container"
+                  >
+                    {row}
+                  </a>
+                ) : (
+                  <div key={e.event_id ?? i} className="flex gap-3 px-2 py-2">
+                    {row}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
@@ -607,7 +756,7 @@ export function StockDetail(props: Props) {
         {earnings?.report && (earnings.report.headline || earnings.report.summary) && (
           <section className="panel p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">
+              <p className="font-label text-[11px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
                 📊 earnings{earnings.event_date ? ` · ${earnings.event_date}` : ""}
               </p>
               <a href={`/earnings-intel/${stock.ticker}`} className="font-mono text-[11px] hover:underline" style={{ color: "var(--signal-bullish)" }}>full report →</a>

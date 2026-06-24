@@ -18,7 +18,7 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
   const [done, setDone] = useState(false);
 
   const label = condition === "below" ? "below" : "above";
-  const price = `$${targetPrice.toFixed(2)}`;
+  const price = `$${targetPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   if (!user) return null;
 
@@ -54,8 +54,20 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
 
   if (done) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#10b981]">
-        <span className="material-symbols-outlined text-[14px] leading-none flex items-center justify-center" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>check_circle</span>
+      <span
+        className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] font-medium tracking-normal normal-case"
+        style={{
+          borderColor: "color-mix(in srgb, var(--signal-bullish) 35%, var(--outline-variant))",
+          background: "color-mix(in srgb, var(--signal-bullish) 10%, var(--surface-container-low))",
+          color: "var(--signal-bullish)",
+        }}
+      >
+        <span
+          className="material-symbols-outlined flex items-center justify-center text-[13px] leading-none"
+          style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
+        >
+          check_circle
+        </span>
         Alert set
       </span>
     );
@@ -66,10 +78,29 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
       type="button"
       onClick={handleCreate}
       disabled={busy}
-      className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0052ff] hover:text-[#3b82f6] disabled:opacity-50 transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] font-medium tracking-normal normal-case transition-colors hover:bg-surface-container disabled:opacity-50"
+      style={{
+        borderColor: "var(--outline-variant)",
+        background: "var(--surface-container-low)",
+        color: "var(--on-surface-variant)",
+      }}
     >
-      <span className="material-symbols-outlined text-[16px] leading-none flex items-center justify-center" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>notifications</span>
-      {busy ? "Setting…" : `Set alert ${label} ${price}`}
+      <span
+        className="material-symbols-outlined flex items-center justify-center text-[13px] leading-none text-accent-terminal"
+        style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
+      >
+        notifications
+      </span>
+      {busy ? (
+        "Setting…"
+      ) : (
+        <>
+          Alert{" "}
+          <span className="font-semibold tabular-nums text-on-surface">
+            {label} {price}
+          </span>
+        </>
+      )}
     </button>
   );
 }

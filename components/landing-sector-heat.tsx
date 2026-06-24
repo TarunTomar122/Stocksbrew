@@ -1,95 +1,113 @@
-"use client";
-
 import Link from "next/link";
-import { StockLogo } from "@/components/stock-logo";
-import { TrackButton } from "@/components/track-button";
-import { resolveStockTier } from "@/lib/ai-launch-tier";
+import { SectorHeatStockRow } from "@/components/sector-heat-stock-row";
+import {
+  SECTOR_HREF_BY_LABEL,
+  SECTOR_THEME,
+  sectorPctMove,
+  type SectorHeatCard,
+} from "@/lib/landing-sector-data";
+import type { CSSProperties } from "react";
 
-const CYAN = "#22d3ee";
-
-export type SectorHeatCard = {
-  label: string;
-  avg: number;
-  stocks: { ticker: string; instrumentId: string; changePct: number }[];
-};
+export type { SectorHeatCard };
 
 export function LandingSectorHeat({
   sectors,
-  trackedIds,
-  isSubscribed,
+  trackedIds = [],
+  isSubscribed = false,
 }: {
   sectors: SectorHeatCard[];
-  trackedIds: string[];
-  isSubscribed: boolean;
+  trackedIds?: string[];
+  isSubscribed?: boolean;
 }) {
-  const trackedSet = new Set(trackedIds);
-
   return (
-    <section className="border-b border-outline-variant">
-      <div className="mx-auto max-w-7xl px-5 py-24">
-        <div className="mb-1 font-mono text-[12px]" style={{ color: CYAN }}>// sector heat</div>
-        <h2 className="mb-8 text-2xl font-extrabold text-on-surface sm:text-3xl">How the sectors are leaning</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {sectors.map((s) => (
-            <div key={s.label} className="panel p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <span className="text-[15px] font-semibold text-on-surface">{s.label}</span>
-                <span
-                  className="flex items-center gap-1.5 font-mono text-[13px] font-bold"
-                  style={{ color: s.avg >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+    <section className="border-b border-outline-variant bg-background">
+      <div className="landing-inner py-16 lg:py-20">
+        <div className="landing-card overflow-hidden p-5 md:p-6">
+          <div className="mb-8">
+            <p className="landing-section-kicker text-landing-brand">// Market Overview</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
+              How the sectors are leaning
+            </h2>
+            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-on-surface-variant">
+              Live snapshot of sector performance and top movers.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {sectors.map((s) => {
+              const theme = SECTOR_THEME[s.label] ?? { accent: "var(--landing-brand)", icon: "insights" };
+              const sectorMove = sectorPctMove(s.avg);
+
+              return (
+                <div
+                  key={s.label}
+                  className="sector-heat-card"
+                  style={{ "--sector-accent": theme.accent } as CSSProperties}
                 >
-                  <span className="text-[11px] leading-none">{s.avg >= 0 ? "▲" : "▼"}</span>
-                  <span className="tabular-nums">{Math.abs(s.avg).toFixed(2)}%</span>
-                </span>
-              </div>
-              <div className="divide-y" style={{ borderColor: "var(--outline-variant)" }}>
-                {s.stocks.map((x) => {
-                  const u = x.changePct >= 0;
-                  const isTracked = trackedSet.has(x.instrumentId);
-                  const tier = resolveStockTier(x.instrumentId, trackedIds);
-                  return (
-                    <div
-                      key={x.ticker}
-                      className="group flex items-center gap-2.5 border-t py-2.5 first:border-t-0"
-                      style={{ borderColor: "var(--outline-variant)" }}
+                  <div className="relative z-[1] flex flex-col p-4 pb-3">
+                    <Link
+                      href={SECTOR_HREF_BY_LABEL[s.label] ?? "#"}
+                      className="-mx-1 mb-3 flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-surface-container-low"
                     >
-                      <Link href={`/stock/${x.ticker}`} className="shrink-0 transition-opacity group-hover:opacity-80">
-                        <StockLogo ticker={x.ticker} market="US" size={22} />
-                      </Link>
-                      <Link
-                        href={`/stock/${x.ticker}`}
-                        className="shrink-0 font-mono text-[13px] text-on-surface transition-opacity group-hover:opacity-80"
-                      >
-                        {x.ticker}
-                      </Link>
-                      <div className="flex min-w-0 flex-1 items-center justify-center">
-                        {!isTracked && (
-                          <div className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                            <TrackButton
-                              ticker={x.ticker}
-                              instrumentId={x.instrumentId}
-                              tier={tier}
-                              isSubscribed={isSubscribed}
-                              isTracked={isTracked}
-                              variant="icon"
-                            />
-                          </div>
-                        )}
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="sector-heat-icon">
+                          <span
+                            className="material-symbols-outlined text-[12px]"
+                            style={{ fontVariationSettings: "'wght' 500" }}
+                          >
+                            {theme.icon}
+                          </span>
+                        </span>
+                        <span className="truncate text-[15px] font-bold text-on-surface">{s.label}</span>
                       </div>
-                      <Link
-                        href={`/stock/${x.ticker}`}
-                        className="flex shrink-0 items-center gap-1.5 font-mono text-[13px] transition-opacity group-hover:opacity-80"
-                        style={{ color: u ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+                      <span
+                        className="flex shrink-0 items-center gap-1 text-[13px] font-bold tabular-nums"
+                        style={{ color: sectorMove.color }}
                       >
-                        <span className="text-[10px] leading-none">{u ? "▲" : "▼"}</span>
-                        <span className="w-14 text-right tabular-nums">{Math.abs(x.changePct).toFixed(2)}%</span>
-                      </Link>
+                        <span className="text-[10px] leading-none">{sectorMove.up ? "▲" : "▼"}</span>
+                        {Math.abs(s.avg).toFixed(2)}%
+                      </span>
+                    </Link>
+
+                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
+                      Top stocks
+                    </p>
+                    <div className="mb-1 mt-2 border-t border-outline-variant" />
+
+                    <div className="w-full space-y-0">
+                      {s.stocks.map((x) => (
+                        <SectorHeatStockRow
+                          key={x.ticker}
+                          ticker={x.ticker}
+                          instrumentId={x.instrumentId}
+                          changePct={x.changePct}
+                          isTracked={trackedIds.includes(x.instrumentId)}
+                          isSubscribed={isSubscribed}
+                        />
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="sector-heat-cta mt-6">
+            <p className="flex items-center gap-2.5 text-[13px] leading-snug text-on-surface-variant">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface">
+                <span
+                  className="material-symbols-outlined text-[18px] text-landing-brand"
+                  style={{ fontVariationSettings: "'wght' 500" }}
+                >
+                  monitoring
+                </span>
+              </span>
+              Market moves fast. StocksBrew Pro gives you the clarity to stay ahead.
+            </p>
+            <Link href="/subscribe" className="landing-btn-primary shrink-0 px-5 py-2.5 text-sm">
+              Explore StocksBrew Pro →
+            </Link>
+          </div>
         </div>
       </div>
     </section>

@@ -145,21 +145,23 @@ async function HeaderData() {
 function HeaderFallback() {
   return (
     <header className="sticky top-0 z-[65] w-full border-b border-outline-variant bg-surface">
-      <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between gap-2 px-6 md:px-10 lg:px-16">
+      <div className="mx-auto flex h-14 w-full max-w-screen-2xl items-center gap-4 px-6 md:px-10 lg:px-16">
         <a
           href="/"
-          className="flex shrink-0 items-center gap-2 text-[20px] font-semibold leading-none tracking-[-0.04em] text-on-surface"
+          className="shrink-0 font-display text-[17px] font-extrabold leading-none tracking-tight text-landing-brand"
         >
           stocksbrew
         </a>
         <div className="hidden items-center gap-1 md:flex" aria-hidden="true">
-          <div className="h-9 w-24 rounded-full bg-surface-container" />
-          <div className="h-9 w-20 rounded-full bg-surface-container" />
-          <div className="h-9 w-16 rounded-full bg-surface-container" />
+          <div className="h-8 w-16 rounded-full bg-surface-container" />
+          <div className="h-8 w-14 rounded-full bg-surface-container" />
         </div>
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <div className="hidden h-10 w-56 rounded-lg bg-surface-container sm:block" />
-          <div className="h-9 w-24 rounded-full bg-surface-container" />
+        <div className="hidden min-w-0 flex-1 md:block" aria-hidden="true">
+          <div className="h-10 w-full rounded-full bg-surface-container-low" />
+        </div>
+        <div className="ml-auto flex items-center gap-3" aria-hidden="true">
+          <div className="hidden h-9 w-9 rounded-full border border-outline-variant bg-surface-container sm:block" />
+          <div className="h-9 w-9 rounded-full bg-surface-container-high" />
         </div>
       </div>
     </header>

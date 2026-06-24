@@ -1,6 +1,7 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getAiUniverse } from "@/lib/firestore";
 import type { Market } from "@/lib/types";
+import stockUniverse from "@/backend/config/stock_universe.json";
 
 export type SectorContextDoc = {
   market: string;
@@ -56,6 +57,13 @@ const SECTOR_ID_BY_LABEL: Record<string, string> = {
   "psus": "psu",
 };
 
+const SECTOR_DOC_ALIASES: Record<string, string[]> = {
+  "big-tech": ["technology"],
+  "financials": ["financial-services"],
+  "finance": ["financial-services"],
+  "semis": ["semiconductors"],
+};
+
 export function sectorSlug(input: string): string {
   const raw = String(input ?? "").trim();
   if (!raw) return "";
@@ -70,6 +78,13 @@ export function sectorSlug(input: string): string {
 }
 
 export type SectorSlugMap = Record<string, string>;
+
+type StockUniverseEntry = {
+  ticker?: string;
+  display_name?: string;
+  aliases?: string[];
+  sector_tags?: string[];
+};
 
 export async function buildSectorSlugMap(
   market: Market = "US",
@@ -104,14 +119,18 @@ export async function getSectorContextDoc(
 ): Promise<SectorContextDoc | null> {
   const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
-  const doc = await adminFirestore
-    .collection("tm_news_runs")
-    .doc(ns)
-    .collection("sector_context")
-    .doc(sectorId)
-    .get();
-  if (!doc.exists) return null;
-  return doc.data() as SectorContextDoc;
+  const normalized = sectorSlug(sectorId);
+  const candidateIds = [normalized, ...(SECTOR_DOC_ALIASES[normalized] ?? [])].filter(Boolean);
+  for (const candidateId of candidateIds) {
+    const doc = await adminFirestore
+      .collection("tm_news_runs")
+      .doc(ns)
+      .collection("sector_context")
+      .doc(candidateId)
+      .get();
+    if (doc.exists) return doc.data() as SectorContextDoc;
+  }
+  return null;
 }
 
 export async function listSectorContextDocs(
@@ -125,4 +144,19 @@ export async function listSectorContextDocs(
     .collection("sector_context")
     .get();
   return snap.docs.map((d) => d.data() as SectorContextDoc);
+}
+
+export function getTrackedSectorMembers(
+  sectorId: string,
+  market: Market = "US",
+): Array<{ ticker: string; name: string }> {
+  const normalized = sectorSlug(sectorId);
+  const rows = ((stockUniverse as { markets?: Record<string, StockUniverseEntry[]> }).markets?.[market] ?? []);
+  return rows
+    .filter((row) => Array.isArray(row.sector_tags) && row.sector_tags.includes(normalized))
+    .map((row) => ({
+      ticker: String(row.ticker || "").trim().toUpperCase(),
+      name: String(row.display_name || row.ticker || "").trim(),
+    }))
+    .filter((row) => row.ticker);
 }

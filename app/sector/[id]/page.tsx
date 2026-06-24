@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getMarketSnapshot } from "@/lib/firestore";
-import { getSectorContextDoc } from "@/lib/sector";
+import { findAnomalyInFeed, getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getSectorContextDoc, getTrackedSectorMembers } from "@/lib/sector";
 import { getStockSummary, type StockSummary } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
 
@@ -74,6 +75,26 @@ function formatRelative(iso?: string): string {
   return `${days}d ago`;
 }
 
+function titleizeSector(input: string): string {
+  return input
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function fallbackSectorBrief(label: string, constituents: StockSummary[]): string | null {
+  if (constituents.length === 0) return null;
+  const withPct = constituents.filter((stock) => typeof stock.day_change_pct === "number");
+  if (withPct.length === 0) return `${label} tracked names are active today, but live sector context is still sparse.`;
+  const avg = withPct.reduce((sum, stock) => sum + (stock.day_change_pct || 0), 0) / withPct.length;
+  const ups = withPct.filter((stock) => (stock.day_change_pct || 0) >= 0).length;
+  const downs = withPct.length - ups;
+  const sorted = [...withPct].sort((a, b) => Math.abs(b.day_change_pct || 0) - Math.abs(a.day_change_pct || 0));
+  const leader = sorted[0];
+  const tone = avg >= 0 ? "leaning higher" : "leaning lower";
+  const move = typeof leader.day_change_pct === "number" ? `${leader.day_change_pct >= 0 ? "+" : ""}${leader.day_change_pct.toFixed(2)}%` : "today";
+  return `${label} is ${tone} across tracked names today. ${ups} are up and ${downs} are down, with ${leader.ticker} setting the pace at ${move}.`;
+}
+
 function ContextCard({
   label,
   body,
@@ -129,28 +150,76 @@ function ConstituentCard({ stock }: { stock: StockSummary }) {
   );
 }
 
+function SectorTableRow({
+  stock,
+  signal,
+}: {
+  stock: StockSummary;
+  signal: string | null;
+}) {
+  const pct = stock.day_change_pct;
+  const hasPct = typeof pct === "number";
+  const positive = hasPct && pct! >= 0;
+  const color = positive ? "text-signal-bullish" : "text-signal-bearish";
+
+  return (
+    <Link
+      href={`/stock/${encodeURIComponent(stock.ticker)}`}
+      className="grid gap-3 border-t px-4 py-3 transition-colors first:border-t-0 hover:bg-surface-container sm:grid-cols-[96px_minmax(0,1.4fr)_120px_120px_minmax(0,2fr)] sm:items-center"
+      style={{ borderColor: "var(--outline-variant)" }}
+    >
+      <div className="font-mono text-[13px] font-bold text-on-surface">{stock.ticker}</div>
+      <div className="min-w-0">
+        <p className="truncate text-[13px] text-on-surface">{stock.name}</p>
+        {stock.industry ? (
+          <p className="truncate text-[11px] text-on-surface-variant">{stock.industry}</p>
+        ) : null}
+      </div>
+      <div className="font-mono text-[13px] tabular-nums text-on-surface">
+        {typeof stock.price === "number"
+          ? stock.price.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : "—"}
+      </div>
+      <div className={`font-mono text-[13px] font-bold tabular-nums ${hasPct ? color : "text-on-surface-variant"}`}>
+        {hasPct ? `${positive ? "▲" : "▼"} ${Math.abs(pct!).toFixed(2)}%` : "—"}
+      </div>
+      <div className="min-w-0 text-[12px] text-on-surface-variant">
+        <p className="truncate">{signal || "No standout anomaly read today."}</p>
+      </div>
+    </Link>
+  );
+}
+
 export default async function SectorPage({ params }: Props) {
   const { id } = await params;
   const market = getCurrentMarket();
   const sectorId = decodeURIComponent(id).toLowerCase();
+  const trackedMembers = getTrackedSectorMembers(sectorId, market);
   const doc = await getSectorContextDoc(sectorId, market);
-  if (!doc) notFound();
+  if (!doc && trackedMembers.length === 0) notFound();
 
-  const tone = toneForLabel(doc.today_label);
-  const weekTone = toneForLabel(doc.week_label);
-  const visual = doc.visual_summary ?? {
-    what_changed: doc.what_changed,
-    why_it_matters: doc.why_it_matters,
-    what_to_watch: doc.what_to_watch,
+  const sectorLabel = doc?.sector_label ?? titleizeSector(sectorId);
+  const tone = toneForLabel(doc?.today_label);
+  const weekTone = toneForLabel(doc?.week_label);
+  const visual = doc?.visual_summary ?? {
+    what_changed: doc?.what_changed,
+    why_it_matters: doc?.why_it_matters,
+    what_to_watch: doc?.what_to_watch,
   };
   const hasVisual =
     !!(visual.what_changed || visual.why_it_matters || visual.what_to_watch);
   const hasWeek =
-    !!(doc.week_brief || doc.week_label || typeof doc.week_score === "number");
+    !!(doc?.week_brief || doc?.week_label || typeof doc?.week_score === "number");
 
-  const tickers = (doc.distinct_tickers ?? []).slice(0, 24);
+  const trackedTickers = trackedMembers.map((row) => row.ticker);
+  const fallbackTickers = (doc?.distinct_tickers ?? []).map((t) => String(t).toUpperCase());
+  const tickers = (trackedTickers.length > 0 ? trackedTickers : fallbackTickers).slice(0, 40);
   const tickerOrder = new Map(tickers.map((t, index) => [String(t).toUpperCase(), index]));
   const snapshotRows = await getMarketSnapshot(market).catch(() => []);
+  const anomalies = (await getDailyAnomalies(market).catch(() => null))?.anomalies ?? [];
   let constituents: StockSummary[] = snapshotRows
     .filter((row) => tickerOrder.has(String(row.symbol ?? "").toUpperCase()))
     .sort(
@@ -179,6 +248,14 @@ export default async function SectorPage({ params }: Props) {
     ).filter((x): x is StockSummary => !!x);
   }
 
+  const signalByTicker = new Map(
+    anomalies.map((row) => [
+      String(row.ticker || "").toUpperCase(),
+      row.move_explanation?.headline || row.headline || row.catalyst || row.visual_summary?.what_changed || null,
+    ]),
+  );
+  const heroBrief = doc?.today_brief || fallbackSectorBrief(sectorLabel, constituents);
+
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-12 flex flex-col gap-8">
@@ -187,7 +264,7 @@ export default async function SectorPage({ params }: Props) {
             Markets
           </Link>
           <span className="px-2">/</span>
-          <span className="text-on-surface">{doc.sector_label}</span>
+          <span className="text-on-surface">{sectorLabel}</span>
         </nav>
 
         <section className="bg-surface-container-lowest brutalist-border p-8 md:p-10 flex flex-col gap-8">
@@ -202,7 +279,7 @@ export default async function SectorPage({ params }: Props) {
                 Sector Briefing · Today
               </h3>
             </div>
-            {doc.today_label && (
+            {doc?.today_label && (
               <span
                 className={`px-3 py-1 text-[11px] font-semibold tracking-wide uppercase rounded-sm ${tone.chipBg}`}
                 style={{ color: tone.color }}
@@ -214,9 +291,9 @@ export default async function SectorPage({ params }: Props) {
 
           <div className="flex items-baseline gap-4 flex-wrap">
             <h1 className="text-[40px] md:text-[52px] font-bold tracking-[-0.02em] leading-none text-on-surface">
-              {doc.sector_label}
+              {sectorLabel}
             </h1>
-            {typeof doc.today_score === "number" && (
+            {typeof doc?.today_score === "number" && (
               <div className="flex items-baseline gap-1.5">
                 <span
                   className="text-[32px] font-bold tabular-nums leading-none"
@@ -231,9 +308,9 @@ export default async function SectorPage({ params }: Props) {
             )}
           </div>
 
-          {doc.today_brief && (
+          {heroBrief && (
             <p className="text-[20px] md:text-[22px] leading-snug text-on-surface font-medium tracking-[-0.01em] max-w-[68ch]">
-              {doc.today_brief}
+              {heroBrief}
             </p>
           )}
 
@@ -269,7 +346,7 @@ export default async function SectorPage({ params }: Props) {
                 <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                   This week
                 </span>
-                {doc.week_label && (
+                {doc?.week_label && (
                   <span
                     className={`px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-sm ${weekTone.chipBg}`}
                     style={{ color: weekTone.color }}
@@ -277,7 +354,7 @@ export default async function SectorPage({ params }: Props) {
                     {doc.week_label}
                   </span>
                 )}
-                {typeof doc.week_score === "number" && (
+                {typeof doc?.week_score === "number" && (
                   <span
                     className="text-[12px] font-bold tabular-nums"
                     style={{ color: weekTone.color }}
@@ -286,7 +363,7 @@ export default async function SectorPage({ params }: Props) {
                   </span>
                 )}
               </div>
-              {doc.week_brief && (
+              {doc?.week_brief && (
                 <p className="text-[14px] text-on-surface leading-relaxed max-w-[68ch]">
                   {doc.week_brief}
                 </p>
@@ -296,25 +373,65 @@ export default async function SectorPage({ params }: Props) {
 
           <div className="flex items-center justify-between text-[11px] text-on-surface-variant pt-2">
             <span>
-              {typeof doc.article_count === "number"
+              {typeof doc?.article_count === "number"
                 ? `${doc.article_count} verified sources`
-                : "Synthesized briefing"}
+                : doc
+                  ? "Synthesized briefing"
+                  : "Tracked sector basket"}
             </span>
-            {doc.generated_at && <span>Updated {formatRelative(doc.generated_at)}</span>}
+            {doc?.generated_at && <span>Updated {formatRelative(doc.generated_at)}</span>}
           </div>
         </section>
 
         {constituents.length > 0 && (
-          <section className="bg-surface-container-lowest brutalist-border p-6">
-            <h2 className="text-[14px] font-semibold text-on-surface mb-4">
-              Stocks in this sector
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {constituents.map((s) => (
-                <ConstituentCard key={s.instrument_id} stock={s} />
-              ))}
-            </div>
-          </section>
+          <>
+            <section className="bg-surface-container-lowest brutalist-border p-6">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-[14px] font-semibold text-on-surface">
+                    Tracked names in this sector
+                  </h2>
+                  <p className="mt-1 text-[12px] text-on-surface-variant">
+                    Live price action plus today&apos;s anomaly read when we have one.
+                  </p>
+                </div>
+                <span className="font-mono text-[11px] text-on-surface-variant">
+                  {constituents.length} tracked names
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--outline-variant)" }}>
+                <div
+                  className="hidden bg-surface-container px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-on-surface-variant sm:grid sm:grid-cols-[96px_minmax(0,1.4fr)_120px_120px_minmax(0,2fr)]"
+                >
+                  <span>Ticker</span>
+                  <span>Company</span>
+                  <span>Price</span>
+                  <span>Day</span>
+                  <span>Signal</span>
+                </div>
+                <div>
+                  {constituents.map((stock) => (
+                    <SectorTableRow
+                      key={stock.instrument_id}
+                      stock={stock}
+                      signal={signalByTicker.get(stock.ticker.toUpperCase()) ?? null}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-surface-container-lowest brutalist-border p-6">
+              <h2 className="mb-4 text-[14px] font-semibold text-on-surface">
+                Quick tiles
+              </h2>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                {constituents.map((s) => (
+                  <ConstituentCard key={s.instrument_id} stock={s} />
+                ))}
+              </div>
+            </section>
+          </>
         )}
       </div>
     </main>
