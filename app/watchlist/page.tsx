@@ -11,6 +11,7 @@ import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { RadarLedger } from "@/components/radar-ledger";
+import { RadarHub, type RadarCall, type RadarChange, type RadarSector, type RadarFactor, type RadarSuggestion } from "@/components/radar-hub";
 import { TodayMarketEvents } from "@/components/radar-activity";
 import { partitionActivityEvents, type RadarActivityEvent } from "@/lib/activity-events";
 import { WatchlistTabs } from "@/components/watchlist-tabs";
@@ -25,6 +26,7 @@ import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-worksp
 import { RadarBuildingState } from "@/components/radar-building-state";
 import { RadarEmptyBuildingGate } from "@/components/radar-empty-building-gate";
 import { getInstruments } from "@/lib/firestore";
+import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import {
   filterEarningsIntelThisWeek,
   getLatestEarningsIntelForInstruments,
@@ -293,7 +295,15 @@ export default async function WatchlistPage() {
   // Keep Radar prices fresh without rebuilding the whole per-user watchlist
   // view on every price tick. Price jobs update tm_latest_prices; this page
   // overlays those quote fields at read time.
-  const rows = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
+  const rowsPriced = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
+  // Overlay authoritative ticker+name keyed by instrument_id. The materialized
+  // view's stored instrument_name has drifted out of sync (wrong company names),
+  // so trust tm_instruments at read time instead.
+  const labelsById = await getInstrumentLabels(rowsPriced.map((r) => r.instrument_id)).catch(() => new Map());
+  const rows = rowsPriced.map((r) => {
+    const label = labelsById.get(r.instrument_id);
+    return label ? { ...r, ticker: label.ticker || r.ticker, instrument_name: label.name } : r;
+  });
   const regimeMarket = rows[0]?.market === "IN" ? "IN" : "US";
   const bookRegime = await getBookRegimeRead(
     regimeMarket,
@@ -586,8 +596,73 @@ export default async function WatchlistPage() {
         : []),
   ].slice(0, 4);
 
+  // ── Radar hub props (mockup hierarchy) ───────────────────────────────────────
+  const ACTIONABLE = new Set(["accumulate", "trim", "avoid"]);
+  const mapCall = (row: WatchlistRow): RadarCall => {
+    const d = rowDirective(row);
+    const tv = d?.trigger_value;
+    return {
+      ticker: row.ticker,
+      name: row.instrument_name,
+      logoUrl: row.logo_url,
+      market: row.market === "IN" ? "IN" : "US",
+      price: row.price,
+      changePct: row.day_change_pct,
+      stance: d?.stance ?? "watch",
+      action: d?.text, // single directive line (rationale lives on the stock page)
+      trigger: tv
+        ? d?.trigger_type === "price_below"
+          ? `add < ${tv}`
+          : d?.trigger_type === "price_above"
+            ? `trim > ${tv}`
+            : String(tv)
+        : undefined,
+      covered: row.coverage_status === "ready" && Boolean(d),
+    };
+  };
+  const hubHoldings = holdings.map(mapCall);
+  const hubWatching = watching.map(mapCall);
+
+  // "Flagged" = genuinely actionable today (accumulate/trim/avoid), not every tracked name.
+  const actionable = directiveRows.filter(({ directive }) => ACTIONABLE.has((directive.stance ?? "").toLowerCase()));
+  const hubFlagged = actionable.length;
+  const hubLead = actionable[0] ?? null;
+
+  const hubSuggestions: RadarSuggestion[] = suggestions
+    .map((s) => ({
+      ticker: String(s.ticker ?? "").trim().toUpperCase(),
+      name: String(s.name ?? "").trim() || undefined,
+      reason: String(s.why ?? s.reason ?? "").trim() || undefined,
+      market: (String(s.market ?? "US") === "IN" ? "IN" : "US") as "US" | "IN",
+    }))
+    .filter((s) => s.ticker && !rows.some((r) => r.ticker === s.ticker))
+    .slice(0, 6);
+
+  const hubChanged: RadarChange[] = rows
+    .filter((r) => String(r.attention_reason ?? "").trim())
+    .sort(byAttention)
+    .slice(0, 6)
+    .map((r) => ({ ticker: r.ticker, tone: (r.day_change_pct ?? 0) >= 0 ? "up" : "down", text: String(r.attention_reason) }));
+
+  const sectorCounts = new Map<string, number>();
+  for (const r of rows) {
+    const s = String(r.sector_label || "Other").trim() || "Other";
+    sectorCounts.set(s, (sectorCounts.get(s) ?? 0) + 1);
+  }
+  const hubSectors: RadarSector[] = rows.length
+    ? [...sectorCounts.entries()].map(([label, c]) => ({ label, pct: (c / rows.length) * 100 })).sort((a, b) => b.pct - a.pct)
+    : [];
+
+  const pa = pillarAverages as Record<string, number | null | undefined>;
+  const hubFactors: RadarFactor[] = (["growth", "momentum", "valuation", "quality"] as const)
+    .filter((k) => typeof pa?.[k] === "number")
+    .map((k) => ({ label: k, score: pa[k] as number }));
+
+  const regimeAny = bookRegime as { summary?: string; headline?: string; read?: string } | string | null | undefined;
+  const hubRegime = typeof regimeAny === "string" ? regimeAny : regimeAny?.summary ?? regimeAny?.headline ?? regimeAny?.read ?? undefined;
+
   return (
-    <main className="flex flex-grow flex-col bg-white">
+    <main className="flex flex-grow flex-col bg-background">
       <style>{tapeStyles}</style>
       <RadarWorkspace
         trackedCount={tracked.length}
@@ -602,60 +677,20 @@ export default async function WatchlistPage() {
           />
         )}
 
-        {/* ── HEADER STRIP ──────────────────────────────────────────────── */}
-        <HeaderStrip
-          rows={rows}
-          builtAt={builtAt}
-          pulse={pulse}
-          tapeItems={tapeItems}
+        <RadarHub
+          flagged={hubFlagged}
+          total={rows.length}
+          lead={hubLead ? { ticker: hubLead.row.ticker, stance: hubLead.directive.stance ?? "watch", chg: hubLead.row.day_change_pct } : null}
+          holdings={hubHoldings}
+          watching={hubWatching}
+          suggestions={hubSuggestions}
+          changed={hubChanged}
+          sectors={hubSectors}
+          factors={hubFactors}
+          regime={hubRegime}
           isSubscribed={isSubscribed}
-          trackedCount={tracked.length}
-          watchlistPositions={watchlistPositions}
-        />
-
-        {/* ── SIGNALS ON YOUR BOOK ──────────────────────────────────────── */}
-        <RadarSignalsOnBook anomalies={bookAnomalies} buzz={bookBuzz} premarket={bookPremarket} />
-
-        {/* ── § 01 · YOUR BOOK ──────────────────────────────────────────── */}
-        <YourBookSection
-          holdings={holdings}
-          watching={watching}
-          earningsReadyThisWeek={earningsReadyThisWeek}
-          earningsUpcomingThisWeek={earningsUpcomingThisWeek}
-          suggestions={suggestions}
-          isSubscribed={isSubscribed}
-          trackedCount={tracked.length}
-          refreshing={false}
-          portfolio={portfolio}
-        />
-
-        {/* ── § 02 · TODAY ──────────────────────────────────────────────── */}
-        <TodaySection
-          brief={brief}
-          todaySetup={todaySetup}
-          topDirective={topDirective}
-          secondaryDirectives={secondaryDirectives}
-          suggestions={suggestions}
-          marketEvents={marketWideEvents}
-          earningsTickers={earningsTickers}
-          refreshing={isTodayRefreshing}
-          trackedIds={new Set(tracked)}
-        />
-
-        {SHOW_SCENARIO_LAB && (
-          <ScenarioLabSection exposure={portfolioExposure} scenario={nvdaScenario} />
-        )}
-
-        {/* ── § 03 · DIAGNOSIS ──────────────────────────────────────────── */}
-        <RadarRegimeBlock read={bookRegime} />
-        <DiagnosisSection
-          portfolio={portfolio}
-          pillarAverages={pillarAverages}
-          factorTilt={factorTilt}
-          suggestions={suggestions}
-          tracked={tracked}
-          isSubscribed={isSubscribed}
-          refreshing={isDiagnosisRefreshing}
+          atLimit={!isSubscribed && rows.length >= 3}
+          builtLabel={builtAt ? formatRelative(builtAt) : undefined}
         />
       </RadarWorkspace>
     </main>
@@ -689,26 +724,26 @@ function HeaderStrip({
     <header className="flex flex-col gap-4">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface-variant">
             stocksbrew · {todayMasthead()}
           </span>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">
+            <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-on-surface leading-none">
               Radar
             </h1>
             {!isSubscribed && (
               <Link
                 href="/subscribe"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-semibold text-[#92400e] hover:border-[#f59e0b] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant tint-warn px-2.5 py-1 text-[11px] font-semibold text-[#f59e0b] hover:border-[#f59e0b] transition-colors"
               >
                 <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
-                  <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#b45309"/>
+                  <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#f59e0b"/>
                 </svg>
                 Free · {trackedCount}/3 stocks
               </Link>
             )}
           </div>
-          <p className="text-[12.5px] text-[#6b7280]">
+          <p className="text-[12.5px] text-on-surface-variant">
             {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
             {builtAt ? formatRelative(builtAt) : "never"}
             {pulse?.subtitle ? ` · ${pulse.subtitle}` : ""}
@@ -772,15 +807,15 @@ function LiveTape({ items }: { items: TapeItem[] }) {
   // duplicate the list so the marquee loops seamlessly
   const doubled = [...items, ...items];
   return (
-    <div className="relative overflow-hidden border-y border-[#ececea] bg-[#fafaf7] py-2">
+    <div className="relative overflow-hidden border-y border-outline-variant bg-surface-container-low py-2">
       <div className="radar-tape flex shrink-0 items-center gap-8 whitespace-nowrap">
         {doubled.map((item, i) => {
           const color =
             item.tone === "bull"
-              ? "#047857"
+              ? "#10b981"
               : item.tone === "bear"
-              ? "#b91c1c"
-              : "#6b7280";
+              ? "#ef4444"
+              : "var(--on-surface-variant)";
           return (
             <Link
               key={`tape-${i}-${item.ticker}`}
@@ -788,7 +823,7 @@ function LiveTape({ items }: { items: TapeItem[] }) {
               className="inline-flex items-center gap-2 text-[12px] font-medium tabular-nums hover:underline"
             >
               <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-              <span className="font-semibold text-[#0a0a0a]">{item.ticker}</span>
+              <span className="font-semibold text-on-surface">{item.ticker}</span>
               <span style={{ color }}>{item.body}</span>
             </Link>
           );
@@ -950,7 +985,7 @@ function TodaySection({
 
       {/* The read — macro narrative as a confident editorial standfirst. */}
       {brief?.narrative && (
-        <p className="text-[17px] md:text-[19px] text-[#1f2937] leading-[1.65] tracking-[-0.01em] max-w-[760px]">
+        <p className="text-[17px] md:text-[19px] text-on-surface leading-[1.65] tracking-[-0.01em] max-w-[760px]">
           {brief.narrative}
         </p>
       )}
@@ -1011,9 +1046,9 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
     <div className="rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-5 py-5 md:px-6 md:py-6 shadow-[0_1px_0_rgba(0,82,255,0.06)]">
       <div className="flex flex-col gap-2">
         <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#5b6f99]">Before open</span>
-        <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">{setup.headline}</h3>
+        <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-on-surface">{setup.headline}</h3>
         {setup.body && !signals.length ? (
-          <p className="max-w-[900px] text-[15px] leading-[1.65] text-[#374151]">{setup.body}</p>
+          <p className="max-w-[900px] text-[15px] leading-[1.65] text-on-surface">{setup.body}</p>
         ) : null}
       </div>
 
@@ -1022,7 +1057,7 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
           {threads.map((thread) => (
             <span
               key={thread}
-              className="inline-flex items-center rounded-full border border-[#dbe7ff] bg-white px-3 py-1 text-[11px] font-medium text-[#35538a]"
+              className="inline-flex items-center rounded-full border border-[#dbe7ff] bg-surface px-3 py-1 text-[11px] font-medium text-[#35538a]"
             >
               {thread}
             </span>
@@ -1041,14 +1076,14 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
               >
                 <div className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)] md:items-start">
                   <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-1">
-                    <span className="text-[16px] font-semibold text-[#0a0a0a]">{signal.ticker}</span>
+                    <span className="text-[16px] font-semibold text-on-surface">{signal.ticker}</span>
                     <PositionPill type={signal.position_type} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[16px] font-semibold leading-snug text-[#111827]">{titleWithoutTicker(signal.ticker, signal.title)}</p>
-                    <p className="mt-1.5 text-[14px] leading-[1.55] text-[#4b5563]">{signal.why_it_matters}</p>
+                    <p className="mt-1.5 text-[14px] leading-[1.55] text-on-surface-variant">{signal.why_it_matters}</p>
                     {evidence.length ? (
-                      <p className="mt-2 text-[12px] text-[#6b7280]">{evidence.join(" · ")}</p>
+                      <p className="mt-2 text-[12px] text-on-surface-variant">{evidence.join(" · ")}</p>
                     ) : null}
                   </div>
                 </div>
@@ -1067,8 +1102,8 @@ function PositionPill({ type }: { type?: string }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase ${
         isHolding
-          ? "bg-[#ecfdf5] text-[#047857]"
-          : "bg-[#f3f4f6] text-[#6b7280]"
+          ? "tint-bull text-[#10b981]"
+          : "bg-surface-container text-on-surface-variant"
       }`}
     >
       <span
@@ -1090,14 +1125,14 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
   const attentionKind = row.attention_kind;
   const attentionColor =
     attentionKind === "move"
-      ? "bg-[#fef3c7] text-[#92400e]"
+      ? "tint-warn text-[#f59e0b]"
       : attentionKind === "risk"
-      ? "bg-[#fef2f2] text-[#991b1b]"
+      ? "tint-bear text-[#ef4444]"
       : attentionKind === "opportunity"
-      ? "bg-[#ecfdf5] text-[#065f46]"
+      ? "tint-bull text-[#10b981]"
       : attentionKind === "news"
-      ? "bg-[#eff6ff] text-[#1e3a8a]"
-      : "bg-[#f3f4f6] text-[#6b7280]";
+      ? "tint-info text-[#3b82f6]"
+      : "bg-surface-container text-on-surface-variant";
   const priceStr =
     typeof row.price === "number"
       ? `${symbol}${row.price.toLocaleString(undefined, {
@@ -1119,7 +1154,7 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
       />
       <div className="flex flex-col gap-0">
         <div className="flex items-center gap-2">
-          <span className="text-[18px] font-semibold tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+          <span className="text-[18px] font-semibold tracking-[-0.01em] text-on-surface group-hover:text-[#22d3ee] transition-colors">
             {row.ticker}
           </span>
           {attention !== undefined && attention !== null && (
@@ -1128,11 +1163,11 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
               {attention}
             </span>
           )}
-          <span className="text-[12px] text-[#9ca3af] truncate max-w-[260px]">
+          <span className="text-[12px] text-on-surface-variant truncate max-w-[260px]">
             {row.sector_label || ""}
           </span>
           {upside !== null && upside !== undefined ? (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase tint-bull text-[#10b981]">
               <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
               +{upside.toFixed(0)}% upside
             </span>
@@ -1141,20 +1176,20 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
           )}
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-[13px] font-semibold tabular-nums text-[#0a0a0a]">
+          <span className="text-[13px] font-semibold tabular-nums text-on-surface">
             {priceStr}
           </span>
           {typeof row.day_change_pct === "number" && (
             <span
               className={`text-[12px] font-semibold tabular-nums ${
-                positive ? "text-[#047857]" : "text-[#b91c1c]"
+                positive ? "text-[#10b981]" : "text-[#ef4444]"
               }`}
             >
               {positive ? "+" : ""}
               {dayChange.toFixed(2)}%
             </span>
           )}
-          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
             Today&apos;s top directive
           </span>
         </div>
@@ -1168,11 +1203,11 @@ const STANCE_META: Record<
   string,
   { label: string; bg: string; fg: string; chipBg: string; chipFg: string }
 > = {
-  accumulate: { label: "Accumulate", bg: "#ecfdf5", fg: "#065f46", chipBg: "#10b981", chipFg: "#ffffff" },
-  trim: { label: "Trim", bg: "#fef3c7", fg: "#92400e", chipBg: "#f59e0b", chipFg: "#ffffff" },
-  watch: { label: "Watch", bg: "#eff6ff", fg: "#1e3a8a", chipBg: "#0052ff", chipFg: "#ffffff" },
-  avoid: { label: "Avoid", bg: "#fef2f2", fg: "#991b1b", chipBg: "#ef4444", chipFg: "#ffffff" },
-  hold: { label: "Hold", bg: "#f3f4f6", fg: "#374151", chipBg: "#374151", chipFg: "#ffffff" },
+  accumulate: { label: "Accumulate", bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981", chipBg: "#10b981", chipFg: "var(--surface)" },
+  trim: { label: "Trim", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b", chipBg: "#f59e0b", chipFg: "var(--surface)" },
+  watch: { label: "Watch", bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1e3a8a", chipBg: "#0052ff", chipFg: "var(--surface)" },
+  avoid: { label: "Avoid", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444", chipBg: "#ef4444", chipFg: "var(--surface)" },
+  hold: { label: "Hold", bg: "var(--surface-container)", fg: "var(--on-surface)", chipBg: "var(--on-surface)", chipFg: "var(--surface)" },
 };
 
 function SecondaryDirectiveCard({
@@ -1191,18 +1226,18 @@ function SecondaryDirectiveCard({
   const attentionKind = row.attention_kind;
   const attentionColor =
     attentionKind === "move"
-      ? "bg-[#fef3c7] text-[#92400e]"
+      ? "tint-warn text-[#f59e0b]"
       : attentionKind === "risk"
-      ? "bg-[#fef2f2] text-[#991b1b]"
+      ? "tint-bear text-[#ef4444]"
       : attentionKind === "opportunity"
-      ? "bg-[#ecfdf5] text-[#065f46]"
+      ? "tint-bull text-[#10b981]"
       : attentionKind === "news"
-      ? "bg-[#eff6ff] text-[#1e3a8a]"
-      : "bg-[#f3f4f6] text-[#6b7280]";
+      ? "tint-info text-[#3b82f6]"
+      : "bg-surface-container text-on-surface-variant";
   return (
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-outline-variant bg-surface p-4 transition-all hover:border-on-surface hover:shadow-sm"
     >
       <div className="flex items-center justify-between gap-2">
         <span
@@ -1221,7 +1256,7 @@ function SecondaryDirectiveCard({
           {typeof row.day_change_pct === "number" && (
             <span
               className={`text-[11px] font-semibold tabular-nums ${
-                positive ? "text-[#047857]" : "text-[#b91c1c]"
+                positive ? "text-[#10b981]" : "text-[#ef4444]"
               }`}
             >
               {positive ? "+" : ""}
@@ -1235,11 +1270,11 @@ function SecondaryDirectiveCard({
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} />
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+            <span className="text-[14px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
               {row.ticker}
             </span>
             {upside !== null && upside !== undefined ? (
-              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase tint-bull text-[#10b981]">
                 <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
                 +{upside.toFixed(0)}% upside
               </span>
@@ -1249,25 +1284,25 @@ function SecondaryDirectiveCard({
           </div>
           <div className="flex items-baseline gap-1.5">
             {typeof row.price === "number" && (
-              <span className="text-[12px] font-semibold tabular-nums text-[#374151]">
+              <span className="text-[12px] font-semibold tabular-nums text-on-surface">
                 {row.currency === "INR" ? "₹" : "$"}{row.price.toLocaleString(undefined, {
                   minimumFractionDigits: row.price >= 1000 ? 0 : 2,
                   maximumFractionDigits: row.price >= 1000 ? 0 : 2,
                 })}
               </span>
             )}
-            <span className="text-[11px] text-[#9ca3af] truncate max-w-[120px]">
+            <span className="text-[11px] text-on-surface-variant truncate max-w-[120px]">
               {row.sector_label || "—"}
             </span>
           </div>
         </div>
       </div>
 
-      <p className="text-[13px] font-medium text-[#0a0a0a] leading-snug line-clamp-2 mt-auto">
+      <p className="text-[13px] font-medium text-on-surface leading-snug line-clamp-2 mt-auto">
         {directive.text}
       </p>
       {directive.rationale && (
-        <p className="text-[11.5px] text-[#6b7280] leading-snug line-clamp-2">
+        <p className="text-[11.5px] text-on-surface-variant leading-snug line-clamp-2">
           {directive.rationale}
         </p>
       )}
@@ -1289,14 +1324,14 @@ function suggestionTag(
   const redditMentions = typeof suggestion.reddit_mentions === "number" ? suggestion.reddit_mentions : 0;
 
   if (ticker && earningsTickers.has(ticker)) {
-    return { label: "Just reported", bg: "#fef3c7", fg: "#92400e", dot: "#f59e0b" };
+    return { label: "Just reported", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b", dot: "#f59e0b" };
   }
   if (sources.includes("anomaly") || anomalyMove !== null) {
     const up = (anomalyMove ?? 0) >= 0;
     return {
       label: anomalyMove !== null ? `${up ? "+" : ""}${anomalyMove.toFixed(1)}% today` : "On the move",
-      bg: up ? "#ecfdf5" : "#fef2f2",
-      fg: up ? "#065f46" : "#991b1b",
+      bg: up ? "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" : "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))",
+      fg: up ? "#10b981" : "#ef4444",
       dot: up ? "#10b981" : "#ef4444",
     };
   }
@@ -1312,9 +1347,9 @@ function suggestionTag(
     };
   }
   if (sources.includes("heat")) {
-    return { label: "Heat list", bg: "#fef2f2", fg: "#9f1239", dot: "#fb7185" };
+    return { label: "Heat list", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#9f1239", dot: "#fb7185" };
   }
-  return { label: "Explore", bg: "#f3f4f6", fg: "#6b7280", dot: "#9ca3af" };
+  return { label: "Explore", bg: "var(--surface-container)", fg: "var(--on-surface-variant)", dot: "var(--on-surface-variant)" };
 }
 
 function ExploreDirectiveCard({
@@ -1353,21 +1388,21 @@ function ExploreDirectiveCard({
         })}`
       : null;
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-4 transition-all hover:border-[#111111] hover:bg-white hover:shadow-sm flex flex-col gap-3">
+    <div className="group relative overflow-hidden rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-4 transition-all hover:border-on-surface hover:bg-surface hover:shadow-sm flex flex-col gap-3">
       {/* Price + day move (or signal tag) + score */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           {showQuote ? (
             <div className="flex items-baseline gap-1.5">
               {priceStr && (
-                <span className="text-[12px] font-semibold tabular-nums text-[#0a0a0a]">
+                <span className="text-[12px] font-semibold tabular-nums text-on-surface">
                   {priceStr}
                 </span>
               )}
               {dayChange !== null && (
                 <span
                   className={`text-[11px] font-semibold tabular-nums ${
-                    positive ? "text-[#047857]" : "text-[#b91c1c]"
+                    positive ? "text-[#10b981]" : "text-[#ef4444]"
                   }`}
                 >
                   {positive ? "+" : ""}
@@ -1385,14 +1420,14 @@ function ExploreDirectiveCard({
             </span>
           )}
           {gapLabel && (
-            <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-[#fef3c7] text-[#92400e]">
+            <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase tint-warn text-[#f59e0b]">
               {gapLabel}
             </span>
           )}
         </div>
         {score !== null && (
           <span className={`text-[11px] font-semibold tabular-nums ${
-            score >= 80 ? "text-[#10b981]" : score >= 60 ? "text-[#374151]" : "text-[#9ca3af]"
+            score >= 80 ? "text-[#10b981]" : score >= 60 ? "text-on-surface" : "text-on-surface-variant"
           }`}>
             {Math.round(score)}
           </span>
@@ -1404,11 +1439,11 @@ function ExploreDirectiveCard({
         <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex items-center gap-2.5 min-w-0 flex-1">
           <StockLogo ticker={ticker} market={market} size={32} />
           <div className="flex flex-col min-w-0">
-            <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+            <span className="text-[14px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
               {ticker}
             </span>
             {sector && (
-              <span className="text-[11px] text-[#9ca3af] truncate max-w-[130px]">{sector}</span>
+              <span className="text-[11px] text-on-surface-variant truncate max-w-[130px]">{sector}</span>
             )}
           </div>
         </Link>
@@ -1422,11 +1457,11 @@ function ExploreDirectiveCard({
 
       <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex flex-col gap-2 flex-1">
         {why && (
-          <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-2">
+          <p className="text-[12px] text-on-surface-variant leading-snug line-clamp-2">
             {why}
           </p>
         )}
-        <span className="text-[11px] font-semibold text-[#9ca3af] group-hover:text-[#0052ff] transition-colors mt-auto">
+        <span className="text-[11px] font-semibold text-on-surface-variant group-hover:text-[#22d3ee] transition-colors mt-auto">
           View analysis →
         </span>
       </Link>
@@ -1519,10 +1554,10 @@ function YourBookSection({
 
             <div className="relative flex flex-col gap-2.5">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-white/60">
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-white/60">
                   Free · {visibleCount}/3 stocks
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#fef3c7]/15 border border-[#fcd34d]/30 px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#fcd34d]">
+                <span className="inline-flex items-center gap-1 rounded-full tint-warn/15 border border-outline-variant/30 px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#fcd34d]">
                   🚀 Launch pricing
                 </span>
               </div>
@@ -1595,7 +1630,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
   if (positionRisks.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3">
+    <div className="flex flex-col gap-2 rounded-xl border border-outline-variant bg-surface px-4 py-3">
       {positionRisks.slice(0, 2).map((risk, i) => (
         <div key={`pos-risk-${i}`} className="flex items-start gap-2.5">
           <span
@@ -1646,29 +1681,29 @@ function ScenarioLabSection({
     <section className="flex flex-col gap-5">
       <SectionOpener number="02B" title="Scenario lab" />
 
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-6 flex flex-col gap-5">
+      <div className="rounded-2xl border border-outline-variant bg-surface p-4 md:p-6 flex flex-col gap-5">
         <div className="flex flex-wrap items-center gap-4 text-[12px]">
-          <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 font-semibold text-[#111111]">
+          <span className="rounded-full bg-surface-container px-2.5 py-1 font-semibold text-on-surface">
             Top-3 concentration {num(concentration.top3_pct)?.toFixed(1) ?? "—"}%
           </span>
-          <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 font-semibold text-[#111111]">
+          <span className="rounded-full bg-surface-container px-2.5 py-1 font-semibold text-on-surface">
             HHI {num(concentration.hhi)?.toFixed(3) ?? "—"}
           </span>
-          <span className="rounded-full bg-[#ecfdf5] px-2.5 py-1 font-semibold text-[#065f46]">
+          <span className="rounded-full tint-bull px-2.5 py-1 font-semibold text-[#10b981]">
             Risk {text(concentration.risk_label || "unknown")}
           </span>
           {scenario?.generated_at ? (
-            <span className="text-[#9ca3af]">Scenario refreshed {formatRelative(scenario.generated_at)}</span>
+            <span className="text-on-surface-variant">Scenario refreshed {formatRelative(scenario.generated_at)}</span>
           ) : null}
         </div>
 
         {topSectors.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             {topSectors.map((item, i) => (
-              <div key={`sector-${i}`} className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-2.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Sector exposure</div>
-                <div className="mt-1 text-[13px] font-semibold text-[#111111]">{text(item.sector || "Unknown")}</div>
-                <div className="text-[12px] text-[#6b7280]">{((num(item.weight) || 0) * 100).toFixed(1)}%</div>
+              <div key={`sector-${i}`} className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Sector exposure</div>
+                <div className="mt-1 text-[13px] font-semibold text-on-surface">{text(item.sector || "Unknown")}</div>
+                <div className="text-[12px] text-on-surface-variant">{((num(item.weight) || 0) * 100).toFixed(1)}%</div>
               </div>
             ))}
           </div>
@@ -1681,19 +1716,19 @@ function ScenarioLabSection({
               const actions = (c.actions || []).slice(0, 3);
               const isBeat = text(c.case).toLowerCase() === "beat";
               return (
-                <div key={`case-${i}`} className="rounded-xl border border-[#f3f4f6] p-4 flex flex-col gap-3">
+                <div key={`case-${i}`} className="rounded-xl border border-outline-variant p-4 flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
                         {text(c.market_mood || "mixed")}
                       </span>
-                      <span className="text-[15px] font-semibold text-[#111111]">
+                      <span className="text-[15px] font-semibold text-on-surface">
                         {text(c.label || c.case || "Scenario")}
                       </span>
                     </div>
                     <span
                       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        isBeat ? "bg-[#ecfdf5] text-[#047857]" : "bg-[#fef2f2] text-[#991b1b]"
+                        isBeat ? "tint-bull text-[#10b981]" : "tint-bear text-[#ef4444]"
                       }`}
                     >
                       {text(c.case || "case")}
@@ -1706,8 +1741,8 @@ function ScenarioLabSection({
                       const up = (move || 0) >= 0;
                       return (
                         <div key={`impact-${idx}`} className="flex items-center justify-between gap-2 text-[12px]">
-                          <span className="font-semibold text-[#111111]">{text(impact.ticker || "—")}</span>
-                          <span className={up ? "text-[#047857] font-semibold" : "text-[#b91c1c] font-semibold"}>
+                          <span className="font-semibold text-on-surface">{text(impact.ticker || "—")}</span>
+                          <span className={up ? "text-[#10b981] font-semibold" : "text-[#ef4444] font-semibold"}>
                             {move === null ? "—" : `${up ? "+" : ""}${move.toFixed(2)}%`}
                           </span>
                         </div>
@@ -1716,9 +1751,9 @@ function ScenarioLabSection({
                   </div>
 
                   {actions.length > 0 ? (
-                    <div className="rounded-lg bg-[#fafafa] border border-[#f3f4f6] p-2.5 flex flex-col gap-1.5">
+                    <div className="rounded-lg bg-surface-container-low border border-outline-variant p-2.5 flex flex-col gap-1.5">
                       {actions.map((a, idx) => (
-                        <p key={`action-${idx}`} className="text-[12px] leading-snug text-[#374151]">
+                        <p key={`action-${idx}`} className="text-[12px] leading-snug text-on-surface">
                           {a}
                         </p>
                       ))}
@@ -1731,23 +1766,23 @@ function ScenarioLabSection({
         ) : null}
 
         {recos.length > 0 ? (
-          <div className="rounded-xl border border-[#f3f4f6] p-4">
-            <h4 className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af] mb-2">Weight range guidance</h4>
+          <div className="rounded-xl border border-outline-variant p-4">
+            <h4 className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant mb-2">Weight range guidance</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {recos.map((r, i) => {
                 const minW = (num(r.weight_target_range?.min) || 0) * 100;
                 const maxW = (num(r.weight_target_range?.max) || 0) * 100;
                 return (
-                  <div key={`reco-${i}`} className="flex items-center justify-between gap-2 rounded-lg border border-[#f3f4f6] px-3 py-2">
+                  <div key={`reco-${i}`} className="flex items-center justify-between gap-2 rounded-lg border border-outline-variant px-3 py-2">
                     <div className="min-w-0">
-                      <div className="text-[13px] font-semibold text-[#111111]">{text(r.ticker || "—")}</div>
-                      <div className="text-[11px] text-[#6b7280] truncate">{text(r.rebalance_note || "")}</div>
+                      <div className="text-[13px] font-semibold text-on-surface">{text(r.ticker || "—")}</div>
+                      <div className="text-[11px] text-on-surface-variant truncate">{text(r.rebalance_note || "")}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[11px] font-semibold text-[#111111]">
+                      <div className="text-[11px] font-semibold text-on-surface">
                         {minW.toFixed(1)}% - {maxW.toFixed(1)}%
                       </div>
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-[#9ca3af]">{text(r.directive || "hold")}</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">{text(r.directive || "hold")}</div>
                     </div>
                   </div>
                 );
@@ -1803,7 +1838,7 @@ function DiagnosisSection({
       <SectionOpener number="03" title="Diagnosis" refreshing={refreshing} />
 
       {summary && (
-        <p className="text-[15px] md:text-[16px] text-[#374151] leading-[1.6] max-w-[820px]">
+        <p className="text-[15px] md:text-[16px] text-on-surface leading-[1.6] max-w-[820px]">
           {summary}
         </p>
       )}
@@ -1811,11 +1846,11 @@ function DiagnosisSection({
       {/* Score + 4 pillars (mirrors stock-page Scorecard) */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(240px,_300px)_1fr] gap-6 md:gap-10 items-start">
         <div className="flex flex-col gap-2">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#eff6ff] px-2.5 py-1 text-[10px] font-semibold tracking-[0.12em] uppercase text-[#1e3a8a]">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full tint-info px-2.5 py-1 text-[10px] font-semibold tracking-[0.12em] uppercase text-[#3b82f6]">
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#0052ff]" />
             Your whole book
           </span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af] mt-1">
+          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant mt-1">
             Portfolio score
           </span>
           <div className="flex items-baseline gap-2">
@@ -1824,18 +1859,18 @@ function DiagnosisSection({
             >
               {overall === null ? "—" : Math.round(overall)}
             </span>
-            <span className="text-[20px] font-medium text-[#9ca3af]">/ 100</span>
+            <span className="text-[20px] font-medium text-on-surface-variant">/ 100</span>
           </div>
-          <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#6b7280]">
+          <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             {verdictLabel(overall)}
           </span>
         </div>
 
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-          <PortfolioPillarCard name="Valuation" emoji="🏷️" iconBg="#fef3c7" score={valuation} />
-          <PortfolioPillarCard name="Growth" emoji="🌱" iconBg="#ecfdf5" score={growth} />
-          <PortfolioPillarCard name="Quality" emoji="🏛️" iconBg="#f3f4f6" score={quality} />
-          <PortfolioPillarCard name="Momentum" emoji="🚀" iconBg="#eff6ff" score={momentum} />
+          <PortfolioPillarCard name="Valuation" emoji="🏷️" iconBg="color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))" score={valuation} />
+          <PortfolioPillarCard name="Growth" emoji="🌱" iconBg="color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" score={growth} />
+          <PortfolioPillarCard name="Quality" emoji="🏛️" iconBg="var(--surface-container)" score={quality} />
+          <PortfolioPillarCard name="Momentum" emoji="🚀" iconBg="color-mix(in srgb, #2563eb 13%, var(--surface))" score={momentum} />
         </div>
       </div>
 
@@ -1879,7 +1914,7 @@ function PortfolioPillarCard({
   score: number | null;
 }) {
   return (
-    <div className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+    <div className="flex h-full flex-col gap-3 rounded-2xl border border-outline-variant bg-surface p-4">
       <div className="flex items-center justify-between gap-2">
         <span
           aria-hidden
@@ -1895,11 +1930,11 @@ function PortfolioPillarCard({
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-[#111111]">
+        <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-on-surface">
           {name}
         </span>
         <ScoreBar score={score} />
-        <span className="text-[11px] text-[#6b7280]">{verdictLabel(score)}</span>
+        <span className="text-[11px] text-on-surface-variant">{verdictLabel(score)}</span>
       </div>
     </div>
   );
@@ -1908,7 +1943,7 @@ function PortfolioPillarCard({
 function ScoreBar({ score }: { score: number | null }) {
   const clamped = score === null ? 0 : Math.max(0, Math.min(100, score));
   return (
-    <div className="relative h-1.5 rounded-full bg-[#f3f4f6] overflow-hidden">
+    <div className="relative h-1.5 rounded-full bg-surface-container overflow-hidden">
       <div
         className={`absolute inset-y-0 left-0 rounded-full ${scoreToneFill(score)}`}
         style={{ width: `${clamped}%` }}
@@ -1917,28 +1952,28 @@ function ScoreBar({ score }: { score: number | null }) {
   );
 }
 
-const CLUSTER_COLORS = ["#0052ff", "#10b981", "#b45309", "#7c3aed", "#ef4444"];
+const CLUSTER_COLORS = ["#0052ff", "#10b981", "#f59e0b", "#7c3aed", "#ef4444"];
 
 function ClustersBlock({ clusters }: { clusters: Dict[] }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#f5f3ff] text-[14px]">
+        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg tint-brand text-[14px]">
           🧩
         </span>
         <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#7c3aed]">
           Clusters
         </span>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+        <span className="text-[10px] font-semibold tabular-nums text-on-surface-variant">
           {clusters.length}
         </span>
       </div>
       {clusters.length === 0 ? (
-        <p className="text-[13px] text-[#6b7280]">No sector clusters yet.</p>
+        <p className="text-[13px] text-on-surface-variant">No sector clusters yet.</p>
       ) : (
         <>
           {/* Unified stacked bar */}
-          <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#f3f4f6]">
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-container">
             {clusters.map((c, i) => {
               const pct = num(c.weight_pct) ?? 0;
               return (
@@ -1964,13 +1999,13 @@ function ClustersBlock({ clusters }: { clusters: Dict[] }) {
                     className="h-2 w-2 rounded-sm shrink-0"
                     style={{ background: CLUSTER_COLORS[i % CLUSTER_COLORS.length] }}
                   />
-                  <span className="text-[13px] font-semibold text-[#111111] flex-1 truncate">
+                  <span className="text-[13px] font-semibold text-on-surface flex-1 truncate">
                     {sector}
                   </span>
-                  <span className="text-[11px] text-[#9ca3af] tabular-nums">
+                  <span className="text-[11px] text-on-surface-variant tabular-nums">
                     {count} stock{count === 1 ? "" : "s"}
                   </span>
-                  <span className="text-[13px] font-semibold tabular-nums text-[#111111] w-12 text-right">
+                  <span className="text-[13px] font-semibold tabular-nums text-on-surface w-12 text-right">
                     {pct.toFixed(1)}%
                   </span>
                 </li>
@@ -1992,34 +2027,34 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
         <span
           aria-hidden
           className={`inline-flex h-7 w-7 items-center justify-center rounded-lg text-[14px] ${
-            isClear ? "bg-[#ecfdf5] text-[#047857]" : "bg-[#fef2f2]"
+            isClear ? "tint-bull text-[#10b981]" : "tint-bear"
           }`}
         >
           {isClear ? "✓" : "⚠️"}
         </span>
         <span
           className={`text-[11px] font-semibold tracking-[0.1em] uppercase ${
-            isClear ? "text-[#047857]" : "text-[#b91c1c]"
+            isClear ? "text-[#10b981]" : "text-[#ef4444]"
           }`}
         >
           Risk flags
         </span>
         {!isClear && (
-          <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tabular-nums text-on-surface-variant">
             {risks.length}
           </span>
         )}
       </div>
       {isClear ? (
-        <div className="rounded-2xl border border-[#d1fae5] bg-[#f0fdf4] px-4 py-4 flex items-start gap-3">
+        <div className="rounded-2xl border border-[#d1fae5] tint-bull px-4 py-4 flex items-start gap-3">
           <span aria-hidden className="text-[18px] leading-none mt-0.5">
             😌
           </span>
           <div className="flex flex-col gap-1">
-            <p className="text-[14px] font-semibold text-[#065f46] tracking-[-0.01em]">
+            <p className="text-[14px] font-semibold text-[#10b981] tracking-[-0.01em]">
               All clear
             </p>
-            <p className="text-[13px] text-[#047857] leading-relaxed">
+            <p className="text-[13px] text-[#10b981] leading-relaxed">
               Nothing major flagged in your book right now. We&apos;ll surface concentration, stretched
               technicals, and weak spots here when they show up.
             </p>
@@ -2038,14 +2073,14 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
             return (
               <div
                 key={`risk-${i}`}
-                className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+                className="flex h-full flex-col gap-3 rounded-2xl border border-outline-variant bg-surface p-4"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[14px] font-semibold text-[#0a0a0a] tracking-[-0.01em] min-w-0 truncate">
+                  <span className="text-[14px] font-semibold text-on-surface tracking-[-0.01em] min-w-0 truncate">
                     {ticker ? (
                       <Link
                         href={`/stock/${encodeURIComponent(ticker)}`}
-                        className="hover:text-[#0052ff] transition-colors"
+                        className="hover:text-[#22d3ee] transition-colors"
                       >
                         {ticker}
                       </Link>
@@ -2053,7 +2088,7 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                       title
                     )}
                     {ticker && kindLabel && (
-                      <span className="ml-2 text-[11px] font-medium text-[#9ca3af] tracking-[0.04em] uppercase">
+                      <span className="ml-2 text-[11px] font-medium text-on-surface-variant tracking-[0.04em] uppercase">
                         {kindLabel}
                       </span>
                     )}
@@ -2065,19 +2100,19 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                     >
                       <span
                         aria-hidden
-                        className="h-1 w-1 rounded-full bg-white/80"
+                        className="h-1 w-1 rounded-full bg-surface/80"
                       />
                       {severity}
                     </span>
                   )}
                 </div>
                 {headline && (
-                  <p className="text-[14px] font-semibold text-[#111111] leading-snug">
+                  <p className="text-[14px] font-semibold text-on-surface leading-snug">
                     {headline}
                   </p>
                 )}
                 {body && (
-                  <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-4 mt-auto">
+                  <p className="text-[12px] text-on-surface-variant leading-snug line-clamp-4 mt-auto">
                     {body}
                   </p>
                 )}
@@ -2109,10 +2144,10 @@ function PositionRisksBlock({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fef3c7] text-[14px]">
+        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg tint-warn text-[14px]">
           📊
         </span>
-        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#b45309]">
+        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#f59e0b]">
           Position analysis
         </span>
       </div>
@@ -2120,17 +2155,17 @@ function PositionRisksBlock({
       {hasConcentration && (
         <div className="flex flex-wrap items-center gap-2">
           {top1Pct !== null && (
-            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+            <span className="rounded-full bg-surface-container px-2.5 py-1 text-[11px] font-semibold text-on-surface tabular-nums">
               Top-1: {top1Pct.toFixed(1)}%
             </span>
           )}
           {top3Pct !== null && (
-            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+            <span className="rounded-full bg-surface-container px-2.5 py-1 text-[11px] font-semibold text-on-surface tabular-nums">
               Top-3: {top3Pct.toFixed(1)}%
             </span>
           )}
           {hhi !== null && (
-            <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#111111] tabular-nums">
+            <span className="rounded-full bg-surface-container px-2.5 py-1 text-[11px] font-semibold text-on-surface tabular-nums">
               HHI: {hhi.toFixed(3)}
             </span>
           )}
@@ -2138,10 +2173,10 @@ function PositionRisksBlock({
             <span
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                 riskLabel === "high"
-                  ? "bg-[#fef2f2] text-[#991b1b]"
+                  ? "tint-bear text-[#ef4444]"
                   : riskLabel === "medium"
-                  ? "bg-[#fffbeb] text-[#92400e]"
-                  : "bg-[#ecfdf5] text-[#065f46]"
+                  ? "tint-warn text-[#f59e0b]"
+                  : "tint-bull text-[#10b981]"
               }`}
             >
               {riskLabel} risk
@@ -2162,10 +2197,10 @@ function PositionRisksBlock({
             return (
               <div
                 key={`posrisk-${i}`}
-                className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+                className="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface p-4"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-semibold text-[#111111] truncate">
+                  <span className="text-[13px] font-semibold text-on-surface truncate">
                     {ticker || kindLabel || "Position risk"}
                   </span>
                   {severity && (
@@ -2173,16 +2208,16 @@ function PositionRisksBlock({
                       className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase shrink-0"
                       style={{ background: tone.chipBg, color: tone.chipFg }}
                     >
-                      <span aria-hidden className="h-1 w-1 rounded-full bg-white/80" />
+                      <span aria-hidden className="h-1 w-1 rounded-full bg-surface/80" />
                       {severity}
                     </span>
                   )}
                 </div>
                 {headline && (
-                  <p className="text-[13px] font-medium text-[#111111] leading-snug">{headline}</p>
+                  <p className="text-[13px] font-medium text-on-surface leading-snug">{headline}</p>
                 )}
                 {body && (
-                  <p className="text-[11.5px] text-[#6b7280] leading-snug line-clamp-3 mt-auto">{body}</p>
+                  <p className="text-[11.5px] text-on-surface-variant leading-snug line-clamp-3 mt-auto">{body}</p>
                 )}
               </div>
             );
@@ -2198,24 +2233,24 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#ecfdf5] text-[14px]">
+          <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg tint-bull text-[14px]">
             ✨
           </span>
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#047857]">
+          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#10b981]">
             Opportunities
           </span>
-          <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tabular-nums text-on-surface-variant">
             {items.length}
           </span>
         </div>
         {items.length > 0 && (
-          <p className="text-[13px] text-[#6b7280] leading-relaxed max-w-[720px]">
+          <p className="text-[13px] text-on-surface-variant leading-relaxed max-w-[720px]">
             Watch list names with strong analyst runway. Consider adding at good entry points.
           </p>
         )}
       </div>
       {items.length === 0 ? (
-        <p className="text-[13px] text-[#6b7280] italic">
+        <p className="text-[13px] text-on-surface-variant italic">
           No watch list names with strong analyst runway right now.
         </p>
       ) : (
@@ -2231,11 +2266,11 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
               <Link
                 key={`opp-${i}`}
                 href={ticker ? `/stock/${encodeURIComponent(ticker)}` : "#"}
-                className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+                className="group flex flex-col gap-3 rounded-2xl border border-outline-variant bg-surface p-4 transition-all hover:border-on-surface hover:shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af] tabular-nums">
+                    <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant tabular-nums">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     {ticker && (
@@ -2245,30 +2280,30 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
                         size={28}
                       />
                     )}
-                    <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                    <span className="text-[14px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
                       {ticker || "Opportunity"}
                     </span>
                   </div>
                   {kind && (
-                    <span className="inline-flex items-center rounded-md bg-[#ecfdf5] px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] uppercase text-[#065f46] shrink-0">
+                    <span className="inline-flex items-center rounded-md tint-bull px-2 py-0.5 text-[9px] font-semibold tracking-[0.08em] uppercase text-[#10b981] shrink-0">
                       {kind}
                     </span>
                   )}
                 </div>
                 {runway !== null ? (
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-[32px] md:text-[36px] font-semibold tabular-nums leading-none text-[#047857]">
+                    <span className="text-[32px] md:text-[36px] font-semibold tabular-nums leading-none text-[#10b981]">
                       +{runway.toFixed(1)}%
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
                       runway
                     </span>
                   </div>
                 ) : headline ? (
-                  <p className="text-[14px] font-semibold text-[#111111] leading-snug">{headline}</p>
+                  <p className="text-[14px] font-semibold text-on-surface leading-snug">{headline}</p>
                 ) : null}
                 {body && (
-                  <p className="text-[12px] text-[#6b7280] leading-snug line-clamp-3 mt-auto">
+                  <p className="text-[12px] text-on-surface-variant leading-snug line-clamp-3 mt-auto">
                     {body}
                   </p>
                 )}
@@ -2289,10 +2324,10 @@ function reasonChip(reason: string): { bg: string; fg: string } {
   if (r.includes("smart money") || r.includes("favorite"))
     return { bg: "#f5f3ff", fg: "#6d28d9" };
   if (r.includes("momentum")) return { bg: "#fff7ed", fg: "#c2410c" };
-  if (r.includes("quality")) return { bg: "#eff6ff", fg: "#1d4ed8" };
-  if (r.includes("growth")) return { bg: "#ecfdf5", fg: "#047857" };
+  if (r.includes("quality")) return { bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1d4ed8" };
+  if (r.includes("growth")) return { bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981" };
   if (r.includes("value") || r.includes("cheap")) return { bg: "#f0fdfa", fg: "#0f766e" };
-  return { bg: "#f3f4f6", fg: "#4b5563" };
+  return { bg: "var(--surface-container)", fg: "var(--on-surface-variant)" };
 }
 
 // The moat is anomalies, buzz, and news, not fundamental screens. Surface the
@@ -2307,8 +2342,8 @@ function suggestionMoatSignal(item: Dict): { label: string; bg: string; fg: stri
     const dir = anomalyPct >= 0 ? "up" : "down";
     return {
       label: "Unusual move",
-      bg: anomalyPct >= 0 ? "#ecfdf5" : "#fef2f2",
-      fg: anomalyPct >= 0 ? "#047857" : "#b91c1c",
+      bg: anomalyPct >= 0 ? "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" : "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))",
+      fg: anomalyPct >= 0 ? "#10b981" : "#ef4444",
       line: anomalyHeadline || `Moved ${dir} ${Math.abs(anomalyPct).toFixed(1)}% today, outside its normal range.`,
     };
   }
@@ -2339,20 +2374,20 @@ function StocksToCheckOut({
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#eff6ff] text-[14px]">
+        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg tint-info text-[14px]">
           🔍
         </span>
-        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#1e3a8a]">
+        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#3b82f6]">
           Stocks to check out
         </span>
-        <span className="text-[10px] font-semibold tabular-nums text-[#9ca3af]">
+        <span className="text-[10px] font-semibold tabular-nums text-on-surface-variant">
           {list.length}
         </span>
       </div>
       {list.length === 0 ? (
-        <p className="text-[13px] text-[#6b7280] italic">No suggestions yet.</p>
+        <p className="text-[13px] text-on-surface-variant italic">No suggestions yet.</p>
       ) : (
-        <ul className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+        <ul className="rounded-2xl border border-outline-variant bg-surface overflow-hidden">
           {list.map((item, i) => {
             const ticker = text(item.ticker);
             const moat = suggestionMoatSignal(item);
@@ -2366,8 +2401,8 @@ function StocksToCheckOut({
               <li
                 key={`sug-${i}`}
                 className={`flex items-center gap-3 px-4 py-3.5 ${
-                  i > 0 ? "border-t border-[#f3f4f6]" : ""
-                } hover:bg-[#fafafa] transition-colors`}
+                  i > 0 ? "border-t border-outline-variant" : ""
+                } hover:bg-surface-container-low transition-colors`}
               >
                 <Link
                   href={ticker ? `/stock/${encodeURIComponent(ticker)}` : "#"}
@@ -2376,7 +2411,7 @@ function StocksToCheckOut({
                   {ticker && <StockLogo ticker={ticker} market={market} size={32} />}
                   <div className="flex flex-col min-w-0 flex-1 gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[13px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                      <span className="text-[13px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
                         {ticker || "Suggestion"}
                       </span>
                       {reason &&
@@ -2393,7 +2428,7 @@ function StocksToCheckOut({
                         })()}
                     </div>
                     {why && (
-                      <span className="text-[11.5px] text-[#6b7280] truncate">{why}</span>
+                      <span className="text-[11.5px] text-on-surface-variant truncate">{why}</span>
                     )}
                   </div>
                 </Link>
@@ -2427,7 +2462,7 @@ function ScoreStamp({ score }: { score: number }) {
       <span className={`text-[14px] font-semibold tabular-nums leading-none ${scoreToneText(score)}`}>
         {Math.round(score)}
       </span>
-      <span className="text-[8px] font-semibold tracking-[0.06em] uppercase text-[#9ca3af] mt-0.5">
+      <span className="text-[8px] font-semibold tracking-[0.06em] uppercase text-on-surface-variant mt-0.5">
         Score
       </span>
     </div>
@@ -2450,16 +2485,16 @@ function SectionOpener({
   refreshing?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-t border-[#ececea] pt-8">
+    <div className="flex items-baseline justify-between gap-3 border-t border-outline-variant pt-8">
       <div className="flex items-baseline gap-3">
-        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af] tabular-nums">
+        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-on-surface-variant tabular-nums">
           § {number}
         </span>
-        <h2 className="text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">
+        <h2 className="text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-on-surface">
           {title}
         </h2>
         {refreshing && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fcd34d] bg-[#fffbeb] px-2.5 py-1 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.15)]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant tint-warn px-2.5 py-1 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#f59e0b] shadow-[0_0_0_3px_rgba(251,191,36,0.15)]">
             <span aria-hidden className="relative flex h-2 w-2 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]" />
@@ -2469,7 +2504,7 @@ function SectionOpener({
         )}
       </div>
       {meta && (
-        <span className="text-[12px] font-medium text-[#6b7280]">{meta}</span>
+        <span className="text-[12px] font-medium text-on-surface-variant">{meta}</span>
       )}
     </div>
   );
@@ -2483,10 +2518,10 @@ function BareHeader({ rowsCount, builtAt }: { rowsCount: number; builtAt?: strin
   return (
     <header className="flex items-end justify-between gap-4 flex-wrap">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-[28px] md:text-[34px] font-semibold text-[#111111] tracking-[-0.02em] leading-none">
+        <h1 className="text-[28px] md:text-[34px] font-semibold text-on-surface tracking-[-0.02em] leading-none">
           Radar
         </h1>
-        <span className="text-[13px] text-[#6b7280]">
+        <span className="text-[13px] text-on-surface-variant">
           {rowsCount} {rowsCount === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
           {builtAt ? formatRelative(builtAt) : "never"}
         </span>
@@ -2530,19 +2565,19 @@ function EmptyState({
 
   return (
     <section className="flex flex-col gap-8">
-      <div className="rounded-3xl border border-[#e5e7eb] bg-white p-8 md:p-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="rounded-3xl border border-outline-variant bg-surface p-8 md:p-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4 md:gap-5">
           <span
             aria-hidden
-            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eff6ff] text-[26px] shrink-0"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl tint-info text-[26px] shrink-0"
           >
             📡
           </span>
           <div className="flex flex-col gap-1.5">
-            <h2 className="text-[22px] md:text-[24px] font-semibold text-[#0a0a0a] tracking-[-0.02em]">
+            <h2 className="text-[22px] md:text-[24px] font-semibold text-on-surface tracking-[-0.02em]">
               Build your Radar
             </h2>
-            <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-[560px]">
+            <p className="text-[14px] text-on-surface-variant leading-relaxed max-w-[560px]">
               Add stocks from any detail page and stocksbrew gives you personalized buy, hold, and
               sell calls on what you hold and watch, plus triggers and email alerts when setups change.
             </p>
@@ -2553,21 +2588,21 @@ function EmptyState({
           isSubscribed={isSubscribed}
           ctaLabel="Add stocks"
           enableImageUpload
-          triggerClassName="self-start inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0"
+          triggerClassName="self-start inline-flex items-center justify-center h-[40px] rounded-full bg-on-surface px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0"
         />
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between gap-3 border-t border-[#ececea] pt-6">
+        <div className="flex items-baseline justify-between gap-3 border-t border-outline-variant pt-6">
           <div className="flex items-baseline gap-3">
-            <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+            <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-on-surface-variant">
               Suggested
             </span>
-            <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
+            <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-on-surface">
               Start with one of these
             </h3>
           </div>
-          <span className="text-[12px] text-[#6b7280]">{cards.length} ideas</span>
+          <span className="text-[12px] text-on-surface-variant">{cards.length} ideas</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2576,21 +2611,21 @@ function EmptyState({
             return (
               <div
                 key={card.ticker}
-                className="group flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition-all hover:border-[#111111] hover:shadow-sm"
+                className="group flex items-center gap-3 rounded-2xl border border-outline-variant bg-surface p-4 transition-all hover:border-on-surface hover:shadow-sm"
               >
                 <Link href={`/stock/${encodeURIComponent(card.ticker)}`} className="flex items-center gap-3 min-w-0 flex-1">
                   <StockLogo ticker={card.ticker} market={card.market} size={36} />
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                      <span className="text-[14px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
                         {card.ticker}
                       </span>
                       {card.sector && (
-                        <span className="text-[11px] text-[#9ca3af] truncate">{card.sector}</span>
+                        <span className="text-[11px] text-on-surface-variant truncate">{card.sector}</span>
                       )}
                     </div>
                     {card.reason && (
-                      <span className="text-[11.5px] text-[#6b7280] leading-snug truncate">
+                      <span className="text-[11.5px] text-on-surface-variant leading-snug truncate">
                         {card.reason}
                       </span>
                     )}
@@ -2627,24 +2662,24 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
     <main className="flex-grow">
       <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
         <header className="flex flex-col gap-1.5">
-          <h1 className="text-[28px] md:text-[34px] font-semibold text-[#111111] tracking-[-0.02em] leading-none">
+          <h1 className="text-[28px] md:text-[34px] font-semibold text-on-surface tracking-[-0.02em] leading-none">
             Radar
           </h1>
-          <p className="text-[13px] text-[#6b7280]">
+          <p className="text-[13px] text-on-surface-variant">
             {rows.length}/3 stocks · refreshed{" "}
             {builtAt ? formatRelative(builtAt) : "never"}
           </p>
         </header>
-        <section className="rounded-3xl border border-[#e5e7eb] bg-white p-4 md:p-6 flex flex-col gap-4">
+        <section className="rounded-3xl border border-outline-variant bg-surface p-4 md:p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h2 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
               Your stocks
             </h2>
             <ProCtaLink href="/subscribe" size="sm" showStar className="h-[36px] px-4 text-[12px]">
               Upgrade for unlimited stocks
             </ProCtaLink>
           </div>
-          <p className="text-[12px] text-[#6b7280]">
+          <p className="text-[12px] text-on-surface-variant">
             Prices are loading. Your analysis will appear here once the next radar cycle runs.
             Free plan supports up to 3 stocks; Pro unlocks unlimited.
           </p>
@@ -2684,24 +2719,24 @@ function UnsubscribedState({
         <header className="flex flex-col gap-4">
           <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-6">
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9ca3af]">
+              <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface-variant">
                 stocksbrew · {todayMasthead()}
               </span>
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-[32px] md:text-[40px] font-semibold text-[#0a0a0a] tracking-[-0.03em] leading-none">
+                <h1 className="text-[32px] md:text-[40px] font-semibold text-on-surface tracking-[-0.03em] leading-none">
                   Radar
                 </h1>
                 <Link
                   href="/subscribe"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-semibold text-[#92400e] hover:border-[#f59e0b] transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant tint-warn px-2.5 py-1 text-[11px] font-semibold text-[#f59e0b] hover:border-[#f59e0b] transition-colors"
                 >
                   <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
-                    <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#b45309"/>
+                    <path d="M4.5 0L5.6 3.2H9L6.2 5.1L7.3 8.3L4.5 6.4L1.7 8.3L2.8 5.1L0 3.2H3.4L4.5 0Z" fill="#f59e0b"/>
                   </svg>
                   Free · {trackedCount}/3 stocks
                 </Link>
               </div>
-              <p className="text-[12.5px] text-[#6b7280]">
+              <p className="text-[12.5px] text-on-surface-variant">
                 Track up to 3 stocks free. Get AI directives, alerts, and daily briefings.
               </p>
             </div>
@@ -2727,10 +2762,10 @@ function UnsubscribedState({
         {featured && (
           <section className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#1d4ed8]">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#3b82f6]">
                 Here is the kind of read you would wake up to
               </span>
-              <p className="text-[13px] text-[#6b7280] max-w-xl">
+              <p className="text-[13px] text-on-surface-variant max-w-xl">
                 We watch the buzz, the moves, and the regime, then tell you what it adds up to. Add a stock and this lands on your Radar every morning.
               </p>
             </div>
@@ -2750,12 +2785,12 @@ function UnsubscribedState({
         {/* Start here — names lighting up right now */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#ecfdf5] text-[15px]">🚀</span>
+            <span aria-hidden className="inline-flex h-8 w-8 items-center justify-center rounded-xl tint-bull text-[15px]">🚀</span>
             <div>
-              <h2 className="text-[15px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
+              <h2 className="text-[15px] font-semibold text-on-surface tracking-[-0.01em]">
                 {restPicks.length > 0 ? "Lighting up right now" : "Start your Radar"}
               </h2>
-              <p className="text-[12px] text-[#6b7280]">
+              <p className="text-[12px] text-on-surface-variant">
                 {restPicks.length > 0
                   ? "Names moving and buzzing today. Add up to 3 free and get the call on each tomorrow."
                   : "Add up to 3 stocks free. We track them daily and tell you what to do."}
@@ -2763,7 +2798,7 @@ function UnsubscribedState({
             </div>
           </div>
 
-          <ul className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+          <ul className="rounded-2xl border border-outline-variant bg-surface overflow-hidden">
             {(restPicks.length > 0
               ? restPicks.map((p) => ({
                   ticker: p.ticker,
@@ -2785,7 +2820,7 @@ function UnsubscribedState({
               return (
                 <li
                   key={pick.ticker}
-                  className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[#fafafa] transition-colors ${i > 0 ? "border-t border-[#f3f4f6]" : ""}`}
+                  className={`flex items-center gap-3 px-4 py-3.5 hover:bg-surface-container-low transition-colors ${i > 0 ? "border-t border-outline-variant" : ""}`}
                 >
                   <Link
                     href={`/stock/${encodeURIComponent(pick.ticker)}`}
@@ -2793,13 +2828,13 @@ function UnsubscribedState({
                   >
                     <StockLogo ticker={pick.ticker} market={pick.market} size={36} logoUrl={pick.logoUrl} />
                     <div className="flex min-w-0 flex-col gap-1">
-                      <span className="text-[14px] font-semibold text-[#0a0a0a] group-hover:text-[#0052ff] transition-colors">
+                      <span className="text-[14px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
                         {pick.ticker}
                       </span>
                       {pick.chips.length > 0 ? (
                         <SignalChips chips={pick.chips} />
                       ) : (
-                        <span className="text-[12px] text-[#6b7280] truncate">{pick.line}</span>
+                        <span className="text-[12px] text-on-surface-variant truncate">{pick.line}</span>
                       )}
                     </div>
                   </Link>
@@ -2815,17 +2850,17 @@ function UnsubscribedState({
             })}
           </ul>
 
-          <p className="text-[11.5px] text-[#9ca3af] text-center">
-            Or use <span className="font-semibold text-[#6b7280]">+ Add a stock</span> above to search any ticker.
+          <p className="text-[11.5px] text-on-surface-variant text-center">
+            Or use <span className="font-semibold text-on-surface-variant">+ Add a stock</span> above to search any ticker.
           </p>
         </section>
 
         {/* Pro upsell — secondary, not the hero */}
-        <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-5 md:p-6 flex flex-col gap-4">
+        <section className="rounded-2xl border border-outline-variant bg-surface-container-low p-5 md:p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">Pro · $12/mo</span>
-              <h3 className="text-[16px] font-semibold text-[#0a0a0a] tracking-[-0.01em]">
+              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">Pro · $12/mo</span>
+              <h3 className="text-[16px] font-semibold text-on-surface tracking-[-0.01em]">
                 Stop guessing on the stocks you hold
               </h3>
             </div>
@@ -2834,9 +2869,9 @@ function UnsubscribedState({
             </ProCtaLink>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <FeatureCard emoji="🎯" iconBg="#ecfdf5" title="AI briefs" body="Buy / hold / sell directive for every stock you track, every morning." />
-            <FeatureCard emoji="⚡" iconBg="#fef3c7" title="Cross-Radar read" body="Portfolio-level themes, risks, and opportunities across your list." />
-            <FeatureCard emoji="🔔" iconBg="#fef2f2" title="Alerts" body="Earnings, RSI extremes, 52-week levels when they fire." />
+            <FeatureCard emoji="🎯" iconBg="color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" title="AI briefs" body="Buy / hold / sell directive for every stock you track, every morning." />
+            <FeatureCard emoji="⚡" iconBg="color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))" title="Cross-Radar read" body="Portfolio-level themes, risks, and opportunities across your list." />
+            <FeatureCard emoji="🔔" iconBg="color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))" title="Alerts" body="Earnings, RSI extremes, 52-week levels when they fire." />
           </div>
         </section>
 
@@ -2857,7 +2892,7 @@ function FeatureCard({
   body: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-2">
+    <div className="rounded-2xl border border-outline-variant bg-surface p-4 flex flex-col gap-2">
       <span
         aria-hidden
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[16px]"
@@ -2865,8 +2900,8 @@ function FeatureCard({
       >
         {emoji}
       </span>
-      <p className="text-[13px] font-semibold text-[#111111]">{title}</p>
-      <p className="text-[12px] text-[#6b7280] leading-snug">{body}</p>
+      <p className="text-[13px] font-semibold text-on-surface">{title}</p>
+      <p className="text-[12px] text-on-surface-variant leading-snug">{body}</p>
     </div>
   );
 }
@@ -3129,15 +3164,15 @@ function text(value: unknown): string {
 }
 
 function scoreToneText(score: number | null): string {
-  if (score === null) return "text-[#9ca3af]";
+  if (score === null) return "text-on-surface-variant";
   if (score >= 80) return "text-[#10b981]";
-  if (score >= 60) return "text-[#111111]";
-  if (score >= 40) return "text-[#6b7280]";
+  if (score >= 60) return "text-on-surface";
+  if (score >= 40) return "text-on-surface-variant";
   return "text-[#ef4444]";
 }
 
 function scoreToneFill(score: number | null): string {
-  if (score === null) return "bg-[#e5e7eb]";
+  if (score === null) return "bg-surface-container-high";
   if (score >= 80) return "bg-[#10b981]";
   if (score >= 60) return "bg-[#0052ff]";
   if (score >= 40) return "bg-[#f59e0b]";
@@ -3161,34 +3196,34 @@ function severityTone(severity: string): {
 } {
   if (severity === "high")
     return {
-      bg: "#fef2f2",
+      bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))",
       fg: "#7f1d1d",
       bar: "#dc2626",
       chipBg: "#dc2626",
-      chipFg: "#ffffff",
+      chipFg: "var(--surface)",
     };
   if (severity === "medium" || severity === "med")
     return {
       bg: "#fffbeb",
       fg: "#78350f",
       bar: "#d97706",
-      chipBg: "#b45309",
-      chipFg: "#ffffff",
+      chipBg: "#f59e0b",
+      chipFg: "var(--surface)",
     };
   if (severity === "low")
     return {
-      bg: "#f0fdf4",
+      bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))",
       fg: "#14532d",
       bar: "#16a34a",
       chipBg: "#15803d",
-      chipFg: "#ffffff",
+      chipFg: "var(--surface)",
     };
   return {
-    bg: "#f3f4f6",
-    fg: "#374151",
-    bar: "#9ca3af",
-    chipBg: "#6b7280",
-    chipFg: "#ffffff",
+    bg: "var(--surface-container)",
+    fg: "var(--on-surface)",
+    bar: "var(--on-surface-variant)",
+    chipBg: "var(--on-surface-variant)",
+    chipFg: "var(--surface)",
   };
 }
 

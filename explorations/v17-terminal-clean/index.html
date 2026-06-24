@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>stocksbrew // know why your stocks moved</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { ink:'#0c0e12', panel:'#13161c', panel2:'#171b22', panel3:'#1b2028', edge:'#222730', edge2:'#2c333d', up:'#34d399', down:'#f87171', amber:'#fbbf24', dim:'#7d8694', dim2:'#566070' },
+    fontFamily:{ mono:['"JetBrains Mono"','monospace'], sans:['Inter','sans-serif'] },
+  } } };
+</script>
+<style>
+  body{background:#0c0e12}
+  .pulse{animation:pulse 2.4s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .tape{display:inline-flex;white-space:nowrap;animation:tape 50s linear infinite}@keyframes tape{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .row:hover{background:#171b22}.card:hover{border-color:#2c333d}
+  ::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#222730;border-radius:4px}
+  ::selection{background:#34d399;color:#0c0e12}
+  .logo{width:22px;height:22px;border-radius:5px;background:#fff;object-fit:contain;flex:none;padding:1px}
+</style>
+</head>
+<body class="font-sans text-slate-200 antialiased">
+
+<!-- TICKER TAPE (real prices) -->
+<div class="border-b border-edge bg-ink font-mono text-[12px] overflow-hidden">
+  <div class="tape py-2" id="tape"></div>
+</div>
+
+<!-- NAV -->
+<nav class="sticky top-0 z-40 bg-ink/90 backdrop-blur border-b border-edge">
+  <div class="max-w-6xl mx-auto px-5 h-14 flex items-center gap-6">
+    <a href="index.html" class="font-mono font-bold text-slate-100 tracking-tight">stocksbrew<span class="text-up">.</span></a>
+    <div class="hidden md:flex items-center gap-5 font-mono text-[13px] text-dim">
+      <a href="anomalies.html" class="hover:text-slate-100">Top Movers</a>
+      <a href="reddit.html" class="hover:text-slate-100">Reddit buzz</a>
+      <a href="radar.html" class="hover:text-slate-100">Radar</a>
+    </div>
+    <div class="ml-auto flex items-center gap-2.5">
+      <div class="hidden sm:flex items-center gap-2 bg-panel border border-edge rounded px-2.5 py-1.5 font-mono text-[12px] text-dim2 w-44">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> search ticker…
+      </div>
+      <a href="#" class="font-mono text-[12px] text-slate-300 hover:text-slate-100 px-2">sign in</a>
+      <a href="subscribe.html" class="font-mono text-[12px] bg-amber/15 border border-amber/40 text-amber font-semibold px-3 py-1.5 rounded hover:bg-amber/25">★ Go Pro</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="border-b border-edge">
+  <div class="max-w-6xl mx-auto px-5 pt-16 pb-10 text-center">
+    <div class="inline-flex items-center gap-1.5 mb-5 font-mono text-[11px] text-dim border border-edge rounded-full px-3 py-1">
+      <span class="w-1.5 h-1.5 rounded-full bg-up pulse"></span> tracking 500+ names · updated through the day
+    </div>
+    <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.05]">
+      <span class="text-dim">Know why your stocks moved</span><br/><span class="text-slate-50">and what to do next.</span>
+    </h1>
+    <p class="mt-5 text-[15px] text-dim max-w-xl mx-auto leading-relaxed">stocksbrew reads the fundamentals, the news, and the Reddit noise — then gives you the call in plain English.</p>
+    <div class="mt-7 flex items-center justify-center gap-3">
+      <a href="radar.html" class="font-mono text-[13px] bg-up text-ink font-semibold px-5 py-2.5 rounded hover:bg-up/90">Track your first stock free →</a>
+    </div>
+    <p class="mt-3 font-mono text-[11px] text-dim2">free for 3 stocks · no credit card · pro unlocks unlimited + alerts</p>
+
+    <!-- HERO MOVER CARDS — free taste shows the WHY -->
+    <div class="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-3 text-left">
+      <a href="stock.html" class="card rounded-lg border border-edge bg-panel p-3.5 transition-colors">
+        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><img class="logo" src="https://assets.parqet.com/logos/symbol/SMR?format=png" onerror="this.style.display='none'"/><span class="font-mono font-bold text-[13px] text-slate-100">SMR</span></span><span class="font-mono font-semibold text-[13px] text-up">+13.5%</span></div>
+        <svg viewBox="0 0 100 22" class="w-full h-5 my-2"><polyline points="0,18 16,17 32,18 50,11 66,12 82,5 100,2" fill="none" stroke="#34d399" stroke-width="1.5"/></svg>
+        <p class="text-[12px] leading-snug text-dim">Analyst optimism, not news — strong targets signal 33% upside.</p>
+      </a>
+      <a href="stock.html" class="card rounded-lg border border-edge bg-panel p-3.5 transition-colors">
+        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><img class="logo" src="https://assets.parqet.com/logos/symbol/GLW?format=png" onerror="this.style.display='none'"/><span class="font-mono font-bold text-[13px] text-slate-100">GLW</span></span><span class="font-mono font-semibold text-[13px] text-up">+11.1%</span></div>
+        <svg viewBox="0 0 100 22" class="w-full h-5 my-2"><polyline points="0,17 16,18 32,13 50,14 66,9 82,8 100,3" fill="none" stroke="#34d399" stroke-width="1.5"/></svg>
+        <p class="text-[12px] leading-snug text-dim">AI fiber-demand boost on NVIDIA's $3.2B optical investment.</p>
+      </a>
+      <a href="stock.html" class="card rounded-lg border border-edge bg-panel p-3.5 transition-colors">
+        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><img class="logo" src="https://assets.parqet.com/logos/symbol/NVDA?format=png" onerror="this.style.display='none'"/><span class="font-mono font-bold text-[13px] text-slate-100">NVDA</span></span><span class="font-mono font-semibold text-[13px] text-up">+2.95%</span></div>
+        <svg viewBox="0 0 100 22" class="w-full h-5 my-2"><polyline points="0,12 16,14 32,10 50,11 66,8 82,9 100,6" fill="none" stroke="#34d399" stroke-width="1.5"/></svg>
+        <p class="text-[12px] leading-snug text-dim">Analysts hold 97% Buy, $309 target — 46.8% implied upside.</p>
+      </a>
+      <a href="stock.html" class="card rounded-lg border border-edge bg-panel p-3.5 transition-colors">
+        <div class="flex items-center justify-between"><span class="flex items-center gap-2"><img class="logo" src="https://assets.parqet.com/logos/symbol/MU?format=png" onerror="this.style.display='none'"/><span class="font-mono font-bold text-[13px] text-slate-100">MU</span></span><span class="font-mono font-semibold text-[13px] text-up">+8.7%</span></div>
+        <svg viewBox="0 0 100 22" class="w-full h-5 my-2"><polyline points="0,16 16,15 32,16 50,10 66,11 82,7 100,5" fill="none" stroke="#34d399" stroke-width="1.5" opacity=".6"/></svg>
+        <p class="text-[12px] leading-snug text-dim2">Memory names ripping on the AI capex cycle. <span class="text-up">See why →</span></p>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-5">
+
+<!-- WHAT'S MOVING + REDDIT -->
+<section class="py-12 grid lg:grid-cols-[1.6fr_1fr] gap-6">
+  <div>
+    <div class="flex items-end justify-between mb-1">
+      <h2 class="font-mono text-[15px] font-semibold text-slate-100"><span class="text-up">$</span> what's moving</h2>
+      <a href="anomalies.html" class="font-mono text-[12px] text-up hover:underline">full read →</a>
+    </div>
+    <p class="text-[13px] text-dim2 mb-4">Top gainers and losers, and why. Top reads are free.</p>
+    <div class="flex gap-1 mb-4 font-mono text-[12px]">
+      <button class="px-3 py-1.5 rounded bg-panel2 border border-edge text-up font-semibold">▲ Gainers</button>
+      <button class="px-3 py-1.5 rounded text-dim hover:text-slate-200">▼ Losers</button>
+    </div>
+    <div class="rounded-lg border border-edge bg-panel divide-y divide-edge overflow-hidden" id="movers"></div>
+    <div class="mt-3 rounded-lg border border-edge bg-panel2 px-4 py-3 flex items-center justify-between">
+      <p class="text-[13px] text-dim"><span class="text-slate-200 font-medium">12 more movers</span> with the full read + the buy/sell/hold call.</p>
+      <a href="subscribe.html" class="font-mono text-[12px] bg-up text-ink font-semibold px-3.5 py-1.5 rounded hover:bg-up/90">go pro →</a>
+    </div>
+  </div>
+
+  <div>
+    <div class="flex items-end justify-between mb-1">
+      <h2 class="font-mono text-[15px] font-semibold text-slate-100"><span class="text-up">$</span> reddit buzz</h2>
+      <a href="reddit.html" class="font-mono text-[12px] text-up hover:underline">open →</a>
+    </div>
+    <p class="text-[13px] text-dim2 mb-4">140 posts scanned · 3 bullish · 4 neutral · 2 bearish</p>
+    <div class="rounded-lg border border-edge bg-panel p-4">
+      <div class="flex items-center gap-2">
+        <img class="logo" src="https://assets.parqet.com/logos/symbol/MSFT?format=png" onerror="this.style.display='none'"/>
+        <span class="font-mono font-bold text-[14px] text-slate-100">MSFT</span><span class="font-mono text-[12px] text-dim">5 mentions</span>
+        <span class="ml-auto font-mono text-[11px] text-down bg-down/10 border border-down/30 rounded px-2 py-0.5">bearish</span>
+      </div>
+      <p class="mt-2.5 text-[13px] leading-relaxed text-slate-300">Microsoft and Meta criticized for <span class="text-slate-100">heavy AI capex with little to show</span> — concerns about capital inefficiency and business-model disruption.</p>
+      <span class="inline-block mt-2.5 font-mono text-[11px] text-down bg-down/10 border border-down/30 rounded px-2 py-0.5">heavy AI capex · little to show</span>
+      <div class="mt-4 pt-4 border-t border-edge text-center">
+        <div class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-panel3 border border-edge mb-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7d8694" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <p class="font-mono text-[12px] text-slate-200">8 more buzzing names</p>
+        <a href="subscribe.html" class="inline-block mt-1 font-mono text-[11px] text-up hover:underline">unlock with pro →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTOR HEAT -->
+<section class="py-10 border-t border-edge">
+  <div class="flex items-end justify-between mb-4"><h2 class="font-mono text-[15px] font-semibold text-slate-100"><span class="text-up">$</span> sector heat</h2><span class="font-mono text-[11px] text-dim2">4 sectors tracked</span></div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="sectors"></div>
+</section>
+
+<!-- PRO -->
+<section class="py-14 border-t border-edge">
+  <div class="max-w-3xl mx-auto text-center">
+    <p class="font-mono text-[11px] text-amber tracking-widest mb-3">STOCKSBREW PRO</p>
+    <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-50">Know what to do with the<br/>stocks you care about.</h2>
+    <p class="mt-4 text-[15px] text-dim max-w-lg mx-auto leading-relaxed">Track unlimited names. Get the buy/sell/hold call, the full why on every mover, and the Reddit read — pushed to you when your stocks move.</p>
+    <div class="mt-8"><a href="subscribe.html" class="inline-block font-mono text-[13px] bg-amber text-ink font-bold px-6 py-3 rounded hover:bg-amber/90">★ See plans →</a></div>
+  </div>
+</section>
+</main>
+
+<footer class="border-t border-edge">
+  <div class="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[12px] text-dim2">
+    <span class="text-dim">stocksbrew<span class="text-up">.</span></span>
+    <div class="flex gap-5"><a href="anomalies.html" class="hover:text-slate-200">Top Movers</a><a href="reddit.html" class="hover:text-slate-200">Reddit buzz</a><a href="radar.html" class="hover:text-slate-200">Radar</a><a href="subscribe.html" class="hover:text-slate-200">Pricing</a></div>
+    <span>not financial advice</span>
+  </div>
+</footer>
+
+<script>
+// real prices harvested from the running app
+const tape = [
+  ['S&P 500','7,500.58','+1.08%',1],['NVDA','210.69','+2.95%',1],['SMR','11.74','+13.5%',1],
+  ['GLW','194.92','+11.1%',1],['CBRS','234.71','+9.8%',1],['MU','1,133.99','+8.7%',1],
+  ['TSM','462.12','+6.9%',1],['AMD','537.37','+4.9%',1],['TSLA','248.12','−1.1%',0],
+];
+const tapeHtml = tape.map(([t,p,c,u])=>`<span class="text-dim">${t} <b class="${u?'text-up':'text-down'}">${p} ${c}</b></span>`).join('');
+document.getElementById('tape').innerHTML = `<span class="flex gap-7 px-4">${tapeHtml}</span><span class="flex gap-7 px-4" aria-hidden="true">${tapeHtml}</span>`;
+
+const movers = [
+  {t:'SMR',pct:'+13.5%',px:'$11.74',why:'Surge reflects <b class="text-slate-100">analyst optimism, not news</b> — strong targets signal 33% upside on a neutral technical setup.',cta:'read the call'},
+  {t:'GLW',pct:'+11.1%',px:'$194.92',why:'Up on an <b class="text-slate-100">AI fiber-demand boost</b> — NVIDIA\'s $3.2B optical investment underscores Corning\'s growth.',cta:'what to watch'},
+  {t:'INTC',pct:'+10.6%',px:'$133.99',locked:1},{t:'SMCI',pct:'+10.4%',px:'$30.66',locked:1},
+  {t:'CBRS',pct:'+9.8%',px:'$234.71',locked:1},{t:'MU',pct:'+8.7%',px:'$1,133.99',locked:1},
+];
+const spark = '<svg viewBox="0 0 80 24" class="w-16 h-6"><polyline points="0,20 16,18 32,16 48,11 64,6 80,3" fill="none" stroke="#34d399" stroke-width="1.5"/></svg>';
+const lock = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const logo = t=>`<img class="logo" src="https://assets.parqet.com/logos/symbol/${t}?format=png" onerror="this.style.display='none'"/>`;
+document.getElementById('movers').innerHTML = movers.map(m => m.locked
+  ? `<a href="stock.html" class="row px-4 py-3 transition-colors flex items-center gap-3">${logo(m.t)}<span class="font-mono font-bold text-[14px] text-slate-100 w-12">${m.t}</span><span class="font-mono font-semibold text-up text-[14px] w-20">${m.pct}</span>${spark.replace('#34d399','#34d399" opacity=".55')}<span class="ml-auto flex items-center gap-1.5 font-mono text-[12px] text-dim2">${lock} unlock why →</span></a>`
+  : `<div class="row px-4 py-3.5 transition-colors"><div class="flex items-center gap-3">${logo(m.t)}<span class="font-mono font-bold text-[14px] text-slate-100 w-12">${m.t}</span><span class="font-mono font-semibold text-up text-[14px] w-20">${m.pct}</span>${spark}<span class="ml-auto font-mono text-[12px] text-dim">${m.px}</span></div><p class="mt-2 text-[13.5px] leading-relaxed text-slate-300">${m.why}</p><a href="stock.html" class="inline-block mt-1.5 font-mono text-[12px] text-up hover:underline">${m.cta} →</a></div>`
+).join('');
+
+const sectors = [
+  ['Semis','+6.14%',1,[['INTC','+10.6%',1],['SMCI','+10.4%',1],['KLAC','+8.7%',1],['MU','+8.7%',1]]],
+  ['Industrials','+1.18%',1,[['ROK','+3.29%',1],['CAT','+3.13%',1],['ETN','+2.96%',1],['MMM','+0.86%',1]]],
+  ['Tech','+0.14%',1,[['OKTA','+4.23%',1],['AMZN','+2.90%',1],['IBM','−5.05%',0],['CRM','−2.09%',0]]],
+  ['Defense','−3.26%',0,[['NOC','−5.21%',0],['LMT','−4.01%',0],['RTX','−3.62%',0],['GD','−3.53%',0]]],
+];
+document.getElementById('sectors').innerHTML = sectors.map(([name,avg,up,rows])=>`
+  <div class="rounded-lg border border-edge bg-panel p-3.5">
+    <div class="flex items-center justify-between mb-3"><span class="font-mono text-[13px] font-semibold text-slate-100">${name}</span><span class="font-mono text-[12px] ${up?'text-up':'text-down'}">${avg}</span></div>
+    <div class="space-y-1.5 font-mono text-[12px]">${rows.map(([t,p,u])=>`<div class="flex justify-between"><span class="text-dim">${t}</span><span class="${u?'text-up':'text-down'}">${p}</span></div>`).join('')}</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

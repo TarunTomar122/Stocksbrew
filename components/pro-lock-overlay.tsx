@@ -66,22 +66,22 @@ export function ProLockCard({
   }
 
   return (
-    <div className="flex w-full max-w-[400px] flex-col items-center gap-4 rounded-3xl border border-[#e5e7eb] bg-white p-6 text-center shadow-[0_24px_70px_rgba(17,24,39,0.12)] sm:p-7">
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-2.5 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-[#92400e]">
+    <div className="flex w-full max-w-[400px] flex-col items-center gap-4 rounded-3xl border border-outline-variant bg-surface p-6 text-center shadow-[0_24px_70px_rgba(17,24,39,0.12)] sm:p-7">
+      <span className="inline-flex items-center gap-1.5 rounded-full tint-warn px-2.5 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-[#f59e0b]">
         <span aria-hidden>★</span> stocksbrew Pro
       </span>
 
       <div className="flex flex-col gap-1.5">
-        <h3 className="text-[18px] font-semibold leading-snug tracking-[-0.01em] text-[#111111] sm:text-[20px]">
+        <h3 className="text-[18px] font-semibold leading-snug tracking-[-0.01em] text-on-surface sm:text-[20px]">
           {title}
         </h3>
-        <p className="text-[13px] leading-relaxed text-[#6b7280]">{description}</p>
+        <p className="text-[13px] leading-relaxed text-on-surface-variant">{description}</p>
       </div>
 
       {benefits && benefits.length > 0 && (
         <ul className="flex w-full flex-col gap-2 text-left">
           {benefits.slice(0, 3).map((b) => (
-            <li key={b} className="flex items-start gap-2 text-[13px] text-[#374151]">
+            <li key={b} className="flex items-start gap-2 text-[13px] text-on-surface">
               <span
                 aria-hidden
                 className="material-symbols-outlined mt-0.5 text-[#10b981]"
@@ -99,7 +99,7 @@ export function ProLockCard({
         {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in & choose Pro"}
         {!busy && <span aria-hidden>→</span>}
       </ProCtaButton>
-      <span className="text-[11px] font-medium text-[#9ca3af]">
+      <span className="text-[11px] font-medium text-on-surface-variant">
         Yearly includes 3 days free. Monthly starts today.
       </span>
     </div>
@@ -113,7 +113,7 @@ export function ProLockCard({
  */
 export function ProLockOverlay(props: Props) {
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center overflow-y-auto rounded-[inherit] bg-white/75 px-4 py-6 backdrop-blur-[7px]">
+    <div className="absolute inset-0 z-10 flex items-center justify-center overflow-y-auto rounded-[inherit] bg-surface/75 px-4 py-6 backdrop-blur-[7px]">
       <ProLockCard {...props} />
     </div>
   );

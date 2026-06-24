@@ -42,7 +42,7 @@ function formatNumber(value?: number | null): string {
 }
 
 function pctTone(value?: number | null): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "text-[#111111]";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "text-on-surface";
   return value >= 0 ? "text-[#10b981]" : "text-[#ef4444]";
 }
 
@@ -92,10 +92,10 @@ function Stat({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[#9ca3af]">
+      <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-on-surface-variant">
         {label}
       </span>
-      <span className={`text-[18px] font-semibold tabular-nums ${valueClass ?? "text-[#111111]"}`}>
+      <span className={`text-[18px] font-semibold tabular-nums ${valueClass ?? "text-on-surface"}`}>
         {value}
       </span>
     </div>
@@ -106,13 +106,13 @@ function ReturnTile({ label, value }: { label: string; value?: number | null }) 
   const has = typeof value === "number" && Number.isFinite(value);
   const positive = has && value! >= 0;
   return (
-    <div className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-3">
-      <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+    <div className="rounded-xl bg-surface-container-low px-3 py-3">
+      <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
         {label}
       </span>
       <p
         className={`mt-1 text-[18px] font-semibold tabular-nums leading-none ${
-          has ? (positive ? "text-[#10b981]" : "text-[#ef4444]") : "text-[#9ca3af]"
+          has ? (positive ? "text-[#10b981]" : "text-[#ef4444]") : "text-on-surface-variant"
         }`}
       >
         {formatPct(value)}
@@ -183,9 +183,9 @@ function holderInitials(name: string): string {
 }
 
 const HOLDER_MOVE_STYLES = {
-  up: { pill: "bg-[#ecfdf5] text-[#047857]", detail: "text-[#10b981]" },
-  down: { pill: "bg-[#fef2f2] text-[#b91c1c]", detail: "text-[#ef4444]" },
-  neutral: { pill: "bg-[#f3f4f6] text-[#6b7280]", detail: "text-[#6b7280]" },
+  up: { pill: "tint-bull text-[#10b981]", detail: "text-[#10b981]" },
+  down: { pill: "tint-bear text-[#ef4444]", detail: "text-[#ef4444]" },
+  neutral: { pill: "bg-surface-container text-on-surface-variant", detail: "text-on-surface-variant" },
 } as const;
 
 function HolderMoveRow({
@@ -202,16 +202,16 @@ function HolderMoveRow({
   const styles = HOLDER_MOVE_STYLES[move.tone];
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[#fafafa] sm:gap-4 sm:px-5">
+    <li className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-container-low sm:gap-4 sm:px-5">
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f5f3ff] text-[11px] font-bold tracking-tight text-[#7c3aed]"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg tint-brand text-[11px] font-bold tracking-tight text-[#7c3aed]"
         aria-hidden
       >
         {holderInitials(name)}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-[#111111]">{name}</p>
-        {filing ? <p className="mt-0.5 text-[11px] text-[#9ca3af]">{filing}</p> : null}
+        <p className="truncate text-[13px] font-semibold text-on-surface">{name}</p>
+        {filing ? <p className="mt-0.5 text-[11px] text-on-surface-variant">{filing}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${styles.pill}`}>
@@ -243,12 +243,12 @@ function isMeaningfulHoldingsValue(label?: string): boolean {
 
 function OwnershipTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-[#f3f4f6] bg-[#fafafa] px-3 py-3">
-      <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+    <div className="rounded-xl bg-surface-container-low px-3 py-3">
+      <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
         {label}
       </span>
-      <p className="mt-1 text-[17px] font-semibold leading-snug text-[#111111]">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] leading-snug text-[#9ca3af]">{hint}</p> : null}
+      <p className="mt-1 text-[17px] font-semibold leading-snug text-on-surface">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] leading-snug text-on-surface-variant">{hint}</p> : null}
     </div>
   );
 }
@@ -391,7 +391,7 @@ export function StockFactsPanel({
       {keyStats.length > 0 && (
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
               Key stats
             </h3>
             {factsFreshness ? (
@@ -402,7 +402,7 @@ export function StockFactsPanel({
             ) : null}
           </div>
           {factsFreshness?.status === "stale" && (
-            <p className="rounded-xl border border-[#fee2e2] bg-[#fef2f2] px-3 py-2 text-[12px] leading-relaxed text-[#991b1b]">
+            <p className="rounded-xl tint-bear px-3 py-2 text-[12px] leading-relaxed text-[#ef4444]">
               Fundamentals are older than 14 days. Treat valuation and analyst stats as stale until the next fundamentals refresh.
             </p>
           )}
@@ -421,12 +421,12 @@ export function StockFactsPanel({
 
       {/* Returns */}
       {hasReturns && (
-        <section className="flex flex-col gap-4 pt-8 border-t border-[#e5e7eb]">
+        <section className="flex flex-col gap-4 pt-8 border-t border-outline-variant">
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
               Returns
             </h3>
-            <span className="text-[12px] text-[#6b7280]">Price action</span>
+            <span className="text-[12px] text-on-surface-variant">Price action</span>
           </div>
           <div className="flex w-full max-w-[640px] flex-col gap-5">
             {ticker && priceHistory.length >= PRICE_HISTORY_CHART_MIN ? (
@@ -444,10 +444,10 @@ export function StockFactsPanel({
 
       {/* Who owns it */}
       {hasOwnership && (
-        <section className="flex flex-col gap-5 pt-8 border-t border-[#e5e7eb]">
+        <section className="flex flex-col gap-5 pt-8 border-t border-outline-variant">
           <div className="flex items-start gap-3.5">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f5f3ff] text-[#7c3aed]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl tint-brand text-[#7c3aed]"
               aria-hidden
             >
               <span
@@ -458,11 +458,11 @@ export function StockFactsPanel({
               </span>
             </span>
             <div className="flex min-w-0 flex-col gap-1">
-              <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[22px]">
+              <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface md:text-[22px]">
                 Who owns it
               </h3>
               {typeof instPct === "number" && ticker ? (
-                <p className="max-w-2xl text-[14px] leading-relaxed text-[#6b7280] md:text-[15px]">
+                <p className="max-w-2xl text-[14px] leading-relaxed text-on-surface-variant md:text-[15px]">
                   {ownershipSummary(instPct, ticker)}
                 </p>
               ) : null}
@@ -501,12 +501,12 @@ export function StockFactsPanel({
           </div>
 
           {topHolders.length > 0 ? (
-            <div className="max-w-3xl overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-              <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-3 sm:px-5">
-                <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#6b7280]">
+            <div className="max-w-3xl overflow-hidden rounded-2xl bg-surface shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+              <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-4 py-3 sm:px-5">
+                <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
                   Recent filing moves
                 </span>
-                <span className="text-[11px] text-[#9ca3af]">13F · quarterly</span>
+                <span className="text-[11px] text-on-surface-variant">13F · quarterly</span>
               </div>
               <ul className="divide-y divide-[#f3f4f6]">
                 {topHolders.slice(0, 5).map((h) => (
@@ -525,13 +525,13 @@ export function StockFactsPanel({
 
       {/* Financials */}
       {hasFinancials && (
-        <section className="flex flex-col gap-4 pt-8 border-t border-[#e5e7eb]">
+        <section className="flex flex-col gap-4 pt-8 border-t border-outline-variant">
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
               Financials
             </h3>
             {fin.fiscal_year && (
-              <span className="text-[12px] font-medium tracking-[0.08em] uppercase text-[#9ca3af]">
+              <span className="text-[12px] font-medium tracking-[0.08em] uppercase text-on-surface-variant">
                 FY {fin.fiscal_year}
               </span>
             )}

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Stocksbrew Wire — NVDA Dossier</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#161310; --paper:#fbfaf7; --rule:#ddd8cf; --accent:#b91c1c; --up:#15803d; --down:#b91c1c; }
+  body{ background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  .serif{ font-family:'Newsreader',Georgia,serif; }
+  .tnum{ font-variant-numeric:tabular-nums; }
+  .rule-b{ border-bottom:1px solid var(--rule); }
+  .rule-l{ border-left:1px solid var(--rule); }
+  .double-rule{ border-top:3px double var(--ink); }
+  .kicker{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+  .navlink{ font-size:12px; letter-spacing:.04em; font-weight:500; padding-bottom:2px; border-bottom:2px solid transparent; }
+  .navlink:hover{ border-bottom-color:var(--ink); }
+  .navlink.active{ border-bottom-color:var(--accent); color:var(--accent); }
+  .verdict{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; padding:3px 9px; border:1px solid currentColor; }
+  .v-buy{ color:var(--up); }
+  .pillar-track{ height:8px; background:#e7e2d8; }
+  .dropcap::first-letter{ font-family:'Newsreader',serif; float:left; font-size:50px; line-height:.82; font-weight:600; padding-right:8px; padding-top:4px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<header class="max-w-[1240px] mx-auto px-5">
+  <div class="flex items-center justify-between pt-4 pb-2 text-[11px] tnum text-neutral-500">
+    <span>Vol. IV · No. 172</span>
+    <span class="hidden sm:block">Saturday, June 20, 2026 · Markets Closed · Compiled 4:32 PM ET</span>
+    <span>Edition: Tanay</span>
+  </div>
+  <div class="double-rule"></div>
+  <div class="flex items-end justify-between py-3 border-b border-[var(--ink)]">
+    <div>
+      <h1 class="serif font-bold tracking-tight leading-none text-[40px] sm:text-[52px]">The Stocksbrew Wire</h1>
+      <p class="serif italic text-[13px] text-neutral-600 mt-1">The daily briefing for the stocks you actually own.</p>
+    </div>
+    <div class="hidden md:flex flex-col items-end gap-1 text-right">
+      <div class="kicker text-[var(--accent)]">Company Dossier</div>
+      <div class="serif text-2xl font-semibold tnum">NVDA</div>
+      <div class="text-[11px] text-neutral-500">NVIDIA Corp · Nasdaq</div>
+    </div>
+  </div>
+</header>
+
+<nav class="max-w-[1240px] mx-auto px-5">
+  <div class="flex items-center gap-6 py-2.5 rule-b overflow-x-auto">
+    <a href="radar.html" class="navlink whitespace-nowrap">Radar</a>
+    <a href="anomalies.html" class="navlink whitespace-nowrap">Anomalies</a>
+    <a href="reddit.html" class="navlink whitespace-nowrap">Reddit Buzz</a>
+    <a href="#" class="navlink whitespace-nowrap">Screener</a>
+    <a href="stock.html" class="navlink active whitespace-nowrap">NVDA</a>
+    <div class="ml-auto flex items-center gap-3 text-[11px] text-neutral-500">
+      <span class="hidden sm:inline">Search</span>
+      <input class="bg-transparent border-b border-[var(--rule)] text-[12px] py-0.5 w-28 focus:outline-none focus:border-[var(--ink)]" placeholder="Ticker…">
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-[1240px] mx-auto px-5 py-6">
+
+  <!-- DATELINE / IDENTITY -->
+  <div class="flex flex-wrap items-end justify-between gap-4 rule-b pb-5 mb-6">
+    <div>
+      <div class="kicker text-neutral-500 mb-1">NASDAQ · NVDA · Semiconductors</div>
+      <h2 class="serif font-bold text-[40px] sm:text-[48px] leading-none">NVIDIA Corp.</h2>
+    </div>
+    <div class="flex items-end gap-8">
+      <div><div class="kicker text-neutral-500">Last</div><div class="serif text-3xl font-semibold tnum">$172.40</div></div>
+      <div><div class="kicker text-neutral-500">Day</div><div class="serif text-3xl font-semibold tnum text-[var(--up)]">+2.10%</div></div>
+      <div class="hidden sm:block"><div class="kicker text-neutral-500">Mkt Cap</div><div class="serif text-3xl font-semibold tnum">$4.2T</div></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT: VERDICT + CHART + REASONS -->
+    <section class="lg:col-span-8 lg:pr-6">
+
+      <!-- VERDICT -->
+      <div class="flex items-center gap-3 mb-3">
+        <span class="verdict v-buy">Verdict · Buy</span>
+        <span class="text-[11px] tnum text-neutral-500">Conviction: High · last reviewed today</span>
+      </div>
+      <h3 class="serif font-bold leading-[1.05] text-[30px] sm:text-[34px] mb-4">
+        The backlog still does the talking. We stay buyers into the band.
+      </h3>
+
+      <!-- PRICE CHART -->
+      <div class="border border-[var(--rule)] bg-white p-4 mb-6">
+        <div class="flex items-center justify-between mb-2 text-[11px] text-neutral-500">
+          <span class="kicker">Price · 6 Months</span>
+          <span class="tnum">High $174.90 · Low $108.20</span>
+        </div>
+        <svg viewBox="0 0 720 220" class="w-full h-52">
+          <defs>
+            <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#15803d" stop-opacity="0.12"/>
+              <stop offset="100%" stop-color="#15803d" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- gridlines -->
+          <line x1="0" y1="55" x2="720" y2="55" stroke="#eee8dd" stroke-width="1"/>
+          <line x1="0" y1="110" x2="720" y2="110" stroke="#eee8dd" stroke-width="1"/>
+          <line x1="0" y1="165" x2="720" y2="165" stroke="#eee8dd" stroke-width="1"/>
+          <!-- buy zone -->
+          <rect x="0" y="150" width="720" height="20" fill="#15803d" opacity="0.07"/>
+          <line x1="0" y1="150" x2="720" y2="150" stroke="#15803d" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="6" y="146" font-size="10" fill="#15803d" font-family="Inter">Buy zone &lt; $170</text>
+          <!-- area -->
+          <polygon fill="url(#fill)" points="0,180 60,178 120,170 180,182 240,160 300,150 360,158 420,130 480,120 540,96 600,80 660,60 720,52 720,220 0,220"/>
+          <!-- line -->
+          <polyline fill="none" stroke="#15803d" stroke-width="2.2" points="0,180 60,178 120,170 180,182 240,160 300,150 360,158 420,130 480,120 540,96 600,80 660,60 720,52"/>
+          <circle cx="720" cy="52" r="3.5" fill="#15803d"/>
+          <!-- 50dma -->
+          <polyline fill="none" stroke="#9a6b00" stroke-width="1.3" stroke-dasharray="5 4" points="0,170 120,166 240,158 360,150 480,138 600,120 720,104"/>
+        </svg>
+        <div class="flex gap-5 mt-2 text-[11px] text-neutral-500">
+          <span><span class="inline-block w-3 h-[2px] bg-[var(--up)] align-middle"></span> Price</span>
+          <span><span class="inline-block w-3 h-[2px] bg-[#9a6b00] align-middle"></span> 50-day MA</span>
+          <span><span class="inline-block w-3 h-[2px] bg-[var(--up)] opacity-30 align-middle"></span> Buy zone</span>
+        </div>
+      </div>
+
+      <!-- THREE REASONS -->
+      <h3 class="kicker text-[var(--accent)] rule-b pb-1 mb-4">The Case · Three Reasons</h3>
+      <ol class="space-y-4 mb-7">
+        <li class="flex gap-4">
+          <span class="serif text-3xl font-bold text-[var(--accent)] leading-none">1</span>
+          <div>
+            <h4 class="serif font-semibold text-[19px] leading-snug">Order backlog gives multi-quarter revenue visibility</h4>
+            <p class="text-[13px] text-neutral-600 leading-relaxed mt-1">Next-gen accelerator demand is booked well into next year, and supplier capacity notes point to a refilling pipeline rather than a peak.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="serif text-3xl font-bold text-[var(--accent)] leading-none">2</span>
+          <div>
+            <h4 class="serif font-semibold text-[19px] leading-snug">Gross margin held firm against the bear case</h4>
+            <p class="text-[13px] text-neutral-600 leading-relaxed mt-1">Guidance kept margins in the low-70s despite competition fears, undercutting the "margin compression is coming" narrative.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="serif text-3xl font-bold text-[var(--accent)] leading-none">3</span>
+          <div>
+            <h4 class="serif font-semibold text-[19px] leading-snug">Price reclaimed your accumulation band on rising volume</h4>
+            <p class="text-[13px] text-neutral-600 leading-relaxed mt-1">The move back above $170 came on 1.4x average volume, a technical confirmation that the floor is holding.</p>
+          </div>
+        </li>
+      </ol>
+
+      <!-- NEWS + REDDIT -->
+      <div class="grid sm:grid-cols-2 gap-6">
+        <div>
+          <h3 class="kicker text-neutral-500 rule-b pb-1 mb-3">From The Wire</h3>
+          <div class="space-y-3 text-[13px]">
+            <a href="#" class="block rule-b pb-3 group">
+              <div class="text-[10px] tnum text-neutral-400 mb-0.5">Reuters · 2h ago</div>
+              <div class="serif font-semibold text-[15px] leading-snug group-hover:text-[var(--accent)]">Supplier signals stronger accelerator capacity into 2027</div>
+            </a>
+            <a href="#" class="block rule-b pb-3 group">
+              <div class="text-[10px] tnum text-neutral-400 mb-0.5">Bloomberg · 5h ago</div>
+              <div class="serif font-semibold text-[15px] leading-snug group-hover:text-[var(--accent)]">Data-center capex guidance from hyperscalers ticks higher</div>
+            </a>
+            <a href="#" class="block group">
+              <div class="text-[10px] tnum text-neutral-400 mb-0.5">CNBC · yesterday</div>
+              <div class="serif font-semibold text-[15px] leading-snug group-hover:text-[var(--accent)]">Analysts lift targets after backlog commentary</div>
+            </a>
+          </div>
+        </div>
+        <div>
+          <h3 class="kicker text-neutral-500 rule-b pb-1 mb-3">From The Crowd</h3>
+          <div class="space-y-3">
+            <blockquote class="serif italic text-[14px] leading-relaxed border-l-2 border-[var(--accent)] pl-3">"The backlog is the story, not the price."<span class="block not-italic font-sans text-[10px] text-neutral-500 mt-1">r/stocks · 1.4k upvotes</span></blockquote>
+            <blockquote class="serif italic text-[14px] leading-relaxed border-l-2 border-[var(--accent)] pl-3">"Held $170 like a champ on heavy volume. Adding."<span class="block not-italic font-sans text-[10px] text-neutral-500 mt-1">r/investing · 620 upvotes</span></blockquote>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: PILLARS + TECHNICALS + PRO -->
+    <aside class="lg:col-span-4 lg:rule-l lg:pl-6 mt-8 lg:mt-0">
+
+      <div class="rule-b pb-1 mb-4"><h3 class="kicker text-[var(--accent)]">Pillar Scores · 0–100</h3></div>
+      <div class="space-y-4 mb-7">
+        <div>
+          <div class="flex justify-between text-[12px] mb-1"><span class="font-semibold">Valuation</span><span class="tnum text-[#9a6b00]">52</span></div>
+          <div class="pillar-track"><div class="h-full bg-[#9a6b00]" style="width:52%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1"><span class="font-semibold">Growth</span><span class="tnum text-[var(--up)]">94</span></div>
+          <div class="pillar-track"><div class="h-full bg-[var(--up)]" style="width:94%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1"><span class="font-semibold">Quality</span><span class="tnum text-[var(--up)]">88</span></div>
+          <div class="pillar-track"><div class="h-full bg-[var(--up)]" style="width:88%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[12px] mb-1"><span class="font-semibold">Momentum</span><span class="tnum text-[var(--up)]">79</span></div>
+          <div class="pillar-track"><div class="h-full bg-[var(--up)]" style="width:79%"></div></div>
+        </div>
+      </div>
+
+      <div class="rule-b pb-1 mb-3"><h3 class="kicker text-[var(--accent)]">Technicals</h3></div>
+      <table class="w-full text-[13px] tnum mb-7">
+        <tbody>
+          <tr class="rule-b"><td class="py-2 text-neutral-600">RSI (14)</td><td class="py-2 text-right font-semibold">61.3 <span class="text-[11px] text-neutral-400">neutral</span></td></tr>
+          <tr class="rule-b"><td class="py-2 text-neutral-600">50-day MA</td><td class="py-2 text-right font-semibold">$158.40 <span class="text-[11px] text-[var(--up)]">above</span></td></tr>
+          <tr class="rule-b"><td class="py-2 text-neutral-600">200-day MA</td><td class="py-2 text-right font-semibold">$141.10 <span class="text-[11px] text-[var(--up)]">above</span></td></tr>
+          <tr class="rule-b"><td class="py-2 text-neutral-600">Volume</td><td class="py-2 text-right font-semibold">1.4x avg</td></tr>
+          <tr><td class="py-2 text-neutral-600">52-wk range</td><td class="py-2 text-right font-semibold">$92 – $175</td></tr>
+        </tbody>
+      </table>
+
+      <div class="rule-b pb-1 mb-3"><h3 class="kicker text-[var(--accent)]">Your Triggers</h3></div>
+      <div class="space-y-2 text-[13px] mb-7">
+        <div class="flex items-center justify-between"><span>Buy zone &lt; $170</span><span class="text-[var(--up)] text-[11px] font-semibold">● FIRED</span></div>
+        <div class="flex items-center justify-between"><span>Sell zone &gt; $185</span><span class="text-neutral-400 text-[11px] font-semibold">○ ARMED</span></div>
+      </div>
+
+      <div class="bg-[var(--ink)] text-[var(--paper)] p-5">
+        <div class="kicker text-[#d9a3a3] mb-2">Pro Dossier</div>
+        <h3 class="serif text-[22px] font-semibold leading-snug mb-2">Unlock the full NVDA file.</h3>
+        <p class="text-[13px] text-neutral-300 leading-relaxed mb-4">Pro adds the analyst-grade breakdown: DCF scenarios, peer comps, insider flow, and a 7 AM alert when the thesis changes.</p>
+        <a href="#" class="inline-block bg-[var(--accent)] text-white text-[12px] font-semibold tracking-wide px-4 py-2">Start Pro · $12/mo</a>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="max-w-[1240px] mx-auto px-5 py-6 double-rule mt-4 text-[11px] text-neutral-500 flex flex-wrap justify-between gap-2">
+  <span>© 2026 The Stocksbrew Wire · Not investment advice</span>
+  <span class="serif italic">"The wire for the stocks you actually own."</span>
+</footer>
+</body>
+</html>

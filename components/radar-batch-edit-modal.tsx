@@ -337,7 +337,7 @@ export function RadarBatchEditModal({
         onClick={() => setOpen(true)}
         className={
           triggerClassName ??
-          "inline-flex w-fit items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
+          "inline-flex w-fit items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-1.5 text-[12px] font-semibold text-on-surface hover:border-on-surface transition-colors"
         }
       >
         {!triggerClassName && <span aria-hidden>＋</span>}
@@ -350,23 +350,23 @@ export function RadarBatchEditModal({
             type="button"
             aria-label="Close"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-[#111111]/55 backdrop-blur-sm"
+            className="absolute inset-0 bg-on-surface/55 backdrop-blur-sm"
           />
 
-          <div className="relative flex flex-col h-[100dvh] md:h-[min(90dvh,680px)] w-full max-w-[580px] rounded-none md:rounded-3xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)] overflow-hidden border-0 md:border border-[#e5e7eb]">
+          <div className="relative flex flex-col h-[100dvh] md:h-[min(90dvh,680px)] w-full max-w-[580px] rounded-none md:rounded-3xl bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.28)] overflow-hidden border-0 md:border border-outline-variant">
 
             {/* ── Header ── */}
-            <div className="flex items-center justify-between gap-4 border-b border-[#f3f4f6] px-5 py-4 shrink-0">
+            <div className="flex items-center justify-between gap-4 border-b border-outline-variant px-5 py-4 shrink-0">
               <div className="flex items-center gap-3">
-                <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">Edit your Radar</h3>
-                <span className="rounded-full bg-[#f3f4f6] px-2.5 py-0.5 text-[11px] font-semibold text-[#6b7280] tabular-nums">
+                <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">Edit your Radar</h3>
+                <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant tabular-nums">
                   {items.length}{!isSubscribed ? `/${freeLimit}` : ""}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-full p-1 text-[#9ca3af] hover:text-[#111111]"
+                className="rounded-full p-1 text-on-surface-variant hover:text-on-surface"
                 aria-label="Close"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
@@ -374,10 +374,10 @@ export function RadarBatchEditModal({
             </div>
 
             {/* ── Toolbar: search + upload ── */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f3f4f6] shrink-0">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-outline-variant shrink-0">
               {/* Search */}
-              <div className="flex flex-1 items-center gap-2 rounded-xl border border-[#e5e7eb] px-3 py-2 focus-within:border-[#111111] transition-colors">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[#9ca3af]">
+              <div className="flex flex-1 items-center gap-2 rounded-xl border border-outline-variant px-3 py-2 focus-within:border-on-surface transition-colors">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-on-surface-variant">
                   <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M10 10l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
@@ -386,10 +386,10 @@ export function RadarBatchEditModal({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search ticker or company to add…"
-                  className="w-full bg-transparent text-[13px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:outline-none focus:ring-0"
+                  className="w-full bg-transparent text-[13px] text-on-surface placeholder:text-on-surface-variant outline-none focus:outline-none focus:ring-0"
                 />
                 {query && (
-                  <button type="button" onClick={() => setQuery("")} className="shrink-0 text-[#9ca3af] hover:text-[#111111]">
+                  <button type="button" onClick={() => setQuery("")} className="shrink-0 text-on-surface-variant hover:text-on-surface">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3L3 11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
                   </button>
                 )}
@@ -399,10 +399,10 @@ export function RadarBatchEditModal({
               {enableImageUpload && (
                 <label className={`shrink-0 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-colors ${
                   extracting
-                    ? "border-[#e5e7eb] text-[#9ca3af] cursor-wait"
+                    ? "border-outline-variant text-on-surface-variant cursor-wait"
                     : extractInfo
-                      ? "border-[#10b981] text-[#065f46] bg-[#f0fdf4]"
-                      : "border-[#e5e7eb] text-[#374151] bg-white hover:border-[#111111]"
+                      ? "border-[#10b981] text-[#10b981] tint-bull"
+                      : "border-outline-variant text-on-surface bg-surface hover:border-on-surface"
                 }`}>
                   {extracting ? (
                     <><span className="h-3 w-3 rounded-full border-2 border-[#9ca3af] border-t-transparent animate-spin" />Reading…</>
@@ -410,7 +410,7 @@ export function RadarBatchEditModal({
                     <>✓ Done</>
                   ) : (
                     <>
-                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="text-[#6b7280]">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="text-on-surface-variant">
                         <path d="M6.5 1v8M3 4.5l3.5-3.5L10 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                         <path d="M1 10.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                       </svg>
@@ -441,33 +441,33 @@ export function RadarBatchEditModal({
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
                     return (
-                      <li key={item.instrument_id} className={`flex items-center gap-2.5 px-4 py-3 transition-colors ${isNew ? "bg-[#f0fdf4]" : ""}`}>
+                      <li key={item.instrument_id} className={`flex items-center gap-2.5 px-4 py-3 transition-colors ${isNew ? "tint-bull" : ""}`}>
                         <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <p className="truncate text-[13px] font-semibold text-[#111111]">{item.ticker}</p>
+                            <p className="truncate text-[13px] font-semibold text-on-surface">{item.ticker}</p>
                             {isNew && (
                               <span className="shrink-0 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-[#16a34a]">New</span>
                             )}
                           </div>
-                          <p className="truncate text-[11px] text-[#9ca3af]">{item.name}</p>
+                          <p className="truncate text-[11px] text-on-surface-variant">{item.name}</p>
                         </div>
-                        <div className="shrink-0 flex items-center rounded-full border border-[#e5e7eb] bg-[#f9fafb] p-0.5">
+                        <div className="shrink-0 flex items-center rounded-full border border-outline-variant bg-surface-container-low p-0.5">
                           <button
                             type="button"
                             onClick={() => setPosition(item.instrument_id, "holding")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-surface text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface-variant"}`}
                           >Hold</button>
                           <button
                             type="button"
                             onClick={() => setPosition(item.instrument_id, "watchlist")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-white text-[#111111] shadow-sm" : "text-[#9ca3af] hover:text-[#6b7280]"}`}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-surface text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface-variant"}`}
                           >Watch</button>
                         </div>
                         <button
                           type="button"
                           onClick={() => remove(item.instrument_id)}
-                          className="shrink-0 rounded-full p-1.5 text-[#d1d5db] hover:text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+                          className="shrink-0 rounded-full p-1.5 text-on-surface-variant hover:text-[#ef4444] hover:tint-bear transition-colors"
                           aria-label={`Remove ${item.ticker}`}
                         >
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
@@ -477,8 +477,8 @@ export function RadarBatchEditModal({
                   })}
                   {items.length === 0 && (
                     <li className="flex flex-col items-center gap-1 px-4 py-16 text-center">
-                      <p className="text-[13px] font-medium text-[#374151]">No stocks yet</p>
-                      <p className="text-[11px] text-[#9ca3af]">Search above or upload a screenshot to get started.</p>
+                      <p className="text-[13px] font-medium text-on-surface">No stocks yet</p>
+                      <p className="text-[11px] text-on-surface-variant">Search above or upload a screenshot to get started.</p>
                     </li>
                   )}
                 </ul>
@@ -486,10 +486,10 @@ export function RadarBatchEditModal({
 
               {/* Search results — overlays the list while typing */}
               {query.trim().length > 0 && (
-                <div className="absolute inset-0 bg-white overflow-y-auto no-scrollbar">
+                <div className="absolute inset-0 bg-surface overflow-y-auto no-scrollbar">
                   <ul className="divide-y divide-[#f3f4f6]">
                     {searchLoading && results.length === 0 ? (
-                      <li className="px-4 py-8 text-[13px] text-[#6b7280] text-center">
+                      <li className="px-4 py-8 text-[13px] text-on-surface-variant text-center">
                         Searching…
                       </li>
                     ) : searchError && results.length === 0 ? (
@@ -497,8 +497,8 @@ export function RadarBatchEditModal({
                         {searchError}
                       </li>
                     ) : results.length === 0 ? (
-                      <li className="px-4 py-8 text-[13px] text-[#6b7280] text-center">
-                        No matches for <span className="font-semibold text-[#111111]">{query.trim().toUpperCase()}</span>
+                      <li className="px-4 py-8 text-[13px] text-on-surface-variant text-center">
+                        No matches for <span className="font-semibold text-on-surface">{query.trim().toUpperCase()}</span>
                       </li>
                     ) : results.map((entry) => {
                       const isAdded = existingIds.has(entry.instrument_id);
@@ -506,20 +506,20 @@ export function RadarBatchEditModal({
                         <li key={entry.instrument_id} className="flex items-center gap-3 px-4 py-3">
                           <StockLogo ticker={entry.ticker} market={entry.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-semibold text-[#111111]">{entry.ticker}</p>
-                            <p className="truncate text-[11px] text-[#6b7280]">{entry.name}</p>
+                            <p className="truncate text-[13px] font-semibold text-on-surface">{entry.ticker}</p>
+                            <p className="truncate text-[11px] text-on-surface-variant">{entry.name}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {isAdded ? (
-                              <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[10px] font-semibold text-[#6b7280]">Added ✓</span>
+                              <span className="rounded-full bg-surface-container px-2.5 py-1 text-[10px] font-semibold text-on-surface-variant">Added ✓</span>
                             ) : (
                               <>
                                 <button type="button" onClick={() => { upsert(entry, "holding"); setQuery(""); }}
-                                  className="rounded-full border border-[#d1d5db] px-2.5 py-1 text-[10px] font-semibold text-[#111111] hover:border-[#111111] hover:bg-[#f9fafb] transition-colors">
+                                  className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:border-on-surface hover:bg-surface-container-low transition-colors">
                                   Hold
                                 </button>
                                 <button type="button" onClick={() => { upsert(entry, "watchlist"); setQuery(""); }}
-                                  className="rounded-full border border-[#d1d5db] px-2.5 py-1 text-[10px] font-semibold text-[#111111] hover:border-[#111111] hover:bg-[#f9fafb] transition-colors">
+                                  className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:border-on-surface hover:bg-surface-container-low transition-colors">
                                   Watch
                                 </button>
                               </>
@@ -534,17 +534,17 @@ export function RadarBatchEditModal({
             </div>
 
             {/* ── Footer ── */}
-            <div className="shrink-0 flex items-center justify-between gap-2 border-t border-[#f3f4f6] px-4 py-3 bg-white">
+            <div className="shrink-0 flex items-center justify-between gap-2 border-t border-outline-variant px-4 py-3 bg-surface">
               {error ? (
                 <p className="text-[12px] text-[#ef4444] font-medium">{error}</p>
               ) : !isSubscribed ? (
-                <p className="text-[11px] text-[#92400e]">Free plan · {freeLimit} stocks max</p>
+                <p className="text-[11px] text-[#f59e0b]">Free plan · {freeLimit} stocks max</p>
               ) : <span />}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-full border border-[#e5e7eb] px-4 py-2 text-[12px] font-semibold text-[#374151] hover:border-[#d1d5db] transition-colors"
+                  className="rounded-full border border-outline-variant px-4 py-2 text-[12px] font-semibold text-on-surface hover:border-outline-variant transition-colors"
                   disabled={submitting}
                 >
                   Cancel
@@ -553,7 +553,7 @@ export function RadarBatchEditModal({
                   type="button"
                   onClick={() => void onSubmit()}
                   disabled={submitting}
-                  className="rounded-full bg-[#111111] px-4 py-2 text-[12px] font-semibold text-white disabled:opacity-60 hover:bg-black transition-colors"
+                  className="rounded-full bg-on-surface px-4 py-2 text-[12px] font-semibold text-white disabled:opacity-60 hover:bg-on-surface transition-colors"
                 >
                   {submitting ? "Saving…" : "Save & rebuild"}
                 </button>

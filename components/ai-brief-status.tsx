@@ -47,13 +47,13 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
     ? `${ticker} · fundamentals-based read`
     : `Researching ${ticker}`;
 
-  const dotColor = priceStale ? "#f59e0b" : noMajorNews ? "#9ca3af" : "#f59e0b";
+  const dotColor = priceStale ? "#f59e0b" : noMajorNews ? "var(--on-surface-variant)" : "#f59e0b";
 
   return (
-    <section className="relative overflow-hidden rounded-[20px] border border-[#e5e7eb] bg-white px-6 py-6 md:px-7 md:py-7">
+    <section className="relative overflow-hidden rounded-[20px] bg-surface px-6 py-6 md:px-7 md:py-7">
       <span
         aria-hidden
-        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none font-semibold tracking-[-0.04em] text-[#111111] text-[100px] md:text-[120px] leading-none opacity-[0.04]"
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none font-semibold tracking-[-0.04em] text-on-surface text-[100px] md:text-[120px] leading-none opacity-[0.04]"
       >
         {ticker}
       </span>
@@ -67,31 +67,31 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
                 style={{ background: dotColor }}
                 aria-hidden
               />
-              <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-[#111111]">
+              <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-on-surface">
                 {eyebrow}
               </h3>
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+              <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
                 {title}
               </p>
-              <p className="text-[13px] leading-relaxed text-[#6b7280]">{subtitle}</p>
+              <p className="text-[13px] leading-relaxed text-on-surface-variant">{subtitle}</p>
             </div>
 
             {noMajorNews && brief ? (
-              <p className="border-t border-[#f3f4f6] pt-4 text-[15px] leading-[1.65] text-[#111111]">
+              <p className="border-t border-outline-variant pt-4 text-[15px] leading-[1.65] text-on-surface">
                 {brief}
               </p>
             ) : null}
 
             {priceStale ? (
-              <p className="text-[14px] leading-relaxed text-[#6b7280]">
+              <p className="text-[14px] leading-relaxed text-on-surface-variant">
                 We hid the previous AI brief because its trigger price no longer matches the
                 current quote. The next intelligence run will rebuild this with fresh levels.
               </p>
             ) : !noMajorNews && (
-              <p className="text-[14px] leading-relaxed text-[#6b7280]">
+              <p className="text-[14px] leading-relaxed text-on-surface-variant">
                 stocksbrew is pulling recent news, fundamentals, technicals, and scorecard
                 data into our model. This tab will show stance, catalysts, risks, and sentiment
                 when the run finishes.
@@ -100,13 +100,13 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
           </div>
 
           {(relative || timestamp) && (
-            <p className="shrink-0 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af] sm:text-right">
+            <p className="shrink-0 text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant sm:text-right">
               {relative ? `Updated ${relative}` : timestamp ? `Updated ${timestamp}` : null}
             </p>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-[#f3f4f6] pt-4 text-[12px]">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-outline-variant pt-4 text-[12px]">
           {priceStale ? (
             <>
               <StatusInline done label="Latest quote updated" />
@@ -136,12 +136,12 @@ function StatusInline({ done, label }: { done: boolean; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <span
-        className={`text-[11px] font-semibold ${done ? "text-[#10b981]" : "text-[#9ca3af]"}`}
+        className={`text-[11px] font-semibold ${done ? "text-[#10b981]" : "text-on-surface-variant"}`}
         aria-hidden
       >
         {done ? "✓" : "○"}
       </span>
-      <span className={`font-medium ${done ? "text-[#111111]" : "text-[#6b7280]"}`}>{label}</span>
+      <span className={`font-medium ${done ? "text-on-surface" : "text-on-surface-variant"}`}>{label}</span>
     </span>
   );
 }

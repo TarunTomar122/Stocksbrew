@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NVDA // stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<script>tailwind.config={theme:{extend:{
+  colors:{
+    bg:'var(--bg)', surface:'var(--surface)', surface2:'var(--surface2)', line:'var(--line)',
+    up:'var(--up)', down:'var(--down)', amber:'var(--amber)',
+    t1:'var(--t1)', t2:'var(--t2)', t3:'var(--t3)',
+  },
+  fontFamily:{mono:['"JetBrains Mono"','monospace'],sans:['Inter','sans-serif']}
+}}};</script>
+<style>
+  /* DARK (default) — softer borders, faint surfaces, more air */
+  :root, [data-theme="dark"]{
+    --bg:#0d0f13; --surface:#14171d; --surface2:#1a1e25; --line:rgba(255,255,255,.05);
+    --t1:#e7eaef; --t2:#929ba9; --t3:#5b6573;
+    --up:#34d399; --down:#f87171; --amber:#fbbf24;
+  }
+  /* LIGHT — off-white, hairline borders, deeper accents for contrast */
+  [data-theme="light"]{
+    --bg:#fbfcfd; --surface:#ffffff; --surface2:#f4f6f9; --line:rgba(12,18,28,.07);
+    --t1:#10151c; --t2:#5b6573; --t3:#97a1af;
+    --up:#0ca678; --down:#e05656; --amber:#b07d00;
+  }
+  body{background:var(--bg);transition:background .2s}
+  .pulse{animation:pulse 2.4s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  ::selection{background:var(--up);color:var(--bg)}
+  .logo{width:36px;height:36px;border-radius:8px;background:#fff;object-fit:contain;flex:none;padding:2px;box-shadow:0 0 0 1px var(--line)}
+  /* soft elevation instead of borders = lighter feel */
+  .panel{background:var(--surface);border-radius:16px}
+  .inset{background:var(--surface2);border-radius:10px}
+</style>
+</head>
+<body class="font-sans text-t1 antialiased">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-40 backdrop-blur" style="background:color-mix(in srgb,var(--bg) 88%,transparent);border-bottom:1px solid var(--line)">
+  <div class="max-w-5xl mx-auto px-5 h-14 flex items-center gap-6">
+    <a href="index.html" class="font-mono font-bold text-t1 tracking-tight">stocksbrew<span class="text-up">.</span></a>
+    <div class="hidden md:flex items-center gap-5 font-mono text-[13px] text-t2">
+      <a href="anomalies.html" class="hover:text-t1">Top Movers</a><a href="reddit.html" class="hover:text-t1">Reddit buzz</a><a href="radar.html" class="hover:text-t1">Radar</a>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <button id="themeBtn" onclick="toggleTheme()" class="grid place-items-center w-8 h-8 rounded-lg text-t2 hover:text-t1" style="background:var(--surface2)" title="Toggle theme"></button>
+      <a href="#" class="font-mono text-[12px] text-t2 hover:text-t1 px-2">sign in</a>
+      <a href="subscribe.html" class="font-mono text-[12px] text-amber font-semibold px-3 py-1.5 rounded" style="background:color-mix(in srgb,var(--amber) 14%,transparent)">★ Go Pro</a>
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-5xl mx-auto px-5 py-9 space-y-5">
+
+  <!-- HEADER (borderless, just space) -->
+  <div>
+    <div class="flex items-start gap-4">
+      <img class="logo" src="https://assets.parqet.com/logos/symbol/NVDA?format=png" onerror="this.style.display='none'"/>
+      <div>
+        <h1 class="text-[22px] font-bold text-t1 leading-tight">NVIDIA Corporation</h1>
+        <p class="font-mono text-[12px] text-t2">NVDA · NASDAQ · Technology / Semiconductors</p>
+      </div>
+      <div class="ml-auto text-right">
+        <p class="font-mono text-2xl font-bold text-t1">$210.69</p>
+        <p class="font-mono text-[13px] text-up">▲ +2.95% &nbsp;+$6.04 today</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 mt-3 font-mono text-[11px] text-t3">
+      <span>Market cap $5.10T</span><span>·</span><span>S&P 500</span><span>·</span><span>NASDAQ 100</span><span>·</span><span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-up pulse"></span> updated 9:41a ET</span>
+    </div>
+  </div>
+
+  <!-- THE CALL — soft tinted panel, no hard border, borderless chips -->
+  <section class="panel p-6" style="background:color-mix(in srgb,var(--up) 7%,var(--surface))">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="font-mono text-[11px] text-up tracking-widest">THE CALL</span>
+      <span class="font-mono text-[10px] text-amber rounded px-1.5 py-0.5" style="background:color-mix(in srgb,var(--amber) 14%,transparent)">PRO</span>
+      <span class="ml-auto font-mono text-[11px] text-t3">conviction: <span class="text-up">high</span></span>
+    </div>
+    <div class="flex items-baseline gap-3">
+      <span class="font-mono text-2xl font-bold text-up">ACCUMULATE</span>
+      <span class="text-[13px] text-t2">into weakness under $200</span>
+    </div>
+    <p class="mt-3 text-[14px] leading-relaxed text-t2">Analysts hold a near-unanimous <b class="text-t1">97% Buy</b> with a $309 average target — <b class="text-t1">+46.8% implied upside</b> — and revenue is still compounding +70.7% YoY. The 1-month dip (−4.5%) is noise against that setup. Add on pullbacks; the thesis only breaks if growth decelerates hard.</p>
+    <div class="mt-4 grid sm:grid-cols-3 gap-2 font-mono text-[11px]">
+      <div class="inset p-2.5"><p class="text-t3">trigger to add</p><p class="text-t1 mt-0.5">price &lt; $200</p></div>
+      <div class="inset p-2.5"><p class="text-t3">trigger to trim</p><p class="text-t1 mt-0.5">price &gt; $300</p></div>
+      <div class="inset p-2.5"><p class="text-t3">thesis breaks if</p><p class="text-t1 mt-0.5">rev growth &lt; 40%</p></div>
+    </div>
+  </section>
+
+  <!-- WHY IT MOVED -->
+  <section class="panel p-6">
+    <p class="font-mono text-[11px] text-t2 tracking-widest mb-4">WHY IT MOVED TODAY · ▲ +3.0%</p>
+    <div class="grid sm:grid-cols-3 gap-5">
+      <div><p class="font-mono text-[11px] text-up mb-1.5">what changed</p><p class="text-[13px] text-t2 leading-relaxed">Broad semis bid after upbeat data-center capex commentary; NVDA led the group higher.</p></div>
+      <div><p class="font-mono text-[11px] text-up mb-1.5">why it matters</p><p class="text-[13px] text-t2 leading-relaxed">Reinforces the AI demand narrative that underpins the consensus Buy and the $309 target.</p></div>
+      <div><p class="font-mono text-[11px] text-up mb-1.5">what to watch</p><p class="text-[13px] text-t2 leading-relaxed">Next earnings and any hyperscaler capex guidance — the swing factor for the next leg.</p></div>
+    </div>
+  </section>
+
+  <!-- WHY CARE / SIGNALS — borderless tiles -->
+  <section>
+    <p class="font-mono text-[12px] text-t2 mb-3"><span class="text-up">$</span> why care today — 5 signals from free data</p>
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3" id="signals"></div>
+  </section>
+
+  <!-- STATS + ANALYST -->
+  <section class="grid lg:grid-cols-2 gap-5">
+    <div class="panel p-6">
+      <p class="font-mono text-[12px] text-t2 mb-4">key stats</p>
+      <div class="grid grid-cols-2 gap-y-3 font-mono text-[12px]" id="stats"></div>
+    </div>
+    <div class="panel p-6">
+      <p class="font-mono text-[12px] text-t2 mb-1">analyst ratings</p>
+      <p class="text-[13px] text-t2 mb-3">Based on 37 analysts — <b class="text-up">97% rate it Buy</b></p>
+      <div class="flex items-end gap-2 mb-4"><span class="font-mono text-3xl font-bold text-up">$309</span><span class="font-mono text-[12px] text-up mb-1">+46.8% upside</span></div>
+      <div class="space-y-2 font-mono text-[11px]">
+        <div class="flex items-center gap-2"><span class="w-12 text-t2">Buy 36</span><div class="flex-1 h-2 rounded" style="background:var(--surface2)"><div class="h-2 rounded bg-up" style="width:97%"></div></div></div>
+        <div class="flex items-center gap-2"><span class="w-12 text-t2">Hold 1</span><div class="flex-1 h-2 rounded" style="background:var(--surface2)"><div class="h-2 rounded" style="width:3%;background:var(--t3)"></div></div></div>
+        <div class="flex items-center gap-2"><span class="w-12 text-t2">Sell 0</span><div class="flex-1 h-2 rounded" style="background:var(--surface2)"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FUNDAMENTALS SCORE -->
+  <section class="panel p-6">
+    <div class="flex items-center justify-between mb-4">
+      <p class="font-mono text-[12px] text-t2">fundamentals · <span class="text-t1">89/100</span> vs sector peers</p>
+      <span class="font-mono text-[11px] text-t3">scores free · the call is Pro</span>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="scores"></div>
+  </section>
+
+  <!-- RADAR CTA -->
+  <section class="panel p-6 flex flex-col sm:flex-row items-center justify-between gap-4" style="background:var(--surface2)">
+    <div><p class="text-[15px] font-semibold text-t1">Track NVDA on your Radar</p><p class="text-[13px] text-t2 mt-0.5">Get the brew when it moves 4%+. Free for 3 stocks.</p></div>
+    <a href="radar.html" class="font-mono text-[13px] bg-up font-semibold px-5 py-2.5 rounded hover:opacity-90 whitespace-nowrap" style="color:var(--bg)">+ Add to Radar</a>
+  </section>
+
+</main>
+
+<footer class="mt-2" style="border-top:1px solid var(--line)">
+  <div class="max-w-5xl mx-auto px-5 py-8 flex items-center justify-between font-mono text-[12px] text-t3">
+    <a href="index.html" class="text-t2">stocksbrew<span class="text-up">.</span></a><span>not financial advice</span>
+  </div>
+</footer>
+
+<script>
+// THEME TOGGLE
+const sun='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>';
+const moon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+function applyTheme(t){document.documentElement.dataset.theme=t;document.getElementById('themeBtn').innerHTML=t==='dark'?sun:moon;try{localStorage.setItem('sb-theme',t)}catch(e){}}
+function toggleTheme(){applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');}
+applyTheme((()=>{try{return localStorage.getItem('sb-theme')||'dark'}catch(e){return'dark'}})());
+
+const signals=[['🎯','Analyst target','+46.8%','$309 · 37 analysts','up'],['📈','Past 1Y','+44.8%','1M −4.5% · 3M +18.0%','up'],['🌱','Strong growth','100','top pillar on scorecard','up'],['💰','Revenue YoY','+70.7%','high-growth top line','up'],['🏛️','Institutional','77.8%','of total float','t1']];
+document.getElementById('signals').innerHTML=signals.map(([e,l,v,s,c])=>`<div class="inset p-3.5"><div class="text-[15px]">${e}</div><p class="font-mono text-[11px] text-t2 mt-1">${l}</p><p class="font-mono text-[15px] font-bold ${c==='up'?'text-up':'text-t1'} mt-0.5">${v}</p><p class="text-[11px] text-t3 mt-0.5 leading-tight">${s}</p></div>`).join('');
+
+const stats=[['Market cap','$5.10T'],['P/E (TTM)','32.27'],['EPS next Y','+39.9%'],['Reco score','1.25'],['Avg target','$309.33'],['Implied upside','+46.8%'],['52W high','$236.54'],['52W low','$142.03'],['Div yield','0.0%'],['Beta','2.2'],['RSI (14)','50.4'],['Revenue','$253.49B']];
+document.getElementById('stats').innerHTML=stats.map(([k,v])=>`<div class="flex justify-between pr-4"><span class="text-t2">${k}</span><span class="text-t1">${v}</span></div>`).join('');
+
+const scores=[['Growth',100,'🌱'],['Momentum',65,'🚀'],['Valuation',95,'🏷️'],['Quality',93,'🏛️']];
+document.getElementById('scores').innerHTML=scores.map(([l,v,e])=>`<div class="inset p-3.5"><div class="flex items-center justify-between"><span class="text-[14px]">${e}</span><span class="font-mono text-[15px] font-bold text-t1">${v}</span></div><p class="font-mono text-[11px] text-t2 mt-1">${l}</p><div class="mt-2 h-1.5 rounded" style="background:var(--bg)"><div class="h-1.5 rounded" style="width:${v}%;background:${v>=85?'var(--up)':v>=60?'var(--amber)':'var(--down)'}"></div></div></div>`).join('');
+</script>
+</body>
+</html>

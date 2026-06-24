@@ -25,7 +25,7 @@ function renderToolStatus(part: UIMessage["parts"][number], index: number) {
   const toolName = getToolName(part);
   if (part.state === "output-error") {
     return (
-      <span key={index} className="text-[12px] text-[#b45309]">
+      <span key={index} className="text-[12px] text-[#f59e0b]">
         {toolName === "web_search" ? "Search failed — using radar data" : "Intel lookup failed"}
       </span>
     );
@@ -34,7 +34,7 @@ function renderToolStatus(part: UIMessage["parts"][number], index: number) {
   if (!running) return null;
   const label = toolName === "web_search" ? "Searching the web…" : "Pulling stock intel…";
   return (
-    <span key={index} className="italic text-[#6b7280] text-[12px]">
+    <span key={index} className="italic text-on-surface-variant text-[12px]">
       {label}
     </span>
   );
@@ -107,16 +107,16 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-[#e5e7eb] px-4 py-3">
+      <div className="shrink-0 border-b border-outline-variant px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-[14px] font-semibold text-[#111111]">Assistant</h2>
-              <span className="rounded-md bg-[#fef3c7] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#b45309]">
+              <h2 className="text-[14px] font-semibold text-on-surface">Assistant</h2>
+              <span className="rounded-md tint-warn px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#f59e0b]">
                 Beta
               </span>
             </div>
-            <p className="mt-0.5 truncate text-[12px] text-[#6b7280]">
+            <p className="mt-0.5 truncate text-[12px] text-on-surface-variant">
               {trackedCount > 0
                 ? `${trackedCount} tickers · ${tickerLabel}`
                 : "Add tickers to your radar"}
@@ -126,7 +126,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
             type="button"
             onClick={closeChat}
             aria-label="Close assistant"
-            className="shrink-0 rounded-md p-1.5 text-[#6b7280] transition-colors hover:bg-[#f3f4f6] hover:text-[#111111]"
+            className="shrink-0 rounded-md p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
           >
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
               close
@@ -138,7 +138,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
           <div className="flex flex-col gap-4">
-            <p className="text-[13px] leading-relaxed text-[#6b7280]">
+            <p className="text-[13px] leading-relaxed text-on-surface-variant">
               Ask about your holdings, directives, or breaking news.
             </p>
             {starters.length > 0 && (
@@ -149,7 +149,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
                     type="button"
                     disabled={status !== "ready"}
                     onClick={() => submit(starter.message)}
-                    className="rounded-lg border border-[#e5e7eb] bg-[#fafafa] px-3 py-2.5 text-left text-[13px] text-[#374151] transition-colors hover:border-[#111111] hover:bg-white disabled:opacity-50"
+                    className="rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2.5 text-left text-[13px] text-on-surface transition-colors hover:border-on-surface hover:bg-surface disabled:opacity-50"
                   >
                     {starter.label}
                   </button>
@@ -167,8 +167,8 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
                 <div
                   className={`max-w-[92%] rounded-lg px-3.5 py-2.5 ${
                     m.role === "user"
-                      ? "bg-[#111111] text-white"
-                      : "bg-[#f5f5f5] text-[#111111]"
+                      ? "bg-on-surface text-surface"
+                      : "bg-surface-container text-on-surface"
                   }`}
                 >
                   <div className="flex flex-col gap-1.5">
@@ -186,13 +186,13 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
             ))}
             {showThinking && (
               <div className="flex items-start">
-                <div className="rounded-lg bg-[#f5f5f5] px-3.5 py-2 text-[13px] text-[#6b7280]">
+                <div className="rounded-lg bg-surface-container px-3.5 py-2 text-[13px] text-on-surface-variant">
                   <span className="animate-pulse">Thinking…</span>
                 </div>
               </div>
             )}
             {chatError && (
-              <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3.5 py-2 text-[13px] text-[#991b1b]">
+              <div className="rounded-lg border border-outline-variant tint-bear px-3.5 py-2 text-[13px] text-[#ef4444]">
                 {chatError}
               </div>
             )}
@@ -205,9 +205,9 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
           e.preventDefault();
           submit(input);
         }}
-        className="shrink-0 border-t border-[#e5e7eb] bg-white px-4 py-3"
+        className="shrink-0 border-t border-outline-variant bg-surface px-4 py-3"
       >
-        <div className="flex items-end gap-2 rounded-xl border border-[#e5e7eb] bg-[#fafafa] p-2 transition-colors focus-within:border-[#111111] focus-within:bg-white">
+        <div className="flex items-end gap-2 rounded-xl border border-outline-variant bg-surface-container-low p-2 transition-colors focus-within:border-on-surface focus-within:bg-surface">
           <textarea
             ref={inputRef}
             value={input}
@@ -221,13 +221,13 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
             rows={1}
             placeholder="Ask about your radar…"
             disabled={status !== "ready"}
-            className="max-h-28 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-[14px] leading-snug text-[#111111] placeholder:text-[#a1a1aa] focus:outline-none focus:ring-0 disabled:opacity-60"
+            className="max-h-28 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-[14px] leading-snug text-on-surface placeholder:text-[#a1a1aa] focus:outline-none focus:ring-0 disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={status !== "ready" || !input.trim()}
             aria-label="Send message"
-            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111111] text-white transition-colors hover:bg-[#242424] disabled:bg-[#e5e7eb] disabled:text-[#9ca3af] disabled:hover:bg-[#e5e7eb]"
+            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-on-surface text-surface transition-colors hover:bg-[#242424] disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:hover:bg-surface-container-high"
           >
             <span
               className="material-symbols-outlined"

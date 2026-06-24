@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reddit Buzz · stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --accent:#5b5bd6; --accent-soft:#eeeefb; --ink:#1c1c22; --sub:#6a6a76; --faint:#9a9aa4; --line:#ececef; --line2:#e2e2e7; --bg:#fbfbfc; --pos:#15803d; --neg:#dc2626; }
+  * { -webkit-font-smoothing: antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--bg); }
+  .mono { font-family:'JetBrains Mono',monospace; font-feature-settings:'tnum'; }
+  .row-hover:hover { background:#f7f7fb; } .row-hover:hover .quick { opacity:1; }
+  .quick { opacity:0; transition:opacity .12s ease; }
+  .kbd { font-family:'JetBrains Mono',monospace; font-size:10px; line-height:1; padding:3px 5px; border:1px solid var(--line2); border-bottom-width:2px; border-radius:5px; background:#fff; color:var(--sub); }
+  .nav-item { transition:background .12s,color .12s; } .nav-item:hover { background:#f2f2f7; color:var(--ink); }
+  .nav-item.active { background:var(--accent-soft); color:var(--accent); }
+  .dot { width:7px; height:7px; border-radius:99px; display:inline-block; }
+  .seg { font-size:11px; padding:3px 9px; border-radius:6px; transition:all .12s; }
+  .seg.on { background:var(--ink); color:#fff; } .seg.off { color:var(--sub); } .seg.off:hover { background:#f0f0f4; }
+  .tag { font-size:10.5px; font-weight:600; letter-spacing:.02em; padding:2px 7px; border-radius:5px; }
+  ::selection { background:var(--accent-soft); }
+  .scroll::-webkit-scrollbar { width:8px; } .scroll::-webkit-scrollbar-thumb { background:#e0e0e6; border-radius:8px; }
+  .meter { height:5px; border-radius:99px; background:#eee; overflow:hidden; display:flex; }
+</style>
+</head>
+<body class="h-screen overflow-hidden">
+<div class="flex h-screen">
+
+  <aside class="w-[212px] shrink-0 border-r flex flex-col" style="border-color:var(--line)">
+    <div class="h-14 flex items-center gap-2 px-4 border-b" style="border-color:var(--line)">
+      <div class="w-6 h-6 rounded-md grid place-items-center text-white text-[13px] font-bold" style="background:var(--accent)">s</div>
+      <span class="font-semibold text-[14px] tracking-tight">stocksbrew</span>
+    </div>
+    <nav class="flex-1 px-2.5 py-3 space-y-0.5 text-[13px]">
+      <p class="px-2.5 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wider" style="color:var(--faint)">Triage</p>
+      <a href="radar.html" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        Radar <span class="ml-auto mono text-[11px]" style="color:var(--faint)">7</span>
+      </a>
+      <a href="anomalies.html" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        Anomalies <span class="ml-auto mono text-[11px]" style="color:var(--faint)">5</span>
+      </a>
+      <a href="reddit.html" class="nav-item active flex items-center gap-2.5 px-2.5 h-8 rounded-md font-medium">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+        Reddit Buzz <span class="ml-auto mono text-[11px] px-1.5 rounded" style="background:var(--accent);color:#fff">12</span>
+      </a>
+      <a href="#" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+        Screener
+      </a>
+      <p class="px-2.5 pt-4 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wider" style="color:var(--faint)">Pinned</p>
+      <a href="stock.html" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <span class="dot" style="background:var(--pos)"></span>
+        <span class="mono text-[12px] font-medium">NVDA</span>
+        <span class="ml-auto mono text-[11px]" style="color:var(--pos)">+2.4%</span>
+      </a>
+    </nav>
+    <div class="p-3 border-t" style="border-color:var(--line)">
+      <div class="flex items-center gap-2.5 px-1">
+        <div class="w-7 h-7 rounded-full grid place-items-center text-[11px] font-semibold text-white" style="background:linear-gradient(135deg,#5b5bd6,#8b5cf6)">TT</div>
+        <div class="leading-tight"><p class="text-[12.5px] font-medium">Tanay</p><p class="text-[11px]" style="color:var(--faint)">Free plan</p></div>
+        <svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="h-14 shrink-0 border-b flex items-center gap-3 px-5" style="border-color:var(--line)">
+      <h1 class="text-[15px] font-semibold tracking-tight">Reddit Buzz</h1>
+      <span class="text-[12.5px]" style="color:var(--faint)">Trending across r/stocks, r/wsb, r/investing</span>
+      <button class="ml-4 flex items-center gap-2 h-8 px-3 rounded-lg border text-[12.5px] w-[300px] text-left" style="border-color:var(--line2);color:var(--sub)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        Search or jump to ticker <span class="ml-auto kbd">⌘K</span>
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        <button class="h-8 px-3 rounded-lg border text-[12.5px] font-medium flex items-center gap-1.5" style="border-color:var(--line2)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>24h
+        </button>
+      </div>
+    </header>
+
+    <div class="h-11 shrink-0 border-b flex items-center gap-1.5 px-5" style="border-color:var(--line)">
+      <button class="seg on">Top mentions</button>
+      <button class="seg off">Fastest rising</button>
+      <button class="seg off">Bullish</button>
+      <button class="seg off">Bearish</button>
+      <button class="seg off">On my radar</button>
+      <div class="ml-auto flex items-center gap-2 text-[11.5px]" style="color:var(--faint)">
+        <span class="kbd">J</span><span class="kbd">K</span> navigate · <span class="kbd">T</span> track ticker
+      </div>
+    </div>
+
+    <div class="shrink-0 grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-9 text-[10.5px] font-semibold uppercase tracking-wider border-b" style="border-color:var(--line);color:var(--faint)">
+      <span>#</span><span>Ticker</span><span>Mentions</span><span>Sentiment</span><span>Top thread</span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto scroll">
+      <!-- 1 GME -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">01</span>
+        <div><span class="mono text-[13.5px] font-semibold">GME</span><p class="text-[11px]" style="color:var(--faint)">GameStop</p></div>
+        <div><p class="mono text-[13px] font-medium">8,412</p><p class="mono text-[10.5px] font-medium" style="color:var(--pos)">▲ 214% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:78%;background:#15803d"></span><span style="width:22%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">78% bullish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“DFV posted again, options chain is on fire for Friday expiry”</p>
+      </div>
+      <!-- 2 NVDA tracked -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">02</span>
+        <div class="flex items-center gap-1.5"><div><a href="stock.html" class="mono text-[13.5px] font-semibold">NVDA</a><p class="text-[11px]" style="color:var(--faint)">NVIDIA</p></div><span class="tag" style="background:var(--accent-soft);color:var(--accent)">Tracked</span></div>
+        <div><p class="mono text-[13px] font-medium">6,037</p><p class="mono text-[10.5px] font-medium" style="color:var(--pos)">▲ 96% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:71%;background:#15803d"></span><span style="width:29%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">71% bullish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“GTC keynote leak: next-gen inference chip ships ahead of schedule”</p>
+      </div>
+      <!-- 3 TSLA -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">03</span>
+        <div><span class="mono text-[13.5px] font-semibold">TSLA</span><p class="text-[11px]" style="color:var(--faint)">Tesla</p></div>
+        <div><p class="mono text-[13px] font-medium">5,290</p><p class="mono text-[10.5px] font-medium" style="color:var(--neg)">▼ 12% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:38%;background:#15803d"></span><span style="width:62%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">62% bearish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“Delivery numbers are cooked, robotaxi event keeps slipping”</p>
+      </div>
+      <!-- 4 SMCI -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">04</span>
+        <div><span class="mono text-[13.5px] font-semibold">SMCI</span><p class="text-[11px]" style="color:var(--faint)">Super Micro</p></div>
+        <div><p class="mono text-[13px] font-medium">4,118</p><p class="mono text-[10.5px] font-medium" style="color:var(--pos)">▲ 340% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:29%;background:#15803d"></span><span style="width:71%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">71% bearish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“Auditor walked. Anyone holding through the filing deadline is brave”</p>
+      </div>
+      <!-- 5 PLTR -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">05</span>
+        <div><span class="mono text-[13.5px] font-semibold">PLTR</span><p class="text-[11px]" style="color:var(--faint)">Palantir</p></div>
+        <div><p class="mono text-[13px] font-medium">3,604</p><p class="mono text-[10.5px] font-medium" style="color:var(--pos)">▲ 58% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:83%;background:#15803d"></span><span style="width:17%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">83% bullish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“New gov contract dropped, the AIP demos keep closing deals”</p>
+      </div>
+      <!-- 6 RBLX -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">06</span>
+        <div><span class="mono text-[13.5px] font-semibold">RBLX</span><p class="text-[11px]" style="color:var(--faint)">Roblox</p></div>
+        <div><p class="mono text-[13px] font-medium">2,945</p><p class="mono text-[10.5px] font-medium" style="color:var(--pos)">▲ 121% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:66%;background:#15803d"></span><span style="width:34%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">66% bullish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“Bookings blew past, ad business is the part nobody is modeling”</p>
+      </div>
+      <!-- 7 AMD -->
+      <div class="row-hover grid grid-cols-[40px_150px_120px_150px_1fr] items-center gap-3 px-5 h-[64px] border-b cursor-pointer" style="border-color:var(--line)">
+        <span class="mono text-[13px] font-semibold" style="color:var(--faint)">07</span>
+        <div><span class="mono text-[13.5px] font-semibold">AMD</span><p class="text-[11px]" style="color:var(--faint)">Adv Micro Dev</p></div>
+        <div><p class="mono text-[13px] font-medium">2,510</p><p class="mono text-[10.5px] font-medium" style="color:var(--pos)">▲ 19% velocity</p></div>
+        <div class="w-32"><div class="meter"><span style="width:59%;background:#15803d"></span><span style="width:41%;background:#dc2626"></span></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">59% bullish</p></div>
+        <p class="text-[12.5px] truncate" style="color:var(--sub)">“MI series finally getting design wins, the gap to NVDA is closing”</p>
+      </div>
+    </div>
+
+    <footer class="h-9 shrink-0 border-t flex items-center px-5 text-[11.5px]" style="border-color:var(--line);color:var(--faint)">
+      <span>61,420 posts parsed in last 24h · sentiment via LLM classifier</span>
+      <span class="ml-auto flex items-center gap-1.5"><span class="dot" style="background:var(--pos)"></span>Live</span>
+    </footer>
+  </div>
+</div>
+</body>
+</html>

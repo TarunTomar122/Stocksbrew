@@ -7,12 +7,12 @@ type Props = {
 function sentimentMeta(label: string): { dot: string; chipBg: string; chipFg: string } {
   const v = (label ?? "").toLowerCase();
   if (v === "bullish")
-    return { dot: "#10b981", chipBg: "#ecfdf5", chipFg: "#065f46" };
+    return { dot: "#10b981", chipBg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", chipFg: "#10b981" };
   if (v === "bearish")
-    return { dot: "#ef4444", chipBg: "#fef2f2", chipFg: "#991b1b" };
+    return { dot: "#ef4444", chipBg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", chipFg: "#ef4444" };
   if (v === "mixed")
-    return { dot: "#f59e0b", chipBg: "#fef3c7", chipFg: "#92400e" };
-  return { dot: "#9ca3af", chipBg: "#f3f4f6", chipFg: "#374151" };
+    return { dot: "#f59e0b", chipBg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", chipFg: "#f59e0b" };
+  return { dot: "var(--on-surface-variant)", chipBg: "var(--surface-container)", chipFg: "var(--on-surface)" };
 }
 
 function stripHtml(raw: string): string {
@@ -45,18 +45,18 @@ export function AiSynthesis({ intelligence }: Props) {
               style={{ background: meta.dot }}
               aria-hidden
             />
-            <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
               News overview
             </h3>
           </div>
-          <p className="text-[12px] text-[#6b7280] max-w-[520px]">
+          <p className="text-[12px] text-on-surface-variant max-w-[520px]">
             What&apos;s happening with this stock right now - synthesised from
             recent coverage, not a buy/sell recommendation.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {sentimentScore !== null && (
-            <span className="text-[28px] font-semibold tabular-nums text-[#111111] leading-none">
+            <span className="text-[28px] font-semibold tabular-nums text-on-surface leading-none">
               {sentimentScore}
             </span>
           )}
@@ -71,7 +71,7 @@ export function AiSynthesis({ intelligence }: Props) {
 
       <div className="flex flex-col gap-3">
         {paragraphs.map((p, i) => (
-          <p key={i} className="text-[15px] text-[#111111] leading-[1.6]">
+          <p key={i} className="text-[15px] text-on-surface leading-[1.6]">
             {p}
           </p>
         ))}

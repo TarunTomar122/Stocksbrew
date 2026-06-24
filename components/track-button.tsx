@@ -224,7 +224,7 @@ export function TrackButton({
   }
 
   const trackedPillClass =
-    "inline-flex h-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#111111] bg-white px-4 text-[13px] font-semibold tracking-tight text-[#111111]";
+    "inline-flex h-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-on-surface bg-surface px-4 text-[13px] font-semibold tracking-tight text-on-surface";
 
   if (trackedAsBadge && localTracked && user) {
     if (variant === "icon") {
@@ -276,7 +276,7 @@ export function TrackButton({
           className={`shrink-0 transition-colors disabled:opacity-50 ${
             localTracked
               ? "text-[#0052ff]"
-              : "text-[#9ca3af] hover:text-[#111111]"
+              : "text-on-surface-variant hover:text-on-surface"
           }`}
           title={label}
         >
@@ -290,8 +290,8 @@ export function TrackButton({
             disabled={pending}
             className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap h-[40px] px-4 rounded-full text-[13px] font-semibold tracking-tight transition-transform disabled:opacity-60 ${
               localTracked
-                ? "bg-white text-[#111111] border border-[#111111] hover:-translate-y-[1px] active:translate-y-0"
-                : "bg-[#111111] text-white hover:-translate-y-[1px] active:translate-y-0"
+                ? "bg-surface text-on-surface border border-on-surface hover:-translate-y-[1px] active:translate-y-0"
+                : "bg-on-surface text-surface hover:-translate-y-[1px] active:translate-y-0"
             }`}
           >
             {label}
@@ -389,17 +389,17 @@ function TrackModal({
         type="button"
         aria-label="Close"
         onClick={onCancel}
-        className="absolute inset-0 bg-[#111111]/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-on-surface/50 backdrop-blur-sm"
       />
-      <div className="relative z-[1] w-full max-w-[420px] rounded-3xl bg-white p-6 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
+      <div className="relative z-[1] w-full max-w-[420px] rounded-3xl bg-surface p-6 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+          <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-on-surface-variant">
             Personal radar
           </span>
-          <h2 id="track-modal-title" className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">
+          <h2 id="track-modal-title" className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface">
             Add {ticker} to Radar
           </h2>
-          <p className="text-[13px] text-[#6b7280] leading-relaxed">
+          <p className="text-[13px] text-on-surface-variant leading-relaxed">
             Tell stocksbrew how to monitor this stock. You can move it later.
           </p>
         </div>
@@ -430,7 +430,7 @@ function TrackModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="inline-flex items-center justify-center h-[40px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-semibold text-[#111111] hover:border-[#111111] disabled:opacity-60 transition-colors"
+            className="inline-flex items-center justify-center h-[40px] px-4 rounded-full border border-outline-variant bg-surface text-[13px] font-semibold text-on-surface hover:border-on-surface disabled:opacity-60 transition-colors"
           >
             Cancel
           </button>
@@ -438,7 +438,7 @@ function TrackModal({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold disabled:opacity-60 transition-transform hover:-translate-y-[1px] active:translate-y-0"
+            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-on-surface text-surface text-[13px] font-semibold disabled:opacity-60 transition-transform hover:-translate-y-[1px] active:translate-y-0"
           >
             {pending ? "Adding…" : "OK"}
           </button>
@@ -470,14 +470,14 @@ function PositionOption({
       aria-pressed={active}
       className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all ${
         active
-          ? "border-[#111111] bg-[#fafafa]"
-          : "border-[#e5e7eb] bg-white hover:border-[#9ca3af]"
+          ? "border-on-surface bg-surface-container-low"
+          : "border-outline-variant bg-surface hover:border-outline"
       }`}
     >
       <span
         aria-hidden
         className={`flex h-9 w-9 items-center justify-center rounded-full ${
-          active ? "bg-[#111111] text-white" : "bg-[#f3f4f6] text-[#6b7280]"
+          active ? "bg-on-surface text-surface" : "bg-surface-container text-on-surface-variant"
         }`}
       >
         <span
@@ -488,8 +488,8 @@ function PositionOption({
         </span>
       </span>
       <span className="flex flex-col">
-        <span className="text-[14px] font-semibold text-[#111111]">{label}</span>
-        <span className="text-[11px] text-[#6b7280]">{sublabel}</span>
+        <span className="text-[14px] font-semibold text-on-surface">{label}</span>
+        <span className="text-[11px] text-on-surface-variant">{sublabel}</span>
       </span>
     </button>
   );

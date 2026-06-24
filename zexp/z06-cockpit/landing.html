@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stocksbrew · Cockpit</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--line:#232838;--violet:#8b5cf6;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;}
+  *{font-family:'Inter',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  body{background:var(--bg);color:#e5e7eb;}
+  .panel{background:var(--panel);border:1px solid var(--line);}
+  .gridbg{background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.03) 1px,transparent 0);background-size:22px 22px;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .live{animation:pulse 1.6s ease-in-out infinite;}
+  .verdict{font-weight:800;letter-spacing:-0.01em;}
+  ::selection{background:#8b5cf6;color:#fff;}
+</style>
+</head>
+<body class="min-h-screen gridbg">
+
+<!-- NAV -->
+<nav class="border-b border-[var(--line)] bg-[var(--panel)]/80 backdrop-blur sticky top-0 z-30">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-md bg-[var(--violet)] flex items-center justify-center font-black text-white text-base">s</div>
+      <span class="font-bold tracking-tight text-white">stocksbrew</span>
+      <span class="mono text-[10px] uppercase tracking-widest text-[var(--violet)] ml-2">cockpit</span>
+    </div>
+    <div class="hidden md:flex items-center gap-7 text-sm text-neutral-400">
+      <a href="#" class="hover:text-white">Tour</a>
+      <a href="#" class="hover:text-white">Features</a>
+      <a href="#" class="hover:text-white">Pricing</a>
+    </div>
+    <a href="#" class="text-sm font-semibold bg-[var(--violet)] text-white px-4 py-2 rounded-lg hover:bg-violet-500">Launch cockpit</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="max-w-7xl mx-auto px-6 pt-12 pb-8">
+  <div class="grid lg:grid-cols-[0.9fr_1.4fr] gap-10 items-center">
+    <!-- LEFT copy -->
+    <div>
+      <p class="text-[11px] mono uppercase tracking-[0.2em] text-[var(--violet)] mb-4">For the operator</p>
+      <h1 class="text-[44px] md:text-[60px] font-black leading-[0.98] tracking-[-0.035em] text-white">
+        Your portfolio,<br>
+        <span class="text-[var(--violet)]">on instruments.</span>
+      </h1>
+      <p class="mt-6 text-lg text-neutral-400 max-w-md leading-relaxed">
+        One command center for every stock you own and watch. Live verdicts, trigger states,
+        and the one action that needs you — all on one screen.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row gap-3">
+        <a href="#" class="text-center font-bold bg-[var(--violet)] text-white px-6 py-3.5 rounded-xl hover:bg-violet-500">Open your cockpit →</a>
+      </div>
+      <p class="mt-4 text-xs text-neutral-500">3 stocks free · no card · US markets</p>
+    </div>
+
+    <!-- RIGHT: cockpit preview -->
+    <div class="panel rounded-2xl overflow-hidden">
+      <!-- status bar -->
+      <div class="flex items-center gap-5 px-5 py-2.5 border-b border-[var(--line)] bg-[var(--panel2)] text-[11px] mono">
+        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--green)] live"></span><span class="text-neutral-300">MARKET OPEN</span></span>
+        <span class="text-neutral-600">|</span>
+        <span><span class="text-neutral-500">S&amp;P</span> <span class="text-neutral-200">5,431</span> <span class="text-[var(--green)]">+0.62%</span></span>
+        <span><span class="text-neutral-500">VIX</span> <span class="text-neutral-200">13.8</span> <span class="text-[var(--red)]">-3.1%</span></span>
+        <span class="ml-auto text-neutral-500">Fri 11:42 ET</span>
+      </div>
+
+      <!-- summary tiles -->
+      <div class="grid grid-cols-4 gap-3 p-4 border-b border-[var(--line)]">
+        <div class="bg-[var(--panel2)] rounded-xl p-3.5">
+          <div class="text-[10px] mono uppercase tracking-wider text-neutral-500">Portfolio</div>
+          <div class="mono text-xl font-bold mt-1">$184,720</div>
+          <div class="mono text-[11px] text-[var(--green)]">+1.17% today</div>
+        </div>
+        <div class="bg-[var(--panel2)] rounded-xl p-3.5">
+          <div class="text-[10px] mono uppercase tracking-wider text-neutral-500">Triggers fired</div>
+          <div class="mono text-xl font-bold text-[var(--amber)] mt-1">2</div>
+          <div class="text-[11px] text-neutral-500">AMD buy · TSLA sell</div>
+        </div>
+        <div class="bg-[var(--panel2)] rounded-xl p-3.5">
+          <div class="text-[10px] mono uppercase tracking-wider text-neutral-500">Verdict Δ</div>
+          <div class="mono text-xl font-bold mt-1">3</div>
+          <div class="text-[11px] text-neutral-500">since close</div>
+        </div>
+        <div class="bg-[var(--panel2)] rounded-xl p-3.5">
+          <div class="text-[10px] mono uppercase tracking-wider text-neutral-500">Needs action</div>
+          <div class="mono text-xl font-bold text-[var(--green)] mt-1">1 Buy</div>
+          <div class="text-[11px] text-neutral-500">PLTR in zone</div>
+        </div>
+      </div>
+
+      <!-- rows -->
+      <div class="divide-y divide-[var(--line)]" id="rows"></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="max-w-7xl mx-auto px-6 py-16 border-t border-[var(--line)]">
+  <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em] text-white max-w-xl">Built like the tools you wish you had.</h2>
+  <div class="grid md:grid-cols-4 gap-4 mt-10">
+    <div class="panel rounded-xl p-5">
+      <div class="text-[var(--violet)] text-xl">📡</div>
+      <h3 class="font-bold text-white mt-3">Radar</h3>
+      <p class="text-xs text-neutral-400 mt-1.5 leading-relaxed">Every tracked name, live verdict, and trigger state in one scan.</p>
+    </div>
+    <div class="panel rounded-xl p-5">
+      <div class="text-[var(--violet)] text-xl">⚡</div>
+      <h3 class="font-bold text-white mt-3">Triggers</h3>
+      <p class="text-xs text-neutral-400 mt-1.5 leading-relaxed">Buy/sell zones that email you the instant they're hit.</p>
+    </div>
+    <div class="panel rounded-xl p-5">
+      <div class="text-[var(--violet)] text-xl">🎯</div>
+      <h3 class="font-bold text-white mt-3">Anomalies</h3>
+      <p class="text-xs text-neutral-400 mt-1.5 leading-relaxed">Today's biggest movers, with the reason attached.</p>
+    </div>
+    <div class="panel rounded-xl p-5">
+      <div class="text-[var(--violet)] text-xl">🧵</div>
+      <h3 class="font-bold text-white mt-3">Reddit buzz</h3>
+      <p class="text-xs text-neutral-400 mt-1.5 leading-relaxed">Crowd sentiment distilled, not dumped on you raw.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="max-w-7xl mx-auto px-6 pb-24">
+  <div class="rounded-3xl bg-[var(--violet)] text-white p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div>
+      <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em]">Take the helm.</h2>
+      <p class="mt-2 text-violet-100">Your first 3 stocks are free. No card.</p>
+    </div>
+    <a href="#" class="shrink-0 font-bold bg-white text-violet-700 px-8 py-4 rounded-xl text-lg hover:bg-violet-50">Open cockpit →</a>
+  </div>
+</section>
+
+<footer class="border-t border-[var(--line)]">
+  <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-neutral-500">
+    <span>stocksbrew · illustrative mockup, not investment advice.</span>
+    <a href="../index.html" class="hover:text-white">← back to all explorations</a>
+  </div>
+</footer>
+
+<script>
+const verdict={Buy:'text-[var(--green)]',Hold:'text-[var(--violet)]',Sell:'text-[var(--red)]',Watch:'text-[var(--amber)]'};
+const rows=[
+ {t:'NVDA',n:'NVIDIA',p:'132.84',d:'+2.41',up:1,v:'Hold',r:'Momentum strong, valuation stretched. Trim > $145.',z:'buy <118 / sell >145'},
+ {t:'AMD',n:'Adv. Micro',p:'148.20',d:'-1.84',up:0,v:'Buy',r:'Pulled into buy zone on no news. MI300 ramp intact.',z:'buy <150 ✱ fired',fire:1},
+ {t:'TSLA',n:'Tesla',p:'212.40',d:'+4.12',up:1,v:'Sell',r:'Ran past sell zone on delivery rumor.',z:'sell >210 ✱ fired',fire:1},
+ {t:'PLTR',n:'Palantir',p:'24.10',d:'+3.55',up:1,v:'Buy',r:'Watchlist name entered buy zone.',z:'buy <25 ✱ fired',fire:1},
+];
+document.getElementById('rows').innerHTML=rows.map(r=>`
+ <div class="grid grid-cols-[1.3fr_0.8fr_0.6fr_0.7fr_2fr_1.5fr] gap-3 px-4 py-3.5 items-center text-xs hover:bg-[var(--panel2)]">
+   <div class="flex items-center gap-2"><span class="w-7 h-7 rounded-md bg-black/40 flex items-center justify-center text-[10px] font-bold mono ${r.up?'text-[var(--green)]':'text-[var(--red)]'}">${r.t[0]}</span><div><div class="font-bold text-white">${r.t}</div><div class="text-[10px] text-neutral-500">${r.n}</div></div></div>
+   <div class="mono text-neutral-200">$${r.p}</div>
+   <div class="mono font-semibold ${r.up?'text-[var(--green)]':'text-[var(--red)]'}">${r.d}%</div>
+   <div class="verdict ${verdict[r.v]}">${r.v}</div>
+   <div class="text-neutral-400 leading-snug truncate">${r.r}</div>
+   <div class="mono text-[10px] text-neutral-500 ${r.fire?'text-[var(--amber)]':''}">${r.z}</div>
+ </div>`).join('');
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@ function labelTone(label?: string): { color: string; tone: string } {
   if (l.includes("bear")) return { color: "#ef4444", tone: "Bearish" };
   if (l.includes("caut")) return { color: "#ef4444", tone: "Cautious" };
   if (l.includes("mixed") || l.includes("neutral")) return { color: "#f59e0b", tone: "Mixed" };
-  return { color: "#9ca3af", tone: label || "-" };
+  return { color: "var(--on-surface-variant)", tone: label || "-" };
 }
 
 function leanColor(lean: "bullish" | "bearish" | "neutral"): string {
@@ -34,19 +34,19 @@ export function SentimentLanes({ sentiment }: Props) {
   const totalArticles = sources.reduce((s, src) => s + src.article_count, 0);
 
   return (
-    <section className="flex flex-col gap-5 pt-8 border-t border-[#e5e7eb]">
+    <section className="flex flex-col gap-5 pt-8 border-t border-outline-variant">
       <div className="flex flex-col gap-1">
-        <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+        <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
           Sentiment breakdown
         </h3>
-        <p className="text-[12px] text-[#6b7280] leading-snug max-w-[640px]">
+        <p className="text-[12px] text-on-surface-variant leading-snug max-w-[640px]">
           A 0–100 score from averaging article sentiment across verified news,
           then split into two lanes so you can see what&apos;s driving it.
         </p>
       </div>
 
       <div className="flex items-baseline gap-3">
-        <span className="text-[40px] font-semibold tracking-[-0.02em] text-[#111111] tabular-nums leading-none">
+        <span className="text-[40px] font-semibold tracking-[-0.02em] text-on-surface tabular-nums leading-none">
           {Math.round(score)}
         </span>
         <span className="text-[12px] font-semibold tracking-[0.1em] uppercase" style={{ color }}>
@@ -56,7 +56,7 @@ export function SentimentLanes({ sentiment }: Props) {
 
       <div className="flex flex-col gap-4 max-w-[640px]">
         {lanes.length === 0 ? (
-          <p className="text-[13px] text-[#6b7280]">No sentiment lanes yet.</p>
+          <p className="text-[13px] text-on-surface-variant">No sentiment lanes yet.</p>
         ) : (
           lanes.map((lane) => {
             const pct = Math.max(0, Math.min(100, lane.positive_pct));
@@ -64,17 +64,17 @@ export function SentimentLanes({ sentiment }: Props) {
             return (
               <div key={lane.label} className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] font-semibold text-[#111111]">
+                  <span className="text-[13px] font-semibold text-on-surface">
                     {lane.label}
                   </span>
-                  <span className="text-[12px] font-semibold tabular-nums text-[#111111]">
+                  <span className="text-[12px] font-semibold tabular-nums text-on-surface">
                     {pct.toFixed(0)}%
                   </span>
                 </div>
                 {def && (
-                  <p className="text-[11px] text-[#6b7280] leading-snug">{def}</p>
+                  <p className="text-[11px] text-on-surface-variant leading-snug">{def}</p>
                 )}
-                <div className="h-1.5 w-full rounded-full bg-[#f3f4f6] overflow-hidden">
+                <div className="h-1.5 w-full rounded-full bg-surface-container overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[#10b981]"
                     style={{ width: `${pct}%` }}
@@ -93,16 +93,16 @@ export function SentimentLanes({ sentiment }: Props) {
               Based on {totalArticles} article{totalArticles === 1 ? "" : "s"} across{" "}
               {sources.length} source{sources.length === 1 ? "" : "s"}
             </span>
-            <span className="text-[#9ca3af] group-open:rotate-180 transition-transform">▾</span>
+            <span className="text-on-surface-variant group-open:rotate-180 transition-transform">▾</span>
           </summary>
           <ul className="flex flex-col mt-3">
             {sources.map((src) => (
               <li
                 key={src.source_name}
-                className="flex items-center justify-between gap-3 text-[12px] py-2 border-t border-[#f3f4f6] first:border-t-0"
+                className="flex items-center justify-between gap-3 text-[12px] py-2 border-t border-outline-variant first:border-t-0"
               >
-                <span className="text-[#111111] truncate flex-1">{src.source_name}</span>
-                <span className="text-[#6b7280] tabular-nums shrink-0">
+                <span className="text-on-surface truncate flex-1">{src.source_name}</span>
+                <span className="text-on-surface-variant tabular-nums shrink-0">
                   {src.article_count} article{src.article_count === 1 ? "" : "s"}
                 </span>
                 <span

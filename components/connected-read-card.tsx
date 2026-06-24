@@ -8,10 +8,10 @@ export type SignalChip = {
 
 const CHIP_STYLE: Record<SignalChip["kind"], { bg: string; fg: string; icon: string }> = {
   buzz: { bg: "#fff1ec", fg: "#c2410c", icon: "💬" },
-  anomaly_up: { bg: "#ecfdf5", fg: "#047857", icon: "📈" },
-  anomaly_down: { bg: "#fef2f2", fg: "#b91c1c", icon: "📉" },
+  anomaly_up: { bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981", icon: "📈" },
+  anomaly_down: { bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444", icon: "📉" },
   regime: { bg: "#eef2ff", fg: "#1d4ed8", icon: "🧭" },
-  news: { bg: "#f3f4f6", fg: "#374151", icon: "📰" },
+  news: { bg: "var(--surface-container)", fg: "var(--on-surface)", icon: "📰" },
 };
 
 export function SignalChips({ chips }: { chips: SignalChip[] }) {
@@ -55,25 +55,25 @@ export function ConnectedReadCard({
   conclusion: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-[#e5e7eb] bg-white p-5 shadow-[0_18px_50px_rgba(17,24,39,0.06)] sm:p-6">
+    <div className="flex flex-col gap-4 rounded-3xl border border-outline-variant bg-surface p-5 shadow-[0_18px_50px_rgba(17,24,39,0.06)] sm:p-6">
       <div className="flex items-center gap-3">
         <StockLogo ticker={ticker} market={market} size={40} logoUrl={logoUrl} />
         <div className="flex min-w-0 flex-col">
-          <span className="text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">{ticker}</span>
-          <span className="truncate text-[12px] text-[#9ca3af]">{name}</span>
+          <span className="text-[15px] font-semibold tracking-[-0.01em] text-on-surface">{ticker}</span>
+          <span className="truncate text-[12px] text-on-surface-variant">{name}</span>
         </div>
       </div>
 
       <SignalChips chips={chips} />
 
-      <div className="flex items-start gap-2 border-t border-[#f3f4f6] pt-4">
-        <span aria-hidden className="mt-0.5 text-[#0052ff]">→</span>
-        <p className="text-[15px] font-semibold leading-snug text-[#111111]">{conclusion}</p>
+      <div className="flex items-start gap-2 border-t border-outline-variant pt-4">
+        <span aria-hidden className="mt-0.5 text-[#22d3ee]">→</span>
+        <p className="text-[15px] font-semibold leading-snug text-on-surface">{conclusion}</p>
       </div>
 
       <Link
         href={`/stock/${encodeURIComponent(ticker)}`}
-        className="text-[13px] font-semibold text-[#0052ff] hover:underline"
+        className="text-[13px] font-semibold text-[#22d3ee] hover:underline"
       >
         See the full read on {ticker} →
       </Link>

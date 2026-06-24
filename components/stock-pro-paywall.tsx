@@ -39,27 +39,27 @@ function ProUnlockSketch({ ticker }: { ticker: string }) {
   return (
     <div aria-hidden className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
           What Pro unlocks on {ticker}
         </p>
-        <p className="text-[12px] text-[#9ca3af]">Illustration only. Not today&apos;s call.</p>
+        <p className="text-[12px] text-on-surface-variant">Illustration only. Not today&apos;s call.</p>
       </div>
 
       <div className="flex flex-col gap-3">
         {UNLOCK_ROWS.map((row) => (
           <div
             key={row.label}
-            className="flex items-start gap-3 border-b border-dashed border-[#e5e7eb] pb-3 last:border-b-0 last:pb-0"
+            className="flex items-start gap-3 border-b border-dashed border-outline-variant pb-3 last:border-b-0 last:pb-0"
           >
             <span
               aria-hidden
-              className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f3f4f6] text-[14px] text-[#9ca3af]"
+              className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-container text-[14px] text-on-surface-variant"
             >
               🔒
             </span>
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[13px] font-semibold text-[#111111]">{row.label}</span>
-              <span className="text-[12px] text-[#6b7280]">{row.detail}</span>
+              <span className="text-[13px] font-semibold text-on-surface">{row.label}</span>
+              <span className="text-[12px] text-on-surface-variant">{row.detail}</span>
             </div>
           </div>
         ))}
@@ -69,13 +69,13 @@ function ProUnlockSketch({ ticker }: { ticker: string }) {
         {["Accumulate", "Hold", "Watch", "Trim"].map((stance) => (
           <span
             key={stance}
-            className="rounded-md bg-[#f3f4f6] px-2 py-1 text-[11px] font-semibold text-[#9ca3af]"
+            className="rounded-md bg-surface-container px-2 py-1 text-[11px] font-semibold text-on-surface-variant"
           >
             {stance}
           </span>
         ))}
       </div>
-      <p className="text-[11px] leading-relaxed text-[#9ca3af]">
+      <p className="text-[11px] leading-relaxed text-on-surface-variant">
         Pro picks one live stance each morning after reading the news. This is not a recommendation
         on {ticker}.
       </p>
@@ -129,13 +129,13 @@ export function StockProPaywall({
     <section className="flex flex-col gap-8 pt-8 lg:flex-row lg:items-start lg:justify-between lg:gap-14">
       <div className="flex max-w-[460px] flex-col gap-5">
         <div className="flex flex-col gap-2.5">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#fef3c7] px-2.5 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-[#92400e]">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full tint-warn px-2.5 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-[#f59e0b]">
             <span aria-hidden>★</span> stocksbrew Pro
           </span>
-          <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-[#111111] md:text-[26px]">
+          <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-on-surface md:text-[26px]">
             Know when to buy, hold, or sell {ticker}
           </h2>
-          <p className="text-[14px] leading-relaxed text-[#6b7280]">
+          <p className="text-[14px] leading-relaxed text-on-surface-variant">
             Scores are above. Pro reads the news on {ticker}, flags the catalyst, and gives you one
             daily call plus the full AI brief.
           </p>
@@ -143,7 +143,7 @@ export function StockProPaywall({
 
         <ul className="flex flex-col gap-2">
           {BENEFITS.map((benefit) => (
-            <li key={benefit} className="flex items-center gap-2 text-[14px] text-[#374151]">
+            <li key={benefit} className="flex items-center gap-2 text-[14px] text-on-surface">
               <span aria-hidden className="text-[#10b981]">
                 ✓
               </span>
@@ -157,7 +157,7 @@ export function StockProPaywall({
             {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in and choose Pro"}
             {!busy && <span aria-hidden>→</span>}
           </ProCtaButton>
-          <span className="text-[11px] text-[#9ca3af]">
+          <span className="text-[11px] text-on-surface-variant">
             Yearly includes 3 days free. Monthly starts today.
           </span>
         </div>

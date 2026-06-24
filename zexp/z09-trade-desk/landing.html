@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stocksbrew · Trade Desk</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#07090c;--panel:#0e1218;--line:#1c222c;--teal:#14b8a6;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;}
+  *{font-family:'Inter',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  body{background:var(--bg);color:#e5e7eb;}
+  .panel{background:var(--panel);border:1px solid var(--line);}
+  .gridbg{background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:32px 32px;}
+  ::selection{background:var(--teal);color:#000;}
+  .tab.active{background:var(--panel);color:#fff;border-bottom:2px solid var(--teal);}
+  .depth-row:hover{background:rgba(255,255,255,.03);}
+</style>
+</head>
+<body class="min-h-screen gridbg">
+
+<!-- NAV -->
+<nav class="border-b border-[var(--line)]">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-md bg-[var(--teal)] flex items-center justify-center font-black text-black text-base">s</div>
+      <span class="font-bold tracking-tight text-white">stocksbrew</span>
+    </div>
+    <div class="hidden md:flex items-center gap-7 text-sm text-neutral-400">
+      <a href="#" class="hover:text-white">The desk</a>
+      <a href="#" class="hover:text-white">How it works</a>
+      <a href="#" class="hover:text-white">Pricing</a>
+    </div>
+    <a href="#" class="text-sm font-semibold bg-[var(--teal)] text-black px-4 py-2 rounded-lg hover:brightness-110">Start free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="max-w-7xl mx-auto px-6 pt-12 pb-10">
+  <div class="grid lg:grid-cols-[1fr_1.1fr] gap-10 items-center">
+    <!-- LEFT copy -->
+    <div>
+      <p class="text-[11px] mono uppercase tracking-[0.2em] text-[var(--teal)] mb-4">Ready to act</p>
+      <h1 class="text-[44px] md:text-[60px] font-black leading-[0.98] tracking-[-0.035em] text-white">
+        Know the call.<br>
+        <span class="text-[var(--teal)]">Set the zone.</span><br>
+        <span class="text-neutral-500">Walk away.</span>
+      </h1>
+      <p class="mt-6 text-lg text-neutral-400 max-w-md leading-relaxed">
+        stocksbrew gives you the verdict and the levels in one view — like a clean order ticket,
+        but for the decision. Set your buy and sell zones; we ping you the instant price meets them.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row gap-3">
+        <a href="#" class="font-bold bg-[var(--teal)] text-black px-6 py-3.5 rounded-xl hover:brightness-110">Set my first trigger →</a>
+      </div>
+      <p class="mt-4 text-xs text-neutral-500">3 stocks free · no card · research &amp; alerts only, never executes trades</p>
+    </div>
+
+    <!-- RIGHT: the order ticket -->
+    <div class="panel rounded-2xl overflow-hidden">
+      <!-- ticker bar -->
+      <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--line)]">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-black border border-[var(--line)] flex items-center justify-center font-black text-[var(--green)] mono">N</div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg font-bold text-white">NVDA</span>
+              <span class="text-[10px] mono uppercase text-neutral-500 border border-[var(--line)] rounded px-1.5">NASDAQ</span>
+            </div>
+            <div class="text-xs text-neutral-500">NVIDIA · you own 120 sh</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="mono text-lg font-bold text-white">$132.84</div>
+          <div class="mono text-xs text-[var(--green)]">+2.41%</div>
+        </div>
+      </div>
+
+      <!-- the verdict bar -->
+      <div class="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-amber-500/10 to-transparent border-b border-[var(--line)]">
+        <span class="text-[10px] mono uppercase tracking-widest text-neutral-500">verdict</span>
+        <span class="text-2xl font-black text-[var(--amber)]">HOLD</span>
+        <span class="text-xs text-neutral-400 leading-snug">— strong name, full price. Trim &gt; $145.</span>
+      </div>
+
+      <!-- tabs -->
+      <div class="flex border-b border-[var(--line)] text-sm">
+        <div class="tab active px-5 py-3 font-semibold">Set trigger</div>
+        <div class="tab px-5 py-3 text-neutral-500">Brief</div>
+        <div class="tab px-5 py-3 text-neutral-500">Pillars</div>
+      </div>
+
+      <!-- ticket body -->
+      <div class="p-5 space-y-4">
+        <!-- buy zone -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] mono uppercase tracking-wider text-[var(--green)]">▼ Buy zone — alert me below</span>
+            <span class="text-[11px] text-neutral-500 mono">suggested $118</span>
+          </div>
+          <div class="flex items-center gap-2 panel rounded-lg px-4 py-3">
+            <span class="mono text-neutral-500">$</span>
+            <input value="118.00" class="bg-transparent mono text-lg font-bold text-white w-full focus:outline-none" />
+            <span class="text-[11px] text-[var(--green)] mono">−11.2% from here</span>
+          </div>
+        </div>
+        <!-- sell zone -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] mono uppercase tracking-wider text-[var(--red)]">▲ Trim zone — alert me above</span>
+            <span class="text-[11px] text-neutral-500 mono">suggested $145</span>
+          </div>
+          <div class="flex items-center gap-2 panel rounded-lg px-4 py-3">
+            <span class="mono text-neutral-500">$</span>
+            <input value="145.00" class="bg-transparent mono text-lg font-bold text-white w-full focus:outline-none" />
+            <span class="text-[11px] text-[var(--red)] mono">+9.1% from here</span>
+          </div>
+        </div>
+
+        <!-- channel -->
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-neutral-500">Notify via</span>
+          <span class="mono bg-[var(--teal)]/15 text-[var(--teal)] px-2 py-0.5 rounded text-xs font-semibold">EMAIL</span>
+          <span class="text-neutral-600 text-xs">the moment price hits either zone</span>
+        </div>
+
+        <!-- zone visualization -->
+        <div class="pt-2">
+          <div class="text-[10px] mono uppercase tracking-wider text-neutral-500 mb-2">Where price sits</div>
+          <div class="relative h-2 rounded-full bg-[var(--line)] overflow-hidden">
+            <div class="absolute inset-y-0 left-0 w-[35%] bg-[var(--green)]/30"></div>
+            <div class="absolute inset-y-0 right-0 w-[18%] bg-[var(--red)]/30"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[var(--teal)]" style="left:60%;transform:translate(-50%,-50%)"></div>
+          </div>
+          <div class="flex justify-between mt-1.5 text-[10px] mono text-neutral-500">
+            <span class="text-[var(--green)]">$118 buy</span><span>now $132.84</span><span class="text-[var(--red)]">$145 trim</span>
+          </div>
+        </div>
+
+        <a href="#" class="block text-center font-bold bg-[var(--teal)] text-black rounded-lg py-3.5 hover:brightness-110">Arm trigger →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section class="max-w-7xl mx-auto px-6 py-16 border-t border-[var(--line)]">
+  <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em] text-white max-w-2xl leading-tight">A decision isn't real until it has a price on it.</h2>
+  <p class="mt-5 text-lg text-neutral-400 max-w-xl leading-relaxed">
+    “I'd buy NVDA lower” is a wish. “Email me under $118” is a plan. Triggers turn vague intentions into something that actually fires.
+  </p>
+
+  <div class="grid md:grid-cols-3 gap-4 mt-10">
+    <div class="panel rounded-xl p-6">
+      <div class="text-[var(--teal)] text-2xl">🎯</div>
+      <h3 class="font-bold text-white mt-3">Suggested zones</h3>
+      <p class="text-sm text-neutral-400 mt-1.5 leading-relaxed">Don't know the levels? We pre-fill buy/sell zones from our read. Keep them or edit.</p>
+    </div>
+    <div class="panel rounded-xl p-6">
+      <div class="text-[var(--teal)] text-2xl">🔔</div>
+      <h3 class="font-bold text-white mt-3">Fires on contact</h3>
+      <p class="text-sm text-neutral-400 mt-1.5 leading-relaxed">The instant price crosses your zone, an email goes out — with the call and the reason.</p>
+    </div>
+    <div class="panel rounded-xl p-6">
+      <div class="text-[var(--teal)] text-2xl">🛡️</div>
+      <h3 class="font-bold text-white mt-3">Read-only, always</h3>
+      <p class="text-sm text-neutral-400 mt-1.5 leading-relaxed">We never place trades or touch your money. We just tell you when to look.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="max-w-7xl mx-auto px-6 pb-24">
+  <div class="rounded-3xl bg-[var(--teal)] text-black p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div>
+      <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em]">Arm your first trigger.</h2>
+      <p class="mt-2 text-black/70 font-medium">Three stocks free. Thirty seconds to set.</p>
+    </div>
+    <a href="#" class="shrink-0 font-black bg-black text-[var(--teal)] px-8 py-4 rounded-xl text-lg hover:bg-neutral-900">Set my trigger →</a>
+  </div>
+</section>
+
+<footer class="border-t border-[var(--line)]">
+  <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-neutral-500">
+    <span>stocksbrew · illustrative mockup, not investment advice.</span>
+    <a href="../index.html" class="hover:text-white">← back to all explorations</a>
+  </div>
+</footer>
+</body>
+</html>

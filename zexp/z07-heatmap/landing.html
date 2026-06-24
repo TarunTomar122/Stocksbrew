@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stocksbrew · Heatmap</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0b0d;--line:#1b1d22;--green:#16c784;--red:#ea3943;--amber:#f59e0b;}
+  *{font-family:'Inter',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  body{background:var(--bg);color:#e7e8ea;}
+  .tile{transition:transform .12s ease,filter .12s ease;cursor:pointer;}
+  .tile:hover{transform:scale(1.04);filter:brightness(1.15);z-index:5;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.5);}50%{box-shadow:0 0 0 6px rgba(245,158,11,0);}}
+  .fired{animation:pulse 2s ease-out infinite;}
+  .scanline{background:linear-gradient(180deg,transparent,rgba(22,199,132,.04),transparent);}
+  ::selection{background:var(--green);color:#000;}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- NAV -->
+<nav class="border-b border-[var(--line)]">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-md bg-[var(--green)] flex items-center justify-center font-black text-black text-base">s</div>
+      <span class="font-bold tracking-tight text-white">stocksbrew</span>
+    </div>
+    <div class="hidden md:flex items-center gap-7 text-sm text-neutral-400">
+      <a href="#" class="hover:text-white">Live map</a>
+      <a href="#" class="hover:text-white">How it works</a>
+      <a href="#" class="hover:text-white">Pricing</a>
+    </div>
+    <a href="#" class="text-sm font-semibold bg-[var(--green)] text-black px-4 py-2 rounded-lg hover:brightness-110">Start free</a>
+  </div>
+</nav>
+
+<!-- HERO with heatmap bg -->
+<section class="relative">
+  <!-- heatmap backdrop -->
+  <div class="absolute inset-0 opacity-50 pointer-events-none" id="heat-bg"></div>
+  <div class="absolute inset-0 bg-gradient-to-b from-[var(--bg)]/40 via-[var(--bg)]/70 to-[var(--bg)]"></div>
+
+  <div class="relative max-w-5xl mx-auto px-6 pt-20 pb-24 text-center">
+    <div class="inline-flex items-center gap-2 text-[11px] mono uppercase tracking-[0.2em] text-[var(--green)] mb-6">
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--green)]"></span> Something's moving right now
+    </div>
+    <h1 class="text-[44px] md:text-[72px] font-black leading-[0.98] tracking-[-0.04em] text-white">
+      The market is alive.<br>
+      <span class="text-[var(--green)]">Know what each move means.</span>
+    </h1>
+    <p class="mt-6 text-lg text-neutral-400 max-w-xl mx-auto leading-relaxed">
+      Today's biggest gainers and losers, live — each one already explained, each one already decided.
+      Don't just watch the tape. Understand it.
+    </p>
+    <div class="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
+      <a href="#" class="font-bold bg-[var(--green)] text-black px-7 py-4 rounded-xl text-lg hover:brightness-110">Get today's calls →</a>
+      <a href="#" class="font-semibold border border-neutral-700 text-neutral-200 px-7 py-4 rounded-xl text-lg hover:border-neutral-500">Watch the map</a>
+    </div>
+    <p class="mt-5 text-xs text-neutral-500">3 stocks free · no card · US markets</p>
+  </div>
+</section>
+
+<!-- LIVE ANOMALIES -->
+<section class="max-w-7xl mx-auto px-6 py-16">
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <p class="text-[11px] mono uppercase tracking-[0.2em] text-[var(--green)] mb-1">Today's anomalies · explained</p>
+      <h2 class="text-2xl md:text-3xl font-black text-white tracking-tight">The biggest moves, with the reason attached.</h2>
+    </div>
+    <span class="hidden md:block text-[11px] mono text-neutral-500">updated 12s ago</span>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5" id="grid"></div>
+</section>
+
+<!-- THE POINT -->
+<section class="max-w-5xl mx-auto px-6 py-16 border-t border-[var(--line)]">
+  <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em] text-white max-w-2xl leading-tight">A heatmap is just heat. We tell you if it matters.</h2>
+  <p class="mt-5 text-lg text-neutral-400 max-w-xl leading-relaxed">
+    Other tools show you a wall of red and green and call it a day. We attach a plain-English call to every mover —
+    and flag the one on your watchlist the second it shifts.
+  </p>
+  <div class="grid md:grid-cols-3 gap-4 mt-10">
+    <div class="rounded-2xl border border-[var(--line)] p-6">
+      <h3 class="font-bold text-white">🔬 Explained, not raw</h3>
+      <p class="text-sm text-neutral-400 mt-2 leading-relaxed">Every big mover comes with the catalyst — earnings, news, Reddit, or noise.</p>
+    </div>
+    <div class="rounded-2xl border border-[var(--line)] p-6">
+      <h3 class="font-bold text-white">🎯 Filtered to you</h3>
+      <p class="text-sm text-neutral-400 mt-2 leading-relaxed">Moves on your Radar get surfaced first. The rest is context.</p>
+    </div>
+    <div class="rounded-2xl border border-[var(--line)] p-6">
+      <h3 class="font-bold text-white">⚡ Actable</h3>
+      <p class="text-sm text-neutral-400 mt-2 leading-relaxed">A call attached to each move: chase it, ignore it, or add it to Radar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="max-w-7xl mx-auto px-6 pb-24">
+  <div class="rounded-3xl bg-[var(--green)] text-black p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div>
+      <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em]">See today's moves on your stocks.</h2>
+      <p class="mt-2 text-black/70 font-medium">Three names free. No card.</p>
+    </div>
+    <a href="#" class="shrink-0 font-black bg-black text-[var(--green)] px-8 py-4 rounded-xl text-lg hover:bg-neutral-900">Open the map →</a>
+  </div>
+</section>
+
+<footer class="border-t border-[var(--line)]">
+  <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-neutral-500">
+    <span>stocksbrew · illustrative mockup, not investment advice.</span>
+    <a href="../index.html" class="hover:text-white">← back to all explorations</a>
+  </div>
+</footer>
+
+<script>
+// backdrop heatmap tiles
+const bg=['NVDA','TSLA','AMD','AAPL','MSFT','META','GOOGL','AMZN','PLTR','COIN','NFLX','JPM','NVDA','SMCI','AVGO','ARM'];
+const bgHtml=bg.map((t,i)=>{
+  const v=(Math.random()*16-6).toFixed(1);const up=v>=0;
+  const col=up?`rgba(22,199,132,${0.25+Math.min(Math.abs(v)/14,0.5)})`:`rgba(234,57,67,${0.25+Math.min(Math.abs(v)/14,0.5)})`;
+  return `<div class="rounded-lg flex flex-col items-center justify-center" style="background:${col};aspect-ratio:1.4/1"><span class="font-bold text-sm text-white/90">${t}</span><span class="mono text-[10px] text-white/80">${up?'+':''}${v}%</span></div>`;
+}).join('');
+document.getElementById('heat-bg').innerHTML=`<div class="h-full grid grid-cols-4 md:grid-cols-6 gap-2 p-6">${bgHtml}</div>`;
+
+// anomaly grid
+const movers=[
+ {t:'SMCI',n:'Super Micro',v:'+14.2',up:1,r:'AI-server demand guide raised',call:'Watch'},
+ {t:'PLTR',n:'Palantir',v:'+9.1',up:1,r:'Earnings beat, raised guide',call:'Buy',fire:1},
+ {t:'COIN',n:'Coinbase',v:'+7.8',up:1,r:'Crypto rally, volume spike',call:'Watch'},
+ {t:'ARM',n:'Arm Holdings',v:'+6.4',up:1,r:'AI licensing momentum',call:'Hold'},
+ {t:'NVDA',n:'NVIDIA',v:'+2.4',up:1,r:'Sector rotation into chips',call:'Hold',fire:1},
+ {t:'AVGO',n:'Broadcom',v:'+3.1',up:1,r:'Custom-silicon deal rumor',call:'Buy'},
+ {t:'TSLA',n:'Tesla',v:'+4.1',up:1,r:'Delivery rumor',call:'Sell',fire:1},
+ {t:'NFLX',n:'Netflix',v:'+1.9',up:1,r:'Password crackdown working',call:'Hold'},
+ {t:'JNJ',n:'J&J',v:'-3.2',up:0,r:'Lawsuit overhang',call:'Hold'},
+ {t:'NKE',n:'Nike',v:'-5.8',up:0,r:'Weak guide, China softness',call:'Watch'},
+ {t:'BA',n:'Boeing',v:'-4.4',up:0,r:'Production delay report',call:'Sell'},
+ {t:'XOM',n:'Exxon',v:'-2.1',up:0,r:'Oil slides on demand worry',call:'Hold'},
+];
+const vColor={Buy:'#16c784',Hold:'#8b9dc3',Sell:'#ea3943',Watch:'#f59e0b'};
+document.getElementById('grid').innerHTML=movers.map(m=>{
+  const bg=m.up?`rgba(22,199,132,${0.12+Math.min(Math.abs(m.v)/16,0.3)})`:`rgba(234,57,67,${0.12+Math.min(Math.abs(m.v)/16,0.3)})`;
+  const border=m.up?'rgba(22,199,132,.4)':'rgba(234,57,67,.4)';
+  return `<div class="tile ${m.fire?'fired':''} rounded-xl p-4 border text-left" style="background:${bg};border-color:${border}">
+    <div class="flex items-center justify-between"><span class="font-black text-white text-lg">${m.t}</span><span class="mono text-sm font-bold ${m.up?'text-[var(--green)]':'text-[var(--red)]'}">${m.v}%</span></div>
+    <div class="text-[11px] text-white/60 mt-0.5">${m.n}</div>
+    <p class="text-xs text-white/80 mt-3 leading-snug">${m.r}</p>
+    <div class="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+      <span class="text-[10px] mono uppercase tracking-wider text-white/50">call</span>
+      <span class="font-bold text-sm" style="color:${vColor[m.call]}">${m.call}</span>
+    </div>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Microsoft · MSFT — stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Manrope:wght@200;300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0c1322;
+    --ink-soft: #121b2e;
+    --gold: #c9a45c;
+    --gold-soft: #d9bd86;
+    --line: rgba(201,164,92,0.18);
+  }
+  body { background: var(--ink); color: #e8eaf0; font-family: 'Manrope', sans-serif; font-weight: 300; -webkit-font-smoothing: antialiased; }
+  .display { font-family: 'Cormorant Garamond', serif; }
+  .tracked { letter-spacing: 0.32em; }
+  .tracked-sm { letter-spacing: 0.22em; }
+  .hairline { border-color: var(--line); }
+  .gold { color: var(--gold); }
+  .bg-ink-soft { background: var(--ink-soft); }
+  .gold-grad { background: linear-gradient(180deg, var(--gold-soft), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .btn-gold { background: linear-gradient(180deg,#d9bd86,#c9a45c); color: #0c1322; transition: all .5s cubic-bezier(.2,.7,.2,1); }
+  .btn-gold:hover { box-shadow: 0 12px 40px -12px rgba(201,164,92,.55); transform: translateY(-1px); }
+  .btn-ghost { border: 1px solid var(--line); transition: all .5s cubic-bezier(.2,.7,.2,1); }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
+  .card { background: linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,0)); border: 1px solid var(--line); }
+  .glow { background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(201,164,92,0.08), transparent 70%); }
+  .bar-track { background: rgba(255,255,255,.06); }
+  .bar-fill { background: linear-gradient(90deg,#c9a45c,#d9bd86); }
+  .fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp 1s cubic-bezier(.2,.7,.2,1) forwards; }
+  .d1{animation-delay:.1s} .d2{animation-delay:.25s} .d3{animation-delay:.4s}
+  @keyframes fadeUp { to { opacity:1; transform:none; } }
+  ::selection { background: rgba(201,164,92,.25); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-[#0c1322]/70 border-b hairline">
+  <div class="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+    <a href="landing.html" class="flex items-center gap-3">
+      <span class="display text-2xl gold tracking-wide">sb</span>
+      <span class="tracked-sm text-sm uppercase text-gray-300">stocksbrew</span>
+    </a>
+    <div class="hidden md:flex items-center gap-10 text-xs tracked-sm uppercase text-gray-400">
+      <a href="landing.html#showcase" class="hover:text-white transition">Insight</a>
+      <a href="landing.html#method" class="hover:text-white transition">Method</a>
+      <a href="landing.html#membership" class="hover:text-white transition">Membership</a>
+    </div>
+    <a href="landing.html#membership" class="btn-gold text-xs tracked-sm uppercase px-6 py-3 rounded-full">Request Access</a>
+  </div>
+</nav>
+
+<main class="max-w-5xl mx-auto px-6 pt-32 pb-24 glow">
+
+  <!-- breadcrumb -->
+  <p class="fade-up d1 tracked-sm text-[11px] uppercase text-gray-500 mb-8">
+    <a href="landing.html" class="hover:text-white transition">Coverage</a> <span class="gold mx-2">/</span> Technology <span class="gold mx-2">/</span> Microsoft
+  </p>
+
+  <!-- HEADER -->
+  <header class="fade-up d1 flex flex-col md:flex-row md:items-end justify-between gap-8 pb-10 border-b hairline">
+    <div>
+      <p class="tracked-sm text-xs uppercase text-gray-500 mb-3">NASDAQ · MSFT</p>
+      <h1 class="display font-light text-6xl">Microsoft</h1>
+    </div>
+    <div class="text-left md:text-right">
+      <p class="display text-5xl">$472.18</p>
+      <p class="text-sm gold mt-2">+$8.54 &nbsp;·&nbsp; +1.84% &nbsp;<span class="text-gray-500">today</span></p>
+    </div>
+  </header>
+
+  <!-- VERDICT -->
+  <section class="fade-up d2 py-16 text-center border-b hairline">
+    <p class="tracked text-[11px] uppercase gold mb-6">Our verdict</p>
+    <p class="display font-light text-7xl md:text-8xl gold-grad mb-6">Accumulate</p>
+    <p class="max-w-xl mx-auto text-lg text-gray-300 font-light leading-relaxed">
+      A position to build with patience. The market is paying for the story it can see; the value sits in the margin it cannot yet measure.
+    </p>
+    <div class="flex items-center justify-center gap-12 mt-10 text-[11px] tracked-sm uppercase text-gray-500">
+      <span>Conviction <span class="gold ml-2">High</span></span>
+      <span class="hidden sm:inline opacity-30">|</span>
+      <span>Horizon <span class="gold ml-2">3–5 years</span></span>
+      <span class="hidden sm:inline opacity-30">|</span>
+      <span>Last read <span class="gold ml-2">Today</span></span>
+    </div>
+  </section>
+
+  <!-- REASONING -->
+  <section class="py-16 border-b hairline">
+    <div class="grid md:grid-cols-3 gap-10">
+      <div class="md:col-span-1">
+        <p class="tracked text-[11px] uppercase gold">The reasoning</p>
+      </div>
+      <div class="md:col-span-2 space-y-6 text-gray-300 font-light leading-relaxed">
+        <p>Cloud is no longer the growth story; it is the engine. Azure compounds above thirty percent while its operating margin quietly widens, and that combination is rare enough that the broader multiple still understates it.</p>
+        <p>The artificial intelligence build-out, once a drag on free cash flow, has turned self-funding. Capital spending is heavy, yet the workloads filling that capacity now arrive with pricing power attached. Few companies of this scale grow and earn at once.</p>
+        <p>The single caution is expectation. Much is already priced, and a soft quarter would test patient hands. We treat that not as a reason to wait, but as a reason to build slowly. The thesis is sound; the discipline is in the pacing.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLARS -->
+  <section class="py-16 border-b hairline">
+    <div class="grid md:grid-cols-3 gap-10">
+      <div class="md:col-span-1">
+        <p class="tracked text-[11px] uppercase gold">Four pillars</p>
+        <p class="text-sm text-gray-500 font-light mt-4 leading-relaxed">Scored without sentiment, on a scale of one hundred.</p>
+      </div>
+      <div class="md:col-span-2 space-y-9">
+        <div>
+          <div class="flex justify-between items-baseline mb-3"><span class="text-gray-200">Valuation</span><span class="display text-2xl gold-grad">61</span></div>
+          <div class="bar-track h-px"><div class="bar-fill h-px" style="width:61%"></div></div>
+          <p class="text-xs text-gray-500 font-light mt-2">Full, but defensible given the margin trajectory.</p>
+        </div>
+        <div>
+          <div class="flex justify-between items-baseline mb-3"><span class="text-gray-200">Growth</span><span class="display text-2xl gold-grad">88</span></div>
+          <div class="bar-track h-px"><div class="bar-fill h-px" style="width:88%"></div></div>
+          <p class="text-xs text-gray-500 font-light mt-2">Azure and AI workloads compounding well above the index.</p>
+        </div>
+        <div>
+          <div class="flex justify-between items-baseline mb-3"><span class="text-gray-200">Quality</span><span class="display text-2xl gold-grad">94</span></div>
+          <div class="bar-track h-px"><div class="bar-fill h-px" style="width:94%"></div></div>
+          <p class="text-xs text-gray-500 font-light mt-2">Fortress balance sheet, durable moat, exceptional returns on capital.</p>
+        </div>
+        <div>
+          <div class="flex justify-between items-baseline mb-3"><span class="text-gray-200">Momentum</span><span class="display text-2xl gold-grad">79</span></div>
+          <div class="bar-track h-px"><div class="bar-fill h-px" style="width:79%"></div></div>
+          <p class="text-xs text-gray-500 font-light mt-2">Steady accumulation; price leading earnings, not chasing them.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICE CHART -->
+  <section class="py-16 border-b hairline">
+    <div class="flex items-baseline justify-between mb-8">
+      <p class="tracked text-[11px] uppercase gold">Twelve months</p>
+      <div class="flex gap-6 text-[11px] tracked-sm uppercase text-gray-500">
+        <span class="gold">1Y</span><span class="hover:text-white cursor-pointer transition">6M</span><span class="hover:text-white cursor-pointer transition">3M</span>
+      </div>
+    </div>
+    <svg viewBox="0 0 960 260" class="w-full h-64" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c9a45c" stop-opacity="0.18" />
+          <stop offset="100%" stop-color="#c9a45c" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <!-- gridlines -->
+      <line x1="0" y1="65" x2="960" y2="65" stroke="rgba(255,255,255,0.04)" />
+      <line x1="0" y1="130" x2="960" y2="130" stroke="rgba(255,255,255,0.04)" />
+      <line x1="0" y1="195" x2="960" y2="195" stroke="rgba(255,255,255,0.04)" />
+      <path d="M0,210 L80,200 L160,214 L240,178 L320,188 L400,150 L480,160 L560,120 L640,128 L720,90 L800,100 L880,58 L960,40 L960,260 L0,260 Z" fill="url(#area)" />
+      <path d="M0,210 L80,200 L160,214 L240,178 L320,188 L400,150 L480,160 L560,120 L640,128 L720,90 L800,100 L880,58 L960,40" fill="none" stroke="#c9a45c" stroke-width="1.6" />
+      <circle cx="960" cy="40" r="3.5" fill="#d9bd86" />
+    </svg>
+    <div class="flex justify-between mt-4 text-[10px] tracked-sm uppercase text-gray-600">
+      <span>Jun '25</span><span>Sep</span><span>Dec</span><span>Mar '26</span><span>Jun</span>
+    </div>
+  </section>
+
+  <!-- UPSELL -->
+  <section class="fade-up d3 mt-16">
+    <div class="rounded-2xl p-12 md:p-16 text-center bg-ink-soft border" style="border-color: var(--gold);">
+      <p class="tracked text-[11px] uppercase gold mb-6">Members only</p>
+      <h2 class="display font-light text-4xl md:text-5xl mb-5 leading-tight">This is one verdict.<br />There are five hundred more.</h2>
+      <p class="max-w-md mx-auto text-gray-400 font-light mb-10 leading-relaxed">
+        Members hold the full read on every name they own, refreshed daily, with the weekly letter and first access to new coverage.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-5">
+        <a href="landing.html#membership" class="btn-gold text-xs tracked-sm uppercase px-10 py-4 rounded-full">Begin Annual Membership · $99</a>
+        <a href="landing.html#membership" class="btn-ghost text-xs tracked-sm uppercase px-10 py-4 rounded-full text-gray-300">Or $12 monthly</a>
+      </div>
+      <p class="mt-8 text-[11px] tracked-sm uppercase text-gray-600">Admitting 500 members this season</p>
+    </div>
+  </section>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="border-t hairline py-16">
+  <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
+    <div class="flex items-center gap-3">
+      <span class="display text-2xl gold">sb</span>
+      <span class="tracked-sm text-xs uppercase text-gray-500">stocksbrew</span>
+    </div>
+    <div class="flex gap-8 text-[11px] tracked-sm uppercase text-gray-500">
+      <a href="landing.html#method" class="hover:text-white transition">Method</a>
+      <a href="landing.html#membership" class="hover:text-white transition">Membership</a>
+      <a href="landing.html" class="hover:text-white transition">Home</a>
+      <a href="#" class="hover:text-white transition">Terms</a>
+    </div>
+    <p class="text-[11px] text-gray-600">© 2026 stocksbrew. Research, not advice.</p>
+  </div>
+</footer>
+
+</body>
+</html>

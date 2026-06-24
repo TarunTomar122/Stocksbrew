@@ -14,7 +14,7 @@ function percentileTone(p?: number): { text: string; className: string } | null 
   if (typeof p !== "number") return null;
   const rank = Math.round(p);
   const className =
-    p >= 66 ? "text-[#10b981]" : p >= 33 ? "text-[#111111]" : "text-[#ef4444]";
+    p >= 66 ? "text-[#10b981]" : p >= 33 ? "text-on-surface" : "text-[#ef4444]";
   const suffix =
     rank % 10 === 1 && rank !== 11
       ? "st"
@@ -39,13 +39,13 @@ function Cell({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         {label}
       </span>
-      <span className={`text-[22px] font-semibold tabular-nums leading-none ${valueClass ?? "text-[#111111]"}`}>
+      <span className={`text-[22px] font-semibold tabular-nums leading-none ${valueClass ?? "text-on-surface"}`}>
         {value}
       </span>
-      {hint && <span className="text-[12px] text-[#6b7280]">{hint}</span>}
+      {hint && <span className="text-[12px] text-on-surface-variant">{hint}</span>}
     </div>
   );
 }
@@ -65,8 +65,8 @@ export function ComparativeContextRow({ context }: Props) {
   const percentile = percentileTone(context.market_percentile);
 
   return (
-    <section className="flex flex-col gap-5 pt-6 border-t border-[#e5e7eb]">
-      <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+    <section className="flex flex-col gap-5 pt-6 border-t border-outline-variant">
+      <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
         Comparative context
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">

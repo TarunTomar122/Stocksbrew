@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>stocksbrew — Stop guessing. Get the call.</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#0a0a0a',
+          acid: '#c6f432',
+          bone: '#f4f4f0',
+        },
+        fontFamily: {
+          display: ['Archivo', 'sans-serif'],
+          body: ['Space Grotesk', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background: #0a0a0a; color: #f4f4f0; }
+  .display { font-family: 'Archivo', sans-serif; font-weight: 900; letter-spacing: -0.03em; line-height: 0.92; }
+  .stamp {
+    transform: rotate(-6deg);
+    box-shadow: 10px 10px 0 #0a0a0a;
+  }
+  .border-thick { border: 4px solid #0a0a0a; }
+  .border-thick-bone { border: 4px solid #f4f4f0; }
+  @keyframes flip {
+    0%, 32% { opacity: 0; transform: translateY(8px); }
+    36%, 96% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-8px); }
+  }
+  .verdict-buy { animation: flip 9s infinite; }
+  .verdict-hold { animation: flip 9s infinite 3s; }
+  .verdict-sell { animation: flip 9s infinite 6s; }
+  .ticker-track { animation: ticker 28s linear infinite; }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .hover-raise { transition: transform .12s ease, box-shadow .12s ease; }
+  .hover-raise:hover { transform: translate(-3px,-3px); box-shadow: 8px 8px 0 #c6f432; }
+  ::selection { background: #c6f432; color: #0a0a0a; }
+</style>
+</head>
+<body class="font-body antialiased">
+
+<!-- TICKER BAR -->
+<div class="bg-acid text-ink overflow-hidden whitespace-nowrap border-b-4 border-ink py-1.5">
+  <div class="ticker-track inline-block font-mono text-sm font-bold">
+    <span class="mx-6">NVDA · BUY · conviction 91</span><span class="mx-6">AAPL · HOLD · conviction 64</span><span class="mx-6">TSLA · SELL · conviction 77</span><span class="mx-6">MSFT · BUY · conviction 83</span><span class="mx-6">AMZN · BUY · conviction 79</span><span class="mx-6">META · HOLD · conviction 58</span><span class="mx-6">GOOGL · BUY · conviction 81</span>
+    <span class="mx-6">NVDA · BUY · conviction 91</span><span class="mx-6">AAPL · HOLD · conviction 64</span><span class="mx-6">TSLA · SELL · conviction 77</span><span class="mx-6">MSFT · BUY · conviction 83</span><span class="mx-6">AMZN · BUY · conviction 79</span><span class="mx-6">META · HOLD · conviction 58</span><span class="mx-6">GOOGL · BUY · conviction 81</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 bg-ink/95 backdrop-blur border-b-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="landing.html" class="display text-2xl tracking-tight">stocks<span class="text-acid">brew</span></a>
+    <div class="hidden md:flex items-center gap-8 font-mono text-sm uppercase tracking-wide">
+      <a href="#today" class="hover:text-acid">Today</a>
+      <a href="#how" class="hover:text-acid">How it works</a>
+      <a href="#pricing" class="hover:text-acid">Pricing</a>
+      <a href="stock.html" class="hover:text-acid">NVDA demo</a>
+    </div>
+    <a href="#pricing" class="bg-acid text-ink display text-sm uppercase px-5 py-2.5 border-thick hover-raise">Get the call</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="relative overflow-hidden border-b-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 py-16 md:py-24 grid lg:grid-cols-12 gap-12 items-center">
+    <div class="lg:col-span-7">
+      <div class="inline-block bg-acid text-ink font-mono text-xs font-bold uppercase px-3 py-1.5 border-thick mb-6">Built for people who hate spreadsheets</div>
+      <h1 class="display text-6xl md:text-8xl uppercase">
+        Stop guessing.<br />Get the <span class="text-acid">call.</span>
+      </h1>
+      <p class="mt-7 text-lg md:text-xl max-w-xl text-bone/80">
+        Every stock gets one verdict in plain English: BUY, HOLD, or SELL. No 40-tab spreadsheet, no analyst hedging, no "it depends." We do the reading. You make the move.
+      </p>
+      <form class="mt-9 flex flex-col sm:flex-row gap-3 max-w-lg" onsubmit="return false;">
+        <input type="email" placeholder="you@email.com" class="flex-1 bg-bone text-ink placeholder-ink/50 font-mono px-4 py-4 border-thick focus:outline-none focus:ring-4 focus:ring-acid" />
+        <button class="bg-acid text-ink display uppercase px-7 py-4 border-thick hover-raise whitespace-nowrap">Get my verdicts</button>
+      </form>
+      <p class="mt-3 font-mono text-xs text-bone/50 uppercase tracking-wide">Free to start · 3 verdicts a day · no card</p>
+    </div>
+
+    <!-- LIVE VERDICT DEMO -->
+    <div class="lg:col-span-5">
+      <div class="relative bg-bone text-ink border-thick p-7" style="box-shadow: 14px 14px 0 #c6f432;">
+        <div class="flex items-center justify-between font-mono text-xs uppercase font-bold border-b-4 border-ink pb-3">
+          <span>Live verdict</span><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-acid inline-block animate-pulse border-2 border-ink"></span>updating</span>
+        </div>
+        <div class="relative h-[260px] mt-5">
+          <!-- BUY -->
+          <div class="verdict-buy absolute inset-0">
+            <div class="font-mono text-sm font-bold">NVDA · NVIDIA Corp · $135.40</div>
+            <div class="display text-[7rem] leading-none mt-2">BUY</div>
+            <div class="font-mono text-sm mt-2">Conviction <span class="font-bold">91</span>/100</div>
+            <p class="mt-3 text-sm text-ink/70">Data-center revenue compounding faster than the multiple. Momentum and earnings both green.</p>
+          </div>
+          <!-- HOLD -->
+          <div class="verdict-hold absolute inset-0 opacity-0">
+            <div class="font-mono text-sm font-bold">AAPL · Apple Inc · $228.10</div>
+            <div class="display text-[7rem] leading-none mt-2 text-ink/40">HOLD</div>
+            <div class="font-mono text-sm mt-2">Conviction <span class="font-bold">64</span>/100</div>
+            <p class="mt-3 text-sm text-ink/70">Fairly priced. Services growth offsets soft hardware. No edge either way right now.</p>
+          </div>
+          <!-- SELL -->
+          <div class="verdict-sell absolute inset-0 opacity-0">
+            <div class="font-mono text-sm font-bold">TSLA · Tesla Inc · $251.80</div>
+            <div class="display text-[7rem] leading-none mt-2 text-red-600">SELL</div>
+            <div class="font-mono text-sm mt-2">Conviction <span class="font-bold">77</span>/100</div>
+            <p class="mt-3 text-sm text-ink/70">Margins compressing into a stretched multiple. Demand signals turning before the price did.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- STAT STRIP -->
+<section class="bg-acid text-ink border-b-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 grid grid-cols-2 md:grid-cols-4 divide-ink">
+    <div class="py-8 px-4 md:border-r-4 border-ink"><div class="display text-5xl">4,100+</div><div class="font-mono text-xs uppercase mt-2 font-bold">stocks rated daily</div></div>
+    <div class="py-8 px-4 md:border-r-4 border-ink"><div class="display text-5xl">30 sec</div><div class="font-mono text-xs uppercase mt-2 font-bold">to a clear call</div></div>
+    <div class="py-8 px-4 md:border-r-4 border-ink"><div class="display text-5xl">68%</div><div class="font-mono text-xs uppercase mt-2 font-bold">BUY calls beat the index*</div></div>
+    <div class="py-8 px-4"><div class="display text-5xl">0</div><div class="font-mono text-xs uppercase mt-2 font-bold">hours of research from you</div></div>
+  </div>
+</section>
+
+<!-- WHAT'S MOVING TODAY -->
+<section id="today" class="max-w-7xl mx-auto px-5 py-20">
+  <div class="flex items-end justify-between flex-wrap gap-4 mb-10">
+    <h2 class="display text-5xl md:text-6xl uppercase">What's moving<br />today</h2>
+    <p class="font-mono text-sm text-bone/60 uppercase max-w-xs">Updated 6:00 AM ET. The call, the conviction, the one-line reason.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6">
+    <!-- card -->
+    <div class="bg-bone text-ink border-thick p-6 hover-raise">
+      <div class="flex items-center justify-between font-mono text-sm font-bold">
+        <span>NVDA</span><span class="text-green-700">+3.42%</span>
+      </div>
+      <svg viewBox="0 0 120 36" class="w-full h-12 my-4"><polyline fill="none" stroke="#0a0a0a" stroke-width="3" points="0,30 15,28 30,24 45,26 60,18 75,14 90,12 105,7 120,4"/></svg>
+      <div class="inline-block bg-acid display text-3xl uppercase px-4 py-1 border-thick">BUY</div>
+      <div class="font-mono text-xs mt-3 uppercase">Conviction 91</div>
+      <p class="text-sm mt-2 text-ink/70">Blackwell ramp is selling out. Estimates still chasing the demand.</p>
+    </div>
+    <div class="bg-bone text-ink border-thick p-6 hover-raise">
+      <div class="flex items-center justify-between font-mono text-sm font-bold">
+        <span>AAPL</span><span class="text-ink/60">+0.18%</span>
+      </div>
+      <svg viewBox="0 0 120 36" class="w-full h-12 my-4"><polyline fill="none" stroke="#0a0a0a" stroke-width="3" points="0,18 15,20 30,16 45,19 60,17 75,18 90,16 105,19 120,17"/></svg>
+      <div class="inline-block display text-3xl uppercase px-4 py-1 border-thick text-ink/50">HOLD</div>
+      <div class="font-mono text-xs mt-3 uppercase">Conviction 64</div>
+      <p class="text-sm mt-2 text-ink/70">Priced for what it is. Nothing here rewards buying or dumping today.</p>
+    </div>
+    <div class="bg-bone text-ink border-thick p-6 hover-raise">
+      <div class="flex items-center justify-between font-mono text-sm font-bold">
+        <span>TSLA</span><span class="text-red-600">-4.10%</span>
+      </div>
+      <svg viewBox="0 0 120 36" class="w-full h-12 my-4"><polyline fill="none" stroke="#dc2626" stroke-width="3" points="0,8 15,10 30,9 45,14 60,16 75,15 90,22 105,26 120,31"/></svg>
+      <div class="inline-block bg-red-600 text-bone display text-3xl uppercase px-4 py-1 border-thick">SELL</div>
+      <div class="font-mono text-xs mt-3 uppercase">Conviction 77</div>
+      <p class="text-sm mt-2 text-ink/70">Deliveries missed, price cuts deepening. The margin story is breaking.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="bg-bone text-ink border-y-4 border-ink">
+  <div class="max-w-7xl mx-auto px-5 py-20">
+    <h2 class="display text-5xl md:text-6xl uppercase mb-12">Three steps.<br />One answer.</h2>
+    <div class="grid md:grid-cols-3 gap-8">
+      <div>
+        <div class="display text-7xl text-acid" style="-webkit-text-stroke:2px #0a0a0a;">01</div>
+        <h3 class="display text-2xl uppercase mt-3">We read everything</h3>
+        <p class="mt-3 text-ink/70">Filings, earnings calls, price action, analyst revisions. Every morning, on every name you follow.</p>
+      </div>
+      <div>
+        <div class="display text-7xl text-acid" style="-webkit-text-stroke:2px #0a0a0a;">02</div>
+        <h3 class="display text-2xl uppercase mt-3">We score four pillars</h3>
+        <p class="mt-3 text-ink/70">Valuation, growth, quality, momentum. Each gets a number. The model weighs them into one stance.</p>
+      </div>
+      <div>
+        <div class="display text-7xl text-acid" style="-webkit-text-stroke:2px #0a0a0a;">03</div>
+        <h3 class="display text-2xl uppercase mt-3">You get the call</h3>
+        <p class="mt-3 text-ink/70">BUY, HOLD, or SELL with a conviction score and three reasons. Read it in 30 seconds. Act or move on.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<section class="max-w-7xl mx-auto px-5 py-20">
+  <h2 class="display text-5xl md:text-6xl uppercase mb-12">No more 11pm<br /><span class="text-acid">rabbit holes.</span></h2>
+  <div class="grid md:grid-cols-3 gap-6">
+    <figure class="border-thick-bone p-6 hover-raise">
+      <blockquote class="text-lg">"I used to keep eight tabs open and still not pull the trigger. Now I read one line and I'm done."</blockquote>
+      <figcaption class="font-mono text-xs uppercase mt-5 text-bone/60">Dev R. · software eng · 2 yrs investing</figcaption>
+    </figure>
+    <figure class="border-thick-bone p-6 hover-raise bg-acid text-ink">
+      <blockquote class="text-lg font-bold">"The conviction score is the whole thing. I size my position to it. Brutally simple."</blockquote>
+      <figcaption class="font-mono text-xs uppercase mt-5 text-ink/60">Marisa K. · part-time trader</figcaption>
+    </figure>
+    <figure class="border-thick-bone p-6 hover-raise">
+      <blockquote class="text-lg">"It told me to SELL TSLA a week before I would have talked myself out of it. That paid for the year."</blockquote>
+      <figcaption class="font-mono text-xs uppercase mt-5 text-bone/60">Owen T. · long-term holder</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="bg-acid text-ink border-y-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 py-20">
+    <div class="text-center mb-12">
+      <h2 class="display text-5xl md:text-7xl uppercase">Pick a plan.<br />Get the call.</h2>
+      <p class="font-mono text-sm uppercase mt-4 font-bold">Cancel anytime · 7-day refund · no upsell maze</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
+      <!-- Monthly -->
+      <div class="bg-bone border-thick p-8 flex flex-col">
+        <div class="font-mono text-sm uppercase font-bold">Monthly</div>
+        <div class="display text-6xl mt-4">$12<span class="text-2xl">/mo</span></div>
+        <ul class="mt-6 space-y-3 font-mono text-sm flex-1">
+          <li>· Verdicts on every stock</li>
+          <li>· Conviction scores</li>
+          <li>· Four-pillar breakdown</li>
+          <li>· Daily watchlist brief</li>
+        </ul>
+        <a href="#" class="mt-8 block text-center bg-bone text-ink display uppercase py-4 border-thick hover-raise">Start monthly</a>
+      </div>
+      <!-- Yearly DOMINANT -->
+      <div class="bg-ink text-bone border-thick p-8 flex flex-col relative" style="box-shadow: 14px 14px 0 #0a0a0a;">
+        <div class="absolute -top-4 right-6 bg-acid text-ink font-mono text-xs font-bold uppercase px-3 py-1.5 border-thick stamp">Save $45</div>
+        <div class="font-mono text-sm uppercase font-bold text-acid">Yearly · best value</div>
+        <div class="display text-7xl mt-4">$99<span class="text-2xl text-bone/60">/yr</span></div>
+        <div class="font-mono text-xs mt-1 text-bone/60">that's $8.25/mo</div>
+        <ul class="mt-6 space-y-3 font-mono text-sm flex-1">
+          <li class="text-acid">· Everything in monthly</li>
+          <li>· Real-time verdict changes</li>
+          <li>· Unlimited watchlists</li>
+          <li>· Earnings-day alerts</li>
+          <li>· Full call history + backtest</li>
+        </ul>
+        <a href="#" class="mt-8 block text-center bg-acid text-ink display uppercase py-4 border-thick hover-raise">Get the year</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="max-w-3xl mx-auto px-5 py-20">
+  <h2 class="display text-5xl uppercase mb-10">Questions</h2>
+  <div class="space-y-4 font-body">
+    <details class="border-thick-bone p-5" open>
+      <summary class="display text-xl uppercase cursor-pointer">Is this financial advice?</summary>
+      <p class="mt-3 text-bone/70">No. It's a research signal built from public data and a transparent model. You own the decision. We just kill the analysis paralysis.</p>
+    </details>
+    <details class="border-thick-bone p-5">
+      <summary class="display text-xl uppercase cursor-pointer">Where do the verdicts come from?</summary>
+      <p class="mt-3 text-bone/70">Filings, earnings transcripts, price and volume data, and analyst revisions, scored across valuation, growth, quality, and momentum, then weighted into one stance.</p>
+    </details>
+    <details class="border-thick-bone p-5">
+      <summary class="display text-xl uppercase cursor-pointer">How often do calls change?</summary>
+      <p class="mt-3 text-bone/70">Verdicts refresh every morning. On the yearly plan you also get intraday changes when something material breaks, like an earnings miss.</p>
+    </details>
+    <details class="border-thick-bone p-5">
+      <summary class="display text-xl uppercase cursor-pointer">Can I cancel?</summary>
+      <p class="mt-3 text-bone/70">Anytime, in two clicks. Full refund inside 7 days, no email thread required.</p>
+    </details>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="bg-bone text-ink border-y-4 border-ink">
+  <div class="max-w-7xl mx-auto px-5 py-20 text-center">
+    <h2 class="display text-5xl md:text-8xl uppercase">The market<br />won't wait.</h2>
+    <a href="#pricing" class="inline-block mt-8 bg-ink text-bone display text-xl uppercase px-10 py-5 border-thick hover-raise">Get the call</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 py-12 grid md:grid-cols-4 gap-8 font-mono text-sm">
+    <div>
+      <div class="display text-2xl">stocks<span class="text-acid">brew</span></div>
+      <p class="mt-3 text-bone/50">One verdict. Plain English. Make the move.</p>
+    </div>
+    <div><div class="uppercase font-bold text-acid mb-3">Product</div><ul class="space-y-2 text-bone/60"><li><a href="#today" class="hover:text-acid">Today's calls</a></li><li><a href="stock.html" class="hover:text-acid">NVDA demo</a></li><li><a href="#pricing" class="hover:text-acid">Pricing</a></li></ul></div>
+    <div><div class="uppercase font-bold text-acid mb-3">Company</div><ul class="space-y-2 text-bone/60"><li><a href="#" class="hover:text-acid">About</a></li><li><a href="#" class="hover:text-acid">Method</a></li><li><a href="#" class="hover:text-acid">Contact</a></li></ul></div>
+    <div><div class="uppercase font-bold text-acid mb-3">Legal</div><ul class="space-y-2 text-bone/60"><li><a href="#" class="hover:text-acid">Terms</a></li><li><a href="#" class="hover:text-acid">Privacy</a></li><li><a href="#" class="hover:text-acid">Disclaimer</a></li></ul></div>
+  </div>
+  <div class="border-t-4 border-bone/20 py-5 text-center font-mono text-xs text-bone/40">
+    *Illustrative figures. Not investment advice. © 2026 stocksbrew.
+  </div>
+</footer>
+
+</body>
+</html>

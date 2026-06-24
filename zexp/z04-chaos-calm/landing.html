@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stocksbrew · Chaos → Calm</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *{font-family:'Inter',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .serif{font-family:'Instrument Serif',serif;}
+  .chaos{background:#1a1206;}
+  .chaos-noise{background-image:radial-gradient(circle at 1px 1px,rgba(255,180,80,.05) 1px,transparent 0);background-size:18px 18px;}
+  @keyframes flicker{0%,100%{opacity:.85;}33%{opacity:1;}66%{opacity:.7;}}
+  .flicker{animation:flicker 2.2s steps(3) infinite;}
+  @keyframes shake{0%,100%{transform:translate(0,0);}25%{transform:translate(-1px,1px);}75%{transform:translate(1px,-1px);}}
+  .shake{animation:shake .3s linear infinite;}
+  ::selection{background:#fef3c7;color:#000;}
+</style>
+</head>
+<body class="min-h-screen bg-white text-neutral-900">
+
+<!-- NAV -->
+<nav class="border-b border-neutral-200">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-md bg-orange-500 flex items-center justify-center font-black text-white text-base">s</div>
+      <span class="font-bold tracking-tight">stocksbrew</span>
+    </div>
+    <div class="hidden md:flex items-center gap-7 text-sm text-neutral-500">
+      <a href="#" class="hover:text-black">Why</a>
+      <a href="#" class="hover:text-black">How it works</a>
+      <a href="#" class="hover:text-black">Pricing</a>
+    </div>
+    <a href="#" class="text-sm font-semibold bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600">Start free</a>
+  </div>
+</nav>
+
+<!-- HEADLINE -->
+<section class="max-w-5xl mx-auto px-6 pt-16 pb-10 text-center">
+  <p class="text-[11px] mono uppercase tracking-[0.18em] text-orange-500 font-semibold mb-5">Sound familiar?</p>
+  <h1 class="text-[40px] md:text-[64px] font-black leading-[1] tracking-[-0.035em]">
+    You're holding NVDA.<br>
+    <span class="serif italic text-neutral-400">It's down 3%.</span>
+  </h1>
+  <p class="mt-5 text-lg text-neutral-500 max-w-lg mx-auto">Here's the next 20 minutes of your life — two versions.</p>
+</section>
+
+<!-- SPLIT -->
+<section class="max-w-6xl mx-auto px-6 pb-16">
+  <div class="grid md:grid-cols-2 gap-0 rounded-3xl overflow-hidden border border-neutral-200">
+
+    <!-- CHAOS -->
+    <div class="chaos chaos-noise p-7 md:p-9 text-orange-100 relative min-h-[560px]">
+      <div class="flex items-center gap-2 mb-6">
+        <span class="text-[10px] mono uppercase tracking-widest text-red-400 font-bold flicker">● WITHOUT STOCKSBREW</span>
+      </div>
+      <h2 class="text-2xl font-black text-white mb-6 leading-tight">The 5-tab panic.</h2>
+
+      <!-- messy tabs -->
+      <div class="space-y-2.5">
+        <div class="bg-black/40 border border-orange-900/40 rounded-lg p-3 shake">
+          <div class="flex items-center gap-2 text-[11px] mono">
+            <span class="text-red-400">▼ FINVIZ</span><span class="text-orange-300/60">NVDA -3.1%</span>
+            <span class="ml-auto text-orange-400/50">reloading…</span>
+          </div>
+          <div class="mt-2 grid grid-cols-6 gap-1">
+            <div class="h-3 bg-red-500/70"></div><div class="h-3 bg-red-600/70"></div><div class="h-3 bg-orange-600/60"></div>
+            <div class="h-3 bg-green-600/40"></div><div class="h-3 bg-red-500/60"></div><div class="h-3 bg-red-700/70"></div>
+          </div>
+        </div>
+        <div class="bg-black/40 border border-orange-900/40 rounded-lg p-3">
+          <div class="flex items-center gap-2 text-[11px] mono">
+            <span class="text-orange-400">▶ r/wallstreetbets</span>
+            <span class="ml-auto text-orange-400/50">412 new</span>
+          </div>
+          <p class="text-[11px] text-orange-200/70 mt-1.5 leading-snug">"NVDA TO THE MOON 🚀" · "it's over 🪦" · "diamond hands" · "SELL" · "this is fine"</p>
+        </div>
+        <div class="bg-black/40 border border-orange-900/40 rounded-lg p-3">
+          <div class="flex items-center gap-2 text-[11px] mono">
+            <span class="text-yellow-400">📰 NEWS</span>
+            <span class="ml-auto text-orange-400/50">9 stories</span>
+          </div>
+          <p class="text-[11px] text-orange-200/70 mt-1.5 leading-snug">"Analyst cuts target" · "Why NVDA could soar" · "Is the AI bubble popping?"</p>
+        </div>
+        <div class="bg-black/40 border border-orange-900/40 rounded-lg p-3">
+          <div class="flex items-center gap-2 text-[11px] mono">
+            <span class="text-blue-400">💬 TWITTER</span>
+          </div>
+          <p class="text-[11px] text-orange-200/70 mt-1.5 leading-snug">@crypto_bull_99: "NVDA going to 50" · 14 contradictory takes in 2 min</p>
+        </div>
+        <div class="bg-black/40 border border-orange-900/40 rounded-lg p-3">
+          <div class="flex items-center gap-2 text-[11px] mono">
+            <span class="text-green-400">📊 YOUR BROKER</span>
+          </div>
+          <p class="text-[11px] text-orange-200/70 mt-1.5 leading-snug">Red number. No explanation. "What do I DO?"</p>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-5 border-t border-orange-900/30">
+        <p class="text-2xl font-black text-red-400 flicker">20 minutes. 5 tabs. Still no answer.</p>
+      </div>
+    </div>
+
+    <!-- CALM -->
+    <div class="bg-white p-7 md:p-9 min-h-[560px]">
+      <div class="flex items-center gap-2 mb-6">
+        <span class="text-[10px] mono uppercase tracking-widest text-green-600 font-bold">● WITH STOCKSBREW</span>
+      </div>
+      <h2 class="text-2xl font-black text-neutral-900 mb-6 leading-tight">One read. Twenty seconds.</h2>
+
+      <!-- the calm card -->
+      <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg font-bold">NVDA</span>
+            <span class="text-xs text-neutral-400">NVIDIA · you own this</span>
+          </div>
+          <div class="text-right">
+            <div class="mono font-semibold text-neutral-700">$132.84</div>
+            <div class="mono text-xs text-red-500">-3.10%</div>
+          </div>
+        </div>
+        <div class="mt-4 rounded-xl bg-white border border-neutral-200 p-4">
+          <span class="text-[10px] mono uppercase tracking-widest text-neutral-400">The call</span>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span class="text-3xl font-black text-neutral-900">HOLD</span>
+            <span class="serif italic text-neutral-400">— don't panic</span>
+          </div>
+          <p class="mt-2 text-sm text-neutral-600 leading-relaxed">
+            The drop is on a sector-wide AI-capex worry, not anything NVDA-specific. Quality and growth pillars are unchanged.
+            <b class="text-neutral-900">Nothing to do.</b> Your buy zone is <b class="text-green-700">under $118</b>; we'll email you if it gets there.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-5 border-t border-neutral-200">
+        <p class="text-2xl font-black text-green-600">20 seconds. One answer. Tab closed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- THE PROMISE -->
+<section class="max-w-5xl mx-auto px-6 py-16 border-t border-neutral-200">
+  <h2 class="text-3xl md:text-5xl font-black tracking-[-0.03em] leading-[1.05] max-w-3xl">
+    We read the mess.<br>
+    <span class="text-orange-500">You get the call.</span>
+  </h2>
+  <p class="mt-5 text-lg text-neutral-500 max-w-xl leading-relaxed">
+    Fundamentals, news, Reddit, earnings, and price action — all fused into one plain-English verdict per stock.
+    No more doomscrolling to figure out if you should care.
+  </p>
+
+  <div class="grid md:grid-cols-3 gap-4 mt-10">
+    <div class="rounded-2xl border border-neutral-200 p-6">
+      <div class="text-2xl">🧹</div>
+      <h3 class="font-bold text-lg mt-3">De-noised</h3>
+      <p class="text-sm text-neutral-500 mt-1.5 leading-relaxed">We strip the hype and keep the signal. The one reason, not forty takes.</p>
+    </div>
+    <div class="rounded-2xl border border-neutral-200 p-6">
+      <div class="text-2xl">✋</div>
+      <h3 class="font-bold text-lg mt-3">Decisive</h3>
+      <p class="text-sm text-neutral-500 mt-1.5 leading-relaxed">Buy, Hold, Sell, or Watch. A stance, every time — even if the stance is "do nothing."</p>
+    </div>
+    <div class="rounded-2xl border border-neutral-200 p-6">
+      <div class="text-2xl">🔕</div>
+      <h3 class="font-bold text-lg mt-3">Quiet by default</h3>
+      <p class="text-sm text-neutral-500 mt-1.5 leading-relaxed">We only ping when a name hits your zone or the call changes. Silence is a feature.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="max-w-6xl mx-auto px-6 pb-24">
+  <div class="rounded-3xl bg-orange-500 text-white p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div>
+      <h2 class="text-3xl md:text-4xl font-black tracking-[-0.03em]">Trade the calm version of yourself.</h2>
+      <p class="mt-2 text-white/80">Your first 3 stocks are free. Close those tabs.</p>
+    </div>
+    <a href="#" class="shrink-0 font-black bg-white text-orange-600 px-8 py-4 rounded-xl text-lg hover:bg-orange-50">Get the call →</a>
+  </div>
+</section>
+
+<footer class="border-t border-neutral-200">
+  <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-neutral-400">
+    <span>stocksbrew · illustrative mockup, not investment advice.</span>
+    <a href="../index.html" class="hover:text-black">← back to all explorations</a>
+  </div>
+</footer>
+</body>
+</html>

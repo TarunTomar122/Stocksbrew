@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-03",
+  "version": "2026-06-16",
   "markets": {
     "US": {
       "universes": {
@@ -136,7 +136,7 @@
           "US_CRWD",
           "US_ZS",
           "US_SHOP",
-          "US_SQ"
+          "US_SPCX"
         ],
         "us_price_8": [
           "US_NVDA",
@@ -157,6 +157,7 @@
           "US_AMZN",
           "US_META",
           "US_GOOGL",
+          "US_SPCX",
           "US_PLTR",
           "US_LMT",
           "US_AVGO",
@@ -648,7 +649,9 @@
           "US_JOE",
           "US_CPRX",
           "US_HWKN",
-          "US_ASO"
+          "US_ASO",
+          "US_HDB",
+          "US_STX"
         ],
         "us_macro_cues": [
           "US_IDX_SPX",
@@ -982,6 +985,40 @@
           ],
           "status": "active",
           "updated_at": "2026-03-26T08:00:00Z"
+        },
+        {
+          "instrument_id": "US_SPCX",
+          "market": "US",
+          "ticker": "SPCX",
+          "name": "Space Exploration Technologies Corp.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Space Exploration Technologies Corp. (SpaceX) tracked in the US core universe.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_LMT",
+            "US_RTX",
+            "US_TSLA",
+            "US_BA"
+          ],
+          "aliases": [
+            "SPCX",
+            "SpaceX",
+            "SPACEX",
+            "Space Exploration Technologies",
+            "Space Exploration Technologies Corp."
+          ],
+          "support_tier": "core",
+          "universes": [
+            "us_core_100",
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-06-16T07:12:41Z"
         },
         {
           "instrument_id": "US_LMT",
@@ -3702,14 +3739,17 @@
           ],
           "aliases": [
             "CRWD",
-            "CrowdStrike "
+            "CrowdStrike ",
+            "CloudStrike",
+            "Cloud Strike",
+            "CrowdStrike"
           ],
           "support_tier": "core",
           "universes": [
             "us_core_100"
           ],
           "status": "active",
-          "updated_at": "2026-03-26T08:00:00Z"
+          "updated_at": "2026-06-16T07:17:21Z"
         },
         {
           "instrument_id": "US_ZS",
@@ -5641,7 +5681,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Industrial Conglomerates",
-          "description": "3M — US core universe (S&P 500 sourced).",
+          "description": "3M \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5667,7 +5707,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Building Products",
-          "description": "A. O. Smith — US core universe (S&P 500 sourced).",
+          "description": "A. O. Smith \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5693,7 +5733,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "IT Consulting & Other Services",
-          "description": "Accenture — US core universe (S&P 500 sourced).",
+          "description": "Accenture \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5719,7 +5759,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Independent Power Producers & Energy Traders",
-          "description": "AES Corporation — US core universe (S&P 500 sourced).",
+          "description": "AES Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5745,7 +5785,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Life & Health Insurance",
-          "description": "Aflac — US core universe (S&P 500 sourced).",
+          "description": "Aflac \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5771,7 +5811,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Life Sciences Tools & Services",
-          "description": "Agilent Technologies — US core universe (S&P 500 sourced).",
+          "description": "Agilent Technologies \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5797,7 +5837,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Industrial Gases",
-          "description": "Air Products — US core universe (S&P 500 sourced).",
+          "description": "Air Products \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5823,7 +5863,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Internet Services & Infrastructure",
-          "description": "Akamai Technologies — US core universe (S&P 500 sourced).",
+          "description": "Akamai Technologies \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5849,7 +5889,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Specialty Chemicals",
-          "description": "Albemarle Corporation — US core universe (S&P 500 sourced).",
+          "description": "Albemarle Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5875,7 +5915,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Office REITs",
-          "description": "Alexandria Real Estate Equities — US core universe (S&P 500 sourced).",
+          "description": "Alexandria Real Estate Equities \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5901,7 +5941,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Supplies",
-          "description": "Align Technology — US core universe (S&P 500 sourced).",
+          "description": "Align Technology \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5927,7 +5967,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Building Products",
-          "description": "Allegion — US core universe (S&P 500 sourced).",
+          "description": "Allegion \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5953,7 +5993,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Alliant Energy — US core universe (S&P 500 sourced).",
+          "description": "Alliant Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -5979,7 +6019,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Property & Casualty Insurance",
-          "description": "Allstate — US core universe (S&P 500 sourced).",
+          "description": "Allstate \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6005,7 +6045,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Paper & Plastic Packaging Products & Materials",
-          "description": "Amcor — US core universe (S&P 500 sourced).",
+          "description": "Amcor \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6031,7 +6071,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Multi-Utilities",
-          "description": "Ameren — US core universe (S&P 500 sourced).",
+          "description": "Ameren \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6057,7 +6097,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "American Electric Power — US core universe (S&P 500 sourced).",
+          "description": "American Electric Power \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6083,7 +6123,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Multi-line Insurance",
-          "description": "American International Group — US core universe (S&P 500 sourced).",
+          "description": "American International Group \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6109,7 +6149,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Water Utilities",
-          "description": "American Water Works — US core universe (S&P 500 sourced).",
+          "description": "American Water Works \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6135,7 +6175,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Asset Management & Custody Banks",
-          "description": "Ameriprise Financial — US core universe (S&P 500 sourced).",
+          "description": "Ameriprise Financial \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6161,7 +6201,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Electrical Components & Equipment",
-          "description": "Ametek — US core universe (S&P 500 sourced).",
+          "description": "Ametek \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6187,7 +6227,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Electronic Components",
-          "description": "Amphenol — US core universe (S&P 500 sourced).",
+          "description": "Amphenol \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6213,7 +6253,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Semiconductors",
-          "description": "Analog Devices — US core universe (S&P 500 sourced).",
+          "description": "Analog Devices \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6239,7 +6279,7 @@
           "currency": "USD",
           "sector": "Energy",
           "industry": "Oil & Gas Exploration & Production",
-          "description": "APA Corporation — US core universe (S&P 500 sourced).",
+          "description": "APA Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6265,7 +6305,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Asset Management & Custody Banks",
-          "description": "Apollo Global Management — US core universe (S&P 500 sourced).",
+          "description": "Apollo Global Management \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6291,7 +6331,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Application Software",
-          "description": "AppLovin — US core universe (S&P 500 sourced).",
+          "description": "AppLovin \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6317,7 +6357,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Automotive Parts & Equipment",
-          "description": "Aptiv — US core universe (S&P 500 sourced).",
+          "description": "Aptiv \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6343,7 +6383,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Property & Casualty Insurance",
-          "description": "Arch Capital Group — US core universe (S&P 500 sourced).",
+          "description": "Arch Capital Group \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6369,7 +6409,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Agricultural Products & Services",
-          "description": "Archer Daniels Midland — US core universe (S&P 500 sourced).",
+          "description": "Archer Daniels Midland \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6395,7 +6435,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Asset Management & Custody Banks",
-          "description": "Ares Management — US core universe (S&P 500 sourced).",
+          "description": "Ares Management \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6421,7 +6461,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Communications Equipment",
-          "description": "Arista Networks — US core universe (S&P 500 sourced).",
+          "description": "Arista Networks \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6447,7 +6487,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Insurance Brokers",
-          "description": "Arthur J. Gallagher & Co. — US core universe (S&P 500 sourced).",
+          "description": "Arthur J. Gallagher & Co. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6473,7 +6513,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Multi-line Insurance",
-          "description": "Assurant — US core universe (S&P 500 sourced).",
+          "description": "Assurant \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6499,7 +6539,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Gas Utilities",
-          "description": "Atmos Energy — US core universe (S&P 500 sourced).",
+          "description": "Atmos Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6525,7 +6565,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Application Software",
-          "description": "Autodesk — US core universe (S&P 500 sourced).",
+          "description": "Autodesk \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6551,7 +6591,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Automotive Retail",
-          "description": "AutoZone — US core universe (S&P 500 sourced).",
+          "description": "AutoZone \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6577,7 +6617,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Multi-Family Residential REITs",
-          "description": "AvalonBay Communities — US core universe (S&P 500 sourced).",
+          "description": "AvalonBay Communities \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6603,7 +6643,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Paper & Plastic Packaging Products & Materials",
-          "description": "Avery Dennison — US core universe (S&P 500 sourced).",
+          "description": "Avery Dennison \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6629,7 +6669,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Aerospace & Defense",
-          "description": "Axon Enterprise — US core universe (S&P 500 sourced).",
+          "description": "Axon Enterprise \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6655,7 +6695,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Metal, Glass & Plastic Containers",
-          "description": "Ball Corporation — US core universe (S&P 500 sourced).",
+          "description": "Ball Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6681,7 +6721,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Equipment",
-          "description": "Baxter International — US core universe (S&P 500 sourced).",
+          "description": "Baxter International \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6707,7 +6747,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Multi-Sector Holdings",
-          "description": "Berkshire Hathaway — US core universe (S&P 500 sourced).",
+          "description": "Berkshire Hathaway \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6733,7 +6773,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Computer & Electronics Retail",
-          "description": "Best Buy — US core universe (S&P 500 sourced).",
+          "description": "Best Buy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6759,7 +6799,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Life Sciences Tools & Services",
-          "description": "Bio-Techne — US core universe (S&P 500 sourced).",
+          "description": "Bio-Techne \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6785,7 +6825,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Asset Management & Custody Banks",
-          "description": "Blackstone Inc. — US core universe (S&P 500 sourced).",
+          "description": "Blackstone Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6811,7 +6851,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Transaction & Payment Processing Services",
-          "description": "Block, Inc. — US core universe (S&P 500 sourced).",
+          "description": "Block, Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6837,7 +6877,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Asset Management & Custody Banks",
-          "description": "BNY Mellon — US core universe (S&P 500 sourced).",
+          "description": "BNY Mellon \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6863,7 +6903,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Data Processing & Outsourced Services",
-          "description": "Broadridge Financial Solutions — US core universe (S&P 500 sourced).",
+          "description": "Broadridge Financial Solutions \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6889,7 +6929,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Insurance Brokers",
-          "description": "Brown & Brown — US core universe (S&P 500 sourced).",
+          "description": "Brown & Brown \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6909,13 +6949,13 @@
           "instrument_id": "US_BF_B",
           "market": "US",
           "ticker": "BF.B",
-          "name": "Brown–Forman",
+          "name": "Brown\u2013Forman",
           "exchange": "NYSE",
           "country": "US",
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Distillers & Vintners",
-          "description": "Brown–Forman — US core universe (S&P 500 sourced).",
+          "description": "Brown\u2013Forman \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6941,7 +6981,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Building Products",
-          "description": "Builders FirstSource — US core universe (S&P 500 sourced).",
+          "description": "Builders FirstSource \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6967,7 +7007,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Agricultural Products & Services",
-          "description": "Bunge Global — US core universe (S&P 500 sourced).",
+          "description": "Bunge Global \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -6993,7 +7033,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Office REITs",
-          "description": "BXP, Inc. — US core universe (S&P 500 sourced).",
+          "description": "BXP, Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7019,7 +7059,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Air Freight & Logistics",
-          "description": "C.H. Robinson — US core universe (S&P 500 sourced).",
+          "description": "C.H. Robinson \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7045,7 +7085,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Multi-Family Residential REITs",
-          "description": "Camden Property Trust — US core universe (S&P 500 sourced).",
+          "description": "Camden Property Trust \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7071,7 +7111,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Packaged Foods & Meats",
-          "description": "Campbell's Company (The) — US core universe (S&P 500 sourced).",
+          "description": "Campbell's Company (The) \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7097,7 +7137,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Distributors",
-          "description": "Cardinal Health — US core universe (S&P 500 sourced).",
+          "description": "Cardinal Health \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7123,7 +7163,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Hotels, Resorts & Cruise Lines",
-          "description": "Carnival — US core universe (S&P 500 sourced).",
+          "description": "Carnival \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7149,7 +7189,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Building Products",
-          "description": "Carrier Global — US core universe (S&P 500 sourced).",
+          "description": "Carrier Global \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7175,7 +7215,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Automotive Retail",
-          "description": "Carvana — US core universe (S&P 500 sourced).",
+          "description": "Carvana \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7201,7 +7241,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Food Retail",
-          "description": "Casey's — US core universe (S&P 500 sourced).",
+          "description": "Casey's \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7227,7 +7267,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Financial Exchanges & Data",
-          "description": "Cboe Global Markets — US core universe (S&P 500 sourced).",
+          "description": "Cboe Global Markets \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7253,7 +7293,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Real Estate Services",
-          "description": "CBRE Group — US core universe (S&P 500 sourced).",
+          "description": "CBRE Group \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7279,7 +7319,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Technology Distributors",
-          "description": "CDW Corporation — US core universe (S&P 500 sourced).",
+          "description": "CDW Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7305,7 +7345,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Distributors",
-          "description": "Cencora — US core universe (S&P 500 sourced).",
+          "description": "Cencora \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7331,7 +7371,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Managed Health Care",
-          "description": "Centene Corporation — US core universe (S&P 500 sourced).",
+          "description": "Centene Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7357,7 +7397,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Multi-Utilities",
-          "description": "CenterPoint Energy — US core universe (S&P 500 sourced).",
+          "description": "CenterPoint Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7383,7 +7423,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Fertilizers & Agricultural Chemicals",
-          "description": "CF Industries — US core universe (S&P 500 sourced).",
+          "description": "CF Industries \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7409,7 +7449,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Life Sciences Tools & Services",
-          "description": "Charles River Laboratories — US core universe (S&P 500 sourced).",
+          "description": "Charles River Laboratories \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7435,7 +7475,7 @@
           "currency": "USD",
           "sector": "Communication Services",
           "industry": "Cable & Satellite",
-          "description": "Charter Communications — US core universe (S&P 500 sourced).",
+          "description": "Charter Communications \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7461,7 +7501,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Restaurants",
-          "description": "Chipotle Mexican Grill — US core universe (S&P 500 sourced).",
+          "description": "Chipotle Mexican Grill \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7487,7 +7527,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Property & Casualty Insurance",
-          "description": "Chubb Limited — US core universe (S&P 500 sourced).",
+          "description": "Chubb Limited \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7513,7 +7553,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Household Products",
-          "description": "Church & Dwight — US core universe (S&P 500 sourced).",
+          "description": "Church & Dwight \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7539,7 +7579,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Communications Equipment",
-          "description": "Ciena — US core universe (S&P 500 sourced).",
+          "description": "Ciena \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7565,7 +7605,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Property & Casualty Insurance",
-          "description": "Cincinnati Financial — US core universe (S&P 500 sourced).",
+          "description": "Cincinnati Financial \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7591,7 +7631,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Diversified Support Services",
-          "description": "Cintas — US core universe (S&P 500 sourced).",
+          "description": "Cintas \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7617,7 +7657,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Communications Equipment",
-          "description": "Cisco — US core universe (S&P 500 sourced).",
+          "description": "Cisco \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7643,7 +7683,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Regional Banks",
-          "description": "Citizens Financial Group — US core universe (S&P 500 sourced).",
+          "description": "Citizens Financial Group \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7669,7 +7709,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Household Products",
-          "description": "Clorox — US core universe (S&P 500 sourced).",
+          "description": "Clorox \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7695,7 +7735,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Multi-Utilities",
-          "description": "CMS Energy — US core universe (S&P 500 sourced).",
+          "description": "CMS Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7721,7 +7761,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "IT Consulting & Other Services",
-          "description": "Cognizant — US core universe (S&P 500 sourced).",
+          "description": "Cognizant \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7747,7 +7787,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Electronic Components",
-          "description": "Coherent Corp. — US core universe (S&P 500 sourced).",
+          "description": "Coherent Corp. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7773,7 +7813,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Household Products",
-          "description": "Colgate-Palmolive — US core universe (S&P 500 sourced).",
+          "description": "Colgate-Palmolive \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7799,7 +7839,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Construction & Engineering",
-          "description": "Comfort Systems USA — US core universe (S&P 500 sourced).",
+          "description": "Comfort Systems USA \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7825,7 +7865,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Packaged Foods & Meats",
-          "description": "Conagra Brands — US core universe (S&P 500 sourced).",
+          "description": "Conagra Brands \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7851,7 +7891,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Multi-Utilities",
-          "description": "Consolidated Edison — US core universe (S&P 500 sourced).",
+          "description": "Consolidated Edison \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7877,7 +7917,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Distillers & Vintners",
-          "description": "Constellation Brands — US core universe (S&P 500 sourced).",
+          "description": "Constellation Brands \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7903,7 +7943,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Constellation Energy — US core universe (S&P 500 sourced).",
+          "description": "Constellation Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7929,7 +7969,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Supplies",
-          "description": "Cooper Companies (The) — US core universe (S&P 500 sourced).",
+          "description": "Cooper Companies (The) \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7955,7 +7995,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Diversified Support Services",
-          "description": "Copart — US core universe (S&P 500 sourced).",
+          "description": "Copart \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -7981,7 +8021,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Electronic Components",
-          "description": "Corning Inc. — US core universe (S&P 500 sourced).",
+          "description": "Corning Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8007,7 +8047,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Transaction & Payment Processing Services",
-          "description": "Corpay — US core universe (S&P 500 sourced).",
+          "description": "Corpay \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8033,7 +8073,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Fertilizers & Agricultural Chemicals",
-          "description": "Corteva — US core universe (S&P 500 sourced).",
+          "description": "Corteva \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8059,7 +8099,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Real Estate Services",
-          "description": "CoStar Group — US core universe (S&P 500 sourced).",
+          "description": "CoStar Group \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8085,7 +8125,7 @@
           "currency": "USD",
           "sector": "Energy",
           "industry": "Oil & Gas Exploration & Production",
-          "description": "Coterra — US core universe (S&P 500 sourced).",
+          "description": "Coterra \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8111,7 +8151,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Construction Materials",
-          "description": "CRH plc — US core universe (S&P 500 sourced).",
+          "description": "CRH plc \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8137,7 +8177,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Telecom Tower REITs",
-          "description": "Crown Castle — US core universe (S&P 500 sourced).",
+          "description": "Crown Castle \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8163,7 +8203,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Rail Transportation",
-          "description": "CSX Corporation — US core universe (S&P 500 sourced).",
+          "description": "CSX Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8189,7 +8229,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Restaurants",
-          "description": "Darden Restaurants — US core universe (S&P 500 sourced).",
+          "description": "Darden Restaurants \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8215,7 +8255,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Services",
-          "description": "DaVita — US core universe (S&P 500 sourced).",
+          "description": "DaVita \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8241,7 +8281,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Technology Hardware, Storage & Peripherals",
-          "description": "Dell Technologies — US core universe (S&P 500 sourced).",
+          "description": "Dell Technologies \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8267,7 +8307,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Passenger Airlines",
-          "description": "Delta Air Lines — US core universe (S&P 500 sourced).",
+          "description": "Delta Air Lines \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8293,7 +8333,7 @@
           "currency": "USD",
           "sector": "Energy",
           "industry": "Oil & Gas Exploration & Production",
-          "description": "Devon Energy — US core universe (S&P 500 sourced).",
+          "description": "Devon Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8319,7 +8359,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Equipment",
-          "description": "Dexcom — US core universe (S&P 500 sourced).",
+          "description": "Dexcom \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8345,7 +8385,7 @@
           "currency": "USD",
           "sector": "Energy",
           "industry": "Oil & Gas Exploration & Production",
-          "description": "Diamondback Energy — US core universe (S&P 500 sourced).",
+          "description": "Diamondback Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8371,7 +8411,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Data Center REITs",
-          "description": "Digital Realty — US core universe (S&P 500 sourced).",
+          "description": "Digital Realty \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8397,7 +8437,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Consumer Staples Merchandise Retail",
-          "description": "Dollar General — US core universe (S&P 500 sourced).",
+          "description": "Dollar General \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8423,7 +8463,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Consumer Staples Merchandise Retail",
-          "description": "Dollar Tree — US core universe (S&P 500 sourced).",
+          "description": "Dollar Tree \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8449,7 +8489,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Multi-Utilities",
-          "description": "Dominion Energy — US core universe (S&P 500 sourced).",
+          "description": "Dominion Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8475,7 +8515,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Restaurants",
-          "description": "Domino's — US core universe (S&P 500 sourced).",
+          "description": "Domino's \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8501,7 +8541,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Industrial Machinery & Supplies & Components",
-          "description": "Dover Corporation — US core universe (S&P 500 sourced).",
+          "description": "Dover Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8527,7 +8567,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Commodity Chemicals",
-          "description": "Dow Inc. — US core universe (S&P 500 sourced).",
+          "description": "Dow Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8553,7 +8593,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Homebuilding",
-          "description": "D. R. Horton — US core universe (S&P 500 sourced).",
+          "description": "D. R. Horton \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8579,7 +8619,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Multi-Utilities",
-          "description": "DTE Energy — US core universe (S&P 500 sourced).",
+          "description": "DTE Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8605,7 +8645,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Specialty Chemicals",
-          "description": "DuPont — US core universe (S&P 500 sourced).",
+          "description": "DuPont \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8631,7 +8671,7 @@
           "currency": "USD",
           "sector": "Consumer Discretionary",
           "industry": "Broadline Retail",
-          "description": "eBay Inc. — US core universe (S&P 500 sourced).",
+          "description": "eBay Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8657,7 +8697,7 @@
           "currency": "USD",
           "sector": "Communication Services",
           "industry": "Wireless Telecommunication Services",
-          "description": "EchoStar — US core universe (S&P 500 sourced).",
+          "description": "EchoStar \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8683,7 +8723,7 @@
           "currency": "USD",
           "sector": "Materials",
           "industry": "Specialty Chemicals",
-          "description": "Ecolab — US core universe (S&P 500 sourced).",
+          "description": "Ecolab \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8709,7 +8749,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Edison International — US core universe (S&P 500 sourced).",
+          "description": "Edison International \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8735,7 +8775,7 @@
           "currency": "USD",
           "sector": "Health Care",
           "industry": "Health Care Equipment",
-          "description": "Edwards Lifesciences — US core universe (S&P 500 sourced).",
+          "description": "Edwards Lifesciences \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8761,7 +8801,7 @@
           "currency": "USD",
           "sector": "Communication Services",
           "industry": "Interactive Home Entertainment",
-          "description": "Electronic Arts — US core universe (S&P 500 sourced).",
+          "description": "Electronic Arts \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8787,7 +8827,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Construction & Engineering",
-          "description": "Emcor — US core universe (S&P 500 sourced).",
+          "description": "Emcor \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8813,7 +8853,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Entergy — US core universe (S&P 500 sourced).",
+          "description": "Entergy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8839,7 +8879,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "IT Consulting & Other Services",
-          "description": "EPAM Systems — US core universe (S&P 500 sourced).",
+          "description": "EPAM Systems \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8865,7 +8905,7 @@
           "currency": "USD",
           "sector": "Energy",
           "industry": "Oil & Gas Exploration & Production",
-          "description": "EQT Corporation — US core universe (S&P 500 sourced).",
+          "description": "EQT Corporation \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8891,7 +8931,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Research & Consulting Services",
-          "description": "Equifax — US core universe (S&P 500 sourced).",
+          "description": "Equifax \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8917,7 +8957,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Multi-Family Residential REITs",
-          "description": "Equity Residential — US core universe (S&P 500 sourced).",
+          "description": "Equity Residential \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8943,7 +8983,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Insurance Brokers",
-          "description": "Erie Indemnity — US core universe (S&P 500 sourced).",
+          "description": "Erie Indemnity \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8969,7 +9009,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Multi-Family Residential REITs",
-          "description": "Essex Property Trust — US core universe (S&P 500 sourced).",
+          "description": "Essex Property Trust \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -8989,13 +9029,13 @@
           "instrument_id": "US_EL",
           "market": "US",
           "ticker": "EL",
-          "name": "Estée Lauder Companies (The)",
+          "name": "Est\u00e9e Lauder Companies (The)",
           "exchange": "NYSE",
           "country": "US",
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Personal Care Products",
-          "description": "Estée Lauder Companies (The) — US core universe (S&P 500 sourced).",
+          "description": "Est\u00e9e Lauder Companies (The) \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9021,7 +9061,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Reinsurance",
-          "description": "Everest Group — US core universe (S&P 500 sourced).",
+          "description": "Everest Group \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9047,7 +9087,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Evergy — US core universe (S&P 500 sourced).",
+          "description": "Evergy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9073,7 +9113,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Eversource Energy — US core universe (S&P 500 sourced).",
+          "description": "Eversource Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9099,7 +9139,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "Exelon — US core universe (S&P 500 sourced).",
+          "description": "Exelon \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9125,7 +9165,7 @@
           "currency": "USD",
           "sector": "Energy",
           "industry": "Oil & Gas Exploration & Production",
-          "description": "Expand Energy — US core universe (S&P 500 sourced).",
+          "description": "Expand Energy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9151,7 +9191,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Air Freight & Logistics",
-          "description": "Expeditors International — US core universe (S&P 500 sourced).",
+          "description": "Expeditors International \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9177,7 +9217,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Self-Storage REITs",
-          "description": "Extra Space Storage — US core universe (S&P 500 sourced).",
+          "description": "Extra Space Storage \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9203,7 +9243,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Communications Equipment",
-          "description": "F5, Inc. — US core universe (S&P 500 sourced).",
+          "description": "F5, Inc. \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9229,7 +9269,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Financial Exchanges & Data",
-          "description": "FactSet — US core universe (S&P 500 sourced).",
+          "description": "FactSet \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9255,7 +9295,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Application Software",
-          "description": "Fair Isaac — US core universe (S&P 500 sourced).",
+          "description": "Fair Isaac \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9281,7 +9321,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Trading Companies & Distributors",
-          "description": "Fastenal — US core universe (S&P 500 sourced).",
+          "description": "Fastenal \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9307,7 +9347,7 @@
           "currency": "USD",
           "sector": "Real Estate",
           "industry": "Retail REITs",
-          "description": "Federal Realty Investment Trust — US core universe (S&P 500 sourced).",
+          "description": "Federal Realty Investment Trust \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9333,7 +9373,7 @@
           "currency": "USD",
           "sector": "Industrials",
           "industry": "Air Freight & Logistics",
-          "description": "FedEx — US core universe (S&P 500 sourced).",
+          "description": "FedEx \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9359,7 +9399,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Regional Banks",
-          "description": "Fifth Third Bancorp — US core universe (S&P 500 sourced).",
+          "description": "Fifth Third Bancorp \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9385,7 +9425,7 @@
           "currency": "USD",
           "sector": "Information Technology",
           "industry": "Semiconductors",
-          "description": "First Solar — US core universe (S&P 500 sourced).",
+          "description": "First Solar \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9411,7 +9451,7 @@
           "currency": "USD",
           "sector": "Utilities",
           "industry": "Electric Utilities",
-          "description": "FirstEnergy — US core universe (S&P 500 sourced).",
+          "description": "FirstEnergy \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -9437,7 +9477,7 @@
           "currency": "USD",
           "sector": "Financials",
           "industry": "Transaction & Payment Processing Services",
-          "description": "Fiserv — US core universe (S&P 500 sourced).",
+          "description": "Fiserv \u2014 US core universe (S&P 500 sourced).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -14852,6 +14892,66 @@
           ],
           "status": "active",
           "updated_at": "2026-05-04T11:33:58.398843+00:00"
+        },
+        {
+          "instrument_id": "US_HDB",
+          "market": "US",
+          "ticker": "HDB",
+          "name": "HDFC Bank Limited",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financial Services",
+          "industry": "Banks - Regional",
+          "description": "HDFC Bank Limited ADR tracked for user search and requests.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_IBN"
+          ],
+          "aliases": [
+            "HDB",
+            "HDFC",
+            "HDFC Bank",
+            "HDFC Bank Limited"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-06-16T07:17:21Z"
+        },
+        {
+          "instrument_id": "US_STX",
+          "market": "US",
+          "ticker": "STX",
+          "name": "Seagate Technology Holdings plc",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Technology",
+          "industry": "Computer Hardware",
+          "description": "Seagate Technology Holdings plc tracked for user search and requests.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WDC"
+          ],
+          "aliases": [
+            "STX",
+            "Seagate",
+            "SEAG",
+            "Seagate Technology"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-06-16T07:17:21Z"
         }
       ]
     },
@@ -20738,7 +20838,7 @@
           "currency": "INR",
           "sector": "Macro",
           "industry": "Index",
-          "description": "NSE Nifty Bank index — top 12 banking stocks.",
+          "description": "NSE Nifty Bank index \u2014 top 12 banking stocks.",
           "logo_url": "",
           "index_memberships": [],
           "peer_ids": [
@@ -20768,7 +20868,7 @@
           "currency": "INR",
           "sector": "Macro",
           "industry": "Volatility",
-          "description": "India VIX — NSE volatility index.",
+          "description": "India VIX \u2014 NSE volatility index.",
           "logo_url": "",
           "index_memberships": [],
           "peer_ids": [],
@@ -20795,7 +20895,7 @@
           "currency": "USD",
           "sector": "Macro",
           "industry": "Commodity",
-          "description": "Gold futures — global price (USD).",
+          "description": "Gold futures \u2014 global price (USD).",
           "logo_url": "",
           "index_memberships": [],
           "peer_ids": [],
@@ -20822,7 +20922,7 @@
           "currency": "USD",
           "sector": "Macro",
           "industry": "Commodity",
-          "description": "Silver futures — global price (USD).",
+          "description": "Silver futures \u2014 global price (USD).",
           "logo_url": "",
           "index_memberships": [],
           "peer_ids": [],

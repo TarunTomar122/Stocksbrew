@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from backend.models import Article
 from backend.stock_intelligence import (
@@ -12,6 +13,115 @@ from backend.stock_intelligence import (
 
 
 class StockIntelligenceTest(unittest.TestCase):
+    def test_build_stock_intelligence_docs_normalizes_earnings_cards_even_with_risk_cards(self) -> None:
+        instruments = [
+            {
+                "instrument_id": "US_ABC",
+                "market": "US",
+                "ticker": "ABC",
+                "name": "ABC Corp",
+            }
+        ]
+        articles = [
+            Article(
+                id="a1",
+                source_id="abc-news",
+                source_name="News",
+                source_kind="publisher",
+                market="US",
+                title="ABC holds gains into catalyst window",
+                url="https://example.com/abc",
+                summary="ABC is in focus.",
+                article_overview="ABC is in focus.",
+                article_key_points=["ABC is in focus."],
+                published_at="2026-06-21T12:00:00+00:00",
+                topic_key="stock:US:abc",
+                topic_label="ABC",
+                topic_kind="stock",
+                tags=[],
+                sector_tags=["technology"],
+                stock_candidates=["ABC"],
+                stock_tickers=["ABC"],
+                signal_types=["market_news"],
+                bucket_keys=["stock:US:abc"],
+                bucket_labels=["ABC"],
+                bucket_kinds=["stock"],
+                entity_mentions=[
+                    {
+                        "type": "stock",
+                        "canonical_name": "ABC",
+                        "ticker": "ABC",
+                        "sentiment_score": 0.3,
+                        "mention_role": "primary",
+                    }
+                ],
+                sentiment_score=0.3,
+                sentiment_label="constructive",
+                enrichment_source="llm",
+                source_lane="core",
+                focus_ticker="ABC",
+            )
+        ]
+
+        class Store:
+            def get_latest_prices(self, _instrument_ids: list[str]) -> dict[str, dict]:
+                return {}
+
+            def list_stock_intel_pro(self, _market: str, _universe: str) -> list[dict]:
+                return []
+
+            def get_latest_stock_technicals_batch(self, _instrument_ids: list[str]) -> dict[str, dict]:
+                return {}
+
+            def get_sector_regimes(self, _market: str) -> dict:
+                return {}
+
+            def get_stock_intelligence_doc(self, _market: str, _universe: str, _instrument_id: str) -> dict | None:
+                return None
+
+        llm_brief = {
+            "headline": "ABC setup stays active",
+            "body": "ABC still has a catalyst window ahead.",
+            "key_findings": ["ABC still has a catalyst window ahead."],
+            "catalyst": "Earnings Apr 22 AMC",
+            "risk": "Valuation is stretched.",
+            "thesis": "ABC setup stays active",
+            "setup_state": "constructive",
+            "drivers": [],
+            "catalyst_cards": [
+                {
+                    "event": "Earnings Apr 22 AMC",
+                    "detail": "Model used the wrong date.",
+                    "window": "Apr 22",
+                    "expected_impact": 1,
+                    "priced_in": "med",
+                }
+            ],
+            "risk_cards": [
+                {
+                    "risk": "Valuation is stretched.",
+                    "detail": "Crowded positioning raises downside if follow-through fades.",
+                    "trigger": "multiple compression",
+                    "severity": 3,
+                    "probability": 3,
+                }
+            ],
+        }
+
+        with patch("backend.stock_intelligence._llm_synthesize_brief", return_value=llm_brief), patch(
+            "backend.stock_intelligence._load_earnings_by_instrument",
+            return_value={"US_ABC": {"status": "reported", "event_date": "2026-04-22"}},
+        ):
+            docs_payload = build_stock_intelligence_docs("US", "us_test_1", instruments, articles, store=Store())
+
+        self.assertEqual(len(docs_payload), 1)
+        self.assertNotIn("Apr 22", docs_payload[0]["catalyst"])
+        self.assertNotIn("Apr 22", docs_payload[0]["body"])
+        cards = docs_payload[0]["visual_summary"]["catalyst_cards"]
+        self.assertEqual(len(cards), 1)
+        self.assertEqual(cards[0]["window"], "post-earnings")
+        self.assertEqual(cards[0]["event"], "Earnings setup")
+
     def test_build_stock_intelligence_docs(self) -> None:
         instruments = [
             {
@@ -243,11 +353,11 @@ class StockIntelligenceTest(unittest.TestCase):
         ]
         out = _normalize_catalyst_cards(
             cards,
-            earnings={"status": "upcoming", "event_date": "2026-06-20"},
+            earnings={"status": "upcoming", "event_date": "2026-07-20"},
         )
         self.assertEqual(len(out), 1)
-        self.assertEqual(out[0]["window"], "2026-06-20")
-        self.assertEqual(out[0]["event"], "Earnings Jun 20")
+        self.assertEqual(out[0]["window"], "2026-07-20")
+        self.assertEqual(out[0]["event"], "Earnings Jul 20")
 
     def test_normalize_catalyst_cards_strips_reported_earnings_date(self) -> None:
         cards = [

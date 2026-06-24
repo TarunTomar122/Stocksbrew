@@ -10,12 +10,12 @@ function freshnessTone(status?: string): { label: string; color: string } {
   if (s === "fresh")   return { label: "Fresh",   color: "#10b981" };
   if (s === "aging")   return { label: "Aging",   color: "#f59e0b" };
   if (s === "stale")   return { label: "Stale",   color: "#ef4444" };
-  if (s === "missing") return { label: "Missing", color: "#9ca3af" };
-  return { label: status ?? "Unknown", color: "#9ca3af" };
+  if (s === "missing") return { label: "Missing", color: "var(--on-surface-variant)" };
+  return { label: status ?? "Unknown", color: "var(--on-surface-variant)" };
 }
 
 function confidenceTone(score?: number): { label: string; color: string } {
-  if (typeof score !== "number") return { label: "-", color: "#9ca3af" };
+  if (typeof score !== "number") return { label: "-", color: "var(--on-surface-variant)" };
   if (score >= 75) return { label: "High",   color: "#10b981" };
   if (score >= 50) return { label: "Medium", color: "#f59e0b" };
   return { label: "Low", color: "#ef4444" };
@@ -37,9 +37,9 @@ export function DataQualityStrip({ quality }: Props) {
   const totalSources = (mix.broad ?? 0) + (mix.core ?? 0) + (mix.promoted ?? 0);
 
   return (
-    <div className="flex items-center gap-x-6 gap-y-2 flex-wrap text-[12px] pt-4 border-t border-[#f3f4f6]">
+    <div className="flex items-center gap-x-6 gap-y-2 flex-wrap text-[12px] pt-4 border-t border-outline-variant">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
           Confidence
         </span>
         <span className="font-semibold tabular-nums" style={{ color: conf.color }}>
@@ -50,23 +50,23 @@ export function DataQualityStrip({ quality }: Props) {
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
           Data
         </span>
         <span className="font-semibold" style={{ color: fresh.color }}>
           {fresh.label}
         </span>
         {quality.freshness_hours !== undefined && (
-          <span className="text-[#6b7280]">{formatFreshness(quality.freshness_hours)}</span>
+          <span className="text-on-surface-variant">{formatFreshness(quality.freshness_hours)}</span>
         )}
       </div>
 
       {typeof quality.evidence_count === "number" && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
             Evidence
           </span>
-          <span className="font-semibold text-[#111111] tabular-nums">
+          <span className="font-semibold text-on-surface tabular-nums">
             {quality.evidence_count} article{quality.evidence_count === 1 ? "" : "s"}
           </span>
         </div>
@@ -74,17 +74,17 @@ export function DataQualityStrip({ quality }: Props) {
 
       {totalSources > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
             Sources
           </span>
           {typeof mix.core === "number" && mix.core > 0 && (
-            <span className="font-medium text-[#111111]">{mix.core} core</span>
+            <span className="font-medium text-on-surface">{mix.core} core</span>
           )}
           {typeof mix.promoted === "number" && mix.promoted > 0 && (
-            <span className="font-medium text-[#111111]">· {mix.promoted} promoted</span>
+            <span className="font-medium text-on-surface">· {mix.promoted} promoted</span>
           )}
           {typeof mix.broad === "number" && mix.broad > 0 && (
-            <span className="text-[#6b7280]">· {mix.broad} broad</span>
+            <span className="text-on-surface-variant">· {mix.broad} broad</span>
           )}
         </div>
       )}

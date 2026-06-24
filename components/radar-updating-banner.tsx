@@ -42,7 +42,7 @@ export function RadarUpdatingBanner({
   }, [router, forceVisible]);
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#fcd34d] bg-[#fffbeb] px-4 py-3.5 text-[12.5px] text-[#92400e] shadow-[0_0_0_3px_rgba(251,191,36,0.12)]">
+    <div className="flex items-center gap-3 rounded-xl border border-outline-variant tint-warn px-4 py-3.5 text-[12.5px] text-[#f59e0b] shadow-[0_0_0_3px_rgba(251,191,36,0.12)]">
       <span className="relative flex h-2.5 w-2.5 shrink-0">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />

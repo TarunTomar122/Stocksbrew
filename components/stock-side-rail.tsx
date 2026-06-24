@@ -86,24 +86,24 @@ function fmtAbs(v: number, currency: string): string {
 function verdictTone(v?: string): { bg: string; fg: string; label: string } {
   switch ((v ?? "").toLowerCase()) {
     case "strong":
-      return { bg: "#ecfdf5", fg: "#10b981", label: "Strong" };
+      return { bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981", label: "Strong" };
     case "solid":
-      return { bg: "#eff6ff", fg: "#0052ff", label: "Solid" };
+      return { bg: "color-mix(in srgb, #2563eb 14%, var(--surface))", fg: "#0052ff", label: "Solid" };
     case "mixed":
-      return { bg: "#fef3c7", fg: "#b45309", label: "Mixed" };
+      return { bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b", label: "Mixed" };
     case "weak":
-      return { bg: "#fef2f2", fg: "#ef4444", label: "Weak" };
+      return { bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444", label: "Weak" };
     default:
-      return { bg: "#f3f4f6", fg: "#6b7280", label: "-" };
+      return { bg: "var(--surface-container)", fg: "var(--on-surface-variant)", label: "-" };
   }
 }
 
 function scoreTone(v?: number | null): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "text-[#9ca3af]";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "text-on-surface-variant";
   if (v >= 80) return "text-[#10b981]";
-  if (v >= 60) return "text-[#111111]";
-  if (v >= 40) return "text-[#6b7280]";
-  return "text-[#9ca3af]";
+  if (v >= 60) return "text-on-surface";
+  if (v >= 40) return "text-on-surface-variant";
+  return "text-on-surface-variant";
 }
 
 function isPlaceholderDescription(desc: string, name?: string): boolean {
@@ -144,25 +144,25 @@ function StockCompanyBlurb({
   const sectorHref = sector ? `/sector/${encodeURIComponent(sectorSlug(sector))}` : null;
 
   return (
-    <div className="flex flex-col gap-2.5 border-t border-[#f3f4f6] pt-4">
+    <div className="flex flex-col gap-2.5 border-t border-outline-variant pt-4">
       {(sector || industry) && (
-        <p className="text-[12px] leading-snug text-[#6b7280]">
+        <p className="text-[12px] leading-snug text-on-surface-variant">
           {sector &&
             (sectorHref ? (
-              <Link href={sectorHref} className="font-semibold text-[#111111] hover:text-[#0052ff] transition-colors">
+              <Link href={sectorHref} className="font-semibold text-on-surface hover:text-[#0052ff] transition-colors">
                 {sector}
               </Link>
             ) : (
-              <span className="font-semibold text-[#111111]">{sector}</span>
+              <span className="font-semibold text-on-surface">{sector}</span>
             ))}
           {sector && industry && <span> · </span>}
           {industry && <span>{industry}</span>}
         </p>
       )}
       {typeof marketCap === "number" && (
-        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#9ca3af]">
+        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-on-surface-variant">
           Market cap{" "}
-          <span className="font-semibold normal-case tracking-normal text-[#111111]">
+          <span className="font-semibold normal-case tracking-normal text-on-surface">
             {fmtMarketCap(marketCap, currencySymbol)}
           </span>
         </p>
@@ -172,7 +172,7 @@ function StockCompanyBlurb({
           {indices.map((idx) => (
             <span
               key={idx}
-              className="rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-semibold text-[#6b7280]"
+              className="rounded-md bg-surface-container px-2 py-0.5 text-[10px] font-semibold text-on-surface-variant"
             >
               {idx}
             </span>
@@ -180,7 +180,7 @@ function StockCompanyBlurb({
         </div>
       )}
       {showDescription && (
-        <p className="line-clamp-4 text-[12px] leading-relaxed text-[#6b7280]">{description}</p>
+        <p className="line-clamp-4 text-[12px] leading-relaxed text-on-surface-variant">{description}</p>
       )}
     </div>
   );
@@ -211,7 +211,7 @@ export function StockSideRail({
   const abs = stock.day_change_abs ?? 0;
   const positive = pct >= 0;
   const arrow = positive ? "▲" : "▼";
-  const changeBg = positive ? "bg-[#ecfdf5]" : "bg-[#fef2f2]";
+  const changeBg = positive ? "tint-bull" : "tint-bear";
   const changeFg = positive ? "text-[#10b981]" : "text-[#ef4444]";
   const visibleTimeline = (timeline ?? []).filter((event) => !isSystemTimelineEvent(event));
 
@@ -219,7 +219,7 @@ export function StockSideRail({
     <aside className="w-full lg:max-w-[340px]">
       <div className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto flex flex-col gap-4">
       {/* Identity card */}
-      <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-5">
+      <div className="rounded-[20px] border border-outline-variant bg-surface p-5 flex flex-col gap-5">
         <div className="flex items-start gap-3">
           <StockLogo
             ticker={stock.ticker}
@@ -228,14 +228,14 @@ export function StockSideRail({
             size={48}
           />
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-[15px] font-semibold text-[#111111] tracking-[-0.01em] leading-snug line-clamp-2">
+            <span className="text-[15px] font-semibold text-on-surface tracking-[-0.01em] leading-snug line-clamp-2">
               {stock.name}
             </span>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-[#6b7280] mt-0.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-on-surface-variant mt-0.5">
               <span>{stock.ticker}</span>
               {stock.exchange && (
                 <>
-                  <span className="text-[#d1d5db]">·</span>
+                  <span className="text-on-surface-variant">·</span>
                   <span>{stock.exchange}</span>
                 </>
               )}
@@ -254,7 +254,7 @@ export function StockSideRail({
         {/* Price */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-[28px] font-semibold text-[#111111] tabular-nums tracking-[-0.02em] leading-none">
+            <span className="text-[28px] font-semibold text-on-surface tabular-nums tracking-[-0.02em] leading-none">
               {fmtPrice(stock.price, currencySymbol)}
             </span>
             <span
@@ -268,7 +268,7 @@ export function StockSideRail({
               {fmtAbs(abs, currencySymbol)} today
             </span>
           )}
-          <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#9ca3af]" title={absoluteTime(priceUpdatedAt) || "Not available"}>
+          <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-on-surface-variant" title={absoluteTime(priceUpdatedAt) || "Not available"}>
             Updated {relativeTime(priceUpdatedAt) || "-"}
           </span>
         </div>
@@ -286,9 +286,9 @@ export function StockSideRail({
 
       {/* Scorecard mini - hidden on mobile (available in Fundamentals tab) */}
       {intelPro && isSignedIn && (
-        <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-4">
+        <div className="hidden lg:flex rounded-[20px] border border-outline-variant bg-surface p-5 flex-col gap-4">
           <div className="flex items-baseline justify-between">
-            <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h3 className="text-[14px] font-semibold text-on-surface tracking-[-0.01em]">
               Scorecard
             </h3>
             {typeof intelPro.overall?.score === "number" && (
@@ -298,7 +298,7 @@ export function StockSideRail({
                 >
                   {Math.round(intelPro.overall.score)}
                 </span>
-                <span className="text-[11px] text-[#6b7280]">/ 100</span>
+                <span className="text-[11px] text-on-surface-variant">/ 100</span>
               </span>
             )}
           </div>
@@ -312,7 +312,7 @@ export function StockSideRail({
                   key={p.key}
                   className="grid grid-cols-[1fr_2.5rem_4.5rem] items-center gap-3"
                 >
-                  <span className="text-[13px] font-medium text-[#111111] truncate">
+                  <span className="text-[13px] font-medium text-on-surface truncate">
                     {p.label}
                   </span>
                   <span
@@ -331,7 +331,7 @@ export function StockSideRail({
             })}
           </div>
           {intelPro.overall?.verdict && (
-            <p className="text-[12px] text-[#6b7280] leading-snug pt-1 border-t border-[#f3f4f6]">
+            <p className="text-[12px] text-on-surface-variant leading-snug pt-1 border-t border-outline-variant">
               {intelPro.overall.verdict}
             </p>
           )}
@@ -351,12 +351,12 @@ export function StockSideRail({
 
       {/* Latest news - hidden on mobile */}
       {timeline && (
-        <div className="hidden lg:flex rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex-col gap-3">
-          <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+        <div className="hidden lg:flex rounded-[20px] border border-outline-variant bg-surface p-5 flex-col gap-3">
+          <h3 className="text-[14px] font-semibold text-on-surface tracking-[-0.01em]">
             Latest news
           </h3>
           {visibleTimeline.length === 0 ? (
-            <p className="text-[12px] text-[#6b7280]">No recent news yet.</p>
+            <p className="text-[12px] text-on-surface-variant">No recent news yet.</p>
           ) : (
             <div className="flex flex-col">
               {visibleTimeline.slice(0, 5).map((event, i) => {
@@ -374,7 +374,7 @@ export function StockSideRail({
                 <Wrapper
                   key={event.event_id ?? i}
                   {...(linkProps as Record<string, string>)}
-                  className="flex gap-2.5 py-3 border-t border-[#f3f4f6] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-[#f8f9fa] transition-colors"
+                  className="flex gap-2.5 py-3 border-t border-outline-variant first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-surface-container-low transition-colors"
                 >
                   <span
                     className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0"
@@ -382,7 +382,7 @@ export function StockSideRail({
                     aria-hidden
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-[#111111] leading-snug line-clamp-2">
+                    <p className="text-[12px] font-semibold text-on-surface leading-snug line-clamp-2">
                       {event.title ?? "Untitled"}
                     </p>
                     <div className="mt-1 flex items-center gap-1.5 text-[10px]">
@@ -393,8 +393,8 @@ export function StockSideRail({
                       )}
                       {event.timestamp && (
                         <>
-                          <span className="text-[#d1d5db]">·</span>
-                          <span className="text-[#6b7280]">
+                          <span className="text-on-surface-variant">·</span>
+                          <span className="text-on-surface-variant">
                             {relativeTime(event.timestamp)}
                           </span>
                         </>

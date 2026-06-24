@@ -9,7 +9,6 @@ import {
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
-import { proCtaClassName } from "@/components/pro-cta";
 import { TrackButton } from "@/components/track-button";
 
 type Props = {
@@ -46,14 +45,14 @@ const PRO_BRIEF_BENEFITS: { icon: string; label: string; text: string }[] = [
 
 function ProBriefBenefits() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[#f3f4f6] pt-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-outline-variant pt-3">
       {PRO_BRIEF_BENEFITS.map((benefit) => (
-        <div key={benefit.label} className="flex gap-2 rounded-xl bg-[#f8f9fa] px-3 py-2">
+        <div key={benefit.label} className="flex gap-2 rounded-xl bg-surface-container-low px-3 py-2">
           <span className="shrink-0 text-[13px]" aria-hidden>
             {benefit.icon}
           </span>
-          <p className="text-[12px] leading-snug text-[#6b7280]">
-            <span className="font-semibold text-[#111111]">{benefit.label}</span>{" "}
+          <p className="text-[12px] leading-snug text-on-surface-variant">
+            <span className="font-semibold text-on-surface">{benefit.label}</span>{" "}
             {benefit.text}
           </p>
         </div>
@@ -134,32 +133,31 @@ export function LockedAiBrief({
       };
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       <div
         aria-hidden
-        className="pointer-events-none select-none flex flex-col gap-8"
-        style={{ filter: "blur(6px)", opacity: 0.55 }}
+        className="pointer-events-none flex max-h-[260px] select-none flex-col gap-8 overflow-hidden"
+        style={{ filter: "blur(6px)", opacity: 0.5 }}
       >
         <MockDirective ticker={ticker} />
         <MockNewsSignal />
-        <MockCatalystsRow />
-        <MockSentiment />
       </div>
 
-      <div className="absolute inset-0 flex items-start justify-center pt-16 md:pt-24">
-        <div className="w-full max-w-[480px] rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_8px_32px_rgba(17,17,17,0.08)] p-6 flex flex-col gap-4">
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
-            <span aria-hidden>🔒</span> Pro · AI tab
+      <div className="relative z-10 -mt-32 flex justify-center px-4 pb-4 sm:-mt-36">
+        <div className="panel w-full max-w-[480px] p-6 flex flex-col gap-4" style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.18), inset 0 0 0 1px color-mix(in srgb, var(--signal-bullish) 18%, transparent)" }}>
+          <span className="inline-flex items-center gap-1.5 self-start font-mono text-[11px] font-semibold tracking-[0.14em] uppercase" style={{ color: "var(--signal-bullish)" }}>
+            🔒 The Call · Pro
           </span>
-          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+          <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
             {cta.title}
           </h3>
-          <p className="text-[13px] text-[#6b7280] leading-relaxed">{cta.body}</p>
+          <p className="text-[13px] text-on-surface-variant leading-relaxed">{cta.body}</p>
           <ProBriefBenefits />
           <button
             type="button"
             onClick={() => cta.onClick()}
-            className={proCtaClassName({ size: "sm", className: "h-[40px]", fullWidth: true })}
+            className="h-[42px] w-full rounded-md font-mono text-[13px] font-bold transition-opacity hover:opacity-90"
+            style={{ background: "var(--signal-bullish)", color: "var(--background)" }}
           >
             {cta.label}
           </button>
@@ -189,14 +187,14 @@ function ProBriefPreparingState({
 }) {
   if (!isTracked) {
     return (
-      <section className="overflow-hidden rounded-3xl border border-[#e5e7eb] bg-white p-5 md:p-6 flex flex-col gap-4">
-        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#eff6ff] px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
+      <section className="overflow-hidden rounded-3xl bg-surface p-5 md:p-6 flex flex-col gap-4">
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full tint-info px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
           <span aria-hidden>✨</span> Pro · AI tab
         </span>
-        <h3 className="text-[20px] font-semibold text-[#111111] tracking-[-0.02em]">
+        <h3 className="text-[20px] font-semibold text-on-surface tracking-[-0.02em]">
           Start AI coverage for {ticker}
         </h3>
-        <p className="text-[13px] text-[#6b7280] leading-relaxed max-w-[640px]">
+        <p className="text-[13px] text-on-surface-variant leading-relaxed max-w-[640px]">
           Add this stock to Radar and our AI agent will start researching it immediately.
           Your first brief appears here as soon as synthesis is ready.
         </p>
@@ -330,28 +328,28 @@ function BriefPreparingPanel({
     { shell: string; badge: string; body: string; footnote: string }
   > = {
     paused: {
-      shell: "border border-[#bfdbfe] bg-[#eff6ff]",
-      badge: "text-[#1d4ed8]",
-      body: "text-[#1e3a8a]",
-      footnote: "text-[#64748b]",
+      shell: "tint-info",
+      badge: "text-[#3b82f6]",
+      body: "text-[#3b82f6]",
+      footnote: "text-on-surface-variant",
     },
     working: {
-      shell: "border border-[#fed7aa] bg-[#fff7ed]",
-      badge: "text-[#c2410c]",
-      body: "text-[#7c2d12]",
-      footnote: "text-[#9a3412]/80",
+      shell: "tint-warn",
+      badge: "text-[#f59e0b]",
+      body: "text-[#f59e0b]",
+      footnote: "text-[#f59e0b]/80",
     },
     ready: {
-      shell: "border border-[#bbf7d0] bg-[#f0fdf4]",
-      badge: "text-[#047857]",
-      body: "text-[#065f46]",
-      footnote: "text-[#047857]/80",
+      shell: "tint-bull",
+      badge: "text-[#10b981]",
+      body: "text-[#10b981]",
+      footnote: "text-[#10b981]/80",
     },
     failed: {
-      shell: "border border-[#fecaca] bg-[#fef2f2]",
-      badge: "text-[#b91c1c]",
-      body: "text-[#991b1b]",
-      footnote: "text-[#b45309]",
+      shell: "tint-bear",
+      badge: "text-[#ef4444]",
+      body: "text-[#ef4444]",
+      footnote: "text-[#f59e0b]",
     },
   };
   const palette = styles[tone];
@@ -360,11 +358,11 @@ function BriefPreparingPanel({
     <section className={`overflow-hidden rounded-3xl p-5 md:p-6 flex flex-col gap-5 ${palette.shell}`}>
       <div className="flex flex-col gap-2 max-w-[680px]">
         <span
-          className={`inline-flex w-fit items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${palette.badge}`}
+          className={`inline-flex w-fit items-center rounded-full bg-surface px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${palette.badge}`}
         >
           {badge}
         </span>
-        <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">{title}</h3>
+        <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface">{title}</h3>
         <p className={`text-[13px] leading-relaxed ${palette.body}`}>{body}</p>
       </div>
 
@@ -381,40 +379,40 @@ function BriefPreparingPanel({
 
 function BriefStatusStep({ done, label }: { done: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5">
+    <div className="flex items-center gap-2 rounded-2xl bg-surface px-3 py-2.5">
       <span
         className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${
-          done ? "bg-[#10b981] text-white" : "bg-[#f3f4f6] text-[#9ca3af]"
+          done ? "bg-[#10b981] text-white" : "bg-surface-container text-on-surface-variant"
         }`}
         aria-hidden
       >
         {done ? "✓" : "•"}
       </span>
-      <span className="text-[12px] font-semibold text-[#374151]">{label}</span>
+      <span className="text-[12px] font-semibold text-on-surface">{label}</span>
     </div>
   );
 }
 
 function MockDirective({ ticker }: { ticker: string }) {
   return (
-    <section className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-3">
+    <section className="rounded-2xl bg-surface p-5 flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff] text-[16px]">
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg tint-info text-[16px]">
           🎯
         </span>
         <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-[#0052ff]">
           Strategic directive
         </span>
       </div>
-      <p className="text-[15px] font-semibold text-[#111111] leading-snug">
+      <p className="text-[15px] font-semibold text-on-surface leading-snug">
         Accumulate {ticker} into the next earnings print - recent guide-up has
         not yet been priced into the multiple.
       </p>
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-[#ecfdf5] px-2.5 py-1 text-[11px] font-semibold text-[#065f46]">
+        <span className="rounded-full tint-bull px-2.5 py-1 text-[11px] font-semibold text-[#10b981]">
           Accumulate
         </span>
-        <span className="text-[12px] text-[#6b7280]">High confidence</span>
+        <span className="text-[12px] text-on-surface-variant">High confidence</span>
       </div>
     </section>
   );
@@ -428,20 +426,20 @@ function MockNewsSignal() {
   ];
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-[16px] font-semibold text-[#111111]">News signal</h3>
+      <h3 className="text-[16px] font-semibold text-on-surface">News signal</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {tiles.map((t) => (
           <div
             key={t.title}
-            className="rounded-2xl border border-[#e5e7eb] bg-white p-4 flex flex-col gap-2"
+            className="rounded-2xl bg-surface p-4 flex flex-col gap-2"
           >
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#f3f4f6] text-[16px]">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container text-[16px]">
               {t.emoji}
             </span>
-            <span className="text-[12px] font-semibold tracking-[0.04em] uppercase text-[#6b7280]">
+            <span className="text-[12px] font-semibold tracking-[0.04em] uppercase text-on-surface-variant">
               {t.title}
             </span>
-            <p className="text-[13px] text-[#111111] leading-snug">{t.body}</p>
+            <p className="text-[13px] text-on-surface leading-snug">{t.body}</p>
           </div>
         ))}
       </div>
@@ -481,7 +479,7 @@ function MockCatalystsRow() {
   ];
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-[16px] font-semibold text-[#111111]">
+      <h3 className="text-[16px] font-semibold text-on-surface">
         Catalysts · Drivers · Risks
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -500,12 +498,12 @@ function MockCatalystsRow() {
               {s.cards.map((c) => (
                 <div
                   key={c.title}
-                  className="rounded-xl border border-[#e5e7eb] bg-white p-3"
+                  className="rounded-xl bg-surface p-3"
                 >
-                  <p className="text-[13px] font-semibold text-[#111111]">
+                  <p className="text-[13px] font-semibold text-on-surface">
                     {c.title}
                   </p>
-                  <p className="text-[12px] text-[#6b7280] mt-0.5">{c.detail}</p>
+                  <p className="text-[12px] text-on-surface-variant mt-0.5">{c.detail}</p>
                 </div>
               ))}
             </div>
@@ -524,20 +522,20 @@ function MockSentiment() {
   ];
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-[16px] font-semibold text-[#111111]">Sentiment lanes</h3>
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-3">
+      <h3 className="text-[16px] font-semibold text-on-surface">Sentiment lanes</h3>
+      <div className="rounded-2xl bg-surface p-5 flex flex-col gap-3">
         {lanes.map((l) => (
           <div key={l.label} className="flex items-center gap-4">
-            <span className="text-[12px] font-medium text-[#6b7280] w-44 shrink-0">
+            <span className="text-[12px] font-medium text-on-surface-variant w-44 shrink-0">
               {l.label}
             </span>
-            <div className="flex-1 h-1.5 rounded-full bg-[#f3f4f6] overflow-hidden">
+            <div className="flex-1 h-1.5 rounded-full bg-surface-container overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#10b981]"
                 style={{ width: `${l.pct}%` }}
               />
             </div>
-            <span className="text-[12px] font-semibold text-[#111111] tabular-nums w-10 text-right">
+            <span className="text-[12px] font-semibold text-on-surface tabular-nums w-10 text-right">
               {l.pct}%
             </span>
           </div>

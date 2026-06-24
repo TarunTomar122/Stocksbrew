@@ -7,12 +7,14 @@ type Props = {
   instrumentId?: string;
 };
 
-const STANCE_META: Record<string, { label: string; bg: string; fg: string; chipBg: string; chipFg: string }> = {
-  accumulate: { label: "Accumulate", bg: "#ecfdf5", fg: "#065f46", chipBg: "#10b981", chipFg: "#ffffff" },
-  trim:       { label: "Trim",       bg: "#fef3c7", fg: "#92400e", chipBg: "#f59e0b", chipFg: "#ffffff" },
-  watch:      { label: "Watch",      bg: "#eff6ff", fg: "#1e3a8a", chipBg: "#0052ff", chipFg: "#ffffff" },
-  avoid:      { label: "Avoid",      bg: "#fef2f2", fg: "#991b1b", chipBg: "#ef4444", chipFg: "#ffffff" },
-  hold:       { label: "Hold",       bg: "#f3f4f6", fg: "#374151", chipBg: "#374151", chipFg: "#ffffff" },
+// Each stance maps to one accent hue. The card tint and text derive from it via
+// color-mix over themed surface tokens, so it adapts to light and dark.
+const STANCE_META: Record<string, { label: string; accent: string }> = {
+  accumulate: { label: "Accumulate", accent: "#10b981" },
+  trim:       { label: "Trim",       accent: "#f59e0b" },
+  watch:      { label: "Watch",      accent: "#3b82f6" },
+  avoid:      { label: "Avoid",      accent: "#ef4444" },
+  hold:       { label: "Hold",       accent: "#64748b" },
 };
 
 function StrategicDirectiveCard({ ticker, directive, instrumentId }: { ticker: string; directive: Directive; instrumentId?: string }) {
@@ -29,55 +31,81 @@ function StrategicDirectiveCard({ ticker, directive, instrumentId }: { ticker: s
   const alertCondition = directive.trigger_type === "price_below" ? "below" : "above";
   const alertPrice = showAlert ? Number(directive.trigger_value) : 0;
 
+  const TRIGGER_LABEL: Record<string, string> = {
+    price_below: "trigger · add below",
+    price_above: "trigger · trim above",
+    date: "trigger · watch date",
+    sentiment_flip: "trigger · sentiment flips",
+    new_catalyst: "trigger · new catalyst",
+  };
+  const triggerLabel = directive.trigger_type ? TRIGGER_LABEL[directive.trigger_type] : undefined;
+  const triggerValue = typeof directive.trigger_value === "string" ? directive.trigger_value.trim() : "";
+  const showTriggerChip = Boolean(triggerLabel && triggerValue);
+
   return (
     <section
-      className="relative overflow-hidden rounded-[20px] border border-[#e5e7eb] px-7 py-7"
-      style={{ background: meta.bg, color: meta.fg }}
+      className="panel relative overflow-hidden px-6 py-6 md:px-7 md:py-7"
+      style={{ background: `color-mix(in srgb, ${meta.accent} 8%, var(--surface-container-low))` }}
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute right-6 top-1/2 -translate-y-1/2 select-none font-semibold tracking-[-0.04em] text-[120px] leading-none opacity-[0.06]"
+        className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 select-none font-mono font-bold tracking-[-0.04em] text-[120px] leading-none opacity-[0.05]"
+        style={{ color: meta.accent }}
       >
         {ticker}
       </span>
 
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex flex-col gap-3 max-w-[580px] min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="inline-flex items-center rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.12em] uppercase"
-              style={{ background: meta.chipBg, color: meta.chipFg }}
-            >
-              {meta.label}
-            </span>
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase opacity-75">
-              Strategic directive
-            </span>
+      <div className="relative z-10 flex flex-col gap-4">
+        {/* Kicker: THE CALL · PRO ........ conviction · alert */}
+        <div className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase">
+          <span style={{ color: meta.accent }}>The call</span>
+          <span
+            className="rounded px-1.5 py-0.5 text-[10px] text-amber"
+            style={{ background: "color-mix(in srgb, var(--secondary-container) 22%, transparent)" }}
+          >
+            Pro
+          </span>
+          <span className="ml-auto flex items-center gap-3 text-on-surface-variant">
             {directive.confidence && (
-              <span className="text-[10px] font-semibold tracking-[0.12em] uppercase opacity-60">
-                · {directive.confidence}
+              <span>
+                conviction: <span style={{ color: meta.accent }}>{directive.confidence}</span>
               </span>
             )}
-          </div>
-          <h2 className="text-[24px] md:text-[28px] font-semibold tracking-[-0.02em] leading-[1.2]">
-            {directive.text}
-          </h2>
-          {directive.rationale && (
-            <p className="text-[14px] leading-[1.55] opacity-85">
-              {directive.rationale}
-            </p>
-          )}
+            {showAlert && (
+              <AlertButton
+                ticker={ticker}
+                instrumentId={instrumentId!}
+                condition={alertCondition}
+                targetPrice={alertPrice}
+                directiveText={directive.text}
+              />
+            )}
+          </span>
         </div>
 
-        {showAlert && (
-          <div className="shrink-0 pt-1">
-            <AlertButton
-              ticker={ticker}
-              instrumentId={instrumentId!}
-              condition={alertCondition}
-              targetPrice={alertPrice}
-              directiveText={directive.text}
-            />
+        {/* Stance word + the action line */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span
+            className="font-mono text-[26px] md:text-[30px] font-bold tracking-tight leading-none"
+            style={{ color: meta.accent }}
+          >
+            {meta.label.toUpperCase()}
+          </span>
+          <span className="text-[14px] md:text-[15px] text-on-surface-variant">{directive.text}</span>
+        </div>
+
+        {directive.rationale && (
+          <p className="max-w-[680px] text-[14px] leading-[1.6] text-on-surface-variant">
+            {directive.rationale}
+          </p>
+        )}
+
+        {showTriggerChip && (
+          <div className="pt-1">
+            <div className="inset inline-flex flex-col px-3 py-2.5 font-mono text-[11px]">
+              <span className="tracking-[0.1em] uppercase text-on-surface-variant">{triggerLabel}</span>
+              <span className="mt-0.5 text-on-surface">{triggerValue}</span>
+            </div>
           </div>
         )}
       </div>

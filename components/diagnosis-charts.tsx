@@ -24,10 +24,10 @@ type FactorScores = {
 };
 
 function scoreColor(s: number | null): string {
-  if (s === null) return "#9ca3af";
+  if (s === null) return "var(--on-surface-variant)";
   if (s >= 80) return "#10b981";
-  if (s >= 60) return "#111111";
-  if (s >= 40) return "#6b7280";
+  if (s >= 60) return "var(--on-surface)";
+  if (s >= 40) return "var(--on-surface-variant)";
   return "#ef4444";
 }
 
@@ -36,8 +36,8 @@ export function DiagnosisSectorChart({ sectors }: { sectors: SectorSlice[] }) {
   const data = sectors.map((s) => ({ name: s.sector, value: s.weight_pct }));
 
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <h3 className="text-[13px] font-semibold text-[#111111] mb-4">Sector allocation</h3>
+    <div className="rounded-2xl border border-outline-variant bg-surface p-5">
+      <h3 className="text-[13px] font-semibold text-on-surface mb-4">Sector allocation</h3>
       <div className="flex flex-col items-center gap-5">
         <div className="w-44 h-44 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -62,9 +62,9 @@ export function DiagnosisSectorChart({ sectors }: { sectors: SectorSlice[] }) {
           {sectors.map((s, i) => (
             <div key={s.sector} className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
-              <span className="flex-1 text-[12px] font-medium text-[#374151] truncate">{s.sector}</span>
+              <span className="flex-1 text-[12px] font-medium text-on-surface truncate">{s.sector}</span>
               <div className="flex items-center gap-2">
-                <div className="w-16 h-1.5 rounded-full bg-[#f3f4f6] overflow-hidden">
+                <div className="w-16 h-1.5 rounded-full bg-surface-container overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -73,10 +73,10 @@ export function DiagnosisSectorChart({ sectors }: { sectors: SectorSlice[] }) {
                     }}
                   />
                 </div>
-                <span className="text-[12px] font-semibold text-[#111111] tabular-nums w-10 text-right">
+                <span className="text-[12px] font-semibold text-on-surface tabular-nums w-10 text-right">
                   {s.weight_pct.toFixed(1)}%
                 </span>
-                <span className="text-[11px] text-[#9ca3af] tabular-nums w-6">
+                <span className="text-[11px] text-on-surface-variant tabular-nums w-6">
                   ({s.count})
                 </span>
               </div>
@@ -98,15 +98,15 @@ export function DiagnosisFactorRadar({ factors }: { factors: FactorScores }) {
   if (!data.some((d) => d.score > 0)) return null;
 
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <h3 className="text-[13px] font-semibold text-[#111111]">Factor tilt</h3>
-      <p className="text-[11px] text-[#9ca3af] mt-0.5 mb-3">Average across 4 pillars · 0–100</p>
+    <div className="rounded-2xl border border-outline-variant bg-surface p-5">
+      <h3 className="text-[13px] font-semibold text-on-surface">Factor tilt</h3>
+      <p className="text-[11px] text-on-surface-variant mt-0.5 mb-3">Average across 4 pillars · 0–100</p>
       <div className="w-full h-52">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
-            <PolarGrid stroke="#e5e7eb" />
-            <PolarAngleAxis dataKey="factor" tick={{ fontSize: 11, fill: "#6b7280" }} />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: "#9ca3af" }} />
+            <PolarGrid stroke="var(--surface-container-high)" />
+            <PolarAngleAxis dataKey="factor" tick={{ fontSize: 11, fill: "var(--on-surface-variant)" }} />
+            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: "var(--on-surface-variant)" }} />
             <Radar dataKey="score" stroke="#0052ff" fill="#0052ff" fillOpacity={0.1} strokeWidth={2} />
           </RadarChart>
         </ResponsiveContainer>

@@ -55,10 +55,10 @@ export function AuthButton() {
         type="button"
         onClick={handleSignIn}
         disabled={busy}
-        className="inline-flex items-center gap-2 bg-primary px-4 py-2 text-sm font-bold tracking-tight text-on-primary transition-colors hover:bg-primary-container disabled:opacity-60 rounded-full"
+        className="inline-flex items-center gap-1.5 rounded-md border border-outline-variant px-3.5 py-2 font-mono text-[13px] font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-60"
       >
-        <span className="material-symbols-outlined text-base">login</span>
-        {busy ? "Signing in…" : "Sign in"}
+        <span className="material-symbols-outlined text-[16px]">login</span>
+        {busy ? "signing in…" : "sign in"}
       </button>
     );
   }

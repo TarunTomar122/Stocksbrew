@@ -516,6 +516,40 @@ export async function getStockIntelPro(
   return doc.exists ? (doc.data() as StockIntelPro) : null;
 }
 
+export type SectorPeerPick = { instrument_id: string; ticker: string; score: number; verdict: string };
+
+/** Same-sector stocks that score higher on the fundamentals composite. */
+export async function getBetterSectorPeers(
+  instrumentId: string,
+  market: "US" | "IN",
+  sectorSlug: string,
+  minScore: number,
+  limit = 4,
+): Promise<SectorPeerPick[]> {
+  if (!sectorSlug || !Number.isFinite(minScore)) return [];
+  const [aiUniverse, priceUniverse] = await Promise.all([getAiUniverse(market), getPriceUniverse(market)]);
+  const universe = priceUniverse || aiUniverse;
+  if (!universe) return [];
+  try {
+    const snap = await adminFirestore
+      .collection("tm_stock_intel_pro")
+      .doc(`${market}__${universe}`)
+      .collection("stocks")
+      .where("sector_slug", "==", sectorSlug)
+      .where("overall.score", ">", minScore)
+      .orderBy("overall.score", "desc")
+      .limit(limit + 2)
+      .get();
+    return snap.docs
+      .map((d) => d.data() as StockIntelPro)
+      .filter((s) => s.instrument_id !== instrumentId && s.overall?.score != null)
+      .slice(0, limit)
+      .map((s) => ({ instrument_id: s.instrument_id, ticker: s.ticker, score: s.overall.score, verdict: s.overall.verdict }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getOnDemandNewsJob(
   instrumentId: string,
 ): Promise<OnDemandNewsJobDoc | null> {

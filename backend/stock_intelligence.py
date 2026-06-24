@@ -1095,7 +1095,16 @@ def _stock_market_regime(
         str(instrument.get("sector") or "").strip(),
         str((fundamentals or {}).get("sector") or "").strip(),
     ]
-    sector_slug_candidates = {_slugify(value) for value in sector_candidates if value}
+    seen_sector_slugs: set[str] = set()
+    sector_slug_candidates: list[str] = []
+    for value in sector_candidates:
+        if not value:
+            continue
+        slug = _slugify(value)
+        if slug in seen_sector_slugs:
+            continue
+        seen_sector_slugs.add(slug)
+        sector_slug_candidates.append(slug)
     for slug in sector_slug_candidates:
         regime = sector_regimes.get(slug) or {}
         if not regime:
@@ -1572,14 +1581,24 @@ def _parse_window_date_iso(raw_window: str) -> str | None:
     if iso_match:
         return iso_match.group(1)
     month_day = re.search(
-        r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\s\-]+(\d{1,2})\b",
+        r"\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:T(?:EMBER)?)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)[\s\-]+(\d{1,2})\b",
         text.upper(),
     )
     if not month_day:
         return None
     month_map = {
-        "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
-        "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+        "JAN": 1, "JANUARY": 1,
+        "FEB": 2, "FEBRUARY": 2,
+        "MAR": 3, "MARCH": 3,
+        "APR": 4, "APRIL": 4,
+        "MAY": 5,
+        "JUN": 6, "JUNE": 6,
+        "JUL": 7, "JULY": 7,
+        "AUG": 8, "AUGUST": 8,
+        "SEP": 9, "SEPT": 9, "SEPTEMBER": 9,
+        "OCT": 10, "OCTOBER": 10,
+        "NOV": 11, "NOVEMBER": 11,
+        "DEC": 12, "DECEMBER": 12,
     }
     try:
         month = month_map[month_day.group(1)]
@@ -1692,6 +1711,22 @@ def _normalize_catalyst_cards(
         normalized.append(card)
 
     return _drop_stale_catalysts(normalized)
+
+
+def _has_invalid_earnings_timing(text: str, earnings: dict[str, Any] | None) -> bool:
+    cleaned = " ".join(str(text or "").split()).strip()
+    if not cleaned:
+        return False
+    lowered = cleaned.lower()
+    if "earnings" not in lowered:
+        return False
+    upcoming_earnings_date = _earnings_event_date(earnings)
+    hinted_date = _parse_window_date_iso(cleaned)
+    if upcoming_earnings_date:
+        return bool(hinted_date and hinted_date != upcoming_earnings_date)
+    if hinted_date:
+        return True
+    return "upcoming earnings" in lowered or "earnings report" in lowered
 
 
 def _score_from_sentiment(value: float) -> int:
@@ -2883,7 +2918,7 @@ def build_stock_intelligence_docs(
                 "expected_impact": 1 if label in ("bullish", "constructive") else -1 if label in ("bearish", "cautious") else 0,
                 "priced_in": "med",
             }]
-        catalyst_cards = _drop_stale_catalysts(catalyst_cards)
+        catalyst_cards = _normalize_catalyst_cards(catalyst_cards, earnings=earnings_ctx)
 
         # If the plain catalyst string is a generic fallback but we have a
         # real structured catalyst card, surface the card's event instead so
@@ -2901,7 +2936,18 @@ def build_stock_intelligence_docs(
                 "probability": 3,
             }]
 
-            catalyst_cards = _normalize_catalyst_cards(catalyst_cards, earnings=earnings_ctx)
+        if _has_invalid_earnings_timing(catalyst, earnings_ctx):
+            catalyst = str(catalyst_cards[0].get("event", "")).strip() if catalyst_cards else ""
+        if _has_invalid_earnings_timing(headline, earnings_ctx):
+            headline = _build_headline(instrument, label, top_fact, top_title)
+        if _has_invalid_earnings_timing(body, earnings_ctx):
+            body = _build_body(
+                instrument, source_count, len(matched_articles),
+                top_title, top_fact, second_fact,
+                label=label, catalyst=catalyst, risk=risk,
+            )
+        if thesis and _has_invalid_earnings_timing(thesis, earnings_ctx):
+            thesis = headline
 
         # Keep key points non-repetitive versus thesis/headline/body.
         dedupe_base = " ".join([thesis, headline, body]).lower()

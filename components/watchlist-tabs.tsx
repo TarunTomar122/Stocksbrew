@@ -97,22 +97,22 @@ function StockRow({ row }: { row: WatchlistRow }) {
     <li>
       <Link
         href={`/stock/${encodeURIComponent(row.ticker)}`}
-        className="flex w-full items-center gap-3 px-4 py-3.5 transition-colors active:bg-[#f5f5f5] sm:hover:bg-[#f5f5f5]"
+        className="flex w-full items-center gap-3 px-4 py-3.5 transition-colors active:bg-surface-container sm:hover:bg-surface-container"
       >
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-[15px] font-semibold text-[#111111]">{row.ticker}</span>
+            <span className="text-[15px] font-semibold text-on-surface">{row.ticker}</span>
           </div>
           {hasChips && (
             <div className="mt-1 flex flex-wrap gap-1">
               {velocityHint && (
-                <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#0052ff]">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#22d3ee]">
                   {velocityHint}
                 </span>
               )}
               {rsi && (
-                <span className={`text-[10px] font-semibold uppercase tracking-[0.06em] ${rsi.tone === "overbought" ? "text-[#b91c1c]" : "text-[#047857]"}`}>
+                <span className={`text-[10px] font-semibold uppercase tracking-[0.06em] ${rsi.tone === "overbought" ? "text-[#ef4444]" : "text-[#10b981]"}`}>
                   {rsi.label}
                 </span>
               )}
@@ -123,7 +123,7 @@ function StockRow({ row }: { row: WatchlistRow }) {
                 return (
                   <span
                     key={i}
-                    className={`text-[10px] font-semibold uppercase tracking-[0.06em] ${urgency === "high" ? "text-[#b91c1c]" : "text-[#b45309]"}`}
+                    className={`text-[10px] font-semibold uppercase tracking-[0.06em] ${urgency === "high" ? "text-[#ef4444]" : "text-[#f59e0b]"}`}
                   >
                     {label.length > 38 ? `${label.slice(0, 36)}…` : label}
                   </span>
@@ -133,7 +133,7 @@ function StockRow({ row }: { row: WatchlistRow }) {
           )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+          <span className="text-[14px] font-semibold tabular-nums text-on-surface">
             {formatCurrency(row.price, row.currency)}
           </span>
           <span className={`text-[12px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
@@ -159,18 +159,18 @@ function SuggestionRow({ item }: { item: Dict }) {
     <li>
       <Link
         href={`/stock/${encodeURIComponent(ticker)}`}
-        className="flex w-full items-center gap-3 px-4 py-3.5 transition-colors active:bg-[#f5f5f5] sm:hover:bg-[#f5f5f5]"
+        className="flex w-full items-center gap-3 px-4 py-3.5 transition-colors active:bg-surface-container sm:hover:bg-surface-container"
       >
         <StockLogo ticker={ticker} market={market} size={36} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-[15px] font-semibold text-[#111111]">{ticker}</span>
-            {sector && <span className="text-[12px] text-[#9ca3af]">{sector}</span>}
+            <span className="text-[15px] font-semibold text-on-surface">{ticker}</span>
+            {sector && <span className="text-[12px] text-on-surface-variant">{sector}</span>}
           </div>
-          <p className="mt-0.5 text-[12px] leading-snug text-[#6b7280]">{reason}</p>
+          <p className="mt-0.5 text-[12px] leading-snug text-on-surface-variant">{reason}</p>
         </div>
         <span
-          className="material-symbols-outlined shrink-0 text-[#d1d5db]"
+          className="material-symbols-outlined shrink-0 text-on-surface-variant"
           style={{ fontSize: 18 }}
         >
           chevron_right
@@ -181,7 +181,7 @@ function SuggestionRow({ item }: { item: Dict }) {
 }
 
 function EmptyList({ message }: { message: string }) {
-  return <p className="px-4 py-10 text-[14px] text-[#9ca3af]">{message}</p>;
+  return <p className="px-4 py-10 text-[14px] text-on-surface-variant">{message}</p>;
 }
 
 function DailySummary({ rows, label }: { rows: WatchlistRow[]; label: string }) {
@@ -189,8 +189,8 @@ function DailySummary({ rows, label }: { rows: WatchlistRow[]; label: string }) 
   if (avgPct === null) return null;
   const positive = avgPct >= 0;
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#fafafa] border-b border-[#f3f4f6]">
-      <span className="text-[12px] text-[#9ca3af] font-medium">{label} · today</span>
+    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-surface-container-low border-b border-outline-variant">
+      <span className="text-[12px] text-on-surface-variant font-medium">{label} · today</span>
       <div className="flex items-center gap-2.5">
         {totalAbs !== null && (
           <span className={`text-[13px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
@@ -217,10 +217,10 @@ function DesktopColumn({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-xl border border-[#e5e7eb] overflow-hidden">
-      <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[#e5e7eb] px-4 py-3">
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">{title}</h2>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af]">{count}</span>
+    <section className="flex flex-col rounded-xl border border-outline-variant overflow-hidden">
+      <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-outline-variant px-4 py-3">
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-on-surface">{title}</h2>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{count}</span>
       </div>
       <div className="overflow-y-auto max-h-[480px] scrollbar-hide">
         <ul className="divide-y divide-[#f3f4f6]">{children}</ul>
@@ -245,26 +245,26 @@ export function WatchlistTabs({ holdings, watching, suggestions }: Props) {
       {/* ── Mobile: tab bar + single list ── */}
       <div className="lg:hidden">
         {/* Tab bar */}
-        <div className="flex border-b border-[#e5e7eb]">
+        <div className="flex border-b border-outline-variant">
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setActive(t.key)}
               className={`flex-1 py-3 text-[13px] font-semibold transition-colors relative ${
-                active === t.key ? "text-[#111111]" : "text-[#9ca3af]"
+                active === t.key ? "text-on-surface" : "text-on-surface-variant"
               }`}
             >
               {t.label}
               {t.count > 0 && (
                 <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                  active === t.key ? "bg-[#111111] text-white" : "bg-[#f3f4f6] text-[#9ca3af]"
+                  active === t.key ? "bg-on-surface text-surface" : "bg-surface-container text-on-surface-variant"
                 }`}>
                   {t.count}
                 </span>
               )}
               {active === t.key && (
-                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-[#111111]" />
+                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-on-surface" />
               )}
             </button>
           ))}

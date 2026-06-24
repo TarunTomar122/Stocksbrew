@@ -40,6 +40,7 @@ def _aliases(instrument: dict[str, Any]) -> list[str]:
         str(instrument.get("quote_symbol") or "").upper(),
         str(instrument.get("quote_symbol_yahoo") or "").upper(),
         str(instrument.get("name") or ""),
+        *(str(alias or "") for alias in (instrument.get("aliases") or [])),
     ]
     out: list[str] = []
     seen: set[str] = set()

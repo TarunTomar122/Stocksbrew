@@ -66,7 +66,7 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
       type="button"
       onClick={handleCreate}
       disabled={busy}
-      className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0052ff] hover:text-[#003dcc] disabled:opacity-50 transition-colors"
+      className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0052ff] hover:text-[#3b82f6] disabled:opacity-50 transition-colors"
     >
       <span className="material-symbols-outlined text-[16px] leading-none flex items-center justify-center" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>notifications</span>
       {busy ? "Setting…" : `Set alert ${label} ${price}`}

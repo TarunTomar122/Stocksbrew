@@ -96,14 +96,14 @@ function TabButton({
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12px] font-semibold transition-colors ${
         active
-          ? "bg-[#111111] text-white"
-          : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+          ? "bg-on-surface text-surface"
+          : "bg-surface-container text-on-surface hover:bg-surface-container-high"
       }`}
     >
       {label}
       <span
         className={`text-[10px] font-semibold tabular-nums ${
-          active ? "text-white/70" : "text-[#9ca3af]"
+          active ? "text-white/70" : "text-on-surface-variant"
         }`}
       >
         {count}

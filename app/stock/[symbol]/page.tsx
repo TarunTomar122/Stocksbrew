@@ -13,14 +13,14 @@ import { SentimentLanes } from "@/components/sentiment-lanes";
 import { StockFactsPanel } from "@/components/stock-facts-panel";
 import { PreEarningsSetupCard } from "@/components/pre-earnings-setup-card";
 import { StockEarningsTab } from "@/components/stock-earnings-tab";
-import { StockPageTabs } from "@/components/stock-page-tabs";
-import { StockScrollRail } from "@/components/stock-scroll-rail";
+import { TrackButton } from "@/components/track-button";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
 import { ProLockCard } from "@/components/pro-lock-overlay";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
-import { StockSideRail } from "@/components/stock-side-rail";
+import { StockLogo } from "@/components/stock-logo";
+import { StockDetail } from "@/components/stock-detail";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
 import { StockViewTracker } from "@/components/stock-view-tracker";
@@ -35,6 +35,7 @@ import {
   getOnDemandNewsJob,
   getStockFacts,
   getStockIntelPro,
+  getBetterSectorPeers,
   getStockIntelligenceDoc,
   getStockPriceHistory,
   getStockSummary,
@@ -47,6 +48,7 @@ import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
 import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
+import { anomalyHeadline, anomalyDetail } from "@/components/daily-anomalies-shared";
 import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
 import { getPreEarningsIntelUpcoming } from "@/lib/pre-earnings-intel";
 import { shouldShowPreEarningsIntel } from "@/lib/pre-earnings-intel-shared";
@@ -204,7 +206,11 @@ export default async function StockPage({ params }: Props) {
   const tier = resolveStockTier(stock.instrument_id, tracked);
   const isLaunchBrief = tier === "ai_launch";
   const isTracked = tracked.includes(stock.instrument_id);
-  const shouldLoadAI = subscribed;
+  // Tiering: factual sections are free to all. The AI layer (The Call, the read,
+  // sentiment) loads for subscribers on any ticker, and for signed-in free users
+  // on launch-list tickers ("free covers the launch list"). Logged-out users get
+  // the factual scaffolding plus a sign-in prompt where the AI would be.
+  const shouldLoadAI = subscribed || (isSignedIn && isLaunchBrief);
 
   // fundamentals come free from getStockSummary (same tm_latest_prices doc) -
   // no extra Firestore read needed.
@@ -250,6 +256,9 @@ export default async function StockPage({ params }: Props) {
   const activePreEarningsIntel = shouldShowPreEarningsIntel(preEarningsIntel, earningsIntel)
     ? preEarningsIntel
     : null;
+  const betterSectorPeers = intelPro?.sector_slug && typeof intelPro.overall?.score === "number"
+    ? await getBetterSectorPeers(stock.instrument_id, market, intelPro.sector_slug, intelPro.overall.score).catch(() => [])
+    : [];
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);
   const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
@@ -315,8 +324,8 @@ export default async function StockPage({ params }: Props) {
       />
 
       {(has52W || hasRsi) && (
-        <section className="flex flex-col gap-6 rounded-3xl border border-[#e5e7eb] bg-white p-6 md:p-7">
-          <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+        <section className="flex flex-col gap-6 panel p-6 md:p-7">
+          <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
             Where it sits today
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
@@ -407,8 +416,8 @@ export default async function StockPage({ params }: Props) {
         <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} />
       ) : null}
       {activePreEarningsIntel && earningsIntel ? (
-        <div className="flex flex-col gap-2 pt-4 border-t-2 border-[#e5e7eb]">
-          <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+        <div className="flex flex-col gap-2 pt-4 border-t-2 border-outline-variant">
+          <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
             After the print
           </p>
         </div>
@@ -416,7 +425,7 @@ export default async function StockPage({ params }: Props) {
       {earningsIntel ? <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} /> : null}
     </div>
   ) : (
-    <section className="flex items-center justify-center overflow-hidden rounded-3xl border border-[#e5e7eb] bg-[#fafafa] p-6 sm:p-8">
+    <section className="flex items-center justify-center overflow-hidden panel p-6 sm:p-8">
       <ProLockCard
         surface="stock_tab"
         ticker={stock.ticker}
@@ -452,7 +461,7 @@ export default async function StockPage({ params }: Props) {
         )}
         {showFullNewsBrief && (
           <>
-            <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+            <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
               Updated {formatRelative(intelligence?.generated_at) || "-"}
             </p>
             <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} instrumentId={stock.instrument_id} />
@@ -477,6 +486,13 @@ export default async function StockPage({ params }: Props) {
     )
   ) : null;
 
+  const dayPct = stock.day_change_pct ?? 0;
+  const dayAbs = stock.day_change_abs ?? 0;
+  const dayPositive = dayPct >= 0;
+  const fmtMoney = (v: number) =>
+    `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const headerMeta = [stock.ticker, stock.exchange, stock.sector].filter(Boolean).join(" · ");
+
   return (
     <main className="flex-grow">
       <StockViewTracker ticker={stock.ticker} instrumentId={stock.instrument_id} market={market} />
@@ -485,34 +501,56 @@ export default async function StockPage({ params }: Props) {
         instrumentId={stock.instrument_id}
         ticker={stock.ticker}
       />
-      <div className="mx-auto w-full max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-6 md:px-10 lg:px-16 md:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start gap-4 sm:gap-6 lg:gap-14">
-          <StockSideRail
-            stock={stock}
-            intelPro={intelPro}
-            currencySymbol={currency}
-            timeline={hasAI ? instrumentView?.timeline : null}
-            tier={tier}
+      <StockDetail
+        stock={stock}
+        market={market}
+        currency={currency}
+        directive={intelligence?.directive}
+        visual={intelligence?.visual_summary}
+        overview={anomaly ? (anomalyDetail(anomaly) ?? undefined) : (intelligence?.today_brief || intelligence?.body)}
+        overviewHeadline={anomaly ? anomalyHeadline(anomaly) : intelligence?.headline}
+        facts={stockFacts}
+        intelPro={intelPro}
+        analyst={analystConsensus}
+        fundamentals={fundamentals}
+        rsi={rsiValue ?? rsi ?? null}
+        rsiState={technicals?.rsi_14?.state}
+        priceHistory={priceHistory}
+        sma50={sma50}
+        sma200={sma200}
+        earnings={earningsIntel}
+        cards={intelligence?.visual_cards}
+        sentiment={instrumentView?.sentiment_breakdown}
+        comparative={intelligence?.comparative_context}
+        timeline={hasAI ? instrumentView?.timeline : null}
+        peers={instrumentView?.related_tickers}
+        betterPeers={betterSectorPeers}
+        sectorLabel={intelPro?.sector_label}
+        reddit={
+          redditTickerContext?.cue
+            ? {
+                sentiment: redditTickerContext.cue.sentiment,
+                summary: redditTickerContext.cue.summary,
+                mention_count: redditTickerContext.post_count ?? redditTickerContext.cue.mention_count,
+                catalysts: redditTickerContext.cue.catalysts,
+              }
+            : null
+        }
+        subscribed={subscribed}
+        isTracked={isTracked}
+        tier={tier}
+        updatedLabel={stock.captured_at ? `updated ${formatRelative(stock.captured_at)}` : undefined}
+        lockedCall={
+          <LockedAiBrief
+            ticker={stock.ticker}
+            instrumentId={stock.instrument_id}
             isSubscribed={subscribed}
-            isSignedIn={isSignedIn}
             isTracked={isTracked}
-            priceUpdatedAt={stock.captured_at}
-            market={market}
-            redditTickerContext={redditTickerContext}
+            onDemandStatus={resolvedOnDemandStatus}
+            onDemandError={onDemandJob?.error}
           />
-          <StockScrollRail>
-            <StockPageTabs
-              overview={overviewContent}
-              analyst={analystContent}
-              fundamentals={fundamentalsContent}
-              earnings={earningsContent}
-              ai={aiContent}
-              showAiTab={!subscribed || Boolean(aiContent)}
-              isSubscribed={subscribed}
-            />
-          </StockScrollRail>
-        </div>
-      </div>
+        }
+      />
     </main>
   );
 }

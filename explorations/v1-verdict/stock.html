@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NVDA — The Verdict · stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { ink: '#0a0a0a', acid: '#c6f432', bone: '#f4f4f0' },
+      fontFamily: { display: ['Archivo','sans-serif'], body: ['Space Grotesk','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+    }},
+  };
+</script>
+<style>
+  body { background:#0a0a0a; color:#f4f4f0; }
+  .display { font-family:'Archivo',sans-serif; font-weight:900; letter-spacing:-0.03em; line-height:0.92; }
+  .border-thick { border:4px solid #0a0a0a; }
+  .border-thick-bone { border:4px solid #f4f4f0; }
+  .stamp { transform: rotate(-7deg); box-shadow: 12px 12px 0 #0a0a0a; }
+  .hover-raise { transition: transform .12s ease, box-shadow .12s ease; }
+  .hover-raise:hover { transform: translate(-3px,-3px); box-shadow: 8px 8px 0 #c6f432; }
+  ::selection { background:#c6f432; color:#0a0a0a; }
+  @keyframes grow { from { width:0; } }
+  .bar-fill { animation: grow 1s ease-out; }
+</style>
+</head>
+<body class="font-body antialiased">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 bg-ink/95 backdrop-blur border-b-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="landing.html" class="display text-2xl tracking-tight">stocks<span class="text-acid">brew</span></a>
+    <div class="hidden md:flex items-center gap-8 font-mono text-sm uppercase tracking-wide">
+      <a href="landing.html#today" class="hover:text-acid">Today</a>
+      <a href="landing.html#how" class="hover:text-acid">How it works</a>
+      <a href="landing.html#pricing" class="hover:text-acid">Pricing</a>
+      <a href="stock.html" class="text-acid">NVDA</a>
+    </div>
+    <a href="landing.html#pricing" class="bg-acid text-ink display text-sm uppercase px-5 py-2.5 border-thick hover-raise">Get the call</a>
+  </div>
+</nav>
+
+<!-- HEADER: PRICE + VERDICT -->
+<header class="border-b-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 py-12 grid lg:grid-cols-12 gap-10 items-center">
+    <div class="lg:col-span-7">
+      <div class="font-mono text-sm uppercase text-bone/50">NASDAQ · Semiconductors</div>
+      <h1 class="display text-6xl md:text-7xl uppercase mt-2">NVDA</h1>
+      <div class="text-bone/70 mt-1 font-mono">NVIDIA Corporation</div>
+      <div class="flex items-end gap-5 mt-6 flex-wrap">
+        <div class="display text-5xl">$135.40</div>
+        <div class="bg-acid text-ink font-mono font-bold px-3 py-1.5 border-thick">+$4.48 · +3.42% today</div>
+      </div>
+      <div class="font-mono text-xs uppercase text-bone/40 mt-3">Mkt cap $3.32T · P/E 48.2 · Vol 312M · Updated 9:41 AM ET</div>
+    </div>
+
+    <!-- GIANT VERDICT STAMP -->
+    <div class="lg:col-span-5 flex justify-center lg:justify-end">
+      <div class="stamp bg-acid text-ink border-[6px] border-ink px-10 py-7 text-center">
+        <div class="font-mono text-xs uppercase font-bold tracking-widest">The verdict</div>
+        <div class="display text-[6.5rem] leading-none uppercase">BUY</div>
+        <div class="font-mono text-sm uppercase font-bold border-t-4 border-ink pt-2 mt-1">Conviction 91 / 100</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- REASONS -->
+<section class="max-w-7xl mx-auto px-5 py-16">
+  <h2 class="display text-4xl md:text-5xl uppercase mb-8">Why we're calling it</h2>
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="bg-bone text-ink border-thick p-6 hover-raise">
+      <div class="display text-5xl text-acid" style="-webkit-text-stroke:2px #0a0a0a;">01</div>
+      <h3 class="display text-xl uppercase mt-3">Demand outruns the multiple</h3>
+      <p class="mt-3 text-sm text-ink/70">Blackwell is sold out through next year. Data-center revenue is compounding faster than the P/E implies, so the "expensive" tag is backward-looking.</p>
+    </div>
+    <div class="bg-bone text-ink border-thick p-6 hover-raise">
+      <div class="display text-5xl text-acid" style="-webkit-text-stroke:2px #0a0a0a;">02</div>
+      <h3 class="display text-xl uppercase mt-3">Estimates still chasing</h3>
+      <p class="mt-3 text-sm text-ink/70">Analysts have raised forward EPS four quarters running and are still behind actuals. Upward revisions are the cleanest momentum signal there is.</p>
+    </div>
+    <div class="bg-bone text-ink border-thick p-6 hover-raise">
+      <div class="display text-5xl text-acid" style="-webkit-text-stroke:2px #0a0a0a;">03</div>
+      <h3 class="display text-xl uppercase mt-3">Margins holding the line</h3>
+      <p class="mt-3 text-sm text-ink/70">Gross margin near 75% with no real competitor at scale. Pricing power stays intact even as volume ramps, which protects the growth case.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PILLARS + CHART -->
+<section class="max-w-7xl mx-auto px-5 pb-16 grid lg:grid-cols-2 gap-8">
+  <!-- PILLAR SCORES -->
+  <div class="border-thick-bone p-7">
+    <h2 class="display text-3xl uppercase mb-6">Pillar scores</h2>
+    <div class="space-y-6 font-mono text-sm">
+      <div>
+        <div class="flex justify-between uppercase font-bold mb-2"><span>Valuation</span><span>58</span></div>
+        <div class="h-6 bg-bone/10 border-thick-bone"><div class="bar-fill h-full bg-bone" style="width:58%"></div></div>
+        <div class="text-xs text-bone/50 mt-1">Rich, but justified by growth.</div>
+      </div>
+      <div>
+        <div class="flex justify-between uppercase font-bold mb-2"><span>Growth</span><span>96</span></div>
+        <div class="h-6 bg-bone/10 border-thick-bone"><div class="bar-fill h-full bg-acid" style="width:96%"></div></div>
+        <div class="text-xs text-bone/50 mt-1">Best-in-class revenue acceleration.</div>
+      </div>
+      <div>
+        <div class="flex justify-between uppercase font-bold mb-2"><span>Quality</span><span>88</span></div>
+        <div class="h-6 bg-bone/10 border-thick-bone"><div class="bar-fill h-full bg-acid" style="width:88%"></div></div>
+        <div class="text-xs text-bone/50 mt-1">Fat margins, low debt, high returns on capital.</div>
+      </div>
+      <div>
+        <div class="flex justify-between uppercase font-bold mb-2"><span>Momentum</span><span>92</span></div>
+        <div class="h-6 bg-bone/10 border-thick-bone"><div class="bar-fill h-full bg-acid" style="width:92%"></div></div>
+        <div class="text-xs text-bone/50 mt-1">Price and estimates both trending up hard.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICE CHART -->
+  <div class="border-thick-bone p-7">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="display text-3xl uppercase">Price · 6M</h2>
+      <span class="font-mono text-xs uppercase text-acid font-bold">+71%</span>
+    </div>
+    <svg viewBox="0 0 400 200" class="w-full">
+      <defs>
+        <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c6f432" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#c6f432" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- grid -->
+      <line x1="0" y1="50" x2="400" y2="50" stroke="#f4f4f0" stroke-opacity="0.1"/>
+      <line x1="0" y1="100" x2="400" y2="100" stroke="#f4f4f0" stroke-opacity="0.1"/>
+      <line x1="0" y1="150" x2="400" y2="150" stroke="#f4f4f0" stroke-opacity="0.1"/>
+      <path d="M0,170 L40,165 L80,150 L120,158 L160,130 L200,120 L240,128 L280,95 L320,80 L360,55 L400,38 L400,200 L0,200 Z" fill="url(#fill)"/>
+      <polyline fill="none" stroke="#c6f432" stroke-width="3" points="0,170 40,165 80,150 120,158 160,130 200,120 240,128 280,95 320,80 360,55 400,38"/>
+      <circle cx="400" cy="38" r="5" fill="#c6f432" stroke="#0a0a0a" stroke-width="2"/>
+    </svg>
+    <div class="flex justify-between font-mono text-xs text-bone/40 mt-2 uppercase"><span>Dec</span><span>Feb</span><span>Apr</span><span>Jun</span></div>
+  </div>
+</section>
+
+<!-- TECHNICALS -->
+<section class="max-w-7xl mx-auto px-5 pb-16">
+  <h2 class="display text-3xl uppercase mb-6">Technicals</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
+    <div class="border-thick-bone p-5"><div class="text-xs uppercase text-bone/50">52W range</div><div class="display text-xl mt-2">$79 – $141</div></div>
+    <div class="border-thick-bone p-5"><div class="text-xs uppercase text-bone/50">RSI (14)</div><div class="display text-xl mt-2 text-acid">68 · strong</div></div>
+    <div class="border-thick-bone p-5"><div class="text-xs uppercase text-bone/50">50D MA</div><div class="display text-xl mt-2">$118.20</div></div>
+    <div class="border-thick-bone p-5"><div class="text-xs uppercase text-bone/50">Beta</div><div class="display text-xl mt-2">1.74</div></div>
+  </div>
+</section>
+
+<!-- PRO UPSELL -->
+<section class="bg-acid text-ink border-y-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 py-16 grid lg:grid-cols-2 gap-10 items-center">
+    <div>
+      <div class="inline-block bg-ink text-acid font-mono text-xs font-bold uppercase px-3 py-1.5 border-thick mb-5">Pro unlocks the rest</div>
+      <h2 class="display text-4xl md:text-6xl uppercase">You're seeing<br />the headline call.</h2>
+      <p class="mt-5 text-lg text-ink/80 max-w-lg">Pro shows the full evidence trail, intraday verdict changes, earnings-day alerts, and the complete history of every call we've made on NVDA.</p>
+      <a href="landing.html#pricing" class="inline-block mt-7 bg-ink text-bone display uppercase px-8 py-4 border-thick hover-raise">Go Pro · $99/yr</a>
+      <p class="font-mono text-xs uppercase mt-3 font-bold">That's $8.25/mo · cancel anytime</p>
+    </div>
+    <div class="bg-ink text-bone border-thick p-7 relative overflow-hidden" style="box-shadow:12px 12px 0 #0a0a0a;">
+      <div class="font-mono text-xs uppercase text-acid font-bold mb-4">Locked · Pro</div>
+      <ul class="space-y-4 font-mono text-sm">
+        <li class="flex justify-between border-b-2 border-bone/15 pb-3"><span>Full evidence trail</span><span class="text-acid">12 sources</span></li>
+        <li class="flex justify-between border-b-2 border-bone/15 pb-3"><span>Intraday verdict changes</span><span class="text-acid">live</span></li>
+        <li class="flex justify-between border-b-2 border-bone/15 pb-3"><span>Earnings-day alert</span><span class="text-acid">Aug 27</span></li>
+        <li class="flex justify-between"><span>Call history + backtest</span><span class="text-acid">24 mo</span></li>
+      </ul>
+      <div class="absolute inset-0 bg-gradient-to-b from-transparent to-ink/80 pointer-events-none"></div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t-4 border-bone">
+  <div class="max-w-7xl mx-auto px-5 py-12 grid md:grid-cols-4 gap-8 font-mono text-sm">
+    <div>
+      <div class="display text-2xl">stocks<span class="text-acid">brew</span></div>
+      <p class="mt-3 text-bone/50">One verdict. Plain English. Make the move.</p>
+    </div>
+    <div><div class="uppercase font-bold text-acid mb-3">Product</div><ul class="space-y-2 text-bone/60"><li><a href="landing.html#today" class="hover:text-acid">Today's calls</a></li><li><a href="stock.html" class="hover:text-acid">NVDA demo</a></li><li><a href="landing.html#pricing" class="hover:text-acid">Pricing</a></li></ul></div>
+    <div><div class="uppercase font-bold text-acid mb-3">Company</div><ul class="space-y-2 text-bone/60"><li><a href="#" class="hover:text-acid">About</a></li><li><a href="#" class="hover:text-acid">Method</a></li><li><a href="#" class="hover:text-acid">Contact</a></li></ul></div>
+    <div><div class="uppercase font-bold text-acid mb-3">Legal</div><ul class="space-y-2 text-bone/60"><li><a href="#" class="hover:text-acid">Terms</a></li><li><a href="#" class="hover:text-acid">Privacy</a></li><li><a href="#" class="hover:text-acid">Disclaimer</a></li></ul></div>
+  </div>
+  <div class="border-t-4 border-bone/20 py-5 text-center font-mono text-xs text-bone/40">
+    Illustrative data for demo. Not investment advice. © 2026 stocksbrew.
+  </div>
+</footer>
+
+</body>
+</html>

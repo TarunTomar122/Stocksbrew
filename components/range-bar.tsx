@@ -28,23 +28,23 @@ export function RangeBar({
 
   return (
     <div className="flex flex-col gap-2.5">
-      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         {label}
       </span>
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex flex-col">
-          <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             Low
           </span>
-          <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+          <span className="text-[14px] font-semibold tabular-nums text-on-surface">
             {format(low)}
           </span>
         </div>
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+          <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             High
           </span>
-          <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+          <span className="text-[14px] font-semibold tabular-nums text-on-surface">
             {format(high)}
           </span>
         </div>
@@ -64,27 +64,27 @@ export function RangeBar({
           {refPct !== null && (
             <span
               aria-hidden
-              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-white"
+              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-surface"
               style={{ left: `${refPct}%`, boxShadow: "0 0 0 1px #6b7280" }}
               title={reference?.label}
             />
           )}
           <span
             aria-hidden
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-white ring-2 ring-[#111111]"
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-surface ring-2 ring-on-surface"
             style={{ left: `${currentPct}%` }}
           />
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between gap-3 text-[11px] text-[#6b7280]">
+      <div className="flex items-baseline justify-between gap-3 text-[11px] text-on-surface-variant">
         <span className="tabular-nums">
-          Today <span className="font-semibold text-[#111111]">{format(current)}</span>
+          Today <span className="font-semibold text-on-surface">{format(current)}</span>
         </span>
         {reference && (
           <span className="tabular-nums">
             {reference.label}{" "}
-            <span className="font-semibold text-[#111111]">{format(reference.value)}</span>
+            <span className="font-semibold text-on-surface">{format(reference.value)}</span>
           </span>
         )}
       </div>
@@ -105,19 +105,19 @@ export function RsiStrength({ value, state }: RsiProps) {
   const clamped = Math.max(0, Math.min(100, value));
   const verdict =
     state === "overbought" || value >= 70
-      ? { label: "Overbought", tone: "text-[#dc2626]" }
+      ? { label: "Overbought", tone: "text-[#ef4444]" }
       : state === "oversold" || value <= 30
         ? { label: "Oversold", tone: "text-[#0052ff]" }
         : { label: "Neutral", tone: "text-[#10b981]" };
 
   return (
     <div className="flex flex-col gap-2.5">
-      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         RSI (14)
       </span>
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex items-baseline gap-2">
-          <span className="text-[20px] font-semibold tabular-nums text-[#111111]">
+          <span className="text-[20px] font-semibold tabular-nums text-on-surface">
             {value.toFixed(1)}
           </span>
           <span
@@ -130,7 +130,7 @@ export function RsiStrength({ value, state }: RsiProps) {
 
       <div className="relative h-2">
         {/* Zones live in a clipped child so the marker can extend beyond. */}
-        <div className="absolute inset-0 rounded-full overflow-hidden bg-[#f3f4f6]">
+        <div className="absolute inset-0 rounded-full overflow-hidden bg-surface-container">
           <div
             className="absolute inset-y-0 left-0"
             style={{ width: "30%", background: "rgba(239,68,68,0.18)" }}
@@ -153,13 +153,13 @@ export function RsiStrength({ value, state }: RsiProps) {
         <div className="absolute inset-y-0 left-[7px] right-[7px]">
           <span
             aria-hidden
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-white ring-2 ring-[#111111]"
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-surface ring-2 ring-on-surface"
             style={{ left: `${clamped}%` }}
           />
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+      <div className="flex items-center justify-between text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
         <span>Oversold</span>
         <span>Healthy</span>
         <span>Overbought</span>

@@ -14,11 +14,11 @@ export function SignalTileCard({ signal, className }: { signal: SignalTileModel;
       : signal.tone === "down"
         ? "text-[#ef4444]"
         : signal.tone === "warn"
-          ? "text-[#b45309]"
-          : "text-[#111111]";
+          ? "text-[#f59e0b]"
+          : "text-on-surface";
 
   return (
-    <div className={`flex h-[164px] w-[158px] shrink-0 flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4${className ? ` ${className}` : ""}`}>
+    <div className={`flex h-[164px] w-[158px] shrink-0 flex-col gap-3 rounded-2xl bg-surface p-4${className ? ` ${className}` : ""}`}>
       <span
         aria-hidden
         className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
@@ -27,14 +27,14 @@ export function SignalTileCard({ signal, className }: { signal: SignalTileModel;
         {signal.emoji}
       </span>
       <div className="flex flex-col gap-1">
-        <span className="text-[11px] font-semibold tracking-[0.06em] uppercase text-[#9ca3af]">
+        <span className="text-[11px] font-semibold tracking-[0.06em] uppercase text-on-surface-variant">
           {signal.label}
         </span>
         <span className={`text-[18px] font-semibold tabular-nums leading-tight ${headlineClass}`}>
           {signal.headline}
         </span>
         {signal.supporting && (
-          <span className="text-[12px] text-[#6b7280] leading-snug">{signal.supporting}</span>
+          <span className="text-[12px] text-on-surface-variant leading-snug">{signal.supporting}</span>
         )}
       </div>
     </div>

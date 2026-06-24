@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>stocksbrew · Your morning call</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#f7f5f0; --card:#fffefb; --ink:#16130d; --soft:#6b655a; --line:#e7e2d8;
+         --accent:#4338ca; --buy:#15803d; --buybg:#eaf3ec; --sell:#c0392b; --sellbg:#f8ecea;
+         --hold:#6b655a; --holdbg:#f0ede6; --watch:#b45309; --watchbg:#f6efe2; }
+  *{font-family:'Inter',system-ui,sans-serif;}
+  .serif{font-family:'Fraunces',Georgia,serif;}
+  body{background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .card{background:var(--card);border:1px solid var(--line);}
+  .num{font-variant-numeric:tabular-nums;}
+  .rise{transition:transform .18s ease, box-shadow .18s ease;}
+  .rise:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(22,19,13,.08);}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .live{animation:blink 1.8s ease-in-out infinite}
+</style>
+</head>
+<body>
+<!-- top bar -->
+<header class="sticky top-0 z-30 backdrop-blur bg-[var(--paper)]/85 border-b border-[var(--line)]">
+  <div class="max-w-[1080px] mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-8">
+      <a href="radar.html" class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-[var(--ink)] text-[var(--paper)] grid place-items-center font-semibold text-sm">s</span>
+        <span class="font-semibold tracking-tight">stocksbrew</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-[14px] text-[var(--soft)]">
+        <a href="radar.html" class="text-[var(--ink)] font-medium">Radar</a>
+        <a href="#" class="hover:text-[var(--ink)]">Anomalies</a>
+        <a href="#" class="hover:text-[var(--ink)]">Reddit Buzz</a>
+        <a href="#" class="hover:text-[var(--ink)]">Find stocks</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="hidden sm:flex items-center gap-2 text-[12px] text-[var(--soft)] num"><span class="w-1.5 h-1.5 rounded-full bg-[var(--buy)] live"></span>Market open · 11:42 ET</div>
+      <span class="w-8 h-8 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] grid place-items-center text-[13px] font-semibold">T</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1080px] mx-auto px-6 pb-24">
+
+  <!-- the briefing line -->
+  <section class="pt-12 pb-8">
+    <p class="text-[13px] uppercase tracking-[0.18em] text-[var(--soft)]">Friday, June 20 · your morning call</p>
+    <h1 class="serif text-[34px] sm:text-[44px] leading-[1.08] mt-3 max-w-[760px]">
+      Good morning, Tanay. <span class="text-[var(--soft)]">Two of your names</span> need a decision today. The other six are doing what you want.
+    </h1>
+    <p class="text-[15px] text-[var(--soft)] mt-4 max-w-[640px]">We read the moves, the filings, the earnings, and the Reddit chatter overnight so you do not have to. Here is what actually changed.</p>
+  </section>
+
+  <!-- NEEDS YOU TODAY -->
+  <section class="mb-12">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--sell)]">Needs you today</span>
+      <span class="text-[12px] text-[var(--soft)]">2 calls changed</span>
+      <span class="flex-1 h-px bg-[var(--line)]"></span>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <!-- call card 1 -->
+      <a href="stock.html" class="card rise rounded-2xl p-6 block">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-[#eef1ff] text-[var(--accent)] grid place-items-center font-bold num">N</span>
+            <div>
+              <div class="font-semibold tracking-tight">NVDA</div>
+              <div class="text-[12px] text-[var(--soft)]">NVIDIA · held</div>
+            </div>
+          </div>
+          <div class="text-right num">
+            <div class="font-semibold">$132.84</div>
+            <div class="text-[13px] text-[var(--buy)]">+2.41%</div>
+          </div>
+        </div>
+        <div class="mt-5">
+          <span class="inline-block text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--watchbg)] text-[var(--watch)]">Call changed · Hold → Trim</span>
+          <h3 class="serif text-[24px] mt-3 leading-tight">Take some off above $145.</h3>
+          <p class="text-[14px] text-[var(--soft)] mt-2 leading-relaxed">Momentum is still strong, but it ran into your sell zone and valuation is now stretched at 38x forward. Lock part of the gain, keep the rest.</p>
+        </div>
+        <div class="mt-5 flex items-center justify-between text-[12px]">
+          <span class="text-[var(--soft)] num">Sell zone &gt; $145 · triggered 9:38 ET</span>
+          <span class="text-[var(--accent)] font-medium">See the full case &rarr;</span>
+        </div>
+      </a>
+
+      <!-- call card 2 -->
+      <a href="stock.html" class="card rise rounded-2xl p-6 block">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-[#eef1ff] text-[var(--accent)] grid place-items-center font-bold num">A</span>
+            <div>
+              <div class="font-semibold tracking-tight">AMD</div>
+              <div class="text-[12px] text-[var(--soft)]">Adv. Micro · held</div>
+            </div>
+          </div>
+          <div class="text-right num">
+            <div class="font-semibold">$148.20</div>
+            <div class="text-[13px] text-[var(--sell)]">-1.84%</div>
+          </div>
+        </div>
+        <div class="mt-5">
+          <span class="inline-block text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--buybg)] text-[var(--buy)]">Call changed · Watch → Buy</span>
+          <h3 class="serif text-[24px] mt-3 leading-tight">Worth adding here.</h3>
+          <p class="text-[14px] text-[var(--soft)] mt-2 leading-relaxed">Pulled into your buy zone on no fresh bad news. The MI300 ramp thesis is intact and fair value still sits near $172.</p>
+        </div>
+        <div class="mt-5 flex items-center justify-between text-[12px]">
+          <span class="text-[var(--soft)] num">Buy zone &lt; $150 · triggered 10:11 ET</span>
+          <span class="text-[var(--accent)] font-medium">See the full case &rarr;</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- EVERYTHING ELSE -->
+  <section class="mb-12">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--soft)]">Doing fine, no action</span>
+      <span class="flex-1 h-px bg-[var(--line)]"></span>
+    </div>
+    <div class="card rounded-2xl divide-y divide-[var(--line)] overflow-hidden">
+      <!-- rows injected -->
+      <div id="quiet"></div>
+    </div>
+  </section>
+
+  <!-- FIND NEXT -->
+  <section>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Worth a look</span>
+      <span class="text-[12px] text-[var(--soft)]">surfaced from your style and watchlist</span>
+      <span class="flex-1 h-px bg-[var(--line)]"></span>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="card rise rounded-2xl p-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-[#eef1ff] text-[var(--accent)] grid place-items-center font-bold num text-sm">P</span>
+            <div><div class="font-semibold">PLTR</div><div class="text-[12px] text-[var(--soft)]">Palantir</div></div>
+          </div>
+          <span class="text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--buybg)] text-[var(--buy)]">Buy zone</span>
+        </div>
+        <p class="text-[14px] text-[var(--soft)] mt-3 leading-relaxed">Trending in your feed and just entered a buy zone. Commercial bookings accelerating, momentum turning up.</p>
+        <button class="mt-4 text-[13px] font-medium text-[var(--accent)]">Add to Radar &rarr;</button>
+      </div>
+      <div class="card rise rounded-2xl p-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-[#eef1ff] text-[var(--accent)] grid place-items-center font-bold num text-sm">U</span>
+            <div><div class="font-semibold">UBER</div><div class="text-[12px] text-[var(--soft)]">Uber</div></div>
+          </div>
+          <span class="text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--watchbg)] text-[var(--watch)]">Watch</span>
+        </div>
+        <p class="text-[14px] text-[var(--soft)] mt-3 leading-relaxed">Spiking in Reddit chatter this week on profitability. Fundamentals clean, but wait for a better entry under $68.</p>
+        <button class="mt-4 text-[13px] font-medium text-[var(--accent)]">Add to Radar &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[var(--line)]">
+  <div class="max-w-[1080px] mx-auto px-6 py-8 text-[12px] text-[var(--soft)] flex flex-wrap gap-x-6 gap-y-2 justify-between">
+    <span>stocksbrew · Know what to do with your stocks.</span>
+    <span>Not investment advice. Not a broker. US markets.</span>
+  </div>
+</footer>
+
+<script>
+const verd={Hold:['var(--hold)','var(--holdbg)'],Buy:['var(--buy)','var(--buybg)'],Sell:['var(--sell)','var(--sellbg)'],Watch:['var(--watch)','var(--watchbg)']};
+const quiet=[
+ {t:'AAPL',n:'Apple',p:'214.29',d:'+0.34',up:1,v:'Hold',r:'Steady compounder, fairly valued. Nothing to do until services growth re-rates.'},
+ {t:'MSFT',n:'Microsoft',p:'449.78',d:'+1.02',up:1,v:'Hold',r:'Azure AI tailwind already priced in. Quality elite, momentum cooling a touch.'},
+ {t:'GOOGL',n:'Alphabet',p:'178.55',d:'-0.61',up:0,v:'Watch',r:'Search moat solid, AI-disruption overhang. Waiting for a $165 entry.'},
+ {t:'META',n:'Meta',p:'498.20',d:'+0.88',up:1,v:'Hold',r:'Ad strength real, capex worry overdone. Thesis intact, hold the position.'},
+ {t:'COST',n:'Costco',p:'872.40',d:'+0.21',up:1,v:'Hold',r:'Premium multiple, premium business. No catalyst either way this week.'},
+ {t:'V',n:'Visa',p:'276.10',d:'-0.12',up:0,v:'Hold',r:'Boring in the best way. Volumes steady, no thesis change to report.'},
+];
+document.getElementById('quiet').innerHTML=quiet.map(s=>{
+  const [c,bg]=verd[s.v];const dc=s.up?'var(--buy)':'var(--sell)';
+  return `<a href="stock.html" class="flex items-center gap-4 px-5 py-4 hover:bg-[var(--paper)] transition-colors">
+    <span class="w-9 h-9 rounded-lg bg-[#f0ede6] grid place-items-center font-bold num text-[13px] text-[var(--soft)]">${s.t[0]}</span>
+    <div class="w-[120px]"><div class="font-semibold text-[15px]">${s.t}</div><div class="text-[12px] text-[var(--soft)]">${s.n}</div></div>
+    <div class="w-[110px] num"><div class="font-medium">$${s.p}</div><div class="text-[12px]" style="color:${dc}">${s.d}%</div></div>
+    <span class="text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded shrink-0" style="color:${c};background:${bg}">${s.v}</span>
+    <div class="text-[13px] text-[var(--soft)] flex-1 hidden sm:block leading-snug">${s.r}</div>
+  </a>`;
+}).join('');
+</script>
+</body>
+</html>

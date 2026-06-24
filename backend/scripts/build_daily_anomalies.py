@@ -16,6 +16,7 @@ from backend.storage import TraceMoneyStore
 
 
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+MIN_EXPLAIN_MOVE_PCT = 2.0
 MOVE_EXPLAINER_PROMPT = """You explain sharp single-stock moves for a market app.
 
 You receive the ticker, company name, today's price move, and the latest internal news items for that stock.
@@ -47,13 +48,15 @@ INTERNAL_MOVE_CONTEXT_PROMPT = """You write non-generic context for a sharp stoc
 
 Use only the supplied internal stock data. Do not invent or imply a confirmed news catalyst.
 
-Frame the move as what it likely reflects: valuation gap, factor scores, analyst target gap, technical setup, sector/industry, positioning, upcoming catalysts, and risk.
+Frame the move as what it likely reflects: fundamentals, factor scores, analyst target gap, technical setup, sector/industry performance, broad market tone, positioning, and risk.
 
 Rules:
 - If news_count/source_count is 0 or evidence is weak, confidence must be low or medium, never high.
 - Keep headline under 12 words.
 - Keep why_it_matters to 1-2 complete sentences.
 - Avoid generic phrases like "top mover", "price momentum", or "against the broader tape".
+- Do NOT use upcoming earnings or a generic future catalyst as the main reason unless the supplied payload includes explicit same-day evidence tying today's move to it.
+- Prefer concrete structural explanations from the payload: pillar imbalances, analyst-target gap, sector tape, market backdrop, and relative performance vs market/sector.
 - Be concrete and honest when there is no clean catalyst.
 """
 
@@ -80,6 +83,82 @@ def _today_utc() -> str:
 
 def _ticker_context_doc_id(market: str, ticker: str) -> str:
     return f"{market.upper()}__{str(ticker or '').strip().upper()}"
+
+
+def _clean_text(value: Any) -> str:
+    return " ".join(str(value or "").strip().split())
+
+
+def _mentions_earnings(value: Any) -> bool:
+    return "earnings" in _clean_text(value).lower()
+
+
+def _filtered_internal_text(value: Any) -> str:
+    text = _clean_text(value)
+    if not text:
+        return ""
+    if _mentions_earnings(text):
+        return ""
+    return text
+
+
+def _filtered_catalyst_text(value: Any) -> str:
+    text = _filtered_internal_text(value)
+    lowered = text.lower()
+    if not text or lowered in {"none", "n/a"}:
+        return ""
+    if lowered.startswith("upcoming ") or " could " in lowered or "watch for " in lowered:
+        return ""
+    if "await" in lowered or "waiting for" in lowered:
+        return ""
+    return text
+
+
+def _pillar_snapshot(intel_pro_doc: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    pillars = (intel_pro_doc or {}).get("pillars") or {}
+    if not isinstance(pillars, dict):
+        return out
+    for name, payload in pillars.items():
+        if not isinstance(payload, dict):
+            continue
+        standout = ""
+        weak = ""
+        metrics = payload.get("metrics") or []
+        if isinstance(metrics, list):
+            for row in metrics:
+                if not isinstance(row, dict):
+                    continue
+                score = row.get("score")
+                label = _clean_text(row.get("label") or row.get("summary"))
+                if not label or not isinstance(score, (int, float)):
+                    continue
+                if score >= 75 and not standout:
+                    standout = label
+                if score <= 25 and not weak:
+                    weak = label
+        out[str(name)] = {
+            "score": payload.get("score"),
+            "verdict": _clean_text(payload.get("verdict")),
+            "standout": standout,
+            "weak": weak,
+        }
+    return out
+
+
+def _context_brief(doc: dict[str, Any] | None) -> str:
+    payload = doc or {}
+    visual = payload.get("visual_summary") if isinstance(payload.get("visual_summary"), dict) else {}
+    for candidate in (
+        visual.get("what_changed"),
+        payload.get("today_brief"),
+        visual.get("why_it_matters"),
+        payload.get("week_brief"),
+    ):
+        text = _filtered_internal_text(candidate)
+        if text:
+            return text
+    return ""
 
 
 def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict[str, Any]) -> None:
@@ -230,29 +309,44 @@ def _internal_move_payload(
     instrument: dict[str, Any],
     intel_doc: dict[str, Any] | None,
     day_change_pct: float,
+    intel_pro_doc: dict[str, Any] | None = None,
+    market_context: dict[str, Any] | None = None,
+    sector_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     intel = intel_doc or {}
     visual = intel.get("visual_summary") if isinstance(intel.get("visual_summary"), dict) else {}
+    visual_payload = {
+        "drivers": visual.get("drivers") if isinstance(visual.get("drivers"), list) else [],
+        "risk_cards": visual.get("risk_cards") if isinstance(visual.get("risk_cards"), list) else [],
+        "what_changed": _filtered_internal_text(visual.get("what_changed")),
+        "why_it_matters": _filtered_internal_text(visual.get("why_it_matters")),
+        "what_to_watch": _filtered_internal_text(visual.get("what_to_watch")),
+    }
     return {
         "ticker": str(instrument.get("ticker") or intel.get("ticker") or "").strip().upper(),
         "company": str(instrument.get("name") or intel.get("name") or instrument.get("ticker") or "").strip(),
         "sector": str(instrument.get("sector") or intel.get("sector") or "").strip(),
         "industry": str(instrument.get("industry") or intel.get("industry") or "").strip(),
         "day_change_pct": day_change_pct,
-        "headline": str(intel.get("headline") or "").strip(),
-        "today_brief": str(intel.get("today_brief") or intel.get("body") or "").strip(),
-        "thesis": str(intel.get("thesis") or "").strip(),
-        "risk": str(intel.get("risk") or "").strip(),
-        "catalyst": str(intel.get("catalyst") or "").strip(),
+        "headline": _filtered_internal_text(intel.get("headline")),
+        "today_brief": _filtered_internal_text(intel.get("today_brief") or intel.get("body")),
+        "thesis": _filtered_internal_text(intel.get("thesis")),
+        "risk": _filtered_internal_text(intel.get("risk")),
         "overall_label": str(intel.get("overall_label") or "").strip(),
         "overall_score": intel.get("overall_score"),
-        "key_points": [str(p).strip() for p in (intel.get("key_points") or []) if str(p).strip()][:4],
-        "visual_summary": visual,
+        "key_points": [
+            point for point in (_filtered_internal_text(p) for p in (intel.get("key_points") or []))
+            if point
+        ][:4],
+        "visual_summary": visual_payload,
         "news_count": int(intel.get("news_count") or 0),
         "source_count": int(intel.get("source_count") or 0),
         "comparative_context": intel.get("comparative_context")
         if isinstance(intel.get("comparative_context"), dict)
         else None,
+        "pillars": _pillar_snapshot(intel_pro_doc),
+        "market_context": {"today_brief": _context_brief(market_context)},
+        "sector_context": {"today_brief": _context_brief(sector_context)},
     }
 
 
@@ -261,6 +355,9 @@ def _llm_internal_context_move_explanation(
     instrument: dict[str, Any],
     intel_doc: dict[str, Any] | None,
     day_change_pct: float,
+    intel_pro_doc: dict[str, Any] | None = None,
+    market_context: dict[str, Any] | None = None,
+    sector_context: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     api_key = llm_api_key()
     if not api_key:
@@ -269,10 +366,23 @@ def _llm_internal_context_move_explanation(
         instrument=instrument,
         intel_doc=intel_doc,
         day_change_pct=day_change_pct,
+        intel_pro_doc=intel_pro_doc,
+        market_context=market_context,
+        sector_context=sector_context,
     )
     if not any(
         payload.get(key)
-        for key in ("today_brief", "thesis", "risk", "catalyst", "key_points", "visual_summary")
+        for key in (
+            "today_brief",
+            "thesis",
+            "risk",
+            "key_points",
+            "visual_summary",
+            "comparative_context",
+            "pillars",
+            "market_context",
+            "sector_context",
+        )
     ):
         return None
     try:
@@ -303,6 +413,8 @@ def _llm_internal_context_move_explanation(
     headline = str(parsed.get("headline") or "").strip()
     why = str(parsed.get("why_it_matters") or "").strip()
     if not headline or not why:
+        return None
+    if _mentions_earnings(headline) or _mentions_earnings(why):
         return None
     confidence = str(parsed.get("confidence") or "low").strip().lower()
     if confidence not in {"low", "medium"}:
@@ -341,11 +453,17 @@ def _structured_internal_context_move_explanation(
     instrument: dict[str, Any],
     intel_doc: dict[str, Any] | None,
     day_change_pct: float,
+    intel_pro_doc: dict[str, Any] | None = None,
+    market_context: dict[str, Any] | None = None,
+    sector_context: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     payload = _internal_move_payload(
         instrument=instrument,
         intel_doc=intel_doc,
         day_change_pct=day_change_pct,
+        intel_pro_doc=intel_pro_doc,
+        market_context=market_context,
+        sector_context=sector_context,
     )
     ticker = str(payload.get("ticker") or "").strip().upper()
     if not ticker:
@@ -356,6 +474,8 @@ def _structured_internal_context_move_explanation(
     key_points = [str(p).strip() for p in (payload.get("key_points") or []) if str(p).strip()]
     thesis = str(payload.get("thesis") or "").strip()
     brief = str(payload.get("today_brief") or "").strip()
+    sector_brief = str(((payload.get("sector_context") or {}).get("today_brief")) or "").strip()
+    market_brief = str(((payload.get("market_context") or {}).get("today_brief")) or "").strip()
 
     positive_drivers = [
         row
@@ -377,7 +497,14 @@ def _structured_internal_context_move_explanation(
     counter_label = _clean_clause((counter or {}).get("label"), max_chars=70)
     counter_detail = _clean_clause((counter or {}).get("detail"), max_chars=115)
 
-    anchor = primary_detail or _clean_clause(key_points[0] if key_points else "", max_chars=125) or _clean_clause(thesis, max_chars=125) or _clean_clause(brief, max_chars=125)
+    anchor = (
+        primary_detail
+        or _clean_clause(key_points[0] if key_points else "", max_chars=125)
+        or _clean_clause(thesis, max_chars=125)
+        or _clean_clause(brief, max_chars=125)
+        or _clean_clause(sector_brief, max_chars=125)
+        or _clean_clause(market_brief, max_chars=125)
+    )
     if not anchor:
         return None
 
@@ -388,8 +515,10 @@ def _structured_internal_context_move_explanation(
     why = f"The move looks like investors leaning into {anchor}."
     if counter_detail or counter_label:
         why += f" {counter_detail or counter_label}. That keeps the read from being a clean catalyst."
-    else:
-        why += " We did not find a clean company-specific catalyst in current coverage."
+    elif sector_brief:
+        why += f" Sector backdrop: {_clean_clause(sector_brief, max_chars=105)}."
+    elif market_brief:
+        why += f" Market backdrop: {_clean_clause(market_brief, max_chars=105)}."
 
     return {
         "cause_type": "internal_context",
@@ -407,8 +536,11 @@ def _move_explanation(
     intel_doc: dict[str, Any] | None,
     day_change_pct: float,
     external_search: bool,
+    intel_pro_doc: dict[str, Any] | None = None,
+    market_context: dict[str, Any] | None = None,
+    sector_context: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
-    if abs(day_change_pct) < 4:
+    if abs(day_change_pct) < MIN_EXPLAIN_MOVE_PCT:
         return None
     explanation = _llm_move_explanation(
         instrument=instrument,
@@ -421,6 +553,9 @@ def _move_explanation(
         instrument=instrument,
         intel_doc=intel_doc,
         day_change_pct=day_change_pct,
+        intel_pro_doc=intel_pro_doc,
+        market_context=market_context,
+        sector_context=sector_context,
     )
     if internal:
         return internal
@@ -428,6 +563,9 @@ def _move_explanation(
         instrument=instrument,
         intel_doc=intel_doc,
         day_change_pct=day_change_pct,
+        intel_pro_doc=intel_pro_doc,
+        market_context=market_context,
+        sector_context=sector_context,
     )
     if structured:
         return structured
@@ -516,6 +654,9 @@ def _pick_row(
     instrument: dict[str, Any],
     quote_doc: dict[str, Any],
     intel_doc: dict[str, Any] | None,
+    intel_pro_doc: dict[str, Any] | None = None,
+    market_context: dict[str, Any] | None = None,
+    sector_context: dict[str, Any] | None = None,
     *,
     explain_moves: bool,
     external_search: bool,
@@ -532,15 +673,18 @@ def _pick_row(
     instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
     ticker = str(instrument.get("ticker") or "").strip().upper()
     direction = "up" if day_change_pct >= 0 else "down"
-    key_points = [str(p).strip() for p in ((intel_doc or {}).get("key_points") or []) if str(p).strip()][:4]
-    headline = str((intel_doc or {}).get("headline") or "").strip() or None
-    thesis = str((intel_doc or {}).get("thesis") or "").strip() or None
+    key_points = [
+        point for point in (_filtered_internal_text(p) for p in ((intel_doc or {}).get("key_points") or []))
+        if point
+    ][:4]
+    headline = _filtered_internal_text((intel_doc or {}).get("headline")) or None
+    thesis = _filtered_internal_text((intel_doc or {}).get("thesis")) or None
     raw_brief = (
-        str(
+        _filtered_internal_text(
             (intel_doc or {}).get("today_brief")
             or (intel_doc or {}).get("body")
             or ""
-        ).strip()
+        )
         or None
     )
     brief = raw_brief or (key_points[0] if key_points else None)
@@ -556,6 +700,9 @@ def _pick_row(
             intel_doc=intel_doc,
             day_change_pct=day_change_pct,
             external_search=external_search,
+            intel_pro_doc=intel_pro_doc,
+            market_context=market_context,
+            sector_context=sector_context,
         )
         if explain_moves
         else None
@@ -598,8 +745,8 @@ def _pick_row(
         "source_count": int((intel_doc or {}).get("source_count") or 0),
         "overall_score": overall_score,
         "overall_label": label,
-        "catalyst": (intel_doc or {}).get("catalyst"),
-        "risk": (intel_doc or {}).get("risk"),
+        "catalyst": _filtered_catalyst_text((intel_doc or {}).get("catalyst")) or None,
+        "risk": _filtered_internal_text((intel_doc or {}).get("risk")) or None,
         "key_points": key_points,
         "visual_summary": visual_summary,
         "move_explanation": move_explanation,
@@ -610,12 +757,37 @@ def _pick_row(
     }
 
 
+def _select_mover_ids(
+    prices: dict[str, Any],
+    instrument_ids: list[str],
+    threshold_pct: float,
+    limit_per_side: int,
+) -> list[str]:
+    threshold = abs(threshold_pct)
+    gainers: list[tuple[str, float]] = []
+    losers: list[tuple[str, float]] = []
+    for instrument_id in instrument_ids:
+        pct = _to_float(((prices.get(instrument_id) or {}).get("quote") or {}).get("day_change_pct"))
+        if pct is None or abs(pct) < threshold:
+            continue
+        if pct >= 0:
+            gainers.append((instrument_id, pct))
+        else:
+            losers.append((instrument_id, pct))
+    gainers.sort(key=lambda item: item[1], reverse=True)
+    losers.sort(key=lambda item: item[1])
+    return (
+        [instrument_id for instrument_id, _ in gainers[: max(0, limit_per_side)]]
+        + [instrument_id for instrument_id, _ in losers[: max(0, limit_per_side)]]
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build tm_daily_anomalies for a market")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None)
-    parser.add_argument("--threshold-pct", type=float, default=2.0)
-    parser.add_argument("--limit", type=int, default=24)
+    parser.add_argument("--threshold-pct", type=float, default=1.0)
+    parser.add_argument("--limit", type=int, default=15)
     parser.add_argument("--enrich-missing", action="store_true")
     parser.add_argument("--per-stock-cap", type=int, default=3)
     parser.add_argument("--per-stock-lookback-hours", type=int, default=168)
@@ -642,18 +814,23 @@ def main() -> None:
     }
     instrument_ids = list(by_id.keys())
     prices = store.get_latest_prices(instrument_ids)
-
-    movers: list[tuple[str, float]] = []
-    for instrument_id in instrument_ids:
-        pct = _to_float(((prices.get(instrument_id) or {}).get("quote") or {}).get("day_change_pct"))
-        if pct is None:
-            continue
-        if abs(pct) >= abs(args.threshold_pct):
-            movers.append((instrument_id, abs(pct)))
-    movers.sort(key=lambda item: item[1], reverse=True)
-    selected_ids = [instrument_id for instrument_id, _ in movers[: max(0, args.limit)]]
+    selected_ids = _select_mover_ids(
+        prices=prices,
+        instrument_ids=instrument_ids,
+        threshold_pct=args.threshold_pct,
+        limit_per_side=args.limit,
+    )
 
     intelligence = store.get_stock_intelligence_docs_batch(args.market, universe_id, selected_ids)
+    intel_pro_docs = store.get_stock_intel_pro_batch(args.market, universe_id, selected_ids) if selected_ids else {}
+    market_context_doc = store.get_market_context_doc(args.market, universe_id) or {}
+    sector_context_docs = store.list_sector_context_docs(args.market, universe_id) if selected_ids else []
+    sector_context_by_key = {
+        str(doc.get(key) or "").strip().lower(): doc
+        for doc in sector_context_docs
+        for key in ("sector_label", "sector_id", "sector")
+        if str(doc.get(key) or "").strip()
+    }
     if args.enrich_missing:
         missing_ids = [
             instrument_id
@@ -673,7 +850,6 @@ def main() -> None:
 
     if selected_ids:
         latest_prices = store.get_latest_prices(selected_ids)
-        intel_pro_docs = store.get_stock_intel_pro_batch(args.market, universe_id, selected_ids)
         fallback_docs: dict[str, dict[str, Any]] = {}
         for instrument_id in selected_ids:
             existing = intelligence.get(instrument_id) or {}
@@ -698,10 +874,15 @@ def main() -> None:
 
     rows: list[dict[str, Any]] = []
     for index, instrument_id in enumerate(selected_ids):
+        instrument = by_id.get(instrument_id) or {}
+        sector_key = str(instrument.get("sector") or "").strip().lower()
         row = _pick_row(
-            by_id.get(instrument_id) or {},
+            instrument,
             prices.get(instrument_id) or {},
             intelligence.get(instrument_id),
+            intel_pro_docs.get(instrument_id),
+            market_context_doc,
+            sector_context_by_key.get(sector_key),
             explain_moves=bool(args.explain_hard_moves),
             external_search=bool(args.explain_hard_moves) and index < 12,
         )

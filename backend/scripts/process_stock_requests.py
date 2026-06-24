@@ -131,9 +131,9 @@ def _score_candidate(query: str, candidate: dict[str, Any], market: str) -> int:
     for alias in aliases:
         alias_norm = normalize_name(alias)
         if q_sym and alias.strip().upper() == q_sym:
-            score += 40
+            score = max(score, 100)
         if q_name and alias_norm == q_name:
-            score += 20
+            score = max(score, 85)
         if q_name and alias_norm.startswith(q_name):
             score += 10
 

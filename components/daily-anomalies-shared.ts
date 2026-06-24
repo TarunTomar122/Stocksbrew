@@ -3,9 +3,9 @@ import type { AnomalyItem } from "@/lib/daily-anomalies";
 export type MoveSide = "up" | "down";
 
 export const MAX_DISPLAY_MOVE_PCT = 100;
-export const TOP_MOVES_LIMIT = 10;
+export const TOP_MOVES_LIMIT = 15;
 
-export const MOVES_SECTION_TAGLINE = "Top 10 gainers and losers, and why they're moving.";
+export const MOVES_SECTION_TAGLINE = "Top 15 gainers and losers, and why they're moving.";
 
 export const ANOMALY_NO_NEWS_COPY =
   "We didn't find company-specific news explaining today's move yet.";

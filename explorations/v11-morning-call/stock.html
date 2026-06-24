@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NVDA · the call · stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#f7f5f0; --card:#fffefb; --ink:#16130d; --soft:#6b655a; --line:#e7e2d8;
+         --accent:#4338ca; --buy:#15803d; --buybg:#eaf3ec; --sell:#c0392b; --sellbg:#f8ecea;
+         --hold:#6b655a; --holdbg:#f0ede6; --watch:#b45309; --watchbg:#f6efe2; }
+  *{font-family:'Inter',system-ui,sans-serif;}
+  .serif{font-family:'Fraunces',Georgia,serif;}
+  body{background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .card{background:var(--card);border:1px solid var(--line);}
+  .num{font-variant-numeric:tabular-nums;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}} .live{animation:blink 1.8s ease-in-out infinite}
+  @keyframes grow{from{width:0}} .bar>span{animation:grow 1s cubic-bezier(.2,.8,.2,1) both}
+</style>
+</head>
+<body>
+<!-- nav -->
+<header class="sticky top-0 z-30 backdrop-blur bg-[var(--paper)]/85 border-b border-[var(--line)]">
+  <div class="max-w-[1080px] mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-8">
+      <a href="landing.html" class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-[var(--ink)] text-[var(--paper)] grid place-items-center font-semibold text-sm">s</span>
+        <span class="font-semibold tracking-tight">stocksbrew</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-[14px] text-[var(--soft)]">
+        <a href="radar.html" class="hover:text-[var(--ink)]">Radar</a>
+        <a href="#" class="hover:text-[var(--ink)]">Anomalies</a>
+        <a href="#" class="hover:text-[var(--ink)]">Reddit Buzz</a>
+        <a href="#" class="hover:text-[var(--ink)]">Find stocks</a>
+      </nav>
+    </div>
+    <a href="radar.html" class="text-[13px] text-[var(--soft)] hover:text-[var(--ink)]">&larr; Back to your calls</a>
+  </div>
+</header>
+
+<main class="max-w-[1080px] mx-auto px-6 pb-24">
+
+  <!-- STOCK HEADER -->
+  <section class="pt-10 flex flex-wrap items-end justify-between gap-6">
+    <div class="flex items-center gap-4">
+      <span class="w-14 h-14 rounded-2xl bg-[#eef1ff] text-[var(--accent)] grid place-items-center font-bold text-2xl num">N</span>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-[34px] font-bold tracking-tight leading-none">NVDA</h1>
+          <span class="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--holdbg)] text-[var(--soft)]">NASDAQ</span>
+        </div>
+        <p class="text-[14px] text-[var(--soft)] mt-1">NVIDIA Corporation · Semiconductors</p>
+      </div>
+    </div>
+    <div class="flex items-end gap-6">
+      <div class="num text-right">
+        <div class="text-[30px] font-bold leading-none">$132.84</div>
+        <div class="text-[14px] text-[var(--buy)] mt-1">+$3.13 · +2.41% today</div>
+      </div>
+      <button class="text-[14px] font-medium bg-[var(--ink)] text-[var(--paper)] px-4 py-2.5 rounded-full">On your Radar ✓</button>
+    </div>
+  </section>
+
+  <!-- THE CALL (hero) -->
+  <section class="mt-8 card rounded-3xl p-7 sm:p-9 shadow-[0_24px_60px_rgba(22,19,13,.08)]">
+    <div class="flex items-center gap-3">
+      <span class="text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--watch)]">The call</span>
+      <span class="text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--watchbg)] text-[var(--watch)]">Trim · changed from Hold today</span>
+    </div>
+    <h2 class="serif text-[32px] sm:text-[40px] leading-[1.08] mt-3 max-w-[760px]">Take some off above $145. Keep the core, the long story is intact.</h2>
+    <p class="text-[16px] text-[var(--soft)] mt-4 max-w-[720px] leading-relaxed">
+      NVDA is a great business that got ahead of itself this week. Momentum and quality are still firmly green, but the price ran into your sell zone while the crowd turned euphoric and valuation hit 38x forward. That is the setup where trimming a portion locks in the gain without abandoning the thesis. We will tell you when it is worth adding back.
+    </p>
+    <div class="mt-6 flex flex-wrap gap-3 text-[13px] num">
+      <span class="px-3 py-1.5 rounded-full bg-[var(--buybg)] text-[var(--buy)]">Buy zone &lt; $118</span>
+      <span class="px-3 py-1.5 rounded-full bg-[var(--sellbg)] text-[var(--sell)]">Sell zone &gt; $145 · triggered 9:38 ET</span>
+      <span class="px-3 py-1.5 rounded-full bg-[var(--holdbg)] text-[var(--soft)]">Conviction: high</span>
+    </div>
+  </section>
+
+  <!-- THE CASE: four reads -->
+  <section class="mt-12">
+    <h3 class="serif text-[24px] mb-1">The case, in four reads</h3>
+    <p class="text-[14px] text-[var(--soft)] mb-6">Everything behind the call. Read it for yourself in under a minute.</p>
+
+    <div class="grid md:grid-cols-2 gap-5">
+
+      <!-- 1. Why it moved -->
+      <div class="card rounded-2xl p-6">
+        <div class="flex items-center gap-2 text-[var(--buy)]"><span class="text-lg">▲</span><span class="text-[12px] font-semibold uppercase tracking-[0.12em]">Why it moved today</span></div>
+        <p class="text-[15px] mt-3 leading-relaxed"><b class="font-semibold">+2.41% on an analyst target raise, not new fundamentals.</b> Volume ran 1.8x its 30-day average. Two desks lifted price targets after a supplier read-through, which pulled momentum buyers in.</p>
+        <p class="text-[13px] text-[var(--soft)] mt-3">The move is real but sentiment-led. Nothing changed about the actual business since last week.</p>
+      </div>
+
+      <!-- 2. What people say -->
+      <div class="card rounded-2xl p-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-[var(--accent)]"><span class="text-lg">●</span><span class="text-[12px] font-semibold uppercase tracking-[0.12em]">What people are saying</span></div>
+          <span class="text-[12px] text-[var(--soft)] num">mentions 3.1x ↑</span>
+        </div>
+        <!-- sentiment meter -->
+        <div class="mt-4">
+          <div class="flex justify-between text-[12px] text-[var(--soft)] mb-1.5"><span>Bearish</span><span class="font-semibold text-[var(--buy)]">78% bullish</span></div>
+          <div class="h-2.5 rounded-full bg-[var(--sellbg)] overflow-hidden bar"><span class="block h-full rounded-full" style="width:78%;background:var(--buy)"></span></div>
+        </div>
+        <blockquote class="text-[14px] mt-4 leading-relaxed border-l-2 border-[var(--line)] pl-3 text-[var(--soft)]">"NVDA to the moon, loading more calls" was the top thread overnight. Euphoric tone like this often marks a short-term top, not a bottom.</blockquote>
+      </div>
+
+      <!-- 3. The fundamentals -->
+      <div class="card rounded-2xl p-6">
+        <div class="flex items-center gap-2 text-[var(--watch)]"><span class="text-lg">◆</span><span class="text-[12px] font-semibold uppercase tracking-[0.12em]">The fundamentals</span></div>
+        <div id="pillars" class="mt-4 space-y-3"></div>
+      </div>
+
+      <!-- 4. The news -->
+      <div class="card rounded-2xl p-6">
+        <div class="flex items-center gap-2 text-[var(--ink)]"><span class="text-lg">■</span><span class="text-[12px] font-semibold uppercase tracking-[0.12em]">The news that matters</span></div>
+        <ul class="mt-4 space-y-3 text-[14px]">
+          <li><span class="text-[12px] text-[var(--soft)] num">2h ago</span><br>Analyst lifts NVDA target to $160 on data-center demand read-through. <span class="text-[var(--buy)] text-[12px]">supports the move</span></li>
+          <li class="border-t border-[var(--line)] pt-3"><span class="text-[12px] text-[var(--soft)] num">1d ago</span><br>Next earnings in 3 weeks, the real test for the AI-capex story. <span class="text-[var(--watch)] text-[12px]">watch this</span></li>
+          <li class="border-t border-[var(--line)] pt-3"><span class="text-[12px] text-[var(--soft)] num">3d ago</span><br>Sector-wide rotation into semis on rate-cut hopes. <span class="text-[var(--soft)] text-[12px]">context, not a catalyst</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PRICE + zones -->
+  <section class="mt-12 card rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="serif text-[22px]">Price and your zones</h3>
+      <div class="flex gap-1 text-[12px]">
+        <button class="px-2.5 py-1 rounded-md bg-[var(--holdbg)] text-[var(--ink)] font-medium">6M</button>
+        <button class="px-2.5 py-1 rounded-md text-[var(--soft)]">1Y</button>
+        <button class="px-2.5 py-1 rounded-md text-[var(--soft)]">5Y</button>
+      </div>
+    </div>
+    <div id="chart"></div>
+    <div class="flex flex-wrap gap-4 mt-3 text-[12px] text-[var(--soft)] num">
+      <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[var(--ink)] inline-block"></span>NVDA</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 inline-block" style="background:var(--accent)"></span>50-day avg</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-2 inline-block rounded-sm" style="background:var(--sellbg)"></span>sell zone &gt; $145</span>
+    </div>
+  </section>
+
+  <!-- PRO UPSELL -->
+  <section class="mt-12 rounded-3xl p-8 sm:p-10 text-center" style="background:var(--ink);color:var(--paper)">
+    <p class="text-[12px] uppercase tracking-[0.18em] opacity-70">stocksbrew Pro</p>
+    <h3 class="serif text-[28px] sm:text-[34px] mt-3 leading-tight max-w-[620px] mx-auto">Get this on every name you own, and an email the moment a zone is hit.</h3>
+    <p class="text-[15px] opacity-75 mt-3 max-w-[520px] mx-auto">Unlimited stocks on Radar, the full case behind every call, and suggestions for what to add next. $99/yr, or $12/mo.</p>
+    <a href="landing.html#pricing" class="inline-block mt-6 font-medium bg-[var(--paper)] text-[var(--ink)] px-7 py-3 rounded-full">Go Pro</a>
+  </section>
+
+</main>
+
+<footer class="border-t border-[var(--line)]">
+  <div class="max-w-[1080px] mx-auto px-6 py-8 text-[12px] text-[var(--soft)] flex flex-wrap gap-x-6 gap-y-2 justify-between">
+    <span>stocksbrew · Know what to do with your stocks.</span>
+    <span>Not investment advice. Not a broker. US markets.</span>
+  </div>
+</footer>
+
+<script>
+// pillars
+const pillars=[['Valuation',34,'stretched','var(--sell)'],['Growth',88,'elite','var(--buy)'],['Quality',94,'elite','var(--buy)'],['Momentum',79,'strong','var(--buy)']];
+document.getElementById('pillars').innerHTML=pillars.map(([n,v,lab,c])=>`
+  <div>
+    <div class="flex justify-between text-[13px] mb-1"><span class="font-medium">${n}</span><span class="num" style="color:${c}">${v} · ${lab}</span></div>
+    <div class="h-2 rounded-full bg-[var(--holdbg)] overflow-hidden bar"><span class="block h-full rounded-full" style="width:${v}%;background:${c}"></span></div>
+  </div>`).join('');
+
+// price chart
+(function(){
+  const W=920,H=240,pad=8;
+  const pts=[88,92,96,90,101,108,104,112,118,114,121,126,122,130,128,134,131,138,133,141,136,139,132.84];
+  const min=80,max=150, x=i=>pad+i/(pts.length-1)*(W-2*pad), y=v=>H-pad-(v-min)/(max-min)*(H-2*pad);
+  const line=pts.map((p,i)=>`${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(' ');
+  const area=`${pad},${H-pad} ${line} ${W-pad},${H-pad}`;
+  // 50-day avg (smoothed-ish)
+  const ma=pts.map((_,i)=>{const s=pts.slice(Math.max(0,i-4),i+1);return s.reduce((a,b)=>a+b,0)/s.length;});
+  const maLine=ma.map((p,i)=>`${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(' ');
+  const sellY=y(145);
+  document.getElementById('chart').innerHTML=`
+  <svg viewBox="0 0 ${W} ${H}" class="w-full" style="height:240px">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16130d" stop-opacity=".10"/><stop offset="1" stop-color="#16130d" stop-opacity="0"/></linearGradient></defs>
+    <rect x="0" y="0" width="${W}" height="${sellY}" fill="var(--sellbg)" opacity=".6"/>
+    <line x1="0" y1="${sellY}" x2="${W}" y2="${sellY}" stroke="var(--sell)" stroke-width="1" stroke-dasharray="4 4" opacity=".6"/>
+    <text x="${W-8}" y="${sellY-6}" text-anchor="end" font-size="11" fill="var(--sell)" font-family="Inter">sell zone $145</text>
+    <polygon points="${area}" fill="url(#g)"/>
+    <polyline points="${maLine}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" opacity=".8"/>
+    <polyline points="${line}" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/>
+    <circle cx="${x(pts.length-1)}" cy="${y(pts[pts.length-1])}" r="4" fill="var(--ink)"/>
+  </svg>`;
+})();
+</script>
+</body>
+</html>

@@ -28,8 +28,8 @@ type Suggestion = {
 const SOURCE_PILL: Record<string, { label: string; bg: string; fg: string }> = {
   heat:    { label: "Heat",    bg: "#fff7ed", fg: "#c2410c" },
   reddit:  { label: "Reddit",  bg: "#f5f3ff", fg: "#7c3aed" },
-  anomaly: { label: "Anomaly", bg: "#eff6ff", fg: "#1d4ed8" },
-  screen:  { label: "Screen",  bg: "#ecfdf5", fg: "#047857" },
+  anomaly: { label: "Anomaly", bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1d4ed8" },
+  screen:  { label: "Screen",  bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981" },
 };
 
 type Props = {
@@ -75,17 +75,17 @@ function num(v: unknown): number | null {
 }
 
 function scoreToneText(score: number | null): string {
-  if (score === null) return "text-[#9ca3af]";
+  if (score === null) return "text-on-surface-variant";
   if (score >= 80) return "text-[#10b981]";
-  if (score >= 60) return "text-[#111111]";
-  if (score >= 40) return "text-[#6b7280]";
+  if (score >= 60) return "text-on-surface";
+  if (score >= 40) return "text-on-surface-variant";
   return "text-[#ef4444]";
 }
 
 function runwayToneText(pct: number | null): string {
-  if (pct === null) return "text-[#9ca3af]";
-  if (pct >= 15) return "text-[#047857]";
-  if (pct >= 0) return "text-[#111111]";
+  if (pct === null) return "text-on-surface-variant";
+  if (pct >= 15) return "text-[#10b981]";
+  if (pct >= 0) return "text-on-surface";
   return "text-[#ef4444]";
 }
 
@@ -172,20 +172,20 @@ const PRIORITY_BADGE: Record<
   DirectiveV2["priority"],
   { label: string; bg: string; fg: string }
 > = {
-  high: { label: "High", bg: "#fef2f2", fg: "#b91c1c" },
-  medium: { label: "Medium", bg: "#fef3c7", fg: "#92400e" },
-  low: { label: "Low", bg: "#f3f4f6", fg: "#4b5563" },
+  high: { label: "High", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444" },
+  medium: { label: "Medium", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b" },
+  low: { label: "Low", bg: "var(--surface-container)", fg: "var(--on-surface-variant)" },
 };
 
 const STANCE_CHIP: Record<
   string,
   { label: string; bg: string; fg: string; dot: string }
 > = {
-  accumulate: { label: "Accumulate", bg: "#ecfdf5", fg: "#065f46", dot: "#10b981" },
-  trim: { label: "Trim", bg: "#fef3c7", fg: "#92400e", dot: "#f59e0b" },
-  watch: { label: "Watch", bg: "#eff6ff", fg: "#1e3a8a", dot: "#0052ff" },
-  avoid: { label: "Avoid", bg: "#fef2f2", fg: "#991b1b", dot: "#ef4444" },
-  hold: { label: "Hold", bg: "#f3f4f6", fg: "#374151", dot: "#374151" },
+  accumulate: { label: "Accumulate", bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981", dot: "#10b981" },
+  trim: { label: "Trim", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b", dot: "#f59e0b" },
+  watch: { label: "Watch", bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1e3a8a", dot: "#0052ff" },
+  avoid: { label: "Avoid", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444", dot: "#ef4444" },
+  hold: { label: "Hold", bg: "var(--surface-container)", fg: "var(--on-surface)", dot: "var(--on-surface)" },
 };
 
 function rsiExtremeFromRow(row: WatchlistRow): {
@@ -234,7 +234,7 @@ function TriggerChip({ trigger }: { trigger: string }) {
   const label = trigger.trim();
   if (!label) return null;
   return (
-    <span className="inline-flex max-w-[120px] shrink-0 items-center truncate rounded bg-[#f3f4f6] px-1.5 py-0.5 text-[9px] font-medium text-[#6b7280]">
+    <span className="inline-flex max-w-[120px] shrink-0 items-center truncate rounded bg-surface-container px-1.5 py-0.5 text-[9px] font-medium text-on-surface-variant">
       {label.length > 18 ? `${label.slice(0, 16)}…` : label}
     </span>
   );
@@ -296,7 +296,7 @@ function DirectiveDisplay({
             {d2.trigger && <TriggerChip trigger={d2.trigger} />}
           </div>
           {detail && (
-            <span className="text-[9px] text-[#9ca3af] leading-snug line-clamp-1">{detail}</span>
+            <span className="text-[9px] text-on-surface-variant leading-snug line-clamp-1">{detail}</span>
           )}
         </div>
       );
@@ -310,7 +310,7 @@ function DirectiveDisplay({
           {d2.trigger && <TriggerChip trigger={d2.trigger} />}
         </div>
         {detail && (
-          <p className="text-[10px] leading-snug text-[#9ca3af] line-clamp-2">{detail}</p>
+          <p className="text-[10px] leading-snug text-on-surface-variant line-clamp-2">{detail}</p>
         )}
       </div>
     );
@@ -334,7 +334,7 @@ function DirectiveDisplay({
     );
   }
 
-  return compact ? null : <span className="text-[11px] text-[#9ca3af]">—</span>;
+  return compact ? null : <span className="text-[11px] text-on-surface-variant">—</span>;
 }
 
 type SharesEditHandlers = {
@@ -371,7 +371,7 @@ function InlineSharesCell({
   }
 
   if (!bulkEditing) {
-    return <span className={`text-[13px] font-semibold tabular-nums ${display === "—" ? "text-[#9ca3af]" : "text-[#111111]"}`}>{display}</span>;
+    return <span className={`text-[13px] font-semibold tabular-nums ${display === "—" ? "text-on-surface-variant" : "text-on-surface"}`}>{display}</span>;
   }
 
   return (
@@ -402,7 +402,7 @@ function InlineSharesCell({
         }}
         aria-label={`Shares for ${row.ticker}`}
         className={`w-[84px] rounded border px-1.5 py-0.5 text-right text-[12px] font-semibold tabular-nums outline-none ${
-          error ? "border-[#fca5a5] bg-[#fef2f2]" : "border-[#d1d5db] bg-white focus:border-[#111111]"
+          error ? "border-[#fca5a5] tint-bear" : "border-outline-variant bg-surface focus:border-on-surface"
         }`}
       />
       {error && <span className="text-[9px] font-medium text-[#ef4444]">{error}</span>}
@@ -543,26 +543,26 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
       ) : (
         <>
           {bulkError && (
-            <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-[11px] font-medium text-[#b91c1c]">
+            <div className="rounded-xl border border-outline-variant tint-bear px-3 py-2 text-[11px] font-medium text-[#ef4444]">
               {bulkError}
             </div>
           )}
           {/* ── Mobile card list (< md) ── */}
-          <div className="md:hidden rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+          <div className="md:hidden rounded-2xl border border-outline-variant bg-surface overflow-hidden">
             <DailySummary
               rows={rows}
               label={tab === "holdings" ? "Holdings" : "Watching"}
               editSlot={tab === "holdings" && holdings.length > 0 ? (
                 bulkEditing ? (
                   <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-50">Cancel</button>
-                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-[#111111] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
+                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-50">Cancel</button>
+                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-on-surface px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
                       {bulkSaving && <span className="h-2 w-2 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
                       Save
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#374151] hover:bg-[#f9fafb]">Edit holdings</button>
+                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:bg-surface-container-low">Edit holdings</button>
                 )
               ) : undefined}
             />
@@ -578,28 +578,28 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
           </div>
 
           {/* ── Desktop table (≥ md) ── */}
-          <div className="hidden md:block min-w-0 w-full rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+          <div className="hidden md:block min-w-0 w-full rounded-2xl border border-outline-variant bg-surface overflow-hidden">
             <DailySummary
               rows={rows}
               label={tab === "holdings" ? "Holdings" : "Watching"}
               editSlot={tab === "holdings" && holdings.length > 0 ? (
                 bulkEditing ? (
                   <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-50">Cancel</button>
-                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-[#111111] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
+                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-50">Cancel</button>
+                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-on-surface px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
                       {bulkSaving && <span className="h-2 w-2 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
                       Save
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-[#e5e7eb] px-2.5 py-1 text-[10px] font-semibold text-[#374151] hover:bg-[#f9fafb]">Edit holdings</button>
+                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:bg-surface-container-low">Edit holdings</button>
                 )
               ) : undefined}
             />
             <div className="min-w-0 overflow-x-auto overflow-y-auto max-h-[540px]">
               <table className="w-full min-w-[720px] border-collapse text-[13px] xl:min-w-[800px]">
-                <thead className="sticky top-0 z-10 bg-white">
-                  <tr className="border-b border-[#f3f4f6] text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+                <thead className="sticky top-0 z-10 bg-surface">
+                  <tr className="border-b border-outline-variant text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
                     <th className="px-4 py-3 font-semibold">Ticker</th>
                     <th className="px-3 py-3 text-right font-semibold">Price</th>
                     <th className="px-3 py-3 text-right font-semibold">Change</th>
@@ -641,9 +641,9 @@ function DailySummary({ rows, label, editSlot }: { rows: WatchlistRow[]; label: 
   const positive = (avgPct ?? 0) >= 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-2.5">
+    <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-4 py-2.5">
       <div className="flex items-center gap-3">
-        <span className="text-[12px] font-medium text-[#9ca3af]">{label} · today</span>
+        <span className="text-[12px] font-medium text-on-surface-variant">{label} · today</span>
         {editSlot}
       </div>
       {avgPct !== null && (
@@ -683,14 +683,14 @@ function TabButton({
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12px] font-semibold transition-colors ${
         active
-          ? "bg-[#111111] text-white"
-          : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+          ? "bg-on-surface text-surface"
+          : "bg-surface-container text-on-surface hover:bg-surface-container-high"
       }`}
     >
       {label}
       <span
         className={`text-[10px] font-semibold tabular-nums ${
-          active ? "text-white/70" : "text-[#9ca3af]"
+          active ? "text-white/70" : "text-on-surface-variant"
         }`}
       >
         {count}
@@ -733,15 +733,15 @@ function EmptyTabState({
   const cards = (suggestions.length > 0 ? suggestions : FALLBACK_SUGGESTIONS).slice(0, 6);
 
   return (
-    <div className="rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafaf7] p-6 md:p-8 flex flex-col gap-5">
+    <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-6 md:p-8 flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
-        <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+        <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-on-surface-variant">
           Empty {tab === "holdings" ? "holdings" : "watching"}
         </span>
-        <h3 className="text-[18px] md:text-[20px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
+        <h3 className="text-[18px] md:text-[20px] font-semibold tracking-[-0.01em] text-on-surface">
           {intro.title}
         </h3>
-        <p className="text-[13.5px] text-[#6b7280] leading-snug max-w-[640px]">{intro.copy}</p>
+        <p className="text-[13.5px] text-on-surface-variant leading-snug max-w-[640px]">{intro.copy}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -798,13 +798,13 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
     <>
       <Link
         href={`/stock/${encodeURIComponent(ticker)}`}
-        className="group flex h-full flex-col gap-2.5 rounded-xl border border-[#e5e7eb] bg-white p-3 transition-all hover:border-[#111111] hover:shadow-sm"
+        className="group flex h-full flex-col gap-2.5 rounded-xl border border-outline-variant bg-surface p-3 transition-all hover:border-on-surface hover:shadow-sm"
       >
         <div className="flex min-w-0 items-start gap-2.5">
           <StockLogo ticker={ticker} market={market} size={32} className="shrink-0" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <span className="truncate text-[13px] font-semibold text-[#0a0a0a] transition-colors group-hover:text-[#0052ff]">
+              <span className="truncate text-[13px] font-semibold text-on-surface transition-colors group-hover:text-[#22d3ee]">
                 {ticker}
               </span>
               {typeof score === "number" && (
@@ -814,12 +814,12 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               )}
             </div>
             {suggestion.sector && (
-              <span className="truncate text-[10px] text-[#9ca3af]">{suggestion.sector}</span>
+              <span className="truncate text-[10px] text-on-surface-variant">{suggestion.sector}</span>
             )}
             {suggestion.sources && suggestion.sources.length > 0 && (
               <div className="flex flex-wrap items-center gap-1">
                 {suggestion.sources.slice(0, 3).map((s) => {
-                  const meta = SOURCE_PILL[s] ?? { label: s, bg: "#f3f4f6", fg: "#6b7280" };
+                  const meta = SOURCE_PILL[s] ?? { label: s, bg: "var(--surface-container)", fg: "var(--on-surface-variant)" };
                   return (
                     <span
                       key={s}
@@ -833,12 +833,12 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               </div>
             )}
             {suggestion.why && (
-              <span className="line-clamp-2 text-[11px] leading-snug text-[#374151]">
+              <span className="line-clamp-2 text-[11px] leading-snug text-on-surface">
                 {suggestion.why}
               </span>
             )}
             {!suggestion.why && suggestion.reason && (
-              <span className="line-clamp-2 text-[11px] leading-snug text-[#6b7280]">
+              <span className="line-clamp-2 text-[11px] leading-snug text-on-surface-variant">
                 {suggestion.reason}
               </span>
             )}
@@ -850,12 +850,12 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
           title="Add as holding"
           className={`inline-flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-[10px] font-semibold transition-all ${
             status === "done"
-              ? "bg-[#ecfdf5] text-[#047857]"
+              ? "tint-bull text-[#10b981]"
               : status === "error"
-              ? "bg-[#fef2f2] text-[#b91c1c]"
+              ? "tint-bear text-[#ef4444]"
               : status === "loading"
-              ? "bg-[#f3f4f6] text-[#9ca3af]"
-              : "bg-[#f3f4f6] text-[#374151] hover:bg-[#111111] hover:text-white"
+              ? "bg-surface-container text-on-surface-variant"
+              : "bg-surface-container text-on-surface hover:bg-on-surface hover:text-white"
           }`}
         >
           {status === "done" ? "✓ Added" : status === "loading" ? "…" : status === "error" ? "Retry" : "+ Hold"}
@@ -892,8 +892,8 @@ function MobileRow({
 
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-[#fafafa] transition-colors cursor-pointer ${
-        hasBorder ? "border-t border-[#f3f4f6]" : ""
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-container-low transition-colors cursor-pointer ${
+        hasBorder ? "border-t border-outline-variant" : ""
       }`}
       onClick={() => router.push(href)}
     >
@@ -901,7 +901,7 @@ function MobileRow({
       <div className="flex items-center gap-2.5 min-w-0">
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="flex flex-col gap-0.5 min-w-0">
-          <span className="text-[14px] font-semibold text-[#111111] leading-none">
+          <span className="text-[14px] font-semibold text-on-surface leading-none">
             {row.ticker}
           </span>
           {/* Signal chips below name */}
@@ -909,7 +909,7 @@ function MobileRow({
             <div className="flex flex-wrap items-center gap-1 mt-0.5">
               {rsi && (
                 <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
-                  rsi.tone === "overbought" ? "bg-[#fef2f2] text-[#b91c1c]" : "bg-[#ecfdf5] text-[#047857]"
+                  rsi.tone === "overbought" ? "tint-bear text-[#ef4444]" : "tint-bull text-[#10b981]"
                 }`}>
                   {rsi.label}
                 </span>
@@ -920,7 +920,7 @@ function MobileRow({
                 const urgency = String(c.urgency ?? "").toLowerCase();
                 return (
                   <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
-                    urgency === "high" ? "bg-[#fef2f2] text-[#b91c1c]" : "bg-[#fef3c7] text-[#b45309]"
+                    urgency === "high" ? "tint-bear text-[#ef4444]" : "tint-warn text-[#f59e0b]"
                   }`}>
                     {label.length > 16 ? `${label.slice(0, 14)}…` : label}
                   </span>
@@ -936,7 +936,7 @@ function MobileRow({
       {/* RIGHT: price + % change + menu */}
       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col items-end gap-0.5">
-          <span className="text-[14px] font-semibold tabular-nums text-[#111111]">
+          <span className="text-[14px] font-semibold tabular-nums text-on-surface">
             {fmtPrice(row.price, row.currency)}
           </span>
           {typeof dayChange === "number" && (
@@ -977,7 +977,7 @@ function LedgerRow({
 
   return (
     <tr
-      className="border-b border-[#f3f4f6] last:border-b-0 hover:bg-[#fafafa] transition-colors cursor-pointer"
+      className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low transition-colors cursor-pointer"
       onClick={() => router.push(href)}
     >
       <td className="px-4 py-3">
@@ -988,7 +988,7 @@ function LedgerRow({
             </Link>
           </div>
           <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[13px] font-semibold text-[#111111] leading-none">
+            <span className="text-[13px] font-semibold text-on-surface leading-none">
               {row.ticker}
             </span>
             {(rsi || cats.length > 0) && (
@@ -997,8 +997,8 @@ function LedgerRow({
                   <span
                     className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em] ${
                       rsi.tone === "overbought"
-                        ? "bg-[#fef2f2] text-[#b91c1c]"
-                        : "bg-[#ecfdf5] text-[#047857]"
+                        ? "tint-bear text-[#ef4444]"
+                        : "tint-bull text-[#10b981]"
                     }`}
                   >
                     {rsi.label}
@@ -1013,8 +1013,8 @@ function LedgerRow({
                       key={`cat-${i}`}
                       className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em] ${
                         urgency === "high"
-                          ? "bg-[#fef2f2] text-[#b91c1c]"
-                          : "bg-[#fef3c7] text-[#b45309]"
+                          ? "tint-bear text-[#ef4444]"
+                          : "tint-warn text-[#f59e0b]"
                       }`}
                     >
                       {label.length > 20 ? `${label.slice(0, 18)}…` : label}
@@ -1027,7 +1027,7 @@ function LedgerRow({
         </div>
       </td>
       <td className="px-3 py-3 text-right">
-        <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
+        <span className="text-[13px] font-semibold tabular-nums text-on-surface">
           {fmtPrice(row.price, row.currency)}
         </span>
       </td>
@@ -1050,7 +1050,7 @@ function LedgerRow({
       )}
       {showHoldingValue && (
         <td className="px-3 py-3 text-right">
-          <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
+          <span className="text-[13px] font-semibold tabular-nums text-on-surface">
             {fmtHoldingValue(row)}
           </span>
         </td>
@@ -1153,11 +1153,11 @@ function RowMenu({ row }: { row: WatchlistRow }) {
           type="button"
           onClick={openMenu}
           disabled={busy}
-          className="flex h-6 w-6 items-center justify-center rounded-md text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#374151] transition-colors disabled:opacity-40 outline-none focus:outline-none"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors disabled:opacity-40 outline-none focus:outline-none"
           aria-label="Row options"
         >
           {busy ? (
-            <span className="h-3 w-3 rounded-full border-2 border-[#d1d5db] border-t-[#6b7280] animate-spin" />
+            <span className="h-3 w-3 rounded-full border-2 border-outline-variant border-t-[#6b7280] animate-spin" />
           ) : (
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
               <circle cx="7" cy="2.5" r="1.2" />
@@ -1170,21 +1170,21 @@ function RowMenu({ row }: { row: WatchlistRow }) {
         {open && (
           <div
             style={{ top: menuPos.top, right: menuPos.right }}
-            className="fixed z-[200] w-44 rounded-2xl border border-[#e5e7eb] bg-white py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+            className="fixed z-[200] w-44 rounded-2xl border border-outline-variant bg-surface py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
           >
             <button
               type="button"
               onClick={() => move(isHolding ? "watchlist" : "holding")}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#111111] hover:bg-[#f9fafb] transition-colors"
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-on-surface hover:bg-surface-container-low transition-colors"
             >
               <span aria-hidden className="text-[14px]">{isHolding ? "👁" : "💼"}</span>
               {isHolding ? "Move to Watching" : "Move to Holdings"}
             </button>
-            <div className="mx-3 my-1 border-t border-[#f3f4f6]" />
+            <div className="mx-3 my-1 border-t border-outline-variant" />
             <button
               type="button"
               onClick={remove}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#ef4444] hover:tint-bear transition-colors"
             >
               <span aria-hidden className="text-[14px]">✕</span>
               Stop tracking

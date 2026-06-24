@@ -33,8 +33,8 @@ export function TierCTA({
 
   if (tier === "ai_launch") {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <span className="min-w-0 text-[13px] font-medium leading-relaxed text-[#065f46]">
+      <div className="flex flex-col items-start gap-3 rounded-2xl tint-bull px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <span className="min-w-0 text-[13px] font-medium leading-relaxed text-[#10b981]">
           {isSubscribed
             ? "Launch list - full AI tab with personalized calls."
             : "Free launch list - full AI tab on select stocks only. Upgrade for more."}
@@ -63,8 +63,8 @@ export function TierCTA({
 
   if (tier === "ai_personal") {
     return (
-      <div className="flex flex-col items-start gap-2 rounded-2xl border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#1e3a8a]">
+      <div className="flex flex-col items-start gap-2 rounded-2xl tint-info px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#3b82f6]">
           On your Radar - updates with each run.
         </span>
         <div className={isTracked ? "shrink-0 self-end sm:self-auto" : "self-end sm:self-auto"}>
@@ -169,11 +169,11 @@ type CtaCardProps = {
 
 function CtaCard({ title, body, primary, primaryProStyle = false, action, error }: CtaCardProps) {
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white px-5 py-5">
+    <div className="rounded-2xl bg-surface px-5 py-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="text-[15px] font-semibold text-[#111111] tracking-[-0.01em]">{title}</h3>
-          <p className="mt-1 text-[13px] text-[#6b7280] leading-relaxed">{body}</p>
+          <h3 className="text-[15px] font-semibold text-on-surface tracking-[-0.01em]">{title}</h3>
+          <p className="mt-1 text-[13px] text-on-surface-variant leading-relaxed">{body}</p>
         </div>
         {action ? (
           action
@@ -184,7 +184,7 @@ function CtaCard({ title, body, primary, primaryProStyle = false, action, error 
             className={
               primaryProStyle
                 ? proCtaClassName({ size: "sm", className: "h-[40px]" })
-                : "shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+                : "shrink-0 inline-flex items-center justify-center h-[40px] rounded-full bg-on-surface px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
             }
           >
             {primary.label}

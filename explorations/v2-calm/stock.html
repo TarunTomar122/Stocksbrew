@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apple (AAPL) — A calm read · stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { paper:"#faf6ef", ink:"#1f1b16", inkmute:"#6b6259", terracotta:"#c2613f", hairline:"#e3dccf", card:"#fffdf8" },
+      fontFamily: { serif:['Fraunces','serif'], sans:['Inter','sans-serif'] },
+    } },
+  };
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body { background:#faf6ef; color:#1f1b16; -webkit-font-smoothing:antialiased; }
+  .display { font-family:'Fraunces',serif; letter-spacing:-0.02em; }
+  .hairline { border-color:#e3dccf; }
+  .deckline::before { content:""; display:inline-block; width:28px; height:1px; background:#c2613f; vertical-align:middle; margin-right:10px; }
+  .grain { background-image: radial-gradient(#1f1b16 0.5px, transparent 0.5px); background-size:22px 22px; opacity:0.025; }
+  .draw { stroke-dasharray:1400; stroke-dashoffset:1400; animation: draw 2.4s ease forwards; }
+  @keyframes draw { to { stroke-dashoffset:0; } }
+  .fade-up { animation: fadeUp .9s ease both; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body class="font-sans antialiased">
+
+<!-- NAV -->
+<header class="sticky top-0 z-50 bg-paper/85 backdrop-blur-sm border-b hairline">
+  <nav class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="landing.html" class="flex items-center gap-2">
+      <span class="display text-2xl font-semibold tracking-tight">stocksbrew</span>
+      <span class="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-terracotta mt-1"></span>
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm text-inkmute">
+      <a href="landing.html#brief" class="hover:text-ink transition">The brief</a>
+      <a href="landing.html#moving" class="hover:text-ink transition">What's moving</a>
+      <a href="landing.html#why" class="hover:text-ink transition">Why we exist</a>
+      <a href="landing.html#pricing" class="hover:text-ink transition">Pricing</a>
+    </div>
+    <a href="landing.html#signup" class="text-sm font-medium bg-ink text-paper px-4 py-2 rounded-full hover:bg-terracotta transition">Read free</a>
+  </nav>
+</header>
+
+<!-- BREADCRUMB -->
+<div class="max-w-5xl mx-auto px-6 pt-8 text-sm text-inkmute">
+  <a href="landing.html" class="hover:text-terracotta transition">Home</a>
+  <span class="mx-2 text-hairline">/</span>
+  <a href="landing.html#moving" class="hover:text-terracotta transition">What's moving</a>
+  <span class="mx-2 text-hairline">/</span>
+  <span class="text-ink">Apple</span>
+</div>
+
+<!-- HEADER: price + change -->
+<section class="max-w-5xl mx-auto px-6 pt-8 pb-12 fade-up">
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b hairline pb-10">
+    <div>
+      <p class="deckline text-xs uppercase tracking-[0.18em] text-inkmute mb-4">A calm read · updated 4:00pm ET, Jun 20</p>
+      <div class="flex items-baseline gap-4">
+        <h1 class="display text-5xl md:text-6xl font-semibold">Apple</h1>
+        <span class="text-inkmute display text-2xl">AAPL</span>
+      </div>
+      <p class="mt-3 text-inkmute">Consumer technology · NASDAQ · Mega cap</p>
+    </div>
+    <div class="md:text-right">
+      <p class="display text-5xl font-semibold">$214.06</p>
+      <p class="mt-2 text-emerald-700 font-medium">+$1.78 &nbsp;(+0.84%) today</p>
+      <p class="text-xs text-inkmute mt-1">Range $211.40 – $214.92 · Vol 41.2M</p>
+    </div>
+  </div>
+</section>
+
+<!-- BODY -->
+<section class="max-w-5xl mx-auto px-6 pb-20 grid md:grid-cols-12 gap-12">
+  <!-- MAIN -->
+  <article class="md:col-span-8 space-y-12">
+
+    <!-- VERDICT -->
+    <div>
+      <p class="deckline text-xs uppercase tracking-[0.18em] text-inkmute mb-5">The verdict, in plain English</p>
+      <div class="bg-card border hairline rounded-2xl p-8 md:p-10">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-xs uppercase tracking-[0.16em] bg-terracotta/15 text-terracotta px-3 py-1 rounded-full">Hold, comfortably</span>
+          <span class="text-sm text-inkmute">Our read, not advice</span>
+        </div>
+        <p class="display text-2xl md:text-[1.7rem] leading-snug">
+          Apple is a wonderful business trading at a price that already assumes it stays wonderful. Nothing here is broken, and nothing here is a bargain.
+        </p>
+        <p class="mt-5 text-ink leading-relaxed">
+          The cash machine keeps running, margins are excellent, and the balance sheet is the envy of the market. What you are paying for is certainty, and certainty is rarely cheap. If you own it, the case to keep holding is easy. If you do not, this is not the week the market is begging you to buy.
+        </p>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div>
+      <div class="flex items-center justify-between mb-5">
+        <p class="deckline text-xs uppercase tracking-[0.18em] text-inkmute">Twelve months, no drama</p>
+        <div class="flex gap-1 text-xs">
+          <span class="px-3 py-1 rounded-full bg-ink text-paper">1Y</span>
+          <span class="px-3 py-1 rounded-full text-inkmute">5Y</span>
+          <span class="px-3 py-1 rounded-full text-inkmute">Max</span>
+        </div>
+      </div>
+      <div class="bg-card border hairline rounded-2xl p-6">
+        <svg viewBox="0 0 600 220" class="w-full h-56" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c2613f" stop-opacity="0.16" />
+              <stop offset="100%" stop-color="#c2613f" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <!-- gridlines -->
+          <line x1="0" y1="55" x2="600" y2="55" stroke="#e3dccf" stroke-width="1" />
+          <line x1="0" y1="110" x2="600" y2="110" stroke="#e3dccf" stroke-width="1" />
+          <line x1="0" y1="165" x2="600" y2="165" stroke="#e3dccf" stroke-width="1" />
+          <!-- area -->
+          <path d="M0,170 C50,160 80,175 120,150 C170,120 200,135 250,110 C300,90 330,120 380,95 C430,72 470,88 520,60 C550,45 575,52 600,40 L600,220 L0,220 Z" fill="url(#fill)" />
+          <!-- line -->
+          <path class="draw" d="M0,170 C50,160 80,175 120,150 C170,120 200,135 250,110 C300,90 330,120 380,95 C430,72 470,88 520,60 C550,45 575,52 600,40"
+            fill="none" stroke="#c2613f" stroke-width="2.4" stroke-linecap="round" />
+          <circle cx="600" cy="40" r="4" fill="#c2613f" />
+        </svg>
+        <div class="flex justify-between text-xs text-inkmute mt-3">
+          <span>Jun '25</span><span>Sep</span><span>Dec</span><span>Mar</span><span>Jun '26</span>
+        </div>
+      </div>
+      <p class="text-sm text-inkmute mt-3 leading-relaxed">Up roughly 24% over the year, in a steady line rather than a rollercoaster. That smoothness is itself the story.</p>
+    </div>
+
+    <!-- REASONING -->
+    <div>
+      <p class="deckline text-xs uppercase tracking-[0.18em] text-inkmute mb-5">The reasoning, unpacked</p>
+      <div class="space-y-6">
+        <div class="border-l-2 border-terracotta pl-6">
+          <h3 class="display text-xl font-semibold">Why we are calm about it</h3>
+          <p class="mt-2 text-ink leading-relaxed">Free cash flow comfortably covers the dividend and buyback with room to spare. Services revenue keeps growing at a high margin, which quietly lifts the quality of every dollar earned. This is a business that does not need anything to go right to be fine.</p>
+        </div>
+        <div class="border-l-2 border-hairline pl-6">
+          <h3 class="display text-xl font-semibold">What keeps us from cheering</h3>
+          <p class="mt-2 text-ink leading-relaxed">At roughly 31 times earnings, the price already reflects the good news. Hardware growth is mature, and the next leg likely depends on services and new categories that are promising but unproven. You are buying excellence at a full price, not a discount.</p>
+        </div>
+        <div class="border-l-2 border-hairline pl-6">
+          <h3 class="display text-xl font-semibold">What we are watching</h3>
+          <p class="mt-2 text-ink leading-relaxed">Services growth holding above the mid-teens, and any sign the next product cycle reaccelerates iPhone demand. Neither needs your attention this week. We will say so plainly if that changes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PILLAR SCORES -->
+    <div>
+      <p class="deckline text-xs uppercase tracking-[0.18em] text-inkmute mb-5">Four pillars, scored</p>
+      <div class="grid sm:grid-cols-2 gap-5">
+        <!-- Valuation -->
+        <div class="bg-card border hairline rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="display text-lg font-semibold">Valuation</h3>
+            <span class="display text-2xl font-semibold text-terracotta">5.4</span>
+          </div>
+          <div class="mt-3 h-1.5 rounded-full bg-hairline overflow-hidden"><div class="h-full bg-terracotta" style="width:54%"></div></div>
+          <p class="text-sm text-inkmute mt-3 leading-relaxed">Full. Priced for continued excellence, with little margin of safety left.</p>
+        </div>
+        <!-- Growth -->
+        <div class="bg-card border hairline rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="display text-lg font-semibold">Growth</h3>
+            <span class="display text-2xl font-semibold">6.8</span>
+          </div>
+          <div class="mt-3 h-1.5 rounded-full bg-hairline overflow-hidden"><div class="h-full bg-ink" style="width:68%"></div></div>
+          <p class="text-sm text-inkmute mt-3 leading-relaxed">Steady. Services carry the story while hardware matures gracefully.</p>
+        </div>
+        <!-- Quality -->
+        <div class="bg-card border hairline rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="display text-lg font-semibold">Quality</h3>
+            <span class="display text-2xl font-semibold text-emerald-700">9.3</span>
+          </div>
+          <div class="mt-3 h-1.5 rounded-full bg-hairline overflow-hidden"><div class="h-full bg-emerald-700" style="width:93%"></div></div>
+          <p class="text-sm text-inkmute mt-3 leading-relaxed">Exceptional. Margins, returns on capital, and balance sheet are best in class.</p>
+        </div>
+        <!-- Momentum -->
+        <div class="bg-card border hairline rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="display text-lg font-semibold">Momentum</h3>
+            <span class="display text-2xl font-semibold">7.1</span>
+          </div>
+          <div class="mt-3 h-1.5 rounded-full bg-hairline overflow-hidden"><div class="h-full bg-ink" style="width:71%"></div></div>
+          <p class="text-sm text-inkmute mt-3 leading-relaxed">Constructive. A calm uptrend, trading near its highs without froth.</p>
+        </div>
+      </div>
+    </div>
+
+  </article>
+
+  <!-- SIDEBAR -->
+  <aside class="md:col-span-4 space-y-6">
+    <!-- key facts -->
+    <div class="bg-card border hairline rounded-2xl p-6">
+      <p class="text-xs uppercase tracking-[0.16em] text-inkmute mb-4">At a glance</p>
+      <dl class="space-y-3 text-sm">
+        <div class="flex justify-between border-b hairline pb-3"><dt class="text-inkmute">Market cap</dt><dd class="font-medium">$3.27T</dd></div>
+        <div class="flex justify-between border-b hairline pb-3"><dt class="text-inkmute">P / E</dt><dd class="font-medium">31.2</dd></div>
+        <div class="flex justify-between border-b hairline pb-3"><dt class="text-inkmute">Dividend yield</dt><dd class="font-medium">0.46%</dd></div>
+        <div class="flex justify-between border-b hairline pb-3"><dt class="text-inkmute">52-week range</dt><dd class="font-medium">$169 – $220</dd></div>
+        <div class="flex justify-between"><dt class="text-inkmute">Next earnings</dt><dd class="font-medium">Jul 31</dd></div>
+      </dl>
+    </div>
+
+    <!-- soft Pro upsell -->
+    <div class="bg-ink text-paper rounded-2xl p-7 relative overflow-hidden">
+      <div class="absolute inset-0 grain"></div>
+      <div class="relative">
+        <p class="text-xs uppercase tracking-[0.16em] text-terracotta mb-3">A quieter way to hold this</p>
+        <h3 class="display text-2xl font-semibold leading-snug">Get a read like this on every stock you own.</h3>
+        <p class="text-paper/70 text-sm mt-4 leading-relaxed">Pro applies the same calm reasoning to your whole portfolio, and writes only when something genuinely changes. No noise, no nudging.</p>
+        <div class="mt-6 flex items-end gap-2">
+          <span class="display text-3xl font-semibold">$12</span>
+          <span class="text-paper/60 text-sm mb-1">/ mo · or $99 a year</span>
+        </div>
+        <a href="landing.html#pricing" class="mt-5 block text-center bg-terracotta text-paper rounded-full py-3 text-sm font-medium hover:bg-paper hover:text-ink transition">Start Pro</a>
+        <p class="text-center text-xs text-paper/50 mt-3">Cancel in one click. The daily brief stays free.</p>
+      </div>
+    </div>
+
+    <!-- newsletter nudge -->
+    <div class="border hairline rounded-2xl p-6">
+      <p class="display text-lg font-semibold">Not ready? Just read along.</p>
+      <p class="text-sm text-inkmute mt-2 leading-relaxed">The free morning brief covers names like Apple every day. Three minutes, then on with your day.</p>
+      <a href="landing.html#signup" class="mt-4 block text-center border border-ink rounded-full py-2.5 text-sm font-medium hover:bg-ink hover:text-paper transition">Get the brief free</a>
+    </div>
+  </aside>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t hairline">
+  <div class="max-w-6xl mx-auto px-6 py-14 grid md:grid-cols-4 gap-10">
+    <div class="md:col-span-2">
+      <span class="display text-xl font-semibold">stocksbrew</span>
+      <p class="text-inkmute text-sm mt-3 max-w-xs leading-relaxed">Your calm corner of the market. We read the chaos so you do not have to.</p>
+    </div>
+    <div>
+      <p class="text-xs uppercase tracking-[0.16em] text-inkmute mb-4">Read</p>
+      <ul class="space-y-2 text-sm text-ink">
+        <li><a href="landing.html#brief" class="hover:text-terracotta transition">The brief</a></li>
+        <li><a href="landing.html#moving" class="hover:text-terracotta transition">What's moving</a></li>
+        <li><a href="stock.html" class="hover:text-terracotta transition">A sample read</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="text-xs uppercase tracking-[0.16em] text-inkmute mb-4">Company</p>
+      <ul class="space-y-2 text-sm text-ink">
+        <li><a href="landing.html#why" class="hover:text-terracotta transition">Why we exist</a></li>
+        <li><a href="landing.html#pricing" class="hover:text-terracotta transition">Pricing</a></li>
+        <li><a href="#" class="hover:text-terracotta transition">Contact</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t hairline">
+    <div class="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row justify-between gap-3 text-xs text-inkmute">
+      <p>© 2026 stocksbrew. For information, not advice.</p>
+      <p>Made slowly, on purpose.</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -15,8 +15,7 @@ const COLUMNS: Column[] = [
       { label: "Market Heat", href: "/heat" },
       { label: "Screens", href: "/screens" },
       { label: "News", href: "/news" },
-      { label: "Market Anomalies", href: "/anomalies" },
-      { label: "Reddit buzz", href: "/reddit-buzz" },
+      { label: "Market Pulse", href: "/pulse" },
       { label: "Pre-market movers", href: "/premarket" },
       { label: "Trump Logic", href: "/trump-logic" },
       { label: "Radar", href: "/watchlist" },
@@ -73,14 +72,14 @@ const COLUMNS: Column[] = [
 export function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="mt-16 bg-[#0b1228] text-white">
+    <footer className="mt-16 bg-[#070b09] text-white">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-16">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-10">
           {/* Wordmark + tagline */}
           <div className="col-span-2 flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-1.5 w-fit">
-              <span className="text-[20px] font-semibold tracking-[-0.04em] text-white leading-none">
-                stocksbrew
+              <span className="font-mono text-[19px] font-bold tracking-[-0.03em] text-white leading-none">
+                stocksbrew<span style={{ color: "#4ade80" }}>.</span>
               </span>
             </Link>
             <p className="text-[14px] leading-[1.55] text-white/65 max-w-[320px]">
@@ -100,7 +99,7 @@ export function Footer() {
           {/* Link columns */}
           {COLUMNS.map((col) => (
             <div key={col.title} className="flex flex-col gap-3">
-              <h3 className="text-[12px] font-semibold tracking-[0.1em] uppercase text-white/55">
+              <h3 className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-white/55">
                 {col.title}
               </h3>
               <ul className="flex flex-col gap-2.5">

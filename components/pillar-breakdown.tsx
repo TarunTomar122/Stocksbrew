@@ -25,10 +25,10 @@ const PILLAR_SUBTITLE: Record<PillarKey, string> = {
 };
 
 const PILLAR_ICON: Record<PillarKey, { emoji: string; bg: string }> = {
-  growth: { emoji: "🌱", bg: "#ecfdf5" },
-  momentum: { emoji: "🚀", bg: "#eff6ff" },
-  valuation: { emoji: "🏷️", bg: "#fef3c7" },
-  quality: { emoji: "🏛️", bg: "#f3f4f6" },
+  growth: { emoji: "🌱", bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" },
+  momentum: { emoji: "🚀", bg: "color-mix(in srgb, #2563eb 14%, var(--surface))" },
+  valuation: { emoji: "🏷️", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))" },
+  quality: { emoji: "🏛️", bg: "var(--surface-container)" },
 };
 
 const VERDICT_COPY: Record<string, string> = {
@@ -39,17 +39,17 @@ const VERDICT_COPY: Record<string, string> = {
 };
 
 const VERDICT_TONE: Record<string, { bg: string; fg: string }> = {
-  strong: { bg: "#ecfdf5", fg: "#065f46" },
-  solid: { bg: "#eff6ff", fg: "#1e3a8a" },
-  mixed: { bg: "#fef3c7", fg: "#92400e" },
-  weak: { bg: "#fef2f2", fg: "#991b1b" },
+  strong: { bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981" },
+  solid: { bg: "color-mix(in srgb, #2563eb 14%, var(--surface))", fg: "#3b82f6" },
+  mixed: { bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b" },
+  weak: { bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444" },
 };
 
 function scoreTone(v?: number | null): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "text-[#9ca3af]";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "text-on-surface-variant";
   if (v >= 80) return "text-[#10b981]";
-  if (v >= 60) return "text-[#111111]";
-  if (v >= 40) return "text-[#6b7280]";
+  if (v >= 60) return "text-on-surface";
+  if (v >= 40) return "text-on-surface-variant";
   return "text-[#ef4444]";
 }
 
@@ -73,7 +73,7 @@ export function PillarBreakdown({
 
   return (
     <section className="flex flex-col gap-6 pt-8">
-      <h3 className="inline-flex items-center gap-2 text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+      <h3 className="inline-flex items-center gap-2 text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
         Pillar breakdown
         <ProBadge isSubscribed={isSubscribed} />
       </h3>
@@ -91,8 +91,8 @@ export function PillarBreakdown({
                   aria-selected={isActive}
                   className={`flex items-center gap-2 rounded-xl px-3 py-2.5 transition-all ${
                     isActive
-                      ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] border border-[#e5e7eb]"
-                      : "border border-transparent hover:bg-[#f3f4f6]"
+                      ? "bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                      : "border border-transparent hover:bg-surface-container"
                   }`}
                 >
                   <span
@@ -105,7 +105,7 @@ export function PillarBreakdown({
                   <span className="flex flex-col items-start min-w-0">
                     <span
                       className={`text-[12px] font-semibold tracking-[-0.01em] truncate ${
-                        isActive ? "text-[#111111]" : "text-[#6b7280]"
+                        isActive ? "text-on-surface" : "text-on-surface-variant"
                       }`}
                     >
                       {PILLAR_LABEL[key]}
@@ -121,10 +121,10 @@ export function PillarBreakdown({
 
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+              <span className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
                 {PILLAR_LABEL[active]}
               </span>
-              <span className="text-[14px] text-[#6b7280]">{PILLAR_SUBTITLE[active]}</span>
+              <span className="text-[14px] text-on-surface-variant">{PILLAR_SUBTITLE[active]}</span>
             </div>
             <div className="flex items-center gap-3">
               <span
@@ -133,7 +133,7 @@ export function PillarBreakdown({
               >
                 {VERDICT_COPY[pillar.verdict] ?? pillar.verdict}
               </span>
-              <span className="text-[12px] font-medium tracking-[0.06em] uppercase text-[#9ca3af]">
+              <span className="text-[12px] font-medium tracking-[0.06em] uppercase text-on-surface-variant">
                 {Math.round(pillar.weight * 100)}% wt
               </span>
               <span className={`text-[28px] font-semibold tabular-nums leading-none ${scoreTone(pillar.score)}`}>
@@ -143,7 +143,7 @@ export function PillarBreakdown({
           </div>
 
           {validMetrics.length === 0 ? (
-            <p className="text-[13px] text-[#6b7280]">No metrics reported for this pillar.</p>
+            <p className="text-[13px] text-on-surface-variant">No metrics reported for this pillar.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
               {validMetrics.map((m) => (
@@ -154,7 +154,7 @@ export function PillarBreakdown({
             </div>
           )}
 
-      <p className="text-[11px] text-[#9ca3af]">
+      <p className="text-[11px] text-on-surface-variant">
         {metricCount(pillar)} metric{metricCount(pillar) === 1 ? "" : "s"} compared against sector
         peers.
       </p>

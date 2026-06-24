@@ -52,16 +52,16 @@ export function PreEarningsSetupCard({ doc, ticker, compact = false }: Props) {
 
   return (
     <section
-      className={`flex flex-col gap-4 rounded-2xl border border-[#fde68a] bg-gradient-to-br from-[#fffbeb] to-[#fff7ed] ${
+      className={`flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-surface-container-low to-surface ${
         compact ? "p-4" : "p-5 md:p-6"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#6b7280]">
-        <span className="font-semibold text-[#92400e]">Before earnings</span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-on-surface-variant">
+        <span className="font-semibold text-[#f59e0b]">Before earnings</span>
         <span>Reports {formatEventDate(doc.event_date)}</span>
-        {when ? <span className="font-semibold text-[#b45309]">{when}</span> : null}
+        {when ? <span className="font-semibold text-[#f59e0b]">{when}</span> : null}
         {confidence != null && Number.isFinite(confidence) ? (
-          <span className="tabular-nums font-semibold text-[#111111]">
+          <span className="tabular-nums font-semibold text-on-surface">
             {Math.round(confidence)}% confidence
           </span>
         ) : null}
@@ -71,10 +71,10 @@ export function PreEarningsSetupCard({ doc, ticker, compact = false }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {outlook ? (
             <div
-              className="rounded-xl border bg-white/90 px-4 py-3 flex flex-col gap-1"
+              className="rounded-xl border bg-surface/90 px-4 py-3 flex flex-col gap-1"
               style={{ borderColor: outlookStyle.text }}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af]">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">
                 EPS prediction
               </span>
               <span
@@ -83,17 +83,17 @@ export function PreEarningsSetupCard({ doc, ticker, compact = false }: Props) {
               >
                 {EPS_OUTLOOK_LABELS[outlook]}
               </span>
-              <span className="text-[11px] leading-snug text-[#6b7280]">
+              <span className="text-[11px] leading-snug text-on-surface-variant">
                 {EPS_OUTCOME_LINES[outlook]}
               </span>
             </div>
           ) : null}
           {move ? (
             <div
-              className="rounded-xl border bg-white/90 px-4 py-3 flex flex-col gap-1"
+              className="rounded-xl border bg-surface/90 px-4 py-3 flex flex-col gap-1"
               style={{ borderColor: moveStyle.text }}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af]">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">
                 Stock prediction
               </span>
               <span
@@ -102,7 +102,7 @@ export function PreEarningsSetupCard({ doc, ticker, compact = false }: Props) {
               >
                 {POST_PRINT_MOVE_LABELS[move]}
               </span>
-              <span className="text-[11px] leading-snug text-[#6b7280]">
+              <span className="text-[11px] leading-snug text-on-surface-variant">
                 {STOCK_OUTCOME_LINES[move]}
               </span>
             </div>
@@ -112,38 +112,38 @@ export function PreEarningsSetupCard({ doc, ticker, compact = false }: Props) {
 
       <div className="flex flex-col gap-2">
         <h3
-          className={`font-semibold tracking-tight text-[#111111] leading-snug ${
+          className={`font-semibold tracking-tight text-on-surface leading-snug ${
             compact ? "text-lg" : "text-xl md:text-2xl"
           }`}
         >
           {headline}
         </h3>
-        <p className={`leading-relaxed text-[#374151] ${compact ? "text-sm" : "text-base"}`}>
+        <p className={`leading-relaxed text-on-surface ${compact ? "text-sm" : "text-base"}`}>
           {summary}
         </p>
       </div>
 
       {!compact && (holders || watchers) ? (
-        <div className="rounded-xl border border-[#e5e7eb] bg-white/90 p-4 flex flex-col gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-[#111111]">
+        <div className="rounded-xl bg-surface/90 p-4 flex flex-col gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface">
             What to do
           </p>
           {holders ? (
             <div>
-              <p className="text-[11px] font-semibold text-[#6b7280]">If you hold</p>
-              <p className="mt-1 text-sm font-medium leading-relaxed text-[#111111]">{holders}</p>
+              <p className="text-[11px] font-semibold text-on-surface-variant">If you hold</p>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-on-surface">{holders}</p>
             </div>
           ) : null}
           {watchers ? (
             <div>
-              <p className="text-[11px] font-semibold text-[#6b7280]">If you are watching</p>
-              <p className="mt-1 text-sm font-medium leading-relaxed text-[#111111]">{watchers}</p>
+              <p className="text-[11px] font-semibold text-on-surface-variant">If you are watching</p>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-on-surface">{watchers}</p>
             </div>
           ) : null}
         </div>
       ) : null}
 
-      <p className="text-xs text-[#9ca3af]">Not investment advice</p>
+      <p className="text-xs text-on-surface-variant">Not investment advice</p>
     </section>
   );
 }

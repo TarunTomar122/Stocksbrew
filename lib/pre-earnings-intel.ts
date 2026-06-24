@@ -22,6 +22,26 @@ function utcToday(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
+/** Market-wide upcoming pre-earnings predictions (for the Pulse earnings lens). */
+export async function getUpcomingPreEarnings(
+  market: "US" | "IN",
+  scanLimit = 150,
+): Promise<PreEarningsIntelDoc[]> {
+  try {
+    const snap = await adminFirestore
+      .collection("tm_pre_earnings_intel")
+      .where("market", "==", market)
+      .limit(scanLimit)
+      .get();
+    const rows = snap.docs
+      .map((d) => ({ ...(d.data() as PreEarningsIntelDoc), doc_id: d.id }))
+      .filter((d) => d?.ticker && d?.event_date);
+    return filterPreEarningsWithinDays(rows);
+  } catch {
+    return [];
+  }
+}
+
 export async function getPreEarningsIntelUpcoming(
   market: "US" | "IN",
   instrumentId: string,

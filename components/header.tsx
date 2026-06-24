@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthButton } from "@/components/auth-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { TrackButton } from "@/components/track-button";
 import { StockRequestModal } from "@/components/stock-request-modal";
 import { ProBadge } from "@/components/pro-badge";
@@ -25,9 +26,8 @@ type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; 
 
 // Primary nav: Top Movers, Reddit buzz, then the user's Radar.
 const NAV_ITEMS: NavItem[] = [
-  { href: "/anomalies",   label: "Top Movers",  icon: "trending_up" },
-  { href: "/reddit-buzz", label: "Reddit buzz", icon: "forum" },
-  { href: "/watchlist",   label: "Radar",       icon: "radar" },
+  { href: "/pulse",     label: "Pulse",  icon: "monitoring" },
+  { href: "/watchlist", label: "Radar",  icon: "radar" },
 ];
 
 // Free, browse-only surfaces. Demoted into a "More" menu so they do not crowd
@@ -40,7 +40,7 @@ const MORE_ITEMS: NavItem[] = [
 ];
 
 /** Mobile strip order: conversion items first, free browse items last. */
-const MOBILE_HEADER_ORDER = ["/anomalies", "/reddit-buzz", "/watchlist", "/events", "/heat", "/screens", "/trump-logic"] as const;
+const MOBILE_HEADER_ORDER = ["/pulse", "/watchlist", "/events", "/heat", "/screens", "/trump-logic"] as const;
 
 function formatPct(pct?: number): { text: string; positive: boolean } | null {
   if (typeof pct !== "number") return null;
@@ -60,83 +60,6 @@ function scoreEntry(entry: SearchEntry, q: string): number {
   if (ticker.includes(q)) return 40;
   if (name.includes(q)) return 20;
   return 0;
-}
-
-const MARKET_OPTIONS: { id: string; flag: string; label: string; available: boolean }[] = [
-  { id: "US", flag: "🇺🇸", label: "United States", available: true },
-  { id: "IN", flag: "🇮🇳", label: "India", available: false },
-  { id: "GB", flag: "🇬🇧", label: "United Kingdom", available: false },
-  { id: "EU", flag: "🇪🇺", label: "Europe", available: false },
-];
-
-function MarketPicker({ market }: { market: Market }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!pickerRef.current?.contains(e.target as Node)) {
-        setPickerOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
-
-  const active = MARKET_OPTIONS.find((m) => m.id === market) ?? MARKET_OPTIONS[0];
-
-  return (
-    <div ref={pickerRef} className="relative hidden md:block">
-      <button
-        type="button"
-        onClick={() => setPickerOpen((v) => !v)}
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#e5e7eb] bg-white px-3 text-[14px] font-medium text-[#111111] hover:border-[#d1d5db] transition-colors"
-        aria-label="Select market"
-      >
-        <span>{active.flag}</span>
-        <span className="hidden sm:inline">{active.label}</span>
-        <span
-          className="material-symbols-outlined text-[#6b7280]"
-          style={{ fontSize: 16, fontVariationSettings: "'wght' 500" }}
-        >
-          {pickerOpen ? "expand_less" : "expand_more"}
-        </span>
-      </button>
-
-      {pickerOpen && (
-        <div className="absolute right-0 top-full mt-2 w-[220px] bg-white rounded-xl border border-[#e5e7eb] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden z-50 py-1.5">
-          {MARKET_OPTIONS.map((opt) => (
-            <div
-              key={opt.id}
-              className={`flex items-center gap-3 px-4 py-2.5 ${
-                opt.available
-                  ? "cursor-pointer hover:bg-[#f5f5f5]"
-                  : "cursor-not-allowed opacity-50"
-              }`}
-            >
-              <span className="text-[16px] leading-none">{opt.flag}</span>
-              <span className={`flex-1 text-[14px] ${opt.available ? "text-[#111111] font-medium" : "text-[#9ca3af]"}`}>
-                {opt.label}
-              </span>
-              {opt.id === market && opt.available && (
-                <span
-                  className="material-symbols-outlined text-[#111111]"
-                  style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}
-                >
-                  check
-                </span>
-              )}
-              {!opt.available && (
-                <span className="text-[10px] font-semibold tracking-[0.06em] uppercase text-[#9ca3af] bg-[#f3f4f6] rounded-full px-1.5 py-0.5">
-                  Soon
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
@@ -161,7 +84,7 @@ function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-          anyActive ? "bg-[#111111] text-white" : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#111111]"
+          anyActive ? "bg-on-surface text-surface" : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
         }`}
       >
         More
@@ -174,16 +97,16 @@ function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
         </span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-[200px] overflow-hidden rounded-xl border border-[#e5e7eb] bg-white py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.08)] z-50">
+        <div className="absolute left-0 top-full mt-2 w-[200px] overflow-hidden rounded-xl border border-outline-variant bg-surface py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.08)] z-50">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium text-[#111111] hover:bg-[#f5f5f5]"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium text-on-surface hover:bg-surface-container"
             >
               <span
-                className="material-symbols-outlined text-[#6b7280]"
+                className="material-symbols-outlined text-on-surface-variant"
                 style={{ fontSize: 18, fontVariationSettings: "'wght' 500" }}
                 aria-hidden
               >
@@ -200,9 +123,13 @@ function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
 
 function GoProPill({ className = "" }: { className?: string }) {
   return (
-    <ProCtaLink href="/subscribe" size="sm" showStar className={className}>
-      Go Pro
-    </ProCtaLink>
+    <Link
+      href="/subscribe"
+      className={`inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 font-mono text-[13px] font-bold transition-opacity hover:opacity-90 ${className}`}
+      style={{ background: "var(--signal-bullish)", color: "var(--background)" }}
+    >
+      ★ Go Pro
+    </Link>
   );
 }
 
@@ -355,16 +282,16 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   const showGoPro = !isSubscribed;
 
   return (
-    <header className="sticky top-0 z-[65] w-full bg-white border-b border-[#e5e7eb]">
+    <header className="sticky top-0 z-[65] w-full bg-surface border-b border-outline-variant">
       <div className="mx-auto w-full max-w-screen-2xl">
         <div className="flex h-16 items-center justify-between gap-2 px-6 md:gap-0 md:px-10 lg:px-16">
           {/* Left: wordmark (+ desktop nav md+) */}
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
             <Link
               href="/"
-              className="shrink-0 text-[20px] font-semibold tracking-[-0.04em] text-[#111111] leading-none"
+              className="shrink-0 font-mono text-[19px] font-bold tracking-[-0.03em] text-on-surface leading-none"
             >
-              stocksbrew
+              stocksbrew<span style={{ color: "var(--signal-bullish)" }}>.</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
               {navItems.map((item) => {
@@ -373,11 +300,10 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-                      active
-                        ? "bg-[#111111] text-white"
-                        : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#111111]"
+                    className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 font-mono text-[13px] font-medium transition-colors ${
+                      active ? "" : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
                     }`}
+                    style={active ? { color: "var(--signal-bullish)", background: "color-mix(in srgb, var(--signal-bullish) 12%, transparent)" } : undefined}
                   >
                     <span
                       className="material-symbols-outlined shrink-0"
@@ -392,7 +318,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                         <span
                           className={`ml-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
                             active
-                              ? "bg-white/20 text-white"
+                              ? "bg-surface/20 text-white"
                               : "bg-[#fef3c7] text-[#b45309]"
                           }`}
                         >
@@ -403,13 +329,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                     {item.pro && !isSubscribed && (
                       <ProBadge
                         isSubscribed={isSubscribed}
-                        className={active ? "bg-white/15 text-white border-white/30" : ""}
+                        className={active ? "bg-surface/15 text-white border-white/30" : ""}
                       />
                     )}
                   </Link>
                 );
               })}
-              <MoreMenu items={MORE_ITEMS} pathname={pathname} />
             </nav>
           </div>
 
@@ -420,13 +345,13 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               type="button"
               aria-label="Search"
               onClick={() => setMobileSearchOpen(true)}
-              className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#6b7280]"
+              className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant"
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20 }}>search</span>
             </button>
 
             <div ref={containerRef} className="relative hidden sm:block">
-              <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#6b7280]">
+              <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
                 search
               </span>
               <input
@@ -442,16 +367,16 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                 placeholder={searchIndexReady ? "Search ticker…" : "Preparing search…"}
                 autoComplete="off"
                 spellCheck={false}
-                className="h-10 w-56 rounded-lg border border-[#e5e7eb] bg-white pl-10 pr-3 text-[14px] text-[#111111] placeholder:text-[#898989] outline-none transition-all duration-200 focus:w-72 focus:border-[#111111]"
+                className="h-10 w-56 rounded-lg border border-outline-variant bg-surface pl-10 pr-3 text-[14px] text-on-surface placeholder:text-on-surface-variant outline-none transition-all duration-200 focus:w-72 focus:border-on-surface"
               />
 
               {showDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-[#e5e7eb] shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 w-80 bg-surface rounded-xl border border-outline-variant shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
                   {results.length === 0 ? (
                     <div className="px-4 py-4 flex flex-col gap-2">
-                      <p className="text-[14px] text-[#6b7280]">
+                      <p className="text-[14px] text-on-surface-variant">
                         No matches for{" "}
-                        <span className="font-semibold text-[#111111]">
+                        <span className="font-semibold text-on-surface">
                           {query.trim().toUpperCase()}
                         </span>
                         .
@@ -467,7 +392,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                           setOpen(false);
                           setRequestQuery(query.trim().toUpperCase());
                         }}
-                        className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#111111] px-3 py-1.5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+                        className="inline-flex items-center gap-1.5 self-start rounded-full bg-on-surface px-3 py-1.5 text-[13px] font-semibold text-surface hover:-translate-y-[1px] active:translate-y-0 transition-transform"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'wght' 600" }}>add</span>
                         Request {query.trim().toUpperCase()}
@@ -484,7 +409,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                             <div
                               onMouseEnter={() => setActiveIndex(i)}
                               className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                                isActive ? "bg-[#f5f5f5]" : "hover:bg-[#f8f9fa]"
+                                isActive ? "bg-surface-container" : "hover:bg-surface-container-low"
                               }`}
                             >
                               <button
@@ -495,16 +420,16 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                                 }}
                                 className="flex-1 min-w-0 text-left"
                               >
-                                <div className="text-[14px] font-semibold text-[#111111]">
+                                <div className="text-[14px] font-semibold text-on-surface">
                                   {r.ticker}
                                 </div>
-                                <div className="text-[13px] text-[#6b7280] truncate">
+                                <div className="text-[13px] text-on-surface-variant truncate">
                                   {r.name}
                                 </div>
                               </button>
                               <div className="flex flex-col items-end flex-shrink-0">
                                 {typeof r.price === "number" && (
-                                  <span className="text-[13px] font-semibold text-[#111111] tabular-nums">
+                                  <span className="text-[13px] font-semibold text-on-surface tabular-nums">
                                     {r.price.toLocaleString(undefined, {
                                       minimumFractionDigits: 2,
                                       maximumFractionDigits: 2,
@@ -538,7 +463,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               )}
             </div>
 
-            <MarketPicker market={market} />
+            <ThemeToggle className="hidden sm:inline-grid" />
 
             {showGoPro && <GoProPill className="hidden sm:inline-flex" />}
 
@@ -546,7 +471,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
           </div>
         </div>
 
-        <div className="md:hidden border-t border-[#e5e7eb] py-2 px-6">
+        <div className="md:hidden border-t border-outline-variant py-2 px-6">
           <nav
             className="-mx-6 flex gap-1 overflow-x-auto overscroll-x-contain px-6 scrollbar-hide touch-pan-x"
             aria-label="Primary"
@@ -569,8 +494,8 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   href={item.href}
                   className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[13px] font-semibold transition-colors ${
                     active
-                      ? "bg-[#111111] text-white"
-                      : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#111111]"
+                      ? "bg-on-surface text-surface"
+                      : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
                   }`}
                 >
                   <span
@@ -585,7 +510,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                     <span
                       className={`ml-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
                         active
-                          ? "bg-white/20 text-white"
+                          ? "bg-surface/20 text-white"
                           : "bg-[#fef3c7] text-[#b45309]"
                       }`}
                     >
@@ -609,10 +534,10 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
 
       {/* Mobile full-screen search overlay */}
       {mobileSearchOpen && (
-        <div className="sm:hidden fixed inset-0 z-[80] flex flex-col bg-white">
+        <div className="sm:hidden fixed inset-0 z-[80] flex flex-col bg-surface">
           {/* Top bar */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#e5e7eb]">
-            <span className="material-symbols-outlined text-[#6b7280]" style={{ fontSize: 20 }}>search</span>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant">
+            <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 20 }}>search</span>
             <input
               ref={mobileInputRef}
               type="text"
@@ -632,12 +557,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               placeholder="Search ticker or company…"
               autoComplete="off"
               spellCheck={false}
-              className="flex-1 text-[16px] text-[#111111] placeholder:text-[#9ca3af] outline-none bg-transparent"
+              className="flex-1 text-[16px] text-on-surface placeholder:text-on-surface-variant outline-none bg-transparent"
             />
             <button
               type="button"
               onClick={() => setMobileSearchOpen(false)}
-              className="text-[14px] font-semibold text-[#6b7280]"
+              className="text-[14px] font-semibold text-on-surface-variant"
             >
               Cancel
             </button>
@@ -646,12 +571,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
           {/* Results */}
           <div className="flex-1 overflow-y-auto">
             {query.trim().length === 0 ? (
-              <p className="px-5 pt-8 text-[14px] text-[#9ca3af]">Type a ticker or company name</p>
+              <p className="px-5 pt-8 text-[14px] text-on-surface-variant">Type a ticker or company name</p>
             ) : results.length === 0 ? (
               <div className="px-5 pt-8 flex flex-col gap-4">
-                <p className="text-[14px] text-[#6b7280]">
+                <p className="text-[14px] text-on-surface-variant">
                   No matches for{" "}
-                  <span className="font-semibold text-[#111111]">{query.trim().toUpperCase()}</span>.
+                  <span className="font-semibold text-on-surface">{query.trim().toUpperCase()}</span>.
                 </p>
                 <button
                   type="button"
@@ -663,7 +588,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                     setMobileSearchOpen(false);
                     setRequestQuery(query.trim().toUpperCase());
                   }}
-                  className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#111111] px-4 py-2 text-[14px] font-semibold text-white"
+                  className="inline-flex items-center gap-1.5 self-start rounded-full bg-on-surface px-4 py-2 text-[14px] font-semibold text-surface"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}>add</span>
                   Request {query.trim().toUpperCase()}
@@ -675,18 +600,18 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   const pct = formatPct(r.day_change_pct);
                   const isTracked = trackedIds.includes(r.instrument_id);
                   return (
-                    <li key={r.instrument_id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#f3f4f6]">
+                    <li key={r.instrument_id} className="flex items-center gap-3 px-5 py-3.5 border-b border-outline-variant">
                       <button
                         type="button"
                         className="flex-1 min-w-0 text-left"
                         onClick={() => { navigateTo(r); setMobileSearchOpen(false); }}
                       >
-                        <div className="text-[15px] font-semibold text-[#111111]">{r.ticker}</div>
-                        <div className="text-[13px] text-[#6b7280] truncate">{r.name}</div>
+                        <div className="text-[15px] font-semibold text-on-surface">{r.ticker}</div>
+                        <div className="text-[13px] text-on-surface-variant truncate">{r.name}</div>
                       </button>
                       <div className="flex flex-col items-end shrink-0">
                         {typeof r.price === "number" && (
-                          <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
+                          <span className="text-[14px] font-semibold text-on-surface tabular-nums">
                             {r.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}

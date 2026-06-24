@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stocksbrew · Radar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0a0d14; --panel:#11151f; --panel2:#161b27; --line:#222a3a; --indigo:#6366f1; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; }
+  *{font-family:'Inter',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  body{background:var(--bg);color:#e5e9f0;}
+  .panel{background:var(--panel);border:1px solid var(--line);}
+  .panel2{background:var(--panel2);}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:#2a3344;border-radius:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  .dot{width:7px;height:7px;border-radius:50%;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .live{animation:pulse 1.8s ease-in-out infinite;}
+  .navlink:hover{background:#161b27;}
+  .navlink.active{background:linear-gradient(90deg,rgba(99,102,241,.18),transparent);border-left:2px solid var(--indigo);}
+  .card-hover{transition:transform .12s ease,border-color .12s ease;}
+  .card-hover:hover{transform:translateY(-2px);border-color:#33405a;}
+  .gridbg{background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.025) 1px,transparent 0);background-size:22px 22px;}
+</style>
+</head>
+<body class="min-h-screen gridbg">
+<div class="flex min-h-screen">
+  <!-- SIDEBAR -->
+  <aside class="w-60 shrink-0 panel border-r flex flex-col fixed h-screen z-20">
+    <div class="px-5 py-5 border-b border-[var(--line)] flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-[var(--indigo)] flex items-center justify-center font-bold text-white text-lg">s</div>
+      <div>
+        <div class="font-bold tracking-tight leading-none">stocksbrew</div>
+        <div class="text-[10px] text-slate-500 mono tracking-widest mt-0.5">MISSION CONTROL</div>
+      </div>
+    </div>
+    <nav class="flex-1 py-3 text-sm">
+      <div class="px-5 text-[10px] uppercase tracking-widest text-slate-600 mb-2 mono">Surveillance</div>
+      <a href="radar.html" class="navlink active flex items-center gap-3 px-5 py-2.5 text-white font-medium">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="6"/></svg>Radar</a>
+      <a href="anomalies.html" class="navlink flex items-center gap-3 px-5 py-2.5 text-slate-400 hover:text-white">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-6 4 4 5-8 4 5"/></svg>Anomalies
+        <span class="ml-auto text-[10px] mono bg-[var(--amber)]/15 text-[var(--amber)] px-1.5 py-0.5 rounded">7</span></a>
+      <a href="reddit.html" class="navlink flex items-center gap-3 px-5 py-2.5 text-slate-400 hover:text-white">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2 0 3 .5 3 .5"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M8.5 16c1 1 5 1 6 0"/></svg>Reddit Buzz</a>
+      <a href="#" class="navlink flex items-center gap-3 px-5 py-2.5 text-slate-400 hover:text-white">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/></svg>Screener</a>
+      <div class="px-5 text-[10px] uppercase tracking-widest text-slate-600 mb-2 mt-5 mono">Active Ticker</div>
+      <a href="stock.html" class="navlink flex items-center gap-3 px-5 py-2.5 text-slate-400 hover:text-white">
+        <span class="w-6 h-6 rounded bg-[#1e293b] flex items-center justify-center text-[10px] font-bold mono text-[var(--green)]">N</span>NVDA
+        <span class="ml-auto mono text-xs text-[var(--green)]">+2.4%</span></a>
+    </nav>
+    <div class="p-4 border-t border-[var(--line)]">
+      <div class="panel2 rounded-lg p-3 border border-[var(--line)]">
+        <div class="text-[11px] text-slate-400 mb-1">Free plan · 3 of 5 alerts used</div>
+        <button class="w-full mt-1 text-xs font-semibold bg-[var(--indigo)] hover:bg-indigo-500 text-white rounded-md py-1.5">Upgrade to Pro</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 ml-60">
+    <!-- STATUS BAR -->
+    <div class="h-12 panel border-b sticky top-0 z-10 flex items-center px-6 gap-6 text-xs mono backdrop-blur">
+      <div class="flex items-center gap-2"><span class="dot bg-[var(--green)] live"></span><span class="text-slate-300">MARKET OPEN</span></div>
+      <span class="text-slate-600">|</span>
+      <div class="flex items-center gap-1.5"><span class="text-slate-500">S&amp;P</span><span class="text-slate-200">5,431.2</span><span class="text-[var(--green)]">+0.62%</span></div>
+      <div class="flex items-center gap-1.5"><span class="text-slate-500">NDX</span><span class="text-slate-200">19,210</span><span class="text-[var(--green)]">+0.91%</span></div>
+      <div class="flex items-center gap-1.5"><span class="text-slate-500">DJI</span><span class="text-slate-200">39,118</span><span class="text-[var(--red)]">-0.14%</span></div>
+      <div class="flex items-center gap-1.5"><span class="text-slate-500">VIX</span><span class="text-slate-200">13.8</span><span class="text-[var(--red)]">-3.1%</span></div>
+      <div class="ml-auto flex items-center gap-4 text-slate-500">
+        <span>Last sync 12s ago</span>
+        <span class="text-slate-300">Fri Jun 20 · 11:42 ET</span>
+      </div>
+    </div>
+
+    <div class="p-6 max-w-[1500px]">
+      <!-- HEADER -->
+      <div class="flex items-end justify-between mb-5">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Radar</h1>
+          <p class="text-sm text-slate-500 mt-0.5">Your tracked positions and watchlist. Verdicts and trigger zones update live.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="text-xs font-medium panel px-3 py-2 rounded-lg text-slate-300 hover:border-[#33405a]">Filter</button>
+          <button class="text-xs font-semibold bg-[var(--indigo)] hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add ticker</button>
+        </div>
+      </div>
+
+      <!-- SUMMARY STRIP -->
+      <div class="grid grid-cols-4 gap-4 mb-5">
+        <div class="panel rounded-xl p-4">
+          <div class="text-[11px] uppercase tracking-wider text-slate-500 mono mb-1.5">Portfolio value</div>
+          <div class="text-2xl font-bold mono">$184,720</div>
+          <div class="text-xs mono text-[var(--green)] mt-1">+$2,140 · +1.17% today</div>
+        </div>
+        <div class="panel rounded-xl p-4">
+          <div class="text-[11px] uppercase tracking-wider text-slate-500 mono mb-1.5">Triggers fired</div>
+          <div class="text-2xl font-bold mono text-[var(--amber)]">2</div>
+          <div class="text-xs text-slate-500 mt-1">AMD buy zone · TSLA sell zone</div>
+        </div>
+        <div class="panel rounded-xl p-4">
+          <div class="text-[11px] uppercase tracking-wider text-slate-500 mono mb-1.5">Verdict changes</div>
+          <div class="text-2xl font-bold mono">3</div>
+          <div class="text-xs text-slate-500 mt-1">since yesterday's close</div>
+        </div>
+        <div class="panel rounded-xl p-4">
+          <div class="text-[11px] uppercase tracking-wider text-slate-500 mono mb-1.5">Watchlist signals</div>
+          <div class="text-2xl font-bold mono text-[var(--green)]">1 Buy</div>
+          <div class="text-xs text-slate-500 mt-1">PLTR entered buy zone</div>
+        </div>
+      </div>
+
+      <!-- ATTENTION CARD -->
+      <div class="panel rounded-xl p-4 mb-5 flex items-center gap-4 border-l-2 border-l-[var(--amber)]">
+        <div class="w-9 h-9 rounded-lg bg-[var(--amber)]/15 flex items-center justify-center shrink-0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3l-8-14a2 2 0 0 0-3.4 0z"/></svg>
+        </div>
+        <div class="flex-1">
+          <div class="text-sm font-semibold">AMD crossed into its buy zone at $148.20</div>
+          <div class="text-xs text-slate-400 mt-0.5">Your trigger was set at &lt; $150. Pullback on no fresh news. Quality and growth pillars still rate green.</div>
+        </div>
+        <button class="text-xs font-semibold bg-[var(--indigo)] hover:bg-indigo-500 text-white px-3.5 py-2 rounded-lg">Review AMD</button>
+      </div>
+
+      <!-- TABLE -->
+      <div class="panel rounded-xl overflow-hidden">
+        <div class="grid grid-cols-[1.4fr_1fr_0.8fr_0.9fr_2.4fr_1.6fr] gap-4 px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 mono border-b border-[var(--line)] panel2">
+          <div>Ticker</div><div>Price</div><div>Day</div><div>Verdict</div><div>Reason</div><div>Trigger zones</div>
+        </div>
+        <div id="rows"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const verdictStyle={Buy:'bg-[#22c55e]/15 text-[#22c55e]',Hold:'bg-[#6366f1]/15 text-[#818cf8]',Sell:'bg-[#ef4444]/15 text-[#ef4444]',Watch:'bg-[#f59e0b]/15 text-[#f59e0b]'};
+function spark(pts,color){
+  const w=72,h=24,max=Math.max(...pts),min=Math.min(...pts),r=max-min||1;
+  const d=pts.map((p,i)=>`${(i/(pts.length-1)*w).toFixed(1)},${(h-((p-min)/r)*h).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.6"/></svg>`;
+}
+const rows=[
+ {t:'NVDA',n:'NVIDIA',held:true,p:'132.84',d:'+2.41',up:1,v:'Hold',reason:'Momentum strong but valuation stretched at 38x forward. Trim above $145.',pts:[120,122,121,125,128,130,129,133],buy:'< $118',sell:'> $148',status:'In range'},
+ {t:'AMD',n:'Adv. Micro',held:true,p:'148.20',d:'-1.84',up:0,v:'Buy',reason:'Pulled into buy zone on no fresh news. MI300 ramp intact, fair value $172.',pts:[160,158,155,154,151,150,149,148],buy:'< $150',sell:'> $185',status:'Buy fired',fired:true},
+ {t:'TSLA',n:'Tesla',held:true,p:'212.40',d:'+4.12',up:1,v:'Sell',reason:'Ran past your sell zone on delivery rumor. Fundamentals lag the price.',pts:[188,192,196,201,205,209,210,212],buy:'< $165',sell:'> $210',status:'Sell fired',fired:true},
+ {t:'AAPL',n:'Apple',held:true,p:'214.29',d:'+0.34',up:1,v:'Hold',reason:'Steady compounder, fairly valued. No action until services growth re-rates.',pts:[210,211,212,211,213,213,214,214],buy:'< $185',sell:'> $235',status:'In range'},
+ {t:'MSFT',n:'Microsoft',held:true,p:'449.78',d:'+1.02',up:1,v:'Hold',reason:'Azure AI tailwind priced in. Quality elite, momentum cooling slightly.',pts:[435,438,442,440,445,447,448,449],buy:'< $400',sell:'> $490',status:'In range'},
+ {t:'PLTR',n:'Palantir',held:false,p:'24.10',d:'+3.55',up:1,v:'Buy',reason:'Watchlist name entered buy zone. Commercial bookings accelerating fast.',pts:[28,27,26,25,24,23,24,24],buy:'< $25',sell:'> $34',status:'Buy fired',fired:true},
+ {t:'GOOGL',n:'Alphabet',held:false,p:'178.55',d:'-0.61',up:0,v:'Watch',reason:'Search moat solid but AI-disruption overhang. Wait for $165 entry.',pts:[182,181,180,179,180,178,179,178],buy:'< $165',sell:'> $205',status:'Watching'},
+ {t:'META',n:'Meta',held:false,p:'498.20',d:'+0.88',up:1,v:'Watch',reason:'Ad strength real, capex worry overdone. Tracking for a momentum break.',pts:[480,485,490,488,492,495,497,498],buy:'< $440',sell:'> $560',status:'Watching'},
+];
+document.getElementById('rows').innerHTML=rows.map(r=>{
+  const c=r.up?'#22c55e':'#ef4444';
+  const statusColor=r.fired?'text-[var(--amber)]':'text-slate-500';
+  return `<a href="${r.t==='NVDA'?'stock.html':'#'}" class="grid grid-cols-[1.4fr_1fr_0.8fr_0.9fr_2.4fr_1.6fr] gap-4 px-5 py-4 items-center border-b border-[var(--line)] hover:bg-[#161b27] transition-colors group">
+    <div class="flex items-center gap-3">
+      <span class="w-8 h-8 rounded-lg bg-[#1e293b] flex items-center justify-center text-xs font-bold mono ${r.up?'text-[var(--green)]':'text-[var(--red)]'}">${r.t[0]}</span>
+      <div><div class="font-semibold text-sm flex items-center gap-2">${r.t}${r.held?'':`<span class="text-[9px] mono uppercase tracking-wide text-slate-600 border border-[var(--line)] rounded px-1">watch</span>`}</div><div class="text-[11px] text-slate-500">${r.n}</div></div>
+    </div>
+    <div class="flex items-center gap-2"><span class="mono font-semibold">$${r.p}</span><span class="opacity-70">${spark(r.pts,c)}</span></div>
+    <div class="mono text-sm font-semibold" style="color:${c}">${r.d}%</div>
+    <div><span class="text-xs font-bold px-2.5 py-1 rounded-md ${verdictStyle[r.v]}">${r.v}</span></div>
+    <div class="text-xs text-slate-400 leading-snug pr-2">${r.reason}</div>
+    <div class="text-[11px] mono space-y-1">
+      <div class="flex gap-3"><span class="text-[var(--green)]">▼ ${r.buy}</span><span class="text-[var(--red)]">▲ ${r.sell}</span></div>
+      <div class="${statusColor} flex items-center gap-1">${r.fired?'<span class="dot bg-[var(--amber)] live"></span>':''}${r.status}</div>
+    </div>
+  </a>`;
+}).join('');
+</script>
+</body>
+</html>

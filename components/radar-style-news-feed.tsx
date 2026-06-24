@@ -47,10 +47,10 @@ function displaySentiment(raw: string): string {
 
 function sentimentTagStyles(label: string): string {
   const s = label.toLowerCase();
-  if (s === "bullish") return "text-[#047857] bg-[#ecfdf5]";
-  if (s === "bearish") return "text-[#b91c1c] bg-[#fef2f2]";
-  if (s === "mixed") return "text-[#b45309] bg-[#fffbeb]";
-  return "text-[#6b7280] bg-[#f3f4f6]";
+  if (s === "bullish") return "text-[#10b981] tint-bull";
+  if (s === "bearish") return "text-[#ef4444] tint-bear";
+  if (s === "mixed") return "text-[#f59e0b] tint-warn";
+  return "text-on-surface-variant bg-surface-container";
 }
 
 function ChevronDown({ className }: { className?: string }) {
@@ -116,7 +116,7 @@ function SymbolPicker({
         aria-haspopup="listbox"
         id={triggerId}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-[#e5e5e5] bg-white px-3 text-left text-[13px] font-medium text-[#0a0a0a] outline-none transition-colors hover:border-[#d4d4d4] focus-visible:border-[#a3a3a3] focus-visible:ring-2 focus-visible:ring-[#111111]/10"
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-[#e5e5e5] bg-surface px-3 text-left text-[13px] font-medium text-on-surface outline-none transition-colors hover:border-[#d4d4d4] focus-visible:border-[#a3a3a3] focus-visible:ring-2 focus-visible:ring-[#111111]/10"
       >
         <span className="truncate">{triggerLabel}</span>
         <ChevronDown
@@ -128,7 +128,7 @@ function SymbolPicker({
         <div
           role="listbox"
           aria-labelledby={triggerId}
-          className="absolute left-0 top-[calc(100%+6px)] z-[80] w-full max-h-[min(260px,45vh)] overflow-auto rounded-xl border border-[#ebebeb] bg-white py-1 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.04]"
+          className="absolute left-0 top-[calc(100%+6px)] z-[80] w-full max-h-[min(260px,45vh)] overflow-auto rounded-xl border border-[#ebebeb] bg-surface py-1 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.04]"
         >
           {options.map((opt) => {
             const selected =
@@ -141,8 +141,8 @@ function SymbolPicker({
                 aria-selected={selected}
                 className={`flex w-full min-w-[148px] items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
                   selected
-                    ? "bg-[#f4f4f4] font-semibold text-[#0a0a0a]"
-                    : "text-[#404040] hover:bg-[#fafafa]"
+                    ? "bg-[#f4f4f4] font-semibold text-on-surface"
+                    : "text-[#404040] hover:bg-surface-container-low"
                 }`}
                 onClick={() => {
                   onChange(opt.value);
@@ -150,7 +150,7 @@ function SymbolPicker({
                 }}
               >
                 {selected ? (
-                  <span className="inline-block w-3 shrink-0 text-[11px] text-[#0a0a0a]">✓</span>
+                  <span className="inline-block w-3 shrink-0 text-[11px] text-on-surface">✓</span>
                 ) : (
                   <span className="inline-block w-3 shrink-0" aria-hidden />
                 )}
@@ -209,10 +209,10 @@ function ArticleCard({ article, radarSet, tickerMetaMode, compact }: ArticleCard
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group block w-full border-b border-dashed border-[#e5e7eb] px-1.5 py-5 outline-none transition-colors hover:bg-[#f5f5f5] focus-visible:bg-[#fafafa] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#111111]/10 sm:px-2"
+        className="group block w-full border-b border-dashed border-outline-variant px-1.5 py-5 outline-none transition-colors hover:bg-surface-container focus-visible:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#111111]/10 sm:px-2"
       >
         <h3
-          className={`font-bold tracking-[-0.02em] text-[#0a0a0a] leading-snug group-hover:text-[#0052ff] transition-colors ${
+          className={`font-bold tracking-[-0.02em] text-on-surface leading-snug group-hover:text-[#22d3ee] transition-colors ${
             compact ? "text-[14px]" : "text-[15px] sm:text-[16px]"
           }`}
         >
@@ -371,7 +371,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
           Nothing matched your Radar in the latest news run yet - try again after the pipeline
           refreshes, or open the full market feed.
         </p>
-        <Link href="/news" className="w-fit font-semibold text-[#0052ff] hover:underline">
+        <Link href="/news" className="w-fit font-semibold text-[#22d3ee] hover:underline">
           Market news →
         </Link>
       </div>
@@ -388,10 +388,10 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       : "No stories match this tone - try All or another tone.";
 
   return (
-    <section className="flex flex-col gap-4 bg-white p-3 md:p-5">
+    <section className="flex flex-col gap-4 bg-surface p-3 md:p-5">
       <div className="flex shrink-0 flex-col gap-4 border-b border-[#ebebeb] pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
-          <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-[#0a0a0a] md:text-[20px]">
+          <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-on-surface md:text-[20px]">
             {title}
           </HeadingTag>
           <p className="max-w-xl text-[13px] leading-relaxed text-[#737373]">{subtitle}</p>
@@ -434,8 +434,8 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                       onClick={() => setSentiment(key)}
                       className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${
                         active
-                          ? "bg-[#0a0a0a] text-white"
-                          : "bg-[#f5f5f5] text-[#737373] hover:bg-[#ebebeb] hover:text-[#0a0a0a]"
+                          ? "bg-on-surface text-surface"
+                          : "bg-surface-container text-[#737373] hover:bg-[#ebebeb] hover:text-on-surface"
                       }`}
                     >
                       <span className="inline-flex items-baseline gap-1">
@@ -468,8 +468,8 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
             onClick={() => setTickerFilter("")}
             className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
               tickerFilter === ""
-                ? "bg-[#111111] text-white"
-                : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+                ? "bg-on-surface text-surface"
+                : "bg-surface-container text-on-surface hover:bg-surface-container-high"
             }`}
           >
             All stocks
@@ -483,15 +483,15 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                 onClick={() => setTickerFilter(active ? "" : ticker)}
                 className={`flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-[12px] font-semibold transition-colors ${
                   active
-                    ? "bg-[#111111] text-white"
-                    : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+                    ? "bg-on-surface text-surface"
+                    : "bg-surface-container text-on-surface hover:bg-surface-container-high"
                 }`}
               >
                 <StockLogo
                   ticker={ticker}
                   size={20}
-                  fallbackBg={active ? "#ffffff" : "#e5e7eb"}
-                  fallbackFg={active ? "#111111" : "#374151"}
+                  fallbackBg={active ? "var(--surface)" : "var(--surface-container-high)"}
+                  fallbackFg={active ? "var(--on-surface)" : "var(--on-surface)"}
                 />
                 {ticker}
               </button>

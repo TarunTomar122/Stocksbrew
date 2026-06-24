@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Radar // your book</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<script>tailwind.config={theme:{extend:{colors:{bg:'#070b09',surface:'#0f1512',surface2:'#1a221c',line:'rgba(255,255,255,.06)',up:'#4ade80',down:'#fb7185',amber:'#fbbf24',cyan:'#22d3ee',t1:'#f1f4f7',t2:'#9aa3af',t3:'#5b6573'},fontFamily:{mono:['"JetBrains Mono"','monospace'],sans:['Inter','sans-serif']}}}};</script>
+<style>
+  body{background:#070b09}
+  .panel{background:#0f1512;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(74,222,128,.08)}
+  .inset{background:#14191f;border-radius:10px}
+  .dot{animation:p 2.4s ease-in-out infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+  .logo{width:26px;height:26px;border-radius:6px;background:#fff;object-fit:contain;padding:2px;flex:none}
+  .blur{filter:blur(7px);opacity:.5;user-select:none;pointer-events:none}
+</style>
+</head>
+<body class="font-sans text-t1 antialiased">
+<div class="max-w-4xl mx-auto px-5 py-10">
+
+  <!-- HEADER + TOP-LINE -->
+  <div class="flex items-center gap-3">
+    <div class="font-mono text-[12px] text-cyan">// your radar</div>
+    <button onclick="toggle()" id="planBtn" class="ml-auto font-mono text-[11px] rounded px-2 py-1" style="background:rgba(251,191,36,.14);color:#fbbf24">FREE · 3/3 · tap to preview Pro</button>
+  </div>
+  <h1 class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-t1">The market, on your stocks.</h1>
+  <p class="mt-3 max-w-2xl text-[15px] leading-relaxed text-t2">
+    <b class="text-t1">2 of your 3 names flagged today.</b> NVDA broke your add zone <span class="text-up">▲2.9%</span>; TSLA cooling into earnings <span class="text-down">▼1.1%</span>.
+  </p>
+
+  <!-- THE CALLS (free taste) -->
+  <div class="mt-7 mb-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> your calls today</div>
+  <div class="panel overflow-hidden" id="calls"></div>
+
+  <!-- WHAT CHANGED -->
+  <div class="mt-8 mb-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> what changed since you last looked</div>
+  <div class="panel p-1.5" id="feed"></div>
+
+  <!-- WHOLE BOOK (Pro depth) -->
+  <div class="mt-8 mb-2 flex items-center gap-2 font-mono text-[12px] text-t2"><span class="text-up">$</span> your whole book <span id="lockTag" class="text-t3">· Pro</span></div>
+  <div class="relative">
+    <div id="book" class="grid sm:grid-cols-3 gap-3">
+      <div class="panel p-5"><p class="font-mono text-[11px] text-t2 mb-3">sector exposure</p><div class="space-y-2 font-mono text-[12px]"><div class="flex justify-between"><span class="text-t2">Semis</span><span class="text-t1">58%</span></div><div class="flex justify-between"><span class="text-t2">Tech</span><span class="text-t1">30%</span></div><div class="flex justify-between"><span class="text-t2">Auto</span><span class="text-t1">12%</span></div><p class="text-[12px] text-amber mt-2">⚠ concentrated in semis</p></div></div>
+      <div class="panel p-5"><p class="font-mono text-[11px] text-t2 mb-3">factor tilt</p><div class="space-y-2 font-mono text-[12px]"><div class="flex justify-between"><span class="text-t2">Growth</span><span class="text-up">high</span></div><div class="flex justify-between"><span class="text-t2">Value</span><span class="text-down">low</span></div><div class="flex justify-between"><span class="text-t2">Momentum</span><span class="text-up">high</span></div><div class="flex justify-between"><span class="text-t2">Quality</span><span class="text-t1">mid</span></div></div></div>
+      <div class="panel p-5"><p class="font-mono text-[11px] text-t2 mb-3">regime read</p><p class="text-[13px] text-t2 leading-relaxed">Risk-on tape favors your growth tilt, but a semis pullback hits 58% of your book. One name (TSLA) cushions on a rotation.</p></div>
+    </div>
+    <!-- lock overlay (free) -->
+    <div id="lock" class="absolute inset-0 grid place-items-center" style="background:rgba(7,11,9,.55)">
+      <div class="panel p-6 text-center max-w-sm" style="box-shadow:0 8px 40px rgba(0,0,0,.4),inset 0 0 0 1px rgba(74,222,128,.25)">
+        <p class="font-mono text-[11px] uppercase tracking-widest text-up mb-2">🔒 whole book · Pro</p>
+        <p class="text-[15px] font-semibold text-t1">See your whole book, not one stock at a time.</p>
+        <p class="mt-1.5 text-[13px] text-t2">Sector exposure, factor tilt, regime fit, and rebalance, across everything you hold.</p>
+        <a href="subscribe.html" class="mt-4 inline-block rounded px-5 py-2.5 font-mono text-[13px] font-bold" style="background:#4ade80;color:#070b09">unlock your whole book →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAP / ADD MORE -->
+  <div id="cap" class="mt-8 panel p-5 flex items-center justify-between gap-4">
+    <div>
+      <p class="text-[15px] font-semibold text-t1">You're watching 3 of your stocks.</p>
+      <p class="mt-0.5 text-[13px] text-t2">Add the rest of your book and get pinged the moment any of them moves 4%+.</p>
+    </div>
+    <a href="subscribe.html" class="rounded px-5 py-2.5 font-mono text-[13px] font-bold whitespace-nowrap" style="background:#4ade80;color:#070b09">track everything →</a>
+  </div>
+
+</div>
+
+<script>
+const STANCE={accumulate:'#4ade80',trim:'#fbbf24',hold:'#22d3ee',avoid:'#fb7185',watch:'#22d3ee'};
+const L=t=>`<img class="logo" src="https://assets.parqet.com/logos/symbol/${t}?format=png" onerror="this.style.display='none'"/>`;
+const calls=[
+  {t:'NVDA',n:'NVIDIA',px:'210.69',chg:2.95,stance:'ACCUMULATE',sub:'into weakness under $200',why:'97% Buy, $309 target (+46.8%), revenue +70.7% YoY. Today\'s break confirms the trend.',alert:'add < $200'},
+  {t:'TSLA',n:'Tesla',px:'248.12',chg:-1.10,stance:'HOLD',sub:'into delivery numbers',why:'Range-bound; mixed analyst view. Waiting on the delivery print before adding or trimming.',alert:''},
+  {t:'MU',n:'Micron',px:'1,133.99',chg:8.70,stance:'TRIM',sub:'extended near term',why:'Up 8.7% on the AI capex cycle; running hot vs its 50-day. Take some off into strength.',alert:'trim > $1,200'},
+];
+document.getElementById('calls').innerHTML=calls.map(c=>{const up=c.chg>=0;const col=STANCE[c.stance.toLowerCase()]||'#22d3ee';return `
+  <div class="border-t border-line px-5 py-4 first:border-t-0">
+    <div class="flex items-center gap-3 font-mono text-[13px]">
+      ${L(c.t)}<span class="font-bold text-t1">${c.t}</span><span class="text-t3">${c.n}</span>
+      <span class="ml-auto flex flex-col items-end leading-tight"><span class="text-t1">$${c.px}</span><span class="${up?'text-up':'text-down'} text-[12px]">${up?'▲':'▼'} ${Math.abs(c.chg).toFixed(2)}%</span></span>
+    </div>
+    <div class="mt-2.5 flex flex-wrap items-baseline gap-x-3">
+      <span class="font-mono text-xl font-bold" style="color:${col}">${c.stance}</span>
+      <span class="text-[13px] text-t2">${c.sub}</span>
+      ${c.alert?`<span class="ml-auto font-mono text-[11px] text-cyan flex items-center gap-1">🔔 alert · ${c.alert}</span>`:''}
+    </div>
+    <p class="mt-1.5 text-[13px] leading-relaxed text-t2">${c.why}</p>
+  </div>`;}).join('');
+
+const feed=[
+  ['#4ade80','NVDA','broke above your add zone ($200) — 2h ago'],
+  ['#fbbf24','MU','earnings in 3 days · we predict EPS beat · bullish'],
+  ['#22d3ee','RDDT','buzzing on r/stocks today (you don\'t hold it)'],
+];
+document.getElementById('feed').innerHTML=feed.map(([c,t,txt])=>`
+  <div class="flex items-center gap-3 px-3.5 py-2.5 font-mono text-[13px]">
+    <span class="w-1.5 h-1.5 rounded-full" style="background:${c}"></span>
+    <span class="w-14 font-bold text-t1">${t}</span>
+    <span class="text-t2">${txt}</span>
+  </div>`).join('');
+
+let pro=false;
+function toggle(){
+  pro=!pro;
+  document.getElementById('lock').style.display=pro?'none':'grid';
+  document.getElementById('cap').style.display=pro?'none':'flex';
+  document.getElementById('book').classList.toggle('blur',!pro);
+  document.getElementById('lockTag').textContent=pro?'· unlimited':'· Pro';
+  document.getElementById('planBtn').textContent=pro?'PRO · unlimited · tap to see Free':'FREE · 3/3 · tap to preview Pro';
+  document.getElementById('planBtn').style.background=pro?'rgba(74,222,128,.14)':'rgba(251,191,36,.14)';
+  document.getElementById('planBtn').style.color=pro?'#4ade80':'#fbbf24';
+}
+toggle();toggle(); // init free
+</script>
+</body>
+</html>

@@ -181,12 +181,12 @@ export function ReturnsPriceChart({ series, ticker, currency }: Props) {
   return (
     <div ref={rootRef} className="flex w-full max-w-[640px] flex-col gap-2">
       <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2 text-[11px]">
-        <div className="flex items-center gap-2.5 text-[#6b7280]">
+        <div className="flex items-center gap-2.5 text-on-surface-variant">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-[2px] w-4 rounded-full" style={{ background: chart.stroke }} aria-hidden />
-            <span className="font-medium text-[#374151]">Daily close</span>
+            <span className="font-medium text-on-surface">Daily close</span>
           </span>
-          <span className="text-[#9ca3af]">{ticker}</span>
+          <span className="text-on-surface-variant">{ticker}</span>
         </div>
         {periodReturnLabel ? (
           <span
@@ -200,16 +200,16 @@ export function ReturnsPriceChart({ series, ticker, currency }: Props) {
       <div className="relative">
         {active ? (
           <div
-            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-[#e5e7eb] bg-white px-2.5 py-1.5 shadow-[0_4px_16px_rgba(17,24,39,0.08)]"
+            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg bg-surface px-2.5 py-1.5 shadow-[0_4px_16px_rgba(17,24,39,0.08)]"
             style={{
               left: `${Math.min(92, Math.max(8, (active.x / WIDTH) * 100))}%`,
               top: Math.max(0, active.y - 44),
             }}
           >
-            <p className="whitespace-nowrap text-[11px] font-semibold tabular-nums text-[#111111]">
+            <p className="whitespace-nowrap text-[11px] font-semibold tabular-nums text-on-surface">
               {formatPrice(active.close, currency)}
             </p>
-            <p className="whitespace-nowrap text-[10px] text-[#9ca3af]">
+            <p className="whitespace-nowrap text-[10px] text-on-surface-variant">
               {shortChartDate(active.date)}
             </p>
           </div>
@@ -248,7 +248,7 @@ export function ReturnsPriceChart({ series, ticker, currency }: Props) {
                   x2={margin.left + plotWidth}
                   y1={y}
                   y2={y}
-                  stroke="#f3f4f6"
+                  stroke="var(--surface-container)"
                   strokeWidth="1"
                 />
                 {!compact ? (
@@ -295,7 +295,7 @@ export function ReturnsPriceChart({ series, ticker, currency }: Props) {
                 strokeDasharray="4 3"
                 opacity="0.55"
               />
-              <circle cx={active.x} cy={active.y} r="4" fill="#ffffff" stroke={chart.stroke} strokeWidth="2" />
+              <circle cx={active.x} cy={active.y} r="4" fill="var(--surface)" stroke={chart.stroke} strokeWidth="2" />
             </g>
           ) : null}
 

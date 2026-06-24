@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NVDA · stocksbrew</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --accent:#5b5bd6; --accent-soft:#eeeefb; --ink:#1c1c22; --sub:#6a6a76; --faint:#9a9aa4; --line:#ececef; --line2:#e2e2e7; --bg:#fbfbfc; --pos:#15803d; --neg:#dc2626; }
+  * { -webkit-font-smoothing: antialiased; }
+  body { font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--bg); }
+  .mono { font-family:'JetBrains Mono',monospace; font-feature-settings:'tnum'; }
+  .kbd { font-family:'JetBrains Mono',monospace; font-size:10px; line-height:1; padding:3px 5px; border:1px solid var(--line2); border-bottom-width:2px; border-radius:5px; background:#fff; color:var(--sub); }
+  .nav-item { transition:background .12s,color .12s; } .nav-item:hover { background:#f2f2f7; color:var(--ink); }
+  .nav-item.active { background:var(--accent-soft); color:var(--accent); }
+  .dot { width:7px; height:7px; border-radius:99px; display:inline-block; }
+  .tag { font-size:10.5px; font-weight:600; letter-spacing:.02em; padding:2px 7px; border-radius:5px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; }
+  .seg { font-size:11px; padding:3px 9px; border-radius:6px; } .seg.on { background:var(--ink); color:#fff; } .seg.off { color:var(--sub); }
+  ::selection { background:var(--accent-soft); }
+  .scroll::-webkit-scrollbar { width:8px; } .scroll::-webkit-scrollbar-thumb { background:#e0e0e6; border-radius:8px; }
+</style>
+</head>
+<body class="h-screen overflow-hidden">
+<div class="flex h-screen">
+
+  <aside class="w-[212px] shrink-0 border-r flex flex-col" style="border-color:var(--line)">
+    <div class="h-14 flex items-center gap-2 px-4 border-b" style="border-color:var(--line)">
+      <div class="w-6 h-6 rounded-md grid place-items-center text-white text-[13px] font-bold" style="background:var(--accent)">s</div>
+      <span class="font-semibold text-[14px] tracking-tight">stocksbrew</span>
+    </div>
+    <nav class="flex-1 px-2.5 py-3 space-y-0.5 text-[13px]">
+      <p class="px-2.5 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wider" style="color:var(--faint)">Triage</p>
+      <a href="radar.html" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        Radar <span class="ml-auto mono text-[11px]" style="color:var(--faint)">7</span>
+      </a>
+      <a href="anomalies.html" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        Anomalies <span class="ml-auto mono text-[11px]" style="color:var(--faint)">5</span>
+      </a>
+      <a href="reddit.html" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+        Reddit Buzz <span class="ml-auto mono text-[11px]" style="color:var(--faint)">12</span>
+      </a>
+      <a href="#" class="nav-item flex items-center gap-2.5 px-2.5 h-8 rounded-md" style="color:var(--sub)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+        Screener
+      </a>
+      <p class="px-2.5 pt-4 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wider" style="color:var(--faint)">Pinned</p>
+      <a href="stock.html" class="nav-item active flex items-center gap-2.5 px-2.5 h-8 rounded-md font-medium">
+        <span class="dot" style="background:var(--pos)"></span>
+        <span class="mono text-[12px] font-semibold">NVDA</span>
+        <span class="ml-auto mono text-[11px]" style="color:var(--pos)">+2.4%</span>
+      </a>
+    </nav>
+    <div class="p-3 border-t" style="border-color:var(--line)">
+      <div class="flex items-center gap-2.5 px-1">
+        <div class="w-7 h-7 rounded-full grid place-items-center text-[11px] font-semibold text-white" style="background:linear-gradient(135deg,#5b5bd6,#8b5cf6)">TT</div>
+        <div class="leading-tight"><p class="text-[12.5px] font-medium">Tanay</p><p class="text-[11px]" style="color:var(--faint)">Free plan</p></div>
+        <svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="h-14 shrink-0 border-b flex items-center gap-3 px-5" style="border-color:var(--line)">
+      <a href="radar.html" class="text-[12.5px] flex items-center gap-1" style="color:var(--faint)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Radar</a>
+      <span style="color:var(--line2)">/</span>
+      <h1 class="text-[15px] font-semibold tracking-tight mono">NVDA</h1>
+      <button class="ml-4 flex items-center gap-2 h-8 px-3 rounded-lg border text-[12.5px] w-[280px] text-left" style="border-color:var(--line2);color:var(--sub)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        Search or jump to ticker <span class="ml-auto kbd">⌘K</span>
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        <button class="h-8 px-3 rounded-lg border text-[12.5px] font-medium flex items-center gap-1.5" style="border-color:var(--line2)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Alert</button>
+        <button class="h-8 px-3.5 rounded-lg text-[12.5px] font-medium text-white flex items-center gap-1.5" style="background:var(--accent)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 6"/></svg>Tracking</button>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto scroll p-5">
+      <div class="max-w-[1080px] mx-auto space-y-4">
+
+        <!-- HERO -->
+        <div class="flex items-end gap-5">
+          <div>
+            <div class="flex items-center gap-3">
+              <h2 class="text-[26px] font-bold tracking-tight mono">$172.40</h2>
+              <span class="tag" style="background:#dcfce7;color:#15803d">+$4.06 · +2.41% today</span>
+            </div>
+            <p class="text-[12.5px] mt-1" style="color:var(--faint)">NVIDIA Corp · NASDAQ · semiconductors</p>
+          </div>
+          <div class="ml-auto flex items-center gap-2.5">
+            <span class="tag text-[12px] px-3 py-1.5" style="background:var(--ink);color:#fff">VERDICT · BUY</span>
+            <span class="text-[12px]" style="color:var(--faint)">conviction <span class="font-semibold" style="color:var(--ink)">High</span></span>
+          </div>
+        </div>
+
+        <!-- VERDICT + REASONS -->
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="dot" style="background:var(--pos)"></span>
+            <h3 class="text-[13px] font-semibold">Why we say Buy</h3>
+            <span class="ml-auto text-[11px]" style="color:var(--faint)">updated 11:40 · model v4</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="rounded-lg p-3" style="background:#f8f8fc">
+              <p class="text-[11px] font-semibold mb-1" style="color:var(--accent)">01 · Demand runway</p>
+              <p class="text-[12.5px]" style="color:var(--sub)">Data-center backlog stretches into next fiscal year; hyperscaler capex guides keep rising.</p>
+            </div>
+            <div class="rounded-lg p-3" style="background:#f8f8fc">
+              <p class="text-[11px] font-semibold mb-1" style="color:var(--accent)">02 · Margin durability</p>
+              <p class="text-[12.5px]" style="color:var(--sub)">Gross margin holding above 73% despite supply ramp; pricing power intact on top tier parts.</p>
+            </div>
+            <div class="rounded-lg p-3" style="background:#f8f8fc">
+              <p class="text-[11px] font-semibold mb-1" style="color:var(--accent)">03 · Technical reclaim</p>
+              <p class="text-[12.5px]" style="color:var(--sub)">Price closed back above the 50-day MA on rising volume, ending a three-week consolidation.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-[1.6fr_1fr] gap-4">
+          <!-- CHART -->
+          <div class="card p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <h3 class="text-[13px] font-semibold">Price</h3>
+              <div class="ml-auto flex gap-1">
+                <button class="seg off">1M</button><button class="seg off">3M</button><button class="seg on">6M</button><button class="seg off">1Y</button>
+              </div>
+            </div>
+            <svg viewBox="0 0 560 200" class="w-full h-[200px]">
+              <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5b5bd6" stop-opacity="0.18"/><stop offset="100%" stop-color="#5b5bd6" stop-opacity="0"/></linearGradient></defs>
+              <line x1="0" y1="50" x2="560" y2="50" stroke="#f0f0f4"/><line x1="0" y1="100" x2="560" y2="100" stroke="#f0f0f4"/><line x1="0" y1="150" x2="560" y2="150" stroke="#f0f0f4"/>
+              <path d="M0,160 L40,150 L80,158 L120,140 L160,148 L200,120 L240,128 L280,100 L320,108 L360,85 L400,92 L440,70 L480,60 L520,48 L560,40 L560,200 L0,200 Z" fill="url(#g)"/>
+              <path d="M0,160 L40,150 L80,158 L120,140 L160,148 L200,120 L240,128 L280,100 L320,108 L360,85 L400,92 L440,70 L480,60 L520,48 L560,40" fill="none" stroke="#5b5bd6" stroke-width="2"/>
+              <line x1="0" y1="118" x2="560" y2="118" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4 4"/>
+              <circle cx="560" cy="40" r="3.5" fill="#5b5bd6"/>
+            </svg>
+            <div class="flex items-center gap-4 mt-2 text-[11px]" style="color:var(--faint)">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-[2px] inline-block" style="background:#5b5bd6"></span>Close</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-[2px] inline-block" style="background:#f59e0b"></span>50-day MA $158.10</span>
+              <span class="ml-auto mono">52w $84.20 – $176.30</span>
+            </div>
+          </div>
+
+          <!-- TECHNICALS -->
+          <div class="card p-4">
+            <h3 class="text-[13px] font-semibold mb-3">Technicals</h3>
+            <div class="space-y-3 text-[12.5px]">
+              <div>
+                <div class="flex justify-between mb-1"><span style="color:var(--sub)">RSI (14)</span><span class="mono font-medium">61 · neutral-strong</span></div>
+                <div class="h-1.5 rounded-full bg-[#eee] relative"><div class="absolute h-1.5 rounded-full" style="width:61%;background:linear-gradient(90deg,#15803d,#5b5bd6)"></div></div>
+              </div>
+              <div class="flex justify-between"><span style="color:var(--sub)">50-day MA</span><span class="mono font-medium" style="color:var(--pos)">$158.10 · above</span></div>
+              <div class="flex justify-between"><span style="color:var(--sub)">200-day MA</span><span class="mono font-medium" style="color:var(--pos)">$131.55 · above</span></div>
+              <div class="flex justify-between"><span style="color:var(--sub)">Volume vs avg</span><span class="mono font-medium">2.6× · elevated</span></div>
+              <div class="flex justify-between"><span style="color:var(--sub)">Beta</span><span class="mono font-medium">1.74</span></div>
+              <div class="flex justify-between"><span style="color:var(--sub)">ATR (14)</span><span class="mono font-medium">$6.20</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PILLARS -->
+        <div class="card p-4">
+          <h3 class="text-[13px] font-semibold mb-3">Pillar scores</h3>
+          <div class="grid grid-cols-4 gap-4">
+            <div><div class="flex justify-between text-[12px] mb-1.5"><span style="color:var(--sub)">Valuation</span><span class="mono font-semibold">48</span></div><div class="h-1.5 rounded-full bg-[#eee]"><div class="h-1.5 rounded-full" style="width:48%;background:#f59e0b"></div></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">Rich vs peers</p></div>
+            <div><div class="flex justify-between text-[12px] mb-1.5"><span style="color:var(--sub)">Growth</span><span class="mono font-semibold">94</span></div><div class="h-1.5 rounded-full bg-[#eee]"><div class="h-1.5 rounded-full" style="width:94%;background:#15803d"></div></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">Best in class</p></div>
+            <div><div class="flex justify-between text-[12px] mb-1.5"><span style="color:var(--sub)">Quality</span><span class="mono font-semibold">88</span></div><div class="h-1.5 rounded-full bg-[#eee]"><div class="h-1.5 rounded-full" style="width:88%;background:#15803d"></div></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">Strong balance sheet</p></div>
+            <div><div class="flex justify-between text-[12px] mb-1.5"><span style="color:var(--sub)">Momentum</span><span class="mono font-semibold">79</span></div><div class="h-1.5 rounded-full bg-[#eee]"><div class="h-1.5 rounded-full" style="width:79%;background:#5b5bd6"></div></div><p class="text-[10.5px] mt-1" style="color:var(--faint)">Trend reclaimed</p></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- NEWS -->
+          <div class="card p-4">
+            <h3 class="text-[13px] font-semibold mb-3">Latest news</h3>
+            <div class="space-y-3">
+              <a href="#" class="block group">
+                <p class="text-[12.5px] font-medium leading-snug">NVIDIA confirms next-gen inference chip ships ahead of schedule at GTC</p>
+                <p class="text-[11px] mt-0.5" style="color:var(--faint)">Reuters · 2h ago · <span style="color:var(--pos)">positive</span></p>
+              </a>
+              <a href="#" class="block">
+                <p class="text-[12.5px] font-medium leading-snug">Hyperscaler raises 2026 capex guide, names NVIDIA as primary supplier</p>
+                <p class="text-[11px] mt-0.5" style="color:var(--faint)">Bloomberg · 5h ago · <span style="color:var(--pos)">positive</span></p>
+              </a>
+              <a href="#" class="block">
+                <p class="text-[12.5px] font-medium leading-snug">Export-control review could touch top-tier data-center parts</p>
+                <p class="text-[11px] mt-0.5" style="color:var(--faint)">WSJ · 8h ago · <span style="color:var(--neg)">negative</span></p>
+              </a>
+            </div>
+          </div>
+          <!-- REDDIT -->
+          <div class="card p-4">
+            <div class="flex items-center gap-2 mb-3"><h3 class="text-[13px] font-semibold">Reddit snippets</h3><span class="tag ml-auto" style="background:#dcfce7;color:#15803d">71% bullish</span></div>
+            <div class="space-y-3">
+              <div class="rounded-lg p-2.5" style="background:#f8f8fc">
+                <p class="text-[12px]" style="color:var(--sub)">“The GTC leak basically confirms the roadmap is a year ahead of AMD. Adding here.”</p>
+                <p class="text-[11px] mt-1" style="color:var(--faint)">r/stocks · 412 upvotes</p>
+              </div>
+              <div class="rounded-lg p-2.5" style="background:#f8f8fc">
+                <p class="text-[12px]" style="color:var(--sub)">“Block prints all afternoon. Someone big is accumulating before the keynote.”</p>
+                <p class="text-[11px] mt-1" style="color:var(--faint)">r/wallstreetbets · 287 upvotes</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRO UPSELL -->
+        <div class="card p-5 flex items-center gap-5 overflow-hidden relative" style="background:linear-gradient(100deg,#f3f3fc,#fff)">
+          <div class="w-9 h-9 rounded-lg grid place-items-center text-white shrink-0" style="background:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6z"/></svg></div>
+          <div>
+            <p class="text-[13.5px] font-semibold">Unlock the full NVDA thesis with Pro</p>
+            <p class="text-[12.5px]" style="color:var(--sub)">Analyst-grade DCF, scenario price targets, options flow, and intraday verdict re-runs on every catalyst.</p>
+          </div>
+          <button class="ml-auto shrink-0 h-9 px-4 rounded-lg text-[13px] font-semibold text-white" style="background:var(--accent)">Upgrade to Pro</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

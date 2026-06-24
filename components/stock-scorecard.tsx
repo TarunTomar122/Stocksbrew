@@ -17,10 +17,10 @@ const PILLAR_LABEL: Record<keyof StockIntelPro["pillars"], string> = {
 };
 
 const PILLAR_ICON: Record<keyof StockIntelPro["pillars"], { emoji: string; bg: string }> = {
-  growth:    { emoji: "🌱",  bg: "#ecfdf5" },
-  momentum:  { emoji: "🚀",  bg: "#eff6ff" },
-  valuation: { emoji: "🏷️", bg: "#fef3c7" },
-  quality:   { emoji: "🏛️", bg: "#f3f4f6" },
+  growth:    { emoji: "🌱",  bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" },
+  momentum:  { emoji: "🚀",  bg: "color-mix(in srgb, #2563eb 14%, var(--surface))" },
+  valuation: { emoji: "🏷️", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))" },
+  quality:   { emoji: "🏛️", bg: "var(--surface-container)" },
 };
 
 const VERDICT_COPY: Record<string, string> = {
@@ -31,15 +31,15 @@ const VERDICT_COPY: Record<string, string> = {
 };
 
 function scoreTone(v?: number | null): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "text-[#9ca3af]";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "text-on-surface-variant";
   if (v >= 80) return "text-[#10b981]";
-  if (v >= 60) return "text-[#111111]";
-  if (v >= 40) return "text-[#6b7280]";
+  if (v >= 60) return "text-on-surface";
+  if (v >= 40) return "text-on-surface-variant";
   return "text-[#ef4444]";
 }
 
 function scoreFill(v?: number | null): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "bg-[#e5e7eb]";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "bg-surface-container-high";
   if (v >= 80) return "bg-[#10b981]";
   if (v >= 60) return "bg-[#0052ff]";
   if (v >= 40) return "bg-[#f59e0b]";
@@ -49,18 +49,18 @@ function scoreFill(v?: number | null): string {
 function urgencyTone(u?: string): { bg: string; fg: string } {
   switch ((u ?? "").toLowerCase()) {
     case "high":
-      return { bg: "#fef2f2", fg: "#ef4444" };
+      return { bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444" };
     case "med":
-      return { bg: "#fef3c7", fg: "#b45309" };
+      return { bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b" };
     default:
-      return { bg: "#f3f4f6", fg: "#6b7280" };
+      return { bg: "var(--surface-container)", fg: "var(--on-surface-variant)" };
   }
 }
 
 function ScoreBar({ score, height = "h-1.5" }: { score: number; height?: string }) {
   const clamped = Math.max(0, Math.min(100, score));
   return (
-    <div className={`relative ${height} rounded-full bg-[#f3f4f6] overflow-hidden`}>
+    <div className={`relative ${height} rounded-full bg-surface-container overflow-hidden`}>
       <div
         className={`absolute inset-y-0 left-0 rounded-full ${scoreFill(score)}`}
         style={{ width: `${clamped}%` }}
@@ -80,7 +80,7 @@ function PillarCard({
 }) {
   const icon = PILLAR_ICON[name];
   return (
-    <div className="flex h-full min-w-[148px] flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 md:p-4.5">
+    <div className="flex h-full min-w-[148px] flex-col gap-3 rounded-2xl bg-surface p-4 md:p-4.5">
       <div className="flex items-center justify-between gap-2">
         <span
           className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[18px]"
@@ -94,12 +94,12 @@ function PillarCard({
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-[#111111]">
+        <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-on-surface">
           {PILLAR_LABEL[name]}
         </span>
         <ScoreBar score={pillar.score} />
         {showVerdict ? (
-          <span className="text-[11px] text-[#6b7280]">
+          <span className="text-[11px] text-on-surface-variant">
             {VERDICT_COPY[pillar.verdict] ?? pillar.verdict}
           </span>
         ) : null}
@@ -123,25 +123,25 @@ export function StockScorecard({
     <div className="flex flex-col gap-10">
       <section className="grid grid-cols-1 xl:grid-cols-[minmax(220px,_280px)_1fr] gap-6 md:gap-8 items-start">
         <div className="flex flex-col gap-2">
-          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
             Fundamentals score
           </span>
           <div className="flex items-baseline gap-2">
             <span className={`text-[52px] md:text-[64px] font-semibold leading-none tabular-nums ${scoreTone(intel.overall.score)}`}>
               {Math.round(intel.overall.score)}
             </span>
-            <span className="text-[20px] font-medium text-[#9ca3af]">/ 100</span>
+            <span className="text-[20px] font-medium text-on-surface-variant">/ 100</span>
           </div>
-          <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#6b7280]">
+          <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             {isSubscribed
               ? `${VERDICT_COPY[intel.overall.verdict] ?? intel.overall.verdict} · ${intel.overall.stance}-tilted`
               : "Scores are free · Pro unlocks the call"}
           </span>
-          <p className="text-[13px] text-[#6b7280] leading-relaxed mt-1 max-w-[260px]">
+          <p className="text-[13px] text-on-surface-variant leading-relaxed mt-1 max-w-[260px]">
             Composite of valuation, growth, quality &amp; momentum versus sector peers.
           </p>
           {intel.sector_label && (
-            <span className="text-[12px] text-[#6b7280] mt-1">
+            <span className="text-[12px] text-on-surface-variant mt-1">
               {intel.sector_label}
               {intel.industry_label ? ` · ${intel.industry_label}` : ""}
             </span>
@@ -160,7 +160,7 @@ export function StockScorecard({
                     <span className="text-[9px] font-semibold uppercase tracking-[0.06em] opacity-80">
                       {c.urgency}
                     </span>
-                    <span className="text-[#111111]">{c.title}</span>
+                    <span className="text-on-surface">{c.title}</span>
                   </span>
                 );
               })}

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Stocksbrew Wire — Radar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#161310; --paper:#fbfaf7; --rule:#ddd8cf; --accent:#b91c1c; --up:#15803d; --down:#b91c1c; }
+  body{ background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  .serif{ font-family:'Newsreader',Georgia,serif; }
+  .tnum{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+  .rule-t{ border-top:1px solid var(--rule); }
+  .rule-b{ border-bottom:1px solid var(--rule); }
+  .rule-l{ border-left:1px solid var(--rule); }
+  .double-rule{ border-top:3px double var(--ink); }
+  .kicker{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+  .verdict{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; padding:2px 7px; border:1px solid currentColor; }
+  .v-buy{ color:var(--up); } .v-sell{ color:var(--down); } .v-hold{ color:#9a6b00; } .v-watch{ color:#1e40af; }
+  .navlink{ font-size:12px; letter-spacing:.04em; font-weight:500; padding-bottom:2px; border-bottom:2px solid transparent; }
+  .navlink:hover{ border-bottom-color:var(--ink); }
+  .navlink.active{ border-bottom-color:var(--accent); color:var(--accent); }
+  .dropcap::first-letter{ font-family:'Newsreader',serif; float:left; font-size:54px; line-height:.82; font-weight:600; padding-right:8px; padding-top:4px; }
+  .marquee{ display:inline-block; white-space:nowrap; animation:scroll 38s linear infinite; }
+  @keyframes scroll{ from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .ticker-wrap:hover .marquee{ animation-play-state:paused; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- MASTHEAD -->
+<header class="max-w-[1240px] mx-auto px-5">
+  <div class="flex items-center justify-between pt-4 pb-2 text-[11px] tnum text-neutral-500">
+    <span>Vol. IV · No. 172</span>
+    <span class="hidden sm:block">Saturday, June 20, 2026 · Markets Closed · Compiled 4:32 PM ET</span>
+    <span>Edition: Tanay</span>
+  </div>
+  <div class="double-rule"></div>
+  <div class="flex items-end justify-between py-3 border-b border-[var(--ink)]">
+    <div>
+      <h1 class="serif font-bold tracking-tight leading-none text-[40px] sm:text-[52px]">The Stocksbrew Wire</h1>
+      <p class="serif italic text-[13px] text-neutral-600 mt-1">The daily briefing for the stocks you actually own.</p>
+    </div>
+    <div class="hidden md:flex flex-col items-end gap-1 text-right">
+      <div class="kicker text-[var(--accent)]">Portfolio Pulse</div>
+      <div class="serif text-2xl font-semibold tnum">+1.84%</div>
+      <div class="text-[11px] text-neutral-500">12 tracked · 7 up · 5 down</div>
+    </div>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="max-w-[1240px] mx-auto px-5">
+  <div class="flex items-center gap-6 py-2.5 rule-b overflow-x-auto">
+    <a href="radar.html" class="navlink active whitespace-nowrap">Radar</a>
+    <a href="anomalies.html" class="navlink whitespace-nowrap">Anomalies</a>
+    <a href="reddit.html" class="navlink whitespace-nowrap">Reddit Buzz</a>
+    <a href="#" class="navlink whitespace-nowrap">Screener</a>
+    <a href="stock.html" class="navlink whitespace-nowrap">NVDA</a>
+    <div class="ml-auto flex items-center gap-3 text-[11px] text-neutral-500">
+      <span class="hidden sm:inline">Search</span>
+      <input class="bg-transparent border-b border-[var(--rule)] text-[12px] py-0.5 w-28 focus:outline-none focus:border-[var(--ink)]" placeholder="Ticker…">
+    </div>
+  </div>
+</nav>
+
+<!-- TICKER TAPE -->
+<div class="rule-b bg-[#f4f2ec]">
+  <div class="max-w-[1240px] mx-auto overflow-hidden ticker-wrap">
+    <div class="marquee py-1.5 text-[12px] tnum">
+      <span class="inline-flex gap-6 pr-6">
+        <span>NVDA <b>$172.40</b> <span class="text-[var(--up)]">▲2.1%</span></span>
+        <span>AAPL <b>$214.02</b> <span class="text-[var(--down)]">▼0.6%</span></span>
+        <span>MSFT <b>$498.11</b> <span class="text-[var(--up)]">▲0.9%</span></span>
+        <span>TSLA <b>$248.77</b> <span class="text-[var(--down)]">▼3.4%</span></span>
+        <span>AMZN <b>$201.30</b> <span class="text-[var(--up)]">▲1.2%</span></span>
+        <span>GOOGL <b>$181.55</b> <span class="text-[var(--up)]">▲0.4%</span></span>
+        <span>META <b>$612.88</b> <span class="text-[var(--down)]">▼1.1%</span></span>
+        <span>AMD <b>$167.20</b> <span class="text-[var(--up)]">▲4.8%</span></span>
+      </span>
+      <span class="inline-flex gap-6 pr-6" aria-hidden="true">
+        <span>NVDA <b>$172.40</b> <span class="text-[var(--up)]">▲2.1%</span></span>
+        <span>AAPL <b>$214.02</b> <span class="text-[var(--down)]">▼0.6%</span></span>
+        <span>MSFT <b>$498.11</b> <span class="text-[var(--up)]">▲0.9%</span></span>
+        <span>TSLA <b>$248.77</b> <span class="text-[var(--down)]">▼3.4%</span></span>
+        <span>AMZN <b>$201.30</b> <span class="text-[var(--up)]">▲1.2%</span></span>
+        <span>GOOGL <b>$181.55</b> <span class="text-[var(--up)]">▲0.4%</span></span>
+        <span>META <b>$612.88</b> <span class="text-[var(--down)]">▼1.1%</span></span>
+        <span>AMD <b>$167.20</b> <span class="text-[var(--up)]">▲4.8%</span></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<main class="max-w-[1240px] mx-auto px-5 py-6">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6">
+
+    <!-- LEAD COLUMN -->
+    <section class="lg:col-span-8 lg:pr-6 lg:rule-l-0">
+      <div class="flex items-baseline justify-between rule-b pb-1 mb-4">
+        <h2 class="kicker text-[var(--accent)]">Lead Story · Your Top Mover</h2>
+        <span class="text-[11px] text-neutral-500 tnum">Updated 4:30 PM</span>
+      </div>
+
+      <!-- LEAD -->
+      <article class="rule-b pb-6 mb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="verdict v-buy">Buy</span>
+          <span class="kicker text-neutral-500">Semiconductors</span>
+        </div>
+        <h3 class="serif font-bold leading-[1.04] text-[34px] sm:text-[40px] mb-2">
+          Nvidia clears $170 floor as data-center orders refill the pipeline
+        </h3>
+        <p class="serif text-[17px] leading-relaxed text-neutral-800 dropcap">
+          Shares pushed to $172.40, up 2.1% on the session, as the stock held its long-watched accumulation band and volume ran 1.4x its 30-day average. Our read stays constructive: the next-gen accelerator backlog gives revenue visibility through the back half, and gross margin guidance held firm. The trigger you set has fired.
+        </p>
+        <div class="grid grid-cols-3 gap-4 mt-5 rule-t pt-4">
+          <div><div class="kicker text-neutral-500">Price</div><div class="serif text-2xl font-semibold tnum">$172.40</div></div>
+          <div><div class="kicker text-neutral-500">Day</div><div class="serif text-2xl font-semibold tnum text-[var(--up)]">+2.10%</div></div>
+          <div><div class="kicker text-neutral-500">Buy zone</div><div class="serif text-2xl font-semibold tnum">&lt; $170</div></div>
+        </div>
+        <div class="mt-4 flex items-center gap-2 bg-[#f0f6f1] border border-[#cfe3d2] px-3 py-2 text-[12px] text-[var(--up)]">
+          <span class="font-bold">● ALERT FIRED</span>
+          <span class="text-neutral-700">Crossed back above $170 buy zone at 11:14 AM. Position trigger armed.</span>
+          <a href="stock.html" class="ml-auto underline text-[var(--ink)]">Open dossier →</a>
+        </div>
+      </article>
+
+      <!-- SECONDARY GRID -->
+      <h2 class="kicker text-[var(--accent)] rule-b pb-1 mb-4">The Watchlist · Verdicts</h2>
+      <div class="grid sm:grid-cols-2 gap-x-6 gap-y-6">
+
+        <article class="rule-b pb-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="verdict v-sell">Sell</span>
+            <span class="tnum text-[13px] font-semibold text-[var(--down)]">▼3.42%</span>
+          </div>
+          <h4 class="serif font-semibold text-[20px] leading-snug mb-1">Tesla slips below trend as delivery whispers cool</h4>
+          <p class="text-[13px] text-neutral-600 leading-relaxed mb-2">Momentum broke the 50-day line; the chart no longer supports the position. Reason to trim into strength.</p>
+          <div class="flex items-center gap-3 text-[12px] tnum text-neutral-500">
+            <b class="text-[var(--ink)]">TSLA</b> $248.77 · Sell zone &gt; $260 armed
+          </div>
+        </article>
+
+        <article class="rule-b pb-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="verdict v-hold">Hold</span>
+            <span class="tnum text-[13px] font-semibold text-[var(--down)]">▼0.61%</span>
+          </div>
+          <h4 class="serif font-semibold text-[20px] leading-snug mb-1">Apple drifts; nothing in the tape changes the thesis</h4>
+          <p class="text-[13px] text-neutral-600 leading-relaxed mb-2">A quiet quarter for the chart. Valuation rich, but quality and cash flow keep this a steady core hold.</p>
+          <div class="flex items-center gap-3 text-[12px] tnum text-neutral-500">
+            <b class="text-[var(--ink)]">AAPL</b> $214.02 · No active trigger
+          </div>
+        </article>
+
+        <article class="rule-b pb-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="verdict v-watch">Watch</span>
+            <span class="tnum text-[13px] font-semibold text-[var(--up)]">▲4.81%</span>
+          </div>
+          <h4 class="serif font-semibold text-[20px] leading-snug mb-1">AMD heats up on share-gain chatter, not yet a buy</h4>
+          <p class="text-[13px] text-neutral-600 leading-relaxed mb-2">Strong day but the entry is stretched. Waiting for a pullback into the $158 zone before acting.</p>
+          <div class="flex items-center gap-3 text-[12px] tnum text-neutral-500">
+            <b class="text-[var(--ink)]">AMD</b> $167.20 · Buy zone &lt; $158 watching
+          </div>
+        </article>
+
+        <article class="rule-b pb-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="verdict v-buy">Buy</span>
+            <span class="tnum text-[13px] font-semibold text-[var(--up)]">▲1.21%</span>
+          </div>
+          <h4 class="serif font-semibold text-[20px] leading-snug mb-1">Amazon retail margins surprise; cloud reaccelerates</h4>
+          <p class="text-[13px] text-neutral-600 leading-relaxed mb-2">Fundamentals turning the right way and the price sits inside your accumulation band. Adds welcome here.</p>
+          <div class="flex items-center gap-3 text-[12px] tnum text-neutral-500">
+            <b class="text-[var(--ink)]">AMZN</b> $201.30 · Buy zone &lt; $205 active
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- SIDEBAR -->
+    <aside class="lg:col-span-4 lg:rule-l lg:pl-6 mt-8 lg:mt-0">
+
+      <div class="rule-b pb-1 mb-3"><h2 class="kicker text-[var(--accent)]">At A Glance · Triggers</h2></div>
+      <ul class="space-y-0 mb-7 text-[13px]">
+        <li class="flex items-center justify-between py-2 rule-b">
+          <span><b>NVDA</b> Buy &lt; $170</span><span class="text-[var(--up)] font-semibold text-[11px]">● FIRED</span>
+        </li>
+        <li class="flex items-center justify-between py-2 rule-b">
+          <span><b>AMZN</b> Buy &lt; $205</span><span class="text-[var(--up)] font-semibold text-[11px]">● ACTIVE</span>
+        </li>
+        <li class="flex items-center justify-between py-2 rule-b">
+          <span><b>TSLA</b> Sell &gt; $260</span><span class="text-neutral-400 font-semibold text-[11px]">○ ARMED</span>
+        </li>
+        <li class="flex items-center justify-between py-2 rule-b">
+          <span><b>MSFT</b> Sell &gt; $520</span><span class="text-neutral-400 font-semibold text-[11px]">○ ARMED</span>
+        </li>
+        <li class="flex items-center justify-between py-2">
+          <span><b>AMD</b> Buy &lt; $158</span><span class="text-[#9a6b00] font-semibold text-[11px]">◐ NEAR</span>
+        </li>
+      </ul>
+
+      <div class="rule-b pb-1 mb-3"><h2 class="kicker text-[var(--accent)]">Day's Tape · Movers</h2></div>
+      <div class="space-y-3 mb-7">
+        <!-- sparkline rows -->
+        <div class="flex items-center gap-3">
+          <span class="serif font-semibold text-[15px] w-14">AMD</span>
+          <svg viewBox="0 0 100 24" class="flex-1 h-6"><polyline fill="none" stroke="#15803d" stroke-width="1.5" points="0,20 12,18 24,19 36,14 48,15 60,9 72,10 84,4 100,2"/></svg>
+          <span class="tnum text-[13px] text-[var(--up)] w-14 text-right">+4.81%</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="serif font-semibold text-[15px] w-14">NVDA</span>
+          <svg viewBox="0 0 100 24" class="flex-1 h-6"><polyline fill="none" stroke="#15803d" stroke-width="1.5" points="0,16 12,17 24,13 36,14 48,11 60,12 72,8 84,9 100,6"/></svg>
+          <span class="tnum text-[13px] text-[var(--up)] w-14 text-right">+2.10%</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="serif font-semibold text-[15px] w-14">AAPL</span>
+          <svg viewBox="0 0 100 24" class="flex-1 h-6"><polyline fill="none" stroke="#b91c1c" stroke-width="1.5" points="0,10 12,11 24,9 36,12 48,11 60,14 72,13 84,15 100,16"/></svg>
+          <span class="tnum text-[13px] text-[var(--down)] w-14 text-right">-0.61%</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="serif font-semibold text-[15px] w-14">TSLA</span>
+          <svg viewBox="0 0 100 24" class="flex-1 h-6"><polyline fill="none" stroke="#b91c1c" stroke-width="1.5" points="0,6 12,8 24,7 36,11 48,10 60,15 72,16 84,19 100,21"/></svg>
+          <span class="tnum text-[13px] text-[var(--down)] w-14 text-right">-3.42%</span>
+        </div>
+      </div>
+
+      <div class="bg-[var(--ink)] text-[var(--paper)] p-5">
+        <div class="kicker text-[#d9a3a3] mb-2">Editor's Note · Pro</div>
+        <h3 class="serif text-[22px] font-semibold leading-snug mb-2">Get the full wire delivered at 7 AM.</h3>
+        <p class="text-[13px] text-neutral-300 leading-relaxed mb-4">Pro members wake to a personalized briefing with deep dossiers, unlimited triggers, and the anomaly desk in their inbox.</p>
+        <a href="#" class="inline-block bg-[var(--accent)] text-white text-[12px] font-semibold tracking-wide px-4 py-2">Start Pro · $12/mo</a>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="max-w-[1240px] mx-auto px-5 py-6 double-rule mt-4 text-[11px] text-neutral-500 flex flex-wrap justify-between gap-2">
+  <span>© 2026 The Stocksbrew Wire · Not investment advice</span>
+  <span class="serif italic">"The wire for the stocks you actually own."</span>
+</footer>
+</body>
+</html>

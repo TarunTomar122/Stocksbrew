@@ -76,10 +76,10 @@ export function SignalDeck({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+        <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
           Why care today
         </h3>
-        <span className="text-[12px] text-[#6b7280]">
+        <span className="text-[12px] text-on-surface-variant">
           {top.length} signal{top.length === 1 ? "" : "s"} from free data
         </span>
       </div>
@@ -118,7 +118,7 @@ function collectSignals({
     if (Math.abs(upside) >= 5) {
       out.push({
         emoji: "🎯",
-        bg: "#eff6ff",
+        bg: "color-mix(in srgb, #2563eb 14%, var(--surface))",
         label: "Analyst target",
         headline: `${upside >= 0 ? "+" : ""}${upside.toFixed(1)}%`,
         supporting:
@@ -137,7 +137,7 @@ function collectSignals({
   if (typeof fromHigh === "number" && fromHigh >= -8) {
     out.push({
       emoji: "🚀",
-      bg: "#ecfdf5",
+      bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))",
       label: "52W high",
       headline: fromHigh >= -1 ? "At 52W high" : `${fromHigh.toFixed(1)}%`,
       supporting:
@@ -150,7 +150,7 @@ function collectSignals({
   } else if (typeof fromLow === "number" && fromLow <= 10) {
     out.push({
       emoji: "🩸",
-      bg: "#fef2f2",
+      bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))",
       label: "52W low",
       headline: fromLow <= 1 ? "At 52W low" : `+${fromLow.toFixed(1)}%`,
       supporting: fromLow <= 5
@@ -178,7 +178,7 @@ function collectSignals({
         .map((x) => `${x.label} ${x.v >= 0 ? "+" : ""}${x.v.toFixed(1)}%`);
       out.push({
         emoji: winner.v >= 0 ? "📈" : "📉",
-        bg: winner.v >= 0 ? "#ecfdf5" : "#fef2f2",
+        bg: winner.v >= 0 ? "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))" : "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))",
         label: `Past ${winner.label}`,
         headline: `${winner.v >= 0 ? "+" : ""}${winner.v.toFixed(1)}%`,
         supporting: supportingPieces.slice(0, 2).join(" · "),
@@ -195,7 +195,7 @@ function collectSignals({
     if (rsiState === "overbought" || rsiValue >= 70) {
       out.push({
         emoji: "🔥",
-        bg: "#fef3c7",
+        bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))",
         label: "RSI stretched",
         headline: `${Math.round(rsiValue)}`,
         supporting: "Overbought - pullback risk",
@@ -205,7 +205,7 @@ function collectSignals({
     } else if (rsiState === "oversold" || rsiValue <= 30) {
       out.push({
         emoji: "💧",
-        bg: "#eff6ff",
+        bg: "color-mix(in srgb, #2563eb 14%, var(--surface))",
         label: "RSI washed",
         headline: `${Math.round(rsiValue)}`,
         supporting: "Oversold - bounce setup",
@@ -258,7 +258,7 @@ function collectSignals({
   if (typeof revGrowth === "number" && Math.abs(revGrowth) >= 8) {
     out.push({
       emoji: "💰",
-      bg: "#ecfdf5",
+      bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))",
       label: "Revenue YoY",
       headline: `${revGrowth >= 0 ? "+" : ""}${revGrowth.toFixed(1)}%`,
       supporting:
@@ -282,7 +282,7 @@ function collectSignals({
   if (typeof instPct === "number" && instPct >= 30) {
     out.push({
       emoji: market === "IN" ? "🏦" : "🏛️",
-      bg: "#f3f4f6",
+      bg: "var(--surface-container)",
       label: market === "IN" ? "FII + DII" : "Institutional",
       headline: `${instPct.toFixed(1)}%`,
       supporting:
@@ -299,7 +299,7 @@ function collectSignals({
   if (event?.date_label) {
     out.push({
       emoji: "📅",
-      bg: "#fef3c7",
+      bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))",
       label: `Next ${event.title?.toLowerCase() ?? "event"}`,
       headline: event.date_label,
       supporting: "Catalyst window - watch for guide",
@@ -313,7 +313,7 @@ function collectSignals({
   if (typeof beta === "number" && (beta >= 1.5 || beta <= 0.6)) {
     out.push({
       emoji: beta >= 1.5 ? "⚡" : "🛡️",
-      bg: "#eff6ff",
+      bg: "color-mix(in srgb, #2563eb 14%, var(--surface))",
       label: "Beta",
       headline: beta.toFixed(2),
       supporting:
@@ -335,10 +335,10 @@ const PILLAR_EMOJI: Record<"growth" | "momentum" | "valuation" | "quality", stri
   quality: "🏛️",
 };
 const PILLAR_BG: Record<"growth" | "momentum" | "valuation" | "quality", string> = {
-  growth: "#ecfdf5",
-  momentum: "#eff6ff",
-  valuation: "#fef3c7",
-  quality: "#f3f4f6",
+  growth: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))",
+  momentum: "color-mix(in srgb, #2563eb 14%, var(--surface))",
+  valuation: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))",
+  quality: "var(--surface-container)",
 };
 
 function pickPct(v: number | null | undefined): number {

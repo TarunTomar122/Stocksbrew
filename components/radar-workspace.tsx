@@ -103,19 +103,19 @@ export function RadarWorkspace({
       <div
         className={
           chatOpen
-            ? "fixed inset-x-0 bottom-0 top-16 z-20 flex min-h-0 flex-col overflow-hidden bg-white"
+            ? "fixed inset-x-0 bottom-0 top-16 z-20 flex min-h-0 flex-col overflow-hidden bg-surface"
             : "relative w-full"
         }
       >
         {chatOpen && (
-          <div className="flex shrink-0 border-b border-[#e5e7eb] lg:hidden">
+          <div className="flex shrink-0 border-b border-outline-variant lg:hidden">
             <button
               type="button"
               onClick={() => setMobileTab("radar")}
               className={`flex-1 px-4 py-3 text-[13px] font-semibold transition-colors ${
                 mobileTab === "radar"
-                  ? "border-b-2 border-[#111111] text-[#111111]"
-                  : "text-[#6b7280]"
+                  ? "border-b-2 border-on-surface text-on-surface"
+                  : "text-on-surface-variant"
               }`}
             >
               Radar
@@ -125,8 +125,8 @@ export function RadarWorkspace({
               onClick={() => openChat()}
               className={`flex-1 px-4 py-3 text-[13px] font-semibold transition-colors ${
                 mobileTab === "chat"
-                  ? "border-b-2 border-[#111111] text-[#111111]"
-                  : "text-[#6b7280]"
+                  ? "border-b-2 border-on-surface text-on-surface"
+                  : "text-on-surface-variant"
               }`}
             >
               Assistant
@@ -146,7 +146,7 @@ export function RadarWorkspace({
           </div>
 
           {showMobileChat && (
-            <aside className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white lg:hidden">
+            <aside className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-surface lg:hidden">
               <RadarChat trackedCount={trackedCount} tickers={tickers} starters={starters} />
             </aside>
           )}
@@ -155,7 +155,7 @@ export function RadarWorkspace({
 
       {chatOpen && (
         <aside
-          className="fixed bottom-0 top-16 z-30 hidden flex-col overflow-hidden border-l border-[#e5e7eb] bg-white lg:flex"
+          className="fixed bottom-0 top-16 z-30 hidden flex-col overflow-hidden border-l border-outline-variant bg-surface lg:flex"
           style={{ width: chatWidth, right: 0 }}
         >
           <AssistantResizeHandle width={chatWidth} onWidthChange={setChatWidth} />
@@ -168,7 +168,7 @@ export function RadarWorkspace({
           type="button"
           onClick={openChat}
           aria-label="Open assistant"
-          className="fixed bottom-8 right-6 z-40 hidden items-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-4 py-2.5 text-[#111111] shadow-lg transition-colors hover:border-[#111111] lg:flex"
+          className="fixed bottom-8 right-6 z-40 hidden items-center gap-2 rounded-full border border-outline-variant bg-surface px-4 py-2.5 text-on-surface shadow-lg transition-colors hover:border-on-surface lg:flex"
         >
           <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
             chat

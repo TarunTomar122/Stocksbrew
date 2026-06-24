@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Stocksbrew Wire — Buzz Column</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#161310; --paper:#fbfaf7; --rule:#ddd8cf; --accent:#b91c1c; --up:#15803d; --down:#b91c1c; }
+  body{ background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  .serif{ font-family:'Newsreader',Georgia,serif; }
+  .tnum{ font-variant-numeric:tabular-nums; }
+  .rule-b{ border-bottom:1px solid var(--rule); }
+  .rule-l{ border-left:1px solid var(--rule); }
+  .double-rule{ border-top:3px double var(--ink); }
+  .kicker{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+  .navlink{ font-size:12px; letter-spacing:.04em; font-weight:500; padding-bottom:2px; border-bottom:2px solid transparent; }
+  .navlink:hover{ border-bottom-color:var(--ink); }
+  .navlink.active{ border-bottom-color:var(--accent); color:var(--accent); }
+  .pullquote{ font-family:'Newsreader',serif; font-style:italic; }
+  .meter{ height:6px; background:#e7e2d8; position:relative; overflow:hidden; }
+  .meter > span{ position:absolute; top:0; bottom:0; left:0; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<header class="max-w-[1240px] mx-auto px-5">
+  <div class="flex items-center justify-between pt-4 pb-2 text-[11px] tnum text-neutral-500">
+    <span>Vol. IV · No. 172</span>
+    <span class="hidden sm:block">Saturday, June 20, 2026 · Markets Closed · Compiled 4:32 PM ET</span>
+    <span>Edition: Tanay</span>
+  </div>
+  <div class="double-rule"></div>
+  <div class="flex items-end justify-between py-3 border-b border-[var(--ink)]">
+    <div>
+      <h1 class="serif font-bold tracking-tight leading-none text-[40px] sm:text-[52px]">The Stocksbrew Wire</h1>
+      <p class="serif italic text-[13px] text-neutral-600 mt-1">The daily briefing for the stocks you actually own.</p>
+    </div>
+    <div class="hidden md:flex flex-col items-end gap-1 text-right">
+      <div class="kicker text-[var(--accent)]">The Buzz Column</div>
+      <div class="serif text-2xl font-semibold tnum">r/ chatter</div>
+      <div class="text-[11px] text-neutral-500">most-discussed · last 24h</div>
+    </div>
+  </div>
+</header>
+
+<nav class="max-w-[1240px] mx-auto px-5">
+  <div class="flex items-center gap-6 py-2.5 rule-b overflow-x-auto">
+    <a href="radar.html" class="navlink whitespace-nowrap">Radar</a>
+    <a href="anomalies.html" class="navlink whitespace-nowrap">Anomalies</a>
+    <a href="reddit.html" class="navlink active whitespace-nowrap">Reddit Buzz</a>
+    <a href="#" class="navlink whitespace-nowrap">Screener</a>
+    <a href="stock.html" class="navlink whitespace-nowrap">NVDA</a>
+    <div class="ml-auto flex items-center gap-3 text-[11px] text-neutral-500">
+      <span class="hidden sm:inline">Search</span>
+      <input class="bg-transparent border-b border-[var(--rule)] text-[12px] py-0.5 w-28 focus:outline-none focus:border-[var(--ink)]" placeholder="Ticker…">
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-[1240px] mx-auto px-5 py-6">
+  <div class="rule-b pb-1 mb-5 flex items-baseline justify-between">
+    <h2 class="kicker text-[var(--accent)]">Sentiment Wire · What The Crowd Is Saying</h2>
+    <span class="text-[11px] text-neutral-500">Aggregated from r/stocks, r/investing, r/wallstreetbets</span>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- MAIN RANKED COLUMN -->
+    <section class="lg:col-span-8 space-y-6">
+
+      <!-- #1 lead -->
+      <article class="rule-b pb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="serif text-[40px] font-bold leading-none text-[var(--accent)]">1</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="serif font-bold text-[26px] leading-none">NVDA</h3>
+              <span class="kicker text-[var(--up)]">▲ velocity +212%</span>
+            </div>
+            <div class="text-[12px] tnum text-neutral-500">4,182 mentions · up from 1,340 yesterday</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-[11px] font-semibold text-[var(--up)] w-16">81% bull</span>
+          <div class="meter flex-1"><span class="bg-[var(--up)]" style="width:81%"></span></div>
+          <span class="text-[11px] font-semibold text-[var(--down)] w-16 text-right">19% bear</span>
+        </div>
+        <blockquote class="pullquote text-[18px] leading-relaxed text-neutral-800 border-l-2 border-[var(--accent)] pl-4">
+          "Everyone called the top three times this year and got run over. The backlog is the story, not the price. I'm not selling a single share until the order book actually softens."
+        </blockquote>
+        <div class="text-[11px] text-neutral-500 mt-2">— top comment, r/stocks · 1.4k upvotes · 2h ago</div>
+      </article>
+
+      <!-- #2 -->
+      <article class="rule-b pb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="serif text-[40px] font-bold leading-none text-neutral-300">2</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="serif font-bold text-[26px] leading-none">AMD</h3>
+              <span class="kicker text-[var(--up)]">▲ velocity +148%</span>
+            </div>
+            <div class="text-[12px] tnum text-neutral-500">2,910 mentions · up from 1,173 yesterday</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-[11px] font-semibold text-[var(--up)] w-16">67% bull</span>
+          <div class="meter flex-1"><span class="bg-[var(--up)]" style="width:67%"></span></div>
+          <span class="text-[11px] font-semibold text-[var(--down)] w-16 text-right">33% bear</span>
+        </div>
+        <blockquote class="pullquote text-[16px] leading-relaxed text-neutral-800 border-l-2 border-[var(--accent)] pl-4">
+          "Share-gain narrative is finally showing up in the order flow. Risky chase here but the setup is real if they confirm the design wins."
+        </blockquote>
+        <div class="text-[11px] text-neutral-500 mt-2">— r/investing · 880 upvotes · 4h ago</div>
+      </article>
+
+      <!-- #3 bearish -->
+      <article class="rule-b pb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="serif text-[40px] font-bold leading-none text-neutral-300">3</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="serif font-bold text-[26px] leading-none">TSLA</h3>
+              <span class="kicker text-[var(--down)]">▲ velocity +96% · bearish</span>
+            </div>
+            <div class="text-[12px] tnum text-neutral-500">2,455 mentions · up from 1,253 yesterday</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-[11px] font-semibold text-[var(--up)] w-16">38% bull</span>
+          <div class="meter flex-1"><span class="bg-[var(--down)]" style="width:62%"></span></div>
+          <span class="text-[11px] font-semibold text-[var(--down)] w-16 text-right">62% bear</span>
+        </div>
+        <blockquote class="pullquote text-[16px] leading-relaxed text-neutral-800 border-l-2 border-[var(--accent)] pl-4">
+          "Delivery whispers keep getting worse and the chart just broke the 50-day. I trimmed half this morning. Not a bag I want to hold into the print."
+        </blockquote>
+        <div class="text-[11px] text-neutral-500 mt-2">— r/wallstreetbets · 2.1k upvotes · 1h ago</div>
+      </article>
+
+      <!-- compact 4-5 -->
+      <div class="grid sm:grid-cols-2 gap-6">
+        <article>
+          <div class="flex items-baseline gap-2">
+            <span class="serif text-2xl font-bold text-neutral-300">4</span>
+            <h3 class="serif font-bold text-[20px]">SMCI</h3>
+            <span class="kicker text-[var(--up)] ml-auto">+74%</span>
+          </div>
+          <div class="meter my-2"><span class="bg-[var(--up)]" style="width:58%"></span></div>
+          <p class="text-[13px] text-neutral-600 leading-snug">1,204 mentions. Crowd split after the guidance gap; momentum chasers vs. valuation skeptics.</p>
+        </article>
+        <article>
+          <div class="flex items-baseline gap-2">
+            <span class="serif text-2xl font-bold text-neutral-300">5</span>
+            <h3 class="serif font-bold text-[20px]">PLTR</h3>
+            <span class="kicker text-[var(--up)] ml-auto">+41%</span>
+          </div>
+          <div class="meter my-2"><span class="bg-[var(--up)]" style="width:71%"></span></div>
+          <p class="text-[13px] text-neutral-600 leading-snug">980 mentions. Steady bullish drumbeat on government contract pipeline, no new catalyst.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- SIDEBAR -->
+    <aside class="lg:col-span-4 lg:rule-l lg:pl-6 mt-8 lg:mt-0">
+      <div class="rule-b pb-1 mb-3"><h2 class="kicker text-[var(--accent)]">Crowd Tone · Today</h2></div>
+      <div class="flex items-end gap-1 h-24 mb-2">
+        <div class="flex-1 bg-[var(--up)]" style="height:62%"></div>
+        <div class="flex-1 bg-[var(--up)]" style="height:71%"></div>
+        <div class="flex-1 bg-[var(--down)]" style="height:48%"></div>
+        <div class="flex-1 bg-[var(--up)]" style="height:80%"></div>
+        <div class="flex-1 bg-[var(--up)]" style="height:66%"></div>
+        <div class="flex-1 bg-[var(--down)]" style="height:54%"></div>
+        <div class="flex-1 bg-[var(--up)]" style="height:74%"></div>
+      </div>
+      <p class="text-[11px] text-neutral-500 mb-7">Net sentiment across your tracked names skews <b class="text-[var(--up)]">bullish</b> today, the strongest reading this week.</p>
+
+      <div class="rule-b pb-1 mb-3"><h2 class="kicker text-[var(--accent)]">New To The Board</h2></div>
+      <ul class="space-y-0 text-[13px] mb-7">
+        <li class="flex items-center justify-between py-2 rule-b"><span><b>RKLB</b> first appearance</span><span class="text-[var(--up)] text-[11px] font-semibold">+∞</span></li>
+        <li class="flex items-center justify-between py-2 rule-b"><span><b>HOOD</b> re-entered top 20</span><span class="text-[var(--up)] text-[11px] font-semibold">+312%</span></li>
+        <li class="flex items-center justify-between py-2"><span><b>SOFI</b> climbing fast</span><span class="text-[var(--up)] text-[11px] font-semibold">+188%</span></li>
+      </ul>
+
+      <div class="bg-[var(--ink)] text-[var(--paper)] p-5">
+        <div class="kicker text-[#d9a3a3] mb-2">Pro Desk</div>
+        <h3 class="serif text-[22px] font-semibold leading-snug mb-2">See the threads driving each move.</h3>
+        <p class="text-[13px] text-neutral-300 leading-relaxed mb-4">Pro unlocks full thread breakdowns, sentiment history, and alerts when chatter on your stocks spikes.</p>
+        <a href="#" class="inline-block bg-[var(--accent)] text-white text-[12px] font-semibold tracking-wide px-4 py-2">Start Pro · $12/mo</a>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="max-w-[1240px] mx-auto px-5 py-6 double-rule mt-4 text-[11px] text-neutral-500 flex flex-wrap justify-between gap-2">
+  <span>© 2026 The Stocksbrew Wire · Not investment advice</span>
+  <span class="serif italic">"The wire for the stocks you actually own."</span>
+</footer>
+</body>
+</html>

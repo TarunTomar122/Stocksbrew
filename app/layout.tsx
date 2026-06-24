@@ -144,22 +144,22 @@ async function HeaderData() {
 
 function HeaderFallback() {
   return (
-    <header className="sticky top-0 z-[65] w-full border-b border-[#e5e7eb] bg-white">
+    <header className="sticky top-0 z-[65] w-full border-b border-outline-variant bg-surface">
       <div className="mx-auto flex h-16 w-full max-w-screen-2xl items-center justify-between gap-2 px-6 md:px-10 lg:px-16">
         <a
           href="/"
-          className="flex shrink-0 items-center gap-2 text-[20px] font-semibold leading-none tracking-[-0.04em] text-[#111111]"
+          className="flex shrink-0 items-center gap-2 text-[20px] font-semibold leading-none tracking-[-0.04em] text-on-surface"
         >
           stocksbrew
         </a>
         <div className="hidden items-center gap-1 md:flex" aria-hidden="true">
-          <div className="h-9 w-24 rounded-full bg-[#f3f4f6]" />
-          <div className="h-9 w-20 rounded-full bg-[#f3f4f6]" />
-          <div className="h-9 w-16 rounded-full bg-[#f3f4f6]" />
+          <div className="h-9 w-24 rounded-full bg-surface-container" />
+          <div className="h-9 w-20 rounded-full bg-surface-container" />
+          <div className="h-9 w-16 rounded-full bg-surface-container" />
         </div>
         <div className="flex items-center gap-3" aria-hidden="true">
-          <div className="hidden h-10 w-56 rounded-lg bg-[#f3f4f6] sm:block" />
-          <div className="h-9 w-24 rounded-full bg-[#f3f4f6]" />
+          <div className="hidden h-10 w-56 rounded-lg bg-surface-container sm:block" />
+          <div className="h-9 w-24 rounded-full bg-surface-container" />
         </div>
       </div>
     </header>
@@ -184,6 +184,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(localStorage.getItem('sb-theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`,
+          }}
         />
         <script
           type="application/ld+json"

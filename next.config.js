@@ -22,6 +22,8 @@ const nextConfig = {
         destination: "/should-i-buy",
         permanent: true,
       },
+      { source: "/anomalies", destination: "/pulse", permanent: true },
+      { source: "/reddit-buzz", destination: "/pulse", permanent: true },
     ];
   },
   experimental: {

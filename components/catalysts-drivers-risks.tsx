@@ -12,7 +12,7 @@ function Strength({ value, color }: { value: number; color: string }) {
         <span
           key={i}
           className="w-2 h-2 rounded-sm"
-          style={{ backgroundColor: i < clamped ? color : "#e5e7eb" }}
+          style={{ backgroundColor: i < clamped ? color : "var(--surface-container-high)" }}
         />
       ))}
     </div>
@@ -39,7 +39,7 @@ function ColumnHeader({
         {label}
       </h4>
       {typeof count === "number" && count > 0 && (
-        <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-[#f3f4f6] text-[11px] font-semibold tabular-nums text-[#6b7280]">
+        <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-surface-container text-[11px] font-semibold tabular-nums text-on-surface-variant">
           {count}
         </span>
       )}
@@ -84,7 +84,7 @@ export function CatalystsDriversRisks({ cards }: Props) {
 
   return (
     <section className="flex flex-col gap-6">
-      <h3 className="text-[18px] font-semibold text-[#111111] tracking-[-0.01em]">
+      <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
         Catalysts, drivers &amp; risks
       </h3>
 
@@ -93,22 +93,22 @@ export function CatalystsDriversRisks({ cards }: Props) {
         <div className="flex flex-col gap-3">
           <ColumnHeader label="Catalysts" emoji="⚡" accent="#10b981" count={catalysts.length} />
           {catalysts.length === 0 ? (
-            <p className="text-[13px] text-[#6b7280]">Nothing tracked yet.</p>
+            <p className="text-[13px] text-on-surface-variant">Nothing tracked yet.</p>
           ) : (
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {catalysts.map((c, i) => (
                 <li
                   key={i}
-                  className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+                  className="flex flex-col gap-2 rounded-2xl bg-surface p-4"
                 >
-                  <span className="text-[14px] font-semibold text-[#111111] leading-snug">
+                  <span className="text-[14px] font-semibold text-on-surface leading-snug">
                     {c.event}
                   </span>
                   {c.detail && (
-                    <p className="text-[12px] text-[#374151] leading-snug">{c.detail}</p>
+                    <p className="text-[12px] text-on-surface leading-snug">{c.detail}</p>
                   )}
                   {(c.window || c.priced_in) && (
-                    <div className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                    <div className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
                       {c.window && <span>{c.window}</span>}
                       {c.priced_in && <span>Priced in: {c.priced_in}</span>}
                     </div>
@@ -123,7 +123,7 @@ export function CatalystsDriversRisks({ cards }: Props) {
         <div className="flex flex-col gap-3">
           <ColumnHeader label="Drivers" emoji="📈" accent="#0052ff" count={drivers.length} />
           {drivers.length === 0 ? (
-            <p className="text-[13px] text-[#6b7280]">Nothing tracked yet.</p>
+            <p className="text-[13px] text-on-surface-variant">Nothing tracked yet.</p>
           ) : (
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {drivers.map((d, i) => {
@@ -131,10 +131,10 @@ export function CatalystsDriversRisks({ cards }: Props) {
                 return (
                   <li
                     key={i}
-                    className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+                    className="flex flex-col gap-2 rounded-2xl bg-surface p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-[14px] font-semibold text-[#111111] leading-snug">
+                      <span className="text-[14px] font-semibold text-on-surface leading-snug">
                         {d.label}
                       </span>
                       {typeof d.strength === "number" && (
@@ -142,10 +142,10 @@ export function CatalystsDriversRisks({ cards }: Props) {
                       )}
                     </div>
                     {d.detail && (
-                      <p className="text-[12px] text-[#374151] leading-snug">{d.detail}</p>
+                      <p className="text-[12px] text-on-surface leading-snug">{d.detail}</p>
                     )}
                     {d.horizon && (
-                      <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                      <span className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
                         {d.horizon}
                       </span>
                     )}
@@ -160,16 +160,16 @@ export function CatalystsDriversRisks({ cards }: Props) {
         <div className="flex flex-col gap-3">
           <ColumnHeader label="Risks" emoji="⚠️" accent="#ef4444" count={risks.length} />
           {risks.length === 0 ? (
-            <p className="text-[13px] text-[#6b7280]">Nothing tracked yet.</p>
+            <p className="text-[13px] text-on-surface-variant">Nothing tracked yet.</p>
           ) : (
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {risks.map((r, i) => (
                 <li
                   key={i}
-                  className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+                  className="flex flex-col gap-2 rounded-2xl bg-surface p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-[14px] font-semibold text-[#111111] leading-snug">
+                    <span className="text-[14px] font-semibold text-on-surface leading-snug">
                       {r.risk ?? r.label}
                     </span>
                     {typeof r.severity === "number" && (
@@ -177,10 +177,10 @@ export function CatalystsDriversRisks({ cards }: Props) {
                     )}
                   </div>
                   {r.detail && (
-                    <p className="text-[12px] text-[#374151] leading-snug">{r.detail}</p>
+                    <p className="text-[12px] text-on-surface leading-snug">{r.detail}</p>
                   )}
                   {(r.trigger || r.horizon) && (
-                    <div className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+                    <div className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
                       {r.horizon && <span>{r.horizon}</span>}
                       {r.trigger && <span>Trigger: {r.trigger}</span>}
                     </div>
