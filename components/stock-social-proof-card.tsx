@@ -2,7 +2,7 @@ import Link from "next/link";
 
 type RedditCtx = {
   sentiment?: string;
-  summary: string;
+  summary?: string;
   mention_count?: number;
   catalysts?: string[];
 };
@@ -73,6 +73,118 @@ export function TodaysMoveCard({
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+function sentimentPillClass(sentiment: string) {
+  if (sentiment === "bearish") return "reddit-sentiment-pill reddit-sentiment-pill--bearish";
+  if (sentiment === "bullish") return "reddit-sentiment-pill reddit-sentiment-pill--bullish";
+  return "reddit-sentiment-pill reddit-sentiment-pill--neutral";
+}
+
+export function hasRedditBuzzData(reddit: RedditCtx | null | undefined): boolean {
+  return Boolean(reddit?.summary?.trim() || n(reddit?.mention_count));
+}
+
+/** Compact Reddit buzz card for the stock page left rail. */
+export function StockRedditBuzzRailCard({
+  ticker,
+  reddit,
+}: {
+  ticker: string;
+  reddit: RedditCtx;
+}) {
+  const mentions = n(reddit.mention_count) ? reddit.mention_count! : null;
+  const catalysts = (reddit.catalysts ?? []).filter(Boolean).slice(0, 3);
+
+  return (
+    <section
+      className="overflow-hidden rounded-2xl border border-outline-variant bg-surface"
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
+      <div
+        className="border-b px-4 py-3.5"
+        style={{
+          borderColor: "var(--outline-variant)",
+          background:
+            "linear-gradient(135deg, color-mix(in srgb, #FF4500 10%, var(--surface)) 0%, color-mix(in srgb, #FF4500 3%, var(--surface)) 55%, var(--surface) 100%)",
+        }}
+      >
+        <div className="flex items-start gap-2.5">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border"
+            style={{
+              borderColor: "color-mix(in srgb, #FF4500 22%, var(--outline-variant))",
+              background: "color-mix(in srgb, #FF4500 10%, var(--surface))",
+              boxShadow: "inset 0 1px 0 color-mix(in srgb, white 40%, transparent)",
+            }}
+          >
+            <RedditMark size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[13px] font-bold leading-tight tracking-[-0.01em] text-on-surface">Reddit Buzz</p>
+              {reddit.sentiment && (
+                <span className={`${sentimentPillClass(reddit.sentiment)} shrink-0`}>{reddit.sentiment}</span>
+              )}
+            </div>
+            <p className="mt-0.5 font-mono text-[10px] leading-snug text-on-surface-variant">
+              {mentions != null ? (
+                <>
+                  <span className="font-semibold text-on-surface">{mentions}</span> posts · {ticker}
+                </>
+              ) : (
+                <>Retail chatter · {ticker}</>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4">
+        {reddit.summary?.trim() && (
+          <p className="text-[12.5px] leading-[1.58] text-on-surface/90">{reddit.summary}</p>
+        )}
+
+        {catalysts.length > 0 && (
+          <div
+            className="mt-3.5 rounded-xl border p-3"
+            style={{
+              borderColor: "color-mix(in srgb, #FF4500 12%, var(--outline-variant))",
+              background: "color-mix(in srgb, #FF4500 4%, var(--surface-container-low))",
+            }}
+          >
+            <p className="mb-2 font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+              talking points
+            </p>
+            <ul className="space-y-2">
+              {catalysts.map((c, i) => (
+                <li key={i} className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ background: "#FF4500", boxShadow: "0 0 0 2px color-mix(in srgb, #FF4500 18%, transparent)" }}
+                  />
+                  <span className="text-[11px] leading-snug text-on-surface/85">{c}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <Link
+          href="/reddit-buzz"
+          className="group mt-4 inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold transition-colors"
+          style={{ color: "#FF4500" }}
+        >
+          <RedditMark size={12} />
+          <span className="group-hover:underline">all reddit buzz</span>
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
+        </Link>
+      </div>
     </section>
   );
 }

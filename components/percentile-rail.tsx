@@ -19,7 +19,7 @@ function formatValue(v: number | string | null): string {
 
 // Turn raw metric numbers + benchmark into a plain-English one-liner the user
 // can actually act on, rather than an opaque percentile tier label.
-function contextLine(m: StockIntelMetric): string {
+export function metricContextLine(m: StockIntelMetric): string {
   const score = m.score;
   const label = m.label ?? "";
   const value = typeof m.value === "number" ? m.value : null;
@@ -84,7 +84,7 @@ export function PercentileRail({ metric }: { metric: StockIntelMetric }) {
       </div>
 
       <div className="flex items-center justify-between text-[12px] text-[#6b7280]">
-        <span className="font-medium">{contextLine(metric)}</span>
+        <span className="font-medium">{metricContextLine(metric)}</span>
         {metric.benchmark !== null && metric.benchmark !== undefined && (
           <span className="tabular-nums">
             {metric.benchmark_label}: {formatValue(metric.benchmark)}

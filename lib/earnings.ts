@@ -30,3 +30,15 @@ export async function getEarnings(
 
   return snap.docs.map((d) => d.data() as EarningsEvent);
 }
+
+/** Next scheduled earnings print for a single ticker (from tm_earnings_events). */
+export async function getNextEarningsCalendarEvent(
+  market = "US",
+  ticker: string,
+): Promise<EarningsEvent | null> {
+  const upper = ticker.trim().toUpperCase();
+  if (!upper) return null;
+
+  const events = await getEarnings(market);
+  return events.find((e) => e.ticker?.toUpperCase() === upper) ?? null;
+}

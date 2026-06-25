@@ -1,14 +1,165 @@
 "use client";
 
 import { useState } from "react";
-import type { StockIntelPro } from "@/lib/types";
+import { metricContextLine } from "@/components/percentile-rail";
+import type { StockIntelMetric, StockIntelPro } from "@/lib/types";
 
-const EMOJI: Record<string, string> = { growth: "🌱", momentum: "🚀", valuation: "🏷️", quality: "🏛️" };
 const KEYS = ["growth", "momentum", "valuation", "quality"] as const;
 type Key = (typeof KEYS)[number];
 
+const LABEL: Record<Key, string> = {
+  growth: "Growth",
+  momentum: "Momentum",
+  valuation: "Valuation",
+  quality: "Quality",
+};
+
 function scoreColor(v: number) {
   return v >= 85 ? "var(--signal-bullish)" : v >= 60 ? "var(--signal-neutral)" : "var(--signal-bearish)";
+}
+
+function metricTone(signal?: string, score?: number | null): string {
+  if (signal === "green") return "var(--signal-bullish)";
+  if (signal === "red") return "var(--signal-bearish)";
+  if (signal === "yellow") return "var(--signal-neutral)";
+  if (score != null) return score >= 70 ? "var(--signal-bullish)" : score <= 40 ? "var(--signal-bearish)" : "var(--on-surface)";
+  return "var(--on-surface)";
+}
+
+function formatMetricValue(v: number | null): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  if (Math.abs(v) >= 1000 || Number.isInteger(v)) return String(v);
+  return v.toFixed(1);
+}
+
+function stripBenchmarkParenthetical(text: string, benchmark: number | null): string {
+  if (benchmark == null || !Number.isFinite(benchmark)) return text;
+  const nums = [...new Set([
+    benchmark.toFixed(1),
+    benchmark.toFixed(2),
+    formatMetricValue(benchmark),
+    String(Math.round(benchmark)),
+  ])];
+  let out = text;
+  for (const b of nums) {
+    const escaped = b.replace(".", "\\.");
+    out = out.replace(new RegExp(`\\([^)]*${escaped}%?[^)]*\\)`, "g"), "");
+  }
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
+/** Drop the headline number when it is already shown in the row above. */
+function stripLeadingMetricValue(summary: string, value: number): string {
+  const dashed = summary.trim().match(/^[+\-]?\d+(?:\.\d+)?%?\s*-\s*(.+)$/);
+  if (dashed) return dashed[1].trim();
+
+  if (Number.isInteger(value)) {
+    const ranked = summary.trim().match(new RegExp(`^${Math.round(value)}\\s*-\\s*(.+)$`));
+    if (ranked) return ranked[1].trim();
+  }
+
+  return summary.trim();
+}
+
+function relativeMetricLine(m: StockIntelMetric): string {
+  const context = metricContextLine(m).trim();
+  const hasBenchmark = m.benchmark != null && Number.isFinite(m.benchmark);
+
+  // Peer-relative one-liner without repeating the headline figure.
+  if (hasBenchmark && context) return context;
+
+  const summary = m.summary?.trim();
+  if (!summary) return context;
+
+  if (m.value == null || !Number.isFinite(m.value)) return summary;
+
+  const stripped = stripBenchmarkParenthetical(stripLeadingMetricValue(summary, m.value), m.benchmark);
+  if (stripped && stripped !== formatMetricValue(m.value)) return stripped;
+
+  return context || "";
+}
+
+function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
+  const relative = relativeMetricLine(m);
+  const tone = metricTone(m.signal, m.score);
+
+  return (
+    <div className="py-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[13px] font-medium text-on-surface">{m.label}</span>
+        {m.value != null ? (
+          <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums" style={{ color: tone }}>
+            {formatMetricValue(m.value)}
+          </span>
+        ) : null}
+      </div>
+      {relative ? (
+        <div className="mt-0.5 flex items-start justify-between gap-3 text-[12px] leading-snug text-on-surface-variant">
+          <span>{relative}</span>
+          {m.benchmark != null && m.benchmark_label ? (
+            <span className="shrink-0 tabular-nums text-[11px] text-on-surface-variant/80">
+              {m.benchmark_label}: {formatMetricValue(m.benchmark)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PillarRing({
+  score,
+  color,
+  label,
+  active,
+  onClick,
+}: {
+  score: number;
+  color: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const size = 70;
+  const center = size / 2;
+  const r = 27;
+  const circ = 2 * Math.PI * r;
+  const off = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl py-2.5 text-center transition ${active ? "" : "opacity-70"}`}
+      style={
+        active
+          ? {
+              background: "color-mix(in srgb, var(--signal-bullish) 6%, var(--surface))",
+              boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--signal-bullish) 25%, var(--outline-variant))",
+            }
+          : undefined
+      }
+    >
+      <div className="relative mx-auto grid place-items-center" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90" aria-hidden>
+          <circle cx={center} cy={center} r={r} fill="none" stroke="var(--surface-container-high)" strokeWidth="5" />
+          <circle
+            cx={center}
+            cy={center}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={off}
+          />
+        </svg>
+        <span className="absolute text-[12px] font-extrabold tabular-nums leading-none text-on-surface">{score}</span>
+      </div>
+      <div className={`mt-1 text-[10.5px] ${active ? "font-semibold text-on-surface" : "text-on-surface-variant"}`}>{label}</div>
+    </button>
+  );
 }
 
 export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pillars"] }) {
@@ -18,51 +169,33 @@ export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pil
 
   return (
     <div>
-      {/* pillar tabs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2">
         {KEYS.map((key) => {
           const pl = pillars[key];
-          const on = key === active;
           return (
-            <button
+            <PillarRing
               key={key}
-              type="button"
+              score={pl.score}
+              color={scoreColor(pl.score)}
+              label={LABEL[key]}
+              active={key === active}
               onClick={() => setActive(key)}
-              className="inset p-3.5 text-left transition-all"
-              style={on ? { boxShadow: "inset 0 0 0 1.5px var(--on-surface)" } : undefined}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[14px]">{EMOJI[key]}</span>
-                <span className="font-mono text-[15px] font-bold tabular-nums text-on-surface">{pl.score}</span>
-              </div>
-              <p className="mt-1 font-mono text-[11px] capitalize text-on-surface-variant">{key}</p>
-              <div className="mt-2 h-1.5 rounded" style={{ background: "var(--background)" }}>
-                <div className="h-1.5 rounded" style={{ width: `${Math.max(0, Math.min(100, pl.score))}%`, background: scoreColor(pl.score) }} />
-              </div>
-            </button>
+            />
           );
         })}
       </div>
 
-      {/* selected pillar's metrics */}
       {metrics.length > 0 && (
-        <div className="mt-5">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">{EMOJI[active]} {active} · {p.verdict}</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {metrics.map((m, i) => {
-              const tone = m.score == null ? "var(--on-surface)" : m.score >= 70 ? "var(--signal-bullish)" : m.score <= 40 ? "var(--signal-bearish)" : "var(--signal-neutral)";
-              return (
-                <div key={i} className="inset p-3">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[12px] text-on-surface">{m.label}</span>
-                    {m.value != null && <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: tone }}>{Number.isInteger(m.value) ? m.value : m.value.toFixed(1)}</span>}
-                  </div>
-                  {m.summary && <p className="mt-0.5 text-[11px] leading-snug text-on-surface-variant">{m.summary}</p>}
-                  {m.benchmark != null && m.benchmark_label && <p className="mt-0.5 font-mono text-[10px] text-on-surface-variant">{m.benchmark_label}: {Number.isInteger(m.benchmark) ? m.benchmark : m.benchmark.toFixed(1)}</p>}
-                </div>
-              );
-            })}
+        <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--outline-variant)" }}>
+          {p.verdict && (
+            <p className="mb-3 text-[13px] capitalize text-on-surface-variant">{p.verdict}</p>
+          )}
+          <div className="divide-y divide-outline-variant">
+            {metrics.map((m, i) => (
+              <MetricRow key={`${m.label}-${i}`} metric={m} />
+            ))}
           </div>
+          <p className="mt-3 text-[11px] text-on-surface-variant">Compared against sector peers where available.</p>
         </div>
       )}
     </div>

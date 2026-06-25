@@ -94,10 +94,10 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12px] font-semibold transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-[11px] font-semibold transition-colors ${
         active
           ? "bg-on-surface text-surface"
-          : "bg-surface-container text-on-surface hover:bg-surface-container-high"
+          : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
       }`}
     >
       {label}

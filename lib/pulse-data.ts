@@ -1,6 +1,8 @@
 import type { ScannerItem } from "@/components/movers-scanner";
-import type { EarningsPick, PulseTopline, RedditPick, SectorCard } from "@/components/pulse-hub";
+import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
+import type { EarningsPick, PulseTopline, RecentEarningsPick, RedditPick, SectorCard } from "@/components/pulse-hub";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
+import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import { buildLandingSectorCards } from "@/lib/landing-sector-data";
 import type { PremarketMovers } from "@/lib/premarket";
 import type { SnapshotRow } from "@/lib/types";
@@ -10,22 +12,37 @@ export type PulsePageData = {
   reddit: RedditPick[];
   sectors: SectorCard[];
   earnings: EarningsPick[];
+  recentEarnings: RecentEarningsPick[];
   topline: PulseTopline;
   premarketItems: ScannerItem[];
 };
 
+function epsTagFromReported(reported?: string): string | undefined {
+  const r = (reported ?? "").toLowerCase();
+  if (/\bbeat\b/.test(r)) return "beat";
+  if (/\bmiss\b/.test(r)) return "miss";
+  if (/\b(in.?line|inline|met)\b/.test(r)) return "inline";
+  return undefined;
+}
+
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
   return anomalies.map((a) => {
-    const tag = (a.catalyst || a.move_explanation?.headline || a.visual_summary?.what_changed || "").trim();
-    const fallbackWhy = (a.today_brief || a.visual_summary?.why_it_matters || a.thesis || "").trim();
+    const headline = anomalyHeadline(a);
+    const tag = (a.catalyst || a.visual_summary?.what_changed || "").trim() || headline;
+    const whyItMatters =
+      a.move_explanation?.why_it_matters?.trim() ||
+      anomalyDetail(a) ||
+      (a.today_brief || a.visual_summary?.why_it_matters || a.thesis || "").trim() ||
+      undefined;
+
     return {
       ticker: a.ticker,
       price: a.price,
       changePct: a.day_change_pct,
       tag,
       buzz: buzzBy.get(a.ticker.toUpperCase()),
-      headline: a.move_explanation?.headline || tag || undefined,
-      whyItMatters: a.move_explanation?.why_it_matters || fallbackWhy || undefined,
+      headline,
+      whyItMatters,
       confidence: a.move_explanation?.confidence,
     };
   });
@@ -54,6 +71,7 @@ function mapPremarketScannerItems(doc: PremarketMovers): ScannerItem[] {
 }
 
 export function buildPulsePageData(input: {
+  market: "US" | "IN";
   anomalies: AnomalyItem[];
   redditTickers: Array<{
     ticker: string;
@@ -70,9 +88,10 @@ export function buildPulsePageData(input: {
     eps_estimate: number | null;
   }>;
   predBy: Map<string, { epsOutlook?: string; reaction?: string }>;
+  recentIntelDocs: EarningsIntelDoc[];
   premarketDoc?: PremarketMovers | null;
 }): PulsePageData {
-  const { anomalies, redditTickers, snapshotRows, earningsEvents, predBy, premarketDoc } = input;
+  const { market, anomalies, redditTickers, snapshotRows, earningsEvents, predBy, recentIntelDocs, premarketDoc } = input;
 
   const buzzBy = new Map<string, string>();
   for (const r of redditTickers) if (r.ticker) buzzBy.set(r.ticker.toUpperCase(), r.sentiment);
@@ -114,7 +133,7 @@ export function buildPulsePageData(input: {
   for (const row of snapshotRows) if (row.symbol) universe.add(row.symbol.toUpperCase());
 
   const seenEarn = new Set<string>();
-  const earnings: EarningsPick[] = earningsEvents
+  const allEarnings: EarningsPick[] = earningsEvents
     .filter((e) => {
       const k = e.ticker?.toUpperCase();
       if (!k || seenEarn.has(k) || !universe.has(k)) return false;
@@ -130,6 +149,26 @@ export function buildPulsePageData(input: {
       epsEstimate: e.eps_estimate,
       ...predBy.get(e.ticker?.toUpperCase() ?? ""),
     }));
+
+  const seenRecent = new Set<string>();
+  const recentEarnings: RecentEarningsPick[] = recentIntelDocs
+    .filter((doc) => {
+      const k = doc.ticker?.toUpperCase();
+      if (!k || seenRecent.has(k) || !universe.has(k) || doc.market !== market) return false;
+      seenRecent.add(k);
+      return Boolean(doc.report?.headline?.trim() || doc.report?.summary?.trim());
+    })
+    .slice(0, 16)
+    .map((doc) => ({
+      ticker: doc.ticker,
+      company: snapshotBy.get(doc.ticker.toUpperCase())?.company ?? doc.ticker,
+      eventDate: doc.event_date,
+      headline: doc.report?.headline?.trim() || doc.report?.summary?.trim() || `${doc.ticker} earnings report`,
+      epsTag: epsTagFromReported(doc.report?.facts?.reported_vs_expected),
+    }));
+
+  const recentTickers = new Set(recentEarnings.map((r) => r.ticker.toUpperCase()));
+  const earnings = allEarnings.filter((e) => !recentTickers.has(e.ticker.toUpperCase()));
 
   const reddit: RedditPick[] = redditTickers
     .filter((r) => r.summary?.trim())
@@ -170,6 +209,7 @@ export function buildPulsePageData(input: {
     reddit,
     sectors,
     earnings,
+    recentEarnings,
     topline: { gainers, losers, lead, lag, crowd },
     premarketItems: premarketDoc ? mapPremarketScannerItems(premarketDoc) : [],
   };

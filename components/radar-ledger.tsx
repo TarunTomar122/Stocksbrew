@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
+import { buildBookCallHints, type BookCallHint, type RadarCallKind } from "@/lib/radar-hub-data";
 import type { WatchlistRow } from "@/lib/watchlist-view";
 
 type DirectiveV2 = NonNullable<WatchlistRow["directive_v2"]>;
@@ -261,12 +262,55 @@ function StanceChip({ meta, size = "sm" }: { meta: StanceChipMeta; size?: "xs" |
   );
 }
 
+function callVerb(kind: RadarCallKind): string {
+  switch (kind) {
+    case "buy_dip":
+      return "Buy";
+    case "trim":
+      return "Trim";
+    case "entry":
+      return "Entry";
+    case "exit":
+      return "Exit";
+  }
+}
+
+function TodayCallLine({ call, compact = false }: { call: BookCallHint; compact?: boolean }) {
+  if (call.urgent) {
+    return (
+      <div className={compact ? "mt-1" : "mb-1"}>
+        <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface">
+          Now · {callVerb(call.callKind)}
+        </p>
+        <p
+          className={`leading-snug text-on-surface [overflow-wrap:anywhere] ${
+            compact ? "text-[10px] font-medium" : "text-[11px] font-semibold"
+          }`}
+        >
+          {call.hint}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <p
+      className={`text-on-surface-variant [overflow-wrap:anywhere] ${
+        compact ? "mt-1 text-[10px]" : "mb-1 text-[11px]"
+      }`}
+    >
+      {call.hint}
+    </p>
+  );
+}
+
 function DirectiveDisplay({
   row,
   compact = false,
+  call,
 }: {
   row: WatchlistRow;
   compact?: boolean;
+  call?: BookCallHint;
 }) {
   const d2 = row.directive_v2;
   const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
@@ -290,48 +334,57 @@ function DirectiveDisplay({
     if (compact) {
       return (
         <div className="mt-0.5 flex flex-col gap-0.5 min-w-0">
+          {call ? <TodayCallLine call={call} compact /> : null}
           <div className="flex flex-wrap items-center gap-1">
             <StanceChip meta={chipMeta} size="xs" />
             {d2.priority === "high" && <PriorityBadge priority={d2.priority} />}
-            {d2.trigger && <TriggerChip trigger={d2.trigger} />}
+            {d2.trigger && !call?.urgent && <TriggerChip trigger={d2.trigger} />}
           </div>
-          {detail && (
+          {detail && !call ? (
             <span className="text-[9px] text-on-surface-variant leading-snug line-clamp-1">{detail}</span>
-          )}
+          ) : null}
         </div>
       );
     }
 
     return (
       <div className="flex min-w-0 flex-col gap-1">
+        {call ? <TodayCallLine call={call} /> : null}
         <div className="flex flex-wrap items-center gap-1.5">
           <StanceChip meta={chipMeta} />
           {d2.priority === "high" && <PriorityBadge priority={d2.priority} />}
-          {d2.trigger && <TriggerChip trigger={d2.trigger} />}
+          {d2.trigger && !call?.urgent && <TriggerChip trigger={d2.trigger} />}
         </div>
-        {detail && (
+        {detail && !call ? (
           <p className="text-[10px] leading-snug text-on-surface-variant line-clamp-2">{detail}</p>
-        )}
+        ) : null}
       </div>
     );
   }
 
   if (stanceMeta) {
     return (
-      <span
-        className={`inline-flex w-fit items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em] ${
-          compact ? "mt-0.5 rounded px-1.5 py-0.5 text-[9px]" : ""
-        }`}
-        style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
-      >
+      <div className={compact ? "mt-0.5" : ""}>
+        {call ? <TodayCallLine call={call} compact={compact} /> : null}
         <span
-          aria-hidden
-          className={`rounded-full ${compact ? "h-1 w-1" : "h-1.5 w-1.5"}`}
-          style={{ background: stanceMeta.dot }}
-        />
-        {stanceMeta.label}
-      </span>
+          className={`inline-flex w-fit items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em] ${
+            compact ? "rounded px-1.5 py-0.5 text-[9px]" : ""
+          }`}
+          style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
+        >
+          <span
+            aria-hidden
+            className={`rounded-full ${compact ? "h-1 w-1" : "h-1.5 w-1.5"}`}
+            style={{ background: stanceMeta.dot }}
+          />
+          {stanceMeta.label}
+        </span>
+      </div>
     );
+  }
+
+  if (call) {
+    return <TodayCallLine call={call} compact={compact} />;
   }
 
   return compact ? null : <span className="text-[11px] text-on-surface-variant">—</span>;
@@ -435,9 +488,28 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
     () => holdings.map((row) => mergeHoldingPatch(row, holdingPatches[row.instrument_id])),
     [holdings, holdingPatches],
   );
+  const mergedWatching = useMemo(
+    () => watching.map((row) => mergeHoldingPatch(row, holdingPatches[row.instrument_id])),
+    [watching, holdingPatches],
+  );
+  const callHints = useMemo(
+    () => buildBookCallHints([...mergedHoldings, ...mergedWatching]),
+    [mergedHoldings, mergedWatching],
+  );
   const allSharesEntered = allHoldingsHaveShares(mergedHoldings);
   const showSharesColumn = tab === "holdings" && (bulkEditing || allSharesEntered);
   const showValueColumn = tab === "holdings" && allSharesEntered;
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const au = callHints.get(a.ticker.toUpperCase())?.urgent ? 1 : 0;
+      const bu = callHints.get(b.ticker.toUpperCase())?.urgent ? 1 : 0;
+      if (bu !== au) return bu - au;
+      const ah = callHints.has(a.ticker.toUpperCase()) ? 1 : 0;
+      const bh = callHints.has(b.ticker.toUpperCase()) ? 1 : 0;
+      return bh - ah;
+    });
+  }, [rows, callHints]);
+  const urgentInTab = sortedRows.filter((r) => callHints.get(r.ticker.toUpperCase())?.urgent).length;
 
   useEffect(() => {
     if (tab !== "holdings" && bulkEditing) {
@@ -550,28 +622,17 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
           {/* ── Mobile card list (< md) ── */}
           <div className="md:hidden rounded-2xl border border-outline-variant bg-surface overflow-hidden">
             <DailySummary
-              rows={rows}
+              rows={sortedRows}
               label={tab === "holdings" ? "Holdings" : "Watching"}
-              editSlot={tab === "holdings" && holdings.length > 0 ? (
-                bulkEditing ? (
-                  <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-50">Cancel</button>
-                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-on-surface px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
-                      {bulkSaving && <span className="h-2 w-2 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:bg-surface-container-low">Edit holdings</button>
-                )
-              ) : undefined}
+              urgentCount={urgentInTab}
             />
             <div className="max-h-[560px] overflow-y-auto">
-              {rows.map((row, i) => (
+              {sortedRows.map((row, i) => (
                 <MobileRow
                   key={row.instrument_id}
                   row={row}
                   hasBorder={i > 0}
+                  call={callHints.get(row.ticker.toUpperCase())}
                 />
               ))}
             </div>
@@ -580,21 +641,9 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
           {/* ── Desktop table (≥ md) ── */}
           <div className="hidden md:block min-w-0 w-full rounded-2xl border border-outline-variant bg-surface overflow-hidden">
             <DailySummary
-              rows={rows}
+              rows={sortedRows}
               label={tab === "holdings" ? "Holdings" : "Watching"}
-              editSlot={tab === "holdings" && holdings.length > 0 ? (
-                bulkEditing ? (
-                  <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={cancelBulkEdits} disabled={bulkSaving} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-50">Cancel</button>
-                    <button type="button" onClick={() => void saveBulkHoldingEdits()} disabled={bulkSaving} className="inline-flex items-center gap-1 rounded-full bg-on-surface px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">
-                      {bulkSaving && <span className="h-2 w-2 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setBulkEditing(true)} className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:bg-surface-container-low">Edit holdings</button>
-                )
-              ) : undefined}
+              urgentCount={urgentInTab}
             />
             <div className="min-w-0 overflow-x-auto overflow-y-auto max-h-[540px]">
               <table className="w-full min-w-[720px] border-collapse text-[13px] xl:min-w-[800px]">
@@ -615,7 +664,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {sortedRows.map((row) => (
                     <LedgerRow
                       key={row.instrument_id}
                       row={row}
@@ -623,6 +672,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                       showShares={showSharesColumn}
                       onSharesSaved={applyHoldingPatch}
                       bulkEditing={bulkEditing}
+                      call={callHints.get(row.ticker.toUpperCase())}
                     />
                   ))}
                 </tbody>
@@ -635,16 +685,28 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
   );
 }
 
-function DailySummary({ rows, label, editSlot }: { rows: WatchlistRow[]; label: string; editSlot?: ReactNode }) {
+function DailySummary({
+  rows,
+  label,
+  urgentCount = 0,
+}: {
+  rows: WatchlistRow[];
+  label: string;
+  urgentCount?: number;
+}) {
   const { avgPct, totalAbs, currency } = groupSummary(rows);
-  if (avgPct === null && !editSlot) return null;
+  if (avgPct === null && urgentCount === 0) return null;
   const positive = (avgPct ?? 0) >= 0;
 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-4 py-2.5">
-      <div className="flex items-center gap-3">
-        <span className="text-[12px] font-medium text-on-surface-variant">{label} · today</span>
-        {editSlot}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[11px] text-on-surface-variant">{label} · today</span>
+        {urgentCount > 0 ? (
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface">
+            {urgentCount} in range
+          </span>
+        ) : null}
       </div>
       {avgPct !== null && (
         <div className="flex flex-col items-end gap-0.5">
@@ -878,9 +940,11 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 function MobileRow({
   row,
   hasBorder,
+  call,
 }: {
   row: WatchlistRow;
   hasBorder: boolean;
+  call?: BookCallHint;
 }) {
   const router = useRouter();
   const market = row.market === "IN" ? "IN" : "US";
@@ -894,7 +958,7 @@ function MobileRow({
     <div
       className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer ${
         hasBorder ? "border-t border-outline-variant" : ""
-      }`}
+      } ${call?.urgent ? "border-l-2 border-l-on-surface" : ""}`}
       onClick={() => router.push(href)}
     >
       {/* LEFT: logo + ticker + directive */}
@@ -929,7 +993,7 @@ function MobileRow({
             </div>
           )}
           {/* Directive below name */}
-          <DirectiveDisplay row={row} compact />
+          <DirectiveDisplay row={row} compact call={call} />
         </div>
       </div>
 
@@ -961,10 +1025,12 @@ function LedgerRow({
   showShares,
   onSharesSaved,
   bulkEditing,
+  call,
 }: {
   row: WatchlistRow;
   showHoldingValue?: boolean;
   showShares?: boolean;
+  call?: BookCallHint;
 } & SharesEditHandlers) {
   const router = useRouter();
   const dayChange = row.day_change_pct;
@@ -977,7 +1043,9 @@ function LedgerRow({
 
   return (
     <tr
-      className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer"
+      className={`border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer ${
+        call?.urgent ? "border-l-2 border-l-on-surface" : ""
+      }`}
       onClick={() => router.push(href)}
     >
       <td className="px-4 py-3">
@@ -1061,7 +1129,7 @@ function LedgerRow({
         </span>
       </td>
       <td className="px-4 py-3">
-        <DirectiveDisplay row={row} />
+        <DirectiveDisplay row={row} call={call} />
       </td>
       <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
         <RowMenu row={row} />

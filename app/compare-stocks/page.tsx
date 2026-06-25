@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { CompareStocksInteractive } from "@/components/compare-stocks-interactive";
+import { CompareStocksStream } from "@/components/compare-stocks-stream";
 import { CompareStocksLandingSections } from "@/components/compare-stocks-landing-sections";
 import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
-import { getSearchIndex } from "@/lib/search";
-import { getCurrentMarket } from "@/lib/market";
+import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
 
 export const metadata: Metadata = {
   title: "Compare Stocks Side by Side",
@@ -24,16 +24,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function CompareStocksPage() {
-  const market = getCurrentMarket();
-  const searchIndex = await getSearchIndex(market).catch(() => []);
-
+export default function CompareStocksPage() {
   return (
     <main className="flex-grow">
       <div className="mx-auto w-full max-w-screen-2xl px-6 pt-8 md:px-10 lg:px-16">
         <FreeToolBreadcrumb title="Compare stocks" />
       </div>
-      <CompareStocksInteractive searchIndex={searchIndex} />
+      <Suspense fallback={<MarketFeedStreamSkeleton />}>
+        <div className="landing-stream-in">
+          <CompareStocksStream />
+        </div>
+      </Suspense>
       <CompareStocksLandingSections />
       <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
         <FreeToolRelated currentHref="/compare-stocks" />

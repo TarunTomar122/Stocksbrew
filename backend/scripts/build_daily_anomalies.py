@@ -48,13 +48,21 @@ INTERNAL_MOVE_CONTEXT_PROMPT = """You write non-generic context for a sharp stoc
 
 Use only the supplied internal stock data. Do not invent or imply a confirmed news catalyst.
 
-Frame the move as what it likely reflects: fundamentals, factor scores, analyst target gap, technical setup, sector/industry performance, broad market tone, positioning, and risk.
+First choose ONE dominant_angle. Then write the headline from only that angle.
+
+dominant_angle must be one of:
+hard_catalyst, earnings, analyst_action, sector_pressure, peer_readthrough,
+technical_break, crowded_trade, valuation_reset, sentiment_shift, quiet_move.
 
 Rules:
 - If news_count/source_count is 0 or evidence is weak, confidence must be low or medium, never high.
 - Keep headline under 12 words.
 - Keep why_it_matters to 1-2 complete sentences.
 - Avoid generic phrases like "top mover", "price momentum", or "against the broader tape".
+- Do NOT blend weak generic factors in the headline.
+- Do NOT use these headline phrases: "amid consolidation", "amid neutral technicals", "despite strong analyst", "strong analyst upside", "no fresh news", "cautious sentiment and neutral technicals".
+- Analyst targets are never the headline reason unless dominant_angle is analyst_action.
+- If there is no hard catalyst, say the market behavior plainly: "momentum unwinds", "breaks lower without a fresh catalyst", "crowded trade cools", "sector pressure hits", or "valuation resets".
 - Do NOT use upcoming earnings or a generic future catalyst as the main reason unless the supplied payload includes explicit same-day evidence tying today's move to it.
 - Prefer concrete structural explanations from the payload: pillar imbalances, analyst-target gap, sector tape, market backdrop, and relative performance vs market/sector.
 - Be concrete and honest when there is no clean catalyst.
@@ -63,14 +71,59 @@ Rules:
 INTERNAL_MOVE_CONTEXT_SCHEMA = {
     "type": "object",
     "properties": {
+        "dominant_angle": {
+            "type": "string",
+            "enum": [
+                "hard_catalyst",
+                "earnings",
+                "analyst_action",
+                "sector_pressure",
+                "peer_readthrough",
+                "technical_break",
+                "crowded_trade",
+                "valuation_reset",
+                "sentiment_shift",
+                "quiet_move",
+            ],
+        },
         "headline": {"type": "string"},
         "why_it_matters": {"type": "string"},
         "confidence": {"type": "string", "enum": ["low", "medium"]},
         "is_generic": {"type": "boolean"},
     },
-    "required": ["headline", "why_it_matters", "confidence", "is_generic"],
+    "required": ["dominant_angle", "headline", "why_it_matters", "confidence", "is_generic"],
     "additionalProperties": False,
 }
+
+DOMINANT_ANGLES = {
+    "hard_catalyst",
+    "earnings",
+    "analyst_action",
+    "sector_pressure",
+    "peer_readthrough",
+    "technical_break",
+    "crowded_trade",
+    "valuation_reset",
+    "sentiment_shift",
+    "quiet_move",
+}
+
+GENERIC_HEADLINE_PATTERNS = (
+    "amid consolidation",
+    "amid neutral technicals",
+    "despite strong analyst",
+    "strong analyst upside",
+    "strong analyst target",
+    "no fresh news",
+    "cautious sentiment and neutral technicals",
+    "quiet consolidation",
+    "without fresh catalyst",
+    "without a fresh catalyst",
+    "without catalyst",
+    "momentum unwinds",
+)
+
+CRYPTO_EXPOSED_TICKERS = {"MSTR", "COIN", "HOOD", "RIOT", "MARA", "CLSK", "IREN", "APLD", "HUT", "BTDR"}
 
 
 def _now_iso() -> str:
@@ -239,9 +292,33 @@ def _latest_timeline_items(intel_doc: dict[str, Any] | None, *, limit: int = 3) 
     return out
 
 
+def _article_matches_instrument(article: dict[str, Any], instrument: dict[str, Any]) -> bool:
+    ticker = str(instrument.get("ticker") or "").strip().upper()
+    company = _clean_text(instrument.get("name")).lower()
+    aliases = [ticker.lower()]
+    if company:
+        aliases.append(company)
+        aliases.extend(part for part in company.replace(",", " ").split()[:2] if len(part) >= 5)
+    haystack = _clean_text(f"{article.get('title')} {article.get('summary')}").lower()
+    return any(alias and alias in haystack for alias in aliases)
+
+
+def _reject_off_topic_crypto_explanation(text: str, instrument: dict[str, Any]) -> bool:
+    lowered = text.lower()
+    if not any(term in lowered for term in ("crypto", "bitcoin", "btc")):
+        return False
+    ticker = str(instrument.get("ticker") or "").strip().upper()
+    sector = str(instrument.get("sector") or "").strip().lower()
+    industry = str(instrument.get("industry") or "").strip().lower()
+    if ticker in CRYPTO_EXPOSED_TICKERS:
+        return False
+    return "crypto" not in sector and "crypto" not in industry and "bitcoin" not in industry
+
+
 def _fallback_move_explanation() -> dict[str, Any]:
     return {
         "cause_type": "unclear",
+        "dominant_angle": "quiet_move",
         "headline": "No clear company-specific driver surfaced yet.",
         "why_it_matters": "The move is large, but current internal news and intelligence do not explain it cleanly.",
         "confidence": "low",
@@ -256,6 +333,7 @@ def _llm_move_explanation(
     day_change_pct: float,
     articles: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
+    articles = [row for row in articles if _article_matches_instrument(row, instrument)]
     if not articles:
         return None
     api_key = llm_api_key()
@@ -294,14 +372,87 @@ def _llm_move_explanation(
     why = str(parsed.get("why_it_matters") or "").strip()
     if not headline or not why:
         return None
+    if _reject_off_topic_crypto_explanation(f"{headline} {why}", instrument):
+        return None
     return {
         "cause_type": str(parsed.get("cause_type") or "company_news").strip() or "company_news",
+        "dominant_angle": "hard_catalyst",
         "headline": headline,
         "why_it_matters": why,
         "confidence": str(parsed.get("confidence") or "medium").strip() or "medium",
         "searched_externally": False,
         "evidence": [{"title": row.get("title"), "url": row.get("url")} for row in articles if row.get("url")],
     }
+
+
+def _is_generic_anomaly_headline(value: Any) -> bool:
+    text = _clean_text(value).lower()
+    return any(pattern in text for pattern in GENERIC_HEADLINE_PATTERNS)
+
+
+def _normalize_angle(value: Any, *, fallback: str = "quiet_move") -> str:
+    angle = str(value or "").strip().lower()
+    return angle if angle in DOMINANT_ANGLES else fallback
+
+
+def _rewrite_headline_from_angle(
+    *,
+    ticker: str,
+    direction: str,
+    angle: str,
+    sector: str = "",
+) -> str:
+    moves_down = direction == "down"
+    sector_label = sector or "sector"
+    quiet_down = [
+        f"{ticker} breaks lower as buyers step back",
+        f"{ticker} gives back recent momentum",
+        f"{ticker} slides as the tape fades",
+        f"{ticker} sells off without a clear catalyst",
+    ]
+    quiet_up = [
+        f"{ticker} catches a bid in quiet trading",
+        f"{ticker} extends its recent momentum",
+        f"{ticker} lifts as buyers step in",
+        f"{ticker} rises without a clear catalyst",
+    ]
+    quiet = (quiet_down if moves_down else quiet_up)[sum(ord(c) for c in ticker) % 4]
+    templates = {
+        "sector_pressure": f"{ticker} {'falls with' if moves_down else 'lifts with'} {sector_label} {'pressure' if moves_down else 'strength'}",
+        "peer_readthrough": f"{ticker} {'slides on' if moves_down else 'jumps on'} peer read-through",
+        "technical_break": f"{ticker} {'breaks lower' if moves_down else 'breaks higher'} on technical pressure",
+        "crowded_trade": f"{ticker} {'drops as crowded trade cools' if moves_down else 'rallies as momentum returns'}",
+        "valuation_reset": f"{ticker} {'reprices on valuation reset' if moves_down else 'rerates on valuation gap'}",
+        "sentiment_shift": f"{ticker} {'sells off as sentiment fades' if moves_down else 'lifts as sentiment improves'}",
+        "quiet_move": quiet,
+        "analyst_action": f"{ticker} {'moves on analyst pressure' if moves_down else 'moves on analyst support'}",
+        "earnings": f"{ticker} {'falls on earnings read-through' if moves_down else 'rises on earnings read-through'}",
+        "hard_catalyst": f"{ticker} {'falls on company catalyst' if moves_down else 'rises on company catalyst'}",
+    }
+    return templates.get(angle, templates["quiet_move"])
+
+
+def _sanitize_move_explanation(
+    explanation: dict[str, Any],
+    *,
+    instrument: dict[str, Any],
+    day_change_pct: float,
+) -> dict[str, Any]:
+    ticker = str(instrument.get("ticker") or explanation.get("ticker") or "").strip().upper()
+    direction = "up" if day_change_pct >= 0 else "down"
+    angle = _normalize_angle(explanation.get("dominant_angle"), fallback="quiet_move")
+    headline = _clean_text(explanation.get("headline"))
+    if _is_generic_anomaly_headline(headline):
+        headline = _rewrite_headline_from_angle(
+            ticker=ticker,
+            direction=direction,
+            angle=angle,
+            sector=str(instrument.get("sector") or "").strip(),
+        )
+    cleaned = dict(explanation)
+    cleaned["dominant_angle"] = angle
+    cleaned["headline"] = headline
+    return cleaned
 
 
 def _internal_move_payload(
@@ -421,6 +572,7 @@ def _llm_internal_context_move_explanation(
         confidence = "medium"
     return {
         "cause_type": "internal_context",
+        "dominant_angle": _normalize_angle(parsed.get("dominant_angle")),
         "headline": headline,
         "why_it_matters": why,
         "confidence": confidence,
@@ -510,7 +662,13 @@ def _structured_internal_context_move_explanation(
 
     direction = "rise" if day_change_pct >= 0 else "drop"
     headline_base = primary_label or thesis or key_points[0] or f"{ticker} setup reprices"
-    headline = _clean_sentence(f"{ticker} {direction} reflects {headline_base}", max_chars=92)
+    angle = "sector_pressure" if sector_brief else "valuation_reset" if "target" in " ".join(key_points).lower() else "quiet_move"
+    headline = _rewrite_headline_from_angle(
+        ticker=ticker,
+        direction="up" if day_change_pct >= 0 else "down",
+        angle=angle,
+        sector=str(payload.get("sector") or "").strip(),
+    )
 
     why = f"The move looks like investors leaning into {anchor}."
     if counter_detail or counter_label:
@@ -522,6 +680,7 @@ def _structured_internal_context_move_explanation(
 
     return {
         "cause_type": "internal_context",
+        "dominant_angle": angle,
         "headline": headline,
         "why_it_matters": why,
         "confidence": "low",
@@ -548,7 +707,7 @@ def _move_explanation(
         articles=_latest_timeline_items(intel_doc, limit=3),
     )
     if explanation:
-        return explanation
+        return _sanitize_move_explanation(explanation, instrument=instrument, day_change_pct=day_change_pct)
     internal = _llm_internal_context_move_explanation(
         instrument=instrument,
         intel_doc=intel_doc,
@@ -558,7 +717,7 @@ def _move_explanation(
         sector_context=sector_context,
     )
     if internal:
-        return internal
+        return _sanitize_move_explanation(internal, instrument=instrument, day_change_pct=day_change_pct)
     structured = _structured_internal_context_move_explanation(
         instrument=instrument,
         intel_doc=intel_doc,
@@ -568,8 +727,8 @@ def _move_explanation(
         sector_context=sector_context,
     )
     if structured:
-        return structured
-    return internal or _fallback_move_explanation()
+        return _sanitize_move_explanation(structured, instrument=instrument, day_change_pct=day_change_pct)
+    return _sanitize_move_explanation(_fallback_move_explanation(), instrument=instrument, day_change_pct=day_change_pct)
 
 
 def _run_intelligence_fill_for_missing(

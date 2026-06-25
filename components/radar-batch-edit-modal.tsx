@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
+import { RadarFreeLimitModal } from "@/components/radar-free-limit-modal";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import {
@@ -66,6 +67,7 @@ export function RadarBatchEditModal({
   const [extracting, setExtracting] = useState(false);
   const [extractInfo, setExtractInfo] = useState<string | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   // Track which IDs existed when modal opened — anything else is "newly added this session"
   const originalIds = useRef<Set<string>>(new Set());
@@ -198,7 +200,7 @@ export function RadarBatchEditModal({
   async function onSubmit() {
     setError(null);
     if (!isSubscribed && items.length > freeLimit) {
-      setError(`Free plan supports up to ${freeLimit} stocks.`);
+      setLimitModalOpen(true);
       return;
     }
     if (items.length === 0) {
@@ -231,10 +233,9 @@ export function RadarBatchEditModal({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (res.status === 409 && data?.error === "free_tier_limit_reached") {
-          setModalStatus("error");
-          setError("Free plan limit reached. Upgrade to track more.");
-          setTimeout(() => setModalOpen(false), 1000);
-          router.push("/subscribe");
+          setModalOpen(false);
+          setOpen(false);
+          setLimitModalOpen(true);
           return;
         }
         throw new Error(data?.error || "batch_update_failed");
@@ -578,6 +579,7 @@ export function RadarBatchEditModal({
         subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
+      <RadarFreeLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} limit={freeLimit} />
     </>
   );
 }

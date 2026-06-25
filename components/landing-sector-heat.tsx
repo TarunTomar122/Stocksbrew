@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { SectorHeatStockRow } from "@/components/sector-heat-stock-row";
 import {
-  SECTOR_HREF_BY_LABEL,
   SECTOR_THEME,
   sectorPctMove,
   type SectorHeatCard,
@@ -45,10 +44,7 @@ export function LandingSectorHeat({
                   style={{ "--sector-accent": theme.accent } as CSSProperties}
                 >
                   <div className="relative z-[1] flex flex-col p-4 pb-3">
-                    <Link
-                      href={SECTOR_HREF_BY_LABEL[s.label] ?? "#"}
-                      className="-mx-1 mb-3 flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-surface-container-low"
-                    >
+                    <div className="mb-3 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="sector-heat-icon">
                           <span
@@ -67,7 +63,7 @@ export function LandingSectorHeat({
                         <span className="text-[10px] leading-none">{sectorMove.up ? "▲" : "▼"}</span>
                         {Math.abs(s.avg).toFixed(2)}%
                       </span>
-                    </Link>
+                    </div>
 
                     <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
                       Top stocks

@@ -42,7 +42,8 @@ export async function getUpcomingPreEarnings(
   }
 }
 
-export async function getPreEarningsIntelUpcoming(
+/** Raw upcoming pre-earnings doc (no 7-day window filter). */
+export async function getPreEarningsIntelDoc(
   market: "US" | "IN",
   instrumentId: string,
 ): Promise<PreEarningsIntelDoc | null> {
@@ -52,9 +53,18 @@ export async function getPreEarningsIntelUpcoming(
     .get();
   if (!doc.exists) return null;
   const data = doc.data() as PreEarningsIntelDoc;
-  if (!data?.instrument_id || !data?.ticker) return null;
-  if (!isWithinPreEarningsWindow(data.event_date)) return null;
+  if (!data?.instrument_id || !data?.ticker || !data?.event_date) return null;
   return { ...data, doc_id: doc.id };
+}
+
+export async function getPreEarningsIntelUpcoming(
+  market: "US" | "IN",
+  instrumentId: string,
+): Promise<PreEarningsIntelDoc | null> {
+  const data = await getPreEarningsIntelDoc(market, instrumentId);
+  if (!data) return null;
+  if (!isWithinPreEarningsWindow(data.event_date)) return null;
+  return data;
 }
 
 export async function getPreEarningsIntelForInstruments(

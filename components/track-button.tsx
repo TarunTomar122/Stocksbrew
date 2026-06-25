@@ -10,6 +10,8 @@ import { captureEvent } from "@/lib/posthog";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
+import { RadarFreeLimitModal } from "@/components/radar-free-limit-modal";
+import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
 
 type Variant = "pill" | "icon";
 type PositionType = "watchlist" | "holding";
@@ -51,6 +53,8 @@ type Props = {
    * "Add to Radar" label and let the API decide if the user can add this stock. */
   tier?: "ai_launch" | "ai_personal" | "free";
   isSubscribed?: boolean;
+  /** When set with isSubscribed=false, block adds once the free tier is full. */
+  trackedCount?: number;
   variant?: Variant;
   /** When tracked, render a static label instead of a button (no accidental remove). */
   trackedAsBadge?: boolean;
@@ -65,6 +69,7 @@ export function TrackButton({
   tier,
   isSubscribed,
   isTracked,
+  trackedCount,
   variant = "pill",
   trackedAsBadge = false,
 }: Props) {
@@ -79,6 +84,25 @@ export function TrackButton({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
+
+  const freeLimit = FREE_RADAR_TRACK_LIMIT;
+  const atFreeLimit =
+    !isSubscribed &&
+    !localTracked &&
+    typeof trackedCount === "number" &&
+    trackedCount >= freeLimit;
+
+  function showFreeLimitModal() {
+    setOpen(false);
+    setLimitModalOpen(true);
+    captureEvent("radar_free_limit_blocked", {
+      ticker,
+      instrument_id: instrumentId,
+      tracked_count: trackedCount ?? null,
+      limit: freeLimit,
+    });
+  }
 
   function triggerBackgroundRefresh(action: "add" | "remove", count = 1) {
     if (action === "add") {
@@ -149,6 +173,11 @@ export function TrackButton({
       return;
     }
 
+    if (atFreeLimit) {
+      showFreeLimitModal();
+      return;
+    }
+
     // Otherwise open the picker modal (Watching by default).
     setPositionType("watchlist");
     setOpen(true);
@@ -183,13 +212,8 @@ export function TrackButton({
           const data = await res.json().catch(() => ({}));
           if (res.status === 409) {
             if (data?.error === "free_tier_limit_reached") {
-              setOpen(false);
-              setError("You are tracking 3 of 3 free stocks. Pro tracks every name you hold, with a call on each.");
-              setModalStatus("error");
-              setTimeout(() => {
-                setModalOpen(false);
-                router.push("/subscribe");
-              }, 2200);
+              setModalOpen(false);
+              showFreeLimitModal();
               return;
             }
             setError("Your Radar is full. Remove one, or go Pro to track every stock you hold.");
@@ -319,6 +343,7 @@ export function TrackButton({
         subtitle="Saved. Radar analysis is refreshing in the background..."
         status={modalStatus}
       />
+      <RadarFreeLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} limit={freeLimit} />
     </>
   );
 }

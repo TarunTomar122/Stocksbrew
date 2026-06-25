@@ -5,7 +5,7 @@ import type { PortfolioBookRow } from "@/lib/portfolio-book";
 import type { PortfolioRebalanceBundle } from "@/lib/portfolio-organize-types";
 
 const COLLECTION = "tm_portfolio_rebalance";
-export const REBALANCE_PLAN_CACHE_VERSION = 3;
+export const REBALANCE_PLAN_CACHE_VERSION = 4;
 
 export function portfolioFingerprint(rows: PortfolioBookRow[]): string {
   const parts = rows

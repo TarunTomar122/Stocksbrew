@@ -1,4 +1,5 @@
 import { getInstruments } from "@/lib/firestore";
+import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { getUserDoc } from "@/lib/watchlist";
 import { getWatchlistView, overlayLatestPrices, type WatchlistRow } from "@/lib/watchlist-view";
 
@@ -79,6 +80,7 @@ export async function loadRadarRowsForUser(uid: string): Promise<RadarRowsPayloa
       return {
         instrument_id: instrumentId,
         ticker,
+        instrument_name: fallback?.name || ticker,
         logo_url: null,
         position_type: watchlistPositions[instrumentId] === "holding" ? "holding" : "watchlist",
         market,
@@ -109,7 +111,17 @@ export async function loadRadarRowsForUser(uid: string): Promise<RadarRowsPayloa
     })
     .filter((row): row is WatchlistRow => Boolean(row));
 
-  const rows = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
+  const rowsPriced = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
+  // Trust tm_instruments for ticker+name — materialized view names can drift.
+  const labelsById = await getInstrumentLabels(rowsPriced.map((r) => r.instrument_id)).catch(
+    () => new Map(),
+  );
+  const rows = rowsPriced.map((r) => {
+    const label = labelsById.get(r.instrument_id);
+    return label
+      ? { ...r, ticker: label.ticker || r.ticker, instrument_name: label.name }
+      : r;
+  });
   const builtAt =
     typeof watchlistView?.built_at === "string"
       ? watchlistView.built_at

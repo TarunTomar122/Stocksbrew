@@ -11,6 +11,7 @@ import type {
   RebalanceHoldingView,
   RebalanceSectorView,
 } from "@/lib/portfolio-organize-types";
+import { decodeTextEntities } from "@/lib/utils";
 
 function fmtWeight(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -54,9 +55,13 @@ function sectorLabel(row: {
   industry_label?: string | null;
   sector_label?: string | null;
 }): string {
-  const industry = String(row.industry_label || "").trim();
+  const industry = decodeTextEntities(String(row.industry_label || "").trim());
   if (industry) return industry;
-  return String(row.sector_label || "").trim() || "—";
+  return decodeTextEntities(String(row.sector_label || "").trim()) || "—";
+}
+
+function displayName(value: string): string {
+  return decodeTextEntities(value);
 }
 
 const skeletonStyles = `
@@ -317,7 +322,7 @@ function SectorLane({ sector }: { sector: RebalanceSectorView }) {
       <div className="flex items-center gap-2.5">
         <SectorIconBadge label={sector.sector} size={26} iconSize={14} />
         <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#111111]">
-          {sector.sector}
+          {displayName(sector.sector)}
         </span>
         {heavy ? (
           <span className="rounded-full bg-[#fef2f2] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#b91c1c]">
@@ -410,7 +415,7 @@ function MoveRow({
           <span className="truncate text-[13px] font-semibold text-[#111111]">
             {ticker}
             <span className="ml-1.5 text-[11px] font-normal text-[#6b7280]">
-              {name}
+              {displayName(name)}
             </span>
           </span>
           <span

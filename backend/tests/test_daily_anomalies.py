@@ -94,6 +94,62 @@ class DailyAnomaliesTest(unittest.TestCase):
 
         self.assertEqual([row["title"] for row in rows], ["new", "middle", "old"])
 
+    def test_hard_news_explainer_skips_unrelated_timeline_items(self) -> None:
+        with patch.object(build_daily_anomalies, "llm_api_key", return_value="key"), patch.object(
+            build_daily_anomalies.requests, "post"
+        ) as post:
+            explanation = build_daily_anomalies._llm_move_explanation(
+                instrument={"ticker": "RKLB", "name": "Rocket Lab USA"},
+                day_change_pct=-10.2,
+                articles=[
+                    {
+                        "title": "Crypto market bloodbath hits MicroStrategy",
+                        "summary": "Bitcoin exposed names fall sharply.",
+                        "url": "https://example.com/crypto",
+                    }
+                ],
+            )
+
+        self.assertIsNone(explanation)
+        post.assert_not_called()
+
+    def test_hard_news_explainer_rejects_off_topic_crypto_reason(self) -> None:
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": (
+                                    '{"can_explain":true,"cause_type":"market_beta",'
+                                    '"headline":"Rocket Lab drops amid crypto bloodbath",'
+                                    '"why_it_matters":"Crypto weakness is pressuring RKLB.",'
+                                    '"confidence":"medium"}'
+                                )
+                            }
+                        }
+                    ]
+                }
+
+        with patch.object(build_daily_anomalies, "llm_api_key", return_value="key"), patch.object(
+            build_daily_anomalies.requests, "post", return_value=Response()
+        ):
+            explanation = build_daily_anomalies._llm_move_explanation(
+                instrument={"ticker": "RKLB", "name": "Rocket Lab USA", "sector": "Industrials"},
+                day_change_pct=-10.2,
+                articles=[
+                    {
+                        "title": "Bitcoin crashes, but MSTR and RKLB lead crypto-stocks bloodbath",
+                        "summary": "Rocket Lab shares fell sharply amid crypto weakness.",
+                    }
+                ],
+            )
+
+        self.assertIsNone(explanation)
+
     def test_move_explanation_uses_llm_decision_over_articles(self) -> None:
         with patch.object(
             build_daily_anomalies,
@@ -140,7 +196,8 @@ class DailyAnomaliesTest(unittest.TestCase):
             "_llm_internal_context_move_explanation",
             return_value={
                 "cause_type": "internal_context",
-                "headline": "ABC rerates on valuation gap",
+                "dominant_angle": "quiet_move",
+                "headline": "ABC dips amid consolidation and strong analyst upside",
                 "why_it_matters": "The move looks like positioning around valuation and technical setup, not a confirmed news catalyst.",
                 "confidence": "medium",
                 "searched_externally": False,
@@ -163,6 +220,8 @@ class DailyAnomaliesTest(unittest.TestCase):
         internal.assert_called_once()
         self.assertIsNotNone(explanation)
         self.assertEqual(explanation["cause_type"], "internal_context")
+        self.assertEqual(explanation["dominant_angle"], "quiet_move")
+        self.assertEqual(explanation["headline"], "ABC lifts as buyers step in")
         self.assertEqual(explanation["confidence"], "medium")
 
     def test_internal_context_rejects_invented_earnings_explanation(self) -> None:

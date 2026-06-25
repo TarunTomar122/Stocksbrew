@@ -13,6 +13,7 @@ import {
 } from "@/lib/portfolio-rebalance-cache";
 import { getSectorRegimes, slugifySector, type SectorRegimeDoc } from "@/lib/sector-regimes";
 import type { StockIntelPro } from "@/lib/types";
+import { decodeTextEntities } from "@/lib/utils";
 
 type UniverseCatalog = {
   markets?: Record<
@@ -78,10 +79,12 @@ async function loadUniverseCandidates(market: "US" | "IN"): Promise<RebalanceUni
     out.push({
       instrument_id: instrumentId,
       ticker: instrument?.ticker || intel.ticker || instrumentId.split("_").pop() || instrumentId,
-      name: instrument?.name || latest?.provider_metadata?.name || instrumentId,
+      name: decodeTextEntities(
+        instrument?.name || latest?.provider_metadata?.name || instrumentId,
+      ),
       logo_url: instrument?.logo_url || null,
-      sector_label: instrument?.sector || intel.sector_label || "Uncategorized",
-      industry_label: instrument?.industry || intel.industry_label || "",
+      sector_label: decodeTextEntities(instrument?.sector || intel.sector_label || "Uncategorized"),
+      industry_label: decodeTextEntities(instrument?.industry || intel.industry_label || ""),
       price: latest?.quote?.current ?? null,
       day_change_pct: latest?.quote?.day_change_pct ?? null,
       market_cap: latest?.fundamentals?.market_cap ?? null,

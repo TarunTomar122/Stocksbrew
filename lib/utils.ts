@@ -19,6 +19,23 @@ export function stripHtml(value: string): string {
     .trim();
 }
 
+/** Decode HTML entities, including double-encoded values like &amp;amp;. */
+export function decodeTextEntities(value: string): string {
+  let out = String(value ?? "");
+  for (let i = 0; i < 4; i++) {
+    const next = out
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">");
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim();
+}
+
 export function truncate(value: string, length: number): string {
   if (value.length <= length) {
     return value;

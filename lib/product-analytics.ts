@@ -9,6 +9,8 @@ export type AuthSurface =
   | "landing_pro_preview"
   | "paywall"
   | "locked_ai_brief"
+  | "locked_verdict_call"
+  | "locked_room_to_target"
   | "subscribe_pricing"
   | "radar_track"
   | "radar_bulk"
@@ -23,7 +25,9 @@ export type PaywallSurface =
   | "upcoming_earnings"
   | "market_anomalies"
   | "reddit_buzz"
-  | "locked_ai_brief";
+  | "locked_ai_brief"
+  | "locked_verdict_call"
+  | "locked_room_to_target";
 
 function dedupeSession(key: string): boolean {
   try {
@@ -69,13 +73,12 @@ export function trackPaywallUnlockClicked(props: {
   captureEvent("paywall_unlock_clicked", props);
 }
 
-export function trackOnboardingStarted() {
-  if (!dedupeSession("onboarding_started")) return;
-  captureEvent("onboarding_started");
-}
-
-export function trackOnboardingCompleted(props?: { via?: "skip" | "subscribe" | "finish" }) {
-  captureEvent("onboarding_completed", props ?? {});
+export function trackAttributionSubmitted(props: {
+  source?: string;
+  other?: string;
+  skipped?: boolean;
+}) {
+  captureEvent("attribution_submitted", props);
 }
 
 export function trackCheckoutClicked(props: {

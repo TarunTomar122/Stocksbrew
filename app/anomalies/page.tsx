@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { getDailyAnomalies } from "@/lib/daily-anomalies";
-import { getCurrentMarket } from "@/lib/market";
-import { AnomaliesPageView } from "@/components/anomalies-page-view";
-import { getSessionUser } from "@/lib/auth-server";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { AnomaliesPageStream } from "@/components/anomalies-page-stream";
+import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
 
 export const revalidate = 120;
 
@@ -24,39 +22,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function AnomaliesPage() {
-  const market = getCurrentMarket();
-  const [data, session] = await Promise.all([
-    getDailyAnomalies(market).catch(() => null),
-    getSessionUser(),
-  ]);
-  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-  const isSubscribed = resolveIsSubscribed(userDoc);
-
-  const isEmpty = !data || data.anomalies.length === 0;
-
+export default function AnomaliesPage() {
   return (
     <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16 flex flex-col gap-10">
+      <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#111111] md:text-[40px]">
+            Today&apos;s big moves
+          </h1>
+          <p className="max-w-2xl text-[15px] leading-relaxed text-[#6b7280]">
+            Unusual price action across the market — with a short read on each name.
+          </p>
+        </header>
 
-        {isEmpty ? (
-          <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-10 text-center">
-            <p className="text-[12px] font-semibold tracking-[0.12em] uppercase text-[#111111]">Quiet day</p>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#6b7280] max-w-md mx-auto">
-              No significant price moves detected yet. Check back during market hours.
-            </p>
-          </div>
-        ) : (
-          <AnomaliesPageView
-            anomalies={data.anomalies}
-            generatedAt={data.enriched_at || data.generated_at}
-            isSubscribed={isSubscribed}
-          />
-        )}
+        <Suspense fallback={<MarketFeedStreamSkeleton />}>
+          <AnomaliesPageStream />
+        </Suspense>
 
-        <footer className="text-[11px] text-[#9ca3af]">
-          Not investment advice.
-        </footer>
+        <footer className="text-[11px] text-[#9ca3af]">Not investment advice.</footer>
       </div>
     </main>
   );

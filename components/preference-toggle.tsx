@@ -35,14 +35,17 @@ export function PreferenceToggle({ field, label, description, icon, initialValue
 
   return (
     <div className="flex items-start gap-3">
-      <span className="material-symbols-outlined text-[18px] text-on-surface-variant mt-0.5 flex-shrink-0">
+      <span
+        className="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-on-surface-variant"
+        style={{ fontVariationSettings: "'wght' 400" }}
+      >
         {icon}
       </span>
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-sm font-semibold text-on-surface">{label}</span>
-            <p className="text-[12px] text-on-surface-variant mt-0.5">{description}</p>
+            <span className="text-[14px] font-semibold text-on-surface">{label}</span>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">{description}</p>
           </div>
           <button
             type="button"
@@ -52,11 +55,11 @@ export function PreferenceToggle({ field, label, description, icon, initialValue
             disabled={pending}
             onClick={toggle}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 ${
-              enabled ? "bg-[#111111]" : "bg-[#d1d5db]"
+              enabled ? "bg-on-surface" : "bg-outline-variant"
             }`}
           >
             <span
-              className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
+              className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-surface shadow-sm transition-transform duration-200 ${
                 enabled ? "translate-x-4" : "translate-x-0"
               }`}
             />

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { StockLogo } from "@/components/stock-logo";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
-import { SECTOR_HREF_BY_LABEL, SECTOR_THEME, sectorPctMove } from "@/lib/landing-sector-data";
+import { SECTOR_THEME, sectorPctMove } from "@/lib/landing-sector-data";
 
 export type SectorCard = { label: string; avg: number; stocks: { ticker: string; changePct: number }[] };
 export type RedditPick = {
@@ -18,6 +18,13 @@ export type RedditPick = {
   volume?: number;
 };
 export type EarningsPick = { ticker: string; company: string; eventDate: string; time: string; epsEstimate: number | null; epsOutlook?: string; reaction?: string };
+export type RecentEarningsPick = {
+  ticker: string;
+  company: string;
+  eventDate: string;
+  headline: string;
+  epsTag?: string;
+};
 
 const EPS_LABEL: Record<string, string> = { beat: "EPS beat", inline: "EPS inline", miss: "EPS miss", unclear: "EPS unclear" };
 const MOVE_LABEL: Record<string, string> = { rally: "bullish", fade: "bearish", chop: "neutral", unclear: "unclear" };
@@ -83,16 +90,22 @@ export function PulseHub({
   reddit,
   sectors,
   earnings,
+  recentEarnings,
   premarketItems = [],
 }: {
   items: ScannerItem[];
   reddit: RedditPick[];
   sectors: SectorCard[];
   earnings: EarningsPick[];
+  recentEarnings: RecentEarningsPick[];
   premarketItems?: ScannerItem[];
 }) {
   const showPremarket = premarketItems.length > 0;
   const [lens, setLens] = useState<Lens>("movers");
+
+  useEffect(() => {
+    if (lens === "premarket" && !showPremarket) setLens("movers");
+  }, [lens, showPremarket]);
 
   const tabs = showPremarket
     ? [
@@ -195,10 +208,7 @@ export function PulseHub({
                 style={{ "--sector-accent": theme.accent } as CSSProperties}
               >
                 <div className="relative z-[1] flex flex-col p-4 pb-3">
-                  <Link
-                    href={SECTOR_HREF_BY_LABEL[s.label] ?? "#"}
-                    className="-mx-1 mb-3 flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-surface-container-low"
-                  >
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="sector-heat-icon">
                         <span
@@ -217,7 +227,7 @@ export function PulseHub({
                       <span className="text-[10px] leading-none">{sectorMove.up ? "▲" : "▼"}</span>
                       {Math.abs(s.avg).toFixed(2)}%
                     </span>
-                  </Link>
+                  </div>
 
                   <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">
                     Top stocks
@@ -246,46 +256,107 @@ export function PulseHub({
 
       {lens === "earnings" && (
         <div className="pt-6">
-          {earnings.length > 0 ? (
-            <>
-              <p className="mb-4 text-[13px] text-on-surface-variant">
-                Upcoming reports. Open any name for our pre-earnings read, the EPS call and the likely reaction.
-              </p>
-              <div className="pulse-list-panel">
-                {earnings.map((e) => (
-                  <Link
-                    key={`${e.ticker}-${e.eventDate}`}
-                    href={`/stock/${e.ticker}`}
-                    className="pulse-list-row flex-wrap sm:flex-nowrap"
-                  >
-                    <StockLogo ticker={e.ticker} market="US" size={24} />
-                    <span className="w-14 shrink-0 font-bold text-on-surface">{e.ticker}</span>
-                    <span className="hidden min-w-0 flex-1 truncate text-on-surface-variant sm:block">{e.company}</span>
-                    <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                      {e.epsOutlook ? (
-                        <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                          style={{ color: epsColor(e.epsOutlook), background: `color-mix(in srgb, ${epsColor(e.epsOutlook)} 14%, var(--surface))` }}
-                        >
-                          {EPS_LABEL[e.epsOutlook] ?? e.epsOutlook}
-                          {e.reaction ? ` · ${MOVE_LABEL[e.reaction] ?? e.reaction}` : ""}
-                        </span>
-                      ) : null}
-                      {typeof e.epsEstimate === "number" ? (
-                        <span className="hidden text-[11px] text-on-surface-variant md:inline">
-                          est <span className="font-semibold text-on-surface">${e.epsEstimate.toFixed(2)}</span>
-                        </span>
-                      ) : null}
-                      <span className="rounded-full bg-surface-container px-2 py-0.5 text-[11px] text-on-surface-variant">
-                        {fmtDate(e.eventDate)} · {TIME_LABEL[e.time] ?? e.time}
-                      </span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </>
-          ) : (
+          {earnings.length === 0 && recentEarnings.length === 0 ? (
             <p className="text-[13px] text-on-surface-variant">No earnings in the window.</p>
+          ) : (
+            <>
+              {earnings.length > 0 ? (
+                <>
+                  <div className="mb-4">
+                    <p className="text-[14px] font-semibold text-on-surface">Upcoming reports</p>
+                    <p className="mt-1 text-[13px] text-on-surface-variant">
+                      Open any name for our pre-earnings read, the EPS call and the likely reaction.
+                    </p>
+                  </div>
+                  <div className="pulse-list-panel">
+                    {earnings.map((e) => (
+                      <Link
+                        key={`${e.ticker}-${e.eventDate}`}
+                        href={`/stock/${e.ticker}`}
+                        className="pulse-list-row flex-wrap sm:flex-nowrap"
+                      >
+                        <StockLogo ticker={e.ticker} market="US" size={24} />
+                        <span className="w-14 shrink-0 font-bold text-on-surface">{e.ticker}</span>
+                        <span className="hidden min-w-0 flex-1 truncate text-on-surface-variant sm:block">{e.company}</span>
+                        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                          {e.epsOutlook ? (
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                              style={{ color: epsColor(e.epsOutlook), background: `color-mix(in srgb, ${epsColor(e.epsOutlook)} 14%, var(--surface))` }}
+                            >
+                              {EPS_LABEL[e.epsOutlook] ?? e.epsOutlook}
+                              {e.reaction ? ` · ${MOVE_LABEL[e.reaction] ?? e.reaction}` : ""}
+                            </span>
+                          ) : null}
+                          {typeof e.epsEstimate === "number" ? (
+                            <span className="hidden text-[11px] text-on-surface-variant md:inline">
+                              est <span className="font-semibold text-on-surface">${e.epsEstimate.toFixed(2)}</span>
+                            </span>
+                          ) : null}
+                          <span className="rounded-full bg-surface-container px-2 py-0.5 text-[11px] text-on-surface-variant">
+                            {fmtDate(e.eventDate)} · {TIME_LABEL[e.time] ?? e.time}
+                          </span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              {recentEarnings.length > 0 ? (
+                <div className={earnings.length > 0 ? "mt-10" : undefined}>
+                  <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <p className="text-[14px] font-semibold text-on-surface">Recent reports</p>
+                      <p className="mt-1 text-[13px] text-on-surface-variant">
+                        Post-earnings reads from the last two weeks.
+                      </p>
+                    </div>
+                    <Link
+                      href="/earnings-intel"
+                      className="shrink-0 font-mono text-[11px] font-semibold text-landing-brand hover:underline"
+                    >
+                      all reports →
+                    </Link>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {recentEarnings.map((e) => (
+                      <Link
+                        key={`${e.ticker}-${e.eventDate}`}
+                        href={`/earnings-intel/${encodeURIComponent(e.ticker)}`}
+                        className="group flex min-h-[132px] flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-[var(--shadow-card)] transition-colors hover:border-landing-brand/25 hover:bg-surface-container-low"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <StockLogo ticker={e.ticker} market="US" size={28} className="shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-[14px] font-bold leading-none text-on-surface">{e.ticker}</p>
+                              <p className="mt-1 truncate text-[11px] text-on-surface-variant">{e.company}</p>
+                            </div>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-surface-container px-2 py-0.5 font-mono text-[10px] tabular-nums text-on-surface-variant">
+                            {fmtDate(e.eventDate)}
+                          </span>
+                        </div>
+
+                        {e.epsTag ? (
+                          <span
+                            className="mt-3 inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                            style={{ color: epsColor(e.epsTag), background: `color-mix(in srgb, ${epsColor(e.epsTag)} 14%, var(--surface))` }}
+                          >
+                            {EPS_LABEL[e.epsTag] ?? e.epsTag}
+                          </span>
+                        ) : null}
+
+                        <p className={`line-clamp-2 flex-1 text-[13px] leading-snug text-on-surface ${e.epsTag ? "mt-2" : "mt-3"}`}>
+                          {e.headline}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       )}

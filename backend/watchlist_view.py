@@ -1232,15 +1232,16 @@ def _sector_counts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             for sector, value in sorted(by_sector_value.items(), key=lambda item: item[1], reverse=True)
         ]
 
-    # Fall back to count-weighted across all rows.
-    for row in rows:
+    # Fall back to count-weighted across holdings when present, else all rows.
+    scope_rows = holding_rows if holding_rows else rows
+    for row in scope_rows:
         sector = str(row.get("sector_label") or row.get("market") or "Unknown")
         by_sector_count[sector] = by_sector_count.get(sector, 0) + 1
     return [
         {
             "sector": sector,
             "count": count,
-            "weight_pct": round(count / max(len(rows), 1) * 100, 1),
+            "weight_pct": round(count / max(len(scope_rows), 1) * 100, 1),
             "weight_basis": "count",
         }
         for sector, count in sorted(by_sector_count.items(), key=lambda item: item[1], reverse=True)
@@ -1267,7 +1268,8 @@ def _weighted_average_score(rows: list[dict[str, Any]], key: str) -> float | Non
         for r in holding_rows
     )
     if not all_weighted:
-        return _average_score(rows, key)
+        scope = holding_rows if holding_rows else rows
+        return _average_score(scope, key)
     weighted_sum = 0.0
     total_weight = 0.0
     for r in holding_rows:
@@ -1277,7 +1279,8 @@ def _weighted_average_score(rows: list[dict[str, Any]], key: str) -> float | Non
             weighted_sum += score * w
             total_weight += w
     if total_weight == 0:
-        return _average_score(rows, key)
+        scope = holding_rows if holding_rows else rows
+        return _average_score(scope, key)
     return round(weighted_sum / total_weight, 1)
 
 
@@ -2552,7 +2555,10 @@ def _portfolio_diagnostics(
             "suggestions": [],
         }
 
-    clusters = _sector_counts(rows)
+    holding_rows = [row for row in rows if row.get("position_type") == "holding"]
+    diagnosis_rows = holding_rows if holding_rows else rows
+
+    clusters = _sector_counts(diagnosis_rows)
     dominant = clusters[0] if clusters else None
     risk_flags: list[dict[str, Any]] = []
     if dominant and dominant["weight_pct"] >= 50:
@@ -2560,25 +2566,26 @@ def _portfolio_diagnostics(
             "kind": "sector_concentration",
             "severity": "high" if dominant["weight_pct"] >= 70 else "medium",
             "headline": f"{dominant['weight_pct']:.0f}% clustered in {dominant['sector']}",
-            "body": "A single-sector watchlist can look great until one macro factor hits every name together.",
+            "body": "A single-sector book can look great until one macro factor hits every name together.",
         })
 
     weak_rows = [
-        row for row in rows
+        row for row in diagnosis_rows
         if _safe_float((row.get("scores") or {}).get("overall")) is not None
         and (_safe_float((row.get("scores") or {}).get("overall")) or 0) < 45
     ]
     for row in sorted(weak_rows, key=lambda item: _safe_float((item.get("scores") or {}).get("overall")) or 0)[:3]:
+        weakest_label = "your holdings" if holding_rows else "the list"
         risk_flags.append({
             "kind": "low_score",
             "severity": "medium",
             "ticker": row.get("ticker"),
-            "headline": f"{row.get('ticker')} is the weakest score in the list",
+            "headline": f"{row.get('ticker')} is the weakest score in {weakest_label}",
             "body": f"Overall score {row.get('scores', {}).get('overall')} with pressure in the factor stack.",
         })
 
     overbought = [
-        row for row in rows
+        row for row in diagnosis_rows
         if (_safe_float(((row.get("technicals") or {}).get("rsi_14") or {}).get("value")) or 0) >= 70
     ]
     for row in overbought[:3]:
@@ -2617,18 +2624,27 @@ def _portfolio_diagnostics(
     markets = sorted({str(row.get("market")) for row in rows if row.get("market") in {"US", "IN"}})
     suggestions = _screen_suggestions(store, rows, markets)
     summary_parts = []
-    if dominant:
-        summary_parts.append(f"{dominant['sector']} is the largest cluster at {dominant['weight_pct']:.0f}%.")
-    avg_overall = _average_score(rows, "overall")
-    if avg_overall is not None:
-        summary_parts.append(f"Average stocksbrew score is {avg_overall}.")
-    if risk_flags:
-        summary_parts.append(f"{len(risk_flags)} risk flags need review.")
-    if opportunities:
-        summary_parts.append(
-            f"{len(opportunities)} watch list name{'s' if len(opportunities) != 1 else ''} "
-            "have strong analyst runway for entry."
-        )
+    if holding_rows:
+        if dominant:
+            summary_parts.append(f"{dominant['sector']} is the largest cluster at {dominant['weight_pct']:.0f}%.")
+        avg_overall = _weighted_average_score(diagnosis_rows, "overall")
+        if avg_overall is not None:
+            summary_parts.append(f"Average stocksbrew score is {avg_overall}.")
+        if risk_flags:
+            summary_parts.append(f"{len(risk_flags)} risk flag{'s' if len(risk_flags) != 1 else ''} need review.")
+    else:
+        if dominant:
+            summary_parts.append(f"{dominant['sector']} is the largest cluster at {dominant['weight_pct']:.0f}%.")
+        avg_overall = _average_score(diagnosis_rows, "overall")
+        if avg_overall is not None:
+            summary_parts.append(f"Average stocksbrew score is {avg_overall}.")
+        if risk_flags:
+            summary_parts.append(f"{len(risk_flags)} risk flags need review.")
+        if opportunities:
+            summary_parts.append(
+                f"{len(opportunities)} watch list name{'s' if len(opportunities) != 1 else ''} "
+                "have strong analyst runway for entry."
+            )
 
     position_meta = position_meta or {}
     holdings_with_weight = []
@@ -2701,11 +2717,11 @@ def _portfolio_diagnostics(
         "position_risks": position_risks[:8],
         "clusters": clusters,
         "factor_tilt": {
-            "overall": _weighted_average_score(rows, "overall"),
-            "valuation": _weighted_average_score(rows, "valuation"),
-            "growth": _weighted_average_score(rows, "growth"),
-            "quality": _weighted_average_score(rows, "quality"),
-            "momentum": _weighted_average_score(rows, "momentum"),
+            "overall": _weighted_average_score(diagnosis_rows, "overall"),
+            "valuation": _weighted_average_score(diagnosis_rows, "valuation"),
+            "growth": _weighted_average_score(diagnosis_rows, "growth"),
+            "quality": _weighted_average_score(diagnosis_rows, "quality"),
+            "momentum": _weighted_average_score(diagnosis_rows, "momentum"),
         },
         "risk_flags": risk_flags[:6],
         "opportunities": opportunities[:6],

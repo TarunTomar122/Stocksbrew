@@ -86,7 +86,7 @@ export function RadarWorkspace({
 
   const contentWrapperClass = chatOpen
     ? "flex flex-col gap-12 px-4 py-6 sm:px-6 lg:px-10 lg:py-8"
-    : "mx-auto flex w-full max-w-screen-2xl flex-col gap-12 px-3 py-6 sm:px-6 md:px-20 lg:px-32 lg:py-10";
+    : "mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 py-6 sm:px-6 md:px-8 lg:px-10 lg:py-8";
 
   const showRadarPane = !chatOpen || mobileTab === "radar";
   const showMobileChat = chatOpen && mobileTab === "chat";

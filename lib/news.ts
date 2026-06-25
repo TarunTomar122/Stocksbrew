@@ -170,3 +170,85 @@ export async function getNewsFeed(
 ): Promise<NewsArticle[]> {
   return getNewsFeedCached(market, limit);
 }
+
+const TICKER_NEWS_SCAN_LIMIT = 500;
+const TICKER_NEWS_DEFAULT_LIMIT = 7;
+
+/** Ticker pages need a deep scan — not the 30-row home feed snapshot. */
+async function loadEnrichedArticlesForTicker(market: "US" | "IN", limit: number): Promise<RawEnrichedArticle[]> {
+  const universe = await getAiUniverse(market);
+  const ns = `${market}__${universe}`;
+
+  for (const name of ["enrichments", "articles"] as const) {
+    const collection = adminFirestore.collection("tm_news_runs").doc(ns).collection(name);
+    let snap;
+    try {
+      snap = await collection.orderBy("published_at", "desc").limit(limit).get();
+    } catch (err) {
+      console.warn(`[news] ordered ${name} query failed, falling back to limited scan:`, err);
+      snap = await collection.limit(limit).get();
+    }
+    if (!snap.empty) {
+      return snap.docs.map((doc) => doc.data() as RawEnrichedArticle);
+    }
+  }
+  return [];
+}
+
+function dedupeTickerNews(articles: NewsArticle[]): NewsArticle[] {
+  const seen = new Set<string>();
+  const out: NewsArticle[] = [];
+  for (const article of articles) {
+    const key = article.url.trim().toLowerCase() || article.title.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(article);
+  }
+  return out;
+}
+
+function filterTickerNews(
+  rows: RawEnrichedArticle[],
+  market: "US" | "IN",
+  upper: string,
+  cutoffMs: number,
+  limit: number,
+): NewsArticle[] {
+  const filtered = rows
+    .map((row) => normalizeArticle(row, market))
+    .filter((article): article is NewsArticle => article !== null)
+    .filter((article) => article.tickers.includes(upper))
+    .filter((article) => {
+      const publishedMs = new Date(article.published_at).getTime();
+      return Number.isFinite(publishedMs) && publishedMs >= cutoffMs;
+    })
+    .sort((a, b) => (a.published_at < b.published_at ? 1 : -1));
+
+  return dedupeTickerNews(filtered).slice(0, limit);
+}
+
+async function getNewsForTickerUncached(
+  market: "US" | "IN",
+  ticker: string,
+  days: number = 7,
+  limit: number = TICKER_NEWS_DEFAULT_LIMIT,
+): Promise<NewsArticle[]> {
+  const upper = ticker.toUpperCase();
+  const cutoffMs = Date.now() - days * 86_400_000;
+  const rows = await loadEnrichedArticlesForTicker(market, TICKER_NEWS_SCAN_LIMIT);
+  return filterTickerNews(rows, market, upper, cutoffMs, limit);
+}
+
+const getNewsForTickerCached = unstable_cache(
+  getNewsForTickerUncached,
+  ["news-for-ticker-v2"],
+  { revalidate: 120 },
+);
+
+export async function getNewsForTicker(
+  market: "US" | "IN",
+  ticker: string,
+  options?: { days?: number; limit?: number },
+): Promise<NewsArticle[]> {
+  return getNewsForTickerCached(market, ticker.toUpperCase(), options?.days ?? 7, options?.limit ?? TICKER_NEWS_DEFAULT_LIMIT);
+}

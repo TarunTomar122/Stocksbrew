@@ -27,7 +27,7 @@ from backend.storage import TraceMoneyStore
 load_backend_env()
 
 LLM_API_URL = llm_api_url()
-CONTEXT_CACHE_VERSION = "2026-04-23-context-v15-strict-dates-no-placeholders"
+CONTEXT_CACHE_VERSION = "2026-06-24-context-v16-stock-watch-guardrails"
 
 
 class ContextBriefWriter:
@@ -89,7 +89,7 @@ class ContextBriefWriter:
                             "properties": {
                                 "monitor": {
                                     "type": "string",
-                                    "description": "Qualitative description of what to watch (e.g. 'follow-through in Google Cloud revenue'). NO dates, NO percent values, NO dollar values.",
+                                    "description": "Concrete, falsifiable trigger to watch next. Must name the ticker plus a real event, filing, guide, approval, contract, delivery, or threshold. Avoid soft phrasing like 'follow-through in revenue growth'. NO dates, NO percent values, NO dollar values.",
                                 },
                                 "price_anchor": {
                                     "type": "string",
@@ -259,12 +259,13 @@ class ContextBriefWriter:
                 "- `what_changed` - one sentence. Name the TICKER and the driver. You may include a percent or dollar number ONLY if that exact figure already appears in `stock_today_points`, `stock_week_points`, `sector_context_*`, or `market_context_*`. Never invent a move (no 'GOOGL +3.5%' unless 3.5% is in the payload) and never invent a price.\n"
                 "- `why_it_matters.claim` - one short qualitative sentence linking the event to a broader outcome. Do NOT put ANY dollar or percent values in this string - they are added automatically by the server from `gap_anchor`.\n"
                 "- `why_it_matters.gap_anchor` - if the framing is about how far the stock sits from a payload price, pick `analyst_target`, `week_52_high`, or `week_52_low`. Otherwise pick `none`. The server computes both the percent gap and whether the current price is above or below that anchor - do NOT write the percent or the direction yourself.\n"
-                "- `what_to_watch.monitor` - a purely qualitative description of what to watch (e.g. 'follow-through in Google Cloud revenue', 'next earnings release for guidance'). NO dates, NO percent values, NO dollar values in this string - those slots exist separately.\n"
+                "- `what_to_watch.monitor` - one concrete, falsifiable trigger. Good: 'next earnings release for guidance', 'NHTSA ruling on Autopilot', 'Q3 delivery print', 'DoD contract award'. Bad: 'follow-through in revenue growth', 'execution amid volatility', 'stock price recovery'. NO dates, NO percent values, NO dollar values in this string - those slots exist separately.\n"
                 "- `what_to_watch.price_anchor` - pick `current_price` / `analyst_target` / `week_52_high` / `week_52_low` if it's natural to anchor the trigger to that payload price. Pick `none` otherwise. Do NOT invent prices; the server appends the exact payload number.\n"
                 "- `what_to_watch.future_date_iso` - set an ISO date (YYYY-MM-DD) ONLY if the payload clearly supports a specific future event date AND that date is on or after `today`. Otherwise return null. Never invent a date.\n"
                 "General discipline:\n"
                 "- The payload field `today` is TODAY's date. Never reference any date earlier than `today` anywhere.\n"
                 "- Never output placeholder tokens like 'X%', 'TBD', 'N/A', '$-', '[price]'. If the number is unknown, rewrite without it.\n"
+                "- If you do not have a concrete future trigger, return an empty `what_to_watch.monitor` and let the downstream risk cards carry the downside case. Do not pad with generic business-progress language.\n"
                 "Return strict JSON only."
             )
         if kind == "sector":
@@ -383,6 +384,58 @@ _PRICE_ANCHOR_LABELS = {
     "week_52_low": "the 52-week low",
 }
 
+_LOW_SIGNAL_STOCK_WATCH_PREFIXES = (
+    "follow-through in ",
+    "watch for follow-through in ",
+)
+
+_LOW_SIGNAL_STOCK_WATCH_TERMS = (
+    "stock price recovery",
+    "rsi levels",
+    "execution amid",
+    "execution against",
+    "business momentum",
+)
+
+_CONCRETE_STOCK_WATCH_TERMS = (
+    "earnings",
+    "guidance",
+    "guide",
+    "results",
+    "report",
+    "filing",
+    "approval",
+    "decision",
+    "ruling",
+    "hearing",
+    "contract",
+    "award",
+    "order",
+    "launch",
+    "delivery",
+    "shipments",
+    "conference",
+    "investor day",
+    "buyback",
+    "merger",
+    "acquisition",
+    "trial",
+    "vote",
+)
+
+
+def _is_low_signal_stock_watch_monitor(monitor: str) -> bool:
+    cleaned = " ".join(str(monitor).split()).strip().rstrip(".")
+    if not cleaned:
+        return False
+    lowered = cleaned.lower()
+    has_concrete_trigger = any(term in lowered for term in _CONCRETE_STOCK_WATCH_TERMS)
+    if any(lowered.startswith(prefix) for prefix in _LOW_SIGNAL_STOCK_WATCH_PREFIXES):
+        return not has_concrete_trigger
+    if any(term in lowered for term in _LOW_SIGNAL_STOCK_WATCH_TERMS):
+        return not has_concrete_trigger
+    return False
+
 
 def _format_future_date(iso: str, today_iso: str) -> str | None:
     try:
@@ -438,6 +491,10 @@ def _render_stock_visual_summary(generated: dict[str, Any], payload: dict[str, A
     monitor = str(wtw.get("monitor", "")).strip().rstrip(".")
     wtw_anchor = str(wtw.get("price_anchor", "none")).strip().lower()
     date_iso = wtw.get("future_date_iso")
+    if _is_low_signal_stock_watch_monitor(monitor):
+        monitor = ""
+        wtw_anchor = "none"
+        date_iso = None
 
     parts: list[str] = [monitor] if monitor else []
     if wtw_anchor in _STOCK_PRICE_ANCHORS:

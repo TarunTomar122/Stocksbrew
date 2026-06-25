@@ -3,14 +3,35 @@ import { LandingHeroCommand } from "@/components/landing-hero-command";
 import { LandingScannerReddit } from "@/components/landing-scanner-reddit";
 import { LandingSectorHeat } from "@/components/landing-sector-heat";
 import { LandingTape } from "@/components/landing-tape";
+import { TerminalLandingProSection } from "@/components/terminal-landing-pro-section";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { anomalyTag, buildLandingSectorCards, pickBiggestMover } from "@/lib/landing-sector-data";
+import { directiveZonePrice } from "@/lib/directive-ui";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { getSessionUser } from "@/lib/auth-server";
+import type { DirectiveZone } from "@/lib/stock";
+import { getStockFacts, getStockIntelligenceDoc, getStockPriceHistory } from "@/lib/stock";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+
+function formatLevelLabel(zone: DirectiveZone | undefined, kind: "add" | "trim"): string | null {
+  const price = directiveZonePrice(zone);
+  if (price == null) return null;
+  const money = price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (kind === "add") {
+    return zone?.trigger_type === "price_above" ? `Add above $${money}` : `Add below $${money}`;
+  }
+  return zone?.trigger_type === "price_below" ? `Trim below $${money}` : `Trim above $${money}`;
+}
+
+function shortHeadline(text: string | null | undefined, maxLen = 110): string | null {
+  if (!text?.trim()) return null;
+  const clean = text.trim().replace(/\s+/g, " ");
+  if (clean.length <= maxLen) return clean;
+  return `${clean.slice(0, maxLen - 1).trim()}…`;
+}
 
 export const getLandingUserContext = cache(async () => {
   const session = await getSessionUser().catch(() => null);
@@ -43,12 +64,32 @@ export async function LandingTapeStream() {
 }
 
 export async function LandingHeroCommandStream() {
+  const market = getCurrentMarket();
   const [anomalies, user] = await Promise.all([getLandingAnomalies(), getLandingUserContext()]);
   const featured = pickBiggestMover(anomalies);
   if (!featured) return null;
 
+  const [priceHistory, intelligence, stockFacts] = await Promise.all([
+    getStockPriceHistory(featured.instrument_id).catch(() => []),
+    getStockIntelligenceDoc(featured.instrument_id, market).catch(() => null),
+    getStockFacts(featured.instrument_id).catch(() => null),
+  ]);
+
   const tier = resolveStockTier(featured.instrument_id, user.trackedIds);
   const featuredTracked = user.trackedIds.includes(featured.instrument_id);
+  const directive = intelligence?.directive;
+  const moveHeadline =
+    featured.move_explanation?.headline?.trim() ||
+    featured.headline?.trim() ||
+    featured.catalyst?.trim() ||
+    featured.visual_summary?.what_changed?.trim() ||
+    null;
+  const headline = shortHeadline(moveHeadline || directive?.text);
+  const analystTarget = stockFacts?.analyst?.target_price ?? null;
+  const analystUpside =
+    typeof analystTarget === "number" && Number.isFinite(analystTarget) && featured.price > 0
+      ? ((analystTarget - featured.price) / featured.price) * 100
+      : null;
 
   return (
     <div className="landing-stream-in">
@@ -61,7 +102,14 @@ export async function LandingHeroCommandStream() {
         day_change_pct: featured.day_change_pct,
         overall_score: featured.overall_score,
         overall_label: featured.overall_label,
-        key_points: featured.key_points ?? [],
+        sector: featured.sector,
+        catalyst: featured.catalyst?.trim() || null,
+        headline,
+        add_level: formatLevelLabel(directive?.add_on, "add"),
+        trim_level: formatLevelLabel(directive?.trim_on, "trim"),
+        analyst_target: analystTarget,
+        analyst_upside_pct: analystUpside,
+        price_history: priceHistory.slice(-63),
       }}
       isSubscribed={user.isSubscribed}
       isTracked={featuredTracked}
@@ -124,4 +172,10 @@ export async function LandingSectorHeatStream() {
       />
     </div>
   );
+}
+
+export async function LandingProSectionStream() {
+  const user = await getLandingUserContext();
+  if (user.isSubscribed) return null;
+  return <TerminalLandingProSection />;
 }

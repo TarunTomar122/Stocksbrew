@@ -57,8 +57,11 @@ export type UserDoc = {
   /** Email opt-out flags - treated as true when absent (opt-in by default). */
   email_alerts_enabled?: boolean;
   email_digest_enabled?: boolean;
-  onboarding_completed?: boolean;
-  onboarding_completed_at?: string;
+  heard_about_us?: string;
+  heard_about_us_other?: string;
+  heard_about_us_at?: string;
+  attribution_skipped?: boolean;
+  attribution_skipped_at?: string;
 };
 
 export const getUserDoc = cache(async (uid: string): Promise<UserDoc | null> => {

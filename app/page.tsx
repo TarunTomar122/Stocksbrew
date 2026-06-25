@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { NewsletterModal } from "@/components/newsletter-modal";
 import { TerminalLandingHeroCopy } from "@/components/terminal-landing-hero-copy";
-import { TerminalLandingProSection } from "@/components/terminal-landing-pro-section";
 import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
 import {
   LandingHeroCommandSkeleton,
@@ -12,6 +11,7 @@ import {
 } from "@/components/terminal-landing-skeleton";
 import {
   LandingHeroCommandStream,
+  LandingProSectionStream,
   LandingScannerRedditStream,
   LandingSectorHeatStream,
   LandingTapeStream,
@@ -42,7 +42,9 @@ export default function HomePage() {
           <LandingSectorHeatStream />
         </Suspense>
 
-        <TerminalLandingProSection />
+        <Suspense fallback={null}>
+          <LandingProSectionStream />
+        </Suspense>
         <TerminalLandingTestimonials />
       </div>
 

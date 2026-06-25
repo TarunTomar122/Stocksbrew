@@ -10,9 +10,11 @@ type Props = {
   condition: "below" | "above";
   targetPrice: number;
   directiveText: string;
+  variant?: "default" | "zone" | "link";
+  linkLabel?: string;
 };
 
-export function AlertButton({ ticker, instrumentId, condition, targetPrice, directiveText }: Props) {
+export function AlertButton({ ticker, instrumentId, condition, targetPrice, directiveText, variant = "default", linkLabel = "Create" }: Props) {
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -52,6 +54,14 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
     }
   }
 
+  if (done && variant === "link") {
+    return (
+      <span className="font-mono text-[12px] font-semibold" style={{ color: "var(--signal-bullish)" }}>
+        Set
+      </span>
+    );
+  }
+
   if (done) {
     return (
       <span
@@ -70,6 +80,35 @@ export function AlertButton({ ticker, instrumentId, condition, targetPrice, dire
         </span>
         Alert set
       </span>
+    );
+  }
+
+  if (variant === "zone") {
+    return (
+      <button
+        type="button"
+        onClick={handleCreate}
+        disabled={busy}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        style={{ background: "var(--signal-bullish)" }}
+      >
+        <span aria-hidden>🔔</span>
+        {busy ? "Setting…" : "alert me at the zone"}
+      </button>
+    );
+  }
+
+  if (variant === "link") {
+    return (
+      <button
+        type="button"
+        onClick={handleCreate}
+        disabled={busy}
+        className="shrink-0 font-mono text-[12px] font-semibold disabled:opacity-50"
+        style={{ color: "var(--signal-bullish)" }}
+      >
+        {busy ? "…" : linkLabel}
+      </button>
     );
   }
 

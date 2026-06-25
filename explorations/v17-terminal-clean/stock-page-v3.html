@@ -53,7 +53,15 @@
       </div>
       <div class="text-right"><div class="kick">if it dips to</div><div class="text-2xl font-extrabold text-green mt-1">$195.00</div><button class="mt-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold" style="background:#15803d">🔔 alert me at the zone</button></div>
     </div>
-    <div class="mt-7"><div id="ruler" class="relative" style="height:96px"></div></div>
+    <div class="mt-6">
+      <div class="flex flex-wrap gap-x-4 gap-y-1 mono text-[10.5px] text-t2 mb-1.5">
+        <span><span class="inline-block w-3 h-[2px] align-middle" style="background:#15803d"></span> price</span>
+        <span><span class="inline-block w-3 h-[2px] align-middle border-t border-dashed" style="border-color:#9aa3b2"></span> 50d $209.81</span>
+        <span><span class="inline-block w-3 h-[2px] align-middle border-t border-dotted" style="border-color:#9aa3b2"></span> 200d $190.09</span>
+        <span><span class="inline-block w-2.5 h-2.5 rounded-sm align-middle" style="background:#cdeed8"></span> accumulate zone ≤ $195</span>
+      </div>
+      <div id="heroChart"></div>
+    </div>
     <div class="grid sm:grid-cols-2 gap-3 mt-6">
       <div class="chip p-4"><div class="kick text-green mb-1">why we like it</div><p class="text-[13.5px] text-ink/85 leading-snug">Dominant AI training GPU share and growth far above its sector, with price cooling into support.</p></div>
       <div class="chip p-4"><div class="kick text-red mb-1">what flips this call</div><p class="text-[13.5px] text-ink/85 leading-snug">A close below the <b>200-day ($190)</b>, or AI-inference rivals taking real share.</p></div>
@@ -61,7 +69,7 @@
   </div>
 
   <!-- ===== WHY IT MOVED TODAY (only when the move is notable) ===== -->
-  <div class="card mt-4 p-5 sm:p-6 flex flex-wrap gap-5 items-start" style="border-left:4px solid #dc2626">
+  <div class="card mt-4 p-5 sm:p-6 flex flex-wrap gap-5 items-start">
     <div class="shrink-0">
       <div class="railkick">today's move</div>
       <div class="text-3xl font-extrabold text-red mt-1">▼ 4.1%</div>
@@ -77,15 +85,15 @@
   <!-- ===== TIER 2: BODY — left rail | center | right rail ===== -->
   <div class="grid lg:grid-cols-[238px_1fr_290px] gap-4 items-start mt-8">
 
-    <!-- ============ LEFT RAIL — company snapshot (reference, persistent) ============ -->
+    <!-- ============ LEFT RAIL — reference numbers (persistent) ============ -->
     <div class="space-y-4 lg:sticky lg:top-20">
-      <div class="card p-5">
-        <div class="railkick mb-3">fundamentals · 87/100</div>
-        <div class="grid grid-cols-2 gap-2" id="rings"></div>
-      </div>
       <div class="card p-5">
         <div class="railkick mb-3">the numbers</div>
         <div id="keystats"></div>
+      </div>
+      <div class="card p-5">
+        <div class="railkick mb-3">financials · ttm</div>
+        <div class="grid grid-cols-2 gap-2" id="fin"></div>
       </div>
     </div>
 
@@ -112,11 +120,11 @@
         </div>
       </div>
 
-      <!-- chart -->
+      <!-- FUNDAMENTALS — interactive: click a pillar to read its metrics -->
       <div class="card p-5">
-        <div class="flex justify-between items-baseline mb-1"><span class="tier">price · 1Y</span><span class="mono text-[12px] text-t2">below 50-day, momentum cooling</span></div>
-        <div id="chart"></div>
-        <div class="flex flex-wrap gap-x-4 gap-y-1 mono text-[10.5px] text-t2 mt-1"><span><span class="inline-block w-3 h-[2px] align-middle" style="background:#15803d"></span> price</span><span><span class="inline-block w-3 h-[2px] align-middle border-t border-dashed" style="border-color:#9aa3b2"></span> 50d $209.81</span><span><span class="inline-block w-2.5 h-2.5 rounded-sm align-middle" style="background:#cdeed8"></span> accumulate zone</span></div>
+        <div class="flex justify-between items-baseline mb-4"><span class="tier">fundamentals</span><span class="mono text-[13px] font-bold">87 <span class="text-t3 font-normal">/100 vs peers</span></span></div>
+        <div class="grid grid-cols-4 gap-2" id="rings"></div>
+        <div class="mt-4 pt-4 border-t border-line" id="pillarDetail"></div>
       </div>
 
       <!-- EARNINGS (new) -->
@@ -142,11 +150,6 @@
         <div class="overflow-x-auto"><table class="w-full text-[13px]" id="peers"></table></div>
       </div>
 
-      <!-- FINANCIALS -->
-      <div class="card p-5">
-        <div class="tier mb-3" style="color:#9aa3b2">financials · ttm</div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="fin"></div>
-      </div>
     </div>
 
     <!-- ============ RIGHT RAIL — market view ============ -->
@@ -175,30 +178,53 @@
 </div>
 
 <script>
-// DECISION RULER
-(function(){const lo=145.5,hi=300,P=v=>((v-lo)/(hi-lo))*100;const el=document.getElementById('ruler');el.innerHTML=`
-  <div class="absolute left-0 right-0" style="top:46px;height:8px;border-radius:99px;background:#eef0f0"></div>
-  <div class="absolute" style="left:0;width:${P(195)}%;top:46px;height:8px;border-radius:99px 0 0 99px;background:#cdeed8"></div>
-  <div class="absolute" style="left:${P(200.04)}%;width:${P(298.93)-P(200.04)}%;top:46px;height:8px;background:linear-gradient(90deg,#15803d,#bfe6cd)"></div>
-  <div class="absolute" style="left:${P(190.09)}%;top:40px;height:20px;width:2px;background:#9aa3b2"></div><div class="absolute mono text-[10px] text-t3" style="left:${P(190.09)}%;top:70px;transform:translateX(-50%)">200d $190</div>
-  <div class="absolute" style="left:${P(209.81)}%;top:42px;height:16px;width:2px;background:#cfd6dd"></div><div class="absolute mono text-[10px] text-t2" style="left:${P(209.81)}%;top:70px;transform:translateX(-50%)">50d</div>
-  <div class="absolute" style="left:${P(236.54)}%;top:42px;height:16px;width:2px;background:#cfd6dd"></div><div class="absolute mono text-[10px] text-t2" style="left:${P(236.54)}%;top:70px;transform:translateX(-50%);white-space:nowrap">52w high</div>
-  <div class="absolute mono text-[10px] text-green font-semibold" style="left:0;top:18px">◂ accumulate ≤ $195</div>
-  <div class="absolute" style="left:${P(200.04)}%;top:26px;transform:translateX(-50%)"><div class="px-2 py-0.5 rounded-md text-white text-[11px] font-bold mono whitespace-nowrap" style="background:#0e1217">NOW $200</div><div class="w-[2px] h-5 bg-ink mx-auto"></div></div>
-  <div class="absolute text-right mono text-[10px] text-green font-semibold" style="right:0;top:18px">target $299 ▸</div>
-  <div class="absolute" style="left:${P(298.93)}%;top:42px;height:16px;width:2px;background:#15803d"></div>`;})();
+// color helper: good / bad / neutral
+const COL={good:'#16a34a',bad:'#dc2626',neutral:'#0e1217',warn:'#b45309'};
 
-// CHART
+// HERO CHART — price with shaded accumulate region + MA bands
 const series=[148,150,147,152,149,156,162,160,168,175,172,180,188,196,205,218,236,228,232,224,219,226,221,215,222,217,210,205,212,208,203,199,206,201,209,214,210,205,200,196,202,198,205,201,200.04];
-(function(){const w=520,h=150,pad=6,min=140,max=240,Y=v=>h-pad-((v-min)/(max-min))*(h-2*pad),X=i=>pad+(i/(series.length-1))*(w-2*pad);const line=series.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');document.getElementById('chart').innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="w-full" style="height:150px"><rect x="${pad}" y="${Y(195)}" width="${w-2*pad}" height="${h-pad-Y(195)}" fill="#cdeed8" opacity=".45"/><line x1="${pad}" y1="${Y(209.81)}" x2="${w-pad}" y2="${Y(209.81)}" stroke="#9aa3b2" stroke-width="1" stroke-dasharray="5 4"/><polyline points="${line}" fill="none" stroke="#15803d" stroke-width="2"/></svg>`;})();
+(function(){
+  const w=680,h=210,padL=6,padR=44,padY=10,min=140,max=245,Y=v=>h-padY-((v-min)/(max-min))*(h-2*padY),X=i=>padL+(i/(series.length-1))*(w-padL-padR);
+  const line=series.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const area=`${X(0)},${h-padY} ${line} ${X(series.length-1)},${h-padY}`;
+  const lab=(v,t,c)=>`<line x1="${padL}" y1="${Y(v)}" x2="${w-padR}" y2="${Y(v)}" stroke="${c}" stroke-width="1" stroke-dasharray="${t}"/><text x="${w-padR+4}" y="${Y(v)+3}" font-size="9.5" font-family="JetBrains Mono" fill="#9aa3b2">$${v}</text>`;
+  document.getElementById('heroChart').innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="w-full" style="height:210px">
+    <rect x="${padL}" y="${Y(195)}" width="${w-padL-padR}" height="${h-padY-Y(195)}" fill="#cdeed8" opacity=".5"/>
+    <text x="${padL+4}" y="${Y(195)+13}" font-size="9.5" font-family="JetBrains Mono" fill="#15803d">ACCUMULATE ZONE ≤ $195</text>
+    ${lab(209.81,'5 4','#9aa3b2')}
+    ${lab(190.09,'2 3','#c2c9d0')}
+    <polygon points="${area}" fill="#15803d" opacity=".06"/>
+    <polyline points="${line}" fill="none" stroke="#15803d" stroke-width="2.2"/>
+    <circle cx="${X(series.length-1)}" cy="${Y(200.04)}" r="4" fill="#15803d"/><circle cx="${X(series.length-1)}" cy="${Y(200.04)}" r="7" fill="#15803d" opacity=".2"/>
+  </svg>`;
+})();
 
-// RINGS
-const rings=[['Growth',100,'#16a34a'],['Quality',93,'#16a34a'],['Valuation',95,'#16a34a'],['Momentum',58,'#dc2626']];
-document.getElementById('rings').innerHTML=rings.map(([l,s,c])=>{const r=20,circ=2*Math.PI*r,off=circ*(1-s/100);return `<div class="text-center"><div class="relative grid place-items-center mx-auto" style="width:54px;height:54px"><svg width="54" height="54" class="-rotate-90"><circle cx="27" cy="27" r="${r}" fill="none" stroke="#eef0f0" stroke-width="5"/><circle cx="27" cy="27" r="${r}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg><span class="absolute text-[13px] font-extrabold">${s}</span></div><div class="text-[10.5px] text-t2 mt-1">${l}</div></div>`;}).join('');
+// FUNDAMENTALS — interactive pillars + per-metric breakdown (color-coded)
+const pillars={
+  Growth:{score:100,color:'#16a34a',blurb:'Elite — growth far ahead of the sector.',metrics:[['Revenue growth (TTM)','+70.7%','good','sector +22.6%'],['EPS growth (TTM)','+109.6%','good','sector +32.0%'],['EPS next year','+39.9%','good','strong pace'],['EPS growth (Q/Q)','+213.4%','good','']]},
+  Momentum:{score:58,color:'#b45309',blurb:'Cooling — pulled back below its 50-day.',metrics:[['RSI (14)','42','neutral','healthy, not oversold'],['1-month return','-4.5%','bad',''],['3-month return','+18.0%','good',''],['vs 50-day MA','below','bad','$209.81']]},
+  Valuation:{score:95,color:'#16a34a',blurb:'Reasonable given the growth profile.',metrics:[['P/E (TTM)','30.6','good','reasonable for growth'],['PEG','0.43','good','<1 = cheap vs growth'],['Implied upside','+49.4%','good','to analyst target'],['Price vs target','$200 / $299','good','']]},
+  Quality:{score:93,color:'#16a34a',blurb:'High-quality, highly profitable franchise.',metrics:[['Gross margin','75.0%','good','sector ~48%'],['Net margin','55.8%','good',''],['Institutional own.','70.3%','neutral','of float'],['Balance sheet','strong','good','net cash']]},
+};
+function renderRings(active){
+  document.getElementById('rings').innerHTML=Object.entries(pillars).map(([l,p])=>{const r=20,circ=2*Math.PI*r,off=circ*(1-p.score/100),on=l===active;return `
+    <button onclick="setPillar('${l}')" class="text-center rounded-xl py-2 transition ${on?'':'opacity-70'}" style="${on?'background:#f3fbf6;box-shadow:inset 0 0 0 1px #cdeed8':''}">
+      <div class="relative grid place-items-center mx-auto" style="width:54px;height:54px"><svg width="54" height="54" class="-rotate-90"><circle cx="27" cy="27" r="${r}" fill="none" stroke="#eef0f0" stroke-width="5"/><circle cx="27" cy="27" r="${r}" fill="none" stroke="${p.color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg><span class="absolute text-[13px] font-extrabold">${p.score}</span></div>
+      <div class="text-[10.5px] mt-1 ${on?'text-ink font-semibold':'text-t2'}">${l}</div>
+    </button>`;}).join('');
+}
+function setPillar(l){
+  renderRings(l);const p=pillars[l];
+  document.getElementById('pillarDetail').innerHTML=`
+    <p class="text-[13px] text-t2 mb-3">${p.blurb}</p>
+    <div class="space-y-2">${p.metrics.map(([m,v,tag,note])=>`
+      <div class="flex items-center justify-between"><span class="text-[13px] text-t2">${m}${note?` <span class="text-[11px] text-t3">· ${note}</span>`:''}</span><span class="mono text-[13px] font-bold" style="color:${COL[tag]}">${v}</span></div>`).join('')}</div>`;
+}
+setPillar('Growth');
 
-// KEY STATS
-const ks=[['P/E (TTM)','30.6'],['Revenue growth','+70.7%'],['EPS next Y','+39.9%'],['RSI (14)','42'],['Beta','2.20'],['Market cap','$4.85T'],['Revenue','$253.49B']];
-document.getElementById('keystats').innerHTML=ks.map(([l,v])=>`<div class="flex justify-between py-2 border-b border-line last:border-0"><span class="text-[12.5px] text-t2">${l}</span><span class="mono text-[12.5px] font-bold">${v}</span></div>`).join('');
+// KEY STATS (color-coded good/bad/neutral)
+const ks=[['P/E (TTM)','30.6','neutral'],['Revenue growth','+70.7%','good'],['EPS next Y','+39.9%','good'],['RSI (14)','42','neutral'],['Beta','2.20','warn'],['Market cap','$4.85T','neutral'],['Revenue','$253.49B','neutral']];
+document.getElementById('keystats').innerHTML=ks.map(([l,v,tag])=>`<div class="flex justify-between py-2 border-b border-line last:border-0"><span class="text-[12.5px] text-t2">${l}</span><span class="mono text-[12.5px] font-bold" style="color:${COL[tag]}">${v}</span></div>`).join('');
 
 // PEERS
 const peers=[

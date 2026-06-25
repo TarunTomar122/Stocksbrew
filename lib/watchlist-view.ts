@@ -62,6 +62,7 @@ export type WatchlistRow = {
   };
   ai_directive?: {
     text?: string;
+    action_now?: string;
     stance?: "accumulate" | "trim" | "watch" | "avoid" | "hold";
     trigger_type?:
       | "price_below"
@@ -71,6 +72,9 @@ export type WatchlistRow = {
       | "new_catalyst"
       | "none";
     trigger_value?: string;
+    add_on?: DirectiveZone;
+    trim_on?: DirectiveZone;
+    breaks_if?: DirectiveZone;
     rationale?: string;
     confidence?: "low" | "med" | "high";
   };
@@ -97,6 +101,12 @@ export type WatchlistRow = {
     source?: string;
     updated_at?: string;
   };
+};
+
+type DirectiveZone = {
+  text?: string;
+  trigger_type?: "price_below" | "price_above" | "date" | "sentiment_flip" | "new_catalyst" | "none";
+  trigger_value?: string;
 };
 
 export type WatchlistBrief = {
@@ -200,6 +210,12 @@ export type WatchlistView = {
   attention_items?: Record<string, unknown>[];
   suggestions?: Record<string, unknown>[];
   blind_spot_suggestions?: Record<string, unknown>[];
+  momentum_lift_suggestions?: Record<string, unknown>[];
+  pillar_lift_suggestions?: {
+    weakest_pillar: PortfolioPillarKey;
+    weakest_score: number;
+    items: Record<string, unknown>[];
+  };
   risk_summary?: Record<string, unknown>;
   event_radar?: Record<string, unknown>[];
   today_setup?: WatchlistTodaySetup;
@@ -844,6 +860,19 @@ function rowFromDocs(
   const directiveStance = String(rawDirective.stance || "").toLowerCase();
   const directiveTrigger = String(rawDirective.trigger_type || "").toLowerCase();
   const directiveConfidence = String(rawDirective.confidence || "").toLowerCase();
+  const zone = (key: "add_on" | "trim_on" | "breaks_if"): DirectiveZone | undefined => {
+    const raw = rawDirective[key];
+    if (!raw || typeof raw !== "object") return undefined;
+    const row = raw as Record<string, unknown>;
+    const triggerType = String(row.trigger_type || "none").toLowerCase();
+    return {
+      text: typeof row.text === "string" ? row.text : undefined,
+      trigger_type: ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"].includes(triggerType)
+        ? triggerType as DirectiveZone["trigger_type"]
+        : "none",
+      trigger_value: typeof row.trigger_value === "string" ? row.trigger_value : undefined,
+    };
+  };
 
   return {
     instrument_id: instrumentId,
@@ -892,6 +921,7 @@ function rowFromDocs(
     ai_directive: Object.keys(rawDirective).length > 0
       ? {
           text: directiveText || undefined,
+          action_now: typeof rawDirective.action_now === "string" ? rawDirective.action_now : undefined,
           stance: (
             ["accumulate", "trim", "watch", "avoid", "hold"].includes(directiveStance)
               ? directiveStance
@@ -903,6 +933,9 @@ function rowFromDocs(
               : undefined
           ) as "price_below" | "price_above" | "date" | "sentiment_flip" | "new_catalyst" | "none" | undefined,
           trigger_value: typeof rawDirective.trigger_value === "string" ? rawDirective.trigger_value : undefined,
+          add_on: zone("add_on"),
+          trim_on: zone("trim_on"),
+          breaks_if: zone("breaks_if"),
           rationale: directiveRationale || undefined,
           confidence: (
             ["low", "med", "high"].includes(directiveConfidence)
@@ -1021,9 +1054,10 @@ function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
       }));
   }
 
-  // Fallback: equal-weight count across all rows.
+  // Fallback: equal-weight count across holdings when present, else all rows.
+  const scopeRows = holdingRows.length > 0 ? holdingRows : rows;
   const counts = new Map<string, number>();
-  for (const row of rows) {
+  for (const row of scopeRows) {
     const sector = row.sector_label || row.market || "Unknown";
     counts.set(sector, (counts.get(sector) ?? 0) + 1);
   }
@@ -1032,8 +1066,116 @@ function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
     .map(([sector, count]) => ({
       sector,
       count,
-      weight_pct: Math.round((count / Math.max(rows.length, 1)) * 1000) / 10,
+      weight_pct: Math.round((count / Math.max(scopeRows.length, 1)) * 1000) / 10,
     }));
+}
+
+export type HoldingsDiagnosis = {
+  summary: string;
+  clusters: Array<Record<string, unknown>>;
+  factor_tilt: {
+    overall: number | null;
+    valuation: number | null;
+    growth: number | null;
+    quality: number | null;
+    momentum: number | null;
+  };
+  risk_flags: Array<Record<string, unknown>>;
+};
+
+/** Portfolio diagnosis scoped to entered holdings (not watchlist names). */
+export function buildHoldingsDiagnosis(holdings: WatchlistRow[]): HoldingsDiagnosis {
+  const emptyTilt = {
+    overall: null,
+    valuation: null,
+    growth: null,
+    quality: null,
+    momentum: null,
+  };
+  if (!holdings.length) {
+    return {
+      summary: "Add holdings to see portfolio diagnosis.",
+      clusters: [],
+      factor_tilt: emptyTilt,
+      risk_flags: [],
+    };
+  }
+
+  const positionWeights = new Map<string, number>();
+  const allWeighted = holdings.every(
+    (r) =>
+      typeof r.holding?.portfolio_weight_pct === "number" &&
+      (r.holding.portfolio_weight_pct as number) > 0,
+  );
+  if (allWeighted) {
+    for (const row of holdings) {
+      positionWeights.set(row.instrument_id, row.holding!.portfolio_weight_pct as number);
+    }
+  }
+  const weights = positionWeights.size > 0 ? positionWeights : undefined;
+
+  const clusters = sectorClusters(holdings);
+  const dominant = clusters[0];
+
+  const riskFlags: Array<Record<string, unknown>> = [];
+  if (dominant && Number(dominant.weight_pct) >= 50) {
+    riskFlags.push({
+      kind: "sector_concentration",
+      severity: Number(dominant.weight_pct) >= 70 ? "high" : "medium",
+      headline: `${Math.round(Number(dominant.weight_pct))}% clustered in ${dominant.sector}`,
+      body: "A single-sector book can look great until one macro factor hits every name together.",
+    });
+  }
+  for (const row of holdings
+    .filter((item) => typeof item.scores.overall === "number" && item.scores.overall < 45)
+    .sort((a, b) => (a.scores.overall ?? 0) - (b.scores.overall ?? 0))
+    .slice(0, 3)) {
+    riskFlags.push({
+      kind: "low_score",
+      severity: "medium",
+      ticker: row.ticker,
+      headline: `${row.ticker} is the weakest score in your holdings`,
+      body: `Overall score ${row.scores.overall} with pressure in the factor stack.`,
+    });
+  }
+  for (const row of holdings
+    .filter((item) => toNumber(((item.technicals?.rsi_14 as Record<string, unknown>) || {}).value) !== null)
+    .filter((item) => (toNumber(((item.technicals?.rsi_14 as Record<string, unknown>) || {}).value) ?? 0) >= 70)
+    .slice(0, 3)) {
+    const rsi = toNumber(((row.technicals?.rsi_14 as Record<string, unknown>) || {}).value);
+    riskFlags.push({
+      kind: "overbought",
+      severity: "medium",
+      ticker: row.ticker,
+      headline: `${row.ticker} is technically stretched`,
+      body: `RSI is ${rsi?.toFixed(1)}; this is a watch-for-pullback setup.`,
+    });
+  }
+
+  const summaryParts: string[] = [];
+  if (dominant) {
+    summaryParts.push(
+      `${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`,
+    );
+  }
+  const avgOverall = averageScore(holdings, "overall", weights);
+  if (avgOverall !== null) summaryParts.push(`Average stocksbrew score is ${avgOverall}.`);
+  if (riskFlags.length) {
+    summaryParts.push(`${riskFlags.length} risk flag${riskFlags.length === 1 ? "" : "s"} need review.`);
+  }
+
+  return {
+    summary: summaryParts.join(" ") || "Holdings diagnosis is ready.",
+    clusters,
+    factor_tilt: {
+      overall: averageScore(holdings, "overall", weights),
+      valuation: averageScore(holdings, "valuation", weights),
+      growth: averageScore(holdings, "growth", weights),
+      quality: averageScore(holdings, "quality", weights),
+      momentum: averageScore(holdings, "momentum", weights),
+    },
+    risk_flags: riskFlags.slice(0, 6),
+  };
 }
 
 function averageScore(
@@ -1081,7 +1223,14 @@ async function gatherSuggestionCandidates(
   const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))];
   // Fall back to US when the user has no rows yet — otherwise suggestions never appear.
   const effectiveMarkets = markets.length > 0 ? markets : ["US"];
-  const preferred = ["quality_compounders", "cheap_growth", "oversold_quality", "smart_money", "tikrr_top"];
+  const preferred = [
+    "quality_compounders",
+    "cheap_growth",
+    "oversold_quality",
+    "momentum_leaders",
+    "smart_money",
+    "tikrr_top",
+  ];
   const avgGrowth = averageScore(rows, "growth");
   const avgQuality = averageScore(rows, "quality");
   const avgValuation = averageScore(rows, "valuation");
@@ -1179,6 +1328,23 @@ async function gatherSuggestionCandidates(
       heat_score: existing.heat_score ?? next.heat_score,
       heat_reason: existing.heat_reason || next.heat_reason,
       heat_driver: existing.heat_driver || next.heat_driver,
+      momentum_score:
+        Math.max(toNumber(existing.momentum_score) ?? -1, toNumber(next.momentum_score) ?? -1) >= 0
+          ? Math.max(toNumber(existing.momentum_score) ?? -1, toNumber(next.momentum_score) ?? -1)
+          : undefined,
+      overall_score: existing.overall_score ?? next.overall_score,
+      growth_score:
+        Math.max(toNumber(existing.growth_score) ?? -1, toNumber(next.growth_score) ?? -1) >= 0
+          ? Math.max(toNumber(existing.growth_score) ?? -1, toNumber(next.growth_score) ?? -1)
+          : undefined,
+      quality_score:
+        Math.max(toNumber(existing.quality_score) ?? -1, toNumber(next.quality_score) ?? -1) >= 0
+          ? Math.max(toNumber(existing.quality_score) ?? -1, toNumber(next.quality_score) ?? -1)
+          : undefined,
+      valuation_score:
+        Math.max(toNumber(existing.valuation_score) ?? -1, toNumber(next.valuation_score) ?? -1) >= 0
+          ? Math.max(toNumber(existing.valuation_score) ?? -1, toNumber(next.valuation_score) ?? -1)
+          : undefined,
       personalization_reasons: [
         ...(((existing.personalization_reasons as string[]) || [])),
         ...(((next.personalization_reasons as string[]) || [])),
@@ -1201,10 +1367,11 @@ async function gatherSuggestionCandidates(
         const sector = String(item.sector || "");
         let weaknessFit = 0;
         const reasons: string[] = [];
-        const growthScore = toNumber(item.growth_score);
-        const qualityScore = toNumber(item.quality_score);
-        const valuationScore = toNumber(item.valuation_score);
-        const momentumScore = toNumber(item.momentum_score);
+        const pillars = readCandidatePillarScores(item);
+        const growthScore = pillars.growth;
+        const qualityScore = pillars.quality;
+        const valuationScore = pillars.valuation;
+        const momentumScore = pillars.momentum;
         if (avgGrowth !== null && avgGrowth < 62 && growthScore !== null) {
           const fit = Math.max(0, growthScore - avgGrowth);
           weaknessFit += Math.min(12, fit * 0.35);
@@ -1257,6 +1424,11 @@ async function gatherSuggestionCandidates(
           sector,
           sources: ["screen"],
           personalization_score: Math.round(personalizationScore * 10) / 10,
+          momentum_score: momentumScore,
+          overall_score: overallScore,
+          growth_score: growthScore,
+          quality_score: qualityScore,
+          valuation_score: valuationScore,
           reddit_mentions: redditMentions,
           reddit_summary: redditSummary ? redditSummary.slice(0, 140) : "",
           anomaly_move_pct: anomalyMove,
@@ -1293,6 +1465,8 @@ async function gatherSuggestionCandidates(
         sector: String(item.sector || ""),
         sources: ["heat"],
         personalization_score: Math.round(personalizationScore * 10) / 10,
+        momentum_score: toNumber(item.momentum_score),
+        overall_score: toNumber(item.overall_score),
         heat_score: heatScore,
         heat_reason: String(item.reason_sentence || "").slice(0, 200),
         heat_driver: String(item.primary_driver || ""),
@@ -1530,6 +1704,236 @@ export function blindSpotSuggestions(
   return out;
 }
 
+function projectedPillarLift(
+  holdingsCount: number,
+  current: number,
+  candidate: number,
+): number {
+  const n = Math.max(1, holdingsCount);
+  const next = (current * n + candidate) / (n + 1);
+  return Math.round((next - current) * 10) / 10;
+}
+
+export type PortfolioPillarKey = "valuation" | "growth" | "quality" | "momentum";
+
+const PILLAR_LABEL: Record<PortfolioPillarKey, string> = {
+  valuation: "Valuation",
+  growth: "Growth",
+  quality: "Quality",
+  momentum: "Momentum",
+};
+
+function readCandidatePillarScores(item: Record<string, unknown>): Record<PortfolioPillarKey, number | null> {
+  const nested =
+    item.pillar_scores && typeof item.pillar_scores === "object"
+      ? (item.pillar_scores as Record<string, unknown>)
+      : {};
+  return {
+    valuation: toNumber(item.valuation_score) ?? toNumber(nested.valuation),
+    growth: toNumber(item.growth_score) ?? toNumber(nested.growth),
+    quality: toNumber(item.quality_score) ?? toNumber(nested.quality),
+    momentum: toNumber(item.momentum_score) ?? toNumber(nested.momentum),
+  };
+}
+
+export function weakestPillarFromTilt(tilt: {
+  valuation: number | null;
+  growth: number | null;
+  quality: number | null;
+  momentum: number | null;
+}): { key: PortfolioPillarKey; score: number; label: string } | null {
+  const entries: Array<[PortfolioPillarKey, number]> = [];
+  for (const key of ["valuation", "growth", "quality", "momentum"] as const) {
+    const score = tilt[key];
+    if (typeof score === "number" && Number.isFinite(score)) entries.push([key, score]);
+  }
+  if (!entries.length) return null;
+  entries.sort((a, b) => a[1] - b[1]);
+  const [key, score] = entries[0];
+  return { key, score, label: PILLAR_LABEL[key] };
+}
+
+function candidatePillarScore(
+  candidate: Record<string, unknown>,
+  pillar: PortfolioPillarKey,
+): number | null {
+  const direct = toNumber(candidate[`${pillar}_score`]);
+  if (direct !== null) return direct;
+  const overall = toNumber(candidate.overall_score) ?? toNumber(candidate.score);
+  return overall;
+}
+
+function buildPillarLiftHook(
+  candidate: Record<string, unknown>,
+  pillar: PortfolioPillarKey,
+  portfolioScore: number,
+): string {
+  const boilerplate = /vs your holdings at|equal-weight add could lift/i;
+  const existing = String(candidate.why || "").trim();
+  if (existing && !boilerplate.test(existing)) return existing;
+
+  const heatReason = String(candidate.heat_reason || candidate.heat_driver || "").trim();
+  if (heatReason) return heatReason;
+
+  const anomaly = String(candidate.anomaly_headline || "").trim();
+  if (anomaly) return anomaly;
+
+  const reddit = String(candidate.reddit_summary || "").trim();
+  if (reddit) return reddit;
+
+  const reasons = Array.isArray(candidate.personalization_reasons)
+    ? candidate.personalization_reasons.map((v) => String(v)).filter(Boolean)
+    : [];
+  if (reasons.length) return reasons.slice(0, 2).join(" · ");
+
+  const screenHook = String(candidate.why || "").trim();
+  if (screenHook && !boilerplate.test(screenHook)) return screenHook;
+
+  const source = String(candidate.reason || "").trim();
+  const pillarScore = candidatePillarScore(candidate, pillar);
+  const gap = pillarScore !== null ? Math.round(pillarScore - portfolioScore) : null;
+  const sector = String(candidate.sector || "").trim();
+
+  if (source && gap !== null && gap > 0) {
+    return `${source} · +${gap} ${pillar}`;
+  }
+  if (sector && gap !== null && gap > 0) {
+    return `${sector} · +${gap} on ${PILLAR_LABEL[pillar].toLowerCase()}`;
+  }
+  if (gap !== null && gap > 0) {
+    return `+${gap} on ${PILLAR_LABEL[pillar].toLowerCase()} vs your book`;
+  }
+  return source || "";
+}
+
+/** Names that score above the book on the weakest pillar. */
+export function pillarLiftSuggestions(
+  bookRows: Array<{ instrument_id?: string }>,
+  allRows: Array<{ instrument_id?: string }>,
+  candidates: Array<Record<string, unknown>>,
+  weakest: { key: PortfolioPillarKey; score: number },
+  portfolioOverall: number | null,
+  limit = 4,
+): Array<Record<string, unknown>> {
+  if (!bookRows.length) return [];
+
+  const tracked = new Set(
+    allRows.map((row) => String(row.instrument_id || "")).filter(Boolean),
+  );
+  const pillar = weakest.key;
+  const portfolioScore = weakest.score;
+  const scoreField = `${pillar}_score`;
+
+  const rankCandidates = (minGap: number) =>
+    candidates
+      .filter((candidate) => {
+        const id = String(candidate.instrument_id || "");
+        if (!id || tracked.has(id)) return false;
+        const pillarScore = candidatePillarScore(candidate, pillar);
+        return pillarScore !== null && pillarScore > portfolioScore + minGap;
+      })
+      .map((candidate) => {
+        const pillarScore = candidatePillarScore(candidate, pillar) ?? 0;
+        const overall = toNumber(candidate.overall_score) ?? toNumber(candidate.score) ?? 0;
+        const pillarGap = pillarScore - portfolioScore;
+        const overallGap =
+          portfolioOverall !== null && overall > 0 ? Math.max(0, overall - portfolioOverall) : 0;
+        const liftScore = pillarGap * 1.35 + overallGap * 0.45 + overall * 0.12;
+        return {
+          ...candidate,
+          [scoreField]: pillarScore,
+          reason: `${PILLAR_LABEL[pillar]} lift`,
+          why: buildPillarLiftHook(candidate, pillar, portfolioScore),
+          pillar_lift_pts: projectedPillarLift(bookRows.length, portfolioScore, pillarScore),
+          lift_score: liftScore,
+          lift_pillar: pillar,
+        };
+      })
+      .sort((a, b) => (toNumber(b.lift_score) ?? 0) - (toNumber(a.lift_score) ?? 0));
+
+  let ranked = rankCandidates(2);
+  if (ranked.length === 0) ranked = rankCandidates(0);
+
+  const out: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  for (const candidate of ranked) {
+    const row = candidate as Record<string, unknown>;
+    const id = String(row.instrument_id || "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(row);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+export type PillarLiftPayload = {
+  weakest_pillar: PortfolioPillarKey;
+  weakest_score: number;
+  weakest_label: string;
+  portfolio_overall: number | null;
+  items: Array<Record<string, unknown>>;
+};
+
+export async function getPillarLiftSuggestions(
+  bookRows: WatchlistRow[],
+  allRows: WatchlistRow[],
+  limit = 4,
+): Promise<PillarLiftPayload | null> {
+  if (!bookRows.length) return null;
+  const diagnosis = buildHoldingsDiagnosis(bookRows);
+  const weakest = weakestPillarFromTilt(diagnosis.factor_tilt);
+  if (!weakest) return null;
+
+  const { candidates } = await gatherSuggestionCandidates(allRows);
+  const items = pillarLiftSuggestions(
+    bookRows,
+    allRows,
+    candidates,
+    weakest,
+    diagnosis.factor_tilt.overall,
+    limit,
+  );
+
+  return {
+    weakest_pillar: weakest.key,
+    weakest_score: weakest.score,
+    weakest_label: weakest.label,
+    portfolio_overall: diagnosis.factor_tilt.overall,
+    items,
+  };
+}
+
+/** @deprecated Use getPillarLiftSuggestions */
+export async function getMomentumLiftSuggestions(
+  holdings: WatchlistRow[],
+  allRows: WatchlistRow[],
+  limit = 4,
+): Promise<Array<Record<string, unknown>>> {
+  const payload = await getPillarLiftSuggestions(holdings, allRows, limit);
+  return payload?.items ?? [];
+}
+
+/** @deprecated Use pillarLiftSuggestions */
+export function momentumLiftSuggestions(
+  holdings: Array<{ instrument_id?: string }>,
+  allRows: Array<{ instrument_id?: string }>,
+  candidates: Array<Record<string, unknown>>,
+  portfolioMomentum: number | null,
+  portfolioOverall: number | null,
+  limit = 4,
+): Array<Record<string, unknown>> {
+  if (portfolioMomentum === null) return [];
+  return pillarLiftSuggestions(
+    holdings,
+    allRows,
+    candidates,
+    { key: "momentum", score: portfolioMomentum },
+    portfolioOverall,
+    limit,
+  );
+}
+
 // LLM-rewrite the `why` line for each top candidate in a single batched call.
 // Returns a map keyed by instrument_id. Empty map on any failure (caller keeps
 // the rule-based `why`).
@@ -1648,45 +2052,13 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
     }
   }
 
-  // ── Step 2: Sector clusters + scores (now read the stamped weights) ─────────
-  const clusters = sectorClusters(rows);
+  // ── Step 2: Sector clusters + scores (holdings only when any exist) ─────────
+  const diagnosisRows = holdingRows.length > 0 ? holdingRows : rows;
+  const holdingsDiagnosis = buildHoldingsDiagnosis(holdingRows);
+  const clusters = holdingsDiagnosis.clusters;
   const dominant = clusters[0];
   const weights = positionWeights.size > 0 ? positionWeights : undefined;
-
-  const riskFlags: Array<Record<string, unknown>> = [];
-  if (dominant && Number(dominant.weight_pct) >= 50) {
-    riskFlags.push({
-      kind: "sector_concentration",
-      severity: Number(dominant.weight_pct) >= 70 ? "high" : "medium",
-      headline: `${Math.round(Number(dominant.weight_pct))}% clustered in ${dominant.sector}`,
-      body: "A single-sector Radar can look great until one macro factor hits every name together.",
-    });
-  }
-  for (const row of rows
-    .filter((item) => typeof item.scores.overall === "number" && item.scores.overall < 45)
-    .sort((a, b) => (a.scores.overall ?? 0) - (b.scores.overall ?? 0))
-    .slice(0, 3)) {
-    riskFlags.push({
-      kind: "low_score",
-      severity: "medium",
-      ticker: row.ticker,
-      headline: `${row.ticker} is the weakest score in the list`,
-      body: `Overall score ${row.scores.overall} with pressure in the factor stack.`,
-    });
-  }
-  for (const row of rows
-    .filter((item) => toNumber(((item.technicals?.rsi_14 as Record<string, unknown>) || {}).value) !== null)
-    .filter((item) => (toNumber(((item.technicals?.rsi_14 as Record<string, unknown>) || {}).value) ?? 0) >= 70)
-    .slice(0, 3)) {
-    const rsi = toNumber(((row.technicals?.rsi_14 as Record<string, unknown>) || {}).value);
-    riskFlags.push({
-      kind: "overbought",
-      severity: "medium",
-      ticker: row.ticker,
-      headline: `${row.ticker} is technically stretched`,
-      body: `RSI is ${rsi?.toFixed(1)}; this is a watch-for-pullback setup.`,
-    });
-  }
+  const riskFlags = [...holdingsDiagnosis.risk_flags];
   const opportunities = rows
     .filter((row) => row.position_type !== "holding")
     .filter((row) => typeof row.target_upside_pct === "number" && (row.target_upside_pct ?? 0) >= 15)
@@ -1700,15 +2072,25 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
       body: `On your watch list · score ${row.scores.overall}; consider adding at good entry points while runway holds.`,
     }));
 
-  const summaryParts: string[] = [];
-  if (dominant) summaryParts.push(`${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`);
-  const avgOverall = averageScore(rows, "overall", weights);
-  if (avgOverall !== null) summaryParts.push(`Average stocksbrew score is ${avgOverall}.`);
-  if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
-  if (opportunities.length) {
-    summaryParts.push(
-      `${opportunities.length} watch list name${opportunities.length === 1 ? "" : "s"} have strong analyst runway for entry.`,
-    );
+  let summary: string;
+  if (holdingRows.length > 0) {
+    summary = holdingsDiagnosis.summary;
+  } else {
+    const summaryParts: string[] = [];
+    if (dominant) {
+      summaryParts.push(
+        `${dominant.sector} is the largest cluster at ${Math.round(Number(dominant.weight_pct))}%.`,
+      );
+    }
+    const avgOverall = averageScore(diagnosisRows, "overall", weights);
+    if (avgOverall !== null) summaryParts.push(`Average stocksbrew score is ${avgOverall}.`);
+    if (riskFlags.length) summaryParts.push(`${riskFlags.length} risk flags need review.`);
+    if (opportunities.length) {
+      summaryParts.push(
+        `${opportunities.length} watch list name${opportunities.length === 1 ? "" : "s"} have strong analyst runway for entry.`,
+      );
+    }
+    summary = summaryParts.join(" ") || "Radar diagnosis is ready.";
   }
 
   // ── Step 3: Concentration + position-level risk flags ──────────────────────
@@ -1738,15 +2120,17 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
   }
 
   return {
-    summary: summaryParts.join(" ") || "Radar diagnosis is ready.",
+    summary,
     clusters,
-    factor_tilt: {
-      overall: averageScore(rows, "overall", weights),
-      valuation: averageScore(rows, "valuation", weights),
-      growth: averageScore(rows, "growth", weights),
-      quality: averageScore(rows, "quality", weights),
-      momentum: averageScore(rows, "momentum", weights),
-    },
+    factor_tilt: holdingRows.length > 0
+      ? holdingsDiagnosis.factor_tilt
+      : {
+          overall: averageScore(diagnosisRows, "overall", weights),
+          valuation: averageScore(diagnosisRows, "valuation", weights),
+          growth: averageScore(diagnosisRows, "growth", weights),
+          quality: averageScore(diagnosisRows, "quality", weights),
+          momentum: averageScore(diagnosisRows, "momentum", weights),
+        },
     risk_flags: riskFlags.slice(0, 6),
     opportunities: opportunities.slice(0, 6),
     suggestions: await screenSuggestions(rows),
@@ -2157,6 +2541,24 @@ export async function buildWatchlistView(
   const { candidates: suggestionCandidates, ctx: suggestionCtx } = await gatherSuggestionCandidates(rows);
   const suggestions = await finalizeSuggestions(suggestionCandidates, suggestionCtx);
   const blindSpotFill = blindSpotSuggestions(rows, suggestionCandidates);
+  const holdingRows = rows.filter((row) => row.position_type === "holding");
+  const bookForPillarLift = holdingRows.length > 0 ? holdingRows : rows;
+  const bookDiagnosis = buildHoldingsDiagnosis(bookForPillarLift);
+  const weakest = weakestPillarFromTilt(bookDiagnosis.factor_tilt);
+  const pillarLiftFill = weakest
+    ? {
+        weakest_pillar: weakest.key,
+        weakest_score: weakest.score,
+        items: pillarLiftSuggestions(
+          bookForPillarLift,
+          rows,
+          suggestionCandidates,
+          weakest,
+          bookDiagnosis.factor_tilt.overall,
+        ),
+      }
+    : undefined;
+  const momentumLiftFill = pillarLiftFill?.items ?? [];
   const holdingsCount = rows.filter((row) => row.position_type === "holding").length;
   const watchlistCount = rows.length - holdingsCount;
 
@@ -2173,6 +2575,8 @@ export async function buildWatchlistView(
     attention_items: attentionItems(rows),
     suggestions,
     blind_spot_suggestions: blindSpotFill,
+    momentum_lift_suggestions: momentumLiftFill,
+    pillar_lift_suggestions: pillarLiftFill,
     risk_summary: riskSummary(rows, portfolio),
     event_radar: eventRadar(rows, portfolio),
     changes: changeSummary(rows, previous),

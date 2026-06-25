@@ -15,7 +15,7 @@ import {
 } from "@/lib/product-analytics";
 import { ProBenefitsGrid } from "@/components/pro-benefits-grid";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
-import { SUBSCRIBE_BENEFITS } from "@/lib/subscribe-benefits";
+import { SUBSCRIBE_BENEFITS, buildSubscribeContextLines } from "@/lib/subscribe-benefits";
 
 const DEV_FAKE_SUBSCRIBE = process.env.NODE_ENV === "development";
 
@@ -50,9 +50,7 @@ const PLANS_IN = [
   },
 ];
 
-async function devActivateSubscription(
-  period: "monthly" | "yearly",
-): Promise<string> {
+async function devActivateSubscription(period: "monthly" | "yearly"): Promise<string> {
   const auth = getFirebaseAuth();
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error("Not signed in");
@@ -109,11 +107,12 @@ export function SubscribePricing({
   isSubscribed,
   justSubscribed = false,
   market = "US",
+  trackedCount = 0,
 }: {
   isSubscribed: boolean;
-  /** True when returning from checkout or dev activation. */
   justSubscribed?: boolean;
   market?: "US" | "IN";
+  trackedCount?: number;
 }) {
   const { user } = useUser();
   const plans = market === "IN" ? PLANS_IN : PLANS_US;
@@ -121,34 +120,6 @@ export function SubscribePricing({
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">(defaultPlan.id);
   const [loadingPlan, setLoadingPlan] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  if (isSubscribed) {
-    if (justSubscribed) {
-      return (
-        <div className="w-full max-w-[760px] rounded-[24px] border border-[#e5e7eb] bg-white p-6 md:p-10 shadow-[0_12px_40px_rgba(17,24,39,0.06)]">
-          <ProWelcomePanel variant="page" />
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex w-full max-w-[640px] flex-col gap-6 py-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#ecfdf5]">
-            <span
-              className="material-symbols-outlined text-[#10b981]"
-              style={{ fontSize: 24, fontVariationSettings: "'wght' 600" }}
-            >
-              check_circle
-            </span>
-          </span>
-          <p className="text-[16px] font-semibold text-[#111111]">You&apos;re on Pro</p>
-          <p className="text-[14px] text-[#6b7280]">Everything below is included with your plan.</p>
-        </div>
-        <ProBenefitsGrid benefits={SUBSCRIBE_BENEFITS.filter((b) => b.title !== "Cancel anytime")} />
-      </div>
-    );
-  }
 
   async function handleSubscribe(period: "monthly" | "yearly" = selectedPlan) {
     setError(null);
@@ -215,25 +186,57 @@ export function SubscribePricing({
     }
   }
 
+  if (isSubscribed) {
+    if (justSubscribed) {
+      return (
+        <div
+          className="mx-auto w-full max-w-[560px] rounded-2xl border border-outline-variant bg-surface p-6 md:p-10"
+          style={{ boxShadow: "var(--shadow-card)" }}
+        >
+          <ProWelcomePanel variant="page" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6 py-4">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full tint-bull">
+            <span
+              className="material-symbols-outlined text-[var(--signal-bullish)]"
+              style={{ fontSize: 24, fontVariationSettings: "'wght' 600" }}
+            >
+              check_circle
+            </span>
+          </span>
+          <p className="text-[16px] font-semibold text-on-surface">You&apos;re on Pro</p>
+          <p className="text-[14px] text-on-surface-variant">Everything below is included with your plan.</p>
+        </div>
+        <ProBenefitsGrid benefits={SUBSCRIBE_BENEFITS.filter((b) => b.title !== "Cancel anytime")} />
+      </div>
+    );
+  }
+
   const activePlan = plans.find((plan) => plan.id === selectedPlan) ?? plans[0];
   const isLoading = loadingPlan !== null;
+  const contextLines = buildSubscribeContextLines(trackedCount);
 
   return (
-    <div className="flex w-full max-w-[760px] flex-col gap-8">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-2.5 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-[#92400e]">
+    <div className="mx-auto flex w-full max-w-[520px] flex-col items-center gap-8">
+      <header className="flex flex-col items-center gap-2 text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant tint-warn px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#b45309]">
           <span aria-hidden>★</span> stocksbrew Pro
         </span>
-        <h1 className="max-w-[640px] text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-[#111111] md:text-[46px]">
-          Know what to do with your stocks.
+        <h1 className="font-mono text-[28px] font-extrabold leading-tight tracking-tight text-on-surface md:text-[32px]">
+          Choose your plan
         </h1>
-        <p className="max-w-lg text-[15px] leading-relaxed text-[#6b7280]">
-          Clear calls, move explanations, Reddit/news reads, and portfolio diagnosis.
-        </p>
-      </div>
+      </header>
 
-      <section className="flex flex-col gap-5 rounded-[28px] border border-[#e5e7eb] bg-white p-5 shadow-[0_18px_60px_rgba(17,24,39,0.06)] md:p-7">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <section
+        className="flex w-full flex-col gap-5 rounded-2xl border border-outline-variant bg-surface p-5 md:p-6"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {plans.map((plan) => {
             const selected = selectedPlan === plan.id;
             return (
@@ -241,39 +244,39 @@ export function SubscribePricing({
                 key={plan.id}
                 type="button"
                 onClick={() => setSelectedPlan(plan.id)}
-                className={`flex min-h-[132px] flex-col justify-between rounded-3xl border p-5 text-left transition-colors ${
+                className={`flex min-h-[132px] flex-col justify-between rounded-xl border p-4 text-left transition-colors ${
                   selected
-                    ? "border-[#111111] bg-white shadow-[0_14px_36px_rgba(17,24,39,0.08)]"
-                    : "border-[#e5e7eb] bg-[#fafafa] hover:border-[#d1d5db]"
+                    ? "border-on-surface bg-surface-container-low shadow-[0_10px_28px_rgba(17,24,39,0.06)]"
+                    : "border-outline-variant bg-surface-container-low/40 hover:border-outline-variant/80"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-[17px] font-semibold text-[#111111]">{plan.label}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[13px] font-bold uppercase tracking-[0.04em] text-on-surface">
+                    {plan.label}
+                  </span>
                   {"badge" in plan && plan.badge ? (
-                    <span className="rounded-full bg-[#111111] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-white">
+                    <span className="rounded-full bg-on-surface px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.06em] text-surface">
                       {plan.badge}
                     </span>
                   ) : null}
                   {plan.save ? (
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#10b981]">
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--signal-bullish)]">
                       {plan.save}
                     </span>
                   ) : null}
                 </div>
-                <div className="flex items-end justify-between gap-3">
-                  <span className="text-[13px] text-[#9ca3af]">
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <div className="font-mono text-[11px] text-on-surface-variant">
                     {plan.period}
                     {"trial" in plan && plan.trial ? (
-                      <span className="block pt-1 font-semibold text-[#10b981]">{plan.trial}</span>
+                      <span className="mt-1 block font-semibold text-[var(--signal-bullish)]">{plan.trial}</span>
                     ) : null}
-                  </span>
+                  </div>
                   <span className="flex items-baseline gap-2">
                     {"strike" in plan && plan.strike ? (
-                      <span className="text-[13px] font-medium text-[#9ca3af] line-through">
-                        {plan.strike}
-                      </span>
+                      <span className="font-mono text-[12px] text-on-surface-variant line-through">{plan.strike}</span>
                     ) : null}
-                    <span className="text-[38px] font-semibold leading-none tracking-[-0.04em] text-[#111111]">
+                    <span className="font-mono text-[32px] font-extrabold leading-none tracking-tight text-on-surface">
                       {plan.price}
                     </span>
                   </span>
@@ -281,6 +284,28 @@ export function SubscribePricing({
               </button>
             );
           })}
+        </div>
+
+        <div
+          className="rounded-xl border p-4"
+          style={{
+            borderColor: "color-mix(in srgb, var(--signal-bullish) 20%, var(--outline-variant))",
+            background: "color-mix(in srgb, var(--signal-bullish) 5%, var(--surface-container-low))",
+          }}
+        >
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+            {trackedCount > 0 ? "What Pro unlocks for your account" : "What you get with Pro"}
+          </p>
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {contextLines.map((line) => (
+              <li key={line.text} className="flex items-start gap-2.5 text-[13px] leading-snug text-on-surface">
+                <span className="mt-px shrink-0 text-[15px] leading-none" aria-hidden>
+                  {line.emoji}
+                </span>
+                {line.text}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -306,17 +331,15 @@ export function SubscribePricing({
                   ? "Sign in and activate Pro"
                   : "Sign in and subscribe"}
           </ProCtaButton>
-          <p className="text-center text-[12px] font-medium text-[#9ca3af]">
+          <p className="text-center font-mono text-[11px] text-on-surface-variant">
             {selectedPlan === "yearly" && market === "US"
-              ? "Yearly includes 3 days free. Cancel anytime."
-              : "Monthly starts today. Cancel anytime."}
+              ? "Yearly includes 3 days free · cancel anytime"
+              : "Monthly starts today · cancel anytime"}
           </p>
         </div>
-      </section>
 
-      {error ? (
-        <p className="text-center text-[13px] font-medium text-[#ef4444]">{error}</p>
-      ) : null}
+        {error ? <p className="text-center text-[13px] font-medium text-[#ef4444]">{error}</p> : null}
+      </section>
     </div>
   );
 }

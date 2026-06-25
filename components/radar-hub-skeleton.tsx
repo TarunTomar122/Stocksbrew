@@ -2,77 +2,34 @@ function Bone({ className = "" }: { className?: string }) {
   return <div className={`landing-bone rounded-md ${className}`} aria-hidden />;
 }
 
-function CallRowSkeleton() {
-  return (
-    <div className="border-t px-5 py-4 first:border-t-0" style={{ borderColor: "var(--outline-variant)" }}>
-      <div className="flex items-center gap-3">
-        <Bone className="h-6 w-6 rounded-full" />
-        <Bone className="h-3.5 w-12" />
-        <Bone className="h-3 w-24" />
-        <div className="ml-auto flex flex-col items-end gap-1.5">
-          <Bone className="h-5 w-20" />
-          <Bone className="h-3 w-14" />
-        </div>
-      </div>
-      <Bone className="mt-2.5 h-3.5 w-40" />
-    </div>
-  );
-}
-
 export function RadarHubContentSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-5 pb-10">
-      <Bone className="mt-3 h-4 w-full max-w-xl" />
-      <Bone className="mt-1 h-4 w-64 max-w-full" />
-
-      <div className="mt-7 mb-2 flex gap-2">
-        <Bone className="h-7 w-28 rounded-md" />
-        <Bone className="h-7 w-28 rounded-md" />
+    <div className="w-full pb-12">
+      <Bone className="h-3 w-40" />
+      <Bone className="mt-3 h-9 w-28" />
+      <Bone className="mt-2 h-3 w-72" />
+      <Bone className="mt-6 h-10 w-full" />
+      <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Bone className="h-44 w-full rounded-xl" />
+        <Bone className="h-44 w-full rounded-xl" />
       </div>
-
-      <div className="panel overflow-hidden">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <CallRowSkeleton key={i} />
-        ))}
-      </div>
-
-      <div className="mt-8">
-        <Bone className="mb-2 h-3 w-44" />
-        <div className="panel overflow-hidden">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 border-t px-5 py-3 first:border-t-0"
-              style={{ borderColor: "var(--outline-variant)" }}
-            >
-              <Bone className="h-[22px] w-[22px] rounded-full" />
-              <Bone className="h-3 w-12" />
-              <Bone className="h-3 flex-1" />
-              <Bone className="h-5 w-14 rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-8 grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="panel space-y-3 p-5">
-            <Bone className="h-3 w-24" />
-            <Bone className="h-20 w-full rounded-md" />
-          </div>
-        ))}
-      </div>
+      <Bone className="mt-10 h-3 w-24" />
+      <Bone className="mt-4 h-64 w-full rounded-xl" />
+      <Bone className="mt-10 h-3 w-24" />
+      <Bone className="mt-4 h-48 w-full rounded-xl" />
     </div>
   );
 }
 
 export function RadarHubStaticHeader() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-5 pt-10">
-      <div className="font-mono text-[12px] text-accent-terminal">
-        // your radar
+    <div className="w-full pt-6 sm:pt-8">
+      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
+        stocksbrew · radar
       </div>
-      <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">The market, on your stocks.</h1>
+      <h1 className="mt-1 font-mono text-[28px] font-extrabold tracking-tight text-on-surface md:text-[34px]">
+        Radar
+      </h1>
     </div>
   );
 }
@@ -80,8 +37,10 @@ export function RadarHubStaticHeader() {
 export function RadarPageSkeleton() {
   return (
     <main className="flex flex-grow flex-col bg-background">
-      <RadarHubStaticHeader />
-      <RadarHubContentSkeleton />
+      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-10">
+        <RadarHubStaticHeader />
+        <RadarHubContentSkeleton />
+      </div>
     </main>
   );
 }

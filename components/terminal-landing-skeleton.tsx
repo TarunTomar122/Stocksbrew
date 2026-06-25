@@ -39,7 +39,7 @@ export function LandingHeroCommandSkeleton() {
             </div>
             <Bone className="h-9 w-24 shrink-0 rounded-lg" />
           </div>
-          <Bone className="h-14 w-full rounded-md" />
+          <Bone className="h-[136px] w-full rounded-md" />
         </div>
         <div className="space-y-2">
           <Bone className="h-3 w-full" />

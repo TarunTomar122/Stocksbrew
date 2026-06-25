@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ProCtaLink } from "@/components/pro-cta";
@@ -28,6 +27,8 @@ type Props = {
   subscriptionPlan?: string | null;
   cancelAtPeriodEnd?: boolean | null;
   subscriptionId?: string | null;
+  /** When true, omit outer section chrome (used inside profile cards). */
+  embedded?: boolean;
 };
 
 function planLabel(plan: string | null | undefined): string | null {
@@ -37,6 +38,49 @@ function planLabel(plan: string | null | undefined): string | null {
   return plan;
 }
 
+const PRO_FEATURES = [
+  "Unlimited stocks on Radar",
+  "Add · hold · trim on every name",
+  "Smart alerts & morning digest",
+  "Pre-earnings setups before the print",
+  "Portfolio crowding & gap read",
+  "Reddit buzz + news on your book",
+] as const;
+
+function PlanFeatureList({ subscribed }: { subscribed: boolean }) {
+  return (
+    <div
+      className="rounded-xl border p-3.5 sm:p-4"
+      style={{
+        borderColor: subscribed
+          ? "color-mix(in srgb, var(--signal-bullish) 22%, var(--outline-variant))"
+          : "var(--outline-variant)",
+        background: subscribed
+          ? "color-mix(in srgb, var(--signal-bullish) 5%, var(--surface-container-low))"
+          : "var(--surface-container-low)",
+      }}
+    >
+      <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+        {subscribed ? "Included in your plan" : "Unlock with Pro"}
+      </p>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2 sm:gap-x-4">
+        {PRO_FEATURES.map((feature) => (
+          <li key={feature} className="flex items-start gap-2 text-[12px] leading-snug text-on-surface sm:text-[13px]">
+            <span
+              className="material-symbols-outlined mt-px shrink-0 text-[15px] text-landing-brand"
+              style={{ fontVariationSettings: "'wght' 500" }}
+              aria-hidden
+            >
+              check_circle
+            </span>
+            {feature}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function ProfileSubscription({
   isSubscribed,
   hasBillableSubscription = true,
@@ -44,6 +88,7 @@ export function ProfileSubscription({
   subscriptionPlan,
   cancelAtPeriodEnd,
   subscriptionId,
+  embedded = false,
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -114,33 +159,28 @@ export function ProfileSubscription({
   const plan = planLabel(subscriptionPlan ?? undefined);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-outline-variant/20 pt-4">
+    <div className={`flex flex-col gap-3 ${embedded ? "" : "border-t border-outline-variant/20 pt-4"}`}>
       <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
-          Plan
-        </span>
         <div className="flex flex-wrap items-baseline gap-2">
           <span
-            className={`text-[15px] font-semibold ${isSubscribed ? "text-primary" : "text-on-surface"}`}
+            className={`text-[22px] font-extrabold tracking-tight ${isSubscribed ? "text-landing-brand" : "text-on-surface"}`}
           >
             {isSubscribed ? "Pro" : "Free"}
           </span>
-          {isSubscribed && plan && (
-            <span className="text-[12px] text-on-surface-variant">· {plan}</span>
-          )}
+          {isSubscribed && plan ? (
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+              {plan}
+            </span>
+          ) : null}
         </div>
-        <p className="text-[12px] text-on-surface-variant leading-snug">{statusLine}</p>
+        <p className="text-[13px] leading-relaxed text-on-surface-variant">{statusLine}</p>
       </div>
+
+      <PlanFeatureList subscribed={isSubscribed} />
 
       {error && (
         <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">
           {error}
-        </p>
-      )}
-
-      {!isSubscribed && (
-        <p className="text-[13px] text-[#6b7280] leading-relaxed">
-          Get a daily call on every stock you track, plus alerts and a read on your portfolio risk.
         </p>
       )}
 
@@ -162,7 +202,7 @@ export function ProfileSubscription({
               setCopiedCode(false);
               setShowCancelFlow(true);
             }}
-            className="inline-flex items-center justify-center rounded-md border border-outline-variant px-4 py-2 text-[13px] font-semibold text-on-surface hover:bg-surface-container-low disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-full border border-outline-variant px-4 py-2 text-[13px] font-semibold text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50"
           >
             {loading ? "Working…" : "Cancel subscription"}
           </button>
@@ -184,20 +224,20 @@ export function ProfileSubscription({
 
       {showCancelFlow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 py-8">
-          <div className="w-full max-w-[520px] rounded-[28px] border border-[#e5e7eb] bg-white p-5 shadow-[0_24px_80px_rgba(17,24,39,0.18)] md:p-6">
+          <div className="w-full max-w-[520px] rounded-3xl border border-outline-variant bg-surface p-5 shadow-[var(--shadow-modal)] md:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
                   {cancelStep === "feedback" ? "Before you cancel" : "One last thing"}
                 </p>
-                <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.02em] text-[#111111]">
+                <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
                   {cancelStep === "feedback" ? "What made Pro not worth it?" : "Want a free month first?"}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCancelFlow(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container-low"
                 aria-label="Close cancellation flow"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
@@ -221,8 +261,8 @@ export function ProfileSubscription({
                         }}
                         className={`rounded-2xl border px-3.5 py-3 text-left text-[13px] font-semibold transition-colors ${
                           selected
-                            ? "border-[#111111] bg-[#111111] text-white"
-                            : "border-[#e5e7eb] bg-[#fafafa] text-[#374151] hover:border-[#d1d5db]"
+                            ? "border-on-surface bg-on-surface text-surface"
+                            : "border-outline-variant bg-surface-container-low text-on-surface hover:border-outline"
                         }`}
                       >
                         {reason.label}
@@ -232,33 +272,39 @@ export function ProfileSubscription({
                 </div>
 
                 <label className="mt-4 flex flex-col gap-2">
-                  <span className="text-[12px] font-semibold text-[#374151]">Anything we should fix?</span>
+                  <span className="text-[12px] font-semibold text-on-surface">Anything we should fix?</span>
                   <textarea
                     value={cancelFeedback}
                     onChange={(event) => setCancelFeedback(event.target.value)}
                     rows={3}
                     maxLength={1000}
                     placeholder="Optional feedback"
-                    className="resize-none rounded-2xl border border-[#e5e7eb] bg-white px-3.5 py-3 text-[13px] text-[#111111] outline-none focus:border-[#111111]"
+                    className="resize-none rounded-2xl border border-outline-variant bg-surface-container-low px-3.5 py-3 text-[13px] text-on-surface outline-none focus:border-on-surface/40"
                   />
                 </label>
               </>
             ) : (
-              <div className="mt-5 rounded-3xl border border-[#bbf7d0] bg-[#f0fdf4] p-5">
-                <p className="text-[15px] font-semibold text-[#166534]">
+              <div
+                className="mt-5 rounded-3xl border p-5"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--signal-bullish) 28%, var(--outline-variant))",
+                  background: "color-mix(in srgb, var(--signal-bullish) 8%, var(--surface))",
+                }}
+              >
+                <p className="text-[15px] font-semibold text-landing-brand">
                   Use this code for one free month before you decide.
                 </p>
-                <p className="mt-1 text-[13px] leading-relaxed text-[#3f7f54]">
+                <p className="mt-1 text-[13px] leading-relaxed text-on-surface-variant">
                   You can keep Pro now and apply the code, or continue cancellation.
                 </p>
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <code className="flex-1 rounded-xl bg-white px-3 py-3 text-center text-[13px] font-bold tracking-[0.12em] text-[#111111]">
+                  <code className="flex-1 rounded-xl border border-outline-variant bg-surface px-3 py-3 text-center text-[13px] font-bold tracking-[0.12em] text-on-surface">
                     {RETENTION_CODE}
                   </code>
                   <button
                     type="button"
                     onClick={() => void copyRetentionCode()}
-                    className="rounded-xl bg-[#111111] px-4 py-2 text-[12px] font-semibold text-white"
+                    className="rounded-xl bg-on-surface px-4 py-2 text-[12px] font-semibold text-surface"
                   >
                     {copiedCode ? "Copied" : "Copy code"}
                   </button>
@@ -277,7 +323,7 @@ export function ProfileSubscription({
                 type="button"
                 onClick={() => setShowCancelFlow(false)}
                 disabled={loading}
-                className="inline-flex h-11 items-center justify-center rounded-full border border-[#111111] px-5 text-[13px] font-semibold text-[#111111] disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-outline-variant px-5 text-[13px] font-semibold text-on-surface disabled:opacity-50"
               >
                 Keep Pro
               </button>
@@ -293,7 +339,7 @@ export function ProfileSubscription({
                     setCancelStep("offer");
                   }}
                   disabled={!cancelReason}
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-on-surface px-5 text-[13px] font-semibold text-surface disabled:opacity-50"
                 >
                   Continue
                 </button>
@@ -302,7 +348,7 @@ export function ProfileSubscription({
                   type="button"
                   onClick={() => void handleCancel()}
                   disabled={loading || !cancelReason}
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-on-surface px-5 text-[13px] font-semibold text-surface disabled:opacity-50"
                 >
                   {loading ? "Cancelling…" : "Continue cancellation"}
                 </button>

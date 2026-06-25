@@ -1,4 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
+import { batchGetRefs, getLatestPrices } from "@/lib/firestore";
 import { getAiUniverse, getPriceUniverse } from "@/lib/firestore";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
@@ -164,6 +165,7 @@ export type RiskCard = {
 
 export type Directive = {
   text: string;
+  action_now?: string;
   stance: "accumulate" | "trim" | "watch" | "avoid" | "hold";
   trigger_type:
     | "price_below"
@@ -173,8 +175,23 @@ export type Directive = {
     | "new_catalyst"
     | "none";
   trigger_value?: string;
+  add_on?: DirectiveZone;
+  trim_on?: DirectiveZone;
+  breaks_if?: DirectiveZone;
   rationale?: string;
   confidence?: "low" | "med" | "high";
+};
+
+export type DirectiveZone = {
+  text?: string;
+  trigger_type?:
+    | "price_below"
+    | "price_above"
+    | "date"
+    | "sentiment_flip"
+    | "new_catalyst"
+    | "none";
+  trigger_value?: string;
 };
 
 export type VisualCards = {
@@ -517,6 +534,148 @@ export async function getStockIntelPro(
 }
 
 export type SectorPeerPick = { instrument_id: string; ticker: string; score: number; verdict: string };
+
+export type SectorPeerRow = SectorPeerPick & {
+  name: string;
+  day_change_pct?: number;
+  price?: number;
+  market_cap?: number;
+  pe_ttm?: number;
+  revenue_growth_yoy_pct?: number;
+};
+
+function peerFundamentalsFromDocs(
+  instrumentId: string,
+  factsById: Map<string, StockFacts>,
+  pricesById: Map<string, LatestPrice>,
+): Pick<SectorPeerRow, "market_cap" | "pe_ttm" | "revenue_growth_yoy_pct"> {
+  const facts = factsById.get(instrumentId);
+  const price = pricesById.get(instrumentId);
+  return {
+    market_cap: facts?.quick_stats?.market_cap ?? price?.fundamentals?.market_cap ?? undefined,
+    pe_ttm: facts?.quick_stats?.pe_ttm ?? price?.fundamentals?.pe_ttm ?? undefined,
+    revenue_growth_yoy_pct: facts?.financials?.revenue_growth_yoy_pct ?? undefined,
+  };
+}
+
+async function enrichSectorPeerRows(
+  peers: StockIntelPro[],
+  market: "US" | "IN",
+): Promise<SectorPeerRow[]> {
+  if (peers.length === 0) return [];
+  const peerIds = peers.map((p) => p.instrument_id);
+  const [prices, factsById, instrumentsById] = await Promise.all([
+    getLatestPrices(peerIds),
+    batchGetRefs<StockFacts>(peerIds.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
+    batchGetRefs<Instrument>(peerIds.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
+  ]);
+  return peers.map((s) => {
+    const quote = prices.get(s.instrument_id)?.quote;
+    const instrument = instrumentsById.get(s.instrument_id);
+    return {
+      instrument_id: s.instrument_id,
+      ticker: s.ticker,
+      name: instrument?.name || s.industry_label || s.overall.verdict,
+      score: s.overall.score,
+      verdict: s.overall.verdict,
+      price: typeof quote?.current === "number" ? quote.current : undefined,
+      day_change_pct: typeof quote?.day_change_pct === "number" ? quote.day_change_pct : undefined,
+      ...peerFundamentalsFromDocs(s.instrument_id, factsById, prices),
+    };
+  });
+}
+
+/** Fill comparison metrics for curated related tickers when indexed sector peers are unavailable. */
+export async function enrichRelatedTickersForComparison(
+  instrumentId: string,
+  market: "US" | "IN",
+  related: RelatedTicker[],
+  limit = 4,
+): Promise<SectorPeerRow[]> {
+  const candidates = related.filter((r) => r.instrument_id !== instrumentId).slice(0, limit);
+  if (candidates.length === 0) return [];
+
+  const ids = candidates.map((r) => r.instrument_id);
+  const [aiUniverse, priceUniverse] = await Promise.all([getAiUniverse(market), getPriceUniverse(market)]);
+  const universe = priceUniverse || aiUniverse;
+
+  const [prices, factsById, instrumentsById, intelById] = await Promise.all([
+    getLatestPrices(ids),
+    batchGetRefs<StockFacts>(ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
+    batchGetRefs<Instrument>(ids.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
+    universe
+      ? batchGetRefs<StockIntelPro>(
+          ids.map((id) =>
+            adminFirestore
+              .collection("tm_stock_intel_pro")
+              .doc(`${market}__${universe}`)
+              .collection("stocks")
+              .doc(id),
+          ),
+        )
+      : Promise.resolve(new Map<string, StockIntelPro>()),
+  ]);
+
+  return candidates.map((row) => {
+    const intel = intelById.get(row.instrument_id);
+    const instrument = instrumentsById.get(row.instrument_id);
+    const quote = prices.get(row.instrument_id)?.quote;
+    const metrics = peerFundamentalsFromDocs(row.instrument_id, factsById, prices);
+    return {
+      instrument_id: row.instrument_id,
+      ticker: row.ticker,
+      name: instrument?.name || row.name,
+      score: intel?.overall?.score ?? 0,
+      verdict: intel?.overall?.verdict ?? "",
+      price: typeof quote?.current === "number" ? quote.current : undefined,
+      day_change_pct: typeof quote?.day_change_pct === "number" ? quote.day_change_pct : undefined,
+      ...metrics,
+    };
+  });
+}
+
+/** Top names in the same sector by composite score (excludes the current ticker). */
+export async function getSectorPeerRows(
+  instrumentId: string,
+  market: "US" | "IN",
+  sectorSlug: string,
+  limit = 6,
+): Promise<SectorPeerRow[]> {
+  if (!sectorSlug) return [];
+  const [aiUniverse, priceUniverse] = await Promise.all([getAiUniverse(market), getPriceUniverse(market)]);
+  const universe = priceUniverse || aiUniverse;
+  if (!universe) return [];
+  let peers: StockIntelPro[] = [];
+  try {
+    const snap = await adminFirestore
+      .collection("tm_stock_intel_pro")
+      .doc(`${market}__${universe}`)
+      .collection("stocks")
+      .where("sector_slug", "==", sectorSlug)
+      .orderBy("overall.score", "desc")
+      .limit(limit + 4)
+      .get();
+    peers = snap.docs
+      .map((d) => d.data() as StockIntelPro)
+      .filter((s) => s.instrument_id !== instrumentId && s.overall?.score != null)
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+  if (peers.length === 0) return [];
+
+  try {
+    return await enrichSectorPeerRows(peers, market);
+  } catch {
+    return peers.map((s) => ({
+      instrument_id: s.instrument_id,
+      ticker: s.ticker,
+      name: s.industry_label || s.overall.verdict,
+      score: s.overall.score,
+      verdict: s.overall.verdict,
+    }));
+  }
+}
 
 /** Same-sector stocks that score higher on the fundamentals composite. */
 export async function getBetterSectorPeers(

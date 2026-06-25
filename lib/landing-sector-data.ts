@@ -1,5 +1,6 @@
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { SnapshotRow } from "@/lib/types";
+import { anomalyHeadline } from "@/components/daily-anomalies-shared";
 
 const n = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -33,7 +34,8 @@ export function sectorPctMove(changePct: number) {
 }
 
 export function anomalyTag(a: AnomalyItem): string {
-  return (a.catalyst || a.move_explanation?.headline || a.visual_summary?.what_changed || "").trim();
+  const tag = (a.catalyst || a.move_explanation?.headline || a.visual_summary?.what_changed || "").trim();
+  return tag || anomalyHeadline(a);
 }
 
 /** Biggest move today by |day_change_pct| — gainer or loser. */

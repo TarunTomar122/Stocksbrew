@@ -241,7 +241,8 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             </nav>
           </div>
 
-          <div ref={containerRef} className="relative hidden min-w-0 flex-1 md:block">
+          <div className="hidden min-w-0 flex-1 justify-end px-2 md:flex">
+            <div ref={containerRef} className="relative w-full max-w-[280px]">
             <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
               search
             </span>
@@ -342,6 +343,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                                 instrumentId={r.instrument_id}
                                 isTracked={isTracked}
                                 isSubscribed={isSubscribed}
+                                trackedCount={trackedIds.length}
                                 variant="icon"
                               />
                             </div>
@@ -352,6 +354,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   )}
                 </div>
               )}
+            </div>
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
@@ -497,6 +500,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                         instrumentId={r.instrument_id}
                         isTracked={isTracked}
                         isSubscribed={isSubscribed}
+                        trackedCount={trackedIds.length}
                         variant="icon"
                       />
                     </li>

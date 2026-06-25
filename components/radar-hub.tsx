@@ -2,18 +2,298 @@
 
 import { useState } from "react";
 import Link from "next/link";
+
 import { StockLogo } from "@/components/stock-logo";
+import { DiagnosisSectorChart } from "@/components/diagnosis-charts";
+import { RadarBookTable } from "@/components/radar-book-table";
+import { verdictLabel } from "@/components/watchlist-sections";
+import { isAiSummary } from "@/lib/radar-copy";
+import { FactorPillar, PctChange, WsSectionHead } from "@/components/radar-workstation-ui";
+import type { RadarHubModel, RadarReceipt } from "@/lib/radar-hub-data";
 
-const ACCENT = "var(--accent-terminal)";
-const STANCE: Record<string, string> = {
-  accumulate: "var(--signal-bullish)",
-  trim: "var(--signal-neutral)",
-  hold: ACCENT,
-  watch: ACCENT,
-  avoid: "var(--signal-bearish)",
-};
-const ACTIONABLE = new Set(["accumulate", "trim", "avoid"]);
+type MobileTab = "book" | "health";
 
+function MobileTabBar({ tab, onTab }: { tab: MobileTab; onTab: (t: MobileTab) => void }) {
+  const items: { key: MobileTab; label: string }[] = [
+    { key: "book", label: "Book" },
+    { key: "health", label: "Health" },
+  ];
+  return (
+    <div className="mb-4 flex border-b border-outline-variant/60 lg:hidden">
+      {items.map((item) => {
+        const on = tab === item.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onTab(item.key)}
+            className="-mb-px flex-1 border-b-2 pb-2.5 font-mono text-[12px] font-semibold transition-colors"
+            style={{
+              borderColor: on ? "var(--on-surface)" : "transparent",
+              color: on ? "var(--on-surface)" : "var(--on-surface-variant)",
+            }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function DiagnosisBlock({
+  model,
+  isSubscribed,
+}: {
+  model: RadarHubModel;
+  isSubscribed: boolean;
+}) {
+  const { diagnosis } = model;
+  const { pillars, clusters } = diagnosis;
+  const overall = pillars.overall;
+  const summary =
+    diagnosis.summary && !isAiSummary(diagnosis.summary) ? diagnosis.summary : undefined;
+  const topRisk = diagnosis.riskFlags[0];
+  const hasContent =
+    summary ||
+    overall !== null ||
+    diagnosis.riskFlags.length > 0 ||
+    clusters.length > 0 ||
+    diagnosis.blindSpotTitle;
+
+  if (!hasContent && model.stats.totalCount < 2) {
+    return (
+      <div className="mb-8 border-b border-outline-variant/40 pb-8">
+        <WsSectionHead>Whole book</WsSectionHead>
+        <p className="mt-3 text-[13px] text-on-surface-variant">
+          Add a second name and we&apos;ll score concentration, sector mix, and blind spots.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mb-8 border-b border-outline-variant/40 pb-8">
+      <WsSectionHead aside={overall !== null ? verdictLabel(overall) : undefined}>Whole book</WsSectionHead>
+
+      <div className={`mt-4 ${!isSubscribed ? "pointer-events-none select-none blur-[5px]" : ""}`}>
+        <div className="flex flex-wrap items-end gap-5 sm:gap-8">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">Score</p>
+            <p className="mt-1 text-[40px] font-bold tabular-nums leading-none tracking-tight text-on-surface sm:text-[44px]">
+              {overall === null ? "—" : Math.round(overall)}
+            </p>
+          </div>
+          <div className="grid min-w-[220px] flex-1 grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+            <FactorPillar label="val" score={pillars.valuation} muted />
+            <FactorPillar label="growth" score={pillars.growth} muted />
+            <FactorPillar label="quality" score={pillars.quality} muted />
+            <FactorPillar label="mom" score={pillars.momentum} muted />
+          </div>
+        </div>
+
+        {clusters.length > 0 ? (
+          <div className="mt-5">
+            <DiagnosisSectorChart
+              bare
+              sectors={clusters.map((c) => ({
+                sector: c.sector,
+                weight_pct: c.weightPct,
+                count: c.count,
+              }))}
+            />
+          </div>
+        ) : null}
+
+        {summary ? (
+          <p className="mt-4 text-[13px] leading-relaxed text-on-surface">{summary}</p>
+        ) : null}
+
+        {topRisk ? (
+          <div className="mt-4 border-l-2 border-outline-variant pl-3">
+            <p className="text-[13px] font-semibold text-on-surface">{topRisk.headline}</p>
+            {topRisk.body ? (
+              <p className="mt-0.5 text-[12px] leading-snug text-on-surface-variant">{topRisk.body}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {diagnosis.blindSpotTitle ? (
+          <div className="mt-4 border-l-2 border-outline-variant pl-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">
+              Blind spot
+            </p>
+            <p className="mt-1 text-[13px] font-semibold text-on-surface">{diagnosis.blindSpotTitle}</p>
+            {diagnosis.blindSpotBody ? (
+              <p className="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">
+                {diagnosis.blindSpotBody}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {diagnosis.regime ? (
+          <p className="mt-4 font-mono text-[11px] text-on-surface-variant">Regime · {diagnosis.regime}</p>
+        ) : null}
+      </div>
+
+      {!isSubscribed ? (
+        <div
+          className="absolute inset-0 grid place-items-center px-4"
+          style={{ background: "color-mix(in srgb, var(--background) 55%, transparent)" }}
+        >
+          <div className="max-w-sm text-center">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-on-surface-variant">Pro</p>
+            <p className="mt-2 text-[15px] font-semibold text-on-surface">Whole-book diagnosis</p>
+            <p className="mt-1 text-[13px] text-on-surface-variant">Score, sector mix, and concentration risks.</p>
+            <Link
+              href="/subscribe"
+              className="mt-4 inline-block border border-on-surface px-5 py-2 font-mono text-[12px] font-semibold text-on-surface transition-colors hover:bg-on-surface hover:text-surface"
+            >
+              unlock →
+            </Link>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ReceiptsFold({ receipts }: { receipts: RadarReceipt[] }) {
+  const [open, setOpen] = useState(false);
+  if (receipts.length < 2) return null;
+  return (
+    <div className="mt-8 border-t border-outline-variant/50 pt-6">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-baseline gap-2 text-left"
+      >
+        <WsSectionHead aside={`${receipts.length}`}>Called it</WsSectionHead>
+        <span className="ml-auto font-mono text-[12px] text-on-surface-variant">{open ? "−" : "+"}</span>
+      </button>
+      {open ? (
+        <div className="mt-3 divide-y divide-outline-variant/40">
+          {receipts.slice(0, 6).map((r) => (
+            <Link
+              key={`${r.ticker}-${r.eventDate}`}
+              href={`/stock/${r.ticker}`}
+              className="flex items-start gap-3 py-3 transition-colors hover:bg-surface-container-low/50"
+            >
+              <StockLogo ticker={r.ticker} logoUrl={r.logoUrl} market="US" size={20} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-[12px] font-bold text-on-surface">{r.ticker}</span>
+                  <PctChange value={r.dayChangePct} className="ml-auto text-[11px]" />
+                </div>
+                <p className="mt-0.5 text-[12px] leading-snug text-on-surface-variant">{r.call}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProUpsell({
+  stats,
+  atLimit,
+}: {
+  stats: RadarHubModel["stats"];
+  atLimit: boolean;
+}) {
+  return (
+    <div className="mt-8 flex flex-col items-start justify-between gap-4 border-t border-outline-variant/50 pt-6 sm:flex-row sm:items-center">
+      <div>
+        <p className="text-[15px] font-semibold text-on-surface">
+          {atLimit ? "You're at your 3-stock limit." : `Tracking ${stats.totalCount} names.`}
+        </p>
+        <p className="mt-0.5 text-[13px] text-on-surface-variant">
+          Add your whole book for diagnosis and alerts on every name.
+        </p>
+      </div>
+      <Link
+        href="/subscribe"
+        className="whitespace-nowrap border border-on-surface px-5 py-2.5 font-mono text-[12px] font-semibold text-on-surface transition-colors hover:bg-on-surface hover:text-surface"
+      >
+        track everything →
+      </Link>
+    </div>
+  );
+}
+
+export function RadarHub({
+  model,
+  isSubscribed,
+  atLimit,
+  embedded = false,
+}: {
+  model: RadarHubModel;
+  isSubscribed: boolean;
+  atLimit: boolean;
+  embedded?: boolean;
+}) {
+  const { stats } = model;
+  const [mobileTab, setMobileTab] = useState<MobileTab>("book");
+
+  const healthColumn = <DiagnosisBlock model={model} isSubscribed={isSubscribed} />;
+  const bookColumn = (
+    <>
+      <div className="hidden lg:block">{healthColumn}</div>
+      <RadarBookTable model={model} />
+      <ReceiptsFold receipts={model.receipts} />
+    </>
+  );
+
+  return (
+    <div className={embedded ? "w-full pb-12" : "w-full px-0 py-6 sm:py-8"}>
+      {!embedded ? (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="font-mono text-[12px] text-on-surface-variant">// your radar</div>
+            {isSubscribed ? (
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+                pro
+              </span>
+            ) : (
+              <Link href="/subscribe" className="ml-auto font-mono text-[11px] text-on-surface-variant">
+                free · {stats.totalCount}/3
+              </Link>
+            )}
+          </div>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl md:text-[2rem]">
+            The market, on your stocks.
+          </h1>
+        </>
+      ) : (
+        !isSubscribed && (
+          <div className="mb-2 flex justify-end">
+            <Link href="/subscribe" className="font-mono text-[11px] text-on-surface-variant">
+              free · {stats.totalCount}/3
+            </Link>
+          </div>
+        )
+      )}
+
+      <div className="mt-5 sm:mt-6">
+        <MobileTabBar tab={mobileTab} onTab={setMobileTab} />
+
+        <div className="radar-ws hidden p-6 sm:p-8 lg:block">
+          {bookColumn}
+        </div>
+
+        <div className="radar-ws p-4 sm:p-5 lg:hidden">
+          {mobileTab === "book" ? bookColumn : <div className="px-1 py-1">{healthColumn}</div>}
+        </div>
+      </div>
+
+      {!isSubscribed ? <ProUpsell stats={stats} atLimit={atLimit} /> : null}
+    </div>
+  );
+}
+
+// Legacy type exports for any external imports
 export type RadarCall = {
   ticker: string;
   name?: string;
@@ -30,320 +310,4 @@ export type RadarChange = { ticker: string; tone: "up" | "down" | "neutral"; tex
 export type RadarSector = { label: string; pct: number };
 export type RadarFactor = { label: string; score: number };
 export type RadarSuggestion = { ticker: string; name?: string; reason?: string; market: "US" | "IN" };
-export type RadarReceipt = { ticker: string; name?: string; logoUrl?: string | null; call: string; dayChangePct: number | null; eventDate: string | null };
-
-function Receipts({ receipts }: { receipts: RadarReceipt[] }) {
-  if (receipts.length < 3) return null;
-  return (
-    <div className="mt-7">
-      <div className="mb-2 flex items-baseline gap-2 font-mono text-[12px]">
-        <span style={{ color: "var(--signal-bullish)" }}>$</span>
-        <span className="text-accent-terminal">called it</span>
-        <span className="text-on-surface-variant">— calls that landed before the print</span>
-      </div>
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-        {receipts.slice(0, 6).map((r) => {
-          const up = (r.dayChangePct ?? 0) >= 0;
-          return (
-            <Link
-              key={`${r.ticker}-${r.eventDate}`}
-              href={`/stock/${r.ticker}`}
-              className="panel flex w-[250px] shrink-0 flex-col gap-2 p-4 transition-colors hover:bg-surface-container"
-            >
-              <div className="flex items-center gap-2 font-mono text-[13px]">
-                <StockLogo ticker={r.ticker} logoUrl={r.logoUrl} market="US" size={22} />
-                <span className="font-bold text-on-surface">{r.ticker}</span>
-                {typeof r.dayChangePct === "number" && (
-                  <span className="ml-auto tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-                    {up ? "▲" : "▼"} {Math.abs(r.dayChangePct).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <p className="text-[12.5px] leading-snug text-on-surface-variant">{r.call}</p>
-              <span className="font-mono text-[10px] uppercase tracking-wide text-on-surface-variant opacity-70">on earnings day</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function chg(v: number | null) {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  const up = v >= 0;
-  return (
-    <span className="font-mono text-[14px] tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-      {up ? "▲" : "▼"} {Math.abs(v).toFixed(2)}%
-    </span>
-  );
-}
-const money = (v: number | null) => (typeof v === "number" ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
-
-function CallRow({ c }: { c: RadarCall }) {
-  const col = STANCE[c.stance?.toLowerCase()] ?? ACCENT;
-  return (
-    <Link
-      href={`/stock/${c.ticker}`}
-      className="block border-t px-5 py-4 transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
-      style={{ borderColor: "var(--outline-variant)" }}
-    >
-      <div className="flex items-center gap-3 font-mono text-[13px]">
-        <StockLogo ticker={c.ticker} logoUrl={c.logoUrl} market={c.market} size={24} />
-        <span className="font-bold text-on-surface">{c.ticker}</span>
-        {c.name && <span className="truncate text-on-surface-variant">{c.name}</span>}
-        <span className="ml-auto flex min-w-[118px] flex-col items-end gap-1">
-          <span className="text-[18px] leading-none text-on-surface tabular-nums">${money(c.price)}</span>
-          {chg(c.changePct)}
-        </span>
-      </div>
-      {c.covered ? (
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="font-mono text-[15px] font-bold uppercase" style={{ color: col }}>{c.stance}</span>
-          {c.action && <span className="text-[13px] text-on-surface-variant">{c.action}</span>}
-          {c.trigger && <span className="ml-auto font-mono text-[11px] text-on-surface-variant">🔔 {c.trigger}</span>}
-        </div>
-      ) : (
-        <p className="mt-1.5 font-mono text-[12px] text-on-surface-variant">researching this name…</p>
-      )}
-    </Link>
-  );
-}
-
-function CallTabs({ holdings, watching }: { holdings: RadarCall[]; watching: RadarCall[] }) {
-  const tabs = [
-    { key: "holdings", label: "holdings", calls: holdings },
-    { key: "watching", label: "watching", calls: watching },
-  ].filter((t) => t.calls.length > 0);
-  const [active, setActive] = useState(tabs[0]?.key ?? "holdings");
-  if (tabs.length === 0) return null;
-  const current = tabs.find((t) => t.key === active) ?? tabs[0];
-  const scroll = current.calls.length > 7;
-  return (
-    <div className="mt-7">
-      <div className="mb-2 flex items-center gap-2">
-        {tabs.map((t) => {
-          const on = t.key === current.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setActive(t.key)}
-              className="rounded px-3 py-1 font-mono text-[12px] transition-colors"
-              style={
-                on
-                  ? { background: "color-mix(in srgb, var(--signal-bullish) 14%, transparent)", color: "var(--signal-bullish)" }
-                  : { color: "var(--on-surface-variant)" }
-              }
-            >
-              {t.label} <span className="opacity-60">{t.calls.length}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className={`panel overflow-hidden ${scroll ? "max-h-[520px] overflow-y-auto" : ""}`}>
-        {current.calls.map((c) => <CallRow key={c.ticker} c={c} />)}
-      </div>
-    </div>
-  );
-}
-
-export function RadarHub({
-  flagged,
-  total,
-  lead,
-  holdings,
-  watching,
-  suggestions,
-  receipts,
-  changed,
-  sectors,
-  factors,
-  regime,
-  isSubscribed,
-  atLimit,
-  builtLabel,
-  embedded = false,
-}: {
-  flagged: number;
-  total: number;
-  lead?: { ticker: string; stance: string; chg: number | null } | null;
-  holdings: RadarCall[];
-  watching: RadarCall[];
-  suggestions: RadarSuggestion[];
-  receipts: RadarReceipt[];
-  changed: RadarChange[];
-  sectors: RadarSector[];
-  factors: RadarFactor[];
-  regime?: string | null;
-  isSubscribed: boolean;
-  atLimit: boolean;
-  builtLabel?: string;
-  embedded?: boolean;
-}) {
-  const hasBook = sectors.length > 0 || factors.length > 0 || Boolean(regime);
-  const leadCol = lead ? STANCE[lead.stance?.toLowerCase()] ?? ACCENT : ACCENT;
-  return (
-    <div className={embedded ? "mx-auto w-full max-w-4xl px-5 pb-10" : "mx-auto w-full max-w-4xl px-5 py-10"}>
-      {!embedded && (
-        <>
-          {/* TOP-LINE */}
-          <div className="flex items-center gap-3">
-            <div className="font-mono text-[12px] text-accent-terminal">// your radar</div>
-            {!isSubscribed && (
-              <Link href="/subscribe" className="ml-auto rounded px-2 py-1 font-mono text-[11px]" style={{ background: "color-mix(in srgb, var(--signal-neutral) 16%, transparent)", color: "var(--signal-neutral)" }}>FREE · {total}/3</Link>
-            )}
-          </div>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">The market, on your stocks.</h1>
-        </>
-      )}
-      {embedded && !isSubscribed && (
-        <div className="mb-2 flex justify-end">
-          <Link href="/subscribe" className="rounded px-2 py-1 font-mono text-[11px]" style={{ background: "color-mix(in srgb, var(--signal-neutral) 16%, transparent)", color: "var(--signal-neutral)" }}>FREE · {total}/3</Link>
-        </div>
-      )}
-      <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-on-surface-variant">
-        {flagged > 0 ? (
-          <>
-            <b className="text-on-surface">{flagged} {flagged === 1 ? "name needs" : "names need"} a look today.</b>
-            {lead && (
-              <> {lead.ticker} is <b style={{ color: leadCol }}>{lead.stance}</b>{typeof lead.chg === "number" ? <> ({lead.chg >= 0 ? "▲" : "▼"}{Math.abs(lead.chg).toFixed(1)}%)</> : null}.</>
-            )}
-          </>
-        ) : (
-          <>Tracking {total} {total === 1 ? "name" : "names"}. Nothing needs action today{builtLabel ? ` · refreshed ${builtLabel}` : ""}.</>
-        )}
-      </p>
-
-      {/* CALLED IT — proof feed, the free hook */}
-      <Receipts receipts={receipts} />
-
-      {/* THE CALLS — one table, holdings/watching tabs */}
-      <CallTabs holdings={holdings} watching={watching} />
-
-      {/* SUGGESTIONS */}
-      {suggestions.length > 0 && (
-        <div className="mt-8">
-          <div className="mb-2 font-mono text-[12px] text-on-surface-variant"><span style={{ color: "var(--signal-bullish)" }}>$</span> stocks worth watching</div>
-          <div className="panel overflow-hidden">
-            {suggestions.slice(0, 6).map((s) => (
-              <Link
-                key={s.ticker}
-                href={`/stock/${s.ticker}`}
-                className="flex items-center gap-3 border-t px-5 py-3 font-mono text-[13px] transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
-                style={{ borderColor: "var(--outline-variant)" }}
-              >
-                <StockLogo ticker={s.ticker} market={s.market} size={22} />
-                <span className="w-16 font-bold text-on-surface">{s.ticker}</span>
-                <span className="truncate text-on-surface-variant">{s.reason || s.name}</span>
-                <span className="ml-auto whitespace-nowrap rounded px-2 py-0.5 text-[11px]" style={{ background: "color-mix(in srgb, var(--signal-bullish) 14%, transparent)", color: "var(--signal-bullish)" }}>+ track</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* WHAT CHANGED */}
-      {changed.length > 0 && (
-        <div className="mt-8">
-          <div className="mb-2 font-mono text-[12px] text-on-surface-variant"><span style={{ color: "var(--signal-bullish)" }}>$</span> what changed</div>
-          <div className="panel p-1.5">
-            {changed.map((e, i) => (
-              <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 font-mono text-[13px]">
-                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: e.tone === "down" ? "var(--signal-bearish)" : e.tone === "up" ? "var(--signal-bullish)" : "var(--accent-terminal)" }} />
-                <span className="w-14 font-bold text-on-surface">{e.ticker}</span>
-                <span className="text-on-surface-variant">{e.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* WHOLE BOOK */}
-      {hasBook && (
-        <div className="mt-8">
-          <div className="mb-2 font-mono text-[12px] text-on-surface-variant">
-            <span style={{ color: "var(--signal-bullish)" }}>$</span> your whole book{!isSubscribed && <span className="text-on-surface-variant"> · Pro</span>}
-          </div>
-          <div className="relative">
-            <div className={`grid gap-3 sm:grid-cols-3 ${isSubscribed ? "" : "pointer-events-none select-none blur-[6px]"}`}>
-              {/* SECTOR EXPOSURE — bars + concentration flag */}
-              <div className="panel p-5">
-                <p className="mb-3 font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">sector exposure</p>
-                <div className="space-y-2.5 font-mono text-[12px]">
-                  {sectors.slice(0, 5).map((s) => {
-                    const hot = s.pct >= 40;
-                    return (
-                      <div key={s.label}>
-                        <div className="flex justify-between">
-                          <span className="truncate text-on-surface-variant">{s.label}</span>
-                          <span style={{ color: hot ? "var(--signal-neutral)" : "var(--on-surface)" }}>{Math.round(s.pct)}%</span>
-                        </div>
-                        <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--surface-container-highest)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, s.pct)}%`, background: hot ? "var(--signal-neutral)" : "var(--signal-bullish)" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {sectors[0] && sectors[0].pct >= 40 && (
-                  <p className="mt-3 font-mono text-[11px]" style={{ color: "var(--signal-neutral)" }}>⚠ {Math.round(sectors[0].pct)}% in {sectors[0].label} — concentrated</p>
-                )}
-              </div>
-              {/* FACTOR TILT — scored bars */}
-              <div className="panel p-5">
-                <p className="mb-3 font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">factor tilt</p>
-                <div className="space-y-2.5 font-mono text-[12px]">
-                  {factors.map((f) => {
-                    const col = f.score >= 70 ? "var(--signal-bullish)" : f.score <= 40 ? "var(--signal-bearish)" : "var(--on-surface)";
-                    return (
-                      <div key={f.label}>
-                        <div className="flex justify-between">
-                          <span className="capitalize text-on-surface-variant">{f.label}</span>
-                          <span style={{ color: col }}>{f.score >= 70 ? "high" : f.score <= 40 ? "low" : "mid"} · {Math.round(f.score)}</span>
-                        </div>
-                        <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--surface-container-highest)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(4, f.score))}%`, background: col }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* REGIME READ */}
-              <div className="panel p-5">
-                <p className="mb-3 font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">regime read</p>
-                <p className="text-[13px] leading-relaxed text-on-surface-variant">{regime || "Risk-on tape; your tilt is in favor. Watch sector concentration."}</p>
-                {factors.length > 0 && (
-                  <p className="mt-3 border-t pt-3 font-mono text-[11px] text-on-surface-variant" style={{ borderColor: "var(--outline-variant)" }}>
-                    leaning <b className="text-on-surface">{[...factors].sort((a, b) => b.score - a.score)[0]?.label}</b>, light on <b className="text-on-surface">{[...factors].sort((a, b) => a.score - b.score)[0]?.label}</b>
-                  </p>
-                )}
-              </div>
-            </div>
-            {!isSubscribed && (
-              <div className="absolute inset-0 grid place-items-center" style={{ background: "color-mix(in srgb, var(--background) 55%, transparent)" }}>
-                <div className="panel max-w-sm p-6 text-center" style={{ boxShadow: "0 8px 40px rgba(0,0,0,.4), inset 0 0 0 1px color-mix(in srgb, var(--signal-bullish) 25%, transparent)" }}>
-                  <p className="mb-2 font-mono text-[11px] uppercase tracking-widest" style={{ color: "var(--signal-bullish)" }}>🔒 whole book · Pro</p>
-                  <p className="text-[15px] font-semibold text-on-surface">See your whole book, not one stock at a time.</p>
-                  <p className="mt-1.5 text-[13px] text-on-surface-variant">Sector exposure, factor tilt, regime fit and rebalance, across everything you hold.</p>
-                  <Link href="/subscribe" className="mt-4 inline-block rounded px-5 py-2.5 font-mono text-[13px] font-bold" style={{ background: "var(--signal-bullish)", color: "var(--background)" }}>unlock your whole book →</Link>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* CAP */}
-      {!isSubscribed && (
-        <div className="mt-8 panel flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-[15px] font-semibold text-on-surface">{atLimit ? "You're at your 3-stock limit." : `You're watching ${total} of your stocks.`}</p>
-            <p className="mt-0.5 text-[13px] text-on-surface-variant">Add your whole book and get pinged the moment any of them moves 4%+.</p>
-          </div>
-          <Link href="/subscribe" className="whitespace-nowrap rounded px-5 py-2.5 font-mono text-[13px] font-bold" style={{ background: "var(--signal-bullish)", color: "var(--background)" }}>track everything →</Link>
-        </div>
-      )}
-    </div>
-  );
-}
+export type { RadarReceipt };

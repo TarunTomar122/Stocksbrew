@@ -5,79 +5,74 @@ export type ProfileRadarHighlightProps = {
   trackedCount: number;
 };
 
-/**
- * Radar entry on the profile page — sits inside the Account card as a divider section
- * (same pattern as Plan), not a nested promo box.
- */
 export function ProfileRadarHighlight({ trackedCount }: ProfileRadarHighlightProps) {
   const hasStocks = trackedCount > 0;
   const stockWord = trackedCount === 1 ? "stock" : "stocks";
 
   return (
-    <div className="border-t border-outline-variant/25 pt-5">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-            aria-hidden
-          >
+    <div className="flex flex-col gap-4">
+      <div
+        className="relative overflow-hidden rounded-2xl border p-4 sm:p-5"
+        style={{
+          borderColor: "color-mix(in srgb, var(--accent-terminal) 28%, var(--outline-variant))",
+          background:
+            "linear-gradient(145deg, color-mix(in srgb, var(--accent-terminal) 10%, var(--surface)) 0%, color-mix(in srgb, var(--signal-bullish) 7%, var(--surface)) 55%, var(--surface) 100%)",
+        }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full opacity-35 blur-2xl"
+          style={{ background: "color-mix(in srgb, var(--accent-terminal) 50%, transparent)" }}
+        />
+
+        <div className="relative flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-outline-variant bg-surface">
             <span
-              className="material-symbols-outlined text-[22px]"
+              className="material-symbols-outlined text-[22px] text-landing-brand"
               style={{ fontVariationSettings: "'wght' 500" }}
+              aria-hidden
             >
               radar
             </span>
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
-                Radar workspace
-              </span>
-              {hasStocks ? (
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
-                  Watching
-                </span>
-              ) : null}
-            </div>
-
             {hasStocks ? (
-              <p className="mt-2 text-on-surface">
-                <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums sm:text-[32px]">
+              <p className="text-on-surface">
+                <span className="text-[2rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-[2.25rem]">
                   {trackedCount}
                 </span>
-                <span className="ml-2 text-base font-semibold leading-snug text-on-surface sm:text-lg">
+                <span className="ml-2 text-[15px] font-semibold leading-snug text-on-surface sm:text-base">
                   {stockWord} on your Radar
                 </span>
               </p>
             ) : (
-              <p className="mt-2 text-lg font-semibold leading-snug text-on-surface">
-                Your Radar watchlist is empty
+              <p className="text-[18px] font-extrabold leading-snug tracking-tight text-on-surface sm:text-[20px]">
+                Your Radar is empty
               </p>
             )}
+            <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
+              {hasStocks
+                ? "Alerts, digest summaries, and call refreshes follow this roster."
+                : "Add a few symbols to turn on AI calls, alerts, and your morning summary."}
+            </p>
           </div>
         </div>
-
-        <p className="text-[13px] leading-relaxed text-on-surface-variant">
-          {hasStocks
-            ? "Alerts, digest summaries, and call refreshes follow this roster. Open Radar or your watchlist to tune what you track."
-            : "Add a few symbols to turn on AI calls, alerts, and your Radar inbox summary."}
-        </p>
-
-        <Link
-          href="/watchlist"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-[14px] font-semibold text-on-primary transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          {hasStocks ? "Open Radar & watchlist" : "Add & manage stocks"}
-          <span
-            className="material-symbols-outlined text-[18px]"
-            aria-hidden
-            style={{ fontVariationSettings: "'wght' 600" }}
-          >
-            arrow_forward
-          </span>
-        </Link>
       </div>
+
+      <Link
+        href="/watchlist"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-on-surface px-5 py-3 text-[14px] font-semibold text-surface transition-opacity hover:opacity-90"
+      >
+        {hasStocks ? "Open Radar" : "Add your first stock"}
+        <span
+          className="material-symbols-outlined text-[18px]"
+          aria-hidden
+          style={{ fontVariationSettings: "'wght' 600" }}
+        >
+          arrow_forward
+        </span>
+      </Link>
     </div>
   );
 }

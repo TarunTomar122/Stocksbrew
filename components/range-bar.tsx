@@ -15,6 +15,30 @@ function clampPct(v: number) {
   return Math.max(0, Math.min(100, v));
 }
 
+function StripMarker({
+  leftPct,
+  variant = "primary",
+  title,
+}: {
+  leftPct: number;
+  variant?: "primary" | "reference";
+  title?: string;
+}) {
+  const isRef = variant === "reference";
+  return (
+    <span
+      aria-hidden
+      title={title}
+      className={
+        isRef
+          ? "absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-outline-variant bg-surface-container-high shadow-sm"
+          : "absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-on-surface bg-surface shadow-[0_1px_4px_rgba(17,24,39,0.16)]"
+      }
+      style={{ left: `${clampPct(leftPct)}%` }}
+    />
+  );
+}
+
 /** Dot-on-a-track used in stock hero (52w range, RSI). Marker sits in padded lane so it never clips. */
 export function PositionStrip({
   pct,
@@ -29,7 +53,7 @@ export function PositionStrip({
 }) {
   const p = clampPct(pct);
   return (
-    <div className="relative h-2">
+    <div className="relative h-2.5">
       <div className="absolute inset-0 rounded-full" style={{ background: trackBackground }} />
       {fillPct != null && fillBackground && (
         <div
@@ -38,31 +62,43 @@ export function PositionStrip({
         />
       )}
       <div className="absolute inset-y-0" style={{ left: STRIP_PAD, right: STRIP_PAD }}>
-        <span
-          aria-hidden
-          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-surface ring-2 ring-on-surface"
-          style={{ left: `${p}%`, boxShadow: "0 1px 2px color-mix(in srgb, var(--on-surface) 18%, transparent)" }}
-        />
+        <StripMarker leftPct={p} />
       </div>
     </div>
   );
 }
 
 export function RsiZoneLabels() {
+  const zoneLeft = (pct: number) =>
+    `calc(${STRIP_PAD}px + (100% - ${STRIP_PAD * 2}px) * ${pct / 100})`;
+
   return (
-    <div className="relative mt-3 h-4 font-label text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-      <span className="absolute left-[15%] -translate-x-1/2">oversold</span>
-      <span className="absolute left-[50%] -translate-x-1/2">healthy</span>
-      <span className="absolute left-[85%] -translate-x-1/2">overbought</span>
+    <div className="relative mt-2 h-3.5 font-mono text-[9px] tabular-nums text-on-surface-variant/75">
+      <span className="absolute left-0 top-0">0</span>
+      <span
+        className="absolute top-0 -translate-x-1/2 whitespace-nowrap"
+        style={{ left: zoneLeft(30) }}
+        title="Oversold below 30"
+      >
+        30
+      </span>
+      <span
+        className="absolute top-0 -translate-x-1/2 whitespace-nowrap"
+        style={{ left: zoneLeft(70) }}
+        title="Overbought above 70"
+      >
+        70
+      </span>
+      <span className="absolute right-0 top-0">100</span>
     </div>
   );
 }
 
 const RSI_TRACK_BG =
-  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 16%, var(--surface-container-high)) 0%, var(--surface-container-high) 28%, color-mix(in srgb, var(--signal-bullish) 12%, var(--surface-container-high)) 50%, var(--surface-container-high) 72%, color-mix(in srgb, var(--signal-neutral) 14%, var(--surface-container-high)) 100%)";
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 10%, var(--surface-container-high)) 0%, var(--surface-container-high) 30%, color-mix(in srgb, var(--signal-bullish) 8%, var(--surface-container-high)) 50%, var(--surface-container-high) 70%, color-mix(in srgb, var(--signal-bearish) 10%, var(--surface-container-high)) 100%)";
 
 const WEEK52_FILL_BG =
-  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 14%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 18%, var(--surface-container-high)))";
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 10%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 12%, var(--surface-container-high)))";
 
 export { RSI_TRACK_BG, WEEK52_FILL_BG };
 
@@ -84,62 +120,51 @@ export function RangeBar({
   const refPct = reference ? clamp(reference.value) : null;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         {label}
       </span>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex flex-col">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="min-w-0">
           <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             Low
           </span>
-          <span className="text-[14px] font-semibold tabular-nums text-on-surface">
+          <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-on-surface sm:text-[14px]">
             {format(low)}
           </span>
         </div>
-        <div className="flex flex-col items-end">
+        <div className="min-w-0 text-right">
           <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             High
           </span>
-          <span className="text-[14px] font-semibold tabular-nums text-on-surface">
+          <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-on-surface sm:text-[14px]">
             {format(high)}
           </span>
         </div>
       </div>
 
-      <div className="relative h-2">
+      <div className="relative h-2.5">
+        <div className="absolute inset-0 rounded-full bg-surface-container-high" />
         <div
           className="absolute inset-0 rounded-full"
-          style={{
-            background:
-              "linear-gradient(90deg, #f97316 0%, #f59e0b 22%, #84cc16 55%, #10b981 100%)",
-          }}
+          style={{ background: WEEK52_FILL_BG }}
         />
         {/* Inner safe zone - markers are centered within this padded area so
          * the 0% and 100% extremes don't clip on the rounded edges. */}
         <div className="absolute inset-y-0 left-[7px] right-[7px]">
           {refPct !== null && (
-            <span
-              aria-hidden
-              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-surface"
-              style={{ left: `${refPct}%`, boxShadow: "0 0 0 1px #6b7280" }}
-              title={reference?.label}
-            />
+            <StripMarker leftPct={refPct} variant="reference" title={reference?.label} />
           )}
-          <span
-            aria-hidden
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-surface ring-2 ring-on-surface"
-            style={{ left: `${currentPct}%` }}
-          />
+          <StripMarker leftPct={currentPct} />
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between gap-3 text-[11px] text-on-surface-variant">
-        <span className="tabular-nums">
+      <div className="flex min-w-0 items-baseline justify-between gap-2 text-[11px] text-on-surface-variant">
+        <span className="min-w-0 truncate tabular-nums">
           Today <span className="font-semibold text-on-surface">{format(current)}</span>
         </span>
         {reference && (
-          <span className="tabular-nums">
+          <span className="shrink-0 text-right tabular-nums">
             {reference.label}{" "}
             <span className="font-semibold text-on-surface">{format(reference.value)}</span>
           </span>
@@ -162,65 +187,33 @@ export function RsiStrength({ value, state }: RsiProps) {
   const clamped = Math.max(0, Math.min(100, value));
   const verdict =
     state === "overbought" || value >= 70
-      ? { label: "Overbought", tone: "text-[#ef4444]" }
+      ? { label: "Overbought", color: "var(--signal-bearish)" }
       : state === "oversold" || value <= 30
-        ? { label: "Oversold", tone: "text-[#0052ff]" }
-        : { label: "Neutral", tone: "text-[#10b981]" };
+        ? { label: "Oversold", color: "var(--signal-bullish)" }
+        : { label: "Neutral", color: "var(--on-surface-variant)" };
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         RSI (14)
       </span>
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex items-baseline gap-2">
-          <span className="text-[20px] font-semibold tabular-nums text-on-surface">
+          <span className="text-[18px] font-semibold tabular-nums text-on-surface">
             {value.toFixed(1)}
           </span>
           <span
-            className={`text-[10px] font-semibold uppercase tracking-[0.08em] ${verdict.tone}`}
+            className="text-[10px] font-semibold uppercase tracking-[0.08em]"
+            style={{ color: verdict.color }}
           >
             {verdict.label}
           </span>
         </span>
       </div>
 
-      <div className="relative h-2">
-        {/* Zones live in a clipped child so the marker can extend beyond. */}
-        <div className="absolute inset-0 rounded-full overflow-hidden bg-surface-container">
-          <div
-            className="absolute inset-y-0 left-0"
-            style={{ width: "30%", background: "rgba(239,68,68,0.18)" }}
-          />
-          <div
-            className="absolute inset-y-0"
-            style={{ left: "70%", width: "30%", background: "rgba(239,68,68,0.18)" }}
-          />
-          <div
-            className="absolute inset-y-0"
-            style={{
-              left: "30%",
-              width: "40%",
-              background: "linear-gradient(90deg, #84cc16 0%, #10b981 100%)",
-              opacity: 0.85,
-            }}
-          />
-        </div>
-        {/* Marker sits in an unclipped sibling so it can render full-size. */}
-        <div className="absolute inset-y-0 left-[7px] right-[7px]">
-          <span
-            aria-hidden
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-surface ring-2 ring-on-surface"
-            style={{ left: `${clamped}%` }}
-          />
-        </div>
-      </div>
+      <PositionStrip pct={clamped} trackBackground={RSI_TRACK_BG} />
 
-      <div className="flex items-center justify-between text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
-        <span>Oversold</span>
-        <span>Healthy</span>
-        <span>Overbought</span>
-      </div>
+      <RsiZoneLabels />
     </div>
   );
 }

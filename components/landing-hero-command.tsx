@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+import { PriceChart } from "@/components/price-chart";
+import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { StockTier } from "@/lib/ai-launch-tier";
 
@@ -23,9 +26,6 @@ function verdictFor(score: number | null | undefined, label?: string | null): { 
   return { text: "WATCH", color: ACCENT };
 }
 
-const CHART_UP = "0,44 26,40 52,42 78,34 104,36 130,28 156,30 182,22 208,24 234,16 260,18 286,9 320,6";
-const CHART_DOWN = "0,8 26,12 52,10 78,18 104,16 130,24 156,22 182,30 208,28 234,36 260,34 286,44 320,48";
-
 export type LandingHeroFeatured = {
   instrument_id: string;
   ticker: string;
@@ -34,7 +34,14 @@ export type LandingHeroFeatured = {
   day_change_pct: number;
   overall_score: number | null;
   overall_label: string | null;
-  key_points: string[];
+  sector: string | null;
+  catalyst: string | null;
+  headline: string | null;
+  add_level: string | null;
+  trim_level: string | null;
+  analyst_target: number | null;
+  analyst_upside_pct: number | null;
+  price_history: { date: string; close: number }[];
 };
 
 export function LandingHeroCommand({
@@ -50,21 +57,32 @@ export function LandingHeroCommand({
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
-  const [chartReady, setChartReady] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    const t = requestAnimationFrame(() => setChartReady(true));
+    const t = requestAnimationFrame(() => setRevealed(true));
     return () => cancelAnimationFrame(t);
-  }, [featured.ticker, featured.day_change_pct]);
+  }, [featured.ticker]);
 
   const fMoney = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fVerdict = verdictFor(featured.overall_score, featured.overall_label);
   const fUp = featured.day_change_pct >= 0;
   const moveColor = fUp ? "var(--signal-bullish)" : "var(--signal-bearish)";
-  const evidence = featured.key_points.slice(0, 3);
   const stockHref = `/stock/${featured.ticker}`;
   const panelBorder = "var(--shadow-card), inset 0 0 0 1px var(--outline-variant)";
   const panelHover = "0 0 0 1px color-mix(in srgb, var(--landing-mint, var(--signal-bullish)) 28%, transparent), 0 18px 48px color-mix(in srgb, var(--landing-brand, var(--signal-bullish)) 8%, transparent)";
+  const chartData = featured.price_history.length >= 5 ? featured.price_history : [];
+  const catalystChip =
+    featured.catalyst &&
+    featured.catalyst.trim().toLowerCase() !== (featured.headline || "").trim().toLowerCase()
+      ? featured.catalyst
+      : null;
+  const showFoot =
+    Boolean(featured.headline) ||
+    Boolean(featured.add_level) ||
+    Boolean(featured.trim_level) ||
+    n(featured.analyst_target);
+  const aboveTarget = n(featured.analyst_target) && featured.price > featured.analyst_target!;
 
   return (
     <div
@@ -109,24 +127,29 @@ export function LandingHeroCommand({
           }}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                <Link href={stockHref} className="text-base font-bold text-on-surface transition-opacity hover:opacity-80">
-                  {featured.ticker}
-                </Link>
-                <span className="text-xs font-normal text-on-surface-variant">{featured.name}</span>
-                {!isTracked && (
-                  <TrackButton
-                    ticker={featured.ticker}
-                    instrumentId={featured.instrument_id}
-                    tier={tier}
-                    isSubscribed={isSubscribed}
-                    isTracked={isTracked}
-                    variant="icon"
-                  />
-                )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5">
+                <StockLogo ticker={featured.ticker} market="US" size={32} className="shrink-0" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <Link href={stockHref} className="text-base font-bold text-on-surface transition-opacity hover:opacity-80">
+                      {featured.ticker}
+                    </Link>
+                    {!isTracked && (
+                      <TrackButton
+                        ticker={featured.ticker}
+                        instrumentId={featured.instrument_id}
+                        tier={tier}
+                        isSubscribed={isSubscribed}
+                        isTracked={isTracked}
+                        variant="icon"
+                      />
+                    )}
+                  </div>
+                  <p className="truncate text-[11px] font-normal text-on-surface-variant">{featured.name}</p>
+                </div>
               </div>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-1">
                 <span className="text-2xl font-bold leading-none tabular-nums" style={{ color: moveColor }}>
                   ${fMoney(featured.price)}
                 </span>
@@ -140,10 +163,24 @@ export function LandingHeroCommand({
                   <span>{Math.abs(featured.day_change_pct).toFixed(2)}%</span>
                 </span>
               </div>
+              {(catalystChip || featured.sector) && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {catalystChip ? (
+                    <span className="max-w-full truncate rounded-md bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold text-on-surface-variant">
+                      {catalystChip}
+                    </span>
+                  ) : null}
+                  {featured.sector ? (
+                    <span className="max-w-[9rem] truncate rounded-md bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold text-on-surface-variant">
+                      {featured.sector}
+                    </span>
+                  ) : null}
+                </div>
+              )}
             </div>
             <div className="shrink-0 text-right">
               <div
-                className="inline-block rounded border px-3 py-1.5 text-sm font-bold"
+                className="inline-flex whitespace-nowrap rounded-md border px-2.5 py-1 text-[12px] font-bold leading-none"
                 style={{
                   color: fVerdict.color,
                   borderColor: `color-mix(in srgb, ${fVerdict.color} 40%, transparent)`,
@@ -154,50 +191,71 @@ export function LandingHeroCommand({
                 {n(featured.overall_score) ? ` · ${Math.round(featured.overall_score!)}` : ""}
               </div>
               {featured.overall_label && (
-                <div className="mt-1.5 text-[11px] text-on-surface-variant">{featured.overall_label}</div>
+                <div className="mt-1.5 max-w-[7.5rem] truncate text-[11px] text-on-surface-variant">{featured.overall_label}</div>
               )}
             </div>
           </div>
 
-          <Link href={stockHref} className="mt-3 block transition-opacity hover:opacity-80">
-            <svg viewBox="0 0 320 56" className="h-14 w-full" preserveAspectRatio="none" aria-hidden>
-              <polyline
-                fill="none"
-                stroke={fUp ? "var(--signal-bullish)" : "var(--signal-bearish)"}
-                strokeWidth={1.6}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={fUp ? CHART_UP : CHART_DOWN}
-                pathLength={100}
-                style={{
-                  strokeDasharray: 100,
-                  strokeDashoffset: chartReady ? 0 : 100,
-                  transition: "stroke-dashoffset 1.1s ease-out",
-                }}
+          <div className="mt-3">
+            {chartData.length >= 5 ? (
+              <PriceChart
+                data={chartData}
+                currency="$"
+                lineColor={moveColor}
+                embedded
+                height={136}
+                currentPrice={featured.price}
               />
-            </svg>
-          </Link>
+            ) : (
+              <div className="flex h-[136px] items-center justify-center rounded-lg border border-dashed border-outline-variant text-[11px] text-on-surface-variant">
+                Chart loading…
+              </div>
+            )}
+          </div>
         </div>
 
-        {evidence.length > 0 && (
-          <div className="space-y-1.5 text-[12px]">
-            {evidence.map((e, i) => (
-              <div
-                key={i}
-                className="flex gap-2 transition-[opacity,transform] duration-300"
-                style={{
-                  opacity: chartReady ? 1 : 0,
-                  transform: chartReady ? "translateY(0)" : "translateY(4px)",
-                  transitionDelay: `${180 + i * 90}ms`,
-                }}
-              >
-                <span style={{ color: i === 2 ? "var(--accent-terminal)" : "var(--signal-bullish)" }}>▸</span>
-                <span className="text-on-surface-variant">{e}</span>
+        {showFoot && (
+          <div
+            className="space-y-2 border-t border-outline-variant/60 pt-3 transition-[opacity,transform] duration-300"
+            style={{
+              opacity: revealed ? 1 : 0,
+              transform: revealed ? "translateY(0)" : "translateY(4px)",
+            }}
+          >
+            {featured.headline ? (
+              <p className="font-sans text-[13px] font-medium leading-snug text-on-surface">{featured.headline}</p>
+            ) : null}
+            {(featured.add_level || featured.trim_level) && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+                {featured.add_level ? (
+                  <span className="font-semibold" style={{ color: "var(--signal-bullish)" }}>
+                    {featured.add_level}
+                  </span>
+                ) : null}
+                {featured.trim_level ? (
+                  <span className="font-semibold" style={{ color: "var(--signal-neutral)" }}>
+                    {featured.trim_level}
+                  </span>
+                ) : null}
               </div>
-            ))}
+            )}
+            {n(featured.analyst_target) ? (
+              <p className="text-[11px] text-on-surface-variant">
+                Analyst target{" "}
+                <span className="font-semibold tabular-nums text-on-surface">${fMoney(featured.analyst_target!)}</span>
+                {n(featured.analyst_upside_pct) ? (
+                  <span
+                    className="font-semibold tabular-nums"
+                    style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
+                  >
+                    {" "}
+                    · {aboveTarget ? `${Math.abs(featured.analyst_upside_pct!).toFixed(1)}% above target` : `${featured.analyst_upside_pct! >= 0 ? "+" : ""}${featured.analyst_upside_pct!.toFixed(1)}% upside`}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
           </div>
         )}
-
       </div>
     </div>
   );

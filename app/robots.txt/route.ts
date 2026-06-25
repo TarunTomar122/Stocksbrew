@@ -4,7 +4,6 @@ Allow: /
 Disallow: /api/
 Disallow: /profile
 Disallow: /watchlist
-Disallow: /onboarding
 Disallow: /dev/
 Disallow: /_next/
 

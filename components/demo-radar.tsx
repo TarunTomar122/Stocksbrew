@@ -150,7 +150,7 @@ export function DemoRadar() {
   const secondary = DEMO_ROWS.filter((r) => r.ticker !== top.ticker);
 
   return (
-    <main className="flex-grow bg-surface">
+    <main className="flex-grow bg-background">
 
       {/* ── STICKY CONVERSION BAR ────────────────────────────────────────────── */}
       <div
@@ -261,7 +261,7 @@ export function DemoRadar() {
               ))}
             </div>
             {/* Gradient fade — pulls the eye down into the gate */}
-            <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-surface to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-background to-transparent pointer-events-none" />
           </div>
         </section>
 

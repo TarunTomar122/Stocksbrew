@@ -1,4 +1,5 @@
 import type { WatchlistRow } from "@/lib/watchlist-view";
+import { decodeTextEntities } from "@/lib/utils";
 
 /** Canonical row shape for portfolio view. */
 export type PortfolioBookRow = {
@@ -28,14 +29,14 @@ function finiteNumber(value: unknown): number | null {
 }
 
 function cleanLabel(value: string): string {
-  return value.trim() || "";
+  return decodeTextEntities(value.trim());
 }
 
 export function buildPortfolioBook(rows: WatchlistRow[]): PortfolioBookRow[] {
   return rows.map((row) => ({
     instrument_id: row.instrument_id,
     ticker: row.ticker,
-    name: row.instrument_name || row.ticker,
+    name: decodeTextEntities(row.instrument_name || row.ticker),
     logo_url: row.logo_url ?? null,
     market: (row.market === "IN" ? "IN" : "US") as "US" | "IN",
     sector_label: cleanLabel(row.sector_label) || "Uncategorized",

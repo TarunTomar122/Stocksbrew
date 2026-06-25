@@ -1,5 +1,6 @@
 import type { PortfolioBookRow } from "@/lib/portfolio-book";
 import { REGIME_LABEL, regimeTone, type SectorRegimeDoc } from "@/lib/sector-regimes";
+import { decodeTextEntities } from "@/lib/utils";
 import type {
   PortfolioRebalancePlan,
   RebalanceDiagnostic,
@@ -127,7 +128,7 @@ function shouldUseValueWeights(holdings: PortfolioBookRow[]): boolean {
 }
 
 function cleanLabel(value: string | null | undefined, fallback: string): string {
-  const trimmed = String(value || "").trim();
+  const trimmed = decodeTextEntities(String(value || "").trim());
   return trimmed || fallback;
 }
 
