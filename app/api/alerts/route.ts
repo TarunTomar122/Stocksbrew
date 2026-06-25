@@ -115,16 +115,21 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const kindFilter = (url.searchParams.get("kind") || "").trim().toLowerCase();
+  const instrumentFilter = (url.searchParams.get("instrument_id") || "").trim();
+
   let query = adminFirestore
     .collection(COLLECTION)
     .where("uid", "==", decoded.uid)
-    .where("active", "==", true)
-    .orderBy("created_at", "desc");
+    .where("active", "==", true);
+
+  if (instrumentFilter) {
+    query = query.where("instrument_id", "==", instrumentFilter);
+  }
   if (ALERT_KINDS.has(kindFilter as AlertKind)) {
     query = query.where("kind", "==", kindFilter);
   }
-  const snap = await query.limit(50).get();
 
+  const snap = await query.orderBy("created_at", "desc").limit(50).get();
   const alerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   return NextResponse.json({ alerts });
 }

@@ -21,7 +21,7 @@ export function LandingTapeSkeleton() {
 
 export function LandingHeroCommandSkeleton() {
   return (
-    <div className="landing-card overflow-hidden">
+    <div className="landing-card w-full overflow-hidden">
       <div
         className="flex items-center justify-between border-b px-4 py-2.5"
         style={{ borderColor: "var(--outline-variant)", background: "var(--surface-container)" }}

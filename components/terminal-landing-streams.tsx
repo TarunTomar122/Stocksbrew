@@ -130,7 +130,7 @@ export async function LandingScannerRedditStream() {
 
   const redditPicks = (redditData?.tickers ?? [])
     .filter((t) => t.summary?.trim())
-    .slice(0, 6)
+    .slice(0, 5)
     .map((t) => ({
       ticker: t.ticker,
       sentiment: t.sentiment,

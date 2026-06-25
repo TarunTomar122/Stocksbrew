@@ -86,7 +86,7 @@ export function LandingHeroCommand({
 
   return (
     <div
-      className="landing-card overflow-hidden transition-[box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5"
+      className="landing-card w-full overflow-hidden transition-[box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5"
       style={{
         boxShadow: hovered ? panelHover : panelBorder,
       }}

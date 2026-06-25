@@ -26,7 +26,7 @@ export default function HomePage() {
         </Suspense>
 
         <header className="landing-hero-glow relative border-b border-outline-variant">
-          <div className="landing-inner grid items-center gap-12 py-16 md:py-24 lg:grid-cols-[1fr_1.12fr] lg:gap-14">
+          <div className="landing-inner grid items-center gap-8 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[1fr_1.12fr] lg:gap-14 lg:py-24">
             <TerminalLandingHeroCopy />
             <Suspense fallback={<LandingHeroCommandSkeleton />}>
               <LandingHeroCommandStream />

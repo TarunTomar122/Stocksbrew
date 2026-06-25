@@ -137,21 +137,30 @@ export function MoversScanner({
                 <div className="pulse-list-panel">
                   {(expanded ? rows.slice(4) : rows.slice(4, 10)).map((a) => {
                     const up = a.changePct >= 0;
+                    const subline = a.headline || a.tag;
                     return (
-                      <Link key={a.ticker} href={`/stock/${a.ticker}`} className="pulse-list-row">
-                        <StockLogo ticker={a.ticker} market="US" size={22} />
-                        <span className="w-12 shrink-0 font-semibold text-on-surface">{a.ticker}</span>
-                        <span className="min-w-0 flex-1 truncate text-on-surface-variant">
-                          {a.headline || a.tag}
-                        </span>
-                        <span className="shrink-0 tabular-nums text-on-surface">${money(a.price)}</span>
-                        <span
-                          className="flex w-[4.5rem] shrink-0 items-center justify-end gap-0.5 font-semibold tabular-nums"
-                          style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
-                        >
-                          <span className="text-[9px] leading-none">{up ? "▲" : "▼"}</span>
-                          {Math.abs(a.changePct).toFixed(2)}%
-                        </span>
+                      <Link
+                        key={a.ticker}
+                        href={`/stock/${a.ticker}`}
+                        className="pulse-list-row pulse-list-row-stacked"
+                      >
+                        <div className="flex items-center gap-3">
+                          <StockLogo ticker={a.ticker} market="US" size={22} />
+                          <span className="min-w-0 flex-1 font-semibold text-on-surface">{a.ticker}</span>
+                          <div className="shrink-0 text-right leading-tight">
+                            <p className="tabular-nums text-[13px] font-medium text-on-surface">${money(a.price)}</p>
+                            <p
+                              className="mt-0.5 flex items-center justify-end gap-0.5 text-[12px] font-semibold tabular-nums"
+                              style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+                            >
+                              <span className="text-[9px] leading-none">{up ? "▲" : "▼"}</span>
+                              {Math.abs(a.changePct).toFixed(2)}%
+                            </p>
+                          </div>
+                        </div>
+                        {subline ? (
+                          <p className="text-[13px] leading-snug text-on-surface-variant">{subline}</p>
+                        ) : null}
                       </Link>
                     );
                   })}
@@ -206,21 +215,31 @@ export function MoversScanner({
               <div className="panel overflow-hidden">
                 {rows.slice(4).map((a) => {
                   const up = a.changePct >= 0;
+                  const subline = a.headline || a.tag;
                   return (
                     <Link
                       key={a.ticker}
                       href={`/stock/${a.ticker}`}
-                      className="flex items-center gap-3 border-t px-5 py-3 font-mono text-[13px] transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
+                      className="block border-t px-5 py-3 transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
                       style={{ borderColor: "var(--outline-variant)" }}
                     >
-                      <StockLogo ticker={a.ticker} market="US" size={20} />
-                      <span className="w-14 font-bold text-on-surface">{a.ticker}</span>
-                      <span className="flex-1 truncate text-on-surface-variant">{a.headline || a.tag}</span>
-                      <span className="whitespace-nowrap text-on-surface-variant">${money(a.price)}</span>
-                      <span className="flex w-20 items-center justify-end gap-1" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-                        <span className="text-[10px] leading-none">{up ? "▲" : "▼"}</span>
-                        <span className="tabular-nums">{Math.abs(a.changePct).toFixed(2)}%</span>
-                      </span>
+                      <div className="flex items-center gap-3 font-mono text-[13px]">
+                        <StockLogo ticker={a.ticker} market="US" size={20} />
+                        <span className="min-w-0 flex-1 font-bold text-on-surface">{a.ticker}</span>
+                        <div className="shrink-0 text-right leading-tight">
+                          <p className="tabular-nums text-on-surface-variant">${money(a.price)}</p>
+                          <p
+                            className="mt-0.5 flex items-center justify-end gap-1 text-[12px] font-semibold tabular-nums"
+                            style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+                          >
+                            <span className="text-[10px] leading-none">{up ? "▲" : "▼"}</span>
+                            {Math.abs(a.changePct).toFixed(2)}%
+                          </p>
+                        </div>
+                      </div>
+                      {subline ? (
+                        <p className="mt-1.5 pl-8 text-[13px] leading-snug text-on-surface-variant">{subline}</p>
+                      ) : null}
                     </Link>
                   );
                 })}

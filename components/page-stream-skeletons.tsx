@@ -190,3 +190,41 @@ export function SubscribePageSkeleton() {
     </main>
   );
 }
+
+/** Matches stock-detail v3 layout — header, verdict chart, main + rails. */
+export function StockPageSkeleton() {
+  return (
+    <main className="flex min-w-0 w-full flex-grow flex-col" aria-busy="true" aria-label="Loading stock">
+      <div className="mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7">
+        <header className="mb-4 sm:mb-5">
+          <div className="flex items-center gap-3.5">
+            <Bone className="h-11 w-11 shrink-0 rounded-xl" />
+            <div className="min-w-0 flex-1">
+              <Bone className="h-7 w-52 max-w-full" />
+              <Bone className="mt-2 h-3 w-72 max-w-full" />
+            </div>
+            <div className="shrink-0">
+              <Bone className="ml-auto h-8 w-24" />
+              <Bone className="mt-1.5 ml-auto h-3 w-20" />
+            </div>
+          </div>
+        </header>
+
+        <Bone className="h-[260px] w-full rounded-2xl sm:h-[300px] lg:h-[320px]" />
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:mt-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-5">
+          <div className="flex flex-col gap-4">
+            <Bone className="h-44 w-full rounded-2xl" />
+            <Bone className="h-52 w-full rounded-2xl" />
+            <Bone className="h-36 w-full rounded-2xl" />
+          </div>
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Bone key={i} className="h-[104px] w-full rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

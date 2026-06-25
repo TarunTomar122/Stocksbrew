@@ -14,6 +14,8 @@ export type AuthSurface =
   | "subscribe_pricing"
   | "radar_track"
   | "radar_bulk"
+  | "stock_alert"
+  | "stock_smart_alert"
   | "demo_radar"
   | "home_content"
   | "unknown";

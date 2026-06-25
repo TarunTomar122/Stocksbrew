@@ -5,7 +5,7 @@ import { VerdictCallChart } from "@/components/verdict-call-chart";
 import { LockedVerdictCall } from "@/components/locked-verdict-call";
 import { LockedRoomToTarget } from "@/components/locked-room-to-target";
 import { FundamentalsBreakdown } from "@/components/fundamentals-breakdown";
-import { AlertButton } from "@/components/alert-button";
+import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
 import { TrackButton } from "@/components/track-button";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import Link from "next/link";
@@ -25,7 +25,6 @@ import {
   normalizeEpsOutlook,
   normalizePostPrintMove,
 } from "@/lib/pre-earnings-intel-shared";
-import { earningsIntelHref } from "@/lib/earnings-facts";
 import type { EarningsEvent } from "@/lib/earnings";
 import {
   buildDirectiveChartZones,
@@ -35,7 +34,6 @@ import {
   prepareChartZonesForDisplay,
   resolvePriceAwareCall,
   setupStateLabel,
-  smartAlertToneColors,
 } from "@/lib/directive-ui";
 import { hasRedditBuzzData, StockRedditBuzzRailCard } from "@/components/stock-social-proof-card";
 import { StockNewsRailCard } from "@/components/stock-news-rail-card";
@@ -319,14 +317,6 @@ function scoreToneColor(score: number | null): string {
   return "var(--signal-bearish)";
 }
 
-function isEarningsLike(...parts: Array<string | undefined | null>): boolean {
-  return parts.some((p) => /earning/i.test(String(p ?? "")));
-}
-
-function isDividendLike(...parts: Array<string | undefined | null>): boolean {
-  return parts.some((p) => /dividend/i.test(String(p ?? "")));
-}
-
 export function StockDetail(props: Props) {
   const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, lockedCall } = props;
 
@@ -524,14 +514,6 @@ export function StockDetail(props: Props) {
       ? `${EPS_OUTCOME_LINES[epsOutlook]} → ${STOCK_OUTCOME_LINES[postMove]}`
       : preEarnings?.report?.headline ?? null;
 
-  const earningsIntelLink =
-    preEarnings || preEarningsDoc || earnings?.report || calendarEarnings
-      ? earningsIntelHref(stock.ticker)
-      : undefined;
-
-  type UpcomingItem = { id: string; icon: string; label: string; date: string; href?: string };
-  const upcomingEvents: UpcomingItem[] = [];
-
   type EarningsCandidate = { event_date: string; time?: string; priority: number };
   const earningsCandidates: EarningsCandidate[] = [];
   const addEarningsCandidate = (eventDate?: string, time?: string, priority = 9) => {
@@ -546,6 +528,7 @@ export function StockDetail(props: Props) {
   addEarningsCandidate(calendarEarnings?.event_date, calendarEarnings?.time, 3);
   addEarningsCandidate(earnings?.event_date, undefined, 4);
 
+  let earningsSmartAlertRail: { eventDate: string; dateLabel: string } | null = null;
   if (earningsCandidates.length) {
     earningsCandidates.sort((a, b) => {
       const da = daysUntilEventDate(a.event_date) ?? 999;
@@ -553,28 +536,10 @@ export function StockDetail(props: Props) {
       return da - db || a.priority - b.priority;
     });
     const best = earningsCandidates[0]!;
-    upcomingEvents.push({
-      id: `earnings-${best.event_date}`,
-      icon: "📅",
-      label: "Earnings",
-      date: formatEarningsWhen(best.event_date, best.time),
-      href: earningsIntelLink,
-    });
-  }
-
-  for (const c of intelPro?.catalysts ?? []) {
-    if (!c.date || upcomingEvents.length >= 4) continue;
-    if (isEarningsLike(c.title, c.kind) && upcomingEvents.some((e) => e.label === "Earnings")) continue;
-
-    const id = `catalyst-${c.date}-${c.title}`;
-    if (upcomingEvents.some((e) => e.id === id)) continue;
-
-    upcomingEvents.push({
-      id,
-      icon: isDividendLike(c.title, c.kind) ? "💵" : "📅",
-      label: c.title,
-      date: formatEventDate(c.date),
-    });
+    earningsSmartAlertRail = {
+      eventDate: best.event_date,
+      dateLabel: formatEarningsWhen(best.event_date, best.time),
+    };
   }
 
   const peerScoreMap = new Map((betterPeers ?? []).map((p) => [p.ticker, Math.round(p.score)]));
@@ -641,8 +606,6 @@ export function StockDetail(props: Props) {
     }
   }
 
-  const earningsSmartAlert = upcomingEvents.find((e) => e.label === "Earnings");
-
   const metaLine = [stock.ticker, stock.exchange, stock.sector, stock.industry ?? intelPro?.industry_label].filter(Boolean).join(" · ");
   const metaShort = [stock.exchange, stock.sector, stock.industry ?? intelPro?.industry_label].filter(Boolean).join(" · ");
 
@@ -657,56 +620,62 @@ export function StockDetail(props: Props) {
   };
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7">
+    <div className="mx-auto w-full min-w-0 max-w-[1180px] px-3 py-3 sm:px-5 sm:py-7">
       {/* HEADER */}
-      <header className="mb-4 sm:mb-5">
-        <div className="flex gap-3 sm:hidden">
+      <header className="mb-3 sm:mb-5">
+        <div className="flex items-start gap-2.5 sm:hidden">
           <StockLogo
             ticker={stock.ticker}
             logoUrl={stock.logo_url}
             market={market}
             size={40}
-            className="mt-0.5 shrink-0 rounded-xl border border-outline-variant bg-surface p-1"
+            className="shrink-0 rounded-xl border border-outline-variant bg-surface p-1"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h1 className="font-mono text-[20px] font-extrabold leading-none tracking-tight text-on-surface">{stock.ticker}</h1>
-                <div className="mt-1 flex items-center gap-1.5">
+                <div className="mt-0.5 flex items-center gap-1.5">
                   <p className="line-clamp-2 min-w-0 text-[13px] font-medium leading-snug text-on-surface/75">{stock.name}</p>
                   <TrackButton {...trackButtonProps} />
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[21px] font-extrabold leading-none tabular-nums text-on-surface">{money(stock.price)}</p>
+                <p className="text-[20px] font-extrabold leading-none tabular-nums text-on-surface">{money(stock.price)}</p>
                 <p
-                  className="mt-1 font-mono text-[11px] font-semibold tabular-nums"
+                  className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums"
                   style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
                 >
                   {up ? "▲" : "▼"} {sign(dayPct, 2)}
                 </p>
                 {dayAbs ? (
-                  <p className="mt-0.5 font-mono text-[10px] tabular-nums text-on-surface-variant">
+                  <p className="mt-px font-mono text-[10px] tabular-nums text-on-surface-variant">
                     {dayAbs >= 0 ? "+" : "−"}
                     {money(Math.abs(dayAbs))}
                   </p>
                 ) : null}
               </div>
             </div>
-            {metaShort ? <p className="mt-2 font-mono text-[10.5px] leading-snug text-on-surface-variant">{metaShort}</p> : null}
-            {hasAnomalyMove && (
-              <a
-                href="#stock-todays-move"
-                className="mt-2.5 inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] transition-opacity hover:opacity-80"
-                style={{
-                  color: up ? "var(--signal-bullish)" : "var(--signal-bearish)",
-                  borderColor: `color-mix(in srgb, ${up ? "var(--signal-bullish)" : "var(--signal-bearish)"} 28%, var(--outline-variant))`,
-                  background: `color-mix(in srgb, ${up ? "var(--signal-bullish)" : "var(--signal-bearish)"} 8%, var(--surface))`,
-                }}
-              >
-                today&apos;s anomaly
-              </a>
-            )}
+            {(metaShort || hasAnomalyMove) ? (
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {metaShort ? (
+                  <p className="font-mono text-[10px] leading-none text-on-surface-variant">{metaShort}</p>
+                ) : null}
+                {hasAnomalyMove ? (
+                  <a
+                    href="#stock-todays-move"
+                    className="inline-flex w-fit shrink-0 items-center rounded-md border px-1.5 py-px font-mono text-[9px] font-semibold uppercase tracking-[0.08em] transition-opacity hover:opacity-80"
+                    style={{
+                      color: up ? "var(--signal-bullish)" : "var(--signal-bearish)",
+                      borderColor: `color-mix(in srgb, ${up ? "var(--signal-bullish)" : "var(--signal-bearish)"} 28%, var(--outline-variant))`,
+                      background: `color-mix(in srgb, ${up ? "var(--signal-bullish)" : "var(--signal-bearish)"} 8%, var(--surface))`,
+                    }}
+                  >
+                    today&apos;s anomaly
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -759,7 +728,7 @@ export function StockDetail(props: Props) {
           }}
         >
           {directive?.text ? (
-            <div className="p-3 sm:p-6 lg:p-7">
+            <div className="px-3.5 py-4 sm:p-6 lg:p-7">
               <VerdictCallChart
                 hist={hist}
                 returns={facts?.returns}
@@ -835,7 +804,7 @@ export function StockDetail(props: Props) {
 
             </div>
           ) : showLockedVerdict ? (
-            <div className="p-3 sm:p-6 lg:p-7">
+            <div className="px-3.5 py-4 sm:p-6 lg:p-7">
               <LockedVerdictCall
                 ticker={stock.ticker}
                 hist={hist}
@@ -849,7 +818,7 @@ export function StockDetail(props: Props) {
               />
             </div>
           ) : (
-            <div className="p-4 sm:p-6">{lockedCall}</div>
+            <div className="px-3.5 py-4 sm:p-6">{lockedCall}</div>
           )}
         </section>
       )}
@@ -1157,98 +1126,17 @@ export function StockDetail(props: Props) {
             </section>
           )}
 
-          {(directiveSmartAlerts.length > 0 || earningsSmartAlert) && (
-            <section className={`${V3_CARD} ${V3_PAD}`}>
-              <p className={`${RAIL_KICKER} mb-3`}>smart alerts</p>
-              <div className="space-y-3">
-                {directiveSmartAlerts.map((alert) => {
-                  const colors = smartAlertToneColors(alert.tone);
-                  return (
-                    <div key={alert.id} className="flex items-start gap-2.5">
-                      <span aria-hidden className="mt-0.5 shrink-0 text-[13px] leading-none">
-                        🔔
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-semibold leading-snug" style={{ color: colors.title }}>
-                          {alert.title}
-                        </p>
-                        {alert.detail ? (
-                          <p className="mt-0.5 font-mono text-[11.5px] leading-snug tabular-nums text-on-surface-variant">
-                            {alert.detail}
-                          </p>
-                        ) : null}
-                      </div>
-                      {alert.alertable && alert.price != null && alert.condition ? (
-                        <AlertButton
-                          ticker={stock.ticker}
-                          instrumentId={stock.instrument_id}
-                          condition={alert.condition}
-                          targetPrice={alert.price}
-                          directiveText={alert.directiveText}
-                          variant="link"
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {earningsSmartAlert && (
-                  <div className="flex items-start gap-2.5">
-                    <span aria-hidden className="mt-0.5 shrink-0 text-[13px] leading-none">
-                      🔔
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[12.5px] font-semibold leading-snug text-on-surface">Earnings</p>
-                      <p className="mt-0.5 font-mono text-[11.5px] leading-snug text-on-surface-variant">
-                        {earningsSmartAlert.date}
-                      </p>
-                    </div>
-                    {earningsSmartAlert.href ? (
-                      <Link
-                        href={earningsSmartAlert.href}
-                        className="shrink-0 pt-0.5 font-mono text-[12px] font-semibold"
-                        style={{ color: "var(--signal-bullish)" }}
-                      >
-                        Remind
-                      </Link>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            </section>
+          {(directiveSmartAlerts.length > 0 || earningsSmartAlertRail) && (
+            <StockSmartAlertsRail
+              ticker={stock.ticker}
+              instrumentId={stock.instrument_id}
+              alerts={directiveSmartAlerts}
+              earningsAlert={earningsSmartAlertRail}
+            />
           )}
 
           {(recentNews?.length ?? 0) > 0 && (
             <StockNewsRailCard ticker={stock.ticker} articles={recentNews!} />
-          )}
-
-          {upcomingEvents.length > 0 && (
-            <section className={`${V3_CARD} ${V3_PAD}`}>
-              <p className={`${RAIL_KICKER} mb-3`}>upcoming</p>
-              <div className="space-y-3">
-                {upcomingEvents.map((e) => {
-                  const row = (
-                    <>
-                      <span aria-hidden>{e.icon}</span>
-                      <span className="flex-1 text-[13px] font-medium text-on-surface">{e.label}</span>
-                      <span className="font-mono text-[12px] text-on-surface-variant">{e.date}</span>
-                    </>
-                  );
-                  return e.href ? (
-                    <Link
-                      key={e.id}
-                      href={e.href}
-                      className="-mx-1 flex items-center gap-2.5 rounded-lg px-1 py-0.5 transition-colors hover:bg-surface-container-low"
-                    >
-                      {row}
-                    </Link>
-                  ) : (
-                    <div key={e.id} className="flex items-center gap-2.5">
-                      {row}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
           )}
         </aside>
       </div>

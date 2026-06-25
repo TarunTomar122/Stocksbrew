@@ -2356,7 +2356,7 @@ function PillarLiftSuggestions({
   const scoreField = `${pillarKey}_score`;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface p-5">
+    <div className="flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface p-4 sm:p-5">
       <div className="flex flex-col gap-1.5">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
           Lift {pillarLabel.toLowerCase()}
@@ -2389,57 +2389,65 @@ function PillarLiftSuggestions({
             return (
               <li
                 key={instrumentId || `pillar-lift-${i}`}
-                className="flex items-start gap-3 px-4 py-3.5 hover:bg-surface-container-low transition-colors"
+                className="px-3 py-3.5 transition-colors hover:bg-surface-container-low sm:px-4"
               >
-                <Link
-                  href={ticker ? `/stock/${encodeURIComponent(ticker)}` : "#"}
-                  className="flex min-w-0 flex-1 items-start gap-3 group"
-                >
-                  {ticker ? <StockLogo ticker={ticker} market={market} size={36} /> : null}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className="text-[14px] font-semibold text-on-surface group-hover:text-[#22d3ee] transition-colors">
-                        {ticker || "Suggestion"}
-                      </span>
-                      {text(item.name) ? (
-                        <span className="text-[12px] text-on-surface-variant">{text(item.name)}</span>
-                      ) : null}
-                      {pillarScore !== null ? (
-                        <span className="rounded-md bg-[#fff7ed] px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-[#c2410c]">
-                          {pillarLabel} {Math.round(pillarScore)}
-                        </span>
-                      ) : null}
-                      {overallScore !== null ? (
-                        <span className="rounded-md bg-surface-container px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-on-surface-variant">
-                          Overall {Math.round(overallScore)}
-                        </span>
-                      ) : null}
-                      {liftPts !== null && liftPts > 0 ? (
-                        <span className="rounded-md bg-[#ecfdf5] px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-[#047857]">
-                          ~+{liftPts} {pillarKey}
-                        </span>
-                      ) : null}
+                <div className="flex items-start gap-2.5 sm:gap-3">
+                  <Link
+                    href={ticker ? `/stock/${encodeURIComponent(ticker)}` : "#"}
+                    className="group flex min-w-0 flex-1 flex-col gap-2"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {ticker ? <StockLogo ticker={ticker} market={market} size={36} className="shrink-0" /> : null}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-semibold leading-tight text-on-surface transition-colors group-hover:text-[#22d3ee]">
+                          {ticker || "Suggestion"}
+                        </p>
+                        {text(item.name) ? (
+                          <p className="mt-0.5 text-[12px] leading-snug text-on-surface-variant">{text(item.name)}</p>
+                        ) : null}
+                      </div>
                     </div>
+
+                    {pillarScore !== null || overallScore !== null || (liftPts !== null && liftPts > 0) ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {pillarScore !== null ? (
+                          <span className="rounded-md bg-[#fff7ed] px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-[#c2410c]">
+                            {pillarLabel} {Math.round(pillarScore)}
+                          </span>
+                        ) : null}
+                        {overallScore !== null ? (
+                          <span className="rounded-md bg-surface-container px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-on-surface-variant">
+                            Overall {Math.round(overallScore)}
+                          </span>
+                        ) : null}
+                        {liftPts !== null && liftPts > 0 ? (
+                          <span className="rounded-md bg-[#ecfdf5] px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-[#047857]">
+                            ~+{liftPts} {pillarKey}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     {hook ? (
-                      <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">{hook}</p>
+                      <p className="text-[13px] leading-relaxed text-on-surface-variant">{hook}</p>
                     ) : null}
                     {sector && !hook.toLowerCase().includes(sector.toLowerCase()) ? (
-                      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-on-surface-variant/80">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-on-surface-variant/80">
                         {sector}
                       </p>
                     ) : null}
-                  </div>
-                </Link>
-                {ticker && instrumentId ? (
-                  <TrackButton
-                    ticker={ticker}
-                    instrumentId={instrumentId}
-                    isTracked={isTracked}
-                    isSubscribed={isSubscribed}
-                    trackedCount={trackedCount}
-                    variant="icon"
-                  />
-                ) : null}
+                  </Link>
+                  {ticker && instrumentId ? (
+                    <TrackButton
+                      ticker={ticker}
+                      instrumentId={instrumentId}
+                      isTracked={isTracked}
+                      isSubscribed={isSubscribed}
+                      trackedCount={trackedCount}
+                      variant="icon"
+                    />
+                  ) : null}
+                </div>
               </li>
             );
           })}

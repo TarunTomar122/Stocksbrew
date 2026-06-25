@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { StockPageStream } from "@/components/stock-page-stream";
+import { StockPageSkeleton } from "@/components/page-stream-skeletons";
 import { normalizeStockSymbolParam } from "@/lib/stock";
 import { stockMetaDescription } from "@/lib/brand-copy";
 
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default function StockPage({ params }: Props) {
   return (
-    <Suspense>
+    <Suspense fallback={<StockPageSkeleton />}>
       <StockPageStream params={params} />
     </Suspense>
   );
