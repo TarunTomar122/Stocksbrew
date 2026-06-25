@@ -119,8 +119,12 @@ GENERIC_HEADLINE_PATTERNS = (
     "quiet consolidation",
     "without fresh catalyst",
     "without a fresh catalyst",
+    "without a clear catalyst",
     "without catalyst",
+    "no fresh catalyst",
+    "with no fresh catalyst",
     "momentum unwinds",
+    "dips modestly",
 )
 
 CRYPTO_EXPOSED_TICKERS = {"MSTR", "COIN", "HOOD", "RIOT", "MARA", "CLSK", "IREN", "APLD", "HUT", "BTDR"}
@@ -408,13 +412,13 @@ def _rewrite_headline_from_angle(
         f"{ticker} breaks lower as buyers step back",
         f"{ticker} gives back recent momentum",
         f"{ticker} slides as the tape fades",
-        f"{ticker} sells off without a clear catalyst",
+        f"{ticker} sells off as risk appetite fades",
     ]
     quiet_up = [
         f"{ticker} catches a bid in quiet trading",
         f"{ticker} extends its recent momentum",
         f"{ticker} lifts as buyers step in",
-        f"{ticker} rises without a clear catalyst",
+        f"{ticker} rises as buyers rotate in",
     ]
     quiet = (quiet_down if moves_down else quiet_up)[sum(ord(c) for c in ticker) % 4]
     templates = {
