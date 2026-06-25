@@ -6,6 +6,7 @@ from unittest.mock import patch
 from backend.models import Article
 from backend.stock_intelligence import (
     _normalize_catalyst_cards,
+    _repair_directive,
     _stock_market_regime,
     _summarize_price_context,
     build_stock_intelligence_docs,
@@ -13,6 +14,72 @@ from backend.stock_intelligence import (
 
 
 class StockIntelligenceTest(unittest.TestCase):
+    def test_repair_directive_preserves_now_call_and_derives_primary_zone(self) -> None:
+        directive = _repair_directive({
+            "text": "Accumulate on dips below 185",
+            "action_now": "Accumulate now",
+            "stance": "accumulate",
+            "trigger_type": "none",
+            "trigger_value": "",
+            "add_on": {
+                "text": "Add on pullbacks below $185",
+                "trigger_type": "price_below",
+                "trigger_value": "185",
+            },
+            "trim_on": {
+                "text": "Trim if it spikes above $230 without fresh guidance",
+                "trigger_type": "price_above",
+                "trigger_value": "230",
+            },
+            "breaks_if": {
+                "text": "Reassess if $175 breaks",
+                "trigger_type": "price_below",
+                "trigger_value": "175",
+            },
+            "rationale": "NVDA is still leading semis, but the best add zone is below spot.",
+            "confidence": "med",
+        })
+
+        self.assertEqual(directive["text"], "Accumulate now")
+        self.assertEqual(directive["action_now"], "Accumulate now")
+        self.assertEqual(directive["trigger_type"], "price_below")
+        self.assertEqual(directive["trigger_value"], "185")
+        self.assertEqual(directive["add_on"]["trigger_value"], "185")
+
+    def test_repair_directive_converts_breached_break_zone_to_reclaim_call(self) -> None:
+        directive = _repair_directive({
+            "text": "Accumulate now",
+            "action_now": "Price is near support at $366.57; accumulate on weakness below $370.",
+            "stance": "accumulate",
+            "trigger_type": "price_below",
+            "trigger_value": "370",
+            "add_on": {
+                "text": "Add on dips below $370",
+                "trigger_type": "price_below",
+                "trigger_value": "370",
+            },
+            "trim_on": {
+                "text": "Trim above recent highs near $380",
+                "trigger_type": "price_above",
+                "trigger_value": "380",
+            },
+            "breaks_if": {
+                "text": "Reassess if support at $366.57 breaks",
+                "trigger_type": "price_below",
+                "trigger_value": "366.57",
+            },
+            "confidence": "high",
+        }, current_price=365.46)
+
+        self.assertEqual(directive["text"], "Watch for reclaim")
+        self.assertEqual(directive["stance"], "watch")
+        self.assertEqual(directive["trigger_type"], "price_above")
+        self.assertEqual(directive["trigger_value"], "366.57")
+        self.assertEqual(directive["add_on"]["trigger_type"], "price_above")
+        self.assertEqual(directive["breaks_if"]["trigger_type"], "none")
+        self.assertNotIn("if support", directive["action_now"].lower())
+        self.assertEqual(directive["rationale"], directive["action_now"])
+
     def test_build_stock_intelligence_docs_normalizes_earnings_cards_even_with_risk_cards(self) -> None:
         instruments = [
             {
@@ -121,6 +188,85 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(len(cards), 1)
         self.assertEqual(cards[0]["window"], "post-earnings")
         self.assertEqual(cards[0]["event"], "Earnings setup")
+
+    def test_build_stock_intelligence_docs_never_persists_completed_doc_without_directive(self) -> None:
+        instruments = [
+            {
+                "instrument_id": "US_NVDA",
+                "market": "US",
+                "ticker": "NVDA",
+                "name": "NVIDIA Corporation",
+            }
+        ]
+        articles = [
+            Article(
+                id="nvda1",
+                source_id="nvda-news",
+                source_name="News",
+                source_kind="publisher",
+                market="US",
+                title="Nvidia data center demand remains strong",
+                url="https://example.com/nvda",
+                summary="Data center demand remains strong.",
+                article_overview="Data center demand remains strong.",
+                article_key_points=["Data center demand remains strong."],
+                published_at="2026-06-25T12:00:00+00:00",
+                topic_key="stock:US:nvda",
+                topic_label="NVDA",
+                topic_kind="stock",
+                tags=[],
+                sector_tags=["semiconductors"],
+                stock_candidates=["NVDA"],
+                stock_tickers=["NVDA"],
+                signal_types=["market_news"],
+                bucket_keys=["stock:US:nvda"],
+                bucket_labels=["NVDA"],
+                bucket_kinds=["stock"],
+                entity_mentions=[{"type": "stock", "ticker": "NVDA", "mention_role": "primary"}],
+                sentiment_score=0.5,
+                sentiment_label="constructive",
+                enrichment_source="llm",
+                source_lane="core",
+                focus_ticker="NVDA",
+            )
+        ]
+
+        class Store:
+            def get_latest_prices(self, _instrument_ids: list[str]) -> dict[str, dict]:
+                return {"US_NVDA": {"quote": {"current": 199.0, "day_change_pct": -0.5}}}
+
+            def list_stock_intel_pro(self, _market: str, _universe: str) -> list[dict]:
+                return []
+
+            def get_latest_stock_technicals_batch(self, _instrument_ids: list[str]) -> dict[str, dict]:
+                return {}
+
+            def get_sector_regimes(self, _market: str) -> dict:
+                return {}
+
+            def get_stock_intelligence_doc(self, _market: str, _universe: str, _instrument_id: str) -> dict | None:
+                return None
+
+        llm_brief = {
+            "headline": "Data center demand still leads",
+            "body": "Nvidia demand remains constructive.",
+            "key_findings": ["Demand remains constructive."],
+            "catalyst": "AI server demand",
+            "risk": "Sector weakness",
+            "thesis": "AI demand still leads",
+            "setup_state": "trend",
+            "drivers": [],
+            "catalyst_cards": [],
+            "risk_cards": [],
+        }
+
+        with patch("backend.stock_intelligence._llm_synthesize_brief", return_value=llm_brief):
+            docs_payload = build_stock_intelligence_docs("US", "us_test_1", instruments, articles, store=Store())
+
+        directive = docs_payload[0]["directive"]
+        self.assertIsInstance(directive, dict)
+        self.assertTrue(directive["text"])
+        self.assertIn(directive["trigger_type"], {"price_below", "price_above", "new_catalyst", "none"})
 
     def test_build_stock_intelligence_docs(self) -> None:
         instruments = [

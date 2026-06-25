@@ -27,7 +27,7 @@ from backend.models import Article
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-06-05-stock-brief-v13-directive-price-coherence"
+STOCK_BRIEF_CACHE_VERSION = "2026-06-24-stock-brief-v15-directive-stability"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -269,15 +269,15 @@ Fields to write:
   - detail: ONE sentence explaining the downside scenario concretely.
   - trigger, severity (1-5), probability (1-5)
 
-- **directive**: ONE actionable stance the user can take or watch for. Pick the single best fit based on evidence. Object with:
-  - text: the directive as a short imperative (under 10 words). Examples: "Accumulate on dips below $180", "Watch for reclaim of $510", "Add on breakout above $230", "Hold unless $205 breaks", "Starter position only - evidence thin"
+- **directive**: ONE present-tense call plus optional future zones. Do not hide the main call behind a nearby price. Object with:
+  - text: the current call as a short imperative (under 8 words). Examples: "Accumulate now", "Hold here", "Watch for reclaim", "Trim strength", "Avoid for now". Do NOT put a price in `text`; prices belong in add_on/trim_on/breaks_if.
+  - action_now: same current call in plain English. It should answer "what do I do at the current price?"
   - stance: one of ["accumulate", "trim", "watch", "avoid", "hold"]
-  - trigger_type: one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]
-  - trigger_value: a STRING. PARITY IS MANDATORY:
-      · If text mentions a price like "$198" → trigger_type MUST be "price_below" or "price_above" AND trigger_value MUST be "198" (just the numeric string, no $ sign).
-      · If text mentions a date or event with a date → trigger_type MUST be "date" AND trigger_value MUST be a full ISO date in the FUTURE relative to TODAY'S DATE (which will be given in the user payload as `today`). Never use 2023 or past years. If no reliable future date is known, use trigger_type "none" instead.
-      · For sentiment_flip/new_catalyst/none → trigger_value MUST be "".
-      · Mismatches between text and trigger fields are NOT allowed. Every numeric price in text must appear as trigger_value.
+  - add_on: optional object for the buy/add zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
+  - trim_on: optional object for the sell/trim zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
+  - breaks_if: optional object for the invalidation/risk zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
+  - trigger_type and trigger_value: backward-compatible PRIMARY smart trigger chosen from add_on/trim_on/breaks_if. Pick the most useful alert for the stance: accumulate -> add_on, trim -> trim_on, hold/watch -> breaks_if or add_on. If no useful alert exists, use "none" and "".
+  - Zone objects have keys: text, trigger_type, trigger_value. trigger_type is one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]. For price triggers, trigger_value is the numeric string only, no $ sign.
   - rationale: ONE sentence connecting the current setup to the trigger - mention where price sits relative to the level when a price trigger is used.
   - confidence: "low" | "med" | "high"
 
@@ -313,10 +313,19 @@ DIRECTIVE vs CURRENT PRICE - READ THIS FIRST:
 - The payload always includes `current_price`. It may also include `price_context` with `day_change_pct`, `recent_sessions`, MAs, RSI, and returns.
 - Before choosing stance or trigger, read where the stock trades NOW and what happened in `recent_sessions`.
 - The directive must make sense to someone looking at the live quote. If they would think "but it's already below/above that" - rewrite it.
-- Decide whether the advice is for NOW or for a FUTURE level:
-  · NOW: stance and level match current position (e.g. at $492 with support at $480 → "Watch hold at $480" or "Accumulate below $480").
-  · FUTURE: price must reclaim or break a level first → usually stance "watch", and text must signal the condition ("Watch for reclaim of $510", "Trim if price pushes above $220").
+- Decide the current call first, then the zones:
+  · If the setup is attractive at current price, write "Accumulate now" / "Hold here" and put better-entry prices in add_on.
+  · If price must reclaim or break a level first, write "Watch for reclaim" and put the level in add_on or breaks_if.
+  · If risk/reward is stretched, write "Trim strength" or "Do not add here" and put the sale zone in trim_on.
 - Never use "trim into strength" when the stock is not in strength today (negative `day_change_pct`, breaking recent highs, underperforming market/sector) unless the directive explicitly frames a future reclaim/bounce.
+
+DIRECTIVE STABILITY:
+- The payload may include `previous_directive`. Treat it as the default answer.
+- Keep the previous directive exactly unless new evidence changes the setup.
+- Do NOT move add/trim/break zones just because current_price moved.
+- Change the directive only if there is fresh company news, sector news, market news, competitor read-through, earnings/results/guidance, or price has crossed the prior add/trim/break zone.
+- If you keep the previous directive, keep `text`, `action_now`, `stance`, `add_on`, `trim_on`, `breaks_if`, `trigger_type`, and `trigger_value` unchanged. You may refresh rationale only if it still says the same thing more clearly.
+- If you change the directive, the rationale must name the evidence that changed.
 
 DIRECTIVE SELECTION PRIORITY:
 - First ask: is there a credible upside path with real evidence behind it?
@@ -465,13 +474,55 @@ STOCK_BRIEF_SCHEMA = {
                 "additionalProperties": False,
                 "properties": {
                     "text": {"type": "string"},
+                    "action_now": {"type": "string"},
                     "stance": {"type": "string", "enum": ["accumulate", "trim", "watch", "avoid", "hold"]},
                     "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
                     "trigger_value": {"type": "string"},
+                    "add_on": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "text": {"type": "string"},
+                            "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
+                            "trigger_value": {"type": "string"},
+                        },
+                        "required": ["text", "trigger_type", "trigger_value"],
+                    },
+                    "trim_on": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "text": {"type": "string"},
+                            "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
+                            "trigger_value": {"type": "string"},
+                        },
+                        "required": ["text", "trigger_type", "trigger_value"],
+                    },
+                    "breaks_if": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "text": {"type": "string"},
+                            "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
+                            "trigger_value": {"type": "string"},
+                        },
+                        "required": ["text", "trigger_type", "trigger_value"],
+                    },
                     "rationale": {"type": "string"},
                     "confidence": {"type": "string", "enum": ["low", "med", "high"]},
                 },
-                "required": ["text", "stance", "trigger_type", "trigger_value", "rationale", "confidence"],
+                "required": [
+                    "text",
+                    "action_now",
+                    "stance",
+                    "trigger_type",
+                    "trigger_value",
+                    "add_on",
+                    "trim_on",
+                    "breaks_if",
+                    "rationale",
+                    "confidence",
+                ],
             },
         },
         "required": [
@@ -511,6 +562,7 @@ def _llm_synthesize_brief(
     recent_news: list[dict[str, Any]] | None = None,
     reddit: dict[str, Any] | None = None,
     earnings: dict[str, Any] | None = None,
+    previous_directive: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
     """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
@@ -542,6 +594,8 @@ def _llm_synthesize_brief(
         payload["reddit_buzz"] = reddit
     if earnings:
         payload["earnings"] = earnings
+    if previous_directive:
+        payload["previous_directive"] = previous_directive
     if price_context:
         payload["price_context"] = price_context
     if market_regime:
@@ -854,7 +908,7 @@ def build_no_news_intelligence_doc(
     raw_directive = brief.get("directive")
     directive = None
     if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
-        directive = _repair_directive(dict(raw_directive))
+        directive = _repair_directive(dict(raw_directive), current_price=current_price)
 
     return {
         "instrument_id": instrument_id,
@@ -1505,16 +1559,12 @@ def generate_sector_brief(
         return None
 
 
-def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
-    """Enforce parity between directive.text and trigger fields.
-
-    LLMs frequently put a price in the text but forget to echo it into
-    trigger_value, or emit a past date. Fix both cases here so the UI can
-    reliably wire an alert button.
-    """
+def _repair_directive(directive: dict[str, Any], current_price: float | None = None) -> dict[str, Any]:
+    """Normalize directive copy and pick one primary smart-trigger zone."""
     text = str(directive.get("text", ""))
     trigger_type = str(directive.get("trigger_type", "none"))
     trigger_value = str(directive.get("trigger_value", "")).strip()
+    zone_trigger_types = {"price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"}
 
     def _has_past_date_hint(value: str) -> bool:
         # Handles inline month-day hints like "Apr 29 earnings" and explicit
@@ -1543,6 +1593,42 @@ def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
                 return False
         return False
 
+    def _repair_zone(raw: Any) -> dict[str, str]:
+        zone = raw if isinstance(raw, dict) else {}
+        zone_text = str(zone.get("text", "")).strip()
+        zone_type = str(zone.get("trigger_type", "none")).strip()
+        zone_value = str(zone.get("trigger_value", "")).strip()
+        if zone_type not in zone_trigger_types:
+            zone_type = "none"
+        price_match = re.search(r"\$(\d{1,7}(?:\.\d+)?)", zone_text)
+        if price_match:
+            lowered = zone_text.lower()
+            zone_type = "price_below" if any(
+                word in lowered for word in ("below", "under", "dip", "pullback", "support", "break", "lose", "lost")
+            ) else "price_above"
+            zone_value = price_match.group(1)
+        elif zone_type == "date":
+            today_iso = datetime.now(timezone.utc).date().isoformat()
+            if not zone_value or zone_value < today_iso:
+                zone_type = "none"
+                zone_value = ""
+        elif zone_type in ("sentiment_flip", "new_catalyst", "none"):
+            zone_value = ""
+        return {
+            "text": zone_text,
+            "trigger_type": zone_type,
+            "trigger_value": zone_value,
+        }
+
+    def _zone_price(zone: dict[str, str]) -> float | None:
+        if zone.get("trigger_type") not in ("price_below", "price_above"):
+            return None
+        try:
+            price = float(str(zone.get("trigger_value") or "").strip())
+        except Exception:
+            return None
+        return price if price > 0 else None
+
     if _has_past_date_hint(text):
         lower = text.lower()
         if "earnings" in lower:
@@ -1553,7 +1639,49 @@ def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
                 text = "Re-evaluate on next catalyst"
         directive["text"] = text
 
+    action_now = str(directive.get("action_now", "")).strip() or text.strip()
+    if not text.strip() and action_now:
+        text = action_now
+    if not action_now:
+        action_now = text.strip()
+
+    add_on = _repair_zone(directive.get("add_on"))
+    trim_on = _repair_zone(directive.get("trim_on"))
+    breaks_if = _repair_zone(directive.get("breaks_if"))
+
+    break_price = _zone_price(breaks_if)
+    if current_price and break_price:
+        break_type = breaks_if["trigger_type"]
+        if break_type == "price_below" and current_price <= break_price:
+            text = "Watch for reclaim"
+            action_now = f"Price is below the prior support at ${break_price:g}; wait for a reclaim before adding."
+            directive["rationale"] = action_now
+            directive["stance"] = "watch"
+            add_on = {
+                "text": f"Add only after reclaiming ${break_price:g}",
+                "trigger_type": "price_above",
+                "trigger_value": f"{break_price:g}",
+            }
+            breaks_if = {"text": "", "trigger_type": "none", "trigger_value": ""}
+            trigger_type = "price_above"
+            trigger_value = f"{break_price:g}"
+        elif break_type == "price_above" and current_price >= break_price:
+            text = "Watch for reset"
+            action_now = f"Price is above the prior risk level at ${break_price:g}; wait for a reset before acting."
+            directive["rationale"] = action_now
+            directive["stance"] = "watch"
+            add_on = {
+                "text": f"Act only after resetting below ${break_price:g}",
+                "trigger_type": "price_below",
+                "trigger_value": f"{break_price:g}",
+            }
+            breaks_if = {"text": "", "trigger_type": "none", "trigger_value": ""}
+            trigger_type = "price_below"
+            trigger_value = f"{break_price:g}"
+
     price_match = re.search(r"\$(\d{1,7}(?:\.\d+)?)", text)
+    if not price_match:
+        price_match = re.search(r"\b(?:below|above|under|over)\s+(\d{1,7}(?:\.\d+)?)\b", text, re.IGNORECASE)
     if price_match:
         price_str = price_match.group(1)
         lowered = text.lower()
@@ -1562,6 +1690,14 @@ def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
                 word in lowered for word in ("below", "under", "dip", "pullback")
             ) else "price_above"
         trigger_value = price_str
+        stance = str(directive.get("stance", "")).strip().lower()
+        text = {
+            "accumulate": "Accumulate now",
+            "hold": "Hold here",
+            "watch": "Watch setup",
+            "trim": "Trim strength",
+            "avoid": "Avoid for now",
+        }.get(stance, text.strip())
     elif trigger_type == "date":
         today_iso = datetime.now(timezone.utc).date().isoformat()
         if not trigger_value or trigger_value < today_iso:
@@ -1570,9 +1706,118 @@ def _repair_directive(directive: dict[str, Any]) -> dict[str, Any]:
     elif trigger_type in ("sentiment_flip", "new_catalyst", "none"):
         trigger_value = ""
 
+    if trigger_type not in ("price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"):
+        trigger_type = "none"
+        trigger_value = ""
+
+    if trigger_type == "none":
+        stance = str(directive.get("stance", "")).strip().lower()
+        candidates = (
+            [add_on, breaks_if, trim_on]
+            if stance == "accumulate"
+            else [trim_on, breaks_if, add_on]
+            if stance == "trim"
+            else [breaks_if, add_on, trim_on]
+        )
+        primary = next(
+            (
+                zone for zone in candidates
+                if zone["trigger_type"] in ("price_below", "price_above", "date")
+                and zone["trigger_value"]
+            ),
+            None,
+        )
+        if primary:
+            trigger_type = primary["trigger_type"]
+            trigger_value = primary["trigger_value"]
+
+    directive["text"] = text.strip()
+    directive["action_now"] = action_now
     directive["trigger_type"] = trigger_type
     directive["trigger_value"] = trigger_value
+    directive["add_on"] = add_on
+    directive["trim_on"] = trim_on
+    directive["breaks_if"] = breaks_if
     return directive
+
+
+def _deterministic_directive(
+    *,
+    sentiment_label: str,
+    current_price: float | None,
+    analyst_target: float | None,
+    price_context: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not current_price or current_price <= 0:
+        return {
+            "text": "Watch setup",
+            "action_now": "Keep this on watch until price and fresh evidence give a cleaner setup.",
+            "stance": "watch",
+            "trigger_type": "new_catalyst",
+            "trigger_value": "",
+            "add_on": {"text": "", "trigger_type": "none", "trigger_value": ""},
+            "trim_on": {"text": "", "trigger_type": "none", "trigger_value": ""},
+            "breaks_if": {"text": "", "trigger_type": "none", "trigger_value": ""},
+            "rationale": "No reliable live price was available for a price-based call.",
+            "confidence": "low",
+        }
+
+    label = str(sentiment_label or "").lower()
+    day_change = _nn_to_float((price_context or {}).get("day_change_pct")) or 0.0
+    upside = ((analyst_target - current_price) / current_price * 100) if analyst_target else None
+    constructive = label in {"bullish", "constructive"} or (upside is not None and upside >= 15)
+    add_price = round(current_price * (0.98 if day_change >= 0 else 0.97), 2)
+    break_price = round(current_price * 0.9, 2)
+
+    if constructive:
+        directive = {
+            "text": "Accumulate now",
+            "action_now": f"Current setup is constructive; add here and prefer pullbacks below ${add_price:g}.",
+            "stance": "accumulate",
+            "trigger_type": "price_below",
+            "trigger_value": f"{add_price:g}",
+            "add_on": {
+                "text": f"Add on pullbacks below ${add_price:g}",
+                "trigger_type": "price_below",
+                "trigger_value": f"{add_price:g}",
+            },
+            "trim_on": {
+                "text": f"Trim near analyst target ${analyst_target:g}" if analyst_target else "",
+                "trigger_type": "price_above" if analyst_target else "none",
+                "trigger_value": f"{analyst_target:g}" if analyst_target else "",
+            },
+            "breaks_if": {
+                "text": f"Reassess if price falls below ${break_price:g}",
+                "trigger_type": "price_below",
+                "trigger_value": f"{break_price:g}",
+            },
+            "rationale": "Constructive evidence and target upside support a starter/add call while keeping a clear risk level.",
+            "confidence": "med",
+        }
+    else:
+        reclaim_price = round(current_price * 1.03, 2)
+        directive = {
+            "text": "Watch for reclaim",
+            "action_now": f"Wait for strength above ${reclaim_price:g} before adding.",
+            "stance": "watch",
+            "trigger_type": "price_above",
+            "trigger_value": f"{reclaim_price:g}",
+            "add_on": {
+                "text": f"Add only after reclaiming ${reclaim_price:g}",
+                "trigger_type": "price_above",
+                "trigger_value": f"{reclaim_price:g}",
+            },
+            "trim_on": {"text": "", "trigger_type": "none", "trigger_value": ""},
+            "breaks_if": {
+                "text": f"Reassess if price falls below ${break_price:g}",
+                "trigger_type": "price_below",
+                "trigger_value": f"{break_price:g}",
+            },
+            "rationale": "Evidence is not strong enough for an add-now call, so the setup needs price confirmation.",
+            "confidence": "low",
+        }
+
+    return _repair_directive(directive, current_price=current_price)
 
 
 def _parse_window_date_iso(raw_window: str) -> str | None:
@@ -2803,6 +3048,10 @@ def build_stock_intelligence_docs(
 
         reddit_ctx = reddit_by_ticker.get(str(instrument["ticker"]).upper())
         earnings_ctx = earnings_by_id.get(instrument_id)
+        prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id) if store else None
+        previous_directive = (prev_doc or {}).get("directive")
+        if not isinstance(previous_directive, dict) or not str(previous_directive.get("text", "")).strip():
+            previous_directive = None
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
@@ -2826,6 +3075,7 @@ def build_stock_intelligence_docs(
             recent_news=recent_news,
             reddit=reddit_ctx,
             earnings=earnings_ctx,
+            previous_directive=previous_directive,
             store=store,
         )
 
@@ -2867,7 +3117,7 @@ def build_stock_intelligence_docs(
             ][:3]
             raw_directive = llm_brief.get("directive")
             if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
-                directive = _repair_directive(dict(raw_directive))
+                directive = _repair_directive(dict(raw_directive), current_price=current_price)
         else:
             headline = _build_headline(instrument, label, top_fact, top_title)
             body = _build_body(
@@ -2951,6 +3201,14 @@ def build_stock_intelligence_docs(
         if thesis and _has_invalid_earnings_timing(thesis, earnings_ctx):
             thesis = headline
 
+        if directive is None:
+            directive = _deterministic_directive(
+                sentiment_label=label,
+                current_price=current_price,
+                analyst_target=analyst_target,
+                price_context=price_context,
+            )
+
         # Keep key points non-repetitive versus thesis/headline/body.
         dedupe_base = " ".join([thesis, headline, body]).lower()
         filtered_points: list[str] = []
@@ -2997,7 +3255,6 @@ def build_stock_intelligence_docs(
             })
         timeline = _dedupe_timeline_events(timeline_events, limit=6)
 
-        prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id) if store else None
         prev_event_ids = {
             str(item.get("event_id", "")).strip()
             for item in (prev_doc or {}).get("timeline", [])
