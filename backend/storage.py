@@ -858,6 +858,13 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_premarket_movers").document(f"{market.upper()}__latest").get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    def save_premarket_context(self, market: str, payload: dict[str, Any]) -> None:
+        self.db.collection("tm_premarket_context").document(f"{market.upper()}__latest").set(payload)
+
+    def get_premarket_context(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_premarket_context").document(f"{market.upper()}__latest").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
     def get_sector_regimes(self, market: str) -> dict[str, dict[str, Any]]:
         """Return all live sector regime docs for a market, keyed by sector_slug.
         Includes the macro doc under key 'macro'."""
@@ -1149,6 +1156,59 @@ class TraceMoneyStore:
                 if doc.exists:
                     rows[doc.id] = _serialize(doc.to_dict()) or {}
         return rows
+
+    def get_daily_anomaly_ticker_docs_batch(self, market: str, tickers: list[str]) -> dict[str, dict[str, Any]]:
+        collection = self.db.collection("tm_daily_anomaly_tickers")
+        market_key = str(market or "").strip().upper()
+        ids = [f"{market_key}__{str(ticker or '').strip().upper()}" for ticker in tickers if str(ticker or "").strip()]
+        rows: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(ids), 500):
+            refs = [collection.document(doc_id) for doc_id in ids[start:start + 500]]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
+
+    def get_options_context_docs_batch(self, market: str, tickers: list[str]) -> dict[str, dict[str, Any]]:
+        collection = self.db.collection("tm_options_context_latest")
+        market_key = str(market or "").strip().upper()
+        ids = [f"{market_key}__{str(ticker or '').strip().upper()}" for ticker in tickers if str(ticker or "").strip()]
+        rows: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(ids), 500):
+            refs = [collection.document(doc_id) for doc_id in ids[start:start + 500]]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
+
+    def upsert_options_context_docs(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
+        if not docs_payload:
+            return
+        market_key = str(market or "").strip().upper()
+        batch = self.db.batch()
+        count = 0
+        for payload in docs_payload:
+            ticker = str(payload.get("ticker") or "").strip().upper()
+            if not ticker:
+                continue
+            doc_id = f"{market_key}__{ticker}"
+            batch.set(
+                self.db.collection("tm_options_context_latest").document(doc_id),
+                {
+                    **payload,
+                    "doc_id": doc_id,
+                    "market": market_key,
+                    "ticker": ticker,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                merge=True,
+            )
+            count += 1
+            if count % 400 == 0:
+                batch.commit()
+                batch = self.db.batch()
+        if count % 400 != 0:
+            batch.commit()
 
     def save_market_context_doc(self, market: str, universe_id: str, payload: dict[str, Any]) -> None:
         self._news_namespace(market, universe_id).collection("market_context").document("overview").set(payload)

@@ -31,6 +31,14 @@ PROVIDER_TEMPLATES = {
         "verification_url": "https://about.seekingalpha.com/feeds",
         "signal_types": ["market_news", "earnings", "ratings"],
     },
+    "yahoo_finance": {
+        "kind": "publisher",
+        "name": "Yahoo Finance",
+        "homepage_url": "https://finance.yahoo.com/quote/{ticker}",
+        "feed_url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US",
+        "verification_url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL&region=US&lang=en-US",
+        "signal_types": ["market_news", "earnings", "ratings"],
+    },
     "google_news": {
         "kind": "publisher",
         "name": "Google News",

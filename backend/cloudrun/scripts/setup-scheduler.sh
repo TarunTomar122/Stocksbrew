@@ -44,7 +44,6 @@ CRON_MARKET_EVENTS_CLOSE="${CRON_MARKET_EVENTS_CLOSE:-30 22 * * 1-5}" # 4:00 AM 
 CRON_DATA_HEALTH_CLOSE="${CRON_DATA_HEALTH_CLOSE:-40 22 * * 1-5}" # 4:10 AM IST (after close derived feeds)
 MARKET_EVENTS_OPEN_SKIP_IF_FRESH_HOURS="${MARKET_EVENTS_OPEN_SKIP_IF_FRESH_HOURS:-20}"
 CRON_CLOSE_ANOMALIES="${CRON_CLOSE_ANOMALIES:-40 20 * * 1-5}" # 2:10 AM IST (after postclose has usually completed)
-CRON_OPEN_EMAILS="${CRON_OPEN_EMAILS:-42 13 * * 1-5}"     # 7:12 PM IST (after open pipeline + anomalies)
 CRON_INTRADAY="${CRON_INTRADAY:-0 13-19 * * 1-5}"          # hourly baseline during session
 CRON_INTRADAY_OPENBURST="${CRON_INTRADAY_OPENBURST:-30 13-15 * * 1-5}" # extra half-hour cadence near open
 CRON_POSTCLOSE="${CRON_POSTCLOSE:-10 20 * * 1-5}"         # 1:40 AM IST (next day)
@@ -55,11 +54,11 @@ CRON_STOCK_REQUESTS="${CRON_STOCK_REQUESTS:-*/30 * * * *}" # every 30m; API also
 STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
 CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow fundamentals/facts refresh
 CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth Social market digest
-CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # 11:30 UTC = 7:30 ET; pre-market live since 4 ET
-CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h45 before the open email
+CRON_PREMARKET_INTEL="${CRON_PREMARKET_INTEL:-0 11 * * 1-5}" # 11:00 UTC = 7:00 ET; news → movers → context before email
+CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # legacy/manual fallback; scheduler uses premarket_intel
+CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h after intel starts
 CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14 * * 1-5}" # 14:00 UTC = 30m after open; refresh hero contrarian wall with fresh open prices
 CRON_CONTRARIAN_CLOSE="${CRON_CONTRARIAN_CLOSE:-30 20 * * 1-5}" # 20:30 UTC = 30m after close; refresh hero contrarian wall for post-close session
-CRON_WEEKLY_NEWSLETTER="${CRON_WEEKLY_NEWSLETTER:-0 14 * * 0}" # Sunday 14:00 UTC = 10:00 ET; week in the markets recap
 STOCK_FACTS_LIMIT="${STOCK_FACTS_LIMIT:-0}" # 0 means full active price universe
 STOCK_FACTS_MAX_WORKERS="${STOCK_FACTS_MAX_WORKERS:-4}"
 
@@ -144,7 +143,6 @@ printf '%s\n' "$(mk_minimal_body data_health "${extra_universe}")" > "${tmp_dir}
 printf '%s\n' "$(mk_body market_events "${extra_universe}")" > "${tmp_dir}/market_events_close.json"
 printf '%s\n' "$(mk_minimal_body data_health "${extra_universe}")" > "${tmp_dir}/data_health_close.json"
 printf '%s\n' "$(mk_body open_anomalies "${extra_universe}")" > "${tmp_dir}/close_anomalies.json"
-printf '%s\n' "$(mk_body market_open_email "${extra_universe}")" > "${tmp_dir}/open_emails.json"
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday.json"
 printf '%s\n' "$(mk_body price_core_intraday "${extra_universe},\"--session-phase\",\"mid_check\"")" > "${tmp_dir}/intraday_openburst.json"
 printf '%s\n' "$(mk_body daily_postclose "${extra_universe}")" > "${tmp_dir}/postclose.json"
@@ -153,10 +151,10 @@ printf '%s\n' "$(mk_body pre_earnings_intel ",\"--upcoming-days\",\"7\",\"--max-
 printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
 printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}/trump_logic.json"
+printf '%s\n' "$(mk_minimal_body premarket_intel "${extra_universe}")" > "${tmp_dir}/premarket_intel.json"
 printf '%s\n' "$(mk_minimal_body premarket_movers "${extra_universe}")" > "${tmp_dir}/premarket_movers.json"
 printf '%s\n' "$(mk_minimal_body premarket_email "${extra_universe}")" > "${tmp_dir}/premarket_email.json"
 printf '%s\n' "$(mk_minimal_body contrarian_calls "${extra_universe}")" > "${tmp_dir}/contrarian_calls.json"
-printf '%s\n' "$(mk_minimal_body weekly_newsletter "${extra_universe}")" > "${tmp_dir}/weekly_newsletter.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
 upsert_job "tikrr-tracked-refresh-t6" "${CRON_TRACKED_REFRESH_T6}" "${tmp_dir}/tracked_refresh_t6.json"
@@ -174,7 +172,6 @@ upsert_job "tikrr-data-health-open" "${CRON_DATA_HEALTH_OPEN}" "${tmp_dir}/data_
 upsert_job "tikrr-market-events-close" "${CRON_MARKET_EVENTS_CLOSE}" "${tmp_dir}/market_events_close.json"
 upsert_job "tikrr-data-health-close" "${CRON_DATA_HEALTH_CLOSE}" "${tmp_dir}/data_health_close.json"
 upsert_job "tikrr-close-anomalies" "${CRON_CLOSE_ANOMALIES}" "${tmp_dir}/close_anomalies.json"
-upsert_job "tikrr-open-emails" "${CRON_OPEN_EMAILS}" "${tmp_dir}/open_emails.json"
 upsert_job "tikrr-intraday-price" "${CRON_INTRADAY}" "${tmp_dir}/intraday.json"
 upsert_job "tikrr-intraday-price-openburst" "${CRON_INTRADAY_OPENBURST}" "${tmp_dir}/intraday_openburst.json"
 upsert_job "tikrr-postclose" "${CRON_POSTCLOSE}" "${tmp_dir}/postclose.json"
@@ -183,10 +180,9 @@ upsert_job "tikrr-pre-earnings-intel" "${CRON_PRE_EARNINGS_INTEL}" "${tmp_dir}/p
 upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
 upsert_job "tikrr-stock-facts" "${CRON_STOCK_FACTS}" "${tmp_dir}/stock_facts.json"
 upsert_job "tikrr-trump-logic" "${CRON_TRUMP_LOGIC}" "${tmp_dir}/trump_logic.json"
-upsert_job "tikrr-premarket-movers" "${CRON_PREMARKET_MOVERS}" "${tmp_dir}/premarket_movers.json"
+upsert_job "tikrr-premarket-intel" "${CRON_PREMARKET_INTEL}" "${tmp_dir}/premarket_intel.json"
 upsert_job "tikrr-premarket-email" "${CRON_PREMARKET_EMAIL}" "${tmp_dir}/premarket_email.json"
 upsert_job "tikrr-contrarian-calls" "${CRON_CONTRARIAN}" "${tmp_dir}/contrarian_calls.json"
 upsert_job "tikrr-contrarian-calls-close" "${CRON_CONTRARIAN_CLOSE}" "${tmp_dir}/contrarian_calls.json"
-upsert_job "tikrr-weekly-newsletter" "${CRON_WEEKLY_NEWSLETTER}" "${tmp_dir}/weekly_newsletter.json"
 
 echo "Scheduler jobs ready in ${SCHEDULER_LOCATION}."

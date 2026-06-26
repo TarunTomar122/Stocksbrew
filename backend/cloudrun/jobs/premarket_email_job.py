@@ -17,7 +17,7 @@ def main() -> None:
     cmd = [
         sys.executable,
         "-m",
-        "backend.scripts.send_pre_market_newsletters",
+        "backend.scripts.send_premarket_briefs",
         "--market",
         args.market,
         "--limit",

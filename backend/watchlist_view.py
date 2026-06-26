@@ -619,11 +619,25 @@ def _holding_status(position_type: str, holding_payload: dict[str, Any] | None) 
     return "unknown"
 
 
-def _directive_v2(row: dict[str, Any]) -> dict[str, Any]:
-    ai = (row.get("ai_directive") or {}) if isinstance(row.get("ai_directive"), dict) else {}
+def _directive_trigger(directive: dict[str, Any]) -> str | None:
+    zones = directive.get("zones") if isinstance(directive.get("zones"), dict) else {}
+    if not isinstance(zones, dict):
+        return None
+    if isinstance(zones.get("accumulate_below"), (int, float)):
+        return f"below {zones['accumulate_below']:.2f}"
+    if isinstance(zones.get("breakout_above"), (int, float)):
+        return f"above {zones['breakout_above']:.2f}"
+    if isinstance(zones.get("trim_above"), (int, float)):
+        return f"above {zones['trim_above']:.2f}"
+    return None
+
+
+def _directive_v2(row: dict[str, Any], directive: dict[str, Any] | None = None) -> dict[str, Any]:
+    ai = directive if isinstance(directive, dict) else ((row.get("ai_directive") or {}) if isinstance(row.get("ai_directive"), dict) else {})
     stance = str(ai.get("stance") or "watch").lower()
-    text = str(ai.get("text") or row.get("ai_directive_text") or "").strip()
-    trigger = str(ai.get("trigger_value") or "").strip() or None
+    action = ai.get("action") if isinstance(ai.get("action"), dict) else {}
+    text = str(ai.get("text") or action.get("label") or row.get("ai_directive_text") or "").strip()
+    trigger = str(ai.get("trigger") or "").strip() or _directive_trigger(ai)
     confidence = str(ai.get("confidence") or "low").lower()
     holding = row.get("holding") if isinstance(row.get("holding"), dict) else {}
     holding_status = _holding_status(str(row.get("position_type") or "watchlist"), holding)
@@ -657,19 +671,12 @@ def _directive_v2(row: dict[str, Any]) -> dict[str, Any]:
     else:
         title = "Keep on watch"
 
-    details: list[str] = []
-    if holding_status == "known" and weight > 0:
-        details.append(f"{weight:.1f}% portfolio weight")
-    elif holding_status == "unknown" and row.get("position_type") == "holding":
-        details.append("position size unknown")
-    if score < 50:
-        details.append(f"low score ({score:.0f})")
-    if abs(day_change) >= 3:
-        details.append(f"move {day_change:+.1f}% today")
+    detail = str(action.get("summary") or ai.get("watch_out") or ai.get("detail") or "").strip() or None
 
     return {
+        **ai,
         "title": title[:140],
-        "detail": "; ".join(details)[:180] if details else None,
+        "detail": detail[:180] if detail else None,
         "priority": priority,
         "trigger": trigger,
         "holding_status": holding_status,
@@ -787,10 +794,11 @@ def _row_for_instrument(
         intel_pro,
         alert_flags,
     )
-    raw_directive = stock_intel.get("directive") if isinstance(stock_intel, dict) else None
+    raw_directive = stock_intel.get("directive_v2") if isinstance(stock_intel.get("directive_v2"), dict) else None
     directive = raw_directive if isinstance(raw_directive, dict) else {}
-    directive_text = str(directive.get("text") or "").strip()
-    directive_rationale = str(directive.get("rationale") or "").strip()
+    action = directive.get("action") if isinstance(directive.get("action"), dict) else {}
+    directive_text = str(action.get("label") or "").strip()
+    directive_rationale = str(action.get("summary") or directive.get("watch_out") or "").strip()
     instrument_peers = [
         str(peer_id).strip()
         for peer_id in (instrument_meta.get("peer_ids") or [])
@@ -874,7 +882,12 @@ def _row_for_instrument(
             "vibe": vibe,
             "source": "rules",
         },
-        "ai_directive": directive,
+        "ai_directive": {
+            **directive,
+            "text": directive_text or None,
+            "rationale": directive_rationale or None,
+            "trigger": _directive_trigger(directive),
+        } if directive else {},
         "ai_directive_text": directive_text,
         "ai_directive_rationale": directive_rationale,
         **_row_attention(
@@ -892,7 +905,7 @@ def _row_for_instrument(
         "holding": holding_payload,
     }
     row["holding_status"] = _holding_status(position_type, holding_payload)
-    row["directive_v2"] = _directive_v2(row)
+    row["directive_v2"] = _directive_v2(row, row.get("ai_directive") if isinstance(row.get("ai_directive"), dict) else None)
     return row
 
 
@@ -3026,7 +3039,7 @@ def build_watchlist_view(
     for row in rows:
         holding_payload = row.get("holding") if isinstance(row.get("holding"), dict) else None
         row["holding_status"] = _holding_status(str(row.get("position_type") or "watchlist"), holding_payload)
-        row["directive_v2"] = _directive_v2(row)
+        row["directive_v2"] = _directive_v2(row, row.get("ai_directive") if isinstance(row.get("ai_directive"), dict) else None)
     rows = _apply_row_deltas(rows, previous_view)
     for row in rows:
         if isinstance(row.get("holding"), dict):

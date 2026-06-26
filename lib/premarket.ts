@@ -35,11 +35,30 @@ async function getPremarketMoversUncached(
   return doc.data() as PremarketMovers;
 }
 
-export const getPremarketMovers = unstable_cache(
-  getPremarketMoversUncached,
-  ["premarket-movers"],
-  { revalidate: 120 },
-);
+function tradingDateIso(market: "US" | "IN", ref = new Date()): string {
+  const timeZone = market === "IN" ? "Asia/Kolkata" : "America/New_York";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(ref);
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  return `${year}-${month}-${day}`;
+}
+
+export async function getPremarketMovers(
+  market: "US" | "IN" = "US",
+): Promise<PremarketMovers | null> {
+  const dateKey = tradingDateIso(market);
+  return unstable_cache(
+    () => getPremarketMoversUncached(market),
+    ["premarket-movers", market, dateKey],
+    { revalidate: 60, tags: [`premarket-${market}`] },
+  )();
+}
 
 type EasternParts = {
   weekday: string;

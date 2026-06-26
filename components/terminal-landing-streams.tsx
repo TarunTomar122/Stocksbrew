@@ -7,7 +7,7 @@ import { TerminalLandingProSection } from "@/components/terminal-landing-pro-sec
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { anomalyTag, buildLandingSectorCards, pickBiggestMover } from "@/lib/landing-sector-data";
-import { directiveZonePrice } from "@/lib/directive-ui";
+import { directiveZonePrice, normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -77,7 +77,7 @@ export async function LandingHeroCommandStream() {
 
   const tier = resolveStockTier(featured.instrument_id, user.trackedIds);
   const featuredTracked = user.trackedIds.includes(featured.instrument_id);
-  const directive = intelligence?.directive;
+  const directive = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null);
   const moveHeadline =
     featured.move_explanation?.headline?.trim() ||
     featured.headline?.trim() ||

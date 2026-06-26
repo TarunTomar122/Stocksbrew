@@ -37,6 +37,67 @@ export function resolveCallHeadline(directive: Directive): string {
   return text || stance;
 }
 
+type DirectiveV2Like = {
+  stance?: string | null;
+  confidence?: string | null;
+  action?: { label?: string | null; summary?: string | null } | null;
+  zones?: {
+    accumulate_below?: number | null;
+    breakout_above?: number | null;
+    trim_above?: number | null;
+  } | null;
+  watch_out?: string | null;
+};
+
+function zoneText(prefix: string, price: number): string {
+  return `${prefix} $${price.toFixed(price >= 100 ? 0 : 2)}`;
+}
+
+function zoneFromPrice(
+  price: number | null | undefined,
+  triggerType: DirectiveZone["trigger_type"],
+  prefix: string,
+): DirectiveZone | undefined {
+  if (typeof price !== "number" || !Number.isFinite(price)) return undefined;
+  return {
+    text: zoneText(prefix, price),
+    trigger_type: triggerType,
+    trigger_value: String(price),
+  };
+}
+
+export function normalizeDirectiveForUi(
+  raw: DirectiveV2Like | null | undefined,
+): Directive | null {
+  if (!raw) return null;
+  const text = (raw.action?.label ?? "").trim();
+  if (!text) return null;
+  const stance = ((raw.stance ?? "watch").trim().toLowerCase() || "watch") as Directive["stance"];
+  const confidenceRaw = (raw.confidence ?? "").trim().toLowerCase();
+  const confidence: Directive["confidence"] =
+    confidenceRaw === "high" ? "high" : confidenceRaw === "medium" ? "med" : confidenceRaw === "med" ? "med" : "low";
+  const zones = raw.zones ?? {};
+  const add_on =
+    zoneFromPrice(zones.accumulate_below, "price_below", "Add below") ??
+    zoneFromPrice(zones.breakout_above, "price_above", "Add above");
+  const trim_on = zoneFromPrice(zones.trim_above, "price_above", "Trim above");
+  const primary =
+    (stance === "trim" || stance === "avoid") ? trim_on :
+    (stance === "accumulate" || stance === "watch" || stance === "hold") ? add_on :
+    undefined;
+  return {
+    text,
+    action_now: (raw.action?.summary ?? raw.watch_out ?? "").trim() || undefined,
+    stance,
+    trigger_type: primary?.trigger_type ?? "none",
+    trigger_value: primary?.trigger_value,
+    add_on,
+    trim_on,
+    rationale: (raw.action?.summary ?? raw.watch_out ?? "").trim() || undefined,
+    confidence,
+  };
+}
+
 export function setupStateLabel(raw?: string | null, stance?: string | null): string | null {
   const key = (raw ?? "").trim().toLowerCase();
   if (!key || key === "unclear") return null;

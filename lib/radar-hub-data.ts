@@ -2,7 +2,7 @@ import type { Directive } from "@/lib/stock";
 import type { WatchlistBrief, WatchlistRow } from "@/lib/watchlist-view";
 import type { PortfolioExposure } from "@/lib/portfolio-scenarios";
 import type { BookAnomaly, BookBuzz, BookPremarket } from "@/components/radar-signals-on-book";
-import { formatDirectiveTrigger, directiveZonePrice, zoneTriggerMet } from "@/lib/directive-ui";
+import { formatDirectiveTrigger, directiveZonePrice, normalizeDirectiveForUi, zoneTriggerMet } from "@/lib/directive-ui";
 import type { DirectiveZone } from "@/lib/stock";
 import {
   buildBookRead,
@@ -177,21 +177,7 @@ const money = (v: number) =>
   v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export function rowDirective(row: WatchlistRow): Directive | null {
-  const d = row.ai_directive;
-  if (!d) return null;
-  const textVal = (d.text || row.ai_directive_text || "").trim();
-  if (!textVal) return null;
-  return {
-    text: textVal,
-    stance: (d.stance ?? "watch") as Directive["stance"],
-    trigger_type: (d.trigger_type ?? "none") as Directive["trigger_type"],
-    trigger_value: d.trigger_value,
-    add_on: d.add_on,
-    trim_on: d.trim_on,
-    breaks_if: d.breaks_if,
-    rationale: (d.rationale || row.ai_directive_rationale || "").trim() || undefined,
-    confidence: d.confidence as Directive["confidence"],
-  };
+  return normalizeDirectiveForUi(row.ai_directive);
 }
 
 function rowChanges(row: WatchlistRow): Record<string, unknown> {

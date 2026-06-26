@@ -260,20 +260,6 @@ def _refresh_watchlist_views(
     }
 
 
-def _send_directive_change_alerts() -> dict[str, Any]:
-    cmd = [
-        sys.executable,
-        "-m",
-        "backend.scripts.send_directive_change_alerts",
-    ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    return {
-        "status": "success",
-        "cmd": " ".join(cmd),
-        "stdout_tail": "\n".join(proc.stdout.strip().splitlines()[-8:]) if proc.stdout else "",
-    }
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cloud Run lane dispatcher")
     parser.add_argument(
@@ -290,7 +276,6 @@ def main() -> None:
             "market_events",
             "data_health",
             "stock_facts",
-            "market_open_email",
             "earnings_intel",
             "pre_earnings_intel",
             "daily_postclose",
@@ -299,9 +284,9 @@ def main() -> None:
             "sector_regimes",
             "trump_logic",
             "premarket_movers",
+            "premarket_intel",
             "premarket_email",
             "contrarian_calls",
-            "weekly_newsletter",
         ],
         required=True,
     )
@@ -367,7 +352,6 @@ def main() -> None:
         "market_events": os.getenv("MARKET_EVENTS_JOB_NAME", "tikrr-market-events"),
         "data_health": os.getenv("DATA_HEALTH_JOB_NAME", "tikrr-data-health"),
         "stock_facts": os.getenv("STOCK_FACTS_JOB_NAME", "tikrr-stock-facts"),
-        "market_open_email": os.getenv("MARKET_OPEN_EMAIL_JOB_NAME", "tikrr-market-open-email"),
         "earnings_intel": os.getenv("EARNINGS_INTEL_JOB_NAME", "tikrr-earnings-intel"),
         "pre_earnings_intel": os.getenv(
             "PRE_EARNINGS_INTEL_JOB_NAME", "tikrr-pre-earnings-intel"
@@ -378,9 +362,9 @@ def main() -> None:
         "sector_regimes": os.getenv("SECTOR_REGIMES_JOB_NAME", "tikrr-sector-regimes"),
         "trump_logic": os.getenv("TRUMP_LOGIC_JOB_NAME", "tikrr-trump-logic"),
         "premarket_movers": os.getenv("PREMARKET_MOVERS_JOB_NAME", "tikrr-premarket-movers"),
+        "premarket_intel": os.getenv("PREMARKET_INTEL_JOB_NAME", "tikrr-premarket-intel"),
         "premarket_email": os.getenv("PREMARKET_EMAIL_JOB_NAME", "tikrr-premarket-email"),
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
-        "weekly_newsletter": os.getenv("WEEKLY_NEWSLETTER_JOB_NAME", "tikrr-weekly-newsletter"),
     }
     job_name = job_name_by_lane[args.lane]
 
@@ -442,9 +426,9 @@ def main() -> None:
             )
             summary["home_refresh"] = home_refresh
         # Price-core lanes own prices plus shared home/dashboard materialization.
-        # User watchlists are rebuilt by tracked_open_briefs and market_open_email
-        # shortly after open, and by post-close/on-demand flows. Rebuilding them
-        # here duplicates broad per-user work without adding coverage.
+        # User watchlists are rebuilt by tracked_open_briefs shortly after open,
+        # and by post-close/on-demand flows. Rebuilding them here duplicates
+        # broad per-user work without adding coverage.
         should_refresh_watchlists = args.refresh_watchlists
         if should_refresh_watchlists:
             summary["watchlist_refresh"] = _refresh_watchlist_views(
@@ -452,7 +436,6 @@ def main() -> None:
                 no_llm=not args.watchlist_with_llm,
                 subscribed_only=False,
             )
-            summary["directive_change_alerts"] = _send_directive_change_alerts()
     elif args.lane in {"tracked_news_prep", "tracked_open_briefs"}:
         instrument_ids = _tracked_ids(store, args.market)
         if args.dry_run:
@@ -503,7 +486,6 @@ def main() -> None:
                 no_llm=not args.watchlist_with_llm,
                 subscribed_only=False,
             )
-            summary["directive_change_alerts"] = _send_directive_change_alerts()
     else:
         if args.dry_run:
             print(
@@ -577,10 +559,6 @@ def main() -> None:
             single_extra_args = ["--limit", str(max(1, args.limit))]
             if args.skip_if_fresh_hours > 0:
                 single_extra_args.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
-        elif args.lane == "market_open_email":
-            single_extra_args = ["--limit", str(max(0, args.limit))]
-        elif args.lane == "weekly_newsletter":
-            single_extra_args = ["--limit", str(max(0, args.limit))]
         elif args.lane == "reddit_buzz":
             single_extra_args = [
                 "--subreddit-batch-size",
@@ -595,16 +573,6 @@ def main() -> None:
                 "--max-workers",
                 str(max(1, args.max_workers)),
             ]
-        if args.lane == "market_open_email":
-            # Refresh Radar/watchlist views before sending so the email reads
-            # the latest open-session prices and directives, not a prior view.
-            pre_email_refresh = _refresh_watchlist_views(
-                run_id=run_id,
-                no_llm=True,
-                subscribed_only=False,
-            )
-        else:
-            pre_email_refresh = None
 
         summary = _run_single_job_lane(
             lane=args.lane,
@@ -615,8 +583,6 @@ def main() -> None:
             extra_args=single_extra_args,
             client=RunJobsClient(project=args.project, region=args.region),
         )
-        if pre_email_refresh is not None:
-            summary["watchlist_refresh"] = pre_email_refresh
 
     status = "success"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:
@@ -630,7 +596,6 @@ def main() -> None:
         "market_events",
         "data_health",
         "stock_facts",
-        "market_open_email",
         "earnings_intel",
         "pre_earnings_intel",
         "on_demand_news",
@@ -638,9 +603,9 @@ def main() -> None:
         "sector_regimes",
         "trump_logic",
         "premarket_movers",
+        "premarket_intel",
         "premarket_email",
         "contrarian_calls",
-        "weekly_newsletter",
     } and summary.get("status") != "success":
         status = "failed"
     state.mark_run_finished(run_id=run_id, status=status, summary=summary)

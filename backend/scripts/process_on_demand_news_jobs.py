@@ -224,6 +224,7 @@ def process_job(
             [instrument],
             enriched_articles,
             store=store,
+            include_options_digest=True,
         )
         docs = [_normalize_doc(doc) for doc in docs if doc.get("instrument_id") == instrument_id]
 

@@ -94,16 +94,16 @@ export function LandingHeroCommand({
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        className="flex items-center justify-between border-b px-4 py-2.5 font-mono text-[12px]"
+        className="flex min-w-0 items-center justify-between gap-2 border-b px-4 py-2.5 font-mono text-[12px]"
         style={{ borderColor: "var(--outline-variant)", background: "color-mix(in srgb, var(--surface-container) 80%, var(--surface))" }}
       >
-        <span className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, var(--signal-bearish) 70%, transparent)" }} />
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, var(--accent-terminal) 40%, transparent)" }} />
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "color-mix(in srgb, var(--signal-bullish) 60%, transparent)" }} />
-          <span className="ml-3 text-on-surface-variant">sb://command-center</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: "color-mix(in srgb, var(--signal-bearish) 70%, transparent)" }} />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: "color-mix(in srgb, var(--accent-terminal) 40%, transparent)" }} />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: "color-mix(in srgb, var(--signal-bullish) 60%, transparent)" }} />
+          <span className="ml-1 truncate text-on-surface-variant sm:ml-3">sb://command-center</span>
         </span>
-        <span className="flex items-center gap-1.5" style={{ color: "var(--signal-bullish)" }}>
+        <span className="flex shrink-0 items-center gap-1.5" style={{ color: "var(--signal-bullish)" }}>
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "var(--signal-bullish)" }} />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "var(--signal-bullish)" }} />
@@ -223,7 +223,7 @@ export function LandingHeroCommand({
             }}
           >
             {featured.headline ? (
-              <p className="font-sans text-[13px] font-medium leading-snug text-on-surface">{featured.headline}</p>
+              <p className="break-words font-sans text-[13px] font-medium leading-snug text-on-surface">{featured.headline}</p>
             ) : null}
             {(featured.add_level || featured.trim_level) && (
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">

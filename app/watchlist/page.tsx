@@ -38,6 +38,7 @@ import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-workspace";
 import { RadarBuildingState } from "@/components/radar-building-state";
 import { RadarEmptyBuildingGate } from "@/components/radar-empty-building-gate";
+import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getInstruments } from "@/lib/firestore";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import {
@@ -3064,18 +3065,7 @@ function computePillarAverages(rows: WatchlistRow[]): PillarAverages {
 }
 
 function rowDirective(row: WatchlistRow): Directive | null {
-  const d = row.ai_directive;
-  if (!d) return null;
-  const textVal = (d.text || row.ai_directive_text || "").trim();
-  if (!textVal) return null;
-  return {
-    text: textVal,
-    stance: (d.stance ?? "watch") as Directive["stance"],
-    trigger_type: (d.trigger_type ?? "none") as Directive["trigger_type"],
-    trigger_value: d.trigger_value,
-    rationale: (d.rationale || row.ai_directive_rationale || "").trim() || undefined,
-    confidence: d.confidence as Directive["confidence"],
-  };
+  return normalizeDirectiveForUi(row.ai_directive);
 }
 
 const STANCE_WEIGHT: Record<string, number> = {

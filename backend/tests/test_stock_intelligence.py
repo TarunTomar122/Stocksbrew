@@ -184,10 +184,11 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(len(docs_payload), 1)
         self.assertNotIn("Apr 22", docs_payload[0]["catalyst"])
         self.assertNotIn("Apr 22", docs_payload[0]["body"])
-        cards = docs_payload[0]["visual_summary"]["catalyst_cards"]
+        cards = docs_payload[0]["visual_cards"]["catalyst_cards"]
         self.assertEqual(len(cards), 1)
         self.assertEqual(cards[0]["window"], "post-earnings")
         self.assertEqual(cards[0]["event"], "Earnings setup")
+        self.assertEqual(docs_payload[0]["visual_summary"]["catalyst_cards"], cards)
 
     def test_build_stock_intelligence_docs_never_persists_completed_doc_without_directive(self) -> None:
         instruments = [
@@ -429,7 +430,7 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(block["day_change_pct"], 2.5)
         self.assertEqual(block["vs_market_day_change_pct"], 1.8)
         self.assertEqual(block["volume_vs_avg"], 2.0)
-        self.assertEqual(len(block["recent_sessions"]), 5)
+        self.assertEqual(len(block["recent_sessions"]), 6)
         self.assertEqual(block["returns"]["week_1_pct"], 10.0)
 
     def test_stock_market_regime_prefers_instrument_sector(self) -> None:

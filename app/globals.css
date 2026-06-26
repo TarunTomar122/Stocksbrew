@@ -350,10 +350,9 @@
 
 /* ── Homepage landing theme ─────────────────────────────────────────────── */
 .landing-page {
-  width: 100vw;
-  max-width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
 
   /* Shared landing tokens (overridden per theme below) */
   --landing-brand: var(--signal-bullish);
@@ -370,6 +369,18 @@
   --landing-glow-cyan: var(--accent-terminal);
   --landing-glow-mint-opacity: 16%;
   --landing-glow-cyan-opacity: 8%;
+}
+
+/* Full-bleed breakout from the layout shell padding (md+ only; 100vw clips on mobile Safari). */
+@media (min-width: 768px) {
+  .landing-page {
+    width: 100vw;
+    max-width: 100vw;
+    margin-inline: calc(50% - 50vw);
+    width: 100dvw;
+    max-width: 100dvw;
+    margin-inline: calc(50% - 50dvw);
+  }
 }
 
 .landing-inner {

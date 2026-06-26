@@ -48,7 +48,6 @@ def main() -> None:
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--subscribed-only", action="store_true")
     parser.add_argument("--no-llm", action="store_true")
-    parser.add_argument("--skip-alerts", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -152,15 +151,6 @@ def main() -> None:
         watchlist_cmd.append("--no-llm")
     watchlist_result = _run(watchlist_cmd)
 
-    alerts_result = None
-    if not args.skip_alerts:
-        alerts_cmd = [
-            sys.executable,
-            "-m",
-            "backend.scripts.send_directive_change_alerts",
-        ]
-        alerts_result = _run(alerts_cmd)
-
     print(
         {
             "status": "success",
@@ -172,7 +162,6 @@ def main() -> None:
             "discovery_stdout_tail": "\n".join(discovery_result.stdout.strip().splitlines()[-8:]) if discovery_result.stdout else "",
             "synthesis_stdout_tail": "\n".join(synthesis_result.stdout.strip().splitlines()[-8:]) if synthesis_result.stdout else "",
             "watchlist_stdout_tail": "\n".join(watchlist_result.stdout.strip().splitlines()[-8:]) if watchlist_result.stdout else "",
-            "alerts_stdout_tail": "\n".join(alerts_result.stdout.strip().splitlines()[-8:]) if alerts_result and alerts_result.stdout else "",
         }
     )
 

@@ -950,6 +950,7 @@ def main() -> None:
         instruments,
         enriched_articles,
         store=store,
+        include_options_digest=True,
     )
 
     covered_ids = {doc["instrument_id"] for doc in docs if doc.get("instrument_id")}

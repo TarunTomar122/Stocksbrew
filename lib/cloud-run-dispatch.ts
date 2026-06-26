@@ -9,7 +9,6 @@ type DispatchLane =
   | "open_anomalies"
   | "reddit_buzz"
   | "trump_logic"
-  | "market_open_email"
   | "earnings_intel"
   | "market_events"
   | "data_health"

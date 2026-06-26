@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-24",
+  "version": "2026-06-25",
   "sources": [
     {
       "id": "nse-announcements",
@@ -983,10 +983,10 @@
       "homepage_url": "https://www.prnewswire.com/",
       "feed_url": "https://www.prnewswire.com/rss/news-releases-list.rss",
       "verification_url": "https://www.prnewswire.com/rss/news-releases-list.rss",
-      "verified_at": "2026-05-27",
+      "verified_at": "2026-06-25",
       "usage_status": "disabled",
       "enabled_by_default": false,
-      "licensing_notes": "PR Newswire public RSS feed of press releases.",
+      "licensing_notes": "PR Newswire public RSS feed of press releases. Disabled: feed is mostly generic corporate PR, not market tape quality.",
       "coverage_modes": [
         "market",
         "stock"
@@ -1088,10 +1088,10 @@
       "homepage_url": "https://www.forbes.com/business/",
       "feed_url": "https://www.forbes.com/business/feed/",
       "verification_url": "https://www.forbes.com/business/feed/",
-      "verified_at": "2026-05-27",
+      "verified_at": "2026-06-25",
       "usage_status": "disabled",
       "enabled_by_default": false,
-      "licensing_notes": "Forbes public RSS feed.",
+      "licensing_notes": "Forbes public RSS feed. Disabled: business feed mixes lifestyle and non-market content.",
       "coverage_modes": [
         "market",
         "sector",
@@ -1123,10 +1123,10 @@
       "homepage_url": "https://markets.businessinsider.com/",
       "feed_url": "https://markets.businessinsider.com/rss/news",
       "verification_url": "https://markets.businessinsider.com/rss/news",
-      "verified_at": "2026-05-27",
+      "verified_at": "2026-06-25",
       "usage_status": "disabled",
       "enabled_by_default": false,
-      "licensing_notes": "Business Insider Markets public RSS feed.",
+      "licensing_notes": "Business Insider Markets public RSS feed. Disabled: feed mixes off-topic lifestyle content with market news.",
       "coverage_modes": [
         "market",
         "stock"
@@ -1146,6 +1146,116 @@
       ],
       "source_tier": "publisher",
       "max_items": 15,
+      "max_age_hours": 24
+    },
+    {
+      "id": "bloomberg-markets",
+      "name": "Bloomberg Markets",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.bloomberg.com/markets",
+      "feed_url": "https://feeds.bloomberg.com/markets/news.rss",
+      "verification_url": "https://feeds.bloomberg.com/markets/news.rss",
+      "verified_at": "2026-06-25",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "Bloomberg public RSS feed. Headlines visible; full articles may be paywalled.",
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "macro",
+        "earnings",
+        "ratings"
+      ],
+      "source_tier": "publisher",
+      "max_items": 20,
+      "max_age_hours": 24
+    },
+    {
+      "id": "investors-business-daily",
+      "name": "Investor's Business Daily",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.investors.com/",
+      "feed_url": "https://www.investors.com/feed/",
+      "verification_url": "https://www.investors.com/feed/",
+      "verified_at": "2026-06-25",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "IBD public RSS feed. Stock-market focused headlines and analysis.",
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer",
+        "industrials"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ratings",
+        "analysis"
+      ],
+      "source_tier": "publisher",
+      "max_items": 25,
+      "max_age_hours": 24
+    },
+    {
+      "id": "thestreet",
+      "name": "TheStreet",
+      "kind": "publisher",
+      "market_codes": [
+        "US"
+      ],
+      "homepage_url": "https://www.thestreet.com/",
+      "feed_url": "https://www.thestreet.com/.rss/full/",
+      "verification_url": "https://www.thestreet.com/.rss/full/",
+      "verified_at": "2026-06-25",
+      "usage_status": "enabled",
+      "enabled_by_default": true,
+      "licensing_notes": "TheStreet public RSS feed.",
+      "coverage_modes": [
+        "market",
+        "sector",
+        "stock"
+      ],
+      "sector_tags": [
+        "big-tech",
+        "semiconductors",
+        "financials",
+        "energy",
+        "consumer"
+      ],
+      "signal_types": [
+        "market_news",
+        "earnings",
+        "ratings",
+        "analysis"
+      ],
+      "source_tier": "publisher",
+      "max_items": 25,
       "max_age_hours": 24
     },
     {

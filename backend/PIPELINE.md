@@ -94,7 +94,6 @@ SKIP_BUILD=1 bash backend/cloudrun/scripts/deploy-jobs.sh daily-postclose
 | `price-core-intraday` | tikrr-price-core-intraday | 2Gi | 2 | 1800s |
 | `open-anomalies` | tikrr-open-anomalies | 2Gi | 2 | 2400s |
 | `reddit-buzz` | tikrr-reddit-buzz | 1Gi | 1 | 1200s |
-| `market-open-email` | tikrr-market-open-email | 2Gi | 1 | 3600s |
 | `daily-postclose` | tikrr-daily-postclose | 3Gi | 2 | 5400s |
 | `on-demand-news` | tikrr-on-demand-news | 2Gi | 1 | 1800s |
 | `stock-requests` | tikrr-stock-requests | 2Gi | 1 | 3600s |

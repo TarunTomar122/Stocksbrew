@@ -164,7 +164,7 @@ function compactRowsForPrompt(
     price: number | null;
     day_change_pct: number | null;
     scores: { overall: number | null } | null;
-    ai_directive?: { stance?: string; text?: string; trigger_value?: string };
+    ai_directive?: { stance?: string; text?: string; trigger?: string };
     directive_v2?: { title?: string; priority?: string; trigger?: string; holding_status?: string };
     brief_tile?: { micro?: string };
     holding?: {
@@ -187,7 +187,7 @@ function compactRowsForPrompt(
     score: r.scores?.overall,
     stance: r.ai_directive?.stance,
     directive: r.ai_directive?.text?.slice(0, 120),
-    trigger: r.ai_directive?.trigger_value,
+    trigger: r.ai_directive?.trigger,
     micro: r.brief_tile?.micro?.slice(0, 80),
     d2: r.directive_v2
       ? {

@@ -21,6 +21,30 @@ const MONTHS: Record<string, number> = {
 // Shapes
 // -----------------------------------------------------------------------------
 
+type DirectiveV2Shape = {
+  version?: string;
+  stance?: "accumulate" | "trim" | "watch" | "avoid" | "hold";
+  execution?: string;
+  horizon?: string;
+  confidence?: "low" | "med" | "medium" | "high";
+  action?: { label?: string; summary?: string };
+  zones?: {
+    accumulate_below?: number;
+    breakout_above?: number;
+    trim_above?: number;
+    near_term_resistance?: number;
+  };
+  watch_out?: string;
+  invalidation?: string;
+  text?: string;
+  rationale?: string;
+  title?: string;
+  detail?: string;
+  priority?: "high" | "medium" | "low";
+  trigger?: string;
+  holding_status?: "known" | "unknown" | "watchlist";
+};
+
 export type WatchlistRow = {
   instrument_id: string;
   ticker: string;
@@ -60,36 +84,13 @@ export type WatchlistRow = {
     vibe: "up" | "down" | "wild";
     source: BriefSource;
   };
-  ai_directive?: {
-    text?: string;
-    action_now?: string;
-    stance?: "accumulate" | "trim" | "watch" | "avoid" | "hold";
-    trigger_type?:
-      | "price_below"
-      | "price_above"
-      | "date"
-      | "sentiment_flip"
-      | "new_catalyst"
-      | "none";
-    trigger_value?: string;
-    add_on?: DirectiveZone;
-    trim_on?: DirectiveZone;
-    breaks_if?: DirectiveZone;
-    rationale?: string;
-    confidence?: "low" | "med" | "high";
-  };
+  ai_directive?: DirectiveV2Shape;
   ai_directive_text?: string;
   ai_directive_rationale?: string;
   coverage_status: "ready" | "score_pending";
   has_intel_pro: boolean;
   holding_status?: "known" | "unknown" | "watchlist";
-  directive_v2?: {
-    title: string;
-    detail?: string;
-    priority: "high" | "medium" | "low";
-    trigger?: string;
-    holding_status: "known" | "unknown" | "watchlist";
-  };
+  directive_v2?: DirectiveV2Shape;
   holding?: {
     quantity?: number | null;
     market_value?: number | null;
@@ -852,27 +853,38 @@ function rowFromDocs(
     alerts,
   );
   const rawDirective =
-    stockBrief && typeof stockBrief.directive === "object" && stockBrief.directive !== null
-      ? (stockBrief.directive as Record<string, unknown>)
+    stockBrief && typeof stockBrief.directive_v2 === "object" && stockBrief.directive_v2 !== null
+      ? (stockBrief.directive_v2 as Record<string, unknown>)
       : {};
-  const directiveText = String(rawDirective.text || "").trim();
-  const directiveRationale = String(rawDirective.rationale || "").trim();
+  const actionBlock =
+    rawDirective.action && typeof rawDirective.action === "object"
+      ? (rawDirective.action as Record<string, unknown>)
+      : {};
+  const zonesBlock =
+    rawDirective.zones && typeof rawDirective.zones === "object"
+      ? (rawDirective.zones as Record<string, unknown>)
+      : {};
+  const directiveText = String(actionBlock.label || "").trim();
+  const directiveRationale = String(actionBlock.summary || rawDirective.watch_out || "").trim();
   const directiveStance = String(rawDirective.stance || "").toLowerCase();
-  const directiveTrigger = String(rawDirective.trigger_type || "").toLowerCase();
   const directiveConfidence = String(rawDirective.confidence || "").toLowerCase();
-  const zone = (key: "add_on" | "trim_on" | "breaks_if"): DirectiveZone | undefined => {
-    const raw = rawDirective[key];
-    if (!raw || typeof raw !== "object") return undefined;
-    const row = raw as Record<string, unknown>;
-    const triggerType = String(row.trigger_type || "none").toLowerCase();
-    return {
-      text: typeof row.text === "string" ? row.text : undefined,
-      trigger_type: ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"].includes(triggerType)
-        ? triggerType as DirectiveZone["trigger_type"]
-        : "none",
-      trigger_value: typeof row.trigger_value === "string" ? row.trigger_value : undefined,
-    };
-  };
+  const directiveTrigger =
+    typeof zonesBlock.accumulate_below === "number"
+      ? `below ${zonesBlock.accumulate_below.toFixed(2)}`
+      : typeof zonesBlock.breakout_above === "number"
+        ? `above ${zonesBlock.breakout_above.toFixed(2)}`
+        : typeof zonesBlock.trim_above === "number"
+          ? `above ${zonesBlock.trim_above.toFixed(2)}`
+          : undefined;
+
+  let directivePriority: "high" | "medium" | "low" = "low";
+  if (directiveStance === "trim" || directiveStance === "avoid") {
+    directivePriority = holdingPayload?.portfolio_weight_pct != null && holdingPayload.portfolio_weight_pct >= 10 ? "high" : "medium";
+  } else if (directiveStance === "accumulate") {
+    directivePriority = directiveConfidence === "high" && (dayChange ?? 0) <= -2 ? "high" : "medium";
+  } else if (directiveStance === "watch") {
+    directivePriority = Math.abs(dayChange ?? 0) >= 3 ? "medium" : "low";
+  }
 
   return {
     instrument_id: instrumentId,
@@ -920,32 +932,34 @@ function rowFromDocs(
     },
     ai_directive: Object.keys(rawDirective).length > 0
       ? {
+          ...(rawDirective as DirectiveV2Shape),
           text: directiveText || undefined,
-          action_now: typeof rawDirective.action_now === "string" ? rawDirective.action_now : undefined,
           stance: (
             ["accumulate", "trim", "watch", "avoid", "hold"].includes(directiveStance)
               ? directiveStance
               : undefined
           ) as "accumulate" | "trim" | "watch" | "avoid" | "hold" | undefined,
-          trigger_type: (
-            ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"].includes(directiveTrigger)
-              ? directiveTrigger
-              : undefined
-          ) as "price_below" | "price_above" | "date" | "sentiment_flip" | "new_catalyst" | "none" | undefined,
-          trigger_value: typeof rawDirective.trigger_value === "string" ? rawDirective.trigger_value : undefined,
-          add_on: zone("add_on"),
-          trim_on: zone("trim_on"),
-          breaks_if: zone("breaks_if"),
           rationale: directiveRationale || undefined,
+          trigger: directiveTrigger,
           confidence: (
-            ["low", "med", "high"].includes(directiveConfidence)
+            ["low", "med", "medium", "high"].includes(directiveConfidence)
               ? directiveConfidence
               : undefined
-          ) as "low" | "med" | "high" | undefined,
+          ) as DirectiveV2Shape["confidence"],
         }
       : undefined,
     ai_directive_text: directiveText || undefined,
     ai_directive_rationale: directiveRationale || undefined,
+    directive_v2: Object.keys(rawDirective).length > 0
+      ? {
+          ...(rawDirective as DirectiveV2Shape),
+          title: directiveText || undefined,
+          detail: directiveRationale || undefined,
+          priority: directivePriority,
+          trigger: directiveTrigger,
+          holding_status: holdingPayload ? (holdingPayload.quantity || holdingPayload.market_value || holdingPayload.computed_market_value ? "known" : "unknown") : "watchlist",
+        }
+      : undefined,
     ...attention,
     coverage_status: Object.keys(intel).length > 0 ? "ready" : "score_pending",
     has_intel_pro: Object.keys(intel).length > 0,

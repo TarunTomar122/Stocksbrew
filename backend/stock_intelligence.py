@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -11,6 +12,7 @@ from typing import Any
 
 import requests
 
+from backend.directive_v2 import build_directive_v2
 from backend.llm_client import (
     llm_api_url,
     json_response_format,
@@ -23,6 +25,7 @@ from backend.llm_client import (
 from backend.landing_metrics import _extract_series, _to_float, build_stock_technical_doc
 from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.models import Article
+from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
@@ -225,11 +228,148 @@ def _summarize_price_context(
         },
         "trend": _derive_trend(technical_doc),
         "returns": returns,
-        "recent_sessions": _recent_session_prices(history, latest_price_doc, limit=5),
+        "recent_sessions": _recent_session_prices(history, latest_price_doc, limit=14),
     }
     if not any(value is not None for value in (current, day_change)):
         return None
     return block
+
+
+def _build_news_digest(
+    *,
+    recent_news: list[dict[str, Any]],
+    timeline: list[dict[str, Any]],
+    visual_summary: dict[str, Any],
+    freshness_hours: float,
+) -> dict[str, Any]:
+    directions: list[str] = []
+    for item in (visual_summary.get("drivers") or []):
+        if isinstance(item, dict):
+            direction = str(item.get("direction") or "").strip().lower()
+            if direction in {"up", "down", "mixed"}:
+                directions.append(direction)
+    up = directions.count("up")
+    down = directions.count("down")
+    direction = "positive" if up > down else "negative" if down > up else "mixed" if directions else "neutral"
+    hard_hints = (
+        "earnings", "guidance", "contract", "deal", "approval", "probe", "investigation",
+        "downgrade", "upgrade", "price target", "partnership", "acquisition", "filing",
+    )
+    joined = " ".join(
+        str(item.get("title") or item.get("summary") or "")
+        for item in list(recent_news[:4]) + list(timeline[:4])
+        if isinstance(item, dict)
+    ).lower()
+    catalyst_type = next((hint for hint in hard_hints if hint in joined), "none")
+    return {
+        "freshness_hours": round(freshness_hours, 2),
+        "hard_catalyst": catalyst_type != "none",
+        "catalyst_type": catalyst_type,
+        "direction": direction,
+        "changed_setup": bool(catalyst_type != "none" or freshness_hours <= 24),
+        "top_items": [
+            {
+                "date": str(item.get("date") or item.get("timestamp") or "")[:10],
+                "title": str(item.get("title") or "").strip()[:160],
+                "source": str(item.get("source_name") or "").strip()[:80],
+                "direction": direction,
+                "relevance": "company",
+            }
+            for item in list(recent_news[:3]) + list(timeline[:2])
+            if isinstance(item, dict) and str(item.get("title") or "").strip()
+        ][:4],
+    }
+
+
+def _build_anomaly_digest(anomaly_doc: dict[str, Any] | None) -> dict[str, Any] | None:
+    row = (anomaly_doc or {}).get("anomaly") if isinstance(anomaly_doc, dict) else None
+    if not isinstance(row, dict):
+        return None
+    return {
+        "date": anomaly_doc.get("date"),
+        "direction": row.get("direction"),
+        "day_change_pct": row.get("day_change_pct"),
+        "headline": row.get("headline"),
+        "why_it_matters": row.get("why_it_matters") or row.get("summary"),
+        "confidence": row.get("confidence"),
+        "dominant_angle": row.get("dominant_angle") or row.get("angle"),
+    }
+
+
+def _visual_cards(
+    *,
+    drivers: list[dict[str, Any]] | None = None,
+    catalyst_cards: list[dict[str, Any]] | None = None,
+    risk_cards: list[dict[str, Any]] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    return {
+        "drivers": [item for item in (drivers or []) if isinstance(item, dict)],
+        "catalyst_cards": [item for item in (catalyst_cards or []) if isinstance(item, dict)],
+        "risk_cards": [item for item in (risk_cards or []) if isinstance(item, dict)],
+    }
+
+
+def _load_options_digests(
+    instruments: list[dict[str, Any]],
+    *,
+    market: str,
+    store: Any | None = None,
+    max_workers: int = 4,
+) -> dict[str, dict[str, Any]]:
+    if market.upper() != "US":
+        return {}
+
+    tickers_by_id = {
+        str(inst.get("instrument_id") or "").strip(): str(inst.get("ticker") or "").strip().upper()
+        for inst in instruments
+        if str(inst.get("instrument_id") or "").strip() and str(inst.get("ticker") or "").strip()
+    }
+    if not tickers_by_id:
+        return {}
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    out: dict[str, dict[str, Any]] = {}
+    missing: dict[str, str] = dict(tickers_by_id)
+
+    if store is not None:
+        try:
+            cached = store.get_options_context_docs_batch(market, list(tickers_by_id.values()))
+        except Exception as exc:
+            logger.info("options digest cache read failed market=%s: %s", market, exc)
+            cached = {}
+        for instrument_id, ticker in tickers_by_id.items():
+            row = cached.get(f"{market.upper()}__{ticker}") or {}
+            if str(row.get("updated_at") or "")[:10] == today and row.get("ok"):
+                out[instrument_id] = row
+                missing.pop(instrument_id, None)
+
+    if not missing:
+        return out
+
+    def _fetch(item: tuple[str, str]) -> tuple[str, dict[str, Any] | None]:
+        instrument_id, ticker = item
+        try:
+            digest = fetch_alphaquery_options_digest(ticker, timeout=20)
+        except Exception as exc:
+            logger.info("options digest fetch failed %s: %s", ticker, exc)
+            return instrument_id, None
+        return instrument_id, digest if digest.get("ok") else None
+
+    fetched_rows: list[dict[str, Any]] = []
+    worker_count = max(1, min(max_workers, len(missing)))
+    with ThreadPoolExecutor(max_workers=worker_count) as pool:
+        futures = [pool.submit(_fetch, item) for item in missing.items()]
+        for future in as_completed(futures):
+            instrument_id, digest = future.result()
+            if digest:
+                out[instrument_id] = digest
+                fetched_rows.append(digest)
+    if fetched_rows and store is not None:
+        try:
+            store.upsert_options_context_docs(market, fetched_rows)
+        except Exception as exc:
+            logger.info("options digest cache write failed market=%s: %s", market, exc)
+    return out
 
 
 STOCK_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. Smart but easy to read.
@@ -2719,6 +2859,8 @@ def build_stock_intelligence_docs(
     instruments: list[dict[str, Any]],
     articles: list[Article],
     store: Any | None = None,
+    *,
+    include_options_digest: bool = False,
 ) -> list[dict[str, Any]]:
     articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
     raw_articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
@@ -2761,6 +2903,16 @@ def build_stock_intelligence_docs(
         except Exception:
             reddit_by_ticker = {}
 
+    anomaly_by_doc_id: dict[str, dict[str, Any]] = {}
+    if store is not None:
+        try:
+            anomaly_by_doc_id = store.get_daily_anomaly_ticker_docs_batch(
+                market,
+                [str(inst.get("ticker") or "").strip().upper() for inst in instruments],
+            )
+        except Exception:
+            anomaly_by_doc_id = {}
+
     # Earnings context (calendar + post-earnings intel), keyed by instrument_id.
     # Only stocks currently inside the pre/lead/context windows appear here.
     earnings_by_id: dict[str, dict[str, Any]] = {}
@@ -2769,6 +2921,14 @@ def build_stock_intelligence_docs(
             earnings_by_id = _load_earnings_by_instrument(store, market, instruments, now_utc)
         except Exception:
             earnings_by_id = {}
+
+    options_by_id: dict[str, dict[str, Any]] = {}
+    if include_options_digest:
+        try:
+            options_by_id = _load_options_digests(instruments, market=market, store=store)
+        except Exception as exc:
+            logger.warning("options digests load failed market=%s: %s", market, exc)
+            options_by_id = {}
 
     market_day_change_values: list[float] = []
     for instrument_id, payload in latest_prices_by_id.items():
@@ -3297,7 +3457,21 @@ def build_stock_intelligence_docs(
                 sector_values.append(peer_change)
         sector_median = sum(sector_values) / len(sector_values) if sector_values else 0.0
 
-        docs.append({
+        comparative_context = {
+            "day_change_pct": round(self_day_change, 4),
+            "vs_market_day_change_pct": round(self_day_change - market_median, 4),
+            "vs_sector_day_change_pct": round(self_day_change - sector_median, 4),
+            "market_percentile": percentile,
+        }
+        previous_v2 = (prev_doc or {}).get("directive_v2")
+        if not isinstance(previous_v2, dict):
+            previous_v2 = None
+        visual_cards = _visual_cards(
+            drivers=drivers,
+            catalyst_cards=catalyst_cards,
+            risk_cards=risk_cards,
+        )
+        directive_v2_input = {
             "instrument_id": instrument_id,
             "market": market,
             "universe_id": universe_id,
@@ -3310,15 +3484,36 @@ def build_stock_intelligence_docs(
             "catalyst": catalyst,
             "risk": risk,
             "key_points": final_key_points,
-            "visual_summary": {
-                "drivers": drivers,
-                "catalyst_cards": catalyst_cards,
-                "risk_cards": risk_cards,
-            },
+            "visual_summary": visual_cards,
+            "visual_cards": visual_cards,
             "directive": directive,
             "current_price": current_price,
+            "analyst_target": analyst_target,
+            "fundamentals": fundamentals_block,
+            "price_context": price_context,
+            "news_digest": _build_news_digest(
+                recent_news=recent_news,
+                timeline=timeline,
+                visual_summary={
+                    "drivers": drivers,
+                    "catalyst_cards": catalyst_cards,
+                    "risk_cards": risk_cards,
+                },
+                freshness_hours=freshness_hours,
+            ),
+            "anomaly_digest": _build_anomaly_digest(
+                anomaly_by_doc_id.get(f"{market.upper()}__{str(instrument['ticker']).upper()}")
+            ),
+            "options_digest": options_by_id.get(instrument_id),
             "overall_label": label,
             "overall_score": score,
+            "market_regime": market_regime,
+            "comparative_context": comparative_context,
+        }
+
+        docs.append({
+            **directive_v2_input,
+            "directive_v2": build_directive_v2(directive_v2_input, previous_v2=previous_v2),
             "lanes": [
                 {"label": "Positive Mentions", "positive_pct": positive_pct},
                 {"label": "Source Agreement", "positive_pct": source_agreement_pct},
@@ -3337,12 +3532,7 @@ def build_stock_intelligence_docs(
                 "evidence_count": len(key_points),
                 "source_tier_mix": _source_tier_mix(evidence_articles),
             },
-            "comparative_context": {
-                "day_change_pct": round(self_day_change, 4),
-                "vs_market_day_change_pct": round(self_day_change - market_median, 4),
-                "vs_sector_day_change_pct": round(self_day_change - sector_median, 4),
-                "market_percentile": percentile,
-            },
+            "comparative_context": comparative_context,
             "run_context": {
                 "run_at": now_utc.isoformat(),
                 "lookback_hours": 24,

@@ -31,7 +31,6 @@ import requests
 from google.cloud import firestore
 
 from backend.instrument_universe import list_instruments
-from backend.lifecycle_emailing import email_stock_request_ready, send_email
 from backend.llm_client import (
     json_response_format,
     llm_api_key,
@@ -604,18 +603,6 @@ def _backfill_single_instrument(store: TraceMoneyStore, instrument: dict[str, An
         subprocess.run(cmd, check=True, capture_output=True, text=True)
 
 
-def _send_ready_email(emails: list[str], ticker: str, company_name: str) -> int:
-    sent = 0
-    subject, html = email_stock_request_ready(ticker=ticker, company_name=company_name)
-    for raw in emails:
-        to = str(raw or "").strip().lower()
-        if not to:
-            continue
-        if send_email(to, subject, html):
-            sent += 1
-    return sent
-
-
 def _materialize_home(store: TraceMoneyStore, market: str) -> None:
     universe_id = store.get_active_price_universe(market)
     if not universe_id:
@@ -757,7 +744,6 @@ def _process_one_request(
     markets_lock: threading.Lock,
     dry_run: bool,
     to_email: str,
-    skip_ready_email: bool,
 ) -> str:
     query = str(data.get("query") or ref.id).strip()
     market = str(data.get("market") or default_market).strip().upper()
@@ -813,14 +799,6 @@ def _process_one_request(
         with markets_lock:
             markets_to_materialize.add(market)
 
-        sent = 0
-        if not skip_ready_email:
-            sent = _send_ready_email(
-                emails=emails,
-                ticker=str(instrument.get("ticker") or query).upper(),
-                company_name=str(instrument.get("name") or query),
-            )
-
         ref.set(
             {
                 "status": "fulfilled",
@@ -830,13 +808,12 @@ def _process_one_request(
                 "resolved_symbol": str(instrument.get("ticker") or "").upper(),
                 "resolved_instrument_id": str(instrument.get("instrument_id") or "").upper(),
                 "resolve_score": int(resolved.get("_score") or 0),
-                "email_sent_count": sent,
                 "updated_at": _now(),
                 "resolve_error": "",
             },
             merge=True,
         )
-        print(f"  [ok] {query} -> {instrument.get('instrument_id')} email_sent={sent}")
+        print(f"  [ok] {query} -> {instrument.get('instrument_id')}")
         return "ok"
     except Exception as exc:
         ref.set(
@@ -873,11 +850,6 @@ def main() -> None:
         type=int,
         default=1,
         help="Parallel workers (each request still claims atomically)",
-    )
-    parser.add_argument(
-        "--skip-ready-email",
-        action="store_true",
-        help="Do not send per-ticker ready emails (use for batch backlog)",
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -933,7 +905,6 @@ def main() -> None:
             markets_lock=markets_lock,
             dry_run=args.dry_run,
             to_email=str(args.to_email or ""),
-            skip_ready_email=bool(args.skip_ready_email),
         )
 
     counts: dict[str, int] = {}

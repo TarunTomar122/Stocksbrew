@@ -4,12 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
-import { logEmailSend } from "@/lib/email-log";
-import { sendTransactionalEmail, buildFirstRadarItemEmail, firstNameFromEmail } from "@/lib/brevo";
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -34,44 +31,6 @@ function trackApiLog(
   else console.log(line);
 }
 
-
-async function maybeFireFirstRadarItemEmail(
-  traceId: string,
-  uid: string,
-  email: string,
-): Promise<void> {
-  const dedupeKey = `first_radar_item:${uid}`;
-  const logRef = adminFirestore.collection("tm_lifecycle_email_log").doc(dedupeKey);
-  const existing = await logRef.get();
-  if (existing.exists) {
-    trackApiLog(traceId, "info", "first_radar_item_email_already_sent", { uid });
-    return;
-  }
-  const firstName = firstNameFromEmail(email);
-  const { subject, html } = buildFirstRadarItemEmail(firstName);
-  const sent = await sendTransactionalEmail(email, subject, html);
-  if (sent) {
-    await logRef.set({ uid, email, sent_at: new Date().toISOString() });
-    await logEmailSend({
-      uid,
-      email,
-      emailType: "subscriber_first_radar",
-      dedupeKey,
-      subject,
-      triggerType: "track_post",
-      meta: { source: "first_radar_item" },
-    }).catch(() => undefined);
-    await recordLifecycleEvent({
-      uid,
-      email,
-      type: "first_radar_item_email_sent",
-      payload: { dedup_key: dedupeKey },
-    }).catch(() => undefined);
-    trackApiLog(traceId, "info", "first_radar_item_email_sent", { uid, email });
-  } else {
-    trackApiLog(traceId, "warn", "first_radar_item_email_failed", { uid, email });
-  }
-}
 
 async function queueWatchlistRefresh(
   traceId: string,
@@ -279,9 +238,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (current.length === 0 && isSubscribed && session.email) {
-      maybeFireFirstRadarItemEmail(traceId, session.uid, session.email).catch(() => undefined);
-    }
   }
   await queueWatchlistRefresh(
     traceId,

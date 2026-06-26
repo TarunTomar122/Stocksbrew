@@ -56,6 +56,7 @@ export type StockIntelligenceDoc = {
   };
   visual_cards?: VisualCards;
   directive?: Directive | null;
+  directive_v2?: DirectiveV2 | null;
   key_points?: string[];
   data_quality?: DataQuality;
   comparative_context?: ComparativeContext;
@@ -192,6 +193,28 @@ export type DirectiveZone = {
     | "new_catalyst"
     | "none";
   trigger_value?: string;
+};
+
+export type DirectiveV2 = {
+  version?: string;
+  stance?: "accumulate" | "trim" | "watch" | "avoid" | "hold";
+  execution?: string;
+  horizon?: string;
+  confidence?: "low" | "med" | "medium" | "high";
+  action?: {
+    label?: string;
+    summary?: string;
+  };
+  zones?: {
+    accumulate_below?: number;
+    breakout_above?: number;
+    trim_above?: number;
+    near_term_resistance?: number;
+  };
+  watch_out?: string;
+  invalidation?: string;
+  changed_from_previous?: boolean;
+  change_reason?: string;
 };
 
 export type VisualCards = {

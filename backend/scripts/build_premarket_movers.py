@@ -17,6 +17,7 @@ import argparse
 import json
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from backend.instrument_universe import list_instruments
 from backend.providers.yfinance_provider import fetch_premarket_quotes
@@ -27,8 +28,12 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _today_iso() -> str:
-    return datetime.now(timezone.utc).date().isoformat()
+_MARKET_TZ = {"US": "America/New_York", "IN": "Asia/Kolkata"}
+
+
+def _trading_date_iso(market: str) -> str:
+    tz_name = _MARKET_TZ.get(market.upper(), "America/New_York")
+    return datetime.now(ZoneInfo(tz_name)).date().isoformat()
 
 
 def _gather_candidate_tickers(store: TraceMoneyStore, market: str) -> tuple[set[str], set[str]]:
@@ -42,7 +47,7 @@ def _gather_candidate_tickers(store: TraceMoneyStore, market: str) -> tuple[set[
         snap = (
             store.db.collection("tm_earnings_events")
             .where("market", "==", market)
-            .where("event_date", "==", _today_iso())
+            .where("event_date", "==", _trading_date_iso(market))
             .get()
         )
         for doc in snap:
@@ -178,20 +183,35 @@ def main() -> None:
     rows.sort(key=lambda r: abs(r["pre_market_change_pct"]), reverse=True)
     gappers_up = [r for r in rows if r["pre_market_change_pct"] >= 0][:15]
     gappers_down = [r for r in rows if r["pre_market_change_pct"] < 0][:15]
-    by_ticker_map = {r["ticker"]: {"pre_market_change_pct": r["pre_market_change_pct"], "pre_market_price": r["pre_market_price"]} for r in rows}
+    by_ticker_map = {
+        r["ticker"]: {
+            "pre_market_change_pct": r["pre_market_change_pct"],
+            "pre_market_price": r["pre_market_price"],
+            "previous_close": r.get("previous_close"),
+        }
+        for r in rows
+    }
+
+    from backend.premarket_intel import sector_summary_from_rows
 
     payload = {
         "market": market,
         "generated_at": _now_iso(),
-        "date": _today_iso(),
+        "date": _trading_date_iso(market),
         "market_state": market_state,
         "candidate_count": len(candidate_list),
         "quoted_count": len(rows),
         "gappers_up": gappers_up,
         "gappers_down": gappers_down,
         "by_ticker": by_ticker_map,
+        "sector_summary": sector_summary_from_rows(rows),
     }
     store.save_premarket_movers(market, payload)
+
+    from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
+
+    trigger_web_revalidate(["/pulse", "/premarket"])
+
     print(json.dumps({
         "market": market,
         "quoted": len(rows),

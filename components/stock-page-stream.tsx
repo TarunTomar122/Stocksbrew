@@ -56,6 +56,7 @@ import { getNextEarningsCalendarEvent } from "@/lib/earnings";
 import { getPreEarningsIntelDoc } from "@/lib/pre-earnings-intel";
 import { isWithinPreEarningsWindow, shouldShowPreEarningsIntel } from "@/lib/pre-earnings-intel-shared";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 
 export const revalidate = 60;
 
@@ -104,11 +105,11 @@ function hasSentimentBreakdown(sentiment: SentimentBreakdown | null | undefined)
 }
 
 function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
-  return Boolean(String(intelligence?.directive?.text ?? "").trim());
+  return Boolean(normalizeDirectiveForUi(intelligence?.directive_v2 ?? null)?.text?.trim());
 }
 
 function numericDirectiveTrigger(intelligence: StockIntelligenceDoc | null): number | null {
-  const raw = intelligence?.directive?.trigger_value;
+  const raw = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null)?.trigger_value;
   if (typeof raw !== "string" || !raw.trim()) return null;
   const match = raw.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
   if (!match) return null;
@@ -238,6 +239,7 @@ export async function StockPageStream({ params }: Props) {
     getNextEarningsCalendarEvent(market, stock.ticker).catch(() => null),
     getNewsForTicker(market, stock.ticker, { days: 7, limit: 7 }).catch(() => []),
   ]);
+  const normalizedDirective = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null);
   const activePreEarningsIntel =
     preEarningsDoc &&
     isWithinPreEarningsWindow(preEarningsDoc.event_date) &&
@@ -463,7 +465,7 @@ export async function StockPageStream({ params }: Props) {
             <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
               Updated {formatRelative(intelligence?.generated_at) || "-"}
             </p>
-            <StrategicDirective ticker={stock.ticker} directive={intelligence?.directive} instrumentId={stock.instrument_id} />
+            <StrategicDirective ticker={stock.ticker} directive={normalizedDirective} instrumentId={stock.instrument_id} />
           </>
         )}
         {showSynthesis && <AiSynthesis intelligence={intelligence} />}
@@ -504,7 +506,7 @@ export async function StockPageStream({ params }: Props) {
         stock={stock}
         market={market}
         currency={currency}
-        directive={intelligence?.directive}
+        directive={normalizedDirective}
         setupState={intelligence?.setup_state}
         visual={intelligence?.visual_summary}
         overview={anomaly ? (anomalyDetail(anomaly) ?? undefined) : undefined}

@@ -170,7 +170,7 @@ function fmtHoldingValue(row: WatchlistRow): string {
 }
 
 const PRIORITY_BADGE: Record<
-  DirectiveV2["priority"],
+  NonNullable<DirectiveV2["priority"]>,
   { label: string; bg: string; fg: string }
 > = {
   high: { label: "High", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444" },
@@ -220,7 +220,7 @@ function mergeHoldingPatch(row: WatchlistRow, patch?: HoldingPatch): WatchlistRo
 }
 
 function PriorityBadge({ priority }: { priority: DirectiveV2["priority"] }) {
-  const meta = PRIORITY_BADGE[priority] ?? PRIORITY_BADGE.medium;
+  const meta = priority ? PRIORITY_BADGE[priority] : PRIORITY_BADGE.medium;
   return (
     <span
       className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em]"

@@ -392,6 +392,20 @@ def _looks_finance_relevant(article: Article) -> bool:
     return False
 
 
+US_TICKER_NEWS_PROVIDERS = [
+    "nasdaq",
+    "seekingalpha",
+    "yahoo_finance",
+    "google_news",
+    "google_news_price",
+]
+IN_TICKER_NEWS_PROVIDERS = ["google_news", "google_news_price"]
+
+
+def _ticker_news_providers_for(market: str) -> list[str]:
+    return IN_TICKER_NEWS_PROVIDERS if market == "IN" else US_TICKER_NEWS_PROVIDERS
+
+
 def build_universe_sources(market: str, universe_id: str) -> list[SourceDefinition]:
     instruments = list_instruments(market, universe_id)
     all_market_sources = list_sources_for_market(market)
@@ -401,11 +415,7 @@ def build_universe_sources(market: str, universe_id: str) -> list[SourceDefiniti
         if source.lane == "broad" and source.kind in {"publisher", "regulator"}
     ]
     curated_sources = [source for source in all_market_sources if source.kind == "curated"]
-    provider_set = (
-        ["google_news", "google_news_price"]
-        if market == "IN"
-        else ["nasdaq", "seekingalpha", "google_news", "google_news_price"]
-    )
+    provider_set = _ticker_news_providers_for(market)
     ticker_entries = [
         {
             "ticker": instrument["ticker"],
@@ -539,11 +549,7 @@ def collect_per_ticker_articles(
     # Build per-ticker core-lane sources (reuses the existing ticker-source
     # factory so Google News / Nasdaq / SeekingAlpha feeds behave identically
     # to the pooled flow).
-    provider_set = (
-        ["google_news", "google_news_price"]
-        if market == "IN"
-        else ["nasdaq", "seekingalpha", "google_news", "google_news_price"]
-    )
+    provider_set = _ticker_news_providers_for(market)
     ticker_entries = [
         {
             "ticker": instrument["ticker"],

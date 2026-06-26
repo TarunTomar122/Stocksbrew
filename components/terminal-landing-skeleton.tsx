@@ -189,9 +189,13 @@ export function TerminalLandingPageSkeleton() {
     <div className="landing-page bg-background text-on-surface">
       <LandingTapeSkeleton />
       <header className="landing-hero-glow relative border-b border-outline-variant">
-        <div className="landing-inner grid items-center gap-12 py-16 md:py-24 lg:grid-cols-[1fr_1.12fr] lg:gap-14">
-          <TerminalLandingHeroCopy />
-          <LandingHeroCommandSkeleton />
+        <div className="landing-inner grid min-w-0 items-center gap-12 py-16 md:py-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] lg:gap-14">
+          <div className="min-w-0">
+            <TerminalLandingHeroCopy />
+          </div>
+          <div className="min-w-0">
+            <LandingHeroCommandSkeleton />
+          </div>
         </div>
       </header>
       <LandingScannerRedditSkeleton />

@@ -101,7 +101,7 @@ export function PulseHub({
   premarketItems?: ScannerItem[];
 }) {
   const showPremarket = premarketItems.length > 0;
-  const [lens, setLens] = useState<Lens>("movers");
+  const [lens, setLens] = useState<Lens>(() => (premarketItems.length > 0 ? "premarket" : "movers"));
 
   useEffect(() => {
     if (lens === "premarket" && !showPremarket) setLens("movers");

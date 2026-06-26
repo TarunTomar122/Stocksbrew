@@ -13,7 +13,7 @@ export function TerminalLandingHeroCopy({ tickerCount }: { tickerCount?: number 
       : "4,800+";
 
   return (
-    <div className="flex flex-col">
+    <div className="flex min-w-0 w-full flex-col">
       <div className="mb-4 inline-flex w-fit max-w-full self-start items-center gap-2 rounded-full border border-outline-variant bg-surface px-3 py-1.5 text-[11px] font-medium text-on-surface-variant shadow-sm sm:mb-6 sm:px-3.5 sm:text-[12px]">
         <span className="relative flex h-2 w-2 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-landing-mint opacity-50" />
