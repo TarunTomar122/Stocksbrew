@@ -7,6 +7,7 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
+import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 
 import { FieldValue } from "firebase-admin/firestore";
 

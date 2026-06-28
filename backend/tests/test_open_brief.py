@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+import unittest
+
+from backend.emails.open_brief import build_open_brief_email
+from backend.open_email_intel import anomaly_tape_line
+
+
+class OpenBriefTemplateTests(unittest.TestCase):
+    def test_open_layout_includes_book_moves_movers_and_sectors(self) -> None:
+        anomalies_doc = {
+            "anomalies": [
+                {
+                    "ticker": "NVDA",
+                    "sector": "Semiconductors",
+                    "price": 142.5,
+                    "day_change_pct": 4.2,
+                    "move_explanation": {
+                        "headline": "Micron earnings lift chip complex",
+                        "why_it_matters": "Chip stocks are rallying after Micron posted strong earnings.",
+                        "confidence": "high",
+                    },
+                },
+                {
+                    "ticker": "INTC",
+                    "sector": "Semiconductors",
+                    "price": 21.0,
+                    "day_change_pct": -3.1,
+                    "headline": "INTC is a top down mover in Semiconductors.",
+                },
+            ]
+        }
+        subject, html = build_open_brief_email(
+            first_name="Arun",
+            anomalies_doc=anomalies_doc,
+            rows=[{"ticker": "NVDA", "name": "NVIDIA"}],
+            market_phase_line="The market is trending up, risk-on.",
+        )
+        self.assertIn("NVDA", subject)
+        self.assertIn("after the open", subject)
+        self.assertIn("Moves on your book", html)
+        self.assertIn("Biggest open movers", html)
+        self.assertIn("Top gainers", html)
+        self.assertIn("Top losers", html)
+        self.assertIn("Sectors after the open", html)
+        self.assertIn("Chip stocks are rallying after Micron posted strong earnings.", html)
+        self.assertNotIn("action_now", html.lower())
+        self.assertNotIn("trim", html.lower())
+
+    def test_anomaly_tape_line_prefers_move_explanation(self) -> None:
+        line = anomaly_tape_line(
+            {
+                "ticker": "AAPL",
+                "move_explanation": {
+                    "headline": "Apple raises prices",
+                    "why_it_matters": "Services pricing is supporting the move.",
+                },
+            }
+        )
+        self.assertEqual(line, "Services pricing is supporting the move.")
+
+
+if __name__ == "__main__":
+    unittest.main()

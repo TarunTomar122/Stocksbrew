@@ -408,3 +408,58 @@ def fetch_premarket_quotes(
             if result:
                 rows[inst["instrument_id"]] = result
     return rows
+
+
+def _weekly_change_from_history(history: Any) -> tuple[float, float, float] | None:
+    if history is None or getattr(history, "empty", True):
+        return None
+    frame = history.iloc[-5:] if len(history) >= 5 else history
+    if len(frame) < 2:
+        return None
+    week_start = _to_float(frame.iloc[0]["Close"])
+    week_end = _to_float(frame.iloc[-1]["Close"])
+    if week_start <= 0 or week_end <= 0:
+        return None
+    pct = ((week_end - week_start) / week_start) * 100.0
+    return week_end, week_start, round(pct, 2)
+
+
+def fetch_weekly_quotes(
+    instruments: list[dict[str, Any]],
+    *,
+    max_workers: int = 6,
+) -> dict[str, dict[str, Any]]:
+    """Fetch trailing 5-session weekly change for a focused instrument set."""
+    if not instruments:
+        return {}
+
+    def _one(instrument: dict[str, Any]) -> dict[str, Any] | None:
+        yahoo_symbol = yahoo_symbol_for(instrument)
+        try:
+            history = yf.Ticker(yahoo_symbol).history(period="10d", interval="1d", auto_adjust=False)
+        except Exception:
+            return None
+        metrics = _weekly_change_from_history(history)
+        if metrics is None:
+            return None
+        price, week_start, pct = metrics
+        return {
+            "ticker": str(instrument.get("ticker", yahoo_symbol)).strip().upper(),
+            "price": round(price, 4),
+            "week_start_price": round(week_start, 4),
+            "week_change_pct": pct,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    rows: dict[str, dict[str, Any]] = {}
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(instruments))) as executor:
+        futures = {executor.submit(_one, inst): inst for inst in instruments}
+        for future in as_completed(futures):
+            inst = futures[future]
+            try:
+                result = future.result()
+            except Exception:
+                result = None
+            if result:
+                rows[inst["instrument_id"]] = result
+    return rows

@@ -329,6 +329,8 @@ def main() -> None:
             "premarket_movers",
             "premarket_intel",
             "premarket_email",
+            "open_email",
+            "weekly_email",
             "contrarian_calls",
         ],
         required=True,
@@ -408,6 +410,8 @@ def main() -> None:
         "premarket_movers": os.getenv("PREMARKET_MOVERS_JOB_NAME", "tikrr-premarket-movers"),
         "premarket_intel": os.getenv("PREMARKET_INTEL_JOB_NAME", "tikrr-premarket-intel"),
         "premarket_email": os.getenv("PREMARKET_EMAIL_JOB_NAME", "tikrr-premarket-email"),
+        "open_email": os.getenv("OPEN_EMAIL_JOB_NAME", "tikrr-open-email"),
+        "weekly_email": os.getenv("WEEKLY_EMAIL_JOB_NAME", "tikrr-weekly-email"),
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
     }
     job_name = job_name_by_lane[args.lane]
@@ -654,6 +658,8 @@ def main() -> None:
         "premarket_movers",
         "premarket_intel",
         "premarket_email",
+        "open_email",
+        "weekly_email",
         "contrarian_calls",
     } and summary.get("status") not in {"success", "dispatched"}:
         status = "failed"

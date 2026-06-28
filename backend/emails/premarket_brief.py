@@ -45,13 +45,11 @@ def _market_table_rows(gappers: list[dict[str, Any]], *, limit: int = 5) -> str:
     rows: list[str] = []
     for row in gappers[:limit]:
         ticker = str(row.get("ticker") or "").strip().upper()
-        sector = str(row.get("sector") or "—").strip()[:24]
         gap = float(row.get("pre_market_change_pct") or 0)
         pre = _fmt_price(row.get("pre_market_price")) or "—"
         rows.append(
             "<tr>"
             f"<td style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:14px;font-weight:700;color:#111827'>{html.escape(ticker)}</td>"
-            f"<td style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:12px;color:#6b7280'>{html.escape(sector)}</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:13px;font-weight:700;color:{_gap_color(gap)}'>{_gap_arrow(gap)} {abs(gap):.1f}%</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151'>{html.escape(pre)}</td>"
             "</tr>"
@@ -67,7 +65,7 @@ def _movers_section(gainers: list[dict[str, Any]], losers: list[dict[str, Any]])
         "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
         "Biggest pre-market movers</div></td></tr>",
     ]
-    header = _table_header([("Ticker", "left"), ("Sector", "left"), ("Gap", "right"), ("Pre-mkt", "right")])
+    header = _table_header([("Ticker", "left"), ("Gap", "right"), ("Pre-mkt", "right")])
     if gainers:
         parts.append(
             "<tr><td style='padding:4px 20px 2px 20px'>"

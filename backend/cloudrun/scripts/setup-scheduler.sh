@@ -57,6 +57,8 @@ CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth 
 CRON_PREMARKET_INTEL="${CRON_PREMARKET_INTEL:-0 11 * * 1-5}" # 11:00 UTC = 7:00 ET; news → movers → context before email
 CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # legacy/manual fallback; scheduler uses premarket_intel
 CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h after intel starts
+CRON_OPEN_EMAIL="${CRON_OPEN_EMAIL:-50 13 * * 1-5}" # 13:50 UTC = 7:20 PM IST; after open_anomalies
+CRON_WEEKLY_EMAIL="${CRON_WEEKLY_EMAIL:-30 4 * * 6}" # 04:30 UTC = 10:00 AM IST Saturday
 CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14 * * 1-5}" # 14:00 UTC = 30m after open; refresh hero contrarian wall with fresh open prices
 CRON_CONTRARIAN_CLOSE="${CRON_CONTRARIAN_CLOSE:-30 20 * * 1-5}" # 20:30 UTC = 30m after close; refresh hero contrarian wall for post-close session
 STOCK_FACTS_LIMIT="${STOCK_FACTS_LIMIT:-0}" # 0 means full active price universe
@@ -154,6 +156,8 @@ printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}
 printf '%s\n' "$(mk_minimal_body premarket_intel "${extra_universe}")" > "${tmp_dir}/premarket_intel.json"
 printf '%s\n' "$(mk_minimal_body premarket_movers "${extra_universe}")" > "${tmp_dir}/premarket_movers.json"
 printf '%s\n' "$(mk_minimal_body premarket_email "${extra_universe}")" > "${tmp_dir}/premarket_email.json"
+printf '%s\n' "$(mk_minimal_body open_email "${extra_universe}")" > "${tmp_dir}/open_email.json"
+printf '%s\n' "$(mk_minimal_body weekly_email "${extra_universe}")" > "${tmp_dir}/weekly_email.json"
 printf '%s\n' "$(mk_minimal_body contrarian_calls "${extra_universe}")" > "${tmp_dir}/contrarian_calls.json"
 
 upsert_job "tikrr-preopen-news" "${CRON_PREOPEN}" "${tmp_dir}/preopen.json"
@@ -182,6 +186,8 @@ upsert_job "tikrr-stock-facts" "${CRON_STOCK_FACTS}" "${tmp_dir}/stock_facts.jso
 upsert_job "tikrr-trump-logic" "${CRON_TRUMP_LOGIC}" "${tmp_dir}/trump_logic.json"
 upsert_job "tikrr-premarket-intel" "${CRON_PREMARKET_INTEL}" "${tmp_dir}/premarket_intel.json"
 upsert_job "tikrr-premarket-email" "${CRON_PREMARKET_EMAIL}" "${tmp_dir}/premarket_email.json"
+upsert_job "tikrr-open-email" "${CRON_OPEN_EMAIL}" "${tmp_dir}/open_email.json"
+upsert_job "tikrr-weekly-email" "${CRON_WEEKLY_EMAIL}" "${tmp_dir}/weekly_email.json"
 upsert_job "tikrr-contrarian-calls" "${CRON_CONTRARIAN}" "${tmp_dir}/contrarian_calls.json"
 upsert_job "tikrr-contrarian-calls-close" "${CRON_CONTRARIAN_CLOSE}" "${tmp_dir}/contrarian_calls.json"
 

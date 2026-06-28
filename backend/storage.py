@@ -858,6 +858,14 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_premarket_movers").document(f"{market.upper()}__latest").get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    def save_weekly_movers(self, market: str, payload: dict[str, Any]) -> None:
+        """Write the latest weekly movers snapshot for a market."""
+        self.db.collection("tm_weekly_movers").document(f"{market.upper()}__latest").set(payload)
+
+    def get_weekly_movers(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_weekly_movers").document(f"{market.upper()}__latest").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
     def save_premarket_context(self, market: str, payload: dict[str, Any]) -> None:
         self.db.collection("tm_premarket_context").document(f"{market.upper()}__latest").set(payload)
 
