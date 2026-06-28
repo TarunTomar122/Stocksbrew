@@ -140,6 +140,16 @@ class PipelineStateStore:
             merge=True,
         )
 
+    def mark_run_dispatched(self, *, run_id: str, summary: dict[str, Any]) -> None:
+        self.run_ref(run_id).set(
+            {
+                "status": "dispatched",
+                "summary": summary,
+                "updated_at": utc_now_iso(),
+            },
+            merge=True,
+        )
+
     def _next_attempt_count(self, ref: ShardRef) -> int:
         snap = self.shard_ref(ref).get()
         if not snap.exists:

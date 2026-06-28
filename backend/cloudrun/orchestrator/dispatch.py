@@ -109,6 +109,7 @@ def _run_sharded_lane(
     max_parallel: int,
     client: RunJobsClient,
     state: PipelineStateStore,
+    wait_for_completion: bool = False,
 ) -> dict[str, Any]:
     shards = _chunk(instrument_ids, shard_size)
     stage = "main"
@@ -148,6 +149,29 @@ def _run_sharded_lane(
             exec_name = future.result()
             state.mark_shard_started(ref, exec_name)
             execution_names[exec_name] = (ref, ids)
+
+        if not wait_for_completion:
+            return {
+                "lane": lane,
+                "market": market,
+                "universe_id": universe_id,
+                "run_id": run_id,
+                "shard_count": len(shards),
+                "failed_count": 0,
+                "status": "dispatched",
+                "results": sorted(
+                    [
+                        {
+                            "shard_id": ref.shard_id,
+                            "instrument_count": len(ids),
+                            "status": "dispatched",
+                            "execution": exec_name,
+                        }
+                        for exec_name, (ref, ids) in execution_names.items()
+                    ],
+                    key=lambda item: item["shard_id"],
+                ),
+            }
 
         wait_futures = {
             pool.submit(client.wait_execution, exec_name): (exec_name, ref, ids)
@@ -207,6 +231,7 @@ def _run_single_job_lane(
     job_name: str,
     extra_args: list[str],
     client: RunJobsClient,
+    wait_for_completion: bool = False,
 ) -> dict[str, Any]:
     args = [
         "-m",
@@ -222,6 +247,15 @@ def _run_single_job_lane(
         *extra_args,
     ]
     exec_name = client.run_job(job_name=job_name, args=args)
+    if not wait_for_completion:
+        return {
+            "lane": lane,
+            "market": market,
+            "universe_id": universe_id,
+            "run_id": run_id,
+            "execution": exec_name,
+            "status": "dispatched",
+        }
     payload = client.wait_execution(exec_name)
     ok = _successful_execution(payload)
     return {
@@ -315,6 +349,7 @@ def main() -> None:
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
     parser.add_argument("--watchlist-with-llm", action="store_true")
+    parser.add_argument("--wait-for-completion", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -410,8 +445,9 @@ def main() -> None:
             max_parallel=args.max_parallel,
             client=RunJobsClient(project=args.project, region=args.region),
             state=state,
+            wait_for_completion=args.wait_for_completion,
         )
-        should_refresh_home = args.refresh_home or args.lane in {"price_core_open", "price_core_intraday"}
+        should_refresh_home = args.wait_for_completion and (args.refresh_home or args.lane in {"price_core_open", "price_core_intraday"})
         if should_refresh_home:
             home_refresh = materialize_views(
                 market=args.market,
@@ -478,8 +514,9 @@ def main() -> None:
             max_parallel=args.max_parallel,
             client=RunJobsClient(project=args.project, region=args.region),
             state=state,
+            wait_for_completion=args.wait_for_completion,
         )
-        should_refresh_watchlists = args.refresh_watchlists or args.lane == "tracked_open_briefs"
+        should_refresh_watchlists = args.wait_for_completion and (args.refresh_watchlists or args.lane == "tracked_open_briefs")
         if should_refresh_watchlists:
             summary["watchlist_refresh"] = _refresh_watchlist_views(
                 run_id=run_id,
@@ -582,9 +619,12 @@ def main() -> None:
             job_name=job_name,
             extra_args=single_extra_args,
             client=RunJobsClient(project=args.project, region=args.region),
+            wait_for_completion=args.wait_for_completion,
         )
 
     status = "success"
+    if summary.get("status") == "dispatched":
+        status = "dispatched"
     if args.lane in {"price_core_open", "price_core_intraday", "tracked_news_prep", "tracked_open_briefs"} and summary.get("failed_count", 0) > 0:
         status = "failed"
     if args.lane in {
@@ -606,9 +646,12 @@ def main() -> None:
         "premarket_intel",
         "premarket_email",
         "contrarian_calls",
-    } and summary.get("status") != "success":
+    } and summary.get("status") not in {"success", "dispatched"}:
         status = "failed"
-    state.mark_run_finished(run_id=run_id, status=status, summary=summary)
+    if status == "dispatched":
+        state.mark_run_dispatched(run_id=run_id, summary=summary)
+    else:
+        state.mark_run_finished(run_id=run_id, status=status, summary=summary)
     print(summary)
     if status != "success":
         raise SystemExit(1)
