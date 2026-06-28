@@ -668,7 +668,7 @@ def main() -> None:
     else:
         state.mark_run_finished(run_id=run_id, status=status, summary=summary)
     print(summary)
-    if status != "success":
+    if status not in {"success", "dispatched"}:
         raise SystemExit(1)
 
 
