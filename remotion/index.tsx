@@ -1,12 +1,12 @@
 import React from "react";
 import { Composition, registerRoot } from "remotion";
-import { TikrrLaunchVideo, TOTAL_FRAMES } from "./TikrrLaunchVideo";
+import { StocksbrewLaunchVideo, TOTAL_FRAMES } from "./StocksbrewLaunchVideo";
 
 const RemotionRoot: React.FC = () => {
   return (
     <Composition
-      id="TikrrLaunch"
-      component={TikrrLaunchVideo}
+      id="StocksbrewLaunch"
+      component={StocksbrewLaunchVideo}
       durationInFrames={TOTAL_FRAMES}
       fps={30}
       width={1920}

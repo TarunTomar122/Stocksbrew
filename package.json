@@ -43,7 +43,7 @@
     "build": "next build",
     "dev": "next dev",
     "remotion": "remotion studio",
-    "remotion:render": "remotion render TikrrLaunch out/stocksbrew-launch.mp4",
+    "remotion:render": "remotion render StocksbrewLaunch out/stocksbrew-launch.mp4",
     "lint": "eslint .",
     "start": "next start",
     "test": "vitest run",

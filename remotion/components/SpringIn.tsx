@@ -17,12 +17,14 @@ export function SpringIn({
   config = { damping: 200 },
   direction = "up",
   distance = 40,
-}: Props) {
+  scaleFrom = 1,
+}: Props & { scaleFrom?: number }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const progress = spring({ frame: frame - from, fps, config });
   const opacity = interpolate(progress, [0, 1], [0, 1], { extrapolateRight: "clamp" });
+  const scale = interpolate(progress, [0, 1], [scaleFrom, 1], { extrapolateRight: "clamp" });
 
   const tx =
     direction === "left" ? interpolate(progress, [0, 1], [distance, 0]) :
@@ -35,7 +37,7 @@ export function SpringIn({
     <div
       style={{
         opacity,
-        transform: `translate(${tx}px, ${ty}px)`,
+        transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
         ...style,
       }}
     >
