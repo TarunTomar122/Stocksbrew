@@ -36,8 +36,10 @@ class _FakeClient:
         self.wait_calls = 0
         self.run_calls: list[tuple[str, list[str]]] = []
 
-    def run_job(self, *, job_name: str, args: list[str]) -> str:
+    def run_job(self, *, job_name: str, args: list[str], wait_for_execution_name: bool = True) -> str:
         self.run_calls.append((job_name, args))
+        if not wait_for_execution_name:
+            return f"projects/p/locations/r/operations/{len(self.run_calls)}"
         return f"{job_name}/executions/{len(self.run_calls)}"
 
     def wait_execution(self, execution_resource_name: str) -> dict:
@@ -73,6 +75,7 @@ class DispatchAsyncTest(unittest.TestCase):
             client=client,
         )
         self.assertEqual(out["status"], "dispatched")
+        self.assertIn("operation", out)
         self.assertEqual(client.wait_calls, 0)
 
     def test_sharded_dispatch_does_not_wait_by_default(self) -> None:
@@ -95,6 +98,7 @@ class DispatchAsyncTest(unittest.TestCase):
         self.assertEqual(out["shard_count"], 2)
         self.assertEqual(client.wait_calls, 0)
         self.assertEqual(len(state.started), 2)
+        self.assertTrue(all("operation" in row for row in out["results"]))
 
 
 if __name__ == "__main__":

@@ -140,15 +140,20 @@ def _run_sharded_lane(
     results: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=max(1, max_parallel)) as pool:
         futures = {
-            pool.submit(client.run_job, job_name=job_name, args=args): (ref, ids)
+            pool.submit(
+                client.run_job,
+                job_name=job_name,
+                args=args,
+                wait_for_execution_name=wait_for_completion,
+            ): (ref, ids)
             for ref, ids, args in plan
         }
         execution_names: dict[str, tuple[ShardRef, list[str]]] = {}
         for future in as_completed(futures):
             ref, ids = futures[future]
-            exec_name = future.result()
-            state.mark_shard_started(ref, exec_name)
-            execution_names[exec_name] = (ref, ids)
+            execution_or_operation = future.result()
+            state.mark_shard_started(ref, execution_or_operation)
+            execution_names[execution_or_operation] = (ref, ids)
 
         if not wait_for_completion:
             return {
@@ -165,7 +170,7 @@ def _run_sharded_lane(
                             "shard_id": ref.shard_id,
                             "instrument_count": len(ids),
                             "status": "dispatched",
-                            "execution": exec_name,
+                            "operation": exec_name,
                         }
                         for exec_name, (ref, ids) in execution_names.items()
                     ],
@@ -246,14 +251,18 @@ def _run_single_job_lane(
         universe_id,
         *extra_args,
     ]
-    exec_name = client.run_job(job_name=job_name, args=args)
+    exec_name = client.run_job(
+        job_name=job_name,
+        args=args,
+        wait_for_execution_name=wait_for_completion,
+    )
     if not wait_for_completion:
         return {
             "lane": lane,
             "market": market,
             "universe_id": universe_id,
             "run_id": run_id,
-            "execution": exec_name,
+            "operation": exec_name,
             "status": "dispatched",
         }
     payload = client.wait_execution(exec_name)

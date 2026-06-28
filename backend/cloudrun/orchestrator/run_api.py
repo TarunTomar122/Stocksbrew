@@ -24,7 +24,7 @@ class RunJobsClient:
             "Content-Type": "application/json",
         }
 
-    def run_job(self, *, job_name: str, args: list[str]) -> str:
+    def run_job(self, *, job_name: str, args: list[str], wait_for_execution_name: bool = True) -> str:
         url = f"{self.base}/jobs/{job_name}:run"
         body = {
             "overrides": {
@@ -43,6 +43,8 @@ class RunJobsClient:
         op_name = str(payload.get("name") or "")
         if not op_name:
             raise ValueError("jobs.run returned empty operation name")
+        if not wait_for_execution_name:
+            return op_name
         return self._wait_operation_for_execution(op_name)
 
     def _get_operation(self, operation_name: str) -> dict[str, Any]:

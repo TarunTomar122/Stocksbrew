@@ -83,10 +83,11 @@ class PipelineStateStore:
         )
 
     def mark_shard_started(self, ref: ShardRef, execution_name: str) -> None:
+        execution_key = "operation_name" if "/operations/" in execution_name else "execution_name"
         self.shard_ref(ref).set(
             {
                 "status": "running",
-                "execution_name": execution_name,
+                execution_key: execution_name,
                 "started_at": utc_now_iso(),
                 "updated_at": utc_now_iso(),
                 "attempts": self._next_attempt_count(ref),
