@@ -128,8 +128,22 @@ def _parse_cell(raw: str, kind: str) -> Any:
     return None
 
 
-_SECTOR_LINK_RE = re.compile(r'f=sec_([a-z]+)[^"\']*["\'][^>]*class="tab-link[^"]*"[^>]*>([^<]+)</a>')
-_INDUSTRY_LINK_RE = re.compile(r'f=ind_([a-z]+)[^"\']*["\'][^>]*class="tab-link[^"]*"[^>]*>([^<]+)</a>')
+_SECTOR_LINK_RE = re.compile(
+    r'href="[^"]*f=sec_([a-z0-9]+)[^"]*"[^>]*class="quote-header_category"[^>]*>([^<]+)</a>',
+    re.IGNORECASE,
+)
+_SECTOR_LINK_LEGACY_RE = re.compile(
+    r'f=sec_([a-z0-9]+)[^"\']*["\'][^>]*class="tab-link[^"]*"[^>]*>([^<]+)</a>',
+    re.IGNORECASE,
+)
+_INDUSTRY_LINK_RE = re.compile(
+    r'href="[^"]*f=ind_([a-z0-9]+)[^"]*"[^>]*class="quote-header_category"[^>]*(?:title="([^"]*)")?[^>]*>(?:<[^>]+>)?([^<]+)',
+    re.IGNORECASE,
+)
+_INDUSTRY_LINK_LEGACY_RE = re.compile(
+    r'f=ind_([a-z0-9]+)[^"\']*["\'][^>]*class="tab-link[^"]*"[^>]*>([^<]+)</a>',
+    re.IGNORECASE,
+)
 _EARNINGS_RE = re.compile(
     r">Earnings</a></div></td>.*?<b>\s*(?:<[^>]+>)?([^<]+?)(?:</[^>]+>)?\s*</b>",
     re.DOTALL,
@@ -167,14 +181,14 @@ def parse_finviz_quote(html: str, ticker: str) -> FinvizQuote:
             if parsed is not None:
                 quote.metrics[field_name] = parsed
 
-    sector_m = _SECTOR_LINK_RE.search(html)
+    sector_m = _SECTOR_LINK_RE.search(html) or _SECTOR_LINK_LEGACY_RE.search(html)
     if sector_m:
-        quote.sector_slug = sector_m.group(1)
+        quote.sector_slug = sector_m.group(1).lower()
         quote.sector_label = sector_m.group(2).strip()
-    industry_m = _INDUSTRY_LINK_RE.search(html)
+    industry_m = _INDUSTRY_LINK_RE.search(html) or _INDUSTRY_LINK_LEGACY_RE.search(html)
     if industry_m:
-        quote.industry_slug = industry_m.group(1)
-        quote.industry_label = industry_m.group(2).strip()
+        quote.industry_slug = industry_m.group(1).lower()
+        quote.industry_label = (industry_m.group(2) or industry_m.group(3) or "").strip()
 
     earnings_m = _EARNINGS_RE.search(html)
     if earnings_m:

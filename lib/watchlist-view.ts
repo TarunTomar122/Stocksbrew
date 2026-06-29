@@ -54,6 +54,7 @@ export type WatchlistRow = {
   market: "US" | "IN" | "";
   sector_label: string;
   industry_label: string;
+  instrument_sector?: string;
   currency: string;
   price: number | null;
   day_change_pct: number | null;
@@ -892,8 +893,9 @@ function rowFromDocs(
     logo_url: typeof instrument.logo_url === "string" ? instrument.logo_url : null,
     position_type: positionType,
     market,
-    sector_label: (intel?.sector_label as string) || "",
-    industry_label: (intel?.industry_label as string) || "",
+    sector_label: (intel?.sector_label as string) || String(instrument.sector || "").trim() || "",
+    industry_label: (intel?.industry_label as string) || String(instrument.industry || "").trim() || "",
+    instrument_sector: String(instrument.sector || "").trim() || undefined,
     currency: (latest?.currency as string) || (market === "US" ? "USD" : "INR"),
     price,
     day_change_pct: dayChange,
@@ -1038,6 +1040,16 @@ async function buildRows(
   return rows;
 }
 
+function clusterSector(
+  row: Pick<WatchlistRow, "sector_label" | "industry_label" | "instrument_sector">,
+): string {
+  const sector =
+    row.sector_label?.trim() ||
+    row.instrument_sector?.trim() ||
+    row.industry_label?.trim();
+  return sector || "Uncategorized";
+}
+
 function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
   const holdingRows = rows.filter((r) => r.position_type === "holding");
   const allHoldingsWeighted =
@@ -1052,7 +1064,7 @@ function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
     // Dollar-weighted: only holdings contribute — this is where the money actually is.
     const bySector = new Map<string, { value: number; count: number }>();
     for (const row of holdingRows) {
-      const sector = row.sector_label || row.market || "Unknown";
+      const sector = clusterSector(row);
       const weight = row.holding!.portfolio_weight_pct as number;
       const prev = bySector.get(sector) ?? { value: 0, count: 0 };
       bySector.set(sector, { value: prev.value + weight, count: prev.count + 1 });
@@ -1072,7 +1084,7 @@ function sectorClusters(rows: WatchlistRow[]): Array<Record<string, unknown>> {
   const scopeRows = holdingRows.length > 0 ? holdingRows : rows;
   const counts = new Map<string, number>();
   for (const row of scopeRows) {
-    const sector = row.sector_label || row.market || "Unknown";
+    const sector = clusterSector(row);
     counts.set(sector, (counts.get(sector) ?? 0) + 1);
   }
   return [...counts.entries()]

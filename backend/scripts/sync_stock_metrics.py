@@ -18,6 +18,7 @@ from backend.fundamentals_scraper import fetch_finviz_quotes, fetch_zacks_quote
 from backend.instrument_universe import list_instruments
 from backend.providers.yfinance_provider import fetch_yfinance_scorecard_metrics
 from backend.screener_scraper import fetch_screener_quote
+from backend.sector_slugs import resolve_sector_fields
 from backend.storage import TraceMoneyStore
 from backend.tickertape_scraper import fetch_tickertape_quote
 
@@ -121,6 +122,16 @@ def _sync_us(args: argparse.Namespace) -> None:
             print(f"  [zacks fail] {ticker}: {exc}")
 
         merged_metrics = {**quote.metrics, **zacks_fields}
+        sector_slug, sector_label = resolve_sector_fields(
+            sector_slug=quote.sector_slug,
+            sector_label=quote.sector_label,
+            instrument_sector=str(instrument.get("sector") or ""),
+            instrument_industry=str(instrument.get("industry") or ""),
+        )
+        industry_slug = quote.industry_slug
+        industry_label = quote.industry_label
+        if not industry_slug and industry_label:
+            industry_slug = _slug(industry_label)
         return {
             "instrument_id": instrument["instrument_id"],
             "ticker": ticker,
@@ -128,10 +139,10 @@ def _sync_us(args: argparse.Namespace) -> None:
             "universe_id": universe_id,
             "snapshot_date": snapshot_date,
             "captured_at": captured_at,
-            "sector_slug": quote.sector_slug,
-            "sector_label": quote.sector_label,
-            "industry_slug": quote.industry_slug,
-            "industry_label": quote.industry_label,
+            "sector_slug": sector_slug,
+            "sector_label": sector_label,
+            "industry_slug": industry_slug,
+            "industry_label": industry_label,
             "earnings_date": quote.earnings_date,
             "metrics": merged_metrics,
             "zacks_meta": zacks_meta,

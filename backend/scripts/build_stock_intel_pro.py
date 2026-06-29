@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from backend.instrument_universe import list_instruments
 from backend.stock_scoring import score_stock
+from backend.sector_slugs import resolve_sector_fields
 from backend.storage import TraceMoneyStore
 
 
@@ -89,6 +90,14 @@ def main() -> None:
         if not today_snap:
             print(f"  [skip] {instrument['ticker']}: no snapshot yet")
             continue
+        sector_slug, sector_label = resolve_sector_fields(
+            sector_slug=str(today_snap.get("sector_slug") or ""),
+            sector_label=str(today_snap.get("sector_label") or ""),
+            instrument_sector=str(instrument.get("sector") or ""),
+            instrument_industry=str(instrument.get("industry") or ""),
+        )
+        if sector_slug and not today_snap.get("sector_slug"):
+            today_snap = {**today_snap, "sector_slug": sector_slug, "sector_label": sector_label or today_snap.get("sector_label", "")}
         scored = score_stock(instrument, today_snap, None, benchmarks_doc)
         store.save_stock_intel_pro(args.market, universe_id, instrument_id, scored)
         saved += 1

@@ -72,5 +72,48 @@ def get_instrument(instrument_id: str) -> dict[str, Any] | None:
     return None
 
 
+def get_coverage_universe_id(market: str) -> str:
+    defaults = {"US": "us_core_155", "IN": "in_core_150"}
+    market_key = str(market or "").upper()
+    return defaults.get(market_key, "")
+
+
+def list_intel_universe_ids(market: str, store: Any | None = None) -> list[str]:
+    """Runtime + coverage intel namespaces (deduped, stable order)."""
+    from backend.storage import TraceMoneyStore
+
+    store = store or TraceMoneyStore()
+    market_key = str(market or "").upper()
+    runtime = store.get_active_price_universe(market_key) or store.get_active_ai_universe(market_key) or ""
+    coverage = get_coverage_universe_id(market_key)
+    ordered = [runtime, coverage]
+    if market_key == "US":
+        ai = store.get_active_ai_universe(market_key) or runtime
+        ordered = [runtime, ai, coverage]
+    seen: set[str] = set()
+    out: list[str] = []
+    for universe_id in ordered:
+        value = str(universe_id or "").strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        out.append(value)
+    return out
+
+
 def list_tickers(market: str, universe_id: str | None = None) -> list[str]:
     return [instrument["ticker"] for instrument in list_instruments(market, universe_id)]
+
+
+def list_coverage_delta_instrument_ids(
+    market: str,
+    runtime_universe_id: str | None = None,
+) -> list[str]:
+    """Instruments in coverage_catalog but outside runtime_core."""
+    market_key = str(market or "").upper()
+    universes = list_universes_for_market(market_key)
+    runtime_id = str(runtime_universe_id or "").strip() or "us_core_100"
+    coverage_id = get_coverage_universe_id(market_key)
+    runtime_set = set(universes.get(runtime_id, []))
+    coverage_set = set(universes.get(coverage_id, []))
+    return sorted(coverage_set - runtime_set)

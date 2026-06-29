@@ -1,8 +1,11 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 import { batchGetRefs, getLatestPrices } from "@/lib/firestore";
-import { getAiUniverse, getPriceUniverse } from "@/lib/firestore";
+import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
+import { resolveSectorSlug, sectorSlugForIntel } from "@/lib/sector-slugs";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
+import { listCatalogInstruments } from "@/lib/universe-catalog";
+import { getCoverageUniverse, getIntelUniverseIds } from "@/lib/universe-tiers";
 
 export type { PriceHistoryPoint } from "@/lib/price-history-chart";
 export { PRICE_HISTORY_CHART_MIN } from "@/lib/price-history-chart";
@@ -539,24 +542,249 @@ export async function getStockIntelPro(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<StockIntelPro | null> {
-  // The price universe is the broad scored set, so it should be the cheap
-  // first lookup for stock pages. Fall back to the AI universe only for older
-  // data before the broad scorecard job has run.
-  const [aiUniverse, priceUniverse] = await Promise.all([
-    getAiUniverse(market),
-    getPriceUniverse(market),
+  const [universes, instrument] = await Promise.all([
+    getIntelUniverseIds(market),
+    getInstrument(instrumentId).catch(() => null),
   ]);
-  const preferredUniverse = priceUniverse || aiUniverse;
-  const doc = await adminFirestore
-    .collection("tm_stock_intel_pro")
-    .doc(`${market}__${preferredUniverse}`)
-    .collection("stocks")
-    .doc(instrumentId)
-    .get();
-  return doc.exists ? (doc.data() as StockIntelPro) : null;
+  if (!universes.length) return null;
+
+  const refs = universes.map((universe) =>
+    adminFirestore
+      .collection("tm_stock_intel_pro")
+      .doc(`${market}__${universe}`)
+      .collection("stocks")
+      .doc(instrumentId),
+  );
+  const snapshots = await adminFirestore.getAll(...refs);
+  const docs = snapshots
+    .filter((doc) => doc.exists)
+    .map((doc) => doc.data() as StockIntelPro);
+
+  if (!docs.length) return null;
+
+  const primary = docs[0];
+  const sectorSource =
+    docs.find((row) => Boolean(sectorSlugForIntel(row, instrument))) ??
+    docs.find((row) => Boolean(row.sector_slug || row.sector_label)) ??
+    null;
+
+  const sector_slug =
+    (sectorSource ? sectorSlugForIntel(sectorSource, instrument) : "") ||
+    sectorSlugForIntel(primary, instrument) ||
+    primary.sector_slug ||
+    "";
+  const sector_label =
+    sectorSource?.sector_label ||
+    primary.sector_label ||
+    instrument?.sector ||
+    "";
+  const industry_label =
+    sectorSource?.industry_label ||
+    primary.industry_label ||
+    instrument?.industry ||
+    "";
+
+  return {
+    ...primary,
+    sector_slug,
+    sector_label,
+    industry_label,
+  };
 }
 
-export type SectorPeerPick = { instrument_id: string; ticker: string; score: number; verdict: string };
+function intelHasCompositeScore(intel: StockIntelPro): boolean {
+  return typeof intel.overall?.score === "number" && Object.keys(intel.pillars ?? {}).length > 0;
+}
+
+function intelSectorSlug(intel: StockIntelPro): string {
+  return resolveSectorSlug({
+    sector_slug: intel.sector_slug,
+    sector_label: intel.sector_label,
+  });
+}
+
+async function querySectorIntelDocs(
+  market: "US" | "IN",
+  universe: string,
+  sectorSlug: string,
+  limit: number,
+): Promise<StockIntelPro[]> {
+  const collection = adminFirestore
+    .collection("tm_stock_intel_pro")
+    .doc(`${market}__${universe}`)
+    .collection("stocks");
+
+  try {
+    const snap = await collection
+      .where("sector_slug", "==", sectorSlug)
+      .orderBy("overall.score", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => d.data() as StockIntelPro);
+  } catch {
+    const snap = await collection.where("sector_slug", "==", sectorSlug).limit(Math.max(limit * 4, 24)).get();
+    return snap.docs
+      .map((d) => d.data() as StockIntelPro)
+      .filter((row) => typeof row.overall?.score === "number")
+      .sort((a, b) => (b.overall?.score ?? 0) - (a.overall?.score ?? 0))
+      .slice(0, limit);
+  }
+}
+
+async function scanUniverseSectorPeers(
+  market: "US" | "IN",
+  universe: string,
+  sectorSlug: string,
+  excludeInstrumentId: string,
+  limit: number,
+): Promise<StockIntelPro[]> {
+  const snap = await adminFirestore
+    .collection("tm_stock_intel_pro")
+    .doc(`${market}__${universe}`)
+    .collection("stocks")
+    .limit(650)
+    .get();
+  const candidates = snap.docs
+    .map((d) => d.data() as StockIntelPro)
+    .filter((row) => row.instrument_id !== excludeInstrumentId && typeof row.overall?.score === "number");
+
+  const needsInstrument = candidates.filter((row) => !intelSectorSlug(row));
+  const instrumentById =
+    needsInstrument.length > 0
+      ? await batchGetRefs<Instrument>(
+          needsInstrument.map((row) => adminFirestore.collection("tm_instruments").doc(row.instrument_id)),
+        )
+      : new Map<string, Instrument>();
+
+  return candidates
+    .filter((row) => {
+      const slug = sectorSlugForIntel(row, instrumentById.get(row.instrument_id));
+      return slug === sectorSlug;
+    })
+    .sort((a, b) => (b.overall?.score ?? 0) - (a.overall?.score ?? 0))
+    .slice(0, limit);
+}
+
+async function loadCatalogSectorPeers(
+  instrumentId: string,
+  market: "US" | "IN",
+  sectorSlug: string,
+  limit: number,
+  seen: Set<string>,
+): Promise<StockIntelPro[]> {
+  if (!sectorSlug || limit <= 0) return [];
+  const coverageId = await getCoverageUniverse(market);
+  const catalog = await listCatalogInstruments(market, coverageId);
+  const matches = catalog.filter((row) => {
+    if (row.instrument_id === instrumentId || seen.has(row.instrument_id)) return false;
+    return resolveSectorSlug({ sector_label: row.sector, instrument_industry: row.industry }) === sectorSlug;
+  });
+  if (!matches.length) return [];
+
+  const universes = await getIntelUniverseIds(market);
+  const intelById = new Map<string, StockIntelPro>();
+  const candidateIds = matches.map((row) => row.instrument_id);
+  for (const universe of universes) {
+    const batch = await batchGetRefs<StockIntelPro>(
+      candidateIds.map((id) =>
+        adminFirestore.collection("tm_stock_intel_pro").doc(`${market}__${universe}`).collection("stocks").doc(id),
+      ),
+    );
+    for (const [id, intel] of batch.entries()) {
+      if (intel && !intelById.has(id)) intelById.set(id, intel);
+    }
+  }
+
+  const prices = await getLatestPrices(candidateIds);
+  const sorted = [...matches].sort((a, b) => {
+    const capA = prices.get(a.instrument_id)?.fundamentals?.market_cap ?? 0;
+    const capB = prices.get(b.instrument_id)?.fundamentals?.market_cap ?? 0;
+    return capB - capA;
+  });
+
+  const out: StockIntelPro[] = [];
+  for (const row of sorted) {
+    const intel = intelById.get(row.instrument_id);
+    if (intel) {
+      out.push(intel);
+    } else {
+      out.push({
+        instrument_id: row.instrument_id,
+        ticker: row.ticker,
+        sector_slug: sectorSlug,
+        sector_label: row.sector,
+        industry_label: row.industry,
+        overall: { score: 0, verdict: "", stance: "" },
+        pillars: {},
+      } as StockIntelPro);
+    }
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+async function loadSectorIntelPeers(
+  instrumentId: string,
+  market: "US" | "IN",
+  sectorSlug: string,
+  limit: number,
+): Promise<StockIntelPro[]> {
+  if (!sectorSlug) return [];
+  const universes = await getIntelUniverseIds(market);
+  if (!universes.length) return [];
+
+  const seen = new Set<string>();
+  const out: StockIntelPro[] = [];
+
+  for (const universe of universes) {
+    const queried = await querySectorIntelDocs(market, universe, sectorSlug, limit + 8);
+    for (const row of queried) {
+      if (row.instrument_id === instrumentId || seen.has(row.instrument_id)) continue;
+      if (!intelHasCompositeScore(row)) continue;
+      seen.add(row.instrument_id);
+      out.push(row);
+      if (out.length >= limit) return out;
+    }
+  }
+
+  if (out.length >= limit) return out.slice(0, limit);
+
+  for (const universe of universes) {
+    const scanned = await scanUniverseSectorPeers(
+      market,
+      universe,
+      sectorSlug,
+      instrumentId,
+      limit + 8,
+    );
+    for (const row of scanned) {
+      if (seen.has(row.instrument_id)) continue;
+      seen.add(row.instrument_id);
+      out.push(row);
+      if (out.length >= limit) return out;
+    }
+  }
+
+  if (out.length < limit) {
+    const catalogPeers = await loadCatalogSectorPeers(
+      instrumentId,
+      market,
+      sectorSlug,
+      limit - out.length,
+      seen,
+    );
+    for (const row of catalogPeers) {
+      if (seen.has(row.instrument_id)) continue;
+      seen.add(row.instrument_id);
+      out.push(row);
+      if (out.length >= limit) return out;
+    }
+  }
+
+  return out.slice(0, limit);
+}
+
+export type SectorPeerPick = { instrument_id: string; ticker: string; score: number | null; verdict: string };
 
 export type SectorPeerRow = SectorPeerPick & {
   name: string;
@@ -595,11 +823,12 @@ async function enrichSectorPeerRows(
   return peers.map((s) => {
     const quote = prices.get(s.instrument_id)?.quote;
     const instrument = instrumentsById.get(s.instrument_id);
+    const scored = intelHasCompositeScore(s);
     return {
       instrument_id: s.instrument_id,
       ticker: s.ticker,
       name: instrument?.name || s.industry_label || s.overall.verdict,
-      score: s.overall.score,
+      score: scored ? s.overall.score : null,
       verdict: s.overall.verdict,
       price: typeof quote?.current === "number" ? quote.current : undefined,
       day_change_pct: typeof quote?.day_change_pct === "number" ? quote.day_change_pct : undefined,
@@ -619,25 +848,25 @@ export async function enrichRelatedTickersForComparison(
   if (candidates.length === 0) return [];
 
   const ids = candidates.map((r) => r.instrument_id);
-  const [aiUniverse, priceUniverse] = await Promise.all([getAiUniverse(market), getPriceUniverse(market)]);
-  const universe = priceUniverse || aiUniverse;
+  const universes = await getIntelUniverseIds(market);
 
-  const [prices, factsById, instrumentsById, intelById] = await Promise.all([
+  const [prices, factsById, instrumentsById] = await Promise.all([
     getLatestPrices(ids),
     batchGetRefs<StockFacts>(ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
     batchGetRefs<Instrument>(ids.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
-    universe
-      ? batchGetRefs<StockIntelPro>(
-          ids.map((id) =>
-            adminFirestore
-              .collection("tm_stock_intel_pro")
-              .doc(`${market}__${universe}`)
-              .collection("stocks")
-              .doc(id),
-          ),
-        )
-      : Promise.resolve(new Map<string, StockIntelPro>()),
   ]);
+
+  const intelById = new Map<string, StockIntelPro>();
+  for (const universe of universes) {
+    const batch = await batchGetRefs<StockIntelPro>(
+      ids.map((id) =>
+        adminFirestore.collection("tm_stock_intel_pro").doc(`${market}__${universe}`).collection("stocks").doc(id),
+      ),
+    );
+    for (const [id, intel] of batch.entries()) {
+      if (intel && !intelById.has(id)) intelById.set(id, intel);
+    }
+  }
 
   return candidates.map((row) => {
     const intel = intelById.get(row.instrument_id);
@@ -648,7 +877,7 @@ export async function enrichRelatedTickersForComparison(
       instrument_id: row.instrument_id,
       ticker: row.ticker,
       name: instrument?.name || row.name,
-      score: intel?.overall?.score ?? 0,
+      score: intel && intelHasCompositeScore(intel) ? intel.overall.score : null,
       verdict: intel?.overall?.verdict ?? "",
       price: typeof quote?.current === "number" ? quote.current : undefined,
       day_change_pct: typeof quote?.day_change_pct === "number" ? quote.day_change_pct : undefined,
@@ -664,27 +893,7 @@ export async function getSectorPeerRows(
   sectorSlug: string,
   limit = 6,
 ): Promise<SectorPeerRow[]> {
-  if (!sectorSlug) return [];
-  const [aiUniverse, priceUniverse] = await Promise.all([getAiUniverse(market), getPriceUniverse(market)]);
-  const universe = priceUniverse || aiUniverse;
-  if (!universe) return [];
-  let peers: StockIntelPro[] = [];
-  try {
-    const snap = await adminFirestore
-      .collection("tm_stock_intel_pro")
-      .doc(`${market}__${universe}`)
-      .collection("stocks")
-      .where("sector_slug", "==", sectorSlug)
-      .orderBy("overall.score", "desc")
-      .limit(limit + 4)
-      .get();
-    peers = snap.docs
-      .map((d) => d.data() as StockIntelPro)
-      .filter((s) => s.instrument_id !== instrumentId && s.overall?.score != null)
-      .slice(0, limit);
-  } catch {
-    return [];
-  }
+  const peers = await loadSectorIntelPeers(instrumentId, market, sectorSlug, limit);
   if (peers.length === 0) return [];
 
   try {
@@ -709,27 +918,28 @@ export async function getBetterSectorPeers(
   limit = 4,
 ): Promise<SectorPeerPick[]> {
   if (!sectorSlug || !Number.isFinite(minScore)) return [];
-  const [aiUniverse, priceUniverse] = await Promise.all([getAiUniverse(market), getPriceUniverse(market)]);
-  const universe = priceUniverse || aiUniverse;
-  if (!universe) return [];
-  try {
-    const snap = await adminFirestore
-      .collection("tm_stock_intel_pro")
-      .doc(`${market}__${universe}`)
-      .collection("stocks")
-      .where("sector_slug", "==", sectorSlug)
-      .where("overall.score", ">", minScore)
-      .orderBy("overall.score", "desc")
-      .limit(limit + 2)
-      .get();
-    return snap.docs
-      .map((d) => d.data() as StockIntelPro)
-      .filter((s) => s.instrument_id !== instrumentId && s.overall?.score != null)
-      .slice(0, limit)
-      .map((s) => ({ instrument_id: s.instrument_id, ticker: s.ticker, score: s.overall.score, verdict: s.overall.verdict }));
-  } catch {
-    return [];
-  }
+  const peers = await loadSectorIntelPeers(instrumentId, market, sectorSlug, limit + 8);
+  return peers
+    .filter((s) => intelHasCompositeScore(s) && (s.overall?.score ?? 0) > minScore)
+    .slice(0, limit)
+    .map((s) => ({
+      instrument_id: s.instrument_id,
+      ticker: s.ticker,
+      score: s.overall.score,
+      verdict: s.overall.verdict,
+    }));
+}
+
+export async function getSectorPeersForStock(
+  instrumentId: string,
+  market: "US" | "IN",
+  intelPro: StockIntelPro | null,
+  instrument?: Instrument | null,
+  limit = 6,
+): Promise<SectorPeerRow[]> {
+  const sectorSlug = sectorSlugForIntel(intelPro, instrument);
+  if (!sectorSlug) return [];
+  return getSectorPeerRows(instrumentId, market, sectorSlug, limit);
 }
 
 export async function getOnDemandNewsJob(

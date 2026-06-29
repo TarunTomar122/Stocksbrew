@@ -199,5 +199,52 @@ export const MOCK_CALL = {
   ],
 };
 
+// ─── "Why it moved" feature montage (anomaly + reddit + earnings) ────────────
+export const MOCK_WHY = {
+  ticker: "NVDA",
+  dayPct: 2.86,
+  todaysMove: {
+    headline: "Analysts raised GPU shipment estimates after a supplier check.",
+    body: "Trading volume is 40% above average. Institutions are accumulating into the move, not fading it.",
+    confidence: "high" as const,
+  },
+  reddit: {
+    scanned: 142,
+    ago: "2h ago",
+    post: { title: "NVDA data-center demand looks unstoppable into Q2", subreddit: "wallstreetbets" },
+    rollup: "Sentiment skews bullish. Chatter centers on Blackwell pre-orders and hyperscaler capex.",
+  },
+  earnings: {
+    when: "Q2 report in 3 days",
+    prediction: "Our model sees an EPS beat and a +6% post-print move.",
+  },
+};
+
+// ─── Track record (mirrors track-record-bar.tsx) ─────────────────────────────
+export const MOCK_RECEIPTS = [
+  { ticker: "NVDA", movePct: 9.3,  call: "Flagged the pre-earnings setup. Beat, gapped up." },
+  { ticker: "META", movePct: 14.1, call: "Called accumulate into the print. Ripped." },
+  { ticker: "INTC", movePct: -8.2, call: "Said avoid before guidance. Dropped hard." },
+  { ticker: "MSFT", movePct: 6.7,  call: "Buy-zone alert fired two days before the run." },
+];
+
+// ─── Smart alerts (mirrors stock-smart-alerts-rail.tsx) ──────────────────────
+export const MOCK_ALERTS = [
+  { icon: "🔔", title: "Buy zone hit", body: "NVDA dipped below $122 — your accumulate level.", tone: "bull" as const },
+  { icon: "📅", title: "Earnings in 24h", body: "MSFT reports tomorrow after the close.", tone: "amber" as const },
+  { icon: "⚠️", title: "Trim level reached", body: "META crossed $168 — take-profit zone.", tone: "amber" as const },
+];
+
+// ─── Morning brief (narrative) ───────────────────────────────────────────────
+export const MOCK_BRIEF = {
+  date: "Mon, Jun 29",
+  summary: "3 of your stocks need attention today.",
+  items: [
+    { ticker: "NVDA", note: "Up 2.9% on raised GPU estimates", stance: "accumulate" as const },
+    { ticker: "META", note: "Hit your take-profit zone", stance: "trim" as const },
+    { ticker: "INTC", note: "Guidance cut — risk rising", stance: "avoid" as const },
+  ],
+};
+
 export const AI_SYNTHESIS_TEXT =
   "NVDA is up 2.9% today after analysts raised price targets following stronger-than-expected GPU shipment data. Trading volume is 40% above average - institutional buyers are active. The momentum is bullish heading into next week's earnings.";

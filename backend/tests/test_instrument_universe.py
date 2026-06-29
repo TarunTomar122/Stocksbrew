@@ -3,8 +3,10 @@ from __future__ import annotations
 import unittest
 
 from backend.instrument_universe import (
+    get_coverage_universe_id,
     get_default_universe_id,
     get_instrument,
+    list_coverage_delta_instrument_ids,
     list_instruments,
     list_tickers,
 )
@@ -26,6 +28,16 @@ class InstrumentUniverseTest(unittest.TestCase):
 
     def test_list_tickers(self) -> None:
         self.assertEqual(list_tickers("US", "us_test_10")[:3], ["NVDA", "AMD", "MSFT"])
+
+    def test_coverage_universe_id(self) -> None:
+        self.assertEqual(get_coverage_universe_id("US"), "us_core_155")
+
+    def test_coverage_delta_excludes_runtime_core(self) -> None:
+        runtime = list_instruments("US", "us_core_100")
+        delta = list_coverage_delta_instrument_ids("US", "us_core_100")
+        runtime_ids = {row["instrument_id"] for row in runtime}
+        self.assertTrue(len(delta) > 0)
+        self.assertTrue(all(item not in runtime_ids for item in delta))
 
 
 if __name__ == "__main__":

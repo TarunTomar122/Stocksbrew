@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
 
-from backend.instrument_universe import list_instruments
+from backend.instrument_universe import list_instruments, list_intel_universe_ids
 from backend.sector_scraper import sector_tiles_for_market
+from backend.sector_slugs import resolve_sector_fields_from_row
 from backend.storage import TraceMoneyStore
 from backend.view_materializer import build_dashboard_view, build_instrument_view
 
@@ -57,6 +59,64 @@ def _paid_tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
             seen.add(instrument_id)
             out.append(instrument_id)
     return out
+
+
+def _sector_slug_for_intel(doc: dict, instrument: dict | None) -> str:
+    payload = {
+        **(doc or {}),
+        "instrument_sector": (instrument or {}).get("sector", ""),
+        "instrument_industry": (instrument or {}).get("industry", ""),
+    }
+    slug, _ = resolve_sector_fields_from_row(payload)
+    return slug
+
+
+def _related_rows_for_instrument(
+    *,
+    instrument: dict,
+    intel_doc: dict | None,
+    rows_by_id: dict[str, dict],
+    intel_by_sector: dict[str, list[dict]],
+    latest_prices: dict[str, dict],
+    instruments_by_id: dict[str, dict],
+    limit: int = 3,
+) -> list[dict]:
+    instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+    related: list[dict] = []
+    seen: set[str] = set()
+
+    for peer_id in instrument.get("peer_ids") or []:
+        peer_key = str(peer_id or "").strip().upper()
+        if not peer_key or peer_key in seen or peer_key not in rows_by_id:
+            continue
+        related.append(rows_by_id[peer_key])
+        seen.add(peer_key)
+
+    if len(related) < limit:
+        slug = _sector_slug_for_intel(intel_doc or {}, instrument)
+        for peer in intel_by_sector.get(slug, []):
+            peer_id = str(peer.get("instrument_id") or "").strip().upper()
+            if not peer_id or peer_id == instrument_id or peer_id in seen:
+                continue
+            latest = latest_prices.get(peer_id)
+            if not latest:
+                continue
+            meta = instruments_by_id.get(peer_id) or {}
+            quote = latest.get("quote") or {}
+            related.append(
+                {
+                    "instrument_id": peer_id,
+                    "ticker": peer.get("ticker") or meta.get("ticker") or peer_id.split("_", 1)[-1],
+                    "name": meta.get("name") or peer.get("ticker") or peer_id,
+                    "price": quote.get("current"),
+                    "day_change_pct": quote.get("day_change_pct"),
+                }
+            )
+            seen.add(peer_id)
+            if len(related) >= limit:
+                break
+
+    return related[:limit]
 
 
 def materialize_views(
@@ -191,19 +251,35 @@ def materialize_views(
         rows_by_id = {row["instrument_id"]: row for row in dashboard_view["watchlist_rows"]}
         dashboard_rows = len(dashboard_view.get("watchlist_rows", []))
     instruments_by_id = {instrument["instrument_id"]: instrument for instrument in instruments}
+    intel_pro_by_id: dict[str, dict] = {}
+    for intel_universe in list_intel_universe_ids(market, store):
+        for doc in store.list_stock_intel_pro(market, intel_universe):
+            instrument_id = str(doc.get("instrument_id") or doc.get("ticker") or "").strip().upper()
+            if not instrument_id or instrument_id in intel_pro_by_id:
+                continue
+            intel_pro_by_id[instrument_id] = doc
+    intel_pro_docs = list(intel_pro_by_id.values())
+    intel_by_sector: dict[str, list[dict]] = defaultdict(list)
+    for doc in intel_pro_docs:
+        instrument_id = str(doc.get("instrument_id") or "")
+        instrument_meta = instruments_by_id.get(instrument_id) or {}
+        slug = _sector_slug_for_intel(doc, instrument_meta)
+        if slug:
+            intel_by_sector[slug].append(doc)
     instrument_views = []
     for instrument in selected_instruments:
         instrument_id = instrument["instrument_id"]
         latest_price = latest_prices.get(instrument_id)
         if latest_price is None:
             continue
-        related_rows = []
-        if rows_by_id:
-            related_rows = [
-                rows_by_id[peer_id]
-                for peer_id in instrument.get("peer_ids", [])
-                if peer_id in rows_by_id and peer_id in instruments_by_id
-            ]
+        related_rows = _related_rows_for_instrument(
+            instrument=instrument,
+            intel_doc=intel_pro_by_id.get(instrument_id),
+            rows_by_id=rows_by_id,
+            intel_by_sector=intel_by_sector,
+            latest_prices=latest_prices,
+            instruments_by_id=instruments_by_id,
+        )
         stock_doc = stock_intelligence_docs.get(instrument_id) or {}
         sector_id = str((stock_doc.get("sector_context") or {}).get("sector_id", "")).strip()
         instrument_views.append(build_instrument_view(

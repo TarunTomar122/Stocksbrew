@@ -835,7 +835,7 @@ def _row_for_instrument(
         "ticker": ticker,
         "position_type": position_type,
         "market": market,
-        "sector_label": intel_pro.get("sector_label", ""),
+        "sector_label": intel_pro.get("sector_label", "") or instrument_meta.get("sector") or "",
         "industry_label": intel_pro.get("industry_label", ""),
         "instrument_name": instrument_meta.get("name") or latest.get("name") or "",
         "instrument_sector": instrument_meta.get("sector") or "",
@@ -995,7 +995,7 @@ def _portfolio_payload_for_row(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "symbol": row.get("ticker", ""),
         "name": row.get("ticker", ""),
-        "sector": row.get("sector_label") or row.get("market", ""),
+        "sector": _cluster_sector(row),
         "position_type": row.get("position_type", "watchlist"),
         "portfolio_weight_pct": _safe_float((holding or {}).get("portfolio_weight_pct")),
         "price": price,
@@ -1216,6 +1216,14 @@ def _holding_market_value(holding: dict[str, Any] | None) -> float | None:
     return None
 
 
+def _cluster_sector(row: dict[str, Any]) -> str:
+    for key in ("sector_label", "instrument_sector", "industry_label"):
+        label = str(row.get(key) or "").strip()
+        if label:
+            return label
+    return "Uncategorized"
+
+
 def _sector_counts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # All-or-none: only use dollar-weighting when EVERY holding has a market value.
     # A partial set would give misleading sector weights, so fall back to count.
@@ -1229,7 +1237,7 @@ def _sector_counts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if all_have_value:
         by_sector_value: dict[str, float] = {}
         for row in holding_rows:
-            sector = str(row.get("sector_label") or row.get("market") or "Unknown")
+            sector = _cluster_sector(row)
             by_sector_count[sector] = by_sector_count.get(sector, 0) + 1
             val = _holding_market_value(row.get("holding") if isinstance(row.get("holding"), dict) else None) or 0.0
             by_sector_value[sector] = by_sector_value.get(sector, 0.0) + val
@@ -1248,7 +1256,7 @@ def _sector_counts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Fall back to count-weighted across holdings when present, else all rows.
     scope_rows = holding_rows if holding_rows else rows
     for row in scope_rows:
-        sector = str(row.get("sector_label") or row.get("market") or "Unknown")
+        sector = _cluster_sector(row)
         by_sector_count[sector] = by_sector_count.get(sector, 0) + 1
     return [
         {

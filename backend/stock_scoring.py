@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from backend.sector_slugs import resolve_sector_fields
+
 # ────────────────────────────── thresholds ─────────────────────────────────
 
 PILLAR_WEIGHTS = {
@@ -493,7 +495,12 @@ def score_stock(
 ) -> dict[str, Any]:
     """Produce the four-pillar scored payload for a single stock."""
     metrics = today_snapshot.get("metrics", {})
-    sector_slug = today_snapshot.get("sector_slug", "")
+    sector_slug, sector_label = resolve_sector_fields(
+        sector_slug=str(today_snapshot.get("sector_slug") or ""),
+        sector_label=str(today_snapshot.get("sector_label") or ""),
+        instrument_sector=str(instrument.get("sector") or ""),
+        instrument_industry=str(instrument.get("industry") or ""),
+    )
     benchmarks = (sector_benchmarks_doc or {}).get("benchmarks", {}).get(sector_slug, {})
 
     pillar_builders = {
@@ -530,7 +537,7 @@ def score_stock(
         "instrument_id": instrument["instrument_id"],
         "ticker": instrument.get("ticker", ""),
         "sector_slug": sector_slug,
-        "sector_label": today_snapshot.get("sector_label", ""),
+        "sector_label": sector_label or str(today_snapshot.get("sector_label") or ""),
         "industry_label": today_snapshot.get("industry_label", ""),
         "pillars": pillars_out,
         "overall": {

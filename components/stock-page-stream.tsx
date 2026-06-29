@@ -27,14 +27,14 @@ import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
-import { getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
+import { getInstrument, getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
 import {
   getInstrumentViewDoc,
   getOnDemandNewsJob,
   getStockFacts,
   getStockIntelPro,
   getBetterSectorPeers,
-  getSectorPeerRows,
+  getSectorPeersForStock,
   enrichRelatedTickersForComparison,
   type SectorPeerRow,
   getStockIntelligenceDoc,
@@ -44,6 +44,7 @@ import {
   type SentimentBreakdown,
   type StockIntelligenceDoc,
 } from "@/lib/stock";
+import { sectorSlugForIntel } from "@/lib/sector-slugs";
 import { getCurrentMarket } from "@/lib/market";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getNewsForTicker } from "@/lib/news";
@@ -203,6 +204,7 @@ export async function StockPageStream({ params }: Props) {
     instrumentView,
     technicals,
     intelPro,
+    instrumentMeta,
     priceHistory,
     stockFacts,
     marketMovers,
@@ -223,6 +225,7 @@ export async function StockPageStream({ params }: Props) {
       : Promise.resolve(null),
     getLatestTechnicals(stock.instrument_id).catch(() => null),
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
+    getInstrument(stock.instrument_id).catch(() => null),
     getStockPriceHistory(stock.instrument_id).catch(() => []),
     getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
@@ -246,12 +249,32 @@ export async function StockPageStream({ params }: Props) {
     shouldShowPreEarningsIntel(preEarningsDoc, earningsIntel)
       ? preEarningsDoc
       : null;
-  const betterSectorPeers = intelPro?.sector_slug && typeof intelPro.overall?.score === "number"
-    ? await getBetterSectorPeers(stock.instrument_id, market, intelPro.sector_slug, intelPro.overall.score).catch(() => [])
-    : [];
-  const sectorPeersRaw = intelPro?.sector_slug
-    ? await getSectorPeerRows(stock.instrument_id, market, intelPro.sector_slug).catch(() => [])
-    : [];
+  const sectorSlug = sectorSlugForIntel(intelPro, instrumentMeta);
+  const sectorLabel =
+    intelPro?.sector_label ||
+    instrumentMeta?.sector ||
+    stock.sector ||
+    "";
+  const industryLabel =
+    intelPro?.industry_label ||
+    instrumentMeta?.industry ||
+    stock.industry ||
+    "";
+  const displayStock = {
+    ...stock,
+    sector: sectorLabel || stock.sector,
+    industry: industryLabel || stock.industry,
+  };
+  const betterSectorPeers =
+    sectorSlug && typeof intelPro?.overall?.score === "number"
+      ? await getBetterSectorPeers(stock.instrument_id, market, sectorSlug, intelPro.overall.score).catch(() => [])
+      : [];
+  const sectorPeersRaw = await getSectorPeersForStock(
+    stock.instrument_id,
+    market,
+    intelPro,
+    instrumentMeta,
+  ).catch(() => [] as SectorPeerRow[]);
   const sectorPeers =
     sectorPeersRaw.length > 0
       ? sectorPeersRaw
@@ -492,18 +515,18 @@ export async function StockPageStream({ params }: Props) {
   const dayPositive = dayPct >= 0;
   const fmtMoney = (v: number) =>
     `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const headerMeta = [stock.ticker, stock.exchange, stock.sector].filter(Boolean).join(" · ");
+  const headerMeta = [displayStock.ticker, displayStock.exchange, displayStock.sector].filter(Boolean).join(" · ");
 
   return (
     <main className="flex min-w-0 w-full flex-grow flex-col">
-      <StockViewTracker ticker={stock.ticker} instrumentId={stock.instrument_id} market={market} />
+      <StockViewTracker ticker={displayStock.ticker} instrumentId={displayStock.instrument_id} market={market} />
       <PriorityStockModal
         open={showPriorityNotice}
-        instrumentId={stock.instrument_id}
-        ticker={stock.ticker}
+        instrumentId={displayStock.instrument_id}
+        ticker={displayStock.ticker}
       />
       <StockDetail
-        stock={stock}
+        stock={displayStock}
         market={market}
         currency={currency}
         directive={normalizedDirective}
@@ -531,7 +554,7 @@ export async function StockPageStream({ params }: Props) {
         peers={instrumentView?.related_tickers}
         betterPeers={betterSectorPeers}
         sectorPeers={sectorPeers}
-        sectorLabel={intelPro?.sector_label}
+        sectorLabel={sectorLabel || undefined}
         reddit={
           redditTickerContext?.cue
             ? {

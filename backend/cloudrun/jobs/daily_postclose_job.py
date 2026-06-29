@@ -5,6 +5,7 @@ import subprocess
 import sys
 from typing import Sequence
 
+from backend.instrument_universe import get_coverage_universe_id, list_coverage_delta_instrument_ids
 from backend.storage import TraceMoneyStore
 
 
@@ -51,6 +52,39 @@ def main() -> None:
     _run([sys.executable, "-m", "backend.scripts.materialize_search_index", "--market", args.market, "--active-only"])
     _run([sys.executable, "-m", "backend.scripts.build_watchlist_views"])
     _run([sys.executable, "-m", "backend.scripts.build_snapshot", "--market", args.market])
+
+    coverage_universe = get_coverage_universe_id(args.market)
+    if coverage_universe and coverage_universe != args.universe:
+        delta_ids = list_coverage_delta_instrument_ids(args.market, args.universe)
+        if delta_ids:
+            ids_csv = ",".join(delta_ids)
+            coverage_args = [
+                "--market",
+                args.market,
+                "--universe",
+                coverage_universe,
+                "--instrument-ids",
+                ids_csv,
+            ]
+            print(
+                {
+                    "coverage_catalog_refresh": {
+                        "universe": coverage_universe,
+                        "delta_count": len(delta_ids),
+                    }
+                }
+            )
+            _run([
+                sys.executable,
+                "-m",
+                "backend.scripts.sync_stock_metrics",
+                *coverage_args,
+                "--max-workers",
+                "1",
+                "--pause",
+                "0.5",
+            ])
+            _run([sys.executable, "-m", "backend.scripts.build_stock_intel_pro", *coverage_args])
 
     # Keep override set bounded and active before running extended-core thick refresh.
     _run([
