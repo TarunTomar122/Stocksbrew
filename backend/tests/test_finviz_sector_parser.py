@@ -3,11 +3,15 @@ from __future__ import annotations
 import re
 import unittest
 
-from backend.fundamentals_scraper import parse_finviz_quote
+from backend.fundamentals_scraper import finviz_ticker_symbol, parse_finviz_quote
 from backend.sector_slugs import finviz_slug_from_label, resolve_sector_fields
 
 
 class FinvizSectorParserTests(unittest.TestCase):
+    def test_maps_class_share_tickers_for_finviz(self) -> None:
+        self.assertEqual(finviz_ticker_symbol("BRK.B"), "BRK-B")
+        self.assertEqual(finviz_ticker_symbol("BF.B"), "BF-B")
+
     def test_parses_quote_header_category_markup(self) -> None:
         html = """
         <a href="screener?v=111&f=sec_technology" class="quote-header_category">Technology</a>

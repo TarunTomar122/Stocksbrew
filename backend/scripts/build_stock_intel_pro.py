@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 
-from backend.instrument_universe import list_instruments
+from backend.instrument_universe import get_coverage_universe_id, list_instruments
 from backend.stock_scoring import score_stock
 from backend.sector_slugs import resolve_sector_fields
 from backend.storage import TraceMoneyStore
@@ -74,6 +74,9 @@ def main() -> None:
     if not benchmarks_doc:
         print(f"[warn] no sector benchmarks found - valuation pillar will lack sector comps")
 
+    coverage_universe_id = get_coverage_universe_id(args.market)
+    use_coverage_sector_fallback = coverage_universe_id and coverage_universe_id != universe_id
+
     today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     allowed_ids = _parse_instrument_ids(args.instrument_ids)
     instruments = _resolve_instruments(store, args.market, universe_id, allowed_ids)
@@ -99,6 +102,13 @@ def main() -> None:
         if sector_slug and not today_snap.get("sector_slug"):
             today_snap = {**today_snap, "sector_slug": sector_slug, "sector_label": sector_label or today_snap.get("sector_label", "")}
         scored = score_stock(instrument, today_snap, None, benchmarks_doc)
+        if use_coverage_sector_fallback and not str(scored.get("sector_slug") or "").strip():
+            coverage_doc = store.get_stock_intel_pro(args.market, coverage_universe_id, instrument_id)
+            if coverage_doc:
+                for key in ("sector_slug", "sector_label", "industry_label"):
+                    value = str(coverage_doc.get(key) or "").strip()
+                    if value and not str(scored.get(key) or "").strip():
+                        scored[key] = value
         store.save_stock_intel_pro(args.market, universe_id, instrument_id, scored)
         saved += 1
 

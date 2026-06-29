@@ -197,8 +197,21 @@ def parse_finviz_quote(html: str, ticker: str) -> FinvizQuote:
     return quote
 
 
+def finviz_ticker_symbol(ticker: str) -> str:
+    """Map app tickers to Finviz URL symbols (class shares use dashes)."""
+    symbol = str(ticker or "").strip().upper()
+    if not symbol:
+        return symbol
+    aliases = {
+        "BRK.B": "BRK-B",
+        "BF.B": "BF-B",
+    }
+    return aliases.get(symbol, symbol.replace(".", "-"))
+
+
 def fetch_finviz_quote(ticker: str) -> FinvizQuote:
-    url = f"https://finviz.com/quote.ashx?t={ticker.upper()}"
+    finviz_symbol = finviz_ticker_symbol(ticker)
+    url = f"https://finviz.com/quote.ashx?t={finviz_symbol}"
     html = _fetch(url)
     return parse_finviz_quote(html, ticker)
 
