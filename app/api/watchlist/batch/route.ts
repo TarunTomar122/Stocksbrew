@@ -7,7 +7,6 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
-import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
@@ -247,20 +246,6 @@ export async function POST(req: NextRequest) {
   for (const instrumentId of addedIds) {
     const queued = await maybeQueueOnDemandNews(session.uid, instrumentId).catch(() => false);
     if (queued) queuedOnDemandCount += 1;
-  }
-  if (queuedOnDemandCount > 0) {
-    await triggerDispatchLane({
-      lane: "on_demand_news",
-      market: "US",
-      limit: Math.min(Math.max(queuedOnDemandCount, 3), 12),
-      extraArgs: ["--per-stock-cap", "6"],
-    }).catch((error) => {
-      batchLog(traceId, "warn", "on_demand_news_dispatch_failed", {
-        uid: session.uid,
-        queued_count: queuedOnDemandCount,
-        error: String(error),
-      });
-    });
   }
 
   await adminFirestore

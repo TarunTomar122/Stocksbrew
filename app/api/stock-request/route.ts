@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { FieldValue } from "firebase-admin/firestore";
-import { triggerDispatchLane } from "@/lib/cloud-run-dispatch";
 
 const INVALID_REQUEST_TOKENS = new Set([
   "TO",
@@ -27,19 +26,6 @@ function isLikelyJunkRequest(query: string): boolean {
   if (query.includes("/") || query.includes(":")) return true;
   if (query.endsWith(".COM") || query.endsWith(".NET") || query.endsWith(".ORG")) return true;
   return false;
-}
-
-const STOCK_REQUEST_BATCH_LIMIT = 20;
-
-async function triggerStockRequestProcessing(query: string): Promise<void> {
-  // Drain the queue in one run (prioritize this ticker). A single --query run
-  // only processed one doc and left Pro backlogs stuck for days.
-  await triggerDispatchLane({
-    lane: "stock_requests",
-    market: "US",
-    limit: STOCK_REQUEST_BATCH_LIMIT,
-    extraArgs: ["--prioritize-query", query],
-  });
 }
 
 export async function POST(req: NextRequest) {
@@ -93,12 +79,6 @@ export async function POST(req: NextRequest) {
       });
     }
   });
-
-  try {
-    await triggerStockRequestProcessing(query);
-  } catch (error) {
-    console.error("[stock-request] immediate trigger failed", { query, error });
-  }
 
   return NextResponse.json({ ok: true, queued: query });
 }
