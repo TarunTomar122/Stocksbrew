@@ -52,7 +52,7 @@ write_pair tracked-refresh-t2 "Mon..Fri *-*-* 11:30:00" tracked_incremental_refr
 write_pair tracked-refresh-pre "Mon..Fri *-*-* 13:00:00" tracked_incremental_refresh
 write_pair tracked-refresh-intraday "Mon..Fri *-*-* 16,19:30:00" tracked_incremental_refresh
 write_pair tracked-refresh-close "Mon..Fri *-*-* 20:30:00" tracked_incremental_refresh
-write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check"
+write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25"
 write_pair open-briefs "Mon..Fri *-*-* 13:35:00" tracked_open_briefs "--session-phase open_check"
 write_pair open-anomalies "Mon..Fri *-*-* 13:38:00" open_anomalies
 write_pair reddit-buzz "Mon..Fri *-*-* 12,15,18,21:20:00" reddit_buzz
@@ -62,8 +62,7 @@ write_pair data-health-open "Mon..Fri *-*-* 14:20:00" data_health
 write_pair market-events-close "Mon..Fri *-*-* 22:30:00" market_events
 write_pair data-health-close "Mon..Fri *-*-* 22:40:00" data_health
 write_pair close-anomalies "Mon..Fri *-*-* 20:40:00" open_anomalies
-write_pair intraday-price-hourly "Mon..Fri *-*-* 13..19:00:00" price_core_intraday "--session-phase mid_check"
-write_pair intraday-price-openburst "Mon..Fri *-*-* 13..15:30:00" price_core_intraday "--session-phase mid_check"
+write_pair intraday-price-hourly "Mon..Fri *-*-* 13..19:00:00" price_core_intraday "--session-phase mid_check --max-parallel 1 --max-workers 2 --shard-size 40"
 write_pair postclose "Mon..Fri *-*-* 20:10:00" daily_postclose
 write_pair earnings-intel "Mon..Fri *-*-* 22:00:00" earnings_intel "--recent-days 3 --max-events 30"
 write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--upcoming-days 7 --max-events 200"
@@ -77,6 +76,9 @@ write_pair open-email "Mon..Fri *-*-* 13:50:00" open_email
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls
+
+systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
+rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"
 
 systemctl daemon-reload
 if [[ "${ENABLE_TIMERS:-1}" == "1" ]]; then
