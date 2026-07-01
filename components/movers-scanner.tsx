@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 
 export type ScannerItem = {
@@ -19,17 +20,21 @@ export type ScannerItem = {
 export function MoversScanner({
   items,
   limit,
+  fullItemLimit,
   showCount = true,
   detailed = false,
   embedded = false,
   variant = embedded ? "landing" : "default",
+  unlockSignedOutLabel,
 }: {
   items: ScannerItem[];
   limit?: number;
+  fullItemLimit?: number;
   showCount?: boolean;
   detailed?: boolean;
   embedded?: boolean;
   variant?: "default" | "landing" | "pulse";
+  unlockSignedOutLabel?: string;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const [expanded, setExpanded] = useState(false);
@@ -76,6 +81,12 @@ export function MoversScanner({
   };
 
   const listShell = uiVariant === "landing" ? "overflow-hidden" : uiVariant === "pulse" ? "" : "panel overflow-hidden";
+  const isLocked = (index: number) =>
+    typeof fullItemLimit === "number" && Number.isFinite(fullItemLimit) && index >= fullItemLimit;
+  const hasLockedRows =
+    typeof fullItemLimit === "number" &&
+    Number.isFinite(fullItemLimit) &&
+    rows.some((_, index) => index >= fullItemLimit);
 
   return (
     <div>
@@ -89,10 +100,12 @@ export function MoversScanner({
         uiVariant === "pulse" ? (
           <>
             <div className="grid gap-4 md:grid-cols-2">
-              {rows.slice(0, 4).map((a) => {
+              {rows.slice(0, 4).map((a, index) => {
                 const up = a.changePct >= 0;
-                return (
-                  <Link key={a.ticker} href={`/stock/${a.ticker}`} className="pulse-mover-card">
+                const locked = isLocked(index);
+                const shellClass = "pulse-mover-card";
+                const body = (
+                  <>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
                         <StockLogo ticker={a.ticker} market="US" size={28} />
@@ -109,21 +122,32 @@ export function MoversScanner({
                         </p>
                       </div>
                     </div>
-                    {a.headline ? (
+                    {locked ? (
+                      <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="block" className="mt-3" />
+                    ) : a.headline ? (
                       <p className="mt-3 text-[15px] font-semibold leading-snug text-on-surface">{a.headline}</p>
                     ) : null}
-                    {(a.whyItMatters || a.tag) ? (
+                    {!locked && (a.whyItMatters || a.tag) ? (
                       <p className="mt-2 line-clamp-3 text-[13px] leading-relaxed text-on-surface-variant">
                         {a.whyItMatters || a.tag}
                       </p>
                     ) : null}
-                    {a.confidence === "high" ? (
+                    {!locked && a.confidence === "high" ? (
                       <p className="pulse-confidence">Confidence high</p>
-                    ) : a.confidence === "low" ? (
+                    ) : !locked && a.confidence === "low" ? (
                       <p className="pulse-confidence" style={{ color: "var(--signal-neutral)" }}>
                         Confidence low
                       </p>
                     ) : null}
+                  </>
+                );
+                return locked ? (
+                  <div key={a.ticker} className={shellClass}>
+                    {body}
+                  </div>
+                ) : (
+                  <Link key={a.ticker} href={`/stock/${a.ticker}`} className={shellClass}>
+                    {body}
                   </Link>
                 );
               })}
@@ -135,15 +159,13 @@ export function MoversScanner({
                   Everything else moving
                 </p>
                 <div className="pulse-list-panel">
-                  {(expanded ? rows.slice(4) : rows.slice(4, 10)).map((a) => {
+                  {(expanded ? rows.slice(4) : rows.slice(4, 10)).map((a, offset) => {
+                    const index = offset + 4;
                     const up = a.changePct >= 0;
+                    const locked = isLocked(index);
                     const subline = a.headline || a.tag;
-                    return (
-                      <Link
-                        key={a.ticker}
-                        href={`/stock/${a.ticker}`}
-                        className="pulse-list-row pulse-list-row-stacked"
-                      >
+                    const rowBody = (
+                      <>
                         <div className="flex items-center gap-3">
                           <StockLogo ticker={a.ticker} market="US" size={22} />
                           <span className="min-w-0 flex-1 font-semibold text-on-surface">{a.ticker}</span>
@@ -158,9 +180,20 @@ export function MoversScanner({
                             </p>
                           </div>
                         </div>
-                        {subline ? (
+                        {locked ? (
+                          <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" />
+                        ) : subline ? (
                           <p className="text-[13px] leading-snug text-on-surface-variant">{subline}</p>
                         ) : null}
+                      </>
+                    );
+                    return locked ? (
+                      <div key={a.ticker} className="pulse-list-row pulse-list-row-stacked">
+                        {rowBody}
+                      </div>
+                    ) : (
+                      <Link key={a.ticker} href={`/stock/${a.ticker}`} className="pulse-list-row pulse-list-row-stacked">
+                        {rowBody}
                       </Link>
                     );
                   })}
@@ -174,6 +207,13 @@ export function MoversScanner({
                   ) : null}
                 </div>
               </>
+            ) : null}
+            {hasLockedRows ? (
+              <FeedUnlockBar
+                surface="market_anomalies"
+                className="mt-4 rounded-xl border border-outline-variant"
+                signedOutLabel={unlockSignedOutLabel}
+              />
             ) : null}
           </>
         ) : (
@@ -250,19 +290,18 @@ export function MoversScanner({
         )
       ) : (
         <div className={listShell}>
-          {rows.map((a) => {
+          {rows.map((a, index) => {
             const up = a.changePct >= 0;
+            const locked = isLocked(index);
             if (uiVariant === "landing") {
-              return (
-                <Link
-                  key={a.ticker}
-                  href={`/stock/${a.ticker}`}
-                  className="flex items-start gap-3 border-t border-outline-variant py-4 transition-colors first:border-t-0 hover:bg-surface-container-low"
-                >
+              const rowBody = (
+                <>
                   <StockLogo ticker={a.ticker} market="US" size={36} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[14px] font-bold text-on-surface">{a.ticker}</p>
-                    {a.tag ? (
+                    {locked ? (
+                      <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" className="mt-1" />
+                    ) : a.tag ? (
                       <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-on-surface-variant">{a.tag}</p>
                     ) : null}
                   </div>
@@ -276,16 +315,27 @@ export function MoversScanner({
                       {Math.abs(a.changePct).toFixed(2)}%
                     </p>
                   </div>
+                </>
+              );
+              return locked ? (
+                <div
+                  key={a.ticker}
+                  className="flex items-start gap-3 border-t border-outline-variant py-4 first:border-t-0"
+                >
+                  {rowBody}
+                </div>
+              ) : (
+                <Link
+                  key={a.ticker}
+                  href={`/stock/${a.ticker}`}
+                  className="flex items-start gap-3 border-t border-outline-variant py-4 transition-colors first:border-t-0 hover:bg-surface-container-low"
+                >
+                  {rowBody}
                 </Link>
               );
             }
-            return (
-              <Link
-                key={a.ticker}
-                href={`/stock/${a.ticker}`}
-                className="block border-t px-5 py-4 transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
-                style={{ borderColor: "var(--outline-variant)" }}
-              >
+            const defaultRowBody = (
+              <>
                 <div className="flex items-center gap-3 font-mono text-[13px]">
                   <StockLogo ticker={a.ticker} market="US" size={24} />
                   <span className="font-bold text-on-surface">{a.ticker}</span>
@@ -297,10 +347,40 @@ export function MoversScanner({
                     </span>
                   </span>
                 </div>
-                {a.tag && <p className="mt-3 text-[13px] leading-relaxed text-on-surface/90">{a.tag}</p>}
+                {locked ? (
+                  <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" className="mt-3" />
+                ) : a.tag ? (
+                  <p className="mt-3 text-[13px] leading-relaxed text-on-surface/90">{a.tag}</p>
+                ) : null}
+              </>
+            );
+            return locked ? (
+              <div
+                key={a.ticker}
+                className="block border-t px-5 py-4 first:border-t-0"
+                style={{ borderColor: "var(--outline-variant)" }}
+              >
+                {defaultRowBody}
+              </div>
+            ) : (
+              <Link
+                key={a.ticker}
+                href={`/stock/${a.ticker}`}
+                className="block border-t px-5 py-4 transition-colors first:border-t-0 hover:bg-surface-container hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)]"
+                style={{ borderColor: "var(--outline-variant)" }}
+              >
+                {defaultRowBody}
               </Link>
             );
           })}
+          {hasLockedRows ? (
+            <FeedUnlockBar
+              surface="market_anomalies"
+              compact
+              className={uiVariant === "landing" ? "" : "border-outline-variant"}
+              signedOutLabel={unlockSignedOutLabel}
+            />
+          ) : null}
         </div>
       )}
     </div>

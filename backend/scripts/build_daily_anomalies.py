@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -9,6 +10,8 @@ from typing import Any
 
 import requests
 
+from backend.context_search import context_search_enabled, search_context_articles_for_ticker
+from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.llm_client import json_response_format, llm_api_key, llm_api_url, llm_headers, llm_model, parse_json_content, schema_system_prompt
 from backend.instrument_universe import list_instruments
 from backend.stock_intelligence import build_no_news_intelligence_doc
@@ -17,6 +20,10 @@ from backend.storage import TraceMoneyStore
 
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 MIN_EXPLAIN_MOVE_PCT = 2.0
+ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS = max(
+    48,
+    int(os.getenv("ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS", "48") or 48),
+)
 MOVE_EXPLAINER_PROMPT = """You explain sharp single-stock moves for a market app.
 
 You receive the ticker, company name, today's price move, and the latest internal news items for that stock.
@@ -389,6 +396,74 @@ def _llm_move_explanation(
     }
 
 
+def _article_to_move_item(article: Any) -> dict[str, Any]:
+    key_points = [
+        str(point or "").strip()
+        for point in (getattr(article, "article_key_points", []) or [])
+        if str(point or "").strip()
+    ]
+    summary = (
+        str(getattr(article, "article_overview", "") or "").strip()
+        or str(getattr(article, "summary", "") or "").strip()
+        or " ".join(key_points[:2]).strip()
+        or str(getattr(article, "body_text", "") or "").strip()[:500]
+    )
+    return {
+        "date": str(getattr(article, "published_at", "") or "").strip()[:10],
+        "source": str(getattr(article, "source_name", "") or "").strip(),
+        "title": str(getattr(article, "title", "") or "").strip(),
+        "summary": summary,
+        "url": str(getattr(article, "url", "") or "").strip(),
+    }
+
+
+def _context_rescue_move_explanation(
+    *,
+    instrument: dict[str, Any],
+    market: str,
+    universe_id: str,
+    day_change_pct: float,
+    store: TraceMoneyStore | None = None,
+    limit: int = 5,
+    lookback_hours: int = ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS,
+) -> dict[str, Any] | None:
+    if not context_search_enabled():
+        return None
+    articles, health = search_context_articles_for_ticker(
+        instrument,
+        market=market,
+        limit=limit,
+        lookback_hours=lookback_hours,
+    )
+    ticker = str(instrument.get("ticker") or "").strip().upper()
+    if not articles:
+        print({"stage": "anomaly_context_rescue_empty", "ticker": ticker, "health": health}, flush=True)
+        return None
+
+    if store is not None:
+        store.upsert_news_articles(market, universe_id, [article.to_dict() for article in articles], source_health=[health])
+
+    try:
+        enriched = OpenAIArticleEnricher(store=store).enrich_articles(articles)
+    except Exception as exc:
+        print(f"  [anomaly context rescue] enrichment failed {ticker}: {exc}", flush=True)
+        enriched = articles
+
+    if store is not None and enriched:
+        store.upsert_article_enrichments(market, universe_id, [article.to_dict() for article in enriched])
+
+    explanation = _llm_move_explanation(
+        instrument=instrument,
+        day_change_pct=day_change_pct,
+        articles=[_article_to_move_item(article) for article in enriched],
+    )
+    if not explanation:
+        return None
+    explanation["searched_externally"] = True
+    explanation["external_source"] = "context_web_search"
+    return explanation
+
+
 def _is_generic_anomaly_headline(value: Any) -> bool:
     text = _clean_text(value).lower()
     return any(pattern in text for pattern in GENERIC_HEADLINE_PATTERNS)
@@ -702,6 +777,9 @@ def _move_explanation(
     intel_pro_doc: dict[str, Any] | None = None,
     market_context: dict[str, Any] | None = None,
     sector_context: dict[str, Any] | None = None,
+    market: str = "US",
+    universe_id: str = "",
+    store: TraceMoneyStore | None = None,
 ) -> dict[str, Any] | None:
     if abs(day_change_pct) < MIN_EXPLAIN_MOVE_PCT:
         return None
@@ -712,6 +790,20 @@ def _move_explanation(
     )
     if explanation:
         return _sanitize_move_explanation(explanation, instrument=instrument, day_change_pct=day_change_pct)
+    if external_search:
+        context_explanation = _context_rescue_move_explanation(
+            instrument=instrument,
+            market=market,
+            universe_id=universe_id,
+            day_change_pct=day_change_pct,
+            store=store,
+        )
+        if context_explanation:
+            return _sanitize_move_explanation(
+                context_explanation,
+                instrument=instrument,
+                day_change_pct=day_change_pct,
+            )
     internal = _llm_internal_context_move_explanation(
         instrument=instrument,
         intel_doc=intel_doc,
@@ -767,7 +859,6 @@ def _run_intelligence_fill_for_missing(
         "10",
         "--chunk-workers",
         str(chunk_workers),
-        "--skip-context",
         "--skip-materialize",
     ]
     print({"stage": "fill_missing_intelligence", "instrument_count": len(instrument_ids), "cmd": " ".join(cmd)})
@@ -823,6 +914,9 @@ def _pick_row(
     *,
     explain_moves: bool,
     external_search: bool,
+    market: str = "US",
+    universe_id: str = "",
+    store: TraceMoneyStore | None = None,
 ) -> dict[str, Any] | None:
     quote = (quote_doc or {}).get("quote") or {}
     price = _to_float(quote.get("current"))
@@ -866,6 +960,9 @@ def _pick_row(
             intel_pro_doc=intel_pro_doc,
             market_context=market_context,
             sector_context=sector_context,
+            market=market,
+            universe_id=universe_id,
+            store=store,
         )
         if explain_moves
         else None
@@ -1048,6 +1145,9 @@ def main() -> None:
             sector_context_by_key.get(sector_key),
             explain_moves=bool(args.explain_hard_moves),
             external_search=bool(args.explain_hard_moves) and index < 12,
+            market=args.market,
+            universe_id=universe_id,
+            store=store,
         )
         if row:
             rows.append(row)

@@ -8,9 +8,10 @@ type Props = {
   generatedAt: string;
   reddit?: RedditSnapshot | null;
   isSubscribed?: boolean;
+  fullItemLimit?: number;
 };
 
-export function DailyAnomalies({ anomalies, generatedAt, reddit = null, isSubscribed = false }: Props) {
+export function DailyAnomalies({ anomalies, generatedAt, reddit = null, isSubscribed = false, fullItemLimit }: Props) {
   if (!anomalies || anomalies.length === 0) return null;
 
   const { ups, downs } = splitDisplayableMoves(anomalies);
@@ -23,6 +24,7 @@ export function DailyAnomalies({ anomalies, generatedAt, reddit = null, isSubscr
       generatedAt={generatedAt}
       reddit={reddit}
       isSubscribed={isSubscribed}
+      fullItemLimit={fullItemLimit}
     />
   );
 }

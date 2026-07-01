@@ -78,6 +78,7 @@ export function buildPulsePageData(input: {
     sentiment: string;
     summary: string;
     mention_count?: number;
+    catalysts?: string[];
   }>;
   snapshotRows: SnapshotRow[];
   earningsEvents: Array<{
@@ -182,6 +183,7 @@ export function buildPulsePageData(input: {
         sentiment: r.sentiment,
         summary: r.summary,
         mention_count: r.mention_count,
+        catalysts: r.catalysts ?? [],
         company: snapshot?.company,
         price: anomaly?.price ?? snapshot?.price,
         changePct: anomaly?.changePct ?? snapshot?.changePct,

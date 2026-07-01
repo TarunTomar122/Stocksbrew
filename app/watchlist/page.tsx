@@ -18,9 +18,10 @@ import {
   overlayLatestPrices,
   buildHoldingsDiagnosis,
   getPillarLiftSuggestions,
+  buildPillarLiftPayloadSync,
+  mergeSuggestionCandidates,
   weakestPillarFromTilt,
   type PillarLiftPayload,
-  type PortfolioPillarKey,
 } from "@/lib/watchlist-view";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
@@ -1766,31 +1767,39 @@ async function RadarDiagnosisStream({
     quality: num(factorTilt.quality) ?? pillarAverages.quality,
     momentum: num(factorTilt.momentum) ?? pillarAverages.momentum,
   };
+  const weakestNow = weakestPillarFromTilt(tiltForWeakest);
 
   let pillarLift: PillarLiftPayload | null = null;
   if (bookForPillarLift.length > 0) {
     pillarLift = await getPillarLiftSuggestions(bookForPillarLift, rows).catch(() => null);
-    if (!pillarLift) {
-      const cached = watchlistView?.pillar_lift_suggestions;
-      if (cached?.weakest_pillar) {
-        const weakest = weakestPillarFromTilt(tiltForWeakest);
-        pillarLift = {
-          weakest_pillar: cached.weakest_pillar as PortfolioPillarKey,
-          weakest_score: Number(cached.weakest_score) || weakest?.score || 0,
-          weakest_label: weakest?.label || String(cached.weakest_pillar),
-          portfolio_overall: num(factorTilt.overall) ?? pillarAverages.overall,
-          items: asArray(cached.items),
-        };
-      }
-    }
-  }
-  if (!pillarLift && bookForPillarLift.length > 0) {
-    const weakest = weakestPillarFromTilt(tiltForWeakest);
-    if (weakest) {
-      pillarLift = {
-        weakest_pillar: weakest.key,
-        weakest_score: weakest.score,
-        weakest_label: weakest.label,
+
+    const pooledCandidates = mergeSuggestionCandidates(
+      suggestions as Array<Record<string, unknown>>,
+      asArray(watchlistView?.blind_spot_suggestions),
+      asArray(watchlistView?.momentum_lift_suggestions),
+      asArray(watchlistView?.pillar_lift_suggestions?.items),
+    );
+
+    if (
+      weakestNow &&
+      (!pillarLift || pillarLift.weakest_pillar !== weakestNow.key)
+    ) {
+      pillarLift =
+        buildPillarLiftPayloadSync(bookForPillarLift, rows, pooledCandidates) ??
+        (weakestNow
+          ? {
+              weakest_pillar: weakestNow.key,
+              weakest_score: weakestNow.score,
+              weakest_label: weakestNow.label,
+              portfolio_overall: num(factorTilt.overall) ?? pillarAverages.overall,
+              items: [],
+            }
+          : null);
+    } else if (!pillarLift && weakestNow) {
+      pillarLift = buildPillarLiftPayloadSync(bookForPillarLift, rows, pooledCandidates) ?? {
+        weakest_pillar: weakestNow.key,
+        weakest_score: weakestNow.score,
+        weakest_label: weakestNow.label,
         portfolio_overall: num(factorTilt.overall) ?? pillarAverages.overall,
         items: [],
       };

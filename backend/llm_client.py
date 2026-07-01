@@ -11,7 +11,18 @@ load_backend_env()
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
+CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 LLM_BRIEF_SOURCE = "llm"
+
+
+def llm_provider() -> str:
+    explicit = os.getenv("LLM_PROVIDER", "").strip().lower()
+    if explicit in {"cerebras", "openai"}:
+        return explicit
+    has_cerebras = bool(os.getenv("CEREBRAS_API_KEY", "").strip())
+    has_openai = bool(os.getenv("OPENAI_API_KEY", "").strip())
+    return "cerebras" if has_cerebras and not has_openai else "openai"
 
 
 def is_llm_brief_source(source: str | None) -> bool:
@@ -20,23 +31,38 @@ def is_llm_brief_source(source: str | None) -> bool:
 
 
 def llm_api_key() -> str:
-    """Return server-side OpenAI API key."""
+    """Return server-side LLM API key for the configured provider."""
+    explicit = os.getenv("LLM_API_KEY", "").strip()
+    if explicit:
+        return explicit
+    if llm_provider() == "cerebras":
+        return os.getenv("CEREBRAS_API_KEY", "").strip()
     return os.getenv("OPENAI_API_KEY", "").strip()
 
 
 def llm_api_url() -> str:
+    explicit = os.getenv("LLM_API_URL", "").strip()
+    if explicit:
+        return explicit
+    if llm_provider() == "cerebras":
+        return os.getenv("CEREBRAS_API_URL", "").strip() or CEREBRAS_API_URL
     return OPENAI_API_URL
 
 
 def llm_model(default: str | None = None) -> str:
     """Return model name used for cache keys and API calls."""
+    explicit = os.getenv("LLM_MODEL", "").strip()
+    if explicit:
+        return explicit
+    if llm_provider() == "cerebras":
+        return os.getenv("CEREBRAS_MODEL", "").strip() or default or CEREBRAS_DEFAULT_MODEL
     return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
 
 
 def require_llm_api_key() -> str:
     api_key = llm_api_key()
     if not api_key:
-        raise ValueError("OPENAI_API_KEY is required")
+        raise ValueError("LLM_API_KEY, CEREBRAS_API_KEY, or OPENAI_API_KEY is required")
     return api_key
 
 

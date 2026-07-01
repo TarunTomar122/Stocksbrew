@@ -4,6 +4,10 @@ export type RedditTicker = {
   summary: string;
   mention_count: number;
   catalysts: string[];
+  company?: string;
+  price?: number;
+  changePct?: number;
+  volume?: number;
 };
 
 /** One hot / analyzed thread from the Reddit scan (body text is optional). */

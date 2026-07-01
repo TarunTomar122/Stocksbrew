@@ -43,3 +43,6 @@ trace-money-*.json
 backend/Untitled
 .vercel
 backend/firebase-service-account.json
+.tokensave
+backend/vps/LOCAL_SECRETS.md
+openclaw-migration.tar.gz

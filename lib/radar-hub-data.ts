@@ -405,7 +405,7 @@ function isCallActionableNow(row: WatchlistRow, d: Directive, callKind: RadarCal
       return stance === "accumulate";
     case "trim":
       if (hasPriceZone(d.trim_on)) return zoneTriggerMet(d.trim_on, price);
-      return stance === "trim";
+      return false;
     case "entry":
       if (hasPriceZone(d.add_on)) return zoneTriggerMet(d.add_on, price);
       return stance === "accumulate";
@@ -679,6 +679,86 @@ function collectBookActionBuckets(rows: WatchlistRow[]): BookActionBuckets {
   };
 }
 
+function zoneDistanceToTrigger(price: number, zone?: DirectiveZone): number | null {
+  const threshold = directiveZonePrice(zone);
+  if (threshold == null || !zone?.trigger_type || zone.trigger_type === "none") return null;
+  if (zone.trigger_type === "price_below") {
+    return price <= threshold ? 0 : ((price - threshold) / price) * 100;
+  }
+  if (zone.trigger_type === "price_above") {
+    return price >= threshold ? 0 : ((threshold - price) / price) * 100;
+  }
+  return null;
+}
+
+/** Pick the book call closest to today's price — buy-below beats trim-above when nearer the add zone. */
+export function resolveBookCallHint(row: WatchlistRow, d: Directive): BookCallHint | null {
+  const price = row.price;
+  if (typeof price !== "number" || !Number.isFinite(price)) return null;
+  const isHolding = row.position_type === "holding";
+
+  type Candidate = { hint: string; callKind: RadarCallKind; urgent: boolean; distance: number };
+  const candidates: Candidate[] = [];
+
+  if (d.add_on?.trigger_type) {
+    const hint = formatZoneLabel(d.add_on, isHolding ? "buy" : "entry");
+    const distance = zoneDistanceToTrigger(price, d.add_on);
+    if (hint && distance != null) {
+      candidates.push({
+        hint,
+        callKind: isHolding ? "buy_dip" : "entry",
+        urgent: zoneTriggerMet(d.add_on, price),
+        distance,
+      });
+    }
+  }
+
+  if (d.trim_on?.trigger_type) {
+    const hint = formatZoneLabel(d.trim_on, "trim");
+    const distance = zoneDistanceToTrigger(price, d.trim_on);
+    if (hint && distance != null) {
+      candidates.push({
+        hint,
+        callKind: "trim",
+        urgent: zoneTriggerMet(d.trim_on, price),
+        distance,
+      });
+    }
+  }
+
+  if (d.breaks_if?.trigger_type) {
+    const hint = formatZoneLabel(d.breaks_if, "trim") || "Exit if thesis breaks";
+    const distance = zoneDistanceToTrigger(price, d.breaks_if);
+    if (distance != null) {
+      candidates.push({
+        hint,
+        callKind: "exit",
+        urgent: zoneTriggerMet(d.breaks_if, price),
+        distance,
+      });
+    }
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => {
+      if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+      return a.distance - b.distance;
+    });
+    const best = candidates[0];
+    return { hint: best.hint, urgent: best.urgent, callKind: best.callKind };
+  }
+
+  const actionLine = humanizeDirectiveLine(d.text);
+  if (!actionLine) return null;
+  const stance = (d.stance ?? "hold").toLowerCase();
+  if (stance === "trim") return { hint: actionLine, urgent: false, callKind: "trim" };
+  if (stance === "avoid") return { hint: actionLine, urgent: false, callKind: "exit" };
+  if (stance === "accumulate") {
+    return { hint: actionLine, urgent: false, callKind: isHolding ? "buy_dip" : "entry" };
+  }
+  return { hint: actionLine, urgent: false, callKind: isHolding ? "buy_dip" : "entry" };
+}
+
 export type BookCallHint = {
   hint: string;
   urgent: boolean;
@@ -687,15 +767,15 @@ export type BookCallHint = {
 
 /** Best trim/buy/entry call per ticker — urgent when price is in trigger range today. */
 export function buildBookCallHints(rows: WatchlistRow[]): Map<string, BookCallHint> {
-  const buckets = collectBookActionBuckets(rows);
-  return buildTapeHints({
-    todayTrim: sortActionCards(buckets.todayHoldingsTrim),
-    todayBuy: sortActionCards(buckets.todayHoldingsBuy),
-    todayEntry: sortActionCards(buckets.todayWatchingEntry),
-    setupTrim: sortActionCards(buckets.setupHoldingsTrim),
-    setupBuy: sortActionCards(buckets.setupHoldingsBuy),
-    setupEntry: sortActionCards(buckets.setupWatchingEntry),
-  });
+  const out = new Map<string, BookCallHint>();
+  for (const row of rows) {
+    const directive = rowDirective(row);
+    if (!directive) continue;
+    const hint = resolveBookCallHint(row, directive);
+    if (!hint) continue;
+    out.set(row.ticker.toUpperCase(), hint);
+  }
+  return out;
 }
 
 function numVal(value: unknown): number | null {

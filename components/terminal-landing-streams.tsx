@@ -6,6 +6,8 @@ import { LandingTape } from "@/components/landing-tape";
 import { TerminalLandingProSection } from "@/components/terminal-landing-pro-section";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
+import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
 import { anomalyTag, buildLandingSectorCards, pickBiggestMover } from "@/lib/landing-sector-data";
 import { directiveZonePrice, normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getCurrentMarket } from "@/lib/market";
@@ -36,15 +38,23 @@ function shortHeadline(text: string | null | undefined, maxLen = 110): string | 
 export const getLandingUserContext = cache(async () => {
   const session = await getSessionUser().catch(() => null);
   if (!session) {
-    return { isSubscribed: false, trackedIds: [] as string[] };
+    return {
+      signedIn: false,
+      isSubscribed: false,
+      trackedIds: [] as string[],
+      fullItemLimit: resolveFeedAccess({ signedIn: false, isSubscribed: false }).fullItemLimit,
+    };
   }
   const userDoc = await getUserDoc(session.uid).catch(() => null);
+  const isSubscribed = resolveIsSubscribed(userDoc);
   const trackedIds = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
     : [];
   return {
-    isSubscribed: resolveIsSubscribed(userDoc),
+    signedIn: true,
+    isSubscribed,
     trackedIds,
+    fullItemLimit: resolveFeedAccess({ signedIn: true, isSubscribed }).fullItemLimit,
   };
 });
 
@@ -121,34 +131,36 @@ export async function LandingHeroCommandStream() {
 
 export async function LandingScannerRedditStream() {
   const market = getCurrentMarket();
-  const [anomaliesDoc, redditData] = await Promise.all([
+  const [anomaliesDoc, redditData, snapshotRows, user] = await Promise.all([
     getLandingAnomaliesDoc(),
     getRedditCues(market).catch(() => null),
+    getMarketSnapshot(market).catch(() => []),
+    getLandingUserContext(),
   ]);
   const anomalies = anomaliesDoc?.anomalies ?? [];
   if (anomalies.length === 0) return null;
 
-  const redditPicks = (redditData?.tickers ?? [])
-    .filter((t) => t.summary?.trim())
-    .slice(0, 5)
-    .map((t) => ({
-      ticker: t.ticker,
-      sentiment: t.sentiment,
-      summary: t.summary,
-      mention_count: t.mention_count,
-    }));
+  const redditPicks = enrichRedditTickers(
+    (redditData?.tickers ?? [])
+      .filter((t) => t.summary?.trim())
+      .slice(0, 4),
+    anomalies,
+    snapshotRows,
+  );
 
   return (
     <div className="landing-stream-in">
       <LandingScannerReddit
-      scannerItems={anomalies.map((a) => ({
+      scannerItems={redactScannerItemsAfterLimit(anomalies.map((a) => ({
         ticker: a.ticker,
         price: a.price,
         changePct: a.day_change_pct,
         tag: anomalyTag(a),
-      }))}
+      })), user.fullItemLimit)}
       redditPicks={redditPicks}
       dataAsOf={anomaliesDoc?.date ?? anomaliesDoc?.generated_at}
+      fullItemLimit={user.fullItemLimit}
+      isSubscribed={user.isSubscribed}
     />
     </div>
   );

@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
+import { llmApiKey, llmApiUrl, llmHeaders, llmModel } from "@/lib/server-llm";
 
 const MONTHS: Record<string, number> = {
   jan: 0,
@@ -1893,6 +1894,50 @@ export function pillarLiftSuggestions(
   return out;
 }
 
+export function mergeSuggestionCandidates(
+  ...groups: Array<Array<Record<string, unknown>> | null | undefined>
+): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  for (const group of groups) {
+    if (!Array.isArray(group)) continue;
+    for (const item of group) {
+      const id = String(item.instrument_id || "").trim().toUpperCase();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+export function buildPillarLiftPayloadSync(
+  bookRows: WatchlistRow[],
+  allRows: WatchlistRow[],
+  candidates: Array<Record<string, unknown>>,
+  limit = 4,
+): PillarLiftPayload | null {
+  if (!bookRows.length) return null;
+  const diagnosis = buildHoldingsDiagnosis(bookRows);
+  const weakest = weakestPillarFromTilt(diagnosis.factor_tilt);
+  if (!weakest) return null;
+  const items = pillarLiftSuggestions(
+    bookRows,
+    allRows,
+    candidates,
+    weakest,
+    diagnosis.factor_tilt.overall,
+    limit,
+  );
+  return {
+    weakest_pillar: weakest.key,
+    weakest_score: weakest.score,
+    weakest_label: weakest.label,
+    portfolio_overall: diagnosis.factor_tilt.overall,
+    items,
+  };
+}
+
 export type PillarLiftPayload = {
   weakest_pillar: PortfolioPillarKey;
   weakest_score: number;
@@ -1907,27 +1952,8 @@ export async function getPillarLiftSuggestions(
   limit = 4,
 ): Promise<PillarLiftPayload | null> {
   if (!bookRows.length) return null;
-  const diagnosis = buildHoldingsDiagnosis(bookRows);
-  const weakest = weakestPillarFromTilt(diagnosis.factor_tilt);
-  if (!weakest) return null;
-
   const { candidates } = await gatherSuggestionCandidates(allRows);
-  const items = pillarLiftSuggestions(
-    bookRows,
-    allRows,
-    candidates,
-    weakest,
-    diagnosis.factor_tilt.overall,
-    limit,
-  );
-
-  return {
-    weakest_pillar: weakest.key,
-    weakest_score: weakest.score,
-    weakest_label: weakest.label,
-    portfolio_overall: diagnosis.factor_tilt.overall,
-    items,
-  };
+  return buildPillarLiftPayloadSync(bookRows, allRows, candidates, limit);
 }
 
 /** @deprecated Use getPillarLiftSuggestions */
@@ -1973,10 +1999,10 @@ async function rewriteSuggestionWhys(
     dominantSector: string;
   },
 ): Promise<Record<string, string>> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = llmApiKey();
   if (!apiKey || candidates.length === 0) return {};
 
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  const model = llmModel();
   const compact = candidates.map((c) => ({
     id: String(c.instrument_id || ""),
     ticker: c.ticker,
@@ -2020,9 +2046,9 @@ Rules:
   };
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch(llmApiUrl(), {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: llmHeaders(apiKey),
       body: JSON.stringify({
         model,
         temperature: 0.3,

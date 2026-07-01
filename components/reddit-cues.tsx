@@ -2,8 +2,9 @@ import Link from "next/link";
 import { hasRedditBrief, type RedditSnapshot, type RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
-import { FeedLockedCard, FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
-import { PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
+import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
+import { FREE_REDDIT_BUZZ_VISIBLE_LIMIT } from "@/lib/pro-features";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
 
 type Props = {
@@ -29,43 +30,67 @@ function UpvoteArrow({ color }: { color: string }) {
   );
 }
 
-function TickerCard({ item }: { item: RedditTicker }) {
+function TickerCard({ item, locked = false }: { item: RedditTicker; locked?: boolean }) {
   const meta = getSentimentMeta(item.sentiment);
   const topCatalyst = item.catalysts?.[0] ?? null;
+
+  const cardBody = (
+    <>
+      {locked ? (
+        <div className="flex min-w-0 items-center gap-2">
+          <StockLogo ticker={item.ticker} market="US" size={28} />
+          <span className="text-[13px] font-bold tracking-[-0.01em] text-[#111111]">{item.ticker}</span>
+        </div>
+      ) : (
+        <div className="flex min-w-0 items-center gap-2">
+          <StockLogo ticker={item.ticker} market="US" size={28} />
+          <span className="text-[13px] font-bold tracking-[-0.01em] text-[#111111]">{item.ticker}</span>
+          <div className="flex items-center gap-1" style={{ color: meta.color }}>
+            <UpvoteArrow color={meta.color} />
+            <span className="text-[12px] font-bold tabular-nums">{item.mention_count}</span>
+          </div>
+          <span className="ml-auto shrink-0 text-[11px] font-bold" style={{ color: meta.color }}>
+            {meta.label}
+          </span>
+        </div>
+      )}
+
+      {locked ? (
+        <FeedRowLockedBlur variant="reddit" ticker={item.ticker} dense size="block" />
+      ) : (
+        <>
+          {item.summary ? (
+            <p className="text-[13px] font-medium leading-snug text-[#374151]">{item.summary}</p>
+          ) : null}
+          {topCatalyst ? (
+            <div className="mt-auto pt-1">
+              <span
+                className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold"
+                style={{ background: "#f3f4f6", color: meta.color }}
+              >
+                {topCatalyst}
+              </span>
+            </div>
+          ) : null}
+        </>
+      )}
+    </>
+  );
+
+  if (locked) {
+    return (
+      <div className="flex h-full flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-[#f9fafb] p-4">
+        {cardBody}
+      </div>
+    );
+  }
 
   return (
     <Link
       href={`/stock/${encodeURIComponent(item.ticker)}`}
       className="group flex h-full flex-col gap-3 rounded-[20px] border border-[#e5e7eb] bg-[#f9fafb] p-4 transition-all hover:border-[#111111] hover:shadow-sm"
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <StockLogo ticker={item.ticker} market="US" size={28} />
-        <span className="text-[13px] font-bold text-[#111111] tracking-[-0.01em]">{item.ticker}</span>
-        <div className="flex items-center gap-1" style={{ color: meta.color }}>
-          <UpvoteArrow color={meta.color} />
-          <span className="text-[12px] font-bold tabular-nums">{item.mention_count}</span>
-        </div>
-        <span className="ml-auto shrink-0 text-[11px] font-bold" style={{ color: meta.color }}>
-          {meta.label}
-        </span>
-      </div>
-
-      {item.summary ? (
-        <p className="text-[13px] font-medium leading-snug text-[#374151]">
-          {item.summary}
-        </p>
-      ) : null}
-
-      {topCatalyst ? (
-        <div className="mt-auto pt-1">
-          <span
-            className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold"
-            style={{ background: "#f3f4f6", color: meta.color }}
-          >
-            {topCatalyst}
-          </span>
-        </div>
-      ) : null}
+      {cardBody}
     </Link>
   );
 }
@@ -74,9 +99,10 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
   const briefTickers = (data.tickers ?? []).filter(hasRedditBrief);
   if (briefTickers.length === 0) return null;
   const maxCards = 8;
-  const visibleLimit = isSubscribed ? maxCards : 1;
-  const visible = briefTickers.slice(0, visibleLimit);
-  const lockedCount = Math.max(0, Math.min(briefTickers.length, maxCards) - visible.length);
+  const visibleLimit = isSubscribed ? maxCards : FREE_REDDIT_BUZZ_VISIBLE_LIMIT;
+  const visible = briefTickers.slice(0, maxCards);
+  const lockedCount = isSubscribed ? 0 : Math.max(0, visible.length - visibleLimit);
+  const hiddenCount = Math.max(0, briefTickers.length - visible.length);
 
   const bulls = briefTickers.filter((t) => t.sentiment?.toLowerCase() === "bullish").length;
   const bears = briefTickers.filter((t) => t.sentiment?.toLowerCase() === "bearish").length;
@@ -134,17 +160,16 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
 
       {/* Cards grid */}
       <div className="flex items-stretch gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
-        {visible.map((item) => (
+        {visible.map((item, index) => (
           <div key={item.ticker} className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
-            <TickerCard item={item} />
+            <TickerCard item={item} locked={!isSubscribed && index >= visibleLimit} />
           </div>
         ))}
-        {!isSubscribed && lockedCount > 0 ? (
-          <div className="snap-start shrink-[0.85] md:shrink-0 min-w-[260px] md:min-w-0 flex flex-col">
-            <FeedLockedCard label={`${PRO_LOCKED_FEED_TEASER} more names`} />
-          </div>
-        ) : null}
       </div>
+
+      {!isSubscribed && (lockedCount > 0 || hiddenCount > 0) ? (
+        <FeedUnlockBar surface="reddit_buzz" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+      ) : null}
 
       {!isSubscribed && lockedCount > 0 ? (
         <FeedPaywallSlot>

@@ -8,6 +8,7 @@ import { PriceChart } from "@/components/price-chart";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { StockTier } from "@/lib/ai-launch-tier";
+import { resolveLandingHeroChartSeries } from "@/lib/landing-hero-chart";
 
 const ACCENT = "var(--accent-terminal)";
 
@@ -71,7 +72,11 @@ export function LandingHeroCommand({
   const stockHref = `/stock/${featured.ticker}`;
   const panelBorder = "var(--shadow-card), inset 0 0 0 1px var(--outline-variant)";
   const panelHover = "0 0 0 1px color-mix(in srgb, var(--landing-mint, var(--signal-bullish)) 28%, transparent), 0 18px 48px color-mix(in srgb, var(--landing-brand, var(--signal-bullish)) 8%, transparent)";
-  const chartData = featured.price_history.length >= 5 ? featured.price_history : [];
+  const chartData = resolveLandingHeroChartSeries(
+    featured.price_history,
+    featured.price,
+    featured.day_change_pct,
+  );
   const catalystChip =
     featured.catalyst &&
     featured.catalyst.trim().toLowerCase() !== (featured.headline || "").trim().toLowerCase()
@@ -206,11 +211,7 @@ export function LandingHeroCommand({
                 height={136}
                 currentPrice={featured.price}
               />
-            ) : (
-              <div className="flex h-[136px] items-center justify-center rounded-lg border border-dashed border-outline-variant text-[11px] text-on-surface-variant">
-                Chart loading…
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
 

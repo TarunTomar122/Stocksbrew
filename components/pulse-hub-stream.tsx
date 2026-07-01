@@ -1,19 +1,22 @@
 import { PulseHub } from "@/components/pulse-hub";
 import { PulseHubHero } from "@/components/pulse-hub-header";
+import { getSessionUser } from "@/lib/auth-server";
 import { buildPulsePageData } from "@/lib/pulse-data";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getEarnings } from "@/lib/earnings";
 import { listAllEarningsIntelDocs } from "@/lib/earnings-intel";
+import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getCurrentMarket } from "@/lib/market";
 import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { getUpcomingPreEarnings } from "@/lib/pre-earnings-intel";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export async function PulseHubStream() {
   const market = getCurrentMarket();
   const weekOut = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  const [anomaliesData, redditData, snapshotRows, earningsEvents, preEarnings, premarketDoc, recentIntelDocs] = await Promise.all([
+  const [anomaliesData, redditData, snapshotRows, earningsEvents, preEarnings, premarketDoc, recentIntelDocs, session] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
     getMarketSnapshot(market).catch(() => []),
@@ -21,7 +24,13 @@ export async function PulseHubStream() {
     getUpcomingPreEarnings(market).catch(() => []),
     getPremarketMovers(market).catch(() => null),
     listAllEarningsIntelDocs().catch(() => []),
+    getSessionUser().catch(() => null),
   ]);
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const feedAccess = resolveFeedAccess({
+    signedIn: Boolean(session),
+    isSubscribed: resolveIsSubscribed(userDoc),
+  });
 
   const predBy = new Map<string, { epsOutlook?: string; reaction?: string }>();
   for (const p of preEarnings) {
@@ -48,12 +57,14 @@ export async function PulseHubStream() {
     <div className="landing-stream-in">
       <PulseHubHero topline={data.topline} />
       <PulseHub
-        items={data.items}
+        items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit)}
         reddit={data.reddit}
         sectors={data.sectors}
         earnings={data.earnings}
         recentEarnings={data.recentEarnings}
-        premarketItems={data.premarketItems}
+        premarketItems={redactScannerItemsAfterLimit(data.premarketItems, feedAccess.fullItemLimit)}
+        fullItemLimit={feedAccess.fullItemLimit}
+        isSubscribed={feedAccess.isSubscribed}
       />
     </div>
   );

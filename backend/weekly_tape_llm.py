@@ -11,6 +11,7 @@ import requests
 from backend.llm_client import (
     json_response_format,
     llm_api_key,
+    llm_api_url,
     llm_headers,
     llm_model,
     parse_json_content,
@@ -206,7 +207,7 @@ def _llm_weekly_stories(candidates: list[dict[str, Any]]) -> dict[str, Any]:
     }
     try:
         resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
+            llm_api_url(),
             headers=llm_headers(api_key),
             json={
                 "model": llm_model(default_llm_model()),

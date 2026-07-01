@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 
-import { FeedLockedCard, FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
-import { RedditBuzzRow } from "@/components/reddit-buzz-row";
+import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
+import { RedditBuzzCard } from "@/components/reddit-buzz-card";
 import { relativeTime } from "@/lib/freshness";
+import { FREE_REDDIT_BUZZ_VISIBLE_LIMIT } from "@/lib/pro-features";
 import { hasRedditBrief, type RedditSnapshot, type RedditTicker } from "@/lib/reddit-cues-shared";
 
 type Props = {
@@ -54,12 +56,14 @@ function sortBuzzRows(rows: RedditTicker[]) {
 
 function BuzzPanel({
   rows,
+  lockedRows = [],
   lockedCount,
   side,
   isSubscribed,
   showHeader = true,
 }: {
   rows: RedditTicker[];
+  lockedRows?: RedditTicker[];
   lockedCount: number;
   side: SideTab;
   isSubscribed: boolean;
@@ -94,19 +98,19 @@ function BuzzPanel({
         </div>
       ) : null}
 
-      <div className="max-h-[min(520px,62vh)] overflow-y-auto">
-        <div className="divide-y divide-[#f3f4f6]">
+      <div className="max-h-[min(720px,70vh)] overflow-y-auto p-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {visible.map((item) => (
-            <RedditBuzzRow key={item.ticker} item={item} />
+            <RedditBuzzCard key={item.ticker} item={item} variant="home" />
           ))}
-          {lockedCount > 0 ? (
-            <FeedLockedCard
-              label="5 more locked"
-              className="min-h-0 rounded-none border-0 border-dashed py-8"
-            />
-          ) : null}
+          {lockedRows.map((item) => (
+            <RedditBuzzCard key={`locked-${item.ticker}`} item={item} locked variant="home" />
+          ))}
         </div>
       </div>
+      {lockedCount > 0 ? (
+        <FeedUnlockBar surface="reddit_buzz" className="border-[#e5e7eb] bg-white" compact />
+      ) : null}
     </div>
   );
 }
@@ -114,9 +118,10 @@ function BuzzPanel({
 export function RedditBuzzPageView({ data, isSubscribed }: Props) {
   const [mobileTab, setMobileTab] = useState<SideTab>("bullish");
 
-  const { bullish, neutral, bearish, visibleBullish, visibleNeutral, visibleBearish, briefTickers } = useMemo(() => {
+  const { bullish, neutral, bearish, visibleBullish, visibleNeutral, visibleBearish, lockedBullishRows, lockedNeutralRows, lockedBearishRows, briefTickers } = useMemo(() => {
     const brief = sortBuzzRows((data?.tickers ?? []).filter(hasRedditBrief));
-    const visible = isSubscribed ? brief : brief.slice(0, 1);
+    const visible = isSubscribed ? brief : brief.slice(0, FREE_REDDIT_BUZZ_VISIBLE_LIMIT);
+    const locked = isSubscribed ? [] : brief.slice(FREE_REDDIT_BUZZ_VISIBLE_LIMIT);
     const allBullish = brief.filter((t) => isBullishSentiment(t.sentiment));
     const allNeutral = brief.filter((t) => !isBullishSentiment(t.sentiment) && !isBearishSentiment(t.sentiment));
     const allBearish = brief.filter((t) => isBearishSentiment(t.sentiment));
@@ -128,12 +133,15 @@ export function RedditBuzzPageView({ data, isSubscribed }: Props) {
       visibleBullish: visible.filter((t) => isBullishSentiment(t.sentiment)),
       visibleNeutral: visible.filter((t) => !isBullishSentiment(t.sentiment) && !isBearishSentiment(t.sentiment)),
       visibleBearish: visible.filter((t) => isBearishSentiment(t.sentiment)),
+      lockedBullishRows: locked.filter((t) => isBullishSentiment(t.sentiment)),
+      lockedNeutralRows: locked.filter((t) => !isBullishSentiment(t.sentiment) && !isBearishSentiment(t.sentiment)),
+      lockedBearishRows: locked.filter((t) => isBearishSentiment(t.sentiment)),
     };
   }, [data?.tickers, isSubscribed]);
 
   const totalLocked = useMemo(() => {
     if (isSubscribed) return 0;
-    return Math.max(0, briefTickers.length - 1);
+    return Math.max(0, briefTickers.length - FREE_REDDIT_BUZZ_VISIBLE_LIMIT);
   }, [briefTickers.length, isSubscribed]);
 
   if (!data || briefTickers.length === 0) {
@@ -151,9 +159,9 @@ export function RedditBuzzPageView({ data, isSubscribed }: Props) {
 
   const activeMobileTab =
     isSubscribed ? mobileTab : visibleBullish.length > 0 ? "bullish" : visibleNeutral.length > 0 ? "neutral" : visibleBearish.length > 0 ? "bearish" : mobileTab;
-  const lockedBullish = isSubscribed ? 0 : Math.max(0, bullish.length - visibleBullish.length);
-  const lockedNeutral = isSubscribed ? 0 : Math.max(0, neutral.length - visibleNeutral.length);
-  const lockedBearish = isSubscribed ? 0 : Math.max(0, bearish.length - visibleBearish.length);
+  const lockedBullish = isSubscribed ? 0 : lockedBullishRows.length;
+  const lockedNeutral = isSubscribed ? 0 : lockedNeutralRows.length;
+  const lockedBearish = isSubscribed ? 0 : lockedBearishRows.length;
 
   return (
     <div className="flex flex-col gap-8 md:gap-10">
@@ -173,9 +181,9 @@ export function RedditBuzzPageView({ data, isSubscribed }: Props) {
       </header>
 
       <div className="hidden lg:grid lg:grid-cols-3 lg:items-start lg:gap-5">
-        <BuzzPanel rows={isSubscribed ? bullish : visibleBullish} lockedCount={lockedBullish} side="bullish" isSubscribed={isSubscribed} />
-        <BuzzPanel rows={isSubscribed ? neutral : visibleNeutral} lockedCount={lockedNeutral} side="neutral" isSubscribed={isSubscribed} />
-        <BuzzPanel rows={isSubscribed ? bearish : visibleBearish} lockedCount={lockedBearish} side="bearish" isSubscribed={isSubscribed} />
+        <BuzzPanel rows={isSubscribed ? bullish : visibleBullish} lockedRows={lockedBullishRows} lockedCount={lockedBullish} side="bullish" isSubscribed={isSubscribed} />
+        <BuzzPanel rows={isSubscribed ? neutral : visibleNeutral} lockedRows={lockedNeutralRows} lockedCount={lockedNeutral} side="neutral" isSubscribed={isSubscribed} />
+        <BuzzPanel rows={isSubscribed ? bearish : visibleBearish} lockedRows={lockedBearishRows} lockedCount={lockedBearish} side="bearish" isSubscribed={isSubscribed} />
       </div>
 
       <div className="flex flex-col gap-4 lg:hidden">
@@ -187,7 +195,7 @@ export function RedditBuzzPageView({ data, isSubscribed }: Props) {
               tab === "bullish" ? visibleBullish.length : tab === "neutral" ? visibleNeutral.length : visibleBearish.length;
             const lockedCount =
               tab === "bullish" ? lockedBullish : tab === "neutral" ? lockedNeutral : lockedBearish;
-            const countLabel = isSubscribed || lockedCount === 0 ? String(visibleCount) : `${visibleCount}+5`;
+            const countLabel = isSubscribed || lockedCount === 0 ? String(visibleCount) : `${visibleCount}+${lockedCount}`;
             return (
               <button
                 key={tab}
@@ -208,6 +216,7 @@ export function RedditBuzzPageView({ data, isSubscribed }: Props) {
         </div>
         <BuzzPanel
           rows={activeMobileTab === "bullish" ? (isSubscribed ? bullish : visibleBullish) : activeMobileTab === "neutral" ? (isSubscribed ? neutral : visibleNeutral) : (isSubscribed ? bearish : visibleBearish)}
+          lockedRows={activeMobileTab === "bullish" ? lockedBullishRows : activeMobileTab === "neutral" ? lockedNeutralRows : lockedBearishRows}
           lockedCount={activeMobileTab === "bullish" ? lockedBullish : activeMobileTab === "neutral" ? lockedNeutral : lockedBearish}
           side={activeMobileTab}
           isSubscribed={isSubscribed}

@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
-import { StockLogo } from "@/components/stock-logo";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
+import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
+import { RedditMark } from "@/components/reddit-mark";
+import { StockLogo } from "@/components/stock-logo";
 import { SECTOR_THEME, sectorPctMove } from "@/lib/landing-sector-data";
 
 export type SectorCard = { label: string; avg: number; stocks: { ticker: string; changePct: number }[] };
@@ -12,6 +14,7 @@ export type RedditPick = {
   sentiment: string;
   summary: string;
   mention_count?: number;
+  catalysts?: string[];
   company?: string;
   price?: number;
   changePct?: number;
@@ -61,30 +64,6 @@ function pctEl(v: number) {
   );
 }
 
-function sentimentPillClass(sentiment: string) {
-  if (sentiment === "bearish") return "reddit-sentiment-pill reddit-sentiment-pill--bearish";
-  if (sentiment === "bullish") return "reddit-sentiment-pill reddit-sentiment-pill--bullish";
-  return "reddit-sentiment-pill reddit-sentiment-pill--neutral";
-}
-
-function fmtPrice(v?: number) {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: v < 10 ? 2 : 0,
-    maximumFractionDigits: 2,
-  }).format(v);
-}
-
-function fmtVolume(v?: number) {
-  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`;
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return `${Math.round(v)}`;
-}
-
 export function PulseHub({
   items,
   reddit,
@@ -92,6 +71,8 @@ export function PulseHub({
   earnings,
   recentEarnings,
   premarketItems = [],
+  fullItemLimit,
+  isSubscribed = false,
 }: {
   items: ScannerItem[];
   reddit: RedditPick[];
@@ -99,6 +80,8 @@ export function PulseHub({
   earnings: EarningsPick[];
   recentEarnings: RecentEarningsPick[];
   premarketItems?: ScannerItem[];
+  fullItemLimit?: number;
+  isSubscribed?: boolean;
 }) {
   const showPremarket = premarketItems.length > 0;
   const [lens, setLens] = useState<Lens>(() => (premarketItems.length > 0 ? "premarket" : "movers"));
@@ -127,9 +110,13 @@ export function PulseHub({
               onClick={() => setLens(t.id)}
               className={`pulse-tab ${on ? "pulse-tab-active" : ""}`}
             >
-              <span className="material-symbols-outlined pulse-tab-icon" aria-hidden>
-                {t.icon}
-              </span>
+              {t.id === "reddit" ? (
+                <RedditMark size={17} className={`pulse-tab-icon ${on ? "opacity-100" : "opacity-55"}`} />
+              ) : (
+                <span className="material-symbols-outlined pulse-tab-icon" aria-hidden>
+                  {t.icon}
+                </span>
+              )}
               {t.label}
             </button>
           );
@@ -139,7 +126,7 @@ export function PulseHub({
       {lens === "movers" && (
         <div className="pt-6">
           {items.length > 0 ? (
-            <MoversScanner items={items} detailed variant="pulse" showCount />
+            <MoversScanner items={items} detailed variant="pulse" showCount fullItemLimit={fullItemLimit} />
           ) : (
             <p className="text-[13px] text-on-surface-variant">No standout moves right now.</p>
           )}
@@ -154,41 +141,19 @@ export function PulseHub({
               Full pre-market board →
             </Link>
           </p>
-          <MoversScanner items={premarketItems} detailed variant="pulse" showCount />
+          <MoversScanner items={premarketItems} detailed variant="pulse" showCount fullItemLimit={fullItemLimit} />
         </div>
       )}
 
       {lens === "reddit" && (
-        <div className="grid gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="pt-6">
           {reddit.length > 0 ? (
-            reddit.map((r) => (
-              <Link key={r.ticker} href={`/stock/${r.ticker}`} className="pulse-reddit-card">
-                <div className="mb-2 flex items-center gap-2">
-                  <StockLogo ticker={r.ticker} market="US" size={24} />
-                  <span className="text-[13px] font-bold text-on-surface">{r.ticker}</span>
-                  {typeof r.mention_count === "number" ? (
-                    <span className="text-[11px] text-on-surface-variant">{r.mention_count} mentions</span>
-                  ) : null}
-                  <span className={`ml-auto ${sentimentPillClass(r.sentiment)}`}>{r.sentiment}</span>
-                </div>
-                {(r.company || typeof r.price === "number" || typeof r.changePct === "number") && (
-                  <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-on-surface-variant">
-                    {r.company ? <span className="max-w-[170px] truncate">{r.company}</span> : null}
-                    {typeof r.price === "number" ? (
-                      <span className="font-semibold tabular-nums text-on-surface">{fmtPrice(r.price)}</span>
-                    ) : null}
-                    {typeof r.changePct === "number" ? (
-                      <span className="font-semibold tabular-nums" style={{ color: r.changePct >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-                        {r.changePct >= 0 ? "+" : ""}
-                        {r.changePct.toFixed(2)}%
-                      </span>
-                    ) : null}
-                    {typeof r.volume === "number" ? <span className="tabular-nums">vol {fmtVolume(r.volume)}</span> : null}
-                  </div>
-                )}
-                <p className="line-clamp-3 text-[13px] leading-relaxed text-on-surface-variant">{r.summary}</p>
-              </Link>
-            ))
+            <RedditBuzzFeed
+              items={reddit.map(redditPickToTicker)}
+              isSubscribed={isSubscribed}
+              variant="pulse"
+              gridCols="3"
+            />
           ) : (
             <p className="text-[13px] text-on-surface-variant">No buzz scanned yet.</p>
           )}

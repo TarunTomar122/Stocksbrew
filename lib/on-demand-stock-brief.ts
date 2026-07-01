@@ -1,13 +1,11 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
+import { llmApiKey, llmApiUrl, llmHeaders, llmModel } from "@/lib/server-llm";
 import type { Instrument } from "@/lib/types";
 
 type Market = "US" | "IN";
 type Dict = Record<string, unknown>;
-
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
 const SYSTEM_PROMPT = `You write premium stock Radar briefs for paid users.
 Use only the supplied price, technical, analyst, and scorecard facts.
@@ -131,7 +129,7 @@ function parseJsonContent(content: string): Dict {
   } catch {
     const start = raw.indexOf("{");
     const end = raw.lastIndexOf("}");
-    if (start < 0 || end <= start) throw new Error("OpenAI response did not contain JSON");
+    if (start < 0 || end <= start) throw new Error("LLM response did not contain JSON");
     return JSON.parse(raw.slice(start, end + 1)) as Dict;
   }
 }
@@ -214,18 +212,15 @@ async function loadIntelPro(instrumentId: string, market: Market): Promise<Dict 
   return null;
 }
 
-async function callOpenAi(payload: Dict): Promise<Dict | null> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+async function callLlm(payload: Dict): Promise<Dict | null> {
+  const apiKey = llmApiKey();
   if (!apiKey) return null;
 
-  const res = await fetch(OPENAI_API_URL, {
+  const res = await fetch(llmApiUrl(), {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: llmHeaders(apiKey),
     body: JSON.stringify({
-      model: OPENAI_MODEL,
+      model: llmModel(),
       temperature: 0.25,
       top_p: 0.9,
       max_completion_tokens: 1200,
@@ -242,13 +237,13 @@ async function callOpenAi(payload: Dict): Promise<Dict | null> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`OpenAI on-demand brief failed: ${res.status} ${body.slice(0, 200)}`);
+    throw new Error(`LLM on-demand brief failed: ${res.status} ${body.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) {
-    throw new Error("OpenAI returned empty on-demand brief");
+    throw new Error("LLM returned empty on-demand brief");
   }
   return parseJsonContent(content);
 }
@@ -299,13 +294,13 @@ export async function ensureOnDemandStockBrief(
   let source: BriefSource = "rules";
   let brief = fallback;
   try {
-    const aiBrief = await callOpenAi(llmPayload);
+    const aiBrief = await callLlm(llmPayload);
     if (aiBrief) {
       brief = normalizeBrief(aiBrief, fallback);
       source = LLM_BRIEF_SOURCE;
     }
   } catch (err) {
-    console.error("[on-demand-stock-brief] OpenAI generation failed:", err);
+    console.error("[on-demand-stock-brief] LLM generation failed:", err);
   }
 
   const llmGenerated = isLlmBriefSource(source);

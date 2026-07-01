@@ -4,11 +4,9 @@ import Link from "next/link";
 
 import { AnomalyMovesBoard } from "@/components/daily-anomalies-board";
 import { MOVES_SECTION_TAGLINE } from "@/components/daily-anomalies-shared";
-import { FeedLockedCard } from "@/components/feed-pro-paywalls";
-import { RedditBuzzRow } from "@/components/reddit-buzz-row";
+import { RedditBuzzFeed } from "@/components/reddit-buzz-feed";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
-import { PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import { hasRedditBrief, type RedditSnapshot } from "@/lib/reddit-cues-shared";
 
 /** Cap scroll on lg+ only; mobile uses page scroll so touch does not get trapped. */
@@ -25,10 +23,6 @@ function RedditBuzzRail({
   const briefTickers = (data.tickers ?? []).filter(hasRedditBrief);
   if (briefTickers.length === 0) return null;
 
-  const maxCards = 6;
-  const visibleLimit = isSubscribed ? maxCards : 1;
-  const visible = briefTickers.slice(0, visibleLimit);
-  const lockedCount = Math.max(0, Math.min(briefTickers.length, maxCards) - visible.length);
   const freshness = SHOW_DATA_FRESHNESS_UI
     ? freshnessInfo(data.generated_at, MARKET_FEED_FRESHNESS)
     : null;
@@ -59,19 +53,13 @@ function RedditBuzzRail({
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
-        <div className={`divide-y divide-[#f3f4f6] ${HOME_LIVE_FEED_SCROLL_CLASS}`}>
-          {visible.map((item) => (
-            <RedditBuzzRow key={item.ticker} item={item} />
-          ))}
-          {!isSubscribed && lockedCount > 0 ? (
-            <FeedLockedCard
-              label={`${PRO_LOCKED_FEED_TEASER} more names`}
-              className="min-h-0 rounded-none border-0 border-dashed py-8"
-            />
-          ) : null}
-        </div>
-      </div>
+      <RedditBuzzFeed
+        items={briefTickers}
+        isSubscribed={isSubscribed}
+        limit={6}
+        gridCols="1"
+        scrollClassName={HOME_LIVE_FEED_SCROLL_CLASS}
+      />
     </div>
   );
 }
@@ -82,6 +70,7 @@ type Props = {
   generatedAt: string;
   reddit?: RedditSnapshot | null;
   isSubscribed?: boolean;
+  fullItemLimit?: number;
 };
 
 export function HomeLiveFeed({
@@ -90,6 +79,7 @@ export function HomeLiveFeed({
   generatedAt,
   reddit = null,
   isSubscribed = false,
+  fullItemLimit,
 }: Props) {
   const freshness = SHOW_DATA_FRESHNESS_UI
     ? freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS)
@@ -133,6 +123,7 @@ export function HomeLiveFeed({
             showSeeAll
             scrollable
             isSubscribed={isSubscribed}
+            fullItemLimit={fullItemLimit}
           />
         </div>
 

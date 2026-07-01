@@ -115,7 +115,7 @@ type Props = {
     instrument_id: string;
     ticker: string;
     name: string;
-    score: number;
+    score: number | null;
     verdict: string;
     day_change_pct?: number;
     price?: number;
@@ -381,6 +381,7 @@ export function StockDetail(props: Props) {
   const whatFlips = visual?.what_to_watch || cards?.risk_cards?.[0]?.detail || cards?.risk_cards?.[0]?.risk || null;
 
   const trimPrice = directive ? directiveZonePrice(directive.trim_on) : null;
+  const addPrice = directive ? directiveZonePrice(directive.add_on) : null;
   const breakPrice = directive ? directiveZonePrice(directive.breaks_if) : null;
   const profitTarget =
     n(trimPrice) && directive?.trim_on?.trigger_type === "price_above"
@@ -390,9 +391,15 @@ export function StockDetail(props: Props) {
         : null;
   const profitTargetPct =
     n(profitTarget) && stock.price > 0 ? ((profitTarget! - stock.price) / stock.price) * 100 : null;
+  const riskAnchor =
+    n(breakPrice) && directive?.breaks_if?.trigger_type === "price_below"
+      ? breakPrice
+      : n(addPrice) && directive?.add_on?.trigger_type === "price_below" && addPrice! < stock.price
+        ? addPrice
+        : null;
   const breakRiskPct =
-    n(breakPrice) && stock.price > 0 && directive?.breaks_if?.trigger_type === "price_below"
-      ? ((stock.price - breakPrice!) / stock.price) * 100
+    n(riskAnchor) && stock.price > 0
+      ? ((stock.price - riskAnchor!) / stock.price) * 100
       : null;
   const riskRewardRatio =
     n(profitTargetPct) && n(breakRiskPct) && breakRiskPct! > 0 && profitTargetPct! > 0
@@ -445,7 +452,7 @@ export function StockDetail(props: Props) {
   }
   if (n(riskRewardRatio)) {
     callMetrics.push({
-      label: "Risk / reward",
+      label: "Reward / risk",
       value: `${riskRewardRatio!.toFixed(1)} : 1`,
       hint: riskRewardRatio! >= 1.5 ? "Favorable" : riskRewardRatio! >= 1 ? "Balanced" : "Tight",
       hintTone: riskRewardRatio! >= 1.5 ? "bullish" : "neutral",

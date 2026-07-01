@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from backend.cloudrun.orchestrator.dispatch import _lane_universe_id, _run_sharded_lane, _run_single_job_lane
+from backend.cloudrun.orchestrator.local_api import LocalJobsClient
 
 
 class _StubStore:
@@ -99,6 +100,18 @@ class DispatchAsyncTest(unittest.TestCase):
         self.assertEqual(client.wait_calls, 0)
         self.assertEqual(len(state.started), 2)
         self.assertTrue(all("operation" in row for row in out["results"]))
+
+
+class LocalJobsClientTest(unittest.TestCase):
+    def test_local_job_result_matches_cloudrun_execution_counts(self) -> None:
+        client = LocalJobsClient()
+        execution = client.run_job(
+            job_name="tikrr-test",
+            args=["-c", "print('ok')"],
+        )
+        payload = client.wait_execution(execution)
+        self.assertEqual(payload["succeededCount"], 1)
+        self.assertEqual(payload["failedCount"], 0)
 
 
 if __name__ == "__main__":

@@ -38,7 +38,8 @@ DEFAULT_SUBREDDITS = [
 ]
 OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_SUBREDDIT_BATCH_SIZE = 4
-DEFAULT_CACHE_HOURS = 48
+DEFAULT_CACHE_HOURS = 120
+MIN_PUBLISH_POST_COUNT = 40
 
 TICKER_EXTRACTION_PROMPT = """You extract stock buzz from Reddit posts.
 Return JSON object:
@@ -528,6 +529,35 @@ def _llm_extract(
     return parse_json_content(content)
 
 
+def _has_llm_backed_snapshot(payload: dict[str, Any] | None) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if bool(payload.get("heuristic_only")):
+        return False
+    return int(payload.get("llm_ticker_count") or 0) > 0 and int(payload.get("ticker_count") or 0) > 0
+
+
+def _is_degraded_snapshot(payload: dict[str, Any], *, min_posts: int = MIN_PUBLISH_POST_COUNT) -> bool:
+    if bool(payload.get("heuristic_only")):
+        return True
+    if int(payload.get("llm_ticker_count") or 0) <= 0:
+        return True
+    if int(payload.get("ticker_count") or 0) <= 0:
+        return True
+    return int(payload.get("post_count") or 0) < max(1, min_posts)
+
+
+def _should_publish_snapshot(
+    candidate: dict[str, Any],
+    previous: dict[str, Any] | None,
+    *,
+    min_posts: int = MIN_PUBLISH_POST_COUNT,
+) -> tuple[bool, str]:
+    if _is_degraded_snapshot(candidate, min_posts=min_posts) and _has_llm_backed_snapshot(previous):
+        return False, "degraded_candidate_preserved_previous_llm_snapshot"
+    return True, "publishable"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build Reddit buzz snapshot for a market")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -684,8 +714,16 @@ def main() -> None:
         "notable_discussions": notable[:12],
         "universe_id": universe_id,
     }
-    store.db.collection("reddit_snapshots").document(f"{args.market}__latest").set(payload)
-    _write_ticker_read_models(store, args.market, payload)
+    snapshot_ref = store.db.collection("reddit_snapshots").document(f"{args.market}__latest")
+    previous = snapshot_ref.get()
+    should_publish, publish_reason = _should_publish_snapshot(
+        payload,
+        previous.to_dict() if previous.exists else None,
+    )
+    payload["publish_decision"] = publish_reason
+    if should_publish:
+        snapshot_ref.set(payload)
+        _write_ticker_read_models(store, args.market, payload)
     store.save_stage_watermark(
         market=args.market,
         stage_key="build_reddit_buzz",
@@ -707,6 +745,8 @@ def main() -> None:
         "llm_ticker_count": llm_ticker_count,
         "heuristic_supplement_count": heuristic_supplement_count,
         "heuristic_only": heuristic_only,
+        "published": should_publish,
+        "publish_decision": publish_reason,
     })
 
 

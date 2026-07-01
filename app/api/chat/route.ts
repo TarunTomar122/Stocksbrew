@@ -7,14 +7,15 @@ import { getUserDoc } from "@/lib/watchlist";
 import { getWatchlistView, type WatchlistRow } from "@/lib/watchlist-view";
 import { getInstrumentLabels, resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { getStockIntelligenceDoc, getStockIntelPro } from "@/lib/stock";
+import { llmApiKey, llmApiUrl, llmModel } from "@/lib/server-llm";
 
 export const maxDuration = 60;
 
 const TAVILY_TIMEOUT_MS = 12_000;
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY || "",
+const chatProvider = createOpenAI({
+  baseURL: llmApiUrl().replace(/\/chat\/completions$/, ""),
+  apiKey: llmApiKey(),
 });
 
 async function getSessionUser(req: NextRequest) {
@@ -453,7 +454,7 @@ ${JSON.stringify(stockIntelPayload)}`;
 
   try {
     const result = streamText({
-      model: openrouter("qwen/qwen3.5-flash-02-23"),
+      model: chatProvider(llmModel("qwen/qwen3.5-flash-02-23")),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
     });

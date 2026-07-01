@@ -7,10 +7,12 @@ export function AnomaliesPageView({
   anomalies,
   generatedAt,
   isSubscribed = false,
+  fullItemLimit,
 }: {
   anomalies: AnomalyItem[];
   generatedAt: string;
   isSubscribed?: boolean;
+  fullItemLimit?: number;
 }) {
   const { ups, downs } = splitDisplayableMoves(anomalies, { explainedOnly: true, limit: anomalies.length });
 
@@ -38,7 +40,13 @@ export function AnomaliesPageView({
         </p>
       </div>
 
-      <AnomalyMovesBoard ups={ups} downs={downs} layout="cards" isSubscribed={isSubscribed} />
+      <AnomalyMovesBoard
+        ups={ups}
+        downs={downs}
+        layout="cards"
+        isSubscribed={isSubscribed}
+        fullItemLimit={fullItemLimit}
+      />
     </div>
   );
 }

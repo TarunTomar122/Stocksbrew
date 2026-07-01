@@ -1,6 +1,7 @@
 import { AnomaliesPageView } from "@/components/anomalies-page-view";
 import { getSessionUser } from "@/lib/auth-server";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { resolveFeedAccess } from "@/lib/feed-access";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
@@ -12,6 +13,7 @@ export async function AnomaliesPageStream() {
   ]);
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
+  const feedAccess = resolveFeedAccess({ signedIn: Boolean(session), isSubscribed });
   const isEmpty = !data || data.anomalies.length === 0;
 
   if (isEmpty) {
@@ -30,6 +32,7 @@ export async function AnomaliesPageStream() {
       anomalies={data.anomalies}
       generatedAt={data.enriched_at || data.generated_at}
       isSubscribed={isSubscribed}
+      fullItemLimit={feedAccess.fullItemLimit}
     />
   );
 }

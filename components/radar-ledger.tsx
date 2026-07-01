@@ -275,6 +275,16 @@ function callVerb(kind: RadarCallKind): string {
   }
 }
 
+function stanceChipFromCall(call: BookCallHint): StanceChipMeta {
+  const base =
+    call.callKind === "buy_dip" || call.callKind === "entry"
+      ? STANCE_CHIP.accumulate
+      : call.callKind === "trim"
+        ? STANCE_CHIP.trim
+        : STANCE_CHIP.avoid;
+  return { ...base, label: callVerb(call.callKind) };
+}
+
 function TodayCallLine({ call, compact = false }: { call: BookCallHint; compact?: boolean }) {
   if (call.urgent) {
     return (
@@ -321,15 +331,20 @@ function DirectiveDisplay({
       ? d2.detail.replace(/;?\s*position size unknown/gi, "").replace(/^;\s*/, "").trim() || null
       : null;
 
-    // Resolve stance chip — prefer ai_directive.stance, fall back to parsing d2.title
-    const chipMeta = stanceMeta ?? (() => {
-      const t = d2.title.toLowerCase();
-      if (t.startsWith("accumulate")) return STANCE_CHIP.accumulate;
-      if (t.startsWith("trim")) return STANCE_CHIP.trim;
-      if (t.startsWith("avoid")) return STANCE_CHIP.avoid;
-      if (t.startsWith("hold")) return STANCE_CHIP.hold;
-      return STANCE_CHIP.watch;
-    })();
+    // When a live book call is showing (e.g. price in add-below zone), match the chip to that call —
+    // not the stale strategic stance (trim names can still have an active buy-below zone).
+    const chipMeta =
+      call != null
+        ? stanceChipFromCall(call)
+        : stanceMeta ??
+          (() => {
+            const t = d2.title.toLowerCase();
+            if (t.startsWith("accumulate")) return STANCE_CHIP.accumulate;
+            if (t.startsWith("trim")) return STANCE_CHIP.trim;
+            if (t.startsWith("avoid")) return STANCE_CHIP.avoid;
+            if (t.startsWith("hold")) return STANCE_CHIP.hold;
+            return STANCE_CHIP.watch;
+          })();
 
     if (compact) {
       return (
@@ -362,7 +377,7 @@ function DirectiveDisplay({
     );
   }
 
-  if (stanceMeta) {
+  if (stanceMeta && !call) {
     return (
       <div className={compact ? "mt-0.5" : ""}>
         {call ? <TodayCallLine call={call} compact={compact} /> : null}
@@ -384,7 +399,12 @@ function DirectiveDisplay({
   }
 
   if (call) {
-    return <TodayCallLine call={call} compact={compact} />;
+    return (
+      <div className={compact ? "mt-0.5 flex flex-col gap-0.5 min-w-0" : "flex min-w-0 flex-col gap-1"}>
+        <TodayCallLine call={call} compact={compact} />
+        <StanceChip meta={stanceChipFromCall(call)} size={compact ? "xs" : "sm"} />
+      </div>
+    );
   }
 
   return compact ? null : <span className="text-[11px] text-on-surface-variant">—</span>;

@@ -433,7 +433,7 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("OPENAI_API_KEY is required because heuristic enrichment has been removed")
+            raise ValueError("LLM_API_KEY, CEREBRAS_API_KEY, or OPENAI_API_KEY is required because heuristic enrichment has been removed")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending: list[tuple[int, Article, str]] = []

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import {
   anomalyDetail,
@@ -13,6 +14,7 @@ import {
   type MoveSide,
 } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
+import { ANONYMOUS_FEED_FULL_ITEM_LIMIT } from "@/lib/pro-features";
 
 function itemKey(item: AnomalyItem): string {
   return item.instrument_id || item.ticker;
@@ -43,19 +45,20 @@ function MoveRowCompact({ item }: { item: AnomalyItem }) {
 function LockedMoveRow({ item }: { item: AnomalyItem }) {
   const isUp = item.direction === "up";
   const color = isUp ? "#10b981" : "#ef4444";
+  const headline = anomalyHeadline(item);
   return (
     <div className="grid min-h-[52px] grid-cols-[28px_3rem_4.25rem_minmax(0,1fr)] items-center gap-x-3 px-4 py-3.5 sm:min-h-[56px] sm:grid-cols-[28px_3.25rem_4.5rem_minmax(0,1fr)] sm:gap-x-4 sm:px-5 sm:py-4">
-      <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={28} className="shrink-0 opacity-70" />
+      <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={28} className="shrink-0" />
       <span className="truncate text-[14px] font-semibold text-[#111111]">{item.ticker}</span>
       <span className="text-[13px] font-bold tabular-nums" style={{ color }}>
         {isUp ? "▲" : "▼"} {fmtMovePct(item.day_change_pct)}
       </span>
-      <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-[13px] font-medium text-[#6b7280]">
-        <span className="material-symbols-outlined shrink-0 text-[#9ca3af]" style={{ fontSize: 15, fontVariationSettings: "'wght' 500" }}>
-          lock
-        </span>
-        Unlock Pro to see why it moved.
-      </span>
+      <FeedRowLockedBlur
+        variant="mover"
+        ticker={item.ticker}
+        previewLines={headline ? [headline, anomalyDetail(item) || "Setup context and what to watch next."] : undefined}
+        size="inline"
+      />
     </div>
   );
 }
@@ -129,14 +132,13 @@ function MoveCard({ item }: { item: AnomalyItem }) {
 function LockedMoveCard({ item }: { item: AnomalyItem }) {
   const isUp = item.direction === "up";
   const color = isUp ? "#10b981" : "#ef4444";
+  const headline = anomalyHeadline(item);
+  const detail = anomalyDetail(item);
   return (
-    <Link
-      href="/subscribe"
-      className="group flex h-full min-h-[260px] flex-col gap-4 rounded-2xl border border-dashed border-[#d1d5db] bg-[#fafafa] p-5 transition-colors hover:border-[#111111] hover:bg-white"
-    >
+    <div className="flex h-full min-h-[260px] flex-col gap-4 rounded-2xl border border-[#e5e7eb] bg-white p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={36} className="shrink-0 opacity-75" />
+          <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={36} className="shrink-0" />
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-[#111111]">{item.ticker}</p>
             <p className="line-clamp-1 text-[12px] leading-snug text-[#9ca3af]">{item.name}</p>
@@ -155,21 +157,15 @@ function LockedMoveCard({ item }: { item: AnomalyItem }) {
           </span>
         ) : null}
       </div>
-      <div className="mt-auto flex flex-col gap-2">
-        <p className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-[#111111]">
-          <span className="material-symbols-outlined text-[#9ca3af]" style={{ fontSize: 17, fontVariationSettings: "'wght' 500" }}>
-            lock
-          </span>
-          Why it moved is locked.
-        </p>
-        <p className="text-[13px] leading-relaxed text-[#6b7280]">
-          Pro shows the move read and what the setup means.
-        </p>
-        <span className="mt-1 inline-flex w-fit rounded-full bg-[#111111] px-4 py-2 text-[12px] font-semibold text-white group-hover:bg-[#0052ff]">
-          Unlock Pro
-        </span>
+      <div className="mt-auto">
+        <FeedRowLockedBlur
+          variant="mover"
+          ticker={item.ticker}
+          previewLines={headline ? [headline, detail || "Setup context and what to watch next."] : undefined}
+          size="block"
+        />
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -224,7 +220,15 @@ function SideToggle({
   );
 }
 
-function CardsSection({ side, items, isSubscribed }: { side: MoveSide; items: AnomalyItem[]; isSubscribed: boolean }) {
+function CardsSection({
+  side,
+  items,
+  fullItemLimit,
+}: {
+  side: MoveSide;
+  items: AnomalyItem[];
+  fullItemLimit: number;
+}) {
   const isUp = side === "up";
 
   if (items.length === 0) {
@@ -234,17 +238,22 @@ function CardsSection({ side, items, isSubscribed }: { side: MoveSide; items: An
       </p>
     );
   }
-  const visible = isSubscribed ? items : items.slice(0, 2);
-  const lockedCount = isSubscribed ? 0 : Math.max(0, items.length - visible.length);
+  const visible = Number.isFinite(fullItemLimit) ? items.slice(0, fullItemLimit) : items;
+  const hasLocked = items.length > visible.length;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {visible.map((item) => (
-        <MoveCard key={itemKey(item)} item={item} />
-      ))}
-      {items.slice(visible.length).map((item) => (
-        <LockedMoveCard key={`locked-${itemKey(item)}`} item={item} />
-      ))}
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {visible.map((item) => (
+          <MoveCard key={itemKey(item)} item={item} />
+        ))}
+        {items.slice(visible.length).map((item) => (
+          <LockedMoveCard key={`locked-${itemKey(item)}`} item={item} />
+        ))}
+      </div>
+      {hasLocked ? (
+        <FeedUnlockBar surface="market_anomalies" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+      ) : null}
     </div>
   );
 }
@@ -254,12 +263,12 @@ const MOVES_TABLE_SCROLL_CLASS = "lg:max-h-[min(32rem,55vh)] lg:overflow-y-auto"
 function MovesTable({
   side,
   items,
-  isSubscribed,
+  fullItemLimit,
   scrollable = false,
 }: {
   side: MoveSide;
   items: AnomalyItem[];
-  isSubscribed: boolean;
+  fullItemLimit: number;
   scrollable?: boolean;
 }) {
   const isUp = side === "up";
@@ -272,26 +281,31 @@ function MovesTable({
     );
   }
 
-  const visible = isSubscribed ? items : items.slice(0, 2);
-  const lockedCount = isSubscribed ? 0 : Math.max(0, items.length - visible.length);
+  const visible = Number.isFinite(fullItemLimit) ? items.slice(0, fullItemLimit) : items;
+  const hasLocked = items.length > visible.length;
   const rows = [
     ...visible.map((item) => <MoveRowCompact key={itemKey(item)} item={item} />),
     ...items.slice(visible.length).map((item) => (
       <LockedMoveRow key={`locked-${itemKey(item)}`} item={item} />
     )),
   ];
+  const unlockBar = hasLocked ? (
+    <FeedUnlockBar surface="market_anomalies" className="border-[#e5e7eb] bg-white" compact />
+  ) : null;
 
   if (scrollable) {
     return (
       <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
         <div className={`divide-y divide-[#f3f4f6] ${MOVES_TABLE_SCROLL_CLASS}`}>{rows}</div>
+        {unlockBar}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white divide-y divide-[#f3f4f6]">
-      {rows}
+    <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+      <div className="divide-y divide-[#f3f4f6]">{rows}</div>
+      {unlockBar}
     </div>
   );
 }
@@ -303,6 +317,7 @@ type BoardProps = {
   showSeeAll?: boolean;
   scrollable?: boolean;
   isSubscribed?: boolean;
+  fullItemLimit?: number;
 };
 
 export function AnomalyMovesBoard({
@@ -312,15 +327,18 @@ export function AnomalyMovesBoard({
   showSeeAll = false,
   scrollable = false,
   isSubscribed = false,
+  fullItemLimit,
 }: BoardProps) {
   const [activeSide, setActiveSide] = useState<MoveSide>("up");
   const activeItems = activeSide === "up" ? ups : downs;
+  const resolvedFullItemLimit =
+    fullItemLimit ?? (isSubscribed ? Number.POSITIVE_INFINITY : ANONYMOUS_FEED_FULL_ITEM_LIMIT);
 
   if (layout === "cards") {
     return (
       <div className="flex flex-col gap-5">
         <SideToggle active={activeSide} onSelect={setActiveSide} className="max-w-xs sm:max-w-none" />
-        <CardsSection side={activeSide} items={activeItems} isSubscribed={isSubscribed} />
+        <CardsSection side={activeSide} items={activeItems} fullItemLimit={resolvedFullItemLimit} />
       </div>
     );
   }
@@ -338,7 +356,7 @@ export function AnomalyMovesBoard({
           </Link>
         ) : null}
       </div>
-      <MovesTable side={activeSide} items={activeItems} isSubscribed={isSubscribed} scrollable={scrollable} />
+      <MovesTable side={activeSide} items={activeItems} fullItemLimit={resolvedFullItemLimit} scrollable={scrollable} />
     </div>
   );
 }

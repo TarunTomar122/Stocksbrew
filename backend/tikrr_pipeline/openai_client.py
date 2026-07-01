@@ -177,7 +177,7 @@ class OpenAIJSONClient:
     def __init__(self, api_key: str | None = None, model: str | None = None, timeout: int = 60) -> None:
         self.api_key = api_key or llm_api_key()
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY is required")
+            raise RuntimeError("LLM_API_KEY, CEREBRAS_API_KEY, or OPENAI_API_KEY is required")
         self.model = model or DEFAULT_MODEL
         self.timeout = timeout
 

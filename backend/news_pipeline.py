@@ -1,16 +1,21 @@
 """News ingest helpers for the small-universe intelligence pipeline."""
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
-from typing import Callable
+from typing import Any, Callable
 from urllib.parse import quote_plus, urlparse
 
 from bs4 import BeautifulSoup
 import requests
 
 from backend.instrument_universe import list_instruments
+from backend.context_search import (
+    context_search_enabled,
+    search_context_articles_for_ticker,
+)
 from backend.market_strategy import build_ticker_sources
 from backend.models import Article, SourceDefinition
 from backend.rss import fetch_feed
@@ -677,6 +682,38 @@ def collect_per_ticker_articles(
 
     selected: list[Article] = []
     # Per-ticker slice - top N by priority for each instrument.
+    if context_search_enabled():
+        missing_instruments = [
+            instrument
+            for instrument in instruments
+            if not per_ticker_articles.get(str(instrument.get("ticker") or "").upper())
+        ]
+        max_context_tickers = max(0, int(os.getenv("CONTEXT_FALLBACK_MAX_TICKERS", "20") or 0))
+        context_limit = max(1, int(os.getenv("CONTEXT_FALLBACK_ARTICLES_PER_TICKER", "5") or 5))
+        context_lookback = max(1, int(os.getenv("CONTEXT_FALLBACK_LOOKBACK_HOURS", "24") or 24))
+
+        def fetch_context_one(instrument: dict[str, Any]) -> tuple[str, list[Article], dict[str, Any]]:
+            ticker = str(instrument.get("ticker") or "").strip().upper()
+            articles, health = search_context_articles_for_ticker(
+                instrument,
+                market=market,
+                limit=context_limit,
+                lookback_hours=context_lookback,
+            )
+            return ticker, articles, health
+
+        if max_context_tickers and missing_instruments:
+            with ThreadPoolExecutor(max_workers=min(4, max_context_tickers, len(missing_instruments))) as executor:
+                futures = [
+                    executor.submit(fetch_context_one, instrument)
+                    for instrument in missing_instruments[:max_context_tickers]
+                ]
+                for future in as_completed(futures):
+                    ticker, articles, health = future.result()
+                    if articles:
+                        per_ticker_articles[ticker].extend(articles)
+                    source_health.append(health)
+
     for instrument in instruments:
         ticker = instrument["ticker"].upper()
         bucket = per_ticker_articles.get(ticker, [])

@@ -13,6 +13,7 @@ from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
 from backend.storage import TraceMoneyStore
 
+from backend.cloudrun.orchestrator.local_api import LocalJobsClient
 from backend.cloudrun.orchestrator.run_api import RunJobsClient
 from backend.cloudrun.orchestrator.state import PipelineStateStore, ShardRef
 
@@ -107,7 +108,7 @@ def _run_sharded_lane(
     shard_size: int,
     extra_args: list[str],
     max_parallel: int,
-    client: RunJobsClient,
+    client: Any,
     state: PipelineStateStore,
     wait_for_completion: bool = False,
 ) -> dict[str, Any]:
@@ -235,7 +236,7 @@ def _run_single_job_lane(
     run_id: str,
     job_name: str,
     extra_args: list[str],
-    client: RunJobsClient,
+    client: Any,
     wait_for_completion: bool = False,
 ) -> dict[str, Any]:
     args = [
@@ -304,7 +305,7 @@ def _refresh_watchlist_views(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Cloud Run lane dispatcher")
+    parser = argparse.ArgumentParser(description="Tikrr lane dispatcher")
     parser.add_argument(
         "--lane",
         choices=[
@@ -340,6 +341,11 @@ def main() -> None:
     parser.add_argument("--universe", default="")
     parser.add_argument("--project", default=os.getenv("GOOGLE_CLOUD_PROJECT", ""))
     parser.add_argument("--region", default=os.getenv("GOOGLE_CLOUD_REGION", "us-central1"))
+    parser.add_argument(
+        "--executor",
+        choices=["cloudrun", "local"],
+        default=os.getenv("TIKRR_JOB_EXECUTOR", "cloudrun"),
+    )
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--shard-size", type=int, default=20)
     parser.add_argument("--max-parallel", type=int, default=5)
@@ -355,7 +361,7 @@ def main() -> None:
     parser.add_argument("--max-events", type=int, default=20)
     parser.add_argument("--skip-if-fresh-hours", type=int, default=0)
     parser.add_argument("--reddit-subreddit-batch-size", type=int, default=4)
-    parser.add_argument("--reddit-cache-hours", type=int, default=48)
+    parser.add_argument("--reddit-cache-hours", type=int, default=120)
     parser.add_argument("--model", default="")
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
@@ -374,8 +380,10 @@ def main() -> None:
         args.shard_size = max(args.shard_size, intraday_shard_min)
         args.max_parallel = min(max(1, args.max_parallel), intraday_parallel_cap)
 
-    if not args.project:
+    if args.executor == "cloudrun" and not args.project:
         raise ValueError("Missing --project (or GOOGLE_CLOUD_PROJECT)")
+    if args.executor == "local":
+        args.wait_for_completion = True
 
     store = TraceMoneyStore()
     state = PipelineStateStore(store)
@@ -415,6 +423,11 @@ def main() -> None:
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
     }
     job_name = job_name_by_lane[args.lane]
+    client: Any
+    if args.executor == "local":
+        client = LocalJobsClient()
+    else:
+        client = RunJobsClient(project=args.project, region=args.region)
 
     if args.lane in {"price_core_open", "price_core_intraday"}:
         instrument_ids = _price_core_ids(store, args.market, universe_id, args.limit)
@@ -456,7 +469,7 @@ def main() -> None:
                 str(args.max_workers),
             ],
             max_parallel=args.max_parallel,
-            client=RunJobsClient(project=args.project, region=args.region),
+            client=client,
             state=state,
             wait_for_completion=args.wait_for_completion,
         )
@@ -525,7 +538,7 @@ def main() -> None:
                 str(args.chunk_workers),
             ],
             max_parallel=args.max_parallel,
-            client=RunJobsClient(project=args.project, region=args.region),
+            client=client,
             state=state,
             wait_for_completion=args.wait_for_completion,
         )
@@ -631,7 +644,7 @@ def main() -> None:
             run_id=run_id,
             job_name=job_name,
             extra_args=single_extra_args,
-            client=RunJobsClient(project=args.project, region=args.region),
+            client=client,
             wait_for_completion=args.wait_for_completion,
         )
 

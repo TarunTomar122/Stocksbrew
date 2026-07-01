@@ -2,17 +2,22 @@
 
 import Link from "next/link";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
-import { StockLogo } from "@/components/stock-logo";
+import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
+import { RedditMark } from "@/components/reddit-mark";
 
-type RedditPick = { ticker: string; sentiment: string; summary: string; mention_count?: number };
+const HOMEPAGE_UNLOCK_LABEL = "Sign in for more";
 
-const n = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-
-function sentimentPillClass(sentiment: string) {
-  if (sentiment === "bearish") return "reddit-sentiment-pill reddit-sentiment-pill--bearish";
-  if (sentiment === "bullish") return "reddit-sentiment-pill reddit-sentiment-pill--bullish";
-  return "reddit-sentiment-pill reddit-sentiment-pill--neutral";
-}
+type RedditPick = {
+  ticker: string;
+  sentiment: string;
+  summary: string;
+  mention_count?: number;
+  catalysts?: string[];
+  company?: string;
+  price?: number;
+  changePct?: number;
+  volume?: number;
+};
 
 function formatDataDate(raw?: string) {
   if (!raw?.trim()) return null;
@@ -35,9 +40,13 @@ function SectionHeader({
   return (
     <div className="mb-5 flex items-start gap-3">
       <span className={`landing-section-icon landing-section-icon--${tone}`}>
-        <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'wght' 500" }}>
-          {icon}
-        </span>
+        {tone === "reddit" ? (
+          <RedditMark size={20} />
+        ) : (
+          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'wght' 500" }}>
+            {icon}
+          </span>
+        )}
       </span>
       <div className="min-w-0 pt-0.5">
         <p className={`landing-section-kicker ${tone === "reddit" ? "text-landing-reddit" : "text-landing-brand"}`}>
@@ -53,10 +62,14 @@ export function LandingScannerReddit({
   scannerItems,
   redditPicks,
   dataAsOf,
+  fullItemLimit,
+  isSubscribed = false,
 }: {
   scannerItems: ScannerItem[];
   redditPicks: RedditPick[];
   dataAsOf?: string;
+  fullItemLimit?: number;
+  isSubscribed?: boolean;
 }) {
   const dataLabel = formatDataDate(dataAsOf);
 
@@ -72,7 +85,14 @@ export function LandingScannerReddit({
                 kicker="Scanner"
                 title="Today's movers, and why"
               />
-              <MoversScanner items={scannerItems} limit={7} showCount={false} embedded />
+              <MoversScanner
+                items={scannerItems}
+                limit={7}
+                showCount={false}
+                embedded
+                fullItemLimit={fullItemLimit}
+                unlockSignedOutLabel={HOMEPAGE_UNLOCK_LABEL}
+              />
             </div>
 
             <div className="flex flex-col p-5 md:p-6">
@@ -82,21 +102,17 @@ export function LandingScannerReddit({
                 kicker="Reddit Buzz"
                 title="What the crowd's saying"
               />
-              <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <div className="flex min-h-0 flex-1 flex-col">
                 {redditPicks.length > 0 ? (
-                  redditPicks.map((r) => (
-                    <Link key={r.ticker} href={`/stock/${r.ticker}`} className="landing-reddit-card">
-                      <div className="mb-2 flex items-center gap-2">
-                        <StockLogo ticker={r.ticker} market="US" size={24} />
-                        <span className="text-[13px] font-bold text-on-surface">{r.ticker}</span>
-                        {n(r.mention_count) ? (
-                          <span className="text-[12px] text-on-surface-variant">{r.mention_count} mentions</span>
-                        ) : null}
-                        <span className={`ml-auto ${sentimentPillClass(r.sentiment)}`}>{r.sentiment}</span>
-                      </div>
-                      <p className="text-[13px] leading-relaxed text-on-surface-variant">{r.summary}</p>
-                    </Link>
-                  ))
+                  <RedditBuzzFeed
+                    items={redditPicks.map(redditPickToTicker)}
+                    isSubscribed={isSubscribed}
+                    variant="pulse"
+                    gridCols="1"
+                    showTalkingPoints={false}
+                    hideLockedRows
+                    unlockSignedOutLabel={HOMEPAGE_UNLOCK_LABEL}
+                  />
                 ) : (
                   <Link
                     href="/reddit-buzz"

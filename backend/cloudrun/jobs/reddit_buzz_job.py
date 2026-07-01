@@ -15,7 +15,7 @@ def main() -> None:
     parser.add_argument("--max-tickers", type=int, default=20)
     parser.add_argument("--max-top-posts", type=int, default=12)
     parser.add_argument("--subreddit-batch-size", type=int, default=4)
-    parser.add_argument("--cache-hours", type=int, default=48)
+    parser.add_argument("--cache-hours", type=int, default=120)
     parser.add_argument("--promote-min-mentions", type=int, default=1)
     parser.add_argument("--promote-min-confidence", type=float, default=0.55)
     parser.add_argument("--promote-max-add", type=int, default=8)

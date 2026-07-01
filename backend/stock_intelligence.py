@@ -30,7 +30,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-06-24-stock-brief-v15-directive-stability"
+STOCK_BRIEF_CACHE_VERSION = "2026-06-30-stock-brief-v16-directive-provider-guardrails"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -411,11 +411,11 @@ Fields to write:
 
 - **directive**: ONE present-tense call plus optional future zones. Do not hide the main call behind a nearby price. Object with:
   - text: the current call as a short imperative (under 8 words). Examples: "Accumulate now", "Hold here", "Watch for reclaim", "Trim strength", "Avoid for now". Do NOT put a price in `text`; prices belong in add_on/trim_on/breaks_if.
-  - action_now: same current call in plain English. It should answer "what do I do at the current price?"
+  - action_now: same current call in plain English. It should answer "what do I do at the current price?" Write a complete useful sentence, 10-22 words. BAD: "Buy on dips", "Accumulate now". GOOD: "Hold at current price and add only if it pulls back near support."
   - stance: one of ["accumulate", "trim", "watch", "avoid", "hold"]
   - add_on: optional object for the buy/add zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
   - trim_on: optional object for the sell/trim zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
-  - breaks_if: optional object for the invalidation/risk zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
+  - breaks_if: optional object for the invalidation/risk zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} only when there is no real invalidation anchor. If price_context has recent closes below current price, a nearby support/reclaim level, a negative anomaly, or a clear risk_card trigger, provide a real breaks_if.
   - trigger_type and trigger_value: backward-compatible PRIMARY smart trigger chosen from add_on/trim_on/breaks_if. Pick the most useful alert for the stance: accumulate -> add_on, trim -> trim_on, hold/watch -> breaks_if or add_on. If no useful alert exists, use "none" and "".
   - Zone objects have keys: text, trigger_type, trigger_value. trigger_type is one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]. For price triggers, trigger_value is the numeric string only, no $ sign.
   - rationale: ONE sentence connecting the current setup to the trigger - mention where price sits relative to the level when a price trigger is used.
@@ -453,6 +453,8 @@ DIRECTIVE vs CURRENT PRICE - READ THIS FIRST:
 - The payload always includes `current_price`. It may also include `price_context` with `day_change_pct`, `recent_sessions`, MAs, RSI, and returns.
 - Before choosing stance or trigger, read where the stock trades NOW and what happened in `recent_sessions`.
 - The directive must make sense to someone looking at the live quote. If they would think "but it's already below/above that" - rewrite it.
+- Never describe a level as "support", "recent low", "resistance", "SMA", "moving average", or "52-week" unless that exact anchor is present in `price_context`. If only `ma_position.sma_20 = "below"` is present, you may say "below the 20-day average"; do not invent the average's dollar value.
+- Do not round a trigger into a different thesis. If `recent_sessions` supports $192.53, use 192.53 or a clearly rounded 193; do not turn it into an invented $195 support level unless $195 appears in the payload.
 - Decide the current call first, then the zones:
   · If the setup is attractive at current price, write "Accumulate now" / "Hold here" and put better-entry prices in add_on.
   · If price must reclaim or break a level first, write "Watch for reclaim" and put the level in add_on or breaks_if.
@@ -466,6 +468,7 @@ DIRECTIVE STABILITY:
 - Change the directive only if there is fresh company news, sector news, market news, competitor read-through, earnings/results/guidance, or price has crossed the prior add/trim/break zone.
 - If you keep the previous directive, keep `text`, `action_now`, `stance`, `add_on`, `trim_on`, `breaks_if`, `trigger_type`, and `trigger_value` unchanged. You may refresh rationale only if it still says the same thing more clearly.
 - If you change the directive, the rationale must name the evidence that changed.
+- If `previous_directive` already has usable `add_on`, `trim_on`, or `breaks_if` zones and no change trigger occurred, copy those zones rather than simplifying them away.
 
 DIRECTIVE SELECTION PRIORITY:
 - First ask: is there a credible upside path with real evidence behind it?
@@ -493,6 +496,8 @@ PRICE CONTEXT - USE IT FOR THE DIRECTIVE:
 - Pick trigger levels from real anchors: recent session highs/lows, nearby MAs, analyst target, obvious support/resistance from the last 5 closes.
 - Match stance to today's tape: big down day + breaking recent lows → prefer watch/accumulate below support, not trim into strength above resistance; strong up day + extended RSI → trim or watch exhaustion can be valid; coiled near support after pullback → accumulate below X or watch hold at X.
 - You may still avoid narrating price in `body`/`headline`. The directive is where the price level must be actionable and coherent with `current_price`.
+- Every price trigger must be directionally valid: `price_below` must be below current_price; `price_above` must be above current_price. If current_price has already crossed the level, rewrite the directive around reclaim/reset instead of keeping a stale trigger.
+- Prefer one primary add/hold/trim level and one risk/invalidation level over a naked "accumulate" call. Users set alerts from these zones.
 
 MARKET REGIME - USE IT:
 - The payload may include a `market_regime` block with a macro read (market_phase, risk_appetite, narrative, leadership, laggards, rotation_signal) and one relevant sector regime for the stock.

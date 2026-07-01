@@ -784,10 +784,14 @@ async function loadSectorIntelPeers(
   return out.slice(0, limit);
 }
 
-export type SectorPeerPick = { instrument_id: string; ticker: string; score: number | null; verdict: string };
+export type SectorPeerPick = { instrument_id: string; ticker: string; score: number; verdict: string };
 
-export type SectorPeerRow = SectorPeerPick & {
+export type SectorPeerRow = {
+  instrument_id: string;
+  ticker: string;
   name: string;
+  score: number | null;
+  verdict: string;
   day_change_pct?: number;
   price?: number;
   market_cap?: number;

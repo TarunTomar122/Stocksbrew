@@ -177,6 +177,8 @@ class DailyAnomaliesTest(unittest.TestCase):
 
     def test_move_explanation_falls_back_when_llm_cannot_explain(self) -> None:
         with patch.object(build_daily_anomalies, "_llm_move_explanation", return_value=None), patch.object(
+            build_daily_anomalies, "_context_rescue_move_explanation", return_value=None
+        ), patch.object(
             build_daily_anomalies, "_llm_internal_context_move_explanation", return_value=None
         ):
             explanation = build_daily_anomalies._move_explanation(
@@ -190,8 +192,45 @@ class DailyAnomaliesTest(unittest.TestCase):
         self.assertEqual(explanation["cause_type"], "unclear")
         self.assertFalse(explanation["searched_externally"])
 
+    def test_move_explanation_uses_context_rescue_before_internal_context(self) -> None:
+        with patch.object(build_daily_anomalies, "_llm_move_explanation", return_value=None), patch.object(
+            build_daily_anomalies,
+            "_context_rescue_move_explanation",
+            return_value={
+                "cause_type": "company_news",
+                "dominant_angle": "hard_catalyst",
+                "headline": "ABC wins major contract",
+                "why_it_matters": "Context search found a fresh contract announcement that explains the sharp move.",
+                "confidence": "high",
+                "searched_externally": True,
+                "external_source": "context_web_search",
+                "evidence": [{"title": "ABC wins major contract", "url": "https://example.com/abc"}],
+            },
+        ) as rescue, patch.object(
+            build_daily_anomalies,
+            "_llm_internal_context_move_explanation",
+            return_value=None,
+        ) as internal:
+            explanation = build_daily_anomalies._move_explanation(
+                instrument={"ticker": "ABC", "name": "ABC Corp"},
+                intel_doc={"timeline": []},
+                day_change_pct=8.1,
+                external_search=True,
+                market="US",
+                universe_id="us_core",
+                store=None,
+            )
+
+        rescue.assert_called_once()
+        internal.assert_not_called()
+        self.assertIsNotNone(explanation)
+        self.assertEqual(explanation["headline"], "ABC wins major contract")
+        self.assertTrue(explanation["searched_externally"])
+
     def test_move_explanation_uses_internal_context_after_news_rejected(self) -> None:
         with patch.object(build_daily_anomalies, "_llm_move_explanation", return_value=None), patch.object(
+            build_daily_anomalies, "_context_rescue_move_explanation", return_value=None
+        ), patch.object(
             build_daily_anomalies,
             "_llm_internal_context_move_explanation",
             return_value={
@@ -257,6 +296,21 @@ class DailyAnomaliesTest(unittest.TestCase):
             )
 
         self.assertIsNone(explanation)
+
+    def test_missing_intelligence_fill_allows_context_fallback(self) -> None:
+        with patch.object(build_daily_anomalies.subprocess, "run") as run:
+            build_daily_anomalies._run_intelligence_fill_for_missing(
+                market="US",
+                universe_id="us_core",
+                instrument_ids=["US_ABC"],
+                per_stock_cap=3,
+                chunk_workers=2,
+                per_stock_lookback_hours=24,
+            )
+
+        cmd = run.call_args.args[0]
+        self.assertNotIn("--skip-context", cmd)
+        self.assertIn("--instrument-ids", cmd)
 
 
 if __name__ == "__main__":
