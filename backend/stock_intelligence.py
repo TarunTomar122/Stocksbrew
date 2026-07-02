@@ -471,6 +471,12 @@ DIRECTIVE STABILITY:
 - If you change the directive, the rationale must name the evidence that changed.
 - If `previous_directive` already has usable `add_on`, `trim_on`, or `breaks_if` zones and no change trigger occurred, copy those zones rather than simplifying them away.
 
+BRIEF STABILITY:
+- The payload may include `previous_brief_summary`. Treat it as continuity context, not as fresh evidence.
+- Keep prior thesis/setup/drivers/risks when the new evidence says the same thing.
+- Change them only when fresh news, price action, sector/market regime, earnings, or anomaly context changes the setup.
+- Do not copy stale facts blindly; if prior content conflicts with dated `recent_news` or `price_context`, trust the fresh payload.
+
 DIRECTIVE SELECTION PRIORITY:
 - First ask: is there a credible upside path with real evidence behind it?
 - If yes, prefer "accumulate" or "watch" over "hold".
@@ -716,6 +722,7 @@ def _llm_synthesize_brief(
     earnings: dict[str, Any] | None = None,
     anomaly_digest: dict[str, Any] | None = None,
     previous_directive: dict[str, Any] | None = None,
+    previous_brief_summary: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
     """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
@@ -751,6 +758,8 @@ def _llm_synthesize_brief(
         payload["anomaly_digest"] = anomaly_digest
     if previous_directive:
         payload["previous_directive"] = previous_directive
+    if previous_brief_summary:
+        payload["previous_brief_summary"] = previous_brief_summary
     if price_context:
         payload["price_context"] = price_context
     if market_regime:
@@ -804,6 +813,41 @@ def _llm_synthesize_brief(
     except Exception as exc:
         logger.warning("LLM brief generation failed for %s: %s", ticker, exc)
         return None
+
+
+def _previous_brief_summary(prev_doc: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(prev_doc, dict):
+        return None
+    cards = prev_doc.get("visual_cards") or prev_doc.get("visual_summary") or {}
+    if not isinstance(cards, dict):
+        cards = {}
+    drivers = cards.get("drivers") or []
+    risks = cards.get("risk_cards") or []
+    out = {
+        "headline": str(prev_doc.get("headline") or "")[:160],
+        "thesis": str(prev_doc.get("thesis") or "")[:160],
+        "setup_state": str(prev_doc.get("setup_state") or "")[:40],
+        "updated_at": str(prev_doc.get("updated_at") or prev_doc.get("generated_at") or "")[:40],
+        "drivers": [
+            {
+                "driver": str(card.get("driver") or card.get("title") or "")[:120],
+                "detail": str(card.get("detail") or "")[:180],
+            }
+            for card in drivers[:2]
+            if isinstance(card, dict)
+        ],
+        "risks": [
+            {
+                "risk": str(card.get("risk") or card.get("title") or "")[:120],
+                "detail": str(card.get("detail") or "")[:180],
+            }
+            for card in risks[:1]
+            if isinstance(card, dict)
+        ],
+    }
+    if any(out.get(key) for key in ("headline", "thesis", "setup_state")) or out["drivers"] or out["risks"]:
+        return out
+    return None
 
 
 NO_NEWS_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. This stock has NO recent news - make that silence meaningful.
@@ -3256,6 +3300,7 @@ def build_stock_intelligence_docs(
         previous_directive = (prev_doc or {}).get("directive")
         if not isinstance(previous_directive, dict) or not str(previous_directive.get("text", "")).strip():
             previous_directive = None
+        previous_brief_summary = _previous_brief_summary(prev_doc)
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
@@ -3281,6 +3326,7 @@ def build_stock_intelligence_docs(
             earnings=earnings_ctx,
             anomaly_digest=anomaly_digest,
             previous_directive=previous_directive,
+            previous_brief_summary=previous_brief_summary,
             store=store,
         )
 
