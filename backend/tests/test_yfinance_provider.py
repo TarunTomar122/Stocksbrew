@@ -79,6 +79,45 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertNotIn("fundamentals", row)
         self.assertNotIn("analyst_consensus", row)
 
+    def test_quote_only_fetch_flattens_single_symbol_multiindex_download(self) -> None:
+        index = [
+            datetime(2026, 7, 1, tzinfo=timezone.utc),
+            datetime(2026, 7, 2, tzinfo=timezone.utc),
+        ]
+        daily = pd.DataFrame(
+            {
+                ("Close", "RDDT"): [100.0, 105.0],
+                ("Open", "RDDT"): [99.0, 102.0],
+                ("High", "RDDT"): [101.0, 106.0],
+                ("Low", "RDDT"): [98.0, 101.0],
+                ("Volume", "RDDT"): [10, 20],
+            },
+            index=index,
+        )
+        daily.columns = pd.MultiIndex.from_tuples(daily.columns, names=["Price", "Ticker"])
+        intraday = daily.iloc[[-1]].copy()
+
+        def fake_download(*_args, **kwargs):
+            return intraday if kwargs["interval"] == "1m" else daily
+
+        instrument = {
+            "instrument_id": "US_RDDT",
+            "market": "US",
+            "ticker": "RDDT",
+            "quote_symbol": "RDDT",
+            "exchange": "NYSE",
+            "currency": "USD",
+        }
+        with patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download):
+            row = YFinanceClient(max_workers=1).fetch_quotes(
+                [instrument],
+                include_fundamentals=False,
+            )["US_RDDT"]
+
+        self.assertEqual(row["quote"]["current"], 105.0)
+        self.assertEqual(row["quote"]["previous_close"], 100.0)
+        self.assertEqual(row["quote"]["day_change_pct"], 5.0)
+
     def test_scorecard_metrics_batch_reuses_info_parser(self) -> None:
         class FakeTicker:
             info = {

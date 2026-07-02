@@ -158,8 +158,6 @@ def _consensus_label(info: dict[str, Any]) -> str:
 
 
 def _download_symbol_frame(frame: Any, symbol: str, *, single: bool) -> Any:
-    if single:
-        return frame
     try:
         return frame.xs(symbol, level="Ticker", axis=1)
     except (KeyError, TypeError, ValueError):
@@ -167,7 +165,21 @@ def _download_symbol_frame(frame: Any, symbol: str, *, single: bool) -> Any:
     try:
         return frame[symbol]
     except (KeyError, TypeError):
+        pass
+    if not single:
         return None
+
+    columns = getattr(frame, "columns", None)
+    if getattr(columns, "nlevels", 1) <= 1:
+        return frame
+    for level in range(columns.nlevels):
+        try:
+            values = set(str(value).upper() for value in columns.get_level_values(level))
+        except (AttributeError, IndexError, TypeError):
+            continue
+        if values == {symbol.upper()}:
+            return frame.droplevel(level, axis=1)
+    return frame
 
 
 def _batch_download_frames(symbols: list[str], *, period: str, interval: str, prepost: bool = False) -> dict[str, Any]:
