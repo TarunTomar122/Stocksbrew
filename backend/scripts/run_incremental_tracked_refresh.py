@@ -131,6 +131,7 @@ def main() -> None:
         "10",
         "--chunk-workers",
         str(args.chunk_workers),
+        "--grouped-stock-llm",
         "--skip-context",
         "--skip-av",
         "--skip-finnhub",

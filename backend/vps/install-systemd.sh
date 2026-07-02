@@ -3,7 +3,7 @@ set -euo pipefail
 
 UNIT_DIR="${UNIT_DIR:-/etc/systemd/system}"
 REPO_DIR="${TIKRR_REPO_DIR:-/opt/tikrr}"
-USER_NAME="${TIKRR_USER:-tikrr}"
+USER_NAME="${TIKRR_USER:-ubuntu}"
 ENV_FILE="${TIKRR_ENV_FILE:-/etc/tikrr/backend.env}"
 TIMER_NAMES=()
 
@@ -70,8 +70,7 @@ write_pair on-demand-news "Mon..Fri *-*-* 00,04,08,12,16,20:00:00" on_demand_new
 write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
 write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--limit 0 --max-workers 4"
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
-write_pair premarket-intel "Mon..Fri *-*-* 11:00:00" premarket_intel
-write_pair premarket-email "Mon..Fri *-*-* 12:00:00" premarket_email
+write_pair premarket-email "Mon..Fri *-*-* 12:00:00" premarket_pipeline
 write_pair open-email "Mon..Fri *-*-* 13:50:00" open_email
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
@@ -79,6 +78,8 @@ write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"
+systemctl disable --now tikrr-premarket-intel.timer >/dev/null 2>&1 || true
+rm -f "${UNIT_DIR}/tikrr-premarket-intel.service" "${UNIT_DIR}/tikrr-premarket-intel.timer"
 
 systemctl daemon-reload
 if [[ "${ENABLE_TIMERS:-1}" == "1" ]]; then

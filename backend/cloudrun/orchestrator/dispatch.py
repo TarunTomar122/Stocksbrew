@@ -330,6 +330,7 @@ def main() -> None:
             "premarket_movers",
             "premarket_intel",
             "premarket_email",
+            "premarket_pipeline",
             "open_email",
             "weekly_email",
             "contrarian_calls",
@@ -418,6 +419,7 @@ def main() -> None:
         "premarket_movers": os.getenv("PREMARKET_MOVERS_JOB_NAME", "tikrr-premarket-movers"),
         "premarket_intel": os.getenv("PREMARKET_INTEL_JOB_NAME", "tikrr-premarket-intel"),
         "premarket_email": os.getenv("PREMARKET_EMAIL_JOB_NAME", "tikrr-premarket-email"),
+        "premarket_pipeline": os.getenv("PREMARKET_PIPELINE_JOB_NAME", "tikrr-premarket-pipeline"),
         "open_email": os.getenv("OPEN_EMAIL_JOB_NAME", "tikrr-open-email"),
         "weekly_email": os.getenv("WEEKLY_EMAIL_JOB_NAME", "tikrr-weekly-email"),
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
@@ -636,6 +638,8 @@ def main() -> None:
                 "--max-workers",
                 str(max(1, args.max_workers)),
             ]
+        elif args.lane == "premarket_pipeline":
+            single_extra_args = ["--limit", str(max(0, args.limit))]
 
         summary = _run_single_job_lane(
             lane=args.lane,
@@ -671,6 +675,7 @@ def main() -> None:
         "premarket_movers",
         "premarket_intel",
         "premarket_email",
+        "premarket_pipeline",
         "open_email",
         "weekly_email",
         "contrarian_calls",
