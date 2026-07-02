@@ -109,6 +109,11 @@ function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
   return Boolean(normalizeDirectiveForUi(intelligence?.directive_v2 ?? null)?.text?.trim());
 }
 
+function isActiveOnDemandBriefStatus(status: string | null | undefined): boolean {
+  const normalized = String(status || "").toLowerCase();
+  return normalized === "queued" || normalized === "running" || normalized === "retry";
+}
+
 function numericDirectiveTrigger(intelligence: StockIntelligenceDoc | null): number | null {
   const raw = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null)?.trigger_value;
   if (typeof raw !== "string" || !raw.trim()) return null;
@@ -290,13 +295,13 @@ export async function StockPageStream({ params }: Props) {
   const showPriorityNotice = priorityIds.length > 0 && !isHighFrequencyEligible;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
 
-  // If the on-demand job says "complete" but no intelligence doc was produced
-  // (e.g. the stock was uncovered), treat it as "no_brief" so we don't show
-  // a misleading "Brief ready — refresh" card to the user.
-  const resolvedOnDemandStatus =
-    !intelligence && onDemandJob?.status === "complete"
-      ? "no_brief"
-      : onDemandJob?.status;
+  const resolvedOnDemandStatus = onDemandJob?.status;
+  const showAiPreparationState =
+    subscribed &&
+    isTracked &&
+    !hasBriefText(intelligence) &&
+    isActiveOnDemandBriefStatus(resolvedOnDemandStatus);
+  const showAiStartCoverageState = subscribed && !isTracked && !hasBriefText(intelligence);
 
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
@@ -498,7 +503,7 @@ export async function StockPageStream({ params }: Props) {
           <DataQualityStrip quality={intelligence.data_quality} />
         )}
       </section>
-    ) : (
+    ) : showAiPreparationState || showAiStartCoverageState ? (
       <LockedAiBrief
         ticker={stock.ticker}
         instrumentId={stock.instrument_id}
@@ -507,7 +512,7 @@ export async function StockPageStream({ params }: Props) {
         onDemandStatus={resolvedOnDemandStatus}
         onDemandError={onDemandJob?.error}
       />
-    )
+    ) : null
   ) : null;
 
   const dayPct = stock.day_change_pct ?? 0;
@@ -571,14 +576,18 @@ export async function StockPageStream({ params }: Props) {
         tier={tier}
         updatedLabel={stock.captured_at ? `updated ${formatRelative(stock.captured_at)}` : undefined}
         lockedCall={
-          <LockedAiBrief
-            ticker={stock.ticker}
-            instrumentId={stock.instrument_id}
-            isSubscribed={subscribed}
-            isTracked={isTracked}
-            onDemandStatus={resolvedOnDemandStatus}
-            onDemandError={onDemandJob?.error}
-          />
+          hasBriefText(intelligence) ? (
+            <AiSynthesis intelligence={intelligence} />
+          ) : showAiPreparationState ? (
+            <LockedAiBrief
+              ticker={stock.ticker}
+              instrumentId={stock.instrument_id}
+              isSubscribed={subscribed}
+              isTracked={isTracked}
+              onDemandStatus={resolvedOnDemandStatus}
+              onDemandError={onDemandJob?.error}
+            />
+          ) : null
         }
       />
     </main>

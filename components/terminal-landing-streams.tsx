@@ -10,6 +10,7 @@ import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
 import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
 import { anomalyTag, buildLandingSectorCards, pickBiggestMover } from "@/lib/landing-sector-data";
 import { directiveZonePrice, normalizeDirectiveForUi } from "@/lib/directive-ui";
+import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -156,6 +157,9 @@ export async function LandingScannerRedditStream() {
         price: a.price,
         changePct: a.day_change_pct,
         tag: anomalyTag(a),
+        headline: anomalyHeadline(a),
+        whyItMatters: anomalyDetail(a) || undefined,
+        confidence: a.move_explanation?.confidence,
       })), user.fullItemLimit)}
       redditPicks={redditPicks}
       dataAsOf={anomaliesDoc?.date ?? anomaliesDoc?.generated_at}

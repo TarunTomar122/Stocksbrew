@@ -96,7 +96,8 @@ def sync_price_snapshots(
     else:
         instruments = list_instruments(market, universe_id)
     client = YFinanceClient(max_workers=max_workers)
-    raw_quotes = client.fetch_quotes(instruments)
+    include_fundamentals = session_phase in ("post_close", "manual")
+    raw_quotes = client.fetch_quotes(instruments, include_fundamentals=include_fundamentals)
 
     instrument_by_id: dict[str, dict] = {i["instrument_id"]: i for i in instruments}
 
@@ -116,16 +117,18 @@ def sync_price_snapshots(
             "source": "yfinance",
             "currency": quote_payload.get("currency") or instrument.get("currency", "USD"),
             "quote": quote_payload["quote"],
-            "fundamentals": quote_payload.get("fundamentals", {}),
-            "analyst_consensus": quote_payload.get("analyst_consensus", {}),
             "provider_metadata": {
                 "yahoo_symbol": quote_payload.get("yahoo_symbol", ""),
                 "exchange": quote_payload.get("exchange", instrument.get("exchange", "")),
                 "name": quote_payload.get("name", instrument.get("name", "")),
             },
         }
+        if "fundamentals" in quote_payload:
+            snapshot["fundamentals"] = quote_payload["fundamentals"]
+        if "analyst_consensus" in quote_payload:
+            snapshot["analyst_consensus"] = quote_payload["analyst_consensus"]
         saved_rows.append(snapshot)
-        if snapshot["fundamentals"]:
+        if snapshot.get("fundamentals"):
             fundamental_rows.append((instrument_id, {
                 "instrument_id": instrument_id,
                 "market": instrument["market"],
@@ -134,7 +137,7 @@ def sync_price_snapshots(
                 "source": "yfinance",
                 "currency": snapshot["currency"],
                 "fundamentals": snapshot["fundamentals"],
-                "analyst_consensus": snapshot["analyst_consensus"],
+                "analyst_consensus": snapshot.get("analyst_consensus", {}),
             }))
 
     store.save_price_snapshots_bulk(saved_rows)

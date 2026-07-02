@@ -30,7 +30,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 logger = logging.getLogger(__name__)
 
 LLM_API_URL = llm_api_url()
-STOCK_BRIEF_CACHE_VERSION = "2026-06-30-stock-brief-v16-directive-provider-guardrails"
+STOCK_BRIEF_CACHE_VERSION = "2026-07-02-stock-brief-v17-anomaly-alignment"
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -285,14 +285,15 @@ def _build_anomaly_digest(anomaly_doc: dict[str, Any] | None) -> dict[str, Any] 
     row = (anomaly_doc or {}).get("anomaly") if isinstance(anomaly_doc, dict) else None
     if not isinstance(row, dict):
         return None
+    move = row.get("move_explanation") if isinstance(row.get("move_explanation"), dict) else {}
     return {
         "date": anomaly_doc.get("date"),
         "direction": row.get("direction"),
         "day_change_pct": row.get("day_change_pct"),
-        "headline": row.get("headline"),
-        "why_it_matters": row.get("why_it_matters") or row.get("summary"),
-        "confidence": row.get("confidence"),
-        "dominant_angle": row.get("dominant_angle") or row.get("angle"),
+        "headline": move.get("headline") or row.get("headline"),
+        "why_it_matters": move.get("why_it_matters") or row.get("why_it_matters") or row.get("summary"),
+        "confidence": move.get("confidence") or row.get("confidence"),
+        "dominant_angle": move.get("dominant_angle") or row.get("dominant_angle") or row.get("angle"),
     }
 
 
@@ -512,6 +513,12 @@ RECENCY - THIS IS CRITICAL:
 - The `body` overview must describe what is happening NOW, anchored to `recent_news`. Only treat something as "recent"/"this week" if its `date` is within ~4 days of `today`.
 - NEVER reference a date that is not present in `recent_news`. NEVER invent "as of <month>" phrasing. If the freshest item is old, say coverage has quieted rather than implying fresh activity.
 
+ANOMALY ALIGNMENT:
+- The payload may include `anomaly_digest` when this stock is one of today's unusual movers.
+- If `anomaly_digest.confidence` is "high" or "medium", treat its headline and why_it_matters as the primary explanation for today's move. Your headline/body should not contradict it.
+- Use `recent_news` to add detail, but do not replace a high-confidence anomaly explanation with a different weaker angle.
+- If `anomaly_digest` says earnings/guidance/deal/approval drove the move, the body should lead with that event unless `recent_news` clearly disproves it.
+
 REDDIT BUZZ - USE AS A SENTIMENT SIGNAL, NOT FACT:
 - The payload may include `reddit_buzz` with retail `sentiment`, a `context` blurb, `mentions` count, and `catalysts`. This is crowd chatter, not verified reporting.
 - You may use it to color the overview ("retail buzz is spiking, leaning bullish") and to inform the directive's confidence. NEVER quote a Reddit claim as fact and NEVER invent a number or event from it. If it conflicts with the news, trust the news.
@@ -707,6 +714,7 @@ def _llm_synthesize_brief(
     recent_news: list[dict[str, Any]] | None = None,
     reddit: dict[str, Any] | None = None,
     earnings: dict[str, Any] | None = None,
+    anomaly_digest: dict[str, Any] | None = None,
     previous_directive: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, str] | None:
@@ -739,6 +747,8 @@ def _llm_synthesize_brief(
         payload["reddit_buzz"] = reddit
     if earnings:
         payload["earnings"] = earnings
+    if anomaly_digest:
+        payload["anomaly_digest"] = anomaly_digest
     if previous_directive:
         payload["previous_directive"] = previous_directive
     if price_context:
@@ -898,6 +908,7 @@ def generate_no_news_brief(
     intel_pro_doc: dict[str, Any] | None,
     avg_volume: float | None = None,
     store: Any | None = None,
+    history_points: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """Generate an LLM brief for stocks with no news coverage.
 
@@ -1009,6 +1020,7 @@ def build_no_news_intelligence_doc(
     intel_pro_doc: dict[str, Any] | None,
     avg_volume: float | None = None,
     store: Any | None = None,
+    history_points: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """Package a no-news LLM brief into the same shape as
     `build_stock_intelligence_docs` produces, so it can be saved to
@@ -1055,7 +1067,28 @@ def build_no_news_intelligence_doc(
     if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
         directive = _repair_directive(dict(raw_directive), current_price=current_price)
 
-    return {
+    previous_v2 = None
+    anomaly_doc = None
+    if store is not None:
+        try:
+            prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id)
+            previous_v2 = (prev_doc or {}).get("directive_v2")
+            if not isinstance(previous_v2, dict):
+                previous_v2 = None
+        except Exception:
+            previous_v2 = None
+        try:
+            ticker = str(instrument.get("ticker") or "").strip().upper()
+            anomaly_doc = store.get_daily_anomaly_ticker_docs_batch(market, [ticker]).get(f"{market.upper()}__{ticker}")
+        except Exception:
+            anomaly_doc = None
+
+    visual_cards = _visual_cards(
+        drivers=drivers,
+        catalyst_cards=catalyst_cards,
+        risk_cards=risk_cards,
+    )
+    doc = {
         "instrument_id": instrument_id,
         "market": market,
         "universe_id": universe_id,
@@ -1068,13 +1101,14 @@ def build_no_news_intelligence_doc(
         "catalyst": catalyst,
         "risk": risk,
         "key_points": key_findings,
-        "visual_summary": {
-            "drivers": drivers,
-            "catalyst_cards": catalyst_cards,
-            "risk_cards": risk_cards,
-        },
+        "visual_summary": visual_cards,
+        "visual_cards": visual_cards,
         "directive": directive,
         "current_price": current_price,
+        "fundamentals": _summarize_intel_pro(intel_pro_doc),
+        "price_context": _summarize_price_context(latest_price_doc, technical_doc, history_points),
+        "news_digest": {},
+        "anomaly_digest": _build_anomaly_digest(anomaly_doc),
         "overall_label": "neutral",
         "overall_score": 50,
         "lanes": [
@@ -1109,6 +1143,8 @@ def build_no_news_intelligence_doc(
             "no_news_fallback": True,
         },
     }
+    doc["directive_v2"] = build_directive_v2(doc, previous_v2=previous_v2)
+    return doc
 
 
 PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You produce structured intelligence cards for a premium market app dashboard. Think Bloomberg Terminal meets Morning Brew - each card is a discrete, punchy insight.
@@ -3213,6 +3249,9 @@ def build_stock_intelligence_docs(
 
         reddit_ctx = reddit_by_ticker.get(str(instrument["ticker"]).upper())
         earnings_ctx = earnings_by_id.get(instrument_id)
+        anomaly_digest = _build_anomaly_digest(
+            anomaly_by_doc_id.get(f"{market.upper()}__{str(instrument['ticker']).upper()}")
+        )
         prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id) if store else None
         previous_directive = (prev_doc or {}).get("directive")
         if not isinstance(previous_directive, dict) or not str(previous_directive.get("text", "")).strip():
@@ -3240,6 +3279,7 @@ def build_stock_intelligence_docs(
             recent_news=recent_news,
             reddit=reddit_ctx,
             earnings=earnings_ctx,
+            anomaly_digest=anomaly_digest,
             previous_directive=previous_directive,
             store=store,
         )
@@ -3506,9 +3546,7 @@ def build_stock_intelligence_docs(
                 },
                 freshness_hours=freshness_hours,
             ),
-            "anomaly_digest": _build_anomaly_digest(
-                anomaly_by_doc_id.get(f"{market.upper()}__{str(instrument['ticker']).upper()}")
-            ),
+            "anomaly_digest": anomaly_digest,
             "options_digest": options_by_id.get(instrument_id),
             "overall_label": label,
             "overall_score": score,

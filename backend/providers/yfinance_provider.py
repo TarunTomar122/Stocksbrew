@@ -157,18 +157,99 @@ def _consensus_label(info: dict[str, Any]) -> str:
     return ""
 
 
+def _download_symbol_frame(frame: Any, symbol: str, *, single: bool) -> Any:
+    if single:
+        return frame
+    try:
+        return frame.xs(symbol, level="Ticker", axis=1)
+    except (KeyError, TypeError, ValueError):
+        pass
+    try:
+        return frame[symbol]
+    except (KeyError, TypeError):
+        return None
+
+
+def _batch_download_frames(symbols: list[str], *, period: str, interval: str, prepost: bool = False) -> dict[str, Any]:
+    if not symbols:
+        return {}
+    try:
+        frame = yf.download(
+            tickers=symbols,
+            period=period,
+            interval=interval,
+            auto_adjust=False,
+            group_by="ticker",
+            threads=True,
+            progress=False,
+            prepost=prepost,
+        )
+    except Exception as exc:
+        print(f"[yfinance batch download failed] {period}/{interval}: {exc}")
+        return {}
+
+    single = len(symbols) == 1
+    out: dict[str, Any] = {}
+    for symbol in symbols:
+        symbol_frame = _download_symbol_frame(frame, symbol, single=single)
+        if symbol_frame is not None and not getattr(symbol_frame, "empty", True):
+            out[symbol] = symbol_frame
+    return out
+
+
+def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
+    """Cheap live-ish quote rows without Yahoo .info."""
+    daily_by_symbol = _batch_download_frames(symbols, period="5d", interval="1d")
+    intraday_by_symbol = _batch_download_frames(symbols, period="1d", interval="1m")
+    rows: dict[str, dict[str, Any]] = {}
+
+    for symbol in symbols:
+        daily = daily_by_symbol.get(symbol)
+        if daily is None:
+            continue
+        hist_current, prev_close, open_price, high, low, volume, daily_at = _history_metrics(daily)
+        current = hist_current
+        captured_at = daily_at
+
+        intraday = intraday_by_symbol.get(symbol)
+        if intraday is not None and not getattr(intraday, "empty", True):
+            latest = intraday.iloc[-1]
+            intraday_current = _finite_positive(latest.get("Close"))
+            if intraday_current:
+                current = intraday_current
+                captured = getattr(latest.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
+                if captured.tzinfo is None:
+                    captured = captured.replace(tzinfo=timezone.utc)
+                captured_at = captured.astimezone(timezone.utc).isoformat()
+
+        day_change_abs = current - prev_close if prev_close else 0.0
+        day_change_pct = ((day_change_abs / prev_close) * 100.0) if prev_close else 0.0
+        rows[symbol] = {
+            "current": current,
+            "day_change_abs": round(day_change_abs, 4),
+            "day_change_pct": round(day_change_pct, 2),
+            "open": open_price,
+            "high": high,
+            "low": low,
+            "previous_close": prev_close,
+            "volume": volume,
+            "captured_at": captured_at,
+        }
+    return rows
+
+
 class YFinanceClient:
     def __init__(self, max_workers: int = 6, max_retries: int = 2, retry_backoff_s: float = 0.5) -> None:
         self.max_workers = max(1, max_workers)
         self.max_retries = max(0, max_retries)
         self.retry_backoff_s = max(0.0, retry_backoff_s)
 
-    def _fetch_one_with_retry(self, instrument: dict[str, Any]) -> dict[str, Any]:
+    def _fetch_one_with_retry(self, instrument: dict[str, Any], history: Any | None = None) -> dict[str, Any]:
         last_exc: Exception | None = None
         attempts = self.max_retries + 1
         for attempt in range(1, attempts + 1):
             try:
-                return self._fetch_one(instrument)
+                return self._fetch_one(instrument, history)
             except Exception as exc:
                 last_exc = exc
                 if attempt < attempts:
@@ -177,10 +258,11 @@ class YFinanceClient:
             raise RuntimeError("unknown yfinance fetch failure")
         raise last_exc
 
-    def _fetch_one(self, instrument: dict[str, Any]) -> dict[str, Any]:
+    def _fetch_one(self, instrument: dict[str, Any], history: Any | None = None) -> dict[str, Any]:
         yahoo_symbol = yahoo_symbol_for(instrument)
         ticker = yf.Ticker(yahoo_symbol)
-        history = ticker.history(period="5d", interval="1d", auto_adjust=False)
+        if history is None:
+            history = ticker.history(period="5d", interval="1d", auto_adjust=False)
         hist_current, hist_prev, hist_open, hist_high, hist_low, hist_volume, hist_captured_at = _history_metrics(history)
         fast_info = getattr(ticker, "fast_info", None)
         info = ticker.info or {}
@@ -263,12 +345,53 @@ class YFinanceClient:
             },
         }
 
-    def fetch_quotes(self, instruments: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def fetch_quotes(
+        self,
+        instruments: list[dict[str, Any]],
+        *,
+        include_fundamentals: bool = True,
+    ) -> dict[str, dict[str, Any]]:
         if not instruments:
             return {}
+        if not include_fundamentals:
+            symbol_to_instrument = {yahoo_symbol_for(instrument): instrument for instrument in instruments}
+            quote_rows = _batch_download_quote_only(list(symbol_to_instrument.keys()))
+            rows: dict[str, dict[str, Any]] = {}
+            for yahoo_symbol, instrument in symbol_to_instrument.items():
+                quote = quote_rows.get(yahoo_symbol)
+                if quote is None:
+                    try:
+                        payload = self._fetch_one_with_retry(instrument)
+                    except Exception as exc:
+                        print(f"yfinance fallback fetch failed for {instrument.get('instrument_id')}: {exc}")
+                        continue
+                    payload.pop("fundamentals", None)
+                    payload.pop("analyst_consensus", None)
+                    rows[instrument["instrument_id"]] = payload
+                    continue
+                rows[instrument["instrument_id"]] = {
+                    "symbol": str(instrument.get("ticker", yahoo_symbol)),
+                    "yahoo_symbol": yahoo_symbol,
+                    "name": instrument.get("name", ""),
+                    "exchange": instrument.get("exchange", ""),
+                    "currency": instrument.get("currency", "USD"),
+                    "captured_at": quote["captured_at"],
+                    "quote": quote,
+                }
+            return rows
+
+        history_by_symbol = _batch_download_frames(
+            [yahoo_symbol_for(instrument) for instrument in instruments],
+            period="5d",
+            interval="1d",
+        )
         rows: dict[str, dict[str, Any]] = {}
         with ThreadPoolExecutor(max_workers=min(self.max_workers, len(instruments))) as executor:
-            futures = {executor.submit(self._fetch_one_with_retry, instrument): instrument for instrument in instruments}
+            futures = {}
+            for instrument in instruments:
+                yahoo_symbol = yahoo_symbol_for(instrument)
+                history = history_by_symbol.get(yahoo_symbol)
+                futures[executor.submit(self._fetch_one_with_retry, instrument, history)] = instrument
             for future in as_completed(futures):
                 instrument = futures[future]
                 try:
@@ -281,27 +404,7 @@ class YFinanceClient:
         return rows
 
 
-def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[str, float]:
-    """Scorecard-only fundamentals pulled from Yahoo: Forward P/E, PEG,
-    analyst mean target, and an analyst buy % derived from `recommendationMean`.
-
-    Screener.in and Tickertape don't publish forward consensus for IN stocks,
-    so these fields used to render as "-" on the scorecard. Yahoo aggregates
-    them for most NSE tickers. Returns a dict with only the keys that parsed
-    cleanly - callers should treat absence as "not available", same as every
-    other scraper.
-    """
-    if market == "IN":
-        yahoo_symbol = f"{ticker_symbol.upper()}.NS"
-    else:
-        yahoo_symbol = ticker_symbol.upper()
-
-    try:
-        info = yf.Ticker(yahoo_symbol).info or {}
-    except Exception as exc:  # yfinance raises on transient network hiccups
-        print(f"  [yfinance fail] {ticker_symbol}: {exc}")
-        return {}
-
+def _scorecard_from_info(info: dict[str, Any]) -> dict[str, float]:
     out: dict[str, float] = {}
 
     def _set(canonical: str, raw: Any) -> None:
@@ -319,13 +422,8 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
     _set("peg", info.get("trailingPegRatio"))
     _set("peg", info.get("pegRatio"))  # fallback if trailingPeg missing
     _set("target_price", info.get("targetMeanPrice"))
-    # Trend card inputs - Yahoo pre-computes the 50D / 200D moving averages
-    # so we don't have to carry >200 sessions of price history per instrument.
-    # We also grab beta for the same cheap-`.info`-read reason.
     _set("fifty_day_average", info.get("fiftyDayAverage"))
     _set("two_hundred_day_average", info.get("twoHundredDayAverage"))
-    # Beta can legitimately be negative (inverse ETFs, hedges) or near zero
-    # (stable utilities), so we don't use `_set` - it would drop those.
     beta_raw = info.get("beta")
     if beta_raw not in (None, "", "null"):
         try:
@@ -333,9 +431,6 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
         except (TypeError, ValueError):
             pass
 
-    # Yahoo's `recommendationMean` is 1=strong buy, 5=strong sell. Linearly
-    # map 1 → 100 and 5 → 0 so the momentum pillar's `analyst_buy_pct` curve
-    # (already defined in stock_scoring.py) gets a usable value for IN stocks.
     mean = info.get("recommendationMean")
     if mean not in (None, "", "null"):
         try:
@@ -348,6 +443,66 @@ def fetch_yfinance_scorecard_metrics(ticker_symbol: str, market: str) -> dict[st
     return out
 
 
+def fetch_yfinance_scorecard_metrics(
+    ticker_symbol: str,
+    market: str,
+    *,
+    info: dict[str, Any] | None = None,
+) -> dict[str, float]:
+    """Scorecard-only fundamentals pulled from Yahoo: Forward P/E, PEG,
+    analyst mean target, and an analyst buy % derived from `recommendationMean`.
+
+    Screener.in and Tickertape don't publish forward consensus for IN stocks,
+    so these fields used to render as "-" on the scorecard. Yahoo aggregates
+    them for most NSE tickers. Returns a dict with only the keys that parsed
+    cleanly - callers should treat absence as "not available", same as every
+    other scraper.
+    """
+    if info is None:
+        if market == "IN":
+            yahoo_symbol = f"{ticker_symbol.upper()}.NS"
+        else:
+            yahoo_symbol = ticker_symbol.upper()
+        try:
+            info = yf.Ticker(yahoo_symbol).info or {}
+        except Exception as exc:  # yfinance raises on transient network hiccups
+            print(f"  [yfinance fail] {ticker_symbol}: {exc}")
+            return {}
+
+    return _scorecard_from_info(info)
+
+
+def fetch_yfinance_scorecard_metrics_batch(
+    instruments: list[dict[str, Any]],
+    *,
+    max_workers: int = 8,
+) -> dict[str, dict[str, float]]:
+    if not instruments:
+        return {}
+
+    def _one(instrument: dict[str, Any]) -> tuple[str, dict[str, float]]:
+        instrument_id = instrument["instrument_id"]
+        try:
+            info = yf.Ticker(yahoo_symbol_for(instrument)).info or {}
+        except Exception:
+            return instrument_id, {}
+        return instrument_id, _scorecard_from_info(info)
+
+    rows: dict[str, dict[str, float]] = {}
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(instruments))) as executor:
+        futures = {executor.submit(_one, instrument): instrument for instrument in instruments}
+        for future in as_completed(futures):
+            instrument = futures[future]
+            try:
+                instrument_id, metrics = future.result()
+            except Exception as exc:
+                print(f"  [yfinance fail] {instrument.get('ticker')}: {exc}")
+                continue
+            if metrics:
+                rows[instrument_id] = metrics
+    return rows
+
+
 def fetch_premarket_quotes(
     instruments: list[dict[str, Any]],
     *,
@@ -355,9 +510,8 @@ def fetch_premarket_quotes(
 ) -> dict[str, dict[str, Any]]:
     """Fetch pre-market quotes for a focused set of instruments.
 
-    Yahoo's `.info` payload carries pre-market fields during the pre-market
-    session (marketState == "PRE"). Outside that window, or for illiquid names
-    with no pre-market print, preMarketPrice is None and the name is skipped.
+    Yahoo's pre/post intraday bars carry pre-market prints without one `.info`
+    request per ticker.
 
     Returns {instrument_id: {ticker, pre_market_price, previous_close,
     pre_market_change_pct, market_state, captured_at}} for names that actually
@@ -366,47 +520,46 @@ def fetch_premarket_quotes(
     if not instruments:
         return {}
 
-    def _one(instrument: dict[str, Any]) -> dict[str, Any] | None:
-        yahoo_symbol = yahoo_symbol_for(instrument)
-        try:
-            info = yf.Ticker(yahoo_symbol).info or {}
-        except Exception:
-            return None
-        state = str(info.get("marketState") or "")
-        pre = _to_float(info.get("preMarketPrice"), default=0.0)
-        if pre <= 0:
-            return None
-        prev_close = _to_float(info.get("regularMarketPreviousClose")) or _to_float(
-            info.get("previousClose")
-        )
+    symbol_to_instrument = {yahoo_symbol_for(instrument): instrument for instrument in instruments}
+    symbols = list(symbol_to_instrument.keys())
+    daily_by_symbol = _batch_download_frames(symbols, period="5d", interval="1d")
+    intraday_by_symbol = _batch_download_frames(symbols, period="1d", interval="1m", prepost=True)
+    rows: dict[str, dict[str, Any]] = {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+    today = datetime.now(timezone.utc).date()
+
+    for symbol, instrument in symbol_to_instrument.items():
+        daily = daily_by_symbol.get(symbol)
+        intraday = intraday_by_symbol.get(symbol)
+        if daily is None or intraday is None:
+            continue
+        _hist_current, prev_close, _open, _high, _low, _volume, _daily_at = _history_metrics(daily)
         if prev_close <= 0:
-            return None
-        # Prefer Yahoo's own pct, fall back to computing the gap ourselves.
-        pct = info.get("preMarketChangePercent")
-        try:
-            pct = float(pct)
-        except (TypeError, ValueError):
-            pct = ((pre - prev_close) / prev_close) * 100.0
-        return {
-            "ticker": str(instrument.get("ticker", yahoo_symbol)),
+            continue
+
+        frame = intraday.dropna(subset=["Close"]) if "Close" in intraday else intraday
+        if getattr(frame, "empty", True):
+            continue
+        latest = frame.iloc[-1]
+        captured = getattr(latest.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
+        if captured.tzinfo is None:
+            captured = captured.replace(tzinfo=timezone.utc)
+        captured_utc = captured.astimezone(timezone.utc)
+        if captured_utc.date() != today:
+            continue
+
+        pre = _to_float(latest.get("Close"), default=0.0)
+        if pre <= 0:
+            continue
+        pct = ((pre - prev_close) / prev_close) * 100.0
+        rows[instrument["instrument_id"]] = {
+            "ticker": str(instrument.get("ticker", symbol)),
             "pre_market_price": round(pre, 4),
             "previous_close": round(prev_close, 4),
             "pre_market_change_pct": round(pct, 2),
-            "market_state": state,
-            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "market_state": "PRE",
+            "captured_at": now_iso,
         }
-
-    rows: dict[str, dict[str, Any]] = {}
-    with ThreadPoolExecutor(max_workers=min(max_workers, len(instruments))) as executor:
-        futures = {executor.submit(_one, inst): inst for inst in instruments}
-        for future in as_completed(futures):
-            inst = futures[future]
-            try:
-                result = future.result()
-            except Exception:
-                result = None
-            if result:
-                rows[inst["instrument_id"]] = result
     return rows
 
 
@@ -433,33 +586,21 @@ def fetch_weekly_quotes(
     if not instruments:
         return {}
 
-    def _one(instrument: dict[str, Any]) -> dict[str, Any] | None:
-        yahoo_symbol = yahoo_symbol_for(instrument)
-        try:
-            history = yf.Ticker(yahoo_symbol).history(period="10d", interval="1d", auto_adjust=False)
-        except Exception:
-            return None
-        metrics = _weekly_change_from_history(history)
+    symbol_to_instrument = {yahoo_symbol_for(instrument): instrument for instrument in instruments}
+    history_by_symbol = _batch_download_frames(list(symbol_to_instrument.keys()), period="10d", interval="1d")
+    rows: dict[str, dict[str, Any]] = {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    for yahoo_symbol, instrument in symbol_to_instrument.items():
+        metrics = _weekly_change_from_history(history_by_symbol.get(yahoo_symbol))
         if metrics is None:
-            return None
+            continue
         price, week_start, pct = metrics
-        return {
+        rows[instrument["instrument_id"]] = {
             "ticker": str(instrument.get("ticker", yahoo_symbol)).strip().upper(),
             "price": round(price, 4),
             "week_start_price": round(week_start, 4),
             "week_change_pct": pct,
-            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "captured_at": now_iso,
         }
-
-    rows: dict[str, dict[str, Any]] = {}
-    with ThreadPoolExecutor(max_workers=min(max_workers, len(instruments))) as executor:
-        futures = {executor.submit(_one, inst): inst for inst in instruments}
-        for future in as_completed(futures):
-            inst = futures[future]
-            try:
-                result = future.result()
-            except Exception:
-                result = None
-            if result:
-                rows[inst["instrument_id"]] = result
     return rows

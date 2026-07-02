@@ -562,7 +562,7 @@ export async function getStockIntelPro(
 
   if (!docs.length) return null;
 
-  const primary = docs[0];
+  const primary = docs.sort((a, b) => stockIntelQualityScore(b) - stockIntelQualityScore(a))[0];
   const sectorSource =
     docs.find((row) => Boolean(sectorSlugForIntel(row, instrument))) ??
     docs.find((row) => Boolean(row.sector_slug || row.sector_label)) ??
@@ -590,6 +590,17 @@ export async function getStockIntelPro(
     sector_label,
     industry_label,
   };
+}
+
+function stockIntelQualityScore(row: StockIntelPro): number {
+  const overall = Number(row.overall?.score ?? 0);
+  const pillars = Object.values(row.pillars ?? {});
+  const scoredPillars = pillars.filter((pillar) => Number(pillar?.score ?? 0) > 0).length;
+  const scoredMetrics = pillars.reduce((count, pillar) => {
+    const metrics = Array.isArray(pillar?.metrics) ? pillar.metrics : [];
+    return count + metrics.filter((metric) => typeof metric.score === "number").length;
+  }, 0);
+  return scoredPillars * 1000 + scoredMetrics * 10 + overall;
 }
 
 function intelHasCompositeScore(intel: StockIntelPro): boolean {

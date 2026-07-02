@@ -309,12 +309,17 @@ class TraceMoneyStore:
             if len(window) > self.PRICE_HISTORY_WINDOW_MAX:
                 window = window[-self.PRICE_HISTORY_WINDOW_MAX:]
 
-        latest_ref.set({
+        latest_payload = {
             **new_point,
             "history_window": window,
             "history_window_size": len(window),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, merge=True)
+        }
+        for key in ("fundamentals", "analyst_consensus"):
+            if latest_payload.get(key) in (None, {}) and key in existing_data:
+                latest_payload[key] = existing_data[key]
+
+        latest_ref.set(latest_payload, merge=True)
 
     def save_price_snapshots_bulk(self, payloads: list[dict[str, Any]]) -> int:
         """Bulk variant of save_price_snapshot.
@@ -347,15 +352,16 @@ class TraceMoneyStore:
                 window.append(new_point)
                 if len(window) > self.PRICE_HISTORY_WINDOW_MAX:
                     window = window[-self.PRICE_HISTORY_WINDOW_MAX:]
-            pending.append((
-                latest_collection.document(instrument_id),
-                {
-                    **new_point,
-                    "history_window": window,
-                    "history_window_size": len(window),
-                    "updated_at": updated_at,
-                },
-            ))
+            latest_payload = {
+                **new_point,
+                "history_window": window,
+                "history_window_size": len(window),
+                "updated_at": updated_at,
+            }
+            for key in ("fundamentals", "analyst_consensus"):
+                if latest_payload.get(key) in (None, {}) and key in existing_data:
+                    latest_payload[key] = existing_data[key]
+            pending.append((latest_collection.document(instrument_id), latest_payload))
 
         saved = 0
         for start in range(0, len(pending), 450):

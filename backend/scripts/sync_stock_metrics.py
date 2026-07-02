@@ -16,7 +16,7 @@ from typing import Any
 
 from backend.fundamentals_scraper import fetch_finviz_quotes, fetch_zacks_quote
 from backend.instrument_universe import list_instruments
-from backend.providers.yfinance_provider import fetch_yfinance_scorecard_metrics
+from backend.providers.yfinance_provider import fetch_yfinance_scorecard_metrics_batch
 from backend.screener_scraper import fetch_screener_quote
 from backend.sector_slugs import resolve_sector_fields
 from backend.storage import TraceMoneyStore
@@ -59,6 +59,42 @@ def _resolve_instruments(
                 continue
             resolved.append(row)
     return resolved
+
+
+def _metric_count(payload: dict[str, Any] | None) -> int:
+    metrics = (payload or {}).get("metrics") or {}
+    if not isinstance(metrics, dict):
+        return 0
+    return sum(1 for value in metrics.values() if value not in (None, "", "null"))
+
+
+def _merge_sparse_us_snapshot(payload: dict[str, Any], previous: dict[str, Any] | None) -> dict[str, Any]:
+    if _metric_count(payload) >= 12 or _metric_count(previous) < 12:
+        return payload
+    merged = dict(previous or {})
+    merged.update({
+        key: value
+        for key, value in payload.items()
+        if key not in {"metrics", "zacks_meta"}
+    })
+    merged["metrics"] = {**((previous or {}).get("metrics") or {}), **(payload.get("metrics") or {})}
+    merged["zacks_meta"] = {**((previous or {}).get("zacks_meta") or {}), **(payload.get("zacks_meta") or {})}
+    merged["source"] = "finviz+zacks+previous-rich-merge"
+    merged["sparse_source_metric_count"] = _metric_count(payload)
+    return merged
+
+
+def _latest_rich_stock_metrics_snapshot(store: TraceMoneyStore, instrument_id: str) -> dict[str, Any] | None:
+    docs = store.db.collection("tm_stock_metrics_history").document(instrument_id).collection("snapshots").stream()
+    rich: list[tuple[str, dict[str, Any]]] = []
+    for doc in docs:
+        payload = doc.to_dict() or {}
+        if _metric_count(payload) >= 12:
+            rich.append((doc.id, payload))
+    if not rich:
+        return None
+    rich.sort(key=lambda item: item[0], reverse=True)
+    return rich[0][1]
 
 
 def _sync_us(args: argparse.Namespace) -> None:
@@ -180,6 +216,8 @@ def _sync_us(args: argparse.Namespace) -> None:
     for payload in payloads:
         if not payload:
             continue
+        previous = _latest_rich_stock_metrics_snapshot(store, payload["instrument_id"])
+        payload = _merge_sparse_us_snapshot(payload, previous)
         store.save_stock_metrics_snapshot(payload["instrument_id"], snapshot_date, payload)
         saved += 1
         if saved == 1 or saved % 50 == 0:
@@ -228,6 +266,10 @@ def _sync_in(args: argparse.Namespace) -> None:
     captured_at = datetime.now(timezone.utc).isoformat()
 
     print(f"Fetching Screener + Tickertape fundamentals for {len(instruments)} IN tickers (pause={args.pause}s)...")
+    yahoo_metrics_by_id = fetch_yfinance_scorecard_metrics_batch(
+        instruments,
+        max_workers=args.max_workers,
+    )
 
     def build_payload(instrument: dict[str, Any]) -> dict[str, Any] | None:
         ticker = instrument["ticker"]
@@ -261,15 +303,9 @@ def _sync_in(args: argparse.Namespace) -> None:
             for k, v in tickertape.metrics.items():
                 merged.setdefault(k, v)  # Screener wins on conflicts (more accurate PE from consolidated)
 
-        # Yahoo fallback for fields IN-native sources don't publish: forward
-        # P/E, PEG, analyst mean target, and an analyst buy % derived from
-        # Yahoo's recommendationMean. Only fills gaps - never overwrites a
-        # value Screener/Tickertape already produced.
-        try:
-            yahoo_metrics = fetch_yfinance_scorecard_metrics(ticker, "IN")
-        except Exception as exc:
-            print(f"  [yfinance fail] {ticker}: {exc}")
-            yahoo_metrics = {}
+        # Yahoo fills fields IN-native sources don't publish. Fetch once per
+        # run in a bounded batch; never overwrite native source values.
+        yahoo_metrics = yahoo_metrics_by_id.get(instrument["instrument_id"], {})
         for k, v in yahoo_metrics.items():
             merged.setdefault(k, v)
 

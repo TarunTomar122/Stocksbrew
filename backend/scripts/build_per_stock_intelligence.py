@@ -22,7 +22,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from backend.instrument_universe import list_instruments
+from backend.instrument_universe import get_coverage_universe_id, list_instruments
 from backend.landing_metrics import build_stock_technical_doc
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_av import fetch_av_news_for_tickers
@@ -117,6 +117,43 @@ def _avg_volume_from_history(history_points: list[dict]) -> float | None:
     if not volumes:
         return None
     return sum(volumes) / len(volumes)
+
+
+def _intel_quality_score(doc: dict[str, Any] | None) -> float:
+    if not isinstance(doc, dict):
+        return 0.0
+    overall = doc.get("overall") or {}
+    try:
+        overall_score = float(overall.get("score") or 0) if isinstance(overall, dict) else 0.0
+    except (TypeError, ValueError):
+        overall_score = 0.0
+    pillars = doc.get("pillars") or {}
+    if not isinstance(pillars, dict):
+        return overall_score
+    scored_pillars = 0
+    scored_metrics = 0
+    for pillar in pillars.values():
+        if not isinstance(pillar, dict):
+            continue
+        try:
+            if float(pillar.get("score") or 0) > 0:
+                scored_pillars += 1
+        except (TypeError, ValueError):
+            pass
+        metrics = pillar.get("metrics") or []
+        if isinstance(metrics, list):
+            scored_metrics += sum(
+                1
+                for metric in metrics
+                if isinstance(metric, dict) and isinstance(metric.get("score"), (int, float))
+            )
+    return scored_pillars * 1000 + scored_metrics * 10 + overall_score
+
+
+def _prefer_better_intel_doc(current: dict[str, Any] | None, candidate: dict[str, Any] | None) -> dict[str, Any] | None:
+    if _intel_quality_score(candidate) > _intel_quality_score(current):
+        return candidate
+    return current
 
 
 def _chunked(values: list[dict[str, Any]], size: int) -> list[list[dict[str, Any]]]:
@@ -971,6 +1008,19 @@ def main() -> None:
         except Exception as exc:
             logger.warning("per_stock_intelligence could not load stock_intel_pro: %s", exc)
             print(f"[per-stock] warn: could not load stock_intel_pro docs: {exc}")
+        coverage_universe_id = get_coverage_universe_id(args.market)
+        if coverage_universe_id and coverage_universe_id != universe_id:
+            try:
+                for doc in store.list_stock_intel_pro(args.market, coverage_universe_id):
+                    if not isinstance(doc, dict) or not doc.get("instrument_id"):
+                        continue
+                    instrument_id = str(doc["instrument_id"]).strip().upper()
+                    intel_pro_by_id[instrument_id] = _prefer_better_intel_doc(
+                        intel_pro_by_id.get(instrument_id),
+                        doc,
+                    )
+            except Exception as exc:
+                logger.warning("per_stock_intelligence could not load coverage stock_intel_pro: %s", exc)
 
         as_of_date = datetime.now(timezone.utc).date().isoformat()
         no_news_docs = 0
@@ -998,6 +1048,7 @@ def main() -> None:
                 intel_pro_doc=intel_pro_by_id.get(instrument_id),
                 avg_volume=avg_volume,
                 store=store,
+                history_points=history,
             )
             if doc is None:
                 skipped += 1

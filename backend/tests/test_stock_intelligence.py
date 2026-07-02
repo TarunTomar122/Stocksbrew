@@ -9,6 +9,7 @@ from backend.stock_intelligence import (
     _repair_directive,
     _stock_market_regime,
     _summarize_price_context,
+    build_no_news_intelligence_doc,
     build_stock_intelligence_docs,
 )
 
@@ -525,6 +526,57 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(out[0]["event"], "Earnings setup")
         self.assertNotIn("Apr 22", out[0]["event"])
         self.assertNotIn("Apr 22", out[0]["window"])
+
+    def test_no_news_doc_matches_current_ui_contract(self) -> None:
+        class Store:
+            def get_stock_intelligence_doc(self, _market: str, _universe: str, _instrument_id: str) -> dict | None:
+                return {"directive_v2": {"action": {"label": "Hold here"}}}
+
+            def get_daily_anomaly_ticker_docs_batch(self, _market: str, _tickers: list[str]) -> dict:
+                return {
+                    "US__RDDT": {
+                        "date": "2026-07-01",
+                        "anomaly": {
+                            "direction": "up",
+                            "day_change_pct": 13.9,
+                            "move_explanation": {
+                                "headline": "Reddit beats earnings",
+                                "why_it_matters": "Guidance improved.",
+                                "confidence": "high",
+                            },
+                        },
+                    }
+                }
+
+        with patch(
+            "backend.stock_intelligence.generate_no_news_brief",
+            return_value={
+                "headline": "Reddit holds gains",
+                "body": "The setup remains constructive.",
+                "thesis": "Constructive setup",
+                "setup_state": "trend",
+                "drivers": [{"label": "Growth", "detail": "Revenue growth is strong.", "direction": "up"}],
+                "catalyst_cards": [],
+                "risk_cards": [{"risk": "Execution", "detail": "Execution risk remains."}],
+                "directive": {"text": "Hold here", "stance": "hold"},
+            },
+        ):
+            doc = build_no_news_intelligence_doc(
+                instrument={"instrument_id": "US_RDDT", "ticker": "RDDT", "name": "Reddit Inc"},
+                market="US",
+                universe_id="us_core_100",
+                latest_price_doc={"quote": {"current": 197.76, "day_change_pct": 13.9}},
+                technical_doc=None,
+                intel_pro_doc=None,
+                store=Store(),
+            )
+
+        self.assertIsNotNone(doc)
+        assert doc is not None
+        self.assertIn("directive_v2", doc)
+        self.assertEqual(doc["visual_cards"], doc["visual_summary"])
+        self.assertEqual(doc["anomaly_digest"]["headline"], "Reddit beats earnings")
+        self.assertEqual(doc["anomaly_digest"]["why_it_matters"], "Guidance improved.")
 
 
 if __name__ == "__main__":

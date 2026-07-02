@@ -464,7 +464,7 @@ export function StockDetail(props: Props) {
   const hist = (priceHistory ?? []).filter((p) => n(p.close));
   const hasChart = hist.length >= 5;
   const showLockedVerdict = !directive?.text && !subscribed;
-  const showVerdict = hasChart || directive?.text || lockedCall || showLockedVerdict;
+  const showVerdict = Boolean(directive?.text || lockedCall || showLockedVerdict);
 
   const finTiles = (
     [

@@ -58,6 +58,7 @@ def main() -> None:
         "--synthesis-only",
         "--synthesis-lookback-hours",
         "24",
+        "--include-no-news",
         "--per-stock-cap",
         str(args.per_stock_cap),
         "--broad-cap",
