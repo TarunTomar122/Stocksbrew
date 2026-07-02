@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any
 
@@ -9,10 +10,14 @@ from backend.env import load_backend_env
 
 load_backend_env()
 
+logger = logging.getLogger(__name__)
+
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_ENRICHMENT_MODEL = "qwen/qwen-2.5-7b-instruct"
 LLM_BRIEF_SOURCE = "llm"
 
 
@@ -25,19 +30,37 @@ def llm_provider() -> str:
     return "cerebras" if has_cerebras and not has_openai else "openai"
 
 
+def llm_enrichment_provider() -> str:
+    explicit = os.getenv("LLM_ENRICHMENT_PROVIDER", "").strip().lower()
+    if explicit:
+        return explicit
+    if os.getenv("OPENROUTER_API_KEY", "").strip():
+        return "openrouter"
+    return llm_provider()
+
+
 def is_llm_brief_source(source: str | None) -> bool:
     normalized = str(source or "").strip().lower()
     return normalized in {LLM_BRIEF_SOURCE, "mimo"}
 
 
 def llm_api_key() -> str:
-    """Return server-side LLM API key for the configured provider."""
+    """Return server-side LLM API key for brief/synthesis calls."""
     explicit = os.getenv("LLM_API_KEY", "").strip()
     if explicit:
         return explicit
     if llm_provider() == "cerebras":
         return os.getenv("CEREBRAS_API_KEY", "").strip()
     return os.getenv("OPENAI_API_KEY", "").strip()
+
+
+def llm_enrichment_api_key() -> str:
+    explicit = os.getenv("LLM_ENRICHMENT_API_KEY", "").strip()
+    if explicit:
+        return explicit
+    if llm_enrichment_provider() == "openrouter":
+        return os.getenv("OPENROUTER_API_KEY", "").strip()
+    return llm_api_key()
 
 
 def llm_api_url() -> str:
@@ -49,14 +72,32 @@ def llm_api_url() -> str:
     return OPENAI_API_URL
 
 
+def llm_enrichment_api_url() -> str:
+    explicit = os.getenv("LLM_ENRICHMENT_API_URL", "").strip()
+    if explicit:
+        return explicit
+    if llm_enrichment_provider() == "openrouter":
+        return os.getenv("OPENROUTER_API_URL", "").strip() or OPENROUTER_API_URL
+    return llm_api_url()
+
+
 def llm_model(default: str | None = None) -> str:
-    """Return model name used for cache keys and API calls."""
+    """Return model name used for brief/synthesis cache keys and API calls."""
     explicit = os.getenv("LLM_MODEL", "").strip()
     if explicit:
         return explicit
     if llm_provider() == "cerebras":
         return os.getenv("CEREBRAS_MODEL", "").strip() or default or CEREBRAS_DEFAULT_MODEL
     return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
+
+
+def llm_enrichment_model(default: str | None = None) -> str:
+    explicit = os.getenv("LLM_ENRICHMENT_MODEL", "").strip()
+    if explicit:
+        return explicit
+    if llm_enrichment_provider() == "openrouter":
+        return default or DEFAULT_ENRICHMENT_MODEL
+    return llm_model(default)
 
 
 def require_llm_api_key() -> str:
@@ -66,11 +107,26 @@ def require_llm_api_key() -> str:
     return api_key
 
 
+def require_llm_enrichment_api_key() -> str:
+    api_key = llm_enrichment_api_key()
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY or LLM_ENRICHMENT_API_KEY is required for article enrichment")
+    return api_key
+
+
 def llm_headers(api_key: str) -> dict[str, str]:
     return {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+
+
+def llm_enrichment_headers(api_key: str) -> dict[str, str]:
+    headers = llm_headers(api_key)
+    if llm_enrichment_provider() == "openrouter":
+        headers["HTTP-Referer"] = os.getenv("OPENROUTER_HTTP_REFERER", "https://tikrr.app").strip() or "https://tikrr.app"
+        headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME", "tikrr-article-enrichment").strip() or "tikrr-article-enrichment"
+    return headers
 
 
 def json_response_format() -> dict[str, str]:
@@ -117,3 +173,27 @@ def parse_json_content(content: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise ValueError("LLM response was not a JSON object")
     return parsed
+
+
+def log_llm_call(
+    *,
+    stage: str,
+    provider: str,
+    model: str,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    cache_hit: bool,
+    cost_usd: float | None = None,
+    extra: str = "",
+) -> None:
+    logger.info(
+        "llm_call stage=%s provider=%s model=%s input_tokens=%s output_tokens=%s cache_hit=%s cost_usd=%s%s",
+        stage,
+        provider,
+        model,
+        input_tokens if input_tokens is not None else "",
+        output_tokens if output_tokens is not None else "",
+        cache_hit,
+        cost_usd if cost_usd is not None else "",
+        f" {extra}" if extra else "",
+    )

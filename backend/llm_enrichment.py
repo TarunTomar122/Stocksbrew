@@ -15,15 +15,18 @@ import requests
 from backend.coverage_mode import coverage_modes_for_source_id, derive_coverage_mode
 from backend.env import load_backend_env
 from backend.llm_client import (
-    llm_api_url,
     json_response_format,
-    llm_api_key,
-    llm_headers,
-    llm_model,
+    llm_enrichment_api_key,
+    llm_enrichment_api_url,
+    llm_enrichment_headers,
+    llm_enrichment_model,
+    llm_enrichment_provider,
+    log_llm_call,
     parse_json_content,
     schema_system_prompt,
 )
-from backend.market_strategy import default_llm_concurrency, default_llm_model
+from backend.market_strategy import default_llm_concurrency
+from backend.url_extractor import article_needs_url_extract, extract_url, strip_html
 from backend.models import Article
 from backend.preferences import sector_label_map
 from backend.sentiment import label_sentiment
@@ -42,9 +45,8 @@ logger = logging.getLogger(__name__)
 load_backend_env()
 
 
-LLM_API_URL = llm_api_url()
-DEFAULT_MODEL = default_llm_model()
-CACHE_VERSION = "2026-03-26-llm-v3"
+DEFAULT_MODEL = llm_enrichment_model()
+CACHE_VERSION = "2026-07-02-slim-v1"
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
 
 
@@ -63,287 +65,177 @@ def _clean_points(values: list[str]) -> list[str]:
 
 def _response_schema() -> dict[str, Any]:
     return {
-        "name": "trace_money_article_enrichment",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "article_overview": {"type": "string"},
-                "article_key_points": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
-                "primary_event_type": {"type": "string"},
-                "numbers_mentioned": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
-                "overall_sentiment_score": {"type": "number"},
-                "entities": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "type": {"type": "string", "enum": ["stock", "sector", "market"]},
-                            "canonical_name": {"type": "string"},
-                            "ticker": {"type": "string"},
-                            "sector_id": {"type": "string"},
-                            "market_id": {"type": "string"},
-                            "sentiment_score": {"type": "number"},
-                            "confidence": {"type": "number"},
-                            "relevance": {"type": "number"},
-                            "mention_role": {"type": "string", "enum": ["primary", "secondary", "incidental"]},
-                            "what_happened": {"type": "string"},
-                            "why_it_matters": {"type": "string"},
-                            "bullish_points": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            },
-                            "risk_points": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            },
-                            "entity_overview": {"type": "string"},
-                            "entity_key_points": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            },
-                        },
-                        "required": [
-                            "type",
-                            "canonical_name",
-                            "ticker",
-                            "sector_id",
-                            "market_id",
-                            "sentiment_score",
-                            "confidence",
-                            "relevance",
-                            "mention_role",
-                            "what_happened",
-                            "why_it_matters",
-                            "bullish_points",
-                            "risk_points",
-                            "entity_overview",
-                            "entity_key_points",
-                        ],
-                        "additionalProperties": False,
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string"},
+            "key_points": {"type": "array", "items": {"type": "string"}},
+            "sentiment": {"type": "string", "enum": ["bullish", "bearish", "neutral"]},
+            "entities": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "relevance": {"type": "string", "enum": ["primary", "secondary"]},
+                        "facts": {"type": "array", "items": {"type": "string"}},
                     },
+                    "required": ["ticker", "relevance", "facts"],
                 },
             },
-            "required": [
-                "article_overview",
-                "article_key_points",
-                "primary_event_type",
-                "numbers_mentioned",
-                "overall_sentiment_score",
-                "entities",
-            ],
-            "additionalProperties": False,
         },
+        "required": ["summary", "key_points", "sentiment", "entities"],
     }
 
 
 def _system_prompt(market: str) -> str:
-    sector_map = sector_label_map().get(market, {})
-    market_map = market_bucket_map()
-    sector_lines = "\n".join([f"- {sector_id}: {label}" for sector_id, label in sector_map.items()])
-    market_lines = "\n".join([f"- {market_id}: {label}" for market_id, label in market_map.items()])
     market_name = "India" if market == "IN" else "United States"
     return (
-        "You enrich finance news for a market-intelligence feed.\n"
-        f"The article is about the {market_name} market.\n"
-        "Return strict JSON only.\n"
-        "Extract every clearly relevant stock, sector, or market bucket mentioned in the provided text.\n"
-        "Return at least one usable entity for every article.\n"
-        "If no specific stock or sector is clearly relevant, you must return a market entity.\n"
-        "If the article is broad, generic, or only loosely equity-related, use market_id `general-market-updates`.\n"
-        "Entities must never be empty.\n"
-        "Do not invent entities. If a ticker is unclear, leave ticker as an empty string.\n"
-        "Classify each stock mention as primary, secondary, or incidental.\n"
-        "Only use primary when the article is materially about that stock.\n"
-        "Use incidental when the stock is just a passing mention.\n"
-        "For sectors, use only the allowed sector ids below. If none apply, leave sector_id as an empty string.\n"
-        "For market buckets, use only the allowed market ids below. If none apply, leave market_id as an empty string.\n"
-        "Sentiment must be entity-specific and on a scale from -1 to 1.\n"
-        "Use confidence/relevance from 0 to 1.\n"
-        "Keep overviews concise and key points factual.\n"
-        "State what happened, why it matters, and include numbers only if they appear in the provided text.\n"
-        "Do not write generic finance filler like 'the company is a major player', 'strong position', 'well known for', or 'this could be important for investors'.\n"
-        "Do not describe a company in generic background terms unless that background fact is directly the news.\n"
-        "If the article does not contain a concrete fact for a field, use 'unknown' or an empty list.\n"
-        "For stock entities, `what_happened` must describe the actual event in the article, not a company description.\n"
-        "For stock entities, `why_it_matters` must explain the consequence or implication using facts from the article, not generic investing language.\n"
-        "For incidental mentions, keep `what_happened` short and factual, and prefer empty bullish/risk lists.\n"
-        "For articles about broad market conditions, indices (S&P 500, Dow, Nasdaq Composite), "
-        "Federal Reserve policy, macroeconomic data, or sector-wide trends, always include a 'market' type entity "
-        "with an appropriate market_id from the allowed list below, even if individual stocks are mentioned in passing. "
-        "If the article is primarily about the overall market rather than a specific company, make the market entity primary.\n"
-        "Allowed sector ids:\n"
-        f"{sector_lines}\n"
-        "Allowed market ids:\n"
-        f"{market_lines}"
+        "Extract factual finance-news metadata for a downstream stock-brief model.\n"
+        f"Market context: {market_name}.\n"
+        "Return strict JSON only. No prose outside JSON.\n"
+        "Rules:\n"
+        "- summary: one factual sentence.\n"
+        "- key_points: max 3 factual bullets with numbers only if present in text.\n"
+        "- sentiment: article-level bullish|bearish|neutral.\n"
+        "- entities: every clearly relevant stock ticker mentioned.\n"
+        "- relevance primary only when the article is mainly about that ticker.\n"
+        "- facts: max 2 short factual strings per ticker.\n"
+        "- Do not invent tickers or numbers.\n"
+        "- If no stock is clearly relevant, return one entity with ticker GENERAL and relevance primary."
     )
 
 
 def _repair_system_prompt(market: str) -> str:
     market_name = "India" if market == "IN" else "United States"
     return (
-        "You are repairing a failed finance-news extraction.\n"
-        f"The article is about the {market_name} market.\n"
-        "Return strict JSON only.\n"
-        "You must return at least one usable entity.\n"
-        "If a specific stock or sector is not confidently identifiable, return exactly one market entity with market_id `general-market-updates`.\n"
-        "Use confidence and relevance of at least 0.8 for that fallback market entity.\n"
-        "Do not return an empty entities array.\n"
+        "Repair a failed finance-news extraction.\n"
+        f"Market context: {market_name}.\n"
+        "Return strict JSON only with at least one entity."
     )
-
-
-def _few_shot_messages() -> list[dict[str, str]]:
-    return [
-        {
-            "role": "user",
-            "content": json.dumps(
-                {
-                    "market": "US",
-                    "title": "AMD stock rises 7% after reports of CPU price hikes",
-                    "summary": "AMD and Intel shares jumped after reports that CPU prices are being raised amid stronger AI-related demand.",
-                    "body_text": "AMD and Intel shares rose after reports of CPU price hikes. The report said pricing is improving as demand linked to AI servers broadens beyond GPUs. AMD shares were up 7% in the session.",
-                    "source_name": "Example Finance",
-                    "published_at": "2026-03-26T05:09:00+00:00",
-                },
-                ensure_ascii=True,
-            ),
-        },
-        {
-            "role": "assistant",
-            "content": json.dumps(
-                {
-                    "article_overview": "AMD and Intel shares rose after reports of CPU price hikes tied to broader AI-server demand.",
-                    "article_key_points": [
-                        "AMD shares rose 7%.",
-                        "Reports pointed to CPU price hikes.",
-                        "Demand is broadening beyond GPUs into CPU-linked AI servers.",
-                    ],
-                    "primary_event_type": "price_move",
-                    "numbers_mentioned": ["7%"],
-                    "overall_sentiment_score": 0.68,
-                    "entities": [
-                        {
-                            "type": "stock",
-                            "canonical_name": "AMD",
-                            "ticker": "AMD",
-                            "sector_id": "semiconductors",
-                            "market_id": "",
-                            "sentiment_score": 0.7,
-                            "confidence": 0.92,
-                            "relevance": 0.97,
-                            "mention_role": "primary",
-                            "what_happened": "AMD shares rose 7% after reports of CPU price hikes.",
-                            "why_it_matters": "Higher CPU pricing and broader AI-server demand could support AMD revenue beyond GPU-only AI exposure.",
-                            "bullish_points": [
-                                "AMD shares rose 7%.",
-                                "CPU pricing improved as AI-server demand broadened."
-                            ],
-                            "risk_points": [],
-                            "entity_overview": "AMD shares rose on reports of stronger CPU pricing linked to AI demand.",
-                            "entity_key_points": [
-                                "AMD shares rose 7%.",
-                                "CPU pricing improved as AI-server demand broadened."
-                            ]
-                        }
-                    ],
-                },
-                ensure_ascii=True,
-            ),
-        },
-        {
-            "role": "user",
-            "content": json.dumps(
-                {
-                    "market": "US",
-                    "title": "Arm launches AI data-center chip with Meta as anchor customer",
-                    "summary": "Arm introduced a new AI chip and said Meta is the anchor customer.",
-                    "body_text": "Arm launched an AI-focused data-center chip. Meta is the anchor customer. Arm said the product could generate about $15 billion in annual revenue in roughly five years. AMD and Nvidia were mentioned as existing semiconductor competitors.",
-                    "source_name": "Example Finance",
-                    "published_at": "2026-03-26T07:00:00+00:00",
-                },
-                ensure_ascii=True,
-            ),
-        },
-        {
-            "role": "assistant",
-            "content": json.dumps(
-                {
-                    "article_overview": "Arm launched an AI data-center chip, named Meta as the anchor customer, and said the product could reach about $15 billion in annual revenue within five years.",
-                    "article_key_points": [
-                        "Arm launched an AI data-center chip.",
-                        "Meta is the anchor customer.",
-                        "Arm said the product could reach about $15 billion in annual revenue within five years."
-                    ],
-                    "primary_event_type": "product",
-                    "numbers_mentioned": ["$15 billion", "five years"],
-                    "overall_sentiment_score": 0.62,
-                    "entities": [
-                        {
-                            "type": "stock",
-                            "canonical_name": "Nvidia",
-                            "ticker": "NVDA",
-                            "sector_id": "semiconductors",
-                            "market_id": "",
-                            "sentiment_score": 0.0,
-                            "confidence": 0.78,
-                            "relevance": 0.55,
-                            "mention_role": "incidental",
-                            "what_happened": "Nvidia was mentioned only as an existing semiconductor competitor.",
-                            "why_it_matters": "unknown",
-                            "bullish_points": [],
-                            "risk_points": [],
-                            "entity_overview": "Nvidia is only a contextual competitor mention in this article.",
-                            "entity_key_points": []
-                        },
-                        {
-                            "type": "market",
-                            "canonical_name": "General market updates",
-                            "ticker": "",
-                            "sector_id": "",
-                            "market_id": "general-market-updates",
-                            "sentiment_score": 0.4,
-                            "confidence": 0.86,
-                            "relevance": 0.88,
-                            "mention_role": "primary",
-                            "what_happened": "Arm launched an AI data-center chip and named Meta as the anchor customer.",
-                            "why_it_matters": "The launch adds competition in AI data-center chips and carries a stated $15 billion revenue target over five years.",
-                            "bullish_points": [
-                                "Meta is the anchor customer.",
-                                "Arm cited a potential $15 billion annual revenue opportunity."
-                            ],
-                            "risk_points": [],
-                            "entity_overview": "The article is mainly about a new AI-chip product launch and its market implications.",
-                            "entity_key_points": [
-                                "Arm launched an AI data-center chip.",
-                                "Meta is the anchor customer.",
-                                "Arm cited a potential $15 billion annual revenue opportunity."
-                            ]
-                        }
-                    ],
-                },
-                ensure_ascii=True,
-            ),
-        },
-    ]
 
 
 def _user_prompt(article: Article) -> str:
     return json.dumps(
         {
             "market": article.market,
-            "title": article.title,
-            "summary": article.summary,
-            "body_text": article.body_text[:6000],
+            "title": strip_html(article.title),
+            "summary": strip_html(article.summary),
+            "body_text": strip_html(article.body_text)[:6000],
             "source_name": article.source_name,
             "published_at": article.published_at,
         },
         ensure_ascii=True,
+    )
+
+
+def _sentiment_to_score(label: str) -> float:
+    normalized = str(label or "").strip().lower()
+    if normalized == "bullish":
+        return 0.5
+    if normalized == "bearish":
+        return -0.5
+    return 0.0
+
+
+def normalize_enrichment_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if "article_overview" in payload:
+        return payload
+
+    sentiment_label = str(payload.get("sentiment") or "neutral").strip().lower()
+    overall = _sentiment_to_score(sentiment_label)
+    entities: list[dict[str, Any]] = []
+    for raw_entity in payload.get("entities") or []:
+        if not isinstance(raw_entity, dict):
+            continue
+        ticker = str(raw_entity.get("ticker") or "").strip().upper()
+        if not ticker or ticker == "GENERAL":
+            entities.append(
+                {
+                    "type": "market",
+                    "canonical_name": "General market updates",
+                    "ticker": "",
+                    "sector_id": "",
+                    "market_id": "general-market-updates",
+                    "sentiment_score": overall,
+                    "confidence": 0.85,
+                    "relevance": 0.9,
+                    "mention_role": "primary",
+                    "what_happened": str(payload.get("summary") or "").strip() or "unknown",
+                    "why_it_matters": "unknown",
+                    "bullish_points": _clean_points(list(payload.get("key_points") or [])),
+                    "risk_points": [],
+                    "entity_overview": str(payload.get("summary") or "").strip(),
+                    "entity_key_points": _clean_points(list(payload.get("key_points") or [])),
+                }
+            )
+            continue
+
+        relevance = str(raw_entity.get("relevance") or "secondary").strip().lower()
+        facts = _clean_points(list(raw_entity.get("facts") or []))[:2]
+        role = "primary" if relevance == "primary" else "secondary"
+        confidence = 0.92 if role == "primary" else 0.78
+        rel_score = 0.95 if role == "primary" else 0.72
+        entities.append(
+            {
+                "type": "stock",
+                "canonical_name": ticker,
+                "ticker": ticker,
+                "sector_id": "",
+                "market_id": "",
+                "sentiment_score": overall,
+                "confidence": confidence,
+                "relevance": rel_score,
+                "mention_role": role,
+                "what_happened": facts[0] if facts else str(payload.get("summary") or "").strip() or "unknown",
+                "why_it_matters": facts[1] if len(facts) > 1 else facts[0] if facts else "unknown",
+                "bullish_points": facts,
+                "risk_points": [],
+                "entity_overview": facts[0] if facts else str(payload.get("summary") or "").strip(),
+                "entity_key_points": facts,
+            }
+        )
+
+    if not entities:
+        raise ValueError("slim enrichment payload had no entities")
+
+    return {
+        "article_overview": str(payload.get("summary") or "").strip(),
+        "article_key_points": _clean_points(list(payload.get("key_points") or []))[:3],
+        "primary_event_type": "unknown",
+        "numbers_mentioned": [],
+        "overall_sentiment_score": overall,
+        "entities": entities,
+    }
+
+
+def _prepare_article_for_enrichment(article: Article) -> Article:
+    if not article.url or not article_needs_url_extract(
+        title=article.title,
+        summary=article.summary,
+        body_text=article.body_text,
+    ):
+        return replace(
+            article,
+            title=strip_html(article.title),
+            summary=strip_html(article.summary),
+            body_text=strip_html(article.body_text),
+        )
+
+    extracted = extract_url(article.url)
+    if extracted.status != "ok":
+        return replace(
+            article,
+            title=strip_html(article.title or extracted.title),
+            summary=strip_html(article.summary or extracted.summary),
+            body_text=strip_html(article.body_text or extracted.body_text),
+        )
+
+    return replace(
+        article,
+        title=strip_html(extracted.title or article.title),
+        summary=strip_html(extracted.summary or article.summary),
+        body_text=strip_html(extracted.body_text or article.body_text),
+        published_at=extracted.published_at or article.published_at,
     )
 
 
@@ -418,8 +310,8 @@ class OpenAIArticleEnricher:
         max_workers: int | None = None,
         store: TraceMoneyStore | None = None,
     ) -> None:
-        self.api_key = api_key or llm_api_key()
-        self.model = model or llm_model(DEFAULT_MODEL)
+        self.api_key = api_key or llm_enrichment_api_key()
+        self.model = model or llm_enrichment_model(DEFAULT_MODEL)
         self.timeout = timeout
         configured_workers = max_workers or default_llm_concurrency()
         self.max_workers = max(1, configured_workers)
@@ -433,20 +325,21 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("LLM_API_KEY, CEREBRAS_API_KEY, or OPENAI_API_KEY is required because heuristic enrichment has been removed")
+            raise ValueError("OPENROUTER_API_KEY or LLM_ENRICHMENT_API_KEY is required for article enrichment")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending: list[tuple[int, Article, str]] = []
         for index, article in enumerate(articles):
-            cache_key = self._cache_key(article)
+            prepared = _prepare_article_for_enrichment(article)
+            cache_key = self._cache_key(prepared)
             payload = self._get_cached_payload(cache_key)
             if payload is None:
-                pending.append((index, article, cache_key))
+                pending.append((index, prepared, cache_key))
                 continue
             try:
-                enriched[index] = apply_enrichment(article, payload)
+                enriched[index] = apply_enrichment(prepared, normalize_enrichment_payload(payload))
             except ValueError:
-                pending.append((index, article, cache_key))
+                pending.append((index, prepared, cache_key))
 
         if pending:
             with ThreadPoolExecutor(max_workers=min(self.max_workers, len(pending))) as executor:
@@ -458,7 +351,7 @@ class OpenAIArticleEnricher:
                     index, article, cache_key = future_map[future]
                     try:
                         enriched[index] = future.result()
-                    except Exception as exc:  # pragma: no cover - safety net for pipeline resilience
+                    except Exception as exc:
                         logger.error(
                             "LLM enrich terminal fallback market=%s source_id=%s err=%s url=%s",
                             article.market,
@@ -470,7 +363,6 @@ class OpenAIArticleEnricher:
                         try:
                             enriched[index] = apply_enrichment(article, fallback_payload)
                         except Exception:
-                            # Absolute last resort: keep a usable article shape and move on.
                             enriched[index] = replace(
                                 article,
                                 topic_key=f"market:{article.market}:macro",
@@ -499,7 +391,7 @@ class OpenAIArticleEnricher:
     def _request_payload(self, article: Article, repair: bool = False) -> dict[str, Any]:
         return {
             "model": self.model,
-            "temperature": 0.2,
+            "temperature": 0.1,
             "messages": [
                 {
                     "role": "system",
@@ -508,7 +400,6 @@ class OpenAIArticleEnricher:
                         _response_schema(),
                     ),
                 },
-                *([] if repair else _few_shot_messages()),
                 {"role": "user", "content": _user_prompt(article)},
             ],
             "response_format": json_response_format(),
@@ -526,12 +417,26 @@ class OpenAIArticleEnricher:
         for attempt in range(1, self.max_attempts + 1):
             try:
                 response = requests.post(
-                    LLM_API_URL,
-                    headers=llm_headers(self.api_key),
+                    llm_enrichment_api_url(),
+                    headers=llm_enrichment_headers(self.api_key),
                     json=self._request_payload(article, repair=repair),
                     timeout=self.timeout,
                 )
                 response.raise_for_status()
+                body = response.json()
+                usage = body.get("usage") if isinstance(body, dict) else {}
+                if not isinstance(usage, dict):
+                    usage = {}
+                log_llm_call(
+                    stage="article_enrichment",
+                    provider=llm_enrichment_provider(),
+                    model=self.model,
+                    input_tokens=usage.get("prompt_tokens"),
+                    output_tokens=usage.get("completion_tokens"),
+                    cache_hit=False,
+                    cost_usd=usage.get("cost"),
+                    extra=f"url={article.url}",
+                )
                 return response
             except Exception as error:
                 last_error = error
@@ -548,7 +453,7 @@ class OpenAIArticleEnricher:
                 time.sleep(min(2 ** (attempt - 1), 8))
         if last_error is not None:
             raise last_error
-        raise RuntimeError("OpenAI request failed without an error")
+        raise RuntimeError("LLM enrichment request failed without an error")
 
     def _cache_key(self, article: Article) -> str:
         fingerprint = "\n".join([
@@ -572,6 +477,14 @@ class OpenAIArticleEnricher:
 
     def _get_cached_payload(self, cache_key: str) -> dict[str, Any] | None:
         if cache_key in self._memory_cache:
+            log_llm_call(
+                stage="article_enrichment",
+                provider=llm_enrichment_provider(),
+                model=self.model,
+                input_tokens=0,
+                output_tokens=0,
+                cache_hit=True,
+            )
             return self._memory_cache[cache_key]
         store = self._ensure_store()
         if not store:
@@ -582,6 +495,14 @@ class OpenAIArticleEnricher:
         payload = cached.get("payload")
         if isinstance(payload, dict):
             self._memory_cache[cache_key] = payload
+            log_llm_call(
+                stage="article_enrichment",
+                provider=llm_enrichment_provider(),
+                model=self.model,
+                input_tokens=0,
+                output_tokens=0,
+                cache_hit=True,
+            )
             return payload
         return None
 
@@ -603,13 +524,13 @@ class OpenAIArticleEnricher:
         })
 
     def _enrich_article(self, article: Article, cache_key: str) -> Article:
-        """Parse failures and schema mismatches fall back to repair prompt, then heuristics."""
         recoverable = (ValueError, json.JSONDecodeError)
 
         try:
-            payload = self._extract(article, repair=False)
+            raw_payload = self._extract(article, repair=False)
+            payload = normalize_enrichment_payload(raw_payload)
             enriched = apply_enrichment(article, payload)
-            self._save_cached_payload(cache_key, article, payload)
+            self._save_cached_payload(cache_key, article, raw_payload)
             return enriched
         except recoverable as exc:
             logger.warning(
@@ -621,9 +542,10 @@ class OpenAIArticleEnricher:
             )
 
         try:
-            repaired_payload = self._extract(article, repair=True)
-            enriched = apply_enrichment(article, repaired_payload)
-            self._save_cached_payload(cache_key, article, repaired_payload)
+            raw_payload = self._extract(article, repair=True)
+            payload = normalize_enrichment_payload(raw_payload)
+            enriched = apply_enrichment(article, payload)
+            self._save_cached_payload(cache_key, article, raw_payload)
             return enriched
         except recoverable as exc:
             logger.warning(
@@ -645,6 +567,8 @@ class OpenAIArticleEnricher:
         enriched = apply_enrichment(article, fallback_payload)
         self._save_cached_payload(cache_key, article, fallback_payload)
         return enriched
+
+
 
 
 def apply_enrichment(article: Article, payload: dict[str, Any]) -> Article:

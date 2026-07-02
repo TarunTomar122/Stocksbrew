@@ -33,7 +33,6 @@ def main() -> None:
         "--paid-only",
         "--incremental",
         "--enrich-only",
-        "--grouped-stock-llm",
         "--upsert",
         "--per-stock-lookback-hours",
         str(max(4, args.lookback_hours)),

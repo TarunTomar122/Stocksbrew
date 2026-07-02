@@ -3047,14 +3047,10 @@ def build_stock_intelligence_docs(
             if instrument:
                 raw_articles_by_instrument[instrument["instrument_id"]].append(article)
 
-        grouped_mode = str(getattr(article, "enrichment_source", "")).strip().lower() == "grouped_stock_llm"
-        # Drop articles the enricher flagged as unscored - these are landing
-        # pages / listing URLs that the LLM couldn't extract substance from.
-        # Using the LLM's own quality signal instead of hardcoded title regexes.
-        if not grouped_mode and str(article.sentiment_label or "").lower() == "unscored":
+        if str(article.sentiment_label or "").lower() == "unscored":
             continue
         title_lower = str(getattr(article, "title", "") or "").lower()
-        if not grouped_mode and any(pattern in title_lower for pattern in thin_title_patterns):
+        if any(pattern in title_lower for pattern in thin_title_patterns):
             continue
         matched_ids: set[str] = set()
         for mention in article.entity_mentions:
@@ -3065,10 +3061,7 @@ def build_stock_intelligence_docs(
             ticker = str(mention.get("ticker", "")).upper().strip()
             instrument = instruments_by_ticker.get(ticker)
             quality_score = _article_quality_score(article, ticker)
-            if instrument and (
-                quality_score >= 25
-                or str(getattr(article, "enrichment_source", "")).strip().lower() == "grouped_stock_llm"
-            ):
+            if instrument and quality_score >= 25:
                 matched_ids.add(instrument["instrument_id"])
         for instrument_id in matched_ids:
             articles_by_instrument[instrument_id].append(article)
