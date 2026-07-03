@@ -49,6 +49,7 @@ def main() -> None:
     market_only = ["--market", args.market]
     universe_pair = ["--ai-universe", args.universe, "--price-universe", args.universe]
     _run([sys.executable, "-m", "backend.scripts.build_heat_list", *market_only, *universe_pair])
+    _run([sys.executable, "-m", "backend.scripts.build_interesting_stocks", *market_only, *universe_pair])
     _run([sys.executable, "-m", "backend.scripts.build_divergence", *market_only, *universe_pair])
     _run([sys.executable, "-m", "backend.scripts.build_sentiment_flip", *market_only, *universe_pair])
 

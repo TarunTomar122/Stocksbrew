@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import { ReturnsPriceChart } from "@/components/returns-price-chart";
 import { PRICE_HISTORY_CHART_MIN, type PriceHistoryPoint } from "@/lib/price-history-chart";
 import type { StockFacts, StockFundamentals } from "@/lib/stock";
@@ -450,12 +451,7 @@ export function StockFactsPanel({
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl tint-brand text-[#7c3aed]"
               aria-hidden
             >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 22, fontVariationSettings: "'wght' 500" }}
-              >
-                corporate_fare
-              </span>
+              <AnimatedIcon name="corporate_fare" size={22} aria-hidden />
             </span>
             <div className="flex min-w-0 flex-col gap-1">
               <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface md:text-[22px]">

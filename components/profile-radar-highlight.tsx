@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedIcon } from "@/components/animated-icon";
 
 export type ProfileRadarHighlightProps = {
   /** Number of tracked stocks (Radar / watchlist identifiers). Must be ≥ 0. */
@@ -27,13 +28,7 @@ export function ProfileRadarHighlight({ trackedCount }: ProfileRadarHighlightPro
 
         <div className="relative flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-outline-variant bg-surface">
-            <span
-              className="material-symbols-outlined text-[22px] text-landing-brand"
-              style={{ fontVariationSettings: "'wght' 500" }}
-              aria-hidden
-            >
-              radar
-            </span>
+            <AnimatedIcon name="radar" size={22} className="text-[22px] text-landing-brand" aria-hidden />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -65,13 +60,7 @@ export function ProfileRadarHighlight({ trackedCount }: ProfileRadarHighlightPro
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-on-surface px-5 py-3 text-[14px] font-semibold text-surface transition-opacity hover:opacity-90"
       >
         {hasStocks ? "Open Radar" : "Add your first stock"}
-        <span
-          className="material-symbols-outlined text-[18px]"
-          aria-hidden
-          style={{ fontVariationSettings: "'wght' 600" }}
-        >
-          arrow_forward
-        </span>
+        <AnimatedIcon name="arrow_forward" size={18} className="text-[18px]" aria-hidden />
       </Link>
     </div>
   );

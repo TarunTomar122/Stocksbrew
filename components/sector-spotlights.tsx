@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { SnapshotRow } from "@/lib/types";
@@ -169,12 +170,7 @@ function SectorCard({
           style={{ background: theme.bg, color: theme.fg }}
           aria-hidden
         >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 20, fontVariationSettings: "'wght' 500" }}
-          >
-            {theme.icon}
-          </span>
+          <AnimatedIcon name={theme.icon} size={20} aria-hidden />
         </div>
         <div className="flex flex-col min-w-0 flex-1">
           <span className="text-[14px] font-semibold text-[#111111] truncate tracking-[-0.01em]">

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import { StockAiDecisionCarousel } from "@/components/stock-ai-decision-carousel";
 import { StrategicDirectiveDemo } from "@/components/strategic-directive";
 import { SignalTileCard, type SignalTileModel } from "@/components/signal-tile";
@@ -129,12 +130,7 @@ export function ProLandingAiStrip() {
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
                 style={{ background: v.iconBg, color: v.iconFg }}
               >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 22, fontVariationSettings: "'wght' 600" }}
-                >
-                  {v.icon}
-                </span>
+                <AnimatedIcon name={v.icon} size={22} aria-hidden />
               </span>
             </div>
             <h4 className="text-[18px] font-semibold tracking-[-0.01em] text-[#111111] leading-snug">

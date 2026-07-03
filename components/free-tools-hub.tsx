@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 
 import { FaqSection } from "@/components/marketing/faq-section";
@@ -19,9 +20,7 @@ function FeaturedToolCard({ tool }: { tool: HubLink }) {
     >
       <div className="free-tools-featured-glow" aria-hidden />
       <span className="free-tools-card-icon free-tools-card-icon--lg">
-        <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'wght' 400" }}>
-          {tool.icon}
-        </span>
+        <AnimatedIcon name={tool.icon} size={22} aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <span className="free-tools-featured-label">Popular</span>
@@ -31,9 +30,7 @@ function FeaturedToolCard({ tool }: { tool: HubLink }) {
         <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">{tool.description}</p>
         <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-landing-brand">
           Open tool
-          <span className="material-symbols-outlined text-[16px] transition-transform group-hover:translate-x-0.5">
-            arrow_forward
-          </span>
+          <AnimatedIcon name="arrow_forward" size={16} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
         </span>
       </span>
     </Link>
@@ -48,9 +45,7 @@ function ToolCard({ tool }: { tool: HubLink }) {
       style={{ "--tool-accent": tool.accent } as CSSProperties}
     >
       <span className="free-tools-card-icon">
-        <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'wght' 400" }}>
-          {tool.icon}
-        </span>
+        <AnimatedIcon name={tool.icon} size={20} aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <h3 className="text-[15px] font-semibold text-on-surface group-hover:text-landing-brand transition-colors">
@@ -58,12 +53,12 @@ function ToolCard({ tool }: { tool: HubLink }) {
         </h3>
         <p className="mt-1 text-[13px] leading-relaxed text-on-surface-variant">{tool.description}</p>
       </span>
-      <span
-        className="material-symbols-outlined shrink-0 text-[18px] text-on-surface-variant/50 transition-all group-hover:translate-x-0.5 group-hover:text-landing-brand"
+      <AnimatedIcon
+        name="arrow_forward"
+        size={18}
+        className="shrink-0 text-on-surface-variant/50 transition-all group-hover:translate-x-0.5 group-hover:text-landing-brand"
         aria-hidden
-      >
-        arrow_forward
-      </span>
+      />
     </Link>
   );
 }

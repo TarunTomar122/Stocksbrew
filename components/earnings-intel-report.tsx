@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { EarningsIntelShare } from "@/components/earnings-intel-share";
@@ -139,11 +140,7 @@ function scenarioStyle(caseName: EarningsIntelScenario["case"], isLead: boolean)
 }
 
 function MaterialIcon({ name, className = "" }: { name: string; className?: string }) {
-  return (
-    <span className={`material-symbols-outlined text-[1.125rem] leading-none ${className}`}>
-      {name}
-    </span>
-  );
+  return <AnimatedIcon name={name} size={18} className={className} aria-hidden />;
 }
 
 function InsightCard({

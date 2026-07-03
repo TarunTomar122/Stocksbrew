@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -88,9 +90,7 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
       {/* Search input */}
       <div className="border-b border-[#e5e7eb] px-3 py-2">
         <div className="relative">
-          <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-[#9ca3af]">
-            search
-          </span>
+          <AnimatedIcon name="search" size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-[#9ca3af]" />
           <input
             type="text"
             placeholder="Name, email, plan…"
@@ -103,7 +103,7 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#111111]"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+              <AnimatedIcon name="close" size={14} />
             </button>
           )}
         </div>

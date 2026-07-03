@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
@@ -102,13 +104,7 @@ function SearchModal({
       />
       <div className="relative w-full max-w-[520px] rounded-3xl bg-white shadow-[0_24px_70px_rgba(17,24,39,0.18)] overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-[#f3f4f6]">
-          <span
-            aria-hidden
-            className="material-symbols-outlined text-[#9ca3af]"
-            style={{ fontSize: 20 }}
-          >
-            search
-          </span>
+          <AnimatedIcon name="search" size={20} className="text-[#9ca3af]" aria-hidden />
           <input
             ref={inputRef}
             type="text"
@@ -125,9 +121,7 @@ function SearchModal({
             aria-label="Close"
             className="text-[#9ca3af] hover:text-[#111111]"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-              close
-            </span>
+            <AnimatedIcon name="close" size={20} />
           </button>
         </div>
 

@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
@@ -32,9 +33,7 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
   if (docs.length === 0) {
     return (
       <div className="mx-4 rounded-2xl border border-dashed border-[#d1d5db] bg-[#fafafa] px-6 py-12 text-center sm:mx-0">
-        <span className="material-symbols-outlined text-[#9ca3af]" style={{ fontSize: 40 }}>
-          analytics
-        </span>
+        <AnimatedIcon name="analytics" size={40} className="text-[#9ca3af]" aria-hidden />
         <h2 className="mt-4 text-lg font-semibold text-[#111111]">No reports yet</h2>
         <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-[#6b7280]">
           Post-earnings briefs land here after companies report. Check the{" "}
@@ -120,12 +119,12 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
                     </p>
                     <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#111111]">
                       Read full report
-                      <span
-                        className="material-symbols-outlined transition-transform group-hover:translate-x-0.5"
-                        style={{ fontSize: 18 }}
-                      >
-                        arrow_forward
-                      </span>
+                      <AnimatedIcon
+                        name="arrow_forward"
+                        size={18}
+                        className="transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
                     </span>
                   </div>
                 </div>

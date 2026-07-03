@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import Link from "next/link";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
 import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
@@ -43,9 +45,7 @@ function SectionHeader({
         {tone === "reddit" ? (
           <RedditMark size={20} />
         ) : (
-          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'wght' 500" }}>
-            {icon}
-          </span>
+          <AnimatedIcon name={icon} size={20} className="text-[20px]" aria-hidden />
         )}
       </span>
       <div className="min-w-0 pt-0.5">
@@ -127,9 +127,7 @@ export function LandingScannerReddit({
 
           <footer className="flex flex-col gap-2 border-t border-outline-variant px-5 py-4 text-[12px] text-on-surface-variant sm:flex-row sm:items-center sm:justify-between md:px-6">
             <p className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px] text-on-surface-variant" style={{ fontVariationSettings: "'wght' 400" }}>
-                lightbulb
-              </span>
+              <AnimatedIcon name="lightbulb" size={16} className="text-[16px] text-on-surface-variant" />
               Stay informed. Daily market movers and what investors are talking about.
             </p>
             {dataLabel ? <p className="shrink-0 sm:text-right">Data as of {dataLabel}</p> : null}

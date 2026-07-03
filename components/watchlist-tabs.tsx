@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { useState } from "react";
 import { StockLogo } from "@/components/stock-logo";
@@ -169,12 +170,7 @@ function SuggestionRow({ item }: { item: Dict }) {
           </div>
           <p className="mt-0.5 text-[12px] leading-snug text-on-surface-variant">{reason}</p>
         </div>
-        <span
-          className="material-symbols-outlined shrink-0 text-on-surface-variant"
-          style={{ fontSize: 18 }}
-        >
-          chevron_right
-        </span>
+        <AnimatedIcon name="chevron_right" size={18} className="shrink-0 text-on-surface-variant" aria-hidden />
       </Link>
     </li>
   );

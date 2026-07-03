@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import { LandingProPricingCta } from "@/components/landing-pro-pricing-cta";
 
 type Props = {
@@ -160,13 +161,7 @@ function PricingCard({
       <ul className="flex flex-col gap-2">
         {PRO_BULLETS.map((line) => (
           <li key={line} className="flex items-start gap-2 text-[13px] text-[#374151]">
-            <span
-              aria-hidden
-              className="material-symbols-outlined mt-0.5 text-[#10b981]"
-              style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
-            >
-              check_circle
-            </span>
+            <AnimatedIcon name="check_circle" size={18} className="mt-0.5 text-[#10b981]" aria-hidden />
             <span>{line}</span>
           </li>
         ))}
@@ -199,9 +194,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
         className="flex h-11 w-11 items-center justify-center rounded-2xl"
         style={{ background: feature.iconBg, color: feature.iconFg }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: "'wght' 600" }}>
-          {feature.icon}
-        </span>
+        <AnimatedIcon name={feature.icon} size={22} aria-hidden />
       </span>
       <div className="flex flex-col gap-2">
         <h3 className="text-[20px] font-semibold leading-snug tracking-[-0.02em] text-[#111111]">

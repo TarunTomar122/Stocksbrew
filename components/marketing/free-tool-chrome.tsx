@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import {
   getFreeToolByHref,
   getRelatedFreeTools,
@@ -57,9 +58,7 @@ export function FreeToolHero({
       <div className="free-tool-hero-visual" aria-hidden>
         <div className="free-tool-hero-orbit" />
         <div className="free-tool-hero-icon-wrap">
-          <span className="material-symbols-outlined text-[34px]" style={{ fontVariationSettings: "'wght' 300" }}>
-            {icon}
-          </span>
+          <AnimatedIcon name={icon} size={34} aria-hidden />
         </div>
         <div className="free-tool-hero-float free-tool-hero-float--a">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant">Score</span>
@@ -84,9 +83,7 @@ function RelatedCard({ tool }: { tool: HubLink }) {
       style={{ "--tool-accent": tool.accent } as CSSProperties}
     >
       <span className="free-tool-related-icon">
-        <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'wght' 400" }}>
-          {tool.icon}
-        </span>
+        <AnimatedIcon name={tool.icon} size={18} className="free-tool-related-glyph" aria-hidden />
       </span>
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold text-on-surface">{tool.title}</span>

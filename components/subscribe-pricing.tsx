@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
@@ -202,12 +203,7 @@ export function SubscribePricing({
       <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6 py-4">
         <div className="flex flex-col items-center gap-2 text-center">
           <span className="inline-flex h-12 w-12 items-center justify-center rounded-full tint-bull">
-            <span
-              className="material-symbols-outlined text-[var(--signal-bullish)]"
-              style={{ fontSize: 24, fontVariationSettings: "'wght' 600" }}
-            >
-              check_circle
-            </span>
+            <AnimatedIcon name="check_circle" size={24} className="text-[var(--signal-bullish)]" aria-hidden />
           </span>
           <p className="text-[16px] font-semibold text-on-surface">You&apos;re on Pro</p>
           <p className="text-[14px] text-on-surface-variant">Everything below is included with your plan.</p>

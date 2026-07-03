@@ -8,16 +8,13 @@ from datetime import datetime, timedelta, timezone
 import re
 from typing import Any
 
-import requests
-
 from backend.env import load_backend_env
 from backend.llm_client import (
-    llm_api_url,
     json_response_format,
     llm_api_key,
-    llm_headers,
     llm_model,
     parse_json_content,
+    post_chat_completion,
     schema_system_prompt,
 )
 from backend.models import Article
@@ -26,7 +23,7 @@ from backend.storage import TraceMoneyStore
 
 load_backend_env()
 
-LLM_API_URL = llm_api_url()
+
 CONTEXT_CACHE_VERSION = "2026-06-24-context-v16-stock-watch-guardrails"
 
 
@@ -311,22 +308,18 @@ class ContextBriefWriter:
             cached = self.store.get_llm_enrichment(cache_key)
             if cached and isinstance(cached.get("payload"), dict):
                 return cached["payload"]
-        response = requests.post(
-            LLM_API_URL,
-            headers=llm_headers(self.api_key),
-            json={
-                "model": self.model,
-                "temperature": 0.2,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(self._system_prompt(kind), self._schema(kind))},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {"role": "system", "content": schema_system_prompt(self._system_prompt(kind), self._schema(kind))},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=self.model,
+            temperature=0.2,
+            response_format=json_response_format(),
             timeout=45,
+            stage=f"context_{kind}",
         )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+        content = body["choices"][0]["message"]["content"]
         result = parse_json_content(content)
         if self.store:
             self.store.save_llm_enrichment(cache_key, {

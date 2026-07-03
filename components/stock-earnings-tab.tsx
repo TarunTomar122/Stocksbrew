@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedIcon } from "@/components/animated-icon";
 import type { EarningsIntelDoc, EarningsIntelScenario } from "@/lib/earnings-intel";
 import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
 import { isMissingActualEarningsCopy } from "@/lib/earnings-facts";
@@ -89,9 +90,7 @@ export function StockEarningsTab({ doc, ticker }: Props) {
                 className="rounded-xl bg-surface-container-low p-4 flex flex-col gap-2"
               >
                 <div className="flex items-center gap-1.5 text-on-surface-variant">
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                    {f.icon}
-                  </span>
+                  <AnimatedIcon name={f.icon} size={16} />
                   <span className="text-[11px] font-semibold uppercase tracking-widest">
                     {f.label}
                   </span>
@@ -198,9 +197,7 @@ export function StockEarningsTab({ doc, ticker }: Props) {
           className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-1.5 rounded-full bg-on-surface px-6 text-sm font-semibold text-white transition-transform hover:-translate-y-px"
         >
           Read full earnings intel
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-            arrow_forward
-          </span>
+          <AnimatedIcon name="arrow_forward" size={18} />
         </Link>
       </div>
 

@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import { BuildingStateRefresher } from "@/components/building-state-refresher";
 
 /** Shown while the per-user watchlist view is still materializing. */
@@ -24,12 +25,7 @@ export function RadarBuildingState({ trackedCount }: { trackedCount: number }) {
               style={{ animationDuration: "1.8s", animationDelay: "0.3s" }}
             />
             <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full tint-info">
-              <span
-                className="material-symbols-outlined text-[#22d3ee]"
-                style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
-              >
-                radar
-              </span>
+              <AnimatedIcon name="radar" size={18} className="text-[#22d3ee]" aria-hidden />
             </span>
           </div>
           <div className="flex flex-col gap-2">

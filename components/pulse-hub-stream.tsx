@@ -3,6 +3,7 @@ import { PulseHubHero } from "@/components/pulse-hub-header";
 import { getSessionUser } from "@/lib/auth-server";
 import { buildPulsePageData } from "@/lib/pulse-data";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getInterestingStocks } from "@/lib/interesting-stocks";
 import { getEarnings } from "@/lib/earnings";
 import { listAllEarningsIntelDocs } from "@/lib/earnings-intel";
 import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
@@ -16,9 +17,10 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 export async function PulseHubStream() {
   const market = getCurrentMarket();
   const weekOut = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  const [anomaliesData, redditData, snapshotRows, earningsEvents, preEarnings, premarketDoc, recentIntelDocs, session] = await Promise.all([
+  const [anomaliesData, redditData, interestingData, snapshotRows, earningsEvents, preEarnings, premarketDoc, recentIntelDocs, session] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
+    getInterestingStocks(market).catch(() => null),
     getMarketSnapshot(market).catch(() => []),
     getEarnings(market, undefined, weekOut).catch(() => []),
     getUpcomingPreEarnings(market).catch(() => []),
@@ -63,6 +65,7 @@ export async function PulseHubStream() {
         earnings={data.earnings}
         recentEarnings={data.recentEarnings}
         premarketItems={redactScannerItemsAfterLimit(data.premarketItems, feedAccess.fullItemLimit)}
+        interestingStocks={interestingData?.rows ?? []}
         fullItemLimit={feedAccess.fullItemLimit}
         isSubscribed={feedAccess.isSubscribed}
       />

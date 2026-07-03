@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AnimatedIcon } from "@/components/animated-icon";
 import type { ReactNode } from "react";
 
 import { getSessionUser } from "@/lib/auth-server";
@@ -243,12 +244,7 @@ function PreferenceStatic({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <span
-        className="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-on-surface-variant"
-        style={{ fontVariationSettings: "'wght' 400" }}
-      >
-        {icon}
-      </span>
+      <AnimatedIcon name={icon} size={18} className="mt-0.5 shrink-0 text-[18px] text-on-surface-variant" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[14px] font-semibold text-on-surface">{label}</span>

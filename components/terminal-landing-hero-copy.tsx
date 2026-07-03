@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 
 const FEATURES = [
@@ -40,13 +41,7 @@ export function TerminalLandingHeroCopy({ tickerCount }: { tickerCount?: number 
         {FEATURES.map(({ label, icon }) => (
           <li key={label} className={label === "Fast & free to start" ? "col-span-2 sm:col-span-1" : undefined}>
             <span className="inline-flex items-center gap-1.5 text-[12px] text-on-surface-variant sm:text-[13px]">
-              <span
-                className="material-symbols-outlined shrink-0 text-[15px] text-landing-brand"
-                style={{ fontVariationSettings: "'wght' 500" }}
-                aria-hidden
-              >
-                {icon}
-              </span>
+              <AnimatedIcon name={icon} size={15} className="shrink-0 text-landing-brand" aria-hidden />
               {label}
             </span>
           </li>
@@ -64,9 +59,7 @@ export function TerminalLandingHeroCopy({ tickerCount }: { tickerCount?: number 
           href="/pulse"
           className="landing-btn-secondary w-full justify-center px-6 py-3.5 text-sm sm:w-auto sm:py-3"
         >
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'wght' 500" }}>
-            trending_up
-          </span>
+          <AnimatedIcon name="trending_up" size={18} aria-hidden />
           See today&apos;s movers
         </Link>
       </div>

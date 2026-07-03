@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/auth-context";
@@ -82,13 +84,7 @@ export function ProLockCard({
         <ul className="flex w-full flex-col gap-2 text-left">
           {benefits.slice(0, 3).map((b) => (
             <li key={b} className="flex items-start gap-2 text-[13px] text-on-surface">
-              <span
-                aria-hidden
-                className="material-symbols-outlined mt-0.5 text-[#10b981]"
-                style={{ fontSize: 17, fontVariationSettings: "'wght' 600" }}
-              >
-                check_circle
-              </span>
+              <AnimatedIcon name="check_circle" size={17} className="mt-0.5 text-[#10b981]" aria-hidden />
               <span>{b}</span>
             </li>
           ))}

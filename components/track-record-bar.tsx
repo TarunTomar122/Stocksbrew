@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import type { CorrectCall } from "@/lib/track-record";
@@ -35,13 +36,7 @@ function CallCard({ call }: { call: CorrectCall }) {
         )}
       </div>
       <div className="flex items-start gap-1.5">
-        <span
-          aria-hidden
-          className="material-symbols-outlined mt-[2px] shrink-0 text-[#10b981]"
-          style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}
-        >
-          check_circle
-        </span>
+        <AnimatedIcon name="check_circle" size={16} className="mt-[2px] shrink-0 text-[#10b981]" aria-hidden />
         <span className="text-left text-[13px] font-medium leading-snug text-[#374151]">
           {call.call}
         </span>

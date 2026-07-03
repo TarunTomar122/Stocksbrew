@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import {
   anomalyDetail,
   anomalyHeadline,
@@ -51,9 +52,7 @@ export function AnomalyBanner({ anomaly, liveDayChangePct, isSubscribed = false 
           </div>
           <div className="rounded-2xl border border-dashed border-outline-variant bg-surface/75 p-4">
             <p className="inline-flex items-center gap-1.5 text-[16px] font-semibold leading-snug text-on-surface md:text-[17px]">
-              <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 18, fontVariationSettings: "'wght' 500" }}>
-                lock
-              </span>
+              <AnimatedIcon name="lock" size={18} className="text-on-surface-variant" aria-hidden />
               Why today&apos;s move happened is Pro.
             </p>
             <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant md:text-[14px]">

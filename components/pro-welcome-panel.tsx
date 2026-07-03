@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedIcon } from "@/components/animated-icon";
 
 type Props = {
   variant?: "page" | "modal";
@@ -32,13 +33,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
             "Portfolio diagnosis",
           ].map((item) => (
             <div key={item} className="flex items-center gap-2 rounded-2xl bg-[#fafafa] px-3.5 py-3 text-[13px] font-semibold text-[#374151]">
-              <span
-                aria-hidden
-                className="material-symbols-outlined text-[#10b981]"
-                style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
-              >
-                check_circle
-              </span>
+              <AnimatedIcon name="check_circle" size={18} className="text-[#10b981]" aria-hidden />
               {item}
             </div>
           ))}

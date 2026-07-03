@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { ProBadge } from "@/components/pro-badge";
 
@@ -25,9 +26,7 @@ export function UpcomingEarningsCallout({ setupCount, isSubscribed }: Props) {
         aria-hidden
         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#b45309] ring-1 ring-[#fde68a] mt-0.5"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-          event_upcoming
-        </span>
+        <AnimatedIcon name="event_upcoming" size={16} aria-hidden />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -40,12 +39,7 @@ export function UpcomingEarningsCallout({ setupCount, isSubscribed }: Props) {
                 aria-hidden
                 className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#111111] text-white"
               >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 13, fontVariationSettings: "'wght' 600" }}
-                >
-                  lock
-                </span>
+                <AnimatedIcon name="lock" size={13} aria-hidden />
               </span>
               <ProBadge isSubscribed={false} />
             </span>
@@ -60,13 +54,12 @@ export function UpcomingEarningsCallout({ setupCount, isSubscribed }: Props) {
           {pitchLine}
         </p>
       </div>
-      <span
+      <AnimatedIcon
+        name="arrow_forward"
+        size={18}
+        className="shrink-0 text-[#9ca3af] group-hover:text-[#b45309] transition-colors mt-0.5"
         aria-hidden
-        className="material-symbols-outlined shrink-0 text-[#9ca3af] group-hover:text-[#b45309] transition-colors mt-0.5"
-        style={{ fontSize: 18 }}
-      >
-        arrow_forward
-      </span>
+      />
     </Link>
   );
 }

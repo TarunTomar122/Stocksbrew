@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import { useEffect, useState } from "react";
 
 /**
@@ -36,9 +37,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       title={isDark ? "Light mode" : "Dark mode"}
       className={`inline-grid h-9 w-9 place-items-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container ${className}`}
     >
-      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-        {isDark ? "light_mode" : "dark_mode"}
-      </span>
+      <AnimatedIcon name={isDark ? "light_mode" : "dark_mode"} size={18} />
     </button>
   );
 }

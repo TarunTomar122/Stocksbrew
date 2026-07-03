@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { signOut } from "firebase/auth";
 import { useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase-client";
@@ -51,7 +53,7 @@ export function DeleteAccountButton({
         disabled={busy}
         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-signal-bearish border border-signal-bearish/30 hover:bg-signal-bearish/10 transition-colors rounded-full disabled:opacity-60"
       >
-        <span className="material-symbols-outlined text-base">delete_forever</span>
+        <AnimatedIcon name="delete_forever" size={16} className="text-base" />
         {busy ? "Deleting…" : "Delete account"}
       </button>
       {error && (

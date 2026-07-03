@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AnimatedIcon } from "@/components/animated-icon";
 import type { ReactNode } from "react";
 import { EarningsIntelList } from "@/components/earnings-intel-list";
 import { getCurrentMarket } from "@/lib/market";
@@ -87,9 +88,7 @@ export default async function EarningsIntelPage() {
               className="flex gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fafafa] p-4"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#111111] ring-1 ring-[#e5e7eb]">
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-                  {icon}
-                </span>
+                <AnimatedIcon name={icon} size={20} aria-hidden />
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[#111111]">{title}</p>

@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import { resolveSectorIcon } from "@/lib/sector-icon";
 
 export function SectorIconBadge({
@@ -22,12 +23,7 @@ export function SectorIconBadge({
       }}
       aria-hidden
     >
-      <span
-        className="material-symbols-outlined"
-        style={{ fontSize: iconSize, fontVariationSettings: "'wght' 500" }}
-      >
-        {theme.icon}
-      </span>
+      <AnimatedIcon name={theme.icon} size={iconSize} aria-hidden />
     </div>
   );
 }

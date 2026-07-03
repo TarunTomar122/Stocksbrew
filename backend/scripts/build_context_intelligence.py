@@ -26,17 +26,42 @@ def main() -> None:
     )
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", required=True)
+    parser.add_argument(
+        "--instrument-ids",
+        default=None,
+        help="Optional comma-separated instrument ids to contextualize (default: full universe)",
+    )
     parser.add_argument("--print-json", action="store_true")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
     writer = ContextBriefWriter(store=store)
     instruments = list_instruments(args.market, args.universe)
+    if args.instrument_ids:
+        allowed = {
+            part.strip().upper()
+            for part in str(args.instrument_ids).split(",")
+            if part.strip()
+        }
+        instruments = [
+            row for row in instruments
+            if str(row.get("instrument_id") or "").strip().upper() in allowed
+        ]
     articles = [
         _coerce_article(payload)
         for payload in store.list_article_enrichments(args.market, args.universe)
     ]
     stock_docs = store.list_stock_intelligence_docs(args.market, args.universe)
+    if args.instrument_ids:
+        allowed = {
+            part.strip().upper()
+            for part in str(args.instrument_ids).split(",")
+            if part.strip()
+        }
+        stock_docs = [
+            doc for doc in stock_docs
+            if str(doc.get("instrument_id") or "").strip().upper() in allowed
+        ]
 
     price_by_id: dict[str, dict] = {}
     analyst_by_id: dict[str, dict] = {}

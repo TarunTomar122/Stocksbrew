@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
@@ -122,9 +124,7 @@ function MetricCell({
 function BestBadge() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-[#10b981] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-white">
-      <span className="material-symbols-outlined" style={{ fontSize: 10, fontVariationSettings: "'wght' 700" }}>
-        star
-      </span>
+      <AnimatedIcon name="star" size={10} />
       Best
     </span>
   );
@@ -464,7 +464,7 @@ function EmptyStockSlot({ idx, onAdd }: { idx: number; onAdd: (t: string) => voi
   return (
     <div className="flex flex-col items-center gap-3 p-4">
       <div className="w-12 h-12 rounded-xl border-2 border-dashed border-[#e5e7eb] flex items-center justify-center text-[#9ca3af]">
-        <span className="material-symbols-outlined" style={{ fontSize: 22 }}>add</span>
+        <AnimatedIcon name="add" size={22} />
       </div>
       <div className="flex flex-col items-center gap-0.5">
         <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">Slot {idx + 1}</span>

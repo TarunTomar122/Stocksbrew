@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useCallback, useEffect, useState } from "react";
 
 import { AlertSetModal } from "@/components/alert-set-modal";
@@ -73,13 +75,7 @@ function ActionBadge({ active, busy, activeLabel, inactiveLabel }: {
           color: "var(--signal-bullish)",
         }}
       >
-        <span
-          className="material-symbols-outlined text-[14px] leading-none"
-          style={{ fontVariationSettings: "'FILL' 1, 'wght' 500" }}
-          aria-hidden
-        >
-          notifications_active
-        </span>
+        <AnimatedIcon name="notifications_active" size={14} className="text-[14px] leading-none" aria-hidden />
         {activeLabel}
       </span>
     );

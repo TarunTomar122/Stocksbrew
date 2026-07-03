@@ -10,26 +10,22 @@ import logging
 import re
 from typing import Any
 
-import requests
-
 from backend.directive_v2 import build_directive_v2
 from backend.llm_client import (
-    llm_api_url,
+    LLM_BRIEF_SOURCE,
     json_response_format,
     llm_api_key,
-    llm_headers,
     llm_model,
     parse_json_content,
+    post_chat_completion,
     schema_system_prompt,
 )
 from backend.landing_metrics import _extract_series, _to_float, build_stock_technical_doc
-from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.models import Article
 from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-LLM_API_URL = llm_api_url()
 STOCK_BRIEF_CACHE_VERSION = "2026-07-02-stock-brief-v17-anomaly-alignment"
 
 
@@ -780,22 +776,18 @@ def _llm_synthesize_brief(
             pass
 
     try:
-        resp = requests.post(
-            LLM_API_URL,
-            headers=llm_headers(api_key),
-            json={
-                "model": model,
-                "temperature": 0.2,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(STOCK_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {"role": "system", "content": schema_system_prompt(STOCK_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=model,
+            temperature=0.2,
+            response_format=json_response_format(),
             timeout=30,
+            stage="stock_brief",
         )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
+        content = body["choices"][0]["message"]["content"]
         result = parse_json_content(content)
 
         # Cache the result
@@ -1021,22 +1013,18 @@ def generate_no_news_brief(
             pass
 
     try:
-        resp = requests.post(
-            LLM_API_URL,
-            headers=llm_headers(api_key),
-            json={
-                "model": model,
-                "temperature": 0.2,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(NO_NEWS_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {"role": "system", "content": schema_system_prompt(NO_NEWS_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=model,
+            temperature=0.2,
+            response_format=json_response_format(),
             timeout=30,
+            stage="no_news_brief",
         )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
+        content = body["choices"][0]["message"]["content"]
         result = parse_json_content(content)
 
         if store is not None and cache_key:
@@ -1524,22 +1512,18 @@ def generate_portfolio_brief(
             pass
 
     try:
-        resp = requests.post(
-            LLM_API_URL,
-            headers=llm_headers(api_key),
-            json={
-                "model": model,
-                "temperature": 0.3,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(PORTFOLIO_BRIEF_SYSTEM_PROMPT, PORTFOLIO_BRIEF_SCHEMA)},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {"role": "system", "content": schema_system_prompt(PORTFOLIO_BRIEF_SYSTEM_PROMPT, PORTFOLIO_BRIEF_SCHEMA)},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=model,
+            temperature=0.3,
+            response_format=json_response_format(),
             timeout=30,
+            stage="portfolio_brief",
         )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
+        content = body["choices"][0]["message"]["content"]
         result = parse_json_content(content)
 
         if store is not None and cache_key:
@@ -1646,22 +1630,18 @@ def generate_market_brief(
             pass
 
     try:
-        resp = requests.post(
-            LLM_API_URL,
-            headers=llm_headers(api_key),
-            json={
-                "model": model,
-                "temperature": 0.3,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(MARKET_BRIEF_SYSTEM_PROMPT, MARKET_BRIEF_SCHEMA)},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {"role": "system", "content": schema_system_prompt(MARKET_BRIEF_SYSTEM_PROMPT, MARKET_BRIEF_SCHEMA)},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=model,
+            temperature=0.3,
+            response_format=json_response_format(),
             timeout=30,
+            stage="market_brief",
         )
-        resp.raise_for_status()
-        result = parse_json_content(resp.json()["choices"][0]["message"]["content"])
+        result = parse_json_content(body["choices"][0]["message"]["content"])
 
         if store is not None and cache_key:
             try:
@@ -1755,22 +1735,18 @@ def generate_sector_brief(
             pass
 
     try:
-        resp = requests.post(
-            LLM_API_URL,
-            headers=llm_headers(api_key),
-            json={
-                "model": model,
-                "temperature": 0.3,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(SECTOR_BRIEF_SYSTEM_PROMPT, SECTOR_BRIEF_SCHEMA)},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {"role": "system", "content": schema_system_prompt(SECTOR_BRIEF_SYSTEM_PROMPT, SECTOR_BRIEF_SCHEMA)},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=model,
+            temperature=0.3,
+            response_format=json_response_format(),
             timeout=30,
+            stage="sector_brief",
         )
-        resp.raise_for_status()
-        result = parse_json_content(resp.json()["choices"][0]["message"]["content"])
+        result = parse_json_content(body["choices"][0]["message"]["content"])
 
         if store is not None and cache_key:
             try:

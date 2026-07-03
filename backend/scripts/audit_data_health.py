@@ -238,6 +238,14 @@ def build_health(store: TraceMoneyStore, market: str) -> dict[str, Any]:
             ["tickers", "top_posts", "notable_discussions"],
         ),
         (
+            "interesting_stocks",
+            f"tm_interesting_stocks/{market}",
+            ["generated_at"],
+            24,
+            72,
+            ["rows"],
+        ),
+        (
             "heat_list_view",
             f"tm_heat_list_view/{market}",
             ["generated_at"],

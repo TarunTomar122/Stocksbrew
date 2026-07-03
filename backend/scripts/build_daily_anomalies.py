@@ -860,6 +860,7 @@ def _run_intelligence_fill_for_missing(
         "--chunk-workers",
         str(chunk_workers),
         "--skip-materialize",
+        "--skip-context",
     ]
     print({"stage": "fill_missing_intelligence", "instrument_count": len(instrument_ids), "cmd": " ".join(cmd)})
     subprocess.run(cmd, check=True)

@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useState, useEffect, useCallback } from "react";
 
 type Testimonial = {
@@ -113,7 +115,7 @@ export function Testimonials() {
             className="flex items-center justify-center h-8 w-8 rounded-full border border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#111111] hover:text-[#111111] transition-colors"
             aria-label="Previous testimonial"
           >
-            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+            <AnimatedIcon name="chevron_left" size={16} className="text-[16px]" />
           </button>
           <div className="flex items-center gap-1.5">
             {dots.map((i) => (
@@ -134,7 +136,7 @@ export function Testimonials() {
             className="flex items-center justify-center h-8 w-8 rounded-full border border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#111111] hover:text-[#111111] transition-colors"
             aria-label="Next testimonial"
           >
-            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            <AnimatedIcon name="chevron_right" size={16} className="text-[16px]" />
           </button>
         </div>
       </div>

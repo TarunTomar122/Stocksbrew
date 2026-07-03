@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AnimatedIcon } from "@/components/animated-icon";
 import { headers } from "next/headers";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -65,12 +66,7 @@ export default async function SubscribePage({ searchParams }: Props) {
         {justSubscribed && !isSubscribed && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-full tint-info">
-              <span
-                className="material-symbols-outlined text-accent-terminal"
-                style={{ fontSize: 24, fontVariationSettings: "'wght' 600" }}
-              >
-                hourglass_top
-              </span>
+              <AnimatedIcon name="hourglass_top" size={24} className="text-accent-terminal" aria-hidden />
             </span>
             <p className="text-[16px] font-semibold text-on-surface">Payment received. Activating your Pro…</p>
             <p className="max-w-sm text-[14px] text-on-surface-variant">
@@ -107,13 +103,7 @@ export default async function SubscribePage({ searchParams }: Props) {
           <div className="flex flex-wrap items-center justify-center gap-5 font-mono text-[11px] text-on-surface-variant">
             {trustItems.map(({ icon, text }) => (
               <span key={text} className="inline-flex items-center gap-1.5">
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 15, fontVariationSettings: "'wght' 500" }}
-                  aria-hidden
-                >
-                  {icon}
-                </span>
+                <AnimatedIcon name={icon} size={15} aria-hidden />
                 {text}
               </span>
             ))}

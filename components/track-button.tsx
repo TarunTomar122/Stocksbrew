@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -505,12 +507,7 @@ function PositionOption({
           active ? "bg-on-surface text-surface" : "bg-surface-container text-on-surface-variant"
         }`}
       >
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 18, fontVariationSettings: "'wght' 600" }}
-        >
-          {icon}
-        </span>
+        <AnimatedIcon name={icon} size={18} />
       </span>
       <span className="flex flex-col">
         <span className="text-[14px] font-semibold text-on-surface">{label}</span>

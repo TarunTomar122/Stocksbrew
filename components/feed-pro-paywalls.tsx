@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -187,13 +188,7 @@ function ContextualFeedPaywallShell({
                 key={benefit.title}
                 className={`flex gap-3 rounded-2xl border bg-white/80 px-3.5 py-3 ${theme.benefitBorder}`}
               >
-                <span
-                  aria-hidden
-                  className="material-symbols-outlined mt-0.5 shrink-0"
-                  style={{ fontSize: 20, color: theme.iconColor, fontVariationSettings: "'wght' 500" }}
-                >
-                  {benefit.icon}
-                </span>
+                <AnimatedIcon name={benefit.icon} size={20} className="mt-0.5 shrink-0" style={{ color: theme.iconColor }} aria-hidden />
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[13px] font-semibold text-[#111111]">{benefit.title}</span>
                   <span className="text-[12px] leading-snug text-[#6b7280]">{benefit.body}</span>

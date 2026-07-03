@@ -862,14 +862,18 @@
   font-weight: 600;
 }
 .pulse-tab-icon {
-  font-size: 17px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   color: color-mix(in srgb, var(--on-surface-variant) 88%, transparent);
-  font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 20;
+}
+.pulse-tab-icon svg {
+  width: 17px;
+  height: 17px;
 }
 .pulse-tab-active .pulse-tab-icon {
   color: color-mix(in srgb, var(--on-surface) 78%, var(--pulse-brand));
-  font-variation-settings: "FILL" 0, "wght" 350, "GRAD" 0, "opsz" 20;
 }
 
 .pulse-mover-card {

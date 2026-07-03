@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -356,12 +358,7 @@ function BookPanel({ plan }: { plan: PortfolioRebalancePlan }) {
     <section className="p-4 sm:p-5">
       <header className="flex items-center justify-between border-b border-[#f3f4f6] pb-3">
         <h2 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[#374151]">
-          <span
-            className="material-symbols-outlined text-[#6b7280]"
-            style={{ fontSize: 15, fontVariationSettings: "'wght' 600" }}
-          >
-            inventory_2
-          </span>
+          <AnimatedIcon name="inventory_2" size={15} className="text-[#6b7280]" />
           Your book
         </h2>
         <span className="text-[11px] tabular-nums text-[#6b7280]">
@@ -478,12 +475,7 @@ function MovesPanel({ plan }: { plan: PortfolioRebalancePlan }) {
           Suggested moves
         </h2>
         <div className="flex flex-col items-center gap-2 py-10 text-center">
-          <span
-            className="material-symbols-outlined text-[#059669]"
-            style={{ fontSize: 28, fontVariationSettings: "'wght' 500" }}
-          >
-            check_circle
-          </span>
+          <AnimatedIcon name="check_circle" size={28} className="text-[#059669]" />
           <p className="text-[13px] text-[#6b7280]">
             Nothing to change — the book already fits this strategy.
           </p>
@@ -495,12 +487,7 @@ function MovesPanel({ plan }: { plan: PortfolioRebalancePlan }) {
   return (
     <section className="flex flex-col gap-5 p-4 sm:p-5">
       <h2 className="flex items-center gap-1.5 border-b border-[#f3f4f6] pb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-[#374151]">
-        <span
-          className="material-symbols-outlined text-[#6b7280]"
-          style={{ fontSize: 15, fontVariationSettings: "'wght' 600" }}
-        >
-          swap_horiz
-        </span>
+        <AnimatedIcon name="swap_horiz" size={15} className="text-[#6b7280]" />
         Suggested moves
       </h2>
 

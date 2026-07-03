@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   AssistantResizeHandle,
@@ -170,9 +172,7 @@ export function RadarWorkspace({
           aria-label="Open assistant"
           className="fixed bottom-8 right-6 z-40 hidden items-center gap-2 rounded-full border border-outline-variant bg-surface px-4 py-2.5 text-on-surface shadow-lg transition-colors hover:border-on-surface lg:flex"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-            chat
-          </span>
+          <AnimatedIcon name="chat" size={20} />
           <span className="text-[13px] font-semibold">Assistant</span>
         </button>
       )}

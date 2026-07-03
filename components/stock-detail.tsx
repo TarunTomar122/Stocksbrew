@@ -453,7 +453,7 @@ export function StockDetail(props: Props) {
   if (n(riskRewardRatio)) {
     callMetrics.push({
       label: "Reward / risk",
-      value: `${riskRewardRatio!.toFixed(1)} : 1`,
+      value: `${Math.round(riskRewardRatio!)} : 1`,
       hint: riskRewardRatio! >= 1.5 ? "Favorable" : riskRewardRatio! >= 1 ? "Balanced" : "Tight",
       hintTone: riskRewardRatio! >= 1.5 ? "bullish" : "neutral",
     });

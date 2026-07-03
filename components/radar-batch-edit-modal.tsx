@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -370,7 +372,7 @@ export function RadarBatchEditModal({
                 className="rounded-full p-1 text-on-surface-variant hover:text-on-surface"
                 aria-label="Close"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
+                <AnimatedIcon name="close" size={20} />
               </button>
             </div>
 

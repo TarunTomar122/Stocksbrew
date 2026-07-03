@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -211,13 +213,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                       active ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"
                     }`}
                   >
-                    <span
-                      className="material-symbols-outlined shrink-0"
-                      style={{ fontSize: 16, fontVariationSettings: "'wght' 500" }}
-                      aria-hidden
-                    >
-                      {item.icon}
-                    </span>
+                    <AnimatedIcon name={item.icon} size={16} className="shrink-0" aria-hidden />
                     <span className="inline-flex items-center gap-1">
                       {item.label}
                       {item.beta && (
@@ -243,9 +239,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
 
           <div className="hidden min-w-0 flex-1 justify-end px-2 md:flex">
             <div ref={containerRef} className="relative w-full max-w-[280px]">
-            <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
-              search
-            </span>
+            <AnimatedIcon name="search" size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" />
             <input
               ref={inputRef}
               type="text"
@@ -286,7 +280,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                         }}
                         className="inline-flex items-center gap-1.5 self-start rounded-full bg-on-surface px-3 py-1.5 text-[13px] font-semibold text-surface hover:-translate-y-[1px] active:translate-y-0 transition-transform"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'wght' 600" }}>add</span>
+                        <AnimatedIcon name="add" size={14} />
                         Request {query.trim().toUpperCase()}
                       </button>
                     </div>
@@ -364,7 +358,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               onClick={() => setMobileSearchOpen(true)}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant md:hidden"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>search</span>
+              <AnimatedIcon name="search" size={20} />
             </button>
 
             <AuthButton />
@@ -383,13 +377,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                     active ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"
                   }`}
                 >
-                  <span
-                    className="material-symbols-outlined shrink-0"
-                    style={{ fontSize: 16, fontVariationSettings: "'wght' 500" }}
-                    aria-hidden
-                  >
-                    {item.icon}
-                  </span>
+                  <AnimatedIcon name={item.icon} size={16} className="shrink-0" aria-hidden />
                   {item.label}
                 </Link>
               );
@@ -411,7 +399,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
         <div className="sm:hidden fixed inset-0 z-[80] flex flex-col bg-surface">
           {/* Top bar */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant">
-            <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 20 }}>search</span>
+            <AnimatedIcon name="search" size={20} className="text-on-surface-variant" />
             <input
               ref={mobileInputRef}
               type="text"
@@ -464,7 +452,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   }}
                   className="inline-flex items-center gap-1.5 self-start rounded-full bg-on-surface px-4 py-2 text-[14px] font-semibold text-surface"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'wght' 600" }}>add</span>
+                  <AnimatedIcon name="add" size={16} />
                   Request {query.trim().toUpperCase()}
                 </button>
               </div>

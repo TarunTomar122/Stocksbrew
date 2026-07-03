@@ -1,10 +1,15 @@
 """Shared chat-completions helpers for backend LLM calls."""
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 import os
+import time
+from pathlib import Path
 from typing import Any
+
+import requests
 
 from backend.env import load_backend_env
 
@@ -19,6 +24,265 @@ CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_ENRICHMENT_MODEL = "qwen/qwen-2.5-7b-instruct"
 LLM_BRIEF_SOURCE = "llm"
+
+RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
+
+
+def _cerebras_throttle_state_path() -> Path:
+    raw = os.getenv("CEREBRAS_THROTTLE_STATE_PATH", "").strip()
+    if raw:
+        return Path(raw)
+    return Path("/tmp/tikrr_cerebras_throttle.json")
+
+
+def _read_cerebras_throttle_state() -> tuple[list[float], list[list[float | int]]]:
+    path = _cerebras_throttle_state_path()
+    if not path.exists():
+        return [], []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return [], []
+    if not isinstance(payload, dict):
+        return [], []
+    req_times = payload.get("request_times")
+    token_times = payload.get("token_times")
+    if not isinstance(req_times, list) or not isinstance(token_times, list):
+        return [], []
+    clean_req = [float(value) for value in req_times if isinstance(value, (int, float))]
+    clean_tokens: list[list[float | int]] = []
+    for row in token_times:
+        if (
+            isinstance(row, list)
+            and len(row) == 2
+            and isinstance(row[0], (int, float))
+            and isinstance(row[1], int)
+        ):
+            clean_tokens.append([float(row[0]), int(row[1])])
+    return clean_req, clean_tokens
+
+
+def _write_cerebras_throttle_state(
+    request_times: list[float],
+    token_times: list[tuple[float, int]],
+) -> None:
+    path = _cerebras_throttle_state_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "request_times": request_times[-2000:],
+        "token_times": [[ts, tokens] for ts, tokens in token_times[-2000:]],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _prune_cerebras_state(
+    request_times: list[float],
+    token_times: list[tuple[float, int]],
+    now: float,
+) -> tuple[list[float], list[tuple[float, int]]]:
+    req = [ts for ts in request_times if now - ts <= 60.0]
+    tok = [(ts, tokens) for ts, tokens in token_times if now - ts <= 60.0]
+    return req, tok
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return default
+
+
+def cerebras_rpm_limit() -> int:
+    """Stay under Cerebras production RPM (default 800 of 1000)."""
+    return _env_int("CEREBRAS_RPM_LIMIT", 800)
+
+
+def cerebras_tpm_limit() -> int:
+    """Stay under Cerebras production TPM (default 800k of 1M)."""
+    return _env_int("CEREBRAS_TPM_LIMIT", 800_000)
+
+
+def cerebras_min_interval_s() -> float:
+    rpm = cerebras_rpm_limit()
+    # Cerebras spreads RPM evenly (60 RPM → 1 req/sec). Match that spacing.
+    return max(0.05, 60.0 / float(rpm))
+
+
+def cerebras_rps_limit() -> int:
+    """Max requests in any 1-second window (Cerebras short-interval enforcement)."""
+    return max(1, (cerebras_rpm_limit() + 59) // 60)
+
+
+def _estimate_tokens(payload: dict[str, Any]) -> int:
+    try:
+        return max(1, len(json.dumps(payload, ensure_ascii=True)) // 4)
+    except Exception:
+        return 1
+
+
+def _throttle_cerebras(estimated_tokens: int) -> None:
+    if llm_provider() != "cerebras":
+        return
+    rpm = cerebras_rpm_limit()
+    tpm = cerebras_tpm_limit()
+    rps = cerebras_rps_limit()
+    min_interval = cerebras_min_interval_s()
+    state_path = _cerebras_throttle_state_path()
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+
+    while True:
+        now = time.monotonic()
+        with open(state_path, "a+", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                req_times, token_rows = _read_cerebras_throttle_state()
+                token_times = [(float(ts), int(tokens)) for ts, tokens in token_rows]
+                req_times, token_times = _prune_cerebras_state(req_times, token_times, now)
+
+                req_count = len(req_times)
+                sec_count = len([ts for ts in req_times if now - ts <= 1.0])
+                token_count = sum(tokens for _, tokens in token_times)
+                last_at = req_times[-1] if req_times else 0.0
+                interval_ok = (now - last_at) >= min_interval
+                rpm_ok = req_count < rpm
+                rps_ok = sec_count < rps
+                tpm_ok = (token_count + estimated_tokens) <= tpm
+
+                if interval_ok and rpm_ok and rps_ok and tpm_ok:
+                    req_times.append(now)
+                    token_times.append((now, estimated_tokens))
+                    _write_cerebras_throttle_state(req_times, token_times)
+                    return
+
+                sleep_s = min_interval
+                if not interval_ok:
+                    sleep_s = max(sleep_s, min_interval - (now - last_at))
+                if not rpm_ok and req_times:
+                    sleep_s = max(sleep_s, 60.0 - (now - req_times[0]) + 0.05)
+                if not rps_ok and req_times:
+                    recent = [ts for ts in req_times if now - ts <= 1.0]
+                    if recent:
+                        sleep_s = max(sleep_s, 1.0 - (now - recent[0]) + 0.05)
+                if not tpm_ok and token_times:
+                    sleep_s = max(sleep_s, 60.0 - (now - token_times[0][0]) + 0.05)
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        time.sleep(min(max(sleep_s, 0.05), 5.0))
+
+
+def _record_cerebras_usage(actual_tokens: int) -> None:
+    if llm_provider() != "cerebras" or actual_tokens <= 0:
+        return
+    now = time.monotonic()
+    state_path = _cerebras_throttle_state_path()
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(state_path, "a+", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            req_times, token_rows = _read_cerebras_throttle_state()
+            token_times = [(float(ts), int(tokens)) for ts, tokens in token_rows]
+            req_times, token_times = _prune_cerebras_state(req_times, token_times, now)
+            if token_times:
+                ts, est = token_times[-1]
+                if now - ts < 1.0:
+                    token_times[-1] = (ts, max(est, actual_tokens))
+                else:
+                    token_times.append((now, actual_tokens))
+            else:
+                token_times.append((now, actual_tokens))
+            _write_cerebras_throttle_state(req_times, token_times)
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def post_chat_completion(
+    *,
+    messages: list[dict[str, Any]],
+    model: str | None = None,
+    temperature: float = 0.2,
+    response_format: dict[str, str] | None = None,
+    timeout: int = 45,
+    stage: str = "chat",
+    max_attempts: int = 6,
+) -> dict[str, Any]:
+    """POST to the configured brief/synthesis LLM with Cerebras throttle + 429 retry."""
+    api_key = require_llm_api_key()
+    url = llm_api_url()
+    resolved_model = model or llm_model()
+    payload: dict[str, Any] = {
+        "model": resolved_model,
+        "temperature": temperature,
+        "messages": messages,
+    }
+    if response_format is not None:
+        payload["response_format"] = response_format
+
+    last_error: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        _throttle_cerebras(_estimate_tokens(payload))
+        try:
+            response = requests.post(
+                url,
+                headers=llm_headers(api_key),
+                json=payload,
+                timeout=timeout,
+            )
+            if response.status_code in RETRYABLE_STATUS_CODES:
+                retry_after = response.headers.get("Retry-After")
+                sleep_s = float(retry_after) if retry_after else min(2 ** attempt, 30)
+                logger.warning(
+                    "LLM HTTP retry stage=%s attempt=%s/%s status=%s sleep_s=%.1f model=%s",
+                    stage,
+                    attempt,
+                    max_attempts,
+                    response.status_code,
+                    sleep_s,
+                    resolved_model,
+                )
+                time.sleep(sleep_s)
+                continue
+            response.raise_for_status()
+            body = response.json()
+            usage = body.get("usage") if isinstance(body, dict) else {}
+            if isinstance(usage, dict):
+                total_tokens = usage.get("total_tokens")
+                if total_tokens is None:
+                    prompt = usage.get("prompt_tokens") or 0
+                    completion = usage.get("completion_tokens") or 0
+                    total_tokens = int(prompt) + int(completion)
+                _record_cerebras_usage(int(total_tokens or 0))
+                log_llm_call(
+                    stage=stage,
+                    provider=llm_provider(),
+                    model=resolved_model,
+                    input_tokens=usage.get("prompt_tokens"),
+                    output_tokens=usage.get("completion_tokens"),
+                    cache_hit=False,
+                )
+            return body
+        except requests.RequestException as error:
+            last_error = error
+            status = getattr(getattr(error, "response", None), "status_code", None)
+            if status not in RETRYABLE_STATUS_CODES and attempt >= max_attempts:
+                raise
+            if attempt >= max_attempts:
+                raise
+            sleep_s = min(2 ** attempt, 30)
+            logger.warning(
+                "LLM request retry stage=%s attempt=%s/%s err=%s sleep_s=%.1f",
+                stage,
+                attempt,
+                max_attempts,
+                error,
+                sleep_s,
+            )
+            time.sleep(sleep_s)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("LLM request failed without an error")
 
 
 def llm_provider() -> str:

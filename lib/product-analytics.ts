@@ -27,6 +27,7 @@ export type PaywallSurface =
   | "upcoming_earnings"
   | "market_anomalies"
   | "reddit_buzz"
+  | "interesting_stocks"
   | "locked_ai_brief"
   | "locked_verdict_call"
   | "locked_room_to_target";

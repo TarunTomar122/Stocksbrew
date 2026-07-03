@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedIcon } from "@/components/animated-icon";
 
 import type { DivergenceList, DivergenceRow } from "@/lib/divergence";
 
@@ -141,7 +142,7 @@ export function DivergenceListView({ data }: { data: DivergenceList | null }) {
       <div className="bg-surface-container-lowest brutalist-border p-10">
         <div className="mx-auto max-w-xl text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-[22px]">sync_alt</span>
+            <AnimatedIcon name="sync_alt" size={22} className="text-[22px]" />
           </div>
           <p className="mt-4 text-[12px] font-black tracking-[0.16em] uppercase text-on-surface">
             No price-news mismatch right now

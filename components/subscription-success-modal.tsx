@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect, useMemo, useState } from "react";
 import { trackSubscriptionConverted } from "@/lib/product-analytics";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
@@ -48,7 +50,7 @@ export function SubscriptionSuccessModal({ open, subscriptionId }: Props) {
           className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8f9fa]"
           aria-label="Close welcome modal"
         >
-          <span className="material-symbols-outlined text-[18px]">close</span>
+          <AnimatedIcon name="close" size={18} className="text-[18px]" />
         </button>
         <ProWelcomePanel variant="modal" onDismiss={() => setVisible(false)} />
       </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedIcon } from "@/components/animated-icon";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
@@ -664,12 +665,7 @@ function HeaderStrip({
             href="/watchlist/portfolio"
             className="rebalance-btn group relative inline-flex w-fit items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            <span
-              className="material-symbols-outlined relative z-10"
-              style={{ fontSize: 14, fontVariationSettings: "'wght' 600" }}
-            >
-              balance
-            </span>
+            <AnimatedIcon name="balance" size={14} className="relative z-10" />
             <span className="relative z-10">Rebalance</span>
           </Link>
           {atLimit ? (
@@ -1506,7 +1502,7 @@ function YourBookSection({
                   { icon: "trending_up", text: "Track as many as you hold" },
                 ].map(({ icon, text }) => (
                   <span key={text} className="inline-flex items-center gap-1 text-[11px] text-white/55">
-                    <span className="material-symbols-outlined text-white/40" style={{ fontSize: 13, fontVariationSettings: "'wght' 500" }}>{icon}</span>
+                    <AnimatedIcon name={icon} size={13} className="text-white/40" aria-hidden />
                     {text}
                   </span>
                 ))}

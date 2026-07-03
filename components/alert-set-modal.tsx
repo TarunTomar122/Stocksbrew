@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect } from "react";
 
 type Props = {
@@ -52,14 +54,7 @@ export function AlertSetModal({ open, status, title, subtitle, onClose }: Props)
             }`}
           >
             {isLoading ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-outline-variant border-t-accent-terminal" />
-            ) : isSuccess ? (
-              <span
-                className="material-symbols-outlined text-[20px]"
-                style={{ fontVariationSettings: "'FILL' 1, 'wght' 500" }}
-              >
-                notifications_active
-              </span>
+              <AnimatedIcon name="notifications_active" size={20} className="h-4 w-4 animate-spin rounded-full border-2 border-outline-variant border-t-accent-terminal" />
             ) : (
               <span className="text-[16px] font-bold">!</span>
             )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -128,9 +130,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
             aria-label="Close assistant"
             className="shrink-0 rounded-md p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-              close
-            </span>
+            <AnimatedIcon name="close" size={20} />
           </button>
         </div>
       </div>
@@ -229,12 +229,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
             aria-label="Send message"
             className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-on-surface text-surface transition-colors hover:bg-[#242424] disabled:bg-surface-container-high disabled:text-on-surface-variant disabled:hover:bg-surface-container-high"
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 20, fontVariationSettings: "'wght' 600" }}
-            >
-              arrow_upward
-            </span>
+            <AnimatedIcon name="arrow_upward" size={20} />
           </button>
         </div>
       </form>

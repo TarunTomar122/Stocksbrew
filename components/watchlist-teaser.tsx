@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -138,9 +139,12 @@ function FlagPill({ flag }: { flag: NonNullable<SampleRow["flag"]> }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${tone}`}
     >
-      <span className="material-symbols-outlined text-[11px] leading-none">
-        {flag.kind === "bearish" ? "warning" : flag.kind === "bullish" ? "trending_up" : "bolt"}
-      </span>
+      <AnimatedIcon
+        name={flag.kind === "bearish" ? "warning" : flag.kind === "bullish" ? "trending_up" : "bolt"}
+        size={11}
+        className="leading-none"
+        aria-hidden
+      />
       {flag.label}
     </span>
   );
@@ -238,9 +242,7 @@ function FeatureCallout({
         divider ? "sm:border-l sm:border-outline-variant/20" : ""
       }`}
     >
-      <span className="material-symbols-outlined text-indigo-600 text-[20px] leading-none mt-0.5">
-        {icon}
-      </span>
+      <AnimatedIcon name={icon} size={20} className="text-indigo-600 leading-none mt-0.5 shrink-0" aria-hidden />
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="text-[12px] font-bold text-on-surface">{title}</span>
         <span className="text-[11px] text-on-surface-variant leading-snug">{body}</span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -42,30 +43,15 @@ export function UnlistedStockDiscoveryModal({ ticker, onDismiss }: Props) {
         <div className="flex items-center justify-center">
           {status === "done" ? (
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#eff6ff]">
-              <span
-                className="material-symbols-outlined text-[#0052ff]"
-                style={{ fontSize: 28, fontVariationSettings: "'wght' 600" }}
-              >
-                radar
-              </span>
+              <AnimatedIcon name="radar" size={28} className="text-[#0052ff]" aria-hidden />
             </span>
           ) : status === "error" ? (
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#fef2f2]">
-              <span
-                className="material-symbols-outlined text-[#ef4444]"
-                style={{ fontSize: 28, fontVariationSettings: "'wght' 600" }}
-              >
-                error
-              </span>
+              <AnimatedIcon name="error" size={28} className="text-[#ef4444]" aria-hidden />
             </span>
           ) : (
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#f3f4f6]">
-              <span
-                className="material-symbols-outlined text-[#6b7280] animate-spin"
-                style={{ fontSize: 28 }}
-              >
-                progress_activity
-              </span>
+              <AnimatedIcon name="progress_activity" size={28} className="text-[#6b7280] animate-spin" aria-hidden />
             </span>
           )}
         </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedIcon } from "@/components/animated-icon";
 import { ProCtaLink } from "@/components/pro-cta";
 import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
@@ -812,7 +813,7 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, sug
                   { icon: "analytics", text: "Portfolio diagnosis" },
                 ].map(({ icon, text }) => (
                   <span key={text} className="inline-flex items-center gap-1 text-[11px] text-white/55">
-                    <span className="material-symbols-outlined text-white/40" style={{ fontSize: 13, fontVariationSettings: "'wght' 500" }}>{icon}</span>
+                    <AnimatedIcon name={icon} size={13} className="text-white/40" aria-hidden />
                     {text}
                   </span>
                 ))}

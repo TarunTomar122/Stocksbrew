@@ -1,3 +1,4 @@
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { SectorHeatStockRow } from "@/components/sector-heat-stock-row";
 import {
@@ -47,12 +48,7 @@ export function LandingSectorHeat({
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="sector-heat-icon">
-                          <span
-                            className="material-symbols-outlined text-[12px]"
-                            style={{ fontVariationSettings: "'wght' 500" }}
-                          >
-                            {theme.icon}
-                          </span>
+                          <AnimatedIcon name={theme.icon} size={12} aria-hidden />
                         </span>
                         <span className="truncate text-[15px] font-bold text-on-surface">{s.label}</span>
                       </div>
@@ -91,12 +87,7 @@ export function LandingSectorHeat({
           <div className="sector-heat-cta mt-6">
             <p className="flex items-center gap-2.5 text-[13px] leading-snug text-on-surface-variant">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface">
-                <span
-                  className="material-symbols-outlined text-[18px] text-landing-brand"
-                  style={{ fontVariationSettings: "'wght' 500" }}
-                >
-                  monitoring
-                </span>
+                <AnimatedIcon name="monitoring" size={18} className="text-landing-brand" aria-hidden />
               </span>
               Market moves fast. StocksBrew Pro gives you the clarity to stay ahead.
             </p>

@@ -1625,6 +1625,19 @@ class TraceMoneyStore:
         # The full analytical artifact above remains available for debugging.
         self.db.collection("tm_heat_list_view").document(market).set(_compact_heat_list(full_payload))
 
+    def save_interesting_stocks(self, market: str, payload: dict[str, Any]) -> None:
+        """Write ranked interesting setups for Pulse (`tm_interesting_stocks/{market}`)."""
+        full_payload = {
+            **payload,
+            "market": market,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self.db.collection("tm_interesting_stocks").document(market).set(full_payload)
+
+    def get_interesting_stocks(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_interesting_stocks").document(market).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
     def get_heat_list(self, market: str) -> dict[str, Any] | None:
         doc = self.db.collection("tm_heat_list").document(market).get()
         return _serialize(doc.to_dict()) if doc.exists else None

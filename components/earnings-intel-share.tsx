@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useState } from "react";
 
 type Props = {
@@ -47,16 +49,12 @@ export function EarningsIntelShare({ ticker, headline, variant = "inline" }: Pro
       >
         {linkCopied ? (
           <>
-            <span className="material-symbols-outlined text-[#10b981]" style={{ fontSize: 18 }}>
-              check
-            </span>
+            <AnimatedIcon name="check" size={18} className="text-[#10b981]" />
             Copied
           </>
         ) : (
           <>
-            <span className="material-symbols-outlined text-[#6b7280]" style={{ fontSize: 18 }}>
-              link
-            </span>
+            <AnimatedIcon name="link" size={18} className="text-[#6b7280]" />
             Copy link
           </>
         )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useState, useRef } from "react";
 import { captureEvent } from "@/lib/posthog";
 
@@ -60,7 +62,7 @@ export function FeedbackWidget() {
           className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 items-center gap-2 bg-[#111111] text-white text-[12px] font-semibold px-3 py-2.5 rounded-l-xl shadow-lg hover:bg-[#1f1f1f] transition-all hover:pr-4 group"
           aria-label="Give feedback"
         >
-          <span className="material-symbols-outlined text-[16px]">feedback</span>
+          <AnimatedIcon name="feedback" size={16} className="text-[16px]" />
           <span className="max-w-0 overflow-hidden group-hover:max-w-[200px] transition-all duration-300 whitespace-nowrap">
             Feedback
           </span>
@@ -75,7 +77,7 @@ export function FeedbackWidget() {
         <div className="w-[340px] bg-white rounded-2xl border border-[#e5e7eb] shadow-[0_16px_48px_rgba(0,0,0,0.12)] overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
             <div className="flex items-center gap-2.5">
-              <span className="material-symbols-outlined text-[20px] text-[#6366f1]">lightbulb</span>
+              <AnimatedIcon name="lightbulb" size={20} className="text-[20px] text-[#6366f1]" />
               <span className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
                 {sent ? "Thanks!" : "Are we missing something?"}
               </span>
@@ -86,14 +88,14 @@ export function FeedbackWidget() {
               className="flex items-center justify-center h-7 w-7 rounded-full hover:bg-[#f3f4f6] text-[#6b7280] hover:text-[#111111] transition-colors"
               aria-label="Dismiss"
             >
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <AnimatedIcon name="close" size={16} className="text-[16px]" />
             </button>
           </div>
 
           {sent ? (
             <div className="px-5 pb-5">
               <p className="text-[13px] text-[#10b981] leading-relaxed flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                <AnimatedIcon name="check_circle" size={16} className="text-[16px]" />
                 Feedback sent - we read every one.
               </p>
             </div>

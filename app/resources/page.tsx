@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 
 import { MarketingSchema } from "@/components/seo/marketing-schema";
@@ -36,9 +37,7 @@ function ResourceCard({
     >
       <div className="flex items-start justify-between gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-container text-landing-brand">
-          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'wght' 400" }}>
-            {icon}
-          </span>
+          <AnimatedIcon name={icon} size={20} className="text-[20px]" aria-hidden />
         </span>
         {badge ? (
           <span className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant">

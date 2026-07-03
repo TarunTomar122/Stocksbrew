@@ -960,7 +960,10 @@ def main() -> None:
 
     if not args.skip_context:
         import sys
-        sys.argv = ["build_context_intelligence", "--market", args.market, "--universe", universe_id]
+        argv = ["build_context_intelligence", "--market", args.market, "--universe", universe_id]
+        if args.instrument_ids:
+            argv.extend(["--instrument-ids", args.instrument_ids])
+        sys.argv = argv
         build_context_intelligence_main()
 
     if not args.skip_materialize:

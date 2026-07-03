@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useRouter } from "next/navigation";
 
 import { ProCtaLink } from "@/components/pro-cta";
@@ -66,13 +68,7 @@ function PlanFeatureList({ subscribed }: { subscribed: boolean }) {
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 sm:gap-x-4">
         {PRO_FEATURES.map((feature) => (
           <li key={feature} className="flex items-start gap-2 text-[12px] leading-snug text-on-surface sm:text-[13px]">
-            <span
-              className="material-symbols-outlined mt-px shrink-0 text-[15px] text-landing-brand"
-              style={{ fontVariationSettings: "'wght' 500" }}
-              aria-hidden
-            >
-              check_circle
-            </span>
+            <AnimatedIcon name="check_circle" size={15} className="mt-px shrink-0 text-[15px] text-landing-brand" aria-hidden />
             {feature}
           </li>
         ))}
@@ -240,9 +236,7 @@ export function ProfileSubscription({
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container-low"
                 aria-label="Close cancellation flow"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-                  close
-                </span>
+                <AnimatedIcon name="close" size={20} />
               </button>
             </div>
 

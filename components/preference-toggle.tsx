@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useState, useTransition } from "react";
 
 type Props = {
@@ -35,12 +37,7 @@ export function PreferenceToggle({ field, label, description, icon, initialValue
 
   return (
     <div className="flex items-start gap-3">
-      <span
-        className="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-on-surface-variant"
-        style={{ fontVariationSettings: "'wght' 400" }}
-      >
-        {icon}
-      </span>
+      <AnimatedIcon name={icon} size={18} className="mt-0.5 shrink-0 text-[18px] text-on-surface-variant" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
           <div>

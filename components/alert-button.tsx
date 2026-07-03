@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useCallback, useState } from "react";
 
 import { AlertSetModal } from "@/components/alert-set-modal";
@@ -31,12 +33,7 @@ function DoneBadge({ compact }: { compact?: boolean }) {
         color: "var(--signal-bullish)",
       }}
     >
-      <span
-        className="material-symbols-outlined text-[13px] leading-none"
-        style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
-      >
-        notifications_active
-      </span>
+      <AnimatedIcon name="notifications_active" size={13} className="text-[13px] leading-none" />
       {compact ? "Active" : "Alert set"}
     </span>
   );
@@ -213,12 +210,7 @@ export function AlertButton({
           color: "var(--on-surface-variant)",
         }}
       >
-        <span
-          className="material-symbols-outlined flex items-center justify-center text-[13px] leading-none text-accent-terminal"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
-        >
-          notifications
-        </span>
+        <AnimatedIcon name="notifications" size={13} className="flex items-center justify-center text-[13px] leading-none text-accent-terminal" />
         {busy ? (
           "Setting…"
         ) : (

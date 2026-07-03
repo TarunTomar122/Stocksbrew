@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
+import { AnimatedIcon } from "@/components/animated-icon";
+import { InterestingStocksFeed } from "@/components/interesting-stocks-feed";
 import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
-import { RedditMark } from "@/components/reddit-mark";
 import { StockLogo } from "@/components/stock-logo";
 import { SECTOR_THEME, sectorPctMove } from "@/lib/landing-sector-data";
+import type { InterestingStockRow } from "@/lib/interesting-stocks";
 
 export type SectorCard = { label: string; avg: number; stocks: { ticker: string; changePct: number }[] };
 export type RedditPick = {
@@ -40,14 +42,21 @@ export type PulseTopline = {
   crowd?: string | null;
 };
 
-type Lens = "movers" | "premarket" | "reddit" | "sectors" | "earnings";
+type Lens = "movers" | "premarket" | "interesting" | "reddit" | "sectors" | "earnings";
 
 const TABS: { id: Lens; label: string; icon: string }[] = [
   { id: "movers", label: "Movers", icon: "trending_up" },
   { id: "reddit", label: "Reddit", icon: "forum" },
-  { id: "sectors", label: "Sectors", icon: "dashboard" },
-  { id: "earnings", label: "Earnings", icon: "event" },
+  { id: "sectors", label: "Sectors", icon: "grid_view" },
+  { id: "earnings", label: "Earnings", icon: "calendar_today" },
+  { id: "interesting", label: "Interesting", icon: "stars" },
 ];
+
+function PulseTabIcon({ name }: { name: string }) {
+  return (
+    <AnimatedIcon name={name} size={18} className="pulse-tab-icon" aria-hidden />
+  );
+}
 
 const TIME_LABEL: Record<string, string> = { bmo: "before open", amc: "after close", during: "intraday" };
 function fmtDate(d: string) {
@@ -71,6 +80,7 @@ export function PulseHub({
   earnings,
   recentEarnings,
   premarketItems = [],
+  interestingStocks = [],
   fullItemLimit,
   isSubscribed = false,
 }: {
@@ -80,6 +90,7 @@ export function PulseHub({
   earnings: EarningsPick[];
   recentEarnings: RecentEarningsPick[];
   premarketItems?: ScannerItem[];
+  interestingStocks?: InterestingStockRow[];
   fullItemLimit?: number;
   isSubscribed?: boolean;
 }) {
@@ -110,13 +121,7 @@ export function PulseHub({
               onClick={() => setLens(t.id)}
               className={`pulse-tab ${on ? "pulse-tab-active" : ""}`}
             >
-              {t.id === "reddit" ? (
-                <RedditMark size={17} className={`pulse-tab-icon ${on ? "opacity-100" : "opacity-55"}`} />
-              ) : (
-                <span className="material-symbols-outlined pulse-tab-icon" aria-hidden>
-                  {t.icon}
-                </span>
-              )}
+              <PulseTabIcon name={t.icon} />
               {t.label}
             </button>
           );
@@ -142,6 +147,12 @@ export function PulseHub({
             </Link>
           </p>
           <MoversScanner items={premarketItems} detailed variant="pulse" showCount fullItemLimit={fullItemLimit} />
+        </div>
+      )}
+
+      {lens === "interesting" && (
+        <div className="pt-6">
+          <InterestingStocksFeed rows={interestingStocks} isSubscribed={isSubscribed} />
         </div>
       )}
 
@@ -176,12 +187,7 @@ export function PulseHub({
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="sector-heat-icon">
-                        <span
-                          className="material-symbols-outlined text-[15px]"
-                          style={{ fontVariationSettings: "'wght' 500" }}
-                        >
-                          {theme.icon}
-                        </span>
+                        <AnimatedIcon name={theme.icon} size={15} className="sector-heat-icon-glyph" aria-hidden />
                       </span>
                       <span className="truncate text-[15px] font-bold text-on-surface">{s.label}</span>
                     </div>

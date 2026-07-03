@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useState } from "react";
 
 import { ProCtaLink } from "@/components/pro-cta";
@@ -23,7 +25,7 @@ export function LaunchBanner() {
         onClick={() => setDismissed(true)}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-white transition-colors"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+        <AnimatedIcon name="close" size={18} />
       </button>
     </div>
   );

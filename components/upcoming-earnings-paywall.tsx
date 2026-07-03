@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -262,13 +264,7 @@ export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
                 key={benefit.title}
                 className="flex gap-3 rounded-2xl border border-[#fde68a]/60 bg-white/80 px-4 py-3"
               >
-                <span
-                  aria-hidden
-                  className="material-symbols-outlined mt-0.5 shrink-0 text-[#b45309]"
-                  style={{ fontSize: 20, fontVariationSettings: "'wght' 500" }}
-                >
-                  {benefit.icon}
-                </span>
+                <AnimatedIcon name={benefit.icon} size={20} className="mt-0.5 shrink-0 text-[#b45309]" aria-hidden />
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[13px] font-semibold text-[#111111]">{benefit.title}</span>
                   <span className="text-[12px] leading-snug text-[#6b7280]">{benefit.body}</span>

@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
@@ -101,9 +103,7 @@ export function ProPlanPicker() {
       </Link>
 
       <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-on-surface-variant">
-        <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'wght' 400" }}>
-          lock
-        </span>
+        <AnimatedIcon name="lock" size={14} className="text-[14px]" />
         Secure checkout · cancel anytime
       </p>
     </div>

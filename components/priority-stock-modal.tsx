@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import { useEffect, useMemo, useState } from "react";
 
 type Props = {
@@ -58,7 +60,7 @@ export function PriorityStockModal({ open, instrumentId, ticker }: Props) {
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8f9fa]"
             aria-label="Close priority refresh notice"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <AnimatedIcon name="close" size={18} className="text-[18px]" />
           </button>
         </div>
         <div className="mt-5 flex justify-end">

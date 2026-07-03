@@ -1,5 +1,7 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/animated-icon";
+
 import Link from "next/link";
 import { useState } from "react";
 import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
@@ -200,9 +202,7 @@ export function MoversScanner({
                   {!expanded && rows.length > 10 ? (
                     <button type="button" onClick={() => setExpanded(true)} className="pulse-view-more">
                       View more movers
-                      <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'wght' 500" }}>
-                        expand_more
-                      </span>
+                      <AnimatedIcon name="expand_more" size={18} className="text-[18px]" />
                     </button>
                   ) : null}
                 </div>
