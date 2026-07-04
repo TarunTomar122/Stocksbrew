@@ -8,7 +8,7 @@ import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { trackLandingCtaClicked } from "@/lib/product-analytics";
 import { StockLogo } from "@/components/stock-logo";
-import { HERO_HEADLINE_LEAD, HERO_SUBHEAD } from "@/lib/brand-copy";
+import { HERO_HEADLINE_EMPHASIS, HERO_HEADLINE_LEAD, HERO_SUBHEAD } from "@/lib/brand-copy";
 
 type IndexData = {
   ticker: string;
@@ -126,7 +126,7 @@ function HeroHeadline() {
         {HERO_HEADLINE_LEAD}
       </span>
       <span className="text-[36px] text-[#111111] sm:text-[44px] md:text-[54px] xl:text-[62px] tracking-[-0.05em]">
-        and what to do next.
+        {HERO_HEADLINE_EMPHASIS}
       </span>
     </h1>
   );

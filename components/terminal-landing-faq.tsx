@@ -1,0 +1,91 @@
+"use client";
+
+import { useId, useState } from "react";
+
+type FaqItem = { q: string; a: string };
+
+const FAQS: FaqItem[] = [
+  {
+    q: "What do I get for free?",
+    a: "Track up to 3 stocks and see StocksBrew think about the market: live anomalies, Reddit buzz, and fresh earnings reads. The per-stock calls and your portfolio diagnosis are Pro.",
+  },
+  {
+    q: "Free or Pro — which should I pick?",
+    a: "Start free if you are testing a few names. Go Pro when you want unlimited Radar, email alerts, pre-earnings setups, and the full buy · hold · trim call on every stock you track.",
+  },
+  {
+    q: "What does Pro actually add?",
+    a: "Unlimited stocks on your Radar, a clear call on each one with the reasoning, pre-earnings setups before the print, portfolio diagnosis, anomalies and Reddit at full depth, and email alerts when something moves.",
+  },
+  {
+    q: "Is there a free trial?",
+    a: "Yes on yearly — 3 days of full Pro access. Monthly starts right away. Either way, cancel in one click.",
+  },
+  {
+    q: "Is this investment advice?",
+    a: "No. StocksBrew is research and opinion to help you decide faster. You make the call. We are not a broker and we do not touch your money.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. One click, no questions asked, and you keep access until the period you paid for runs out.",
+  },
+  {
+    q: "Which markets do you cover?",
+    a: "US markets today, with more on the way. Everything you see on the site runs on real, current data.",
+  },
+];
+
+function FaqRow({ item, open, onToggle }: { item: FaqItem; open: boolean; onToggle: () => void }) {
+  const panelId = useId();
+  const buttonId = useId();
+
+  return (
+    <div className={`landing-faq-item ${open ? "landing-faq-item-open" : ""}`}>
+      <button
+        type="button"
+        id={buttonId}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+        className="landing-faq-trigger"
+      >
+        <span className="landing-faq-question">{item.q}</span>
+        <span className="landing-faq-icon" aria-hidden>
+          +
+        </span>
+      </button>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        hidden={!open}
+        className="landing-faq-panel"
+      >
+        <p>{item.a}</p>
+      </div>
+    </div>
+  );
+}
+
+export function TerminalLandingFaq() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  return (
+    <section className="border-t border-outline-variant bg-background">
+      <div className="landing-inner py-16 lg:py-20">
+        <h2 className="mb-8 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">FAQ</h2>
+
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2.5">
+          {FAQS.map((item, index) => (
+            <FaqRow
+              key={item.q}
+              item={item}
+              open={openIndex === index}
+              onToggle={() => setOpenIndex((current) => (current === index ? null : index))}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

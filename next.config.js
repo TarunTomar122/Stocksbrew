@@ -24,6 +24,49 @@ const nextConfig = {
       },
       { source: "/anomalies", destination: "/pulse", permanent: true },
       { source: "/reddit-buzz", destination: "/pulse", permanent: true },
+      // Blog consolidation — alerts cluster
+      {
+        source: "/blog/ai-stock-alerts-vs-price-alerts",
+        destination: "/blog/best-free-stock-alert-tools-2026",
+        permanent: true,
+      },
+      {
+        source: "/blog/how-to-use-stock-alerts-effectively",
+        destination: "/blog/best-free-stock-alert-tools-2026",
+        permanent: true,
+      },
+      // Blog consolidation — market intelligence cluster
+      {
+        source: "/blog/what-is-ai-market-brief",
+        destination: "/blog/best-market-intelligence-tools-2026",
+        permanent: true,
+      },
+      {
+        source: "/blog/daily-market-intelligence-guide",
+        destination: "/blog/best-market-intelligence-tools-2026",
+        permanent: true,
+      },
+      {
+        source: "/blog/free-market-intelligence-tools",
+        destination: "/blog/best-market-intelligence-tools-2026",
+        permanent: true,
+      },
+      {
+        source: "/blog/ai-stock-analysis-what-works",
+        destination: "/blog/best-market-intelligence-tools-2026",
+        permanent: true,
+      },
+      {
+        source: "/blog/ai-stock-analysis-comparison",
+        destination: "/blog/best-market-intelligence-tools-2026",
+        permanent: true,
+      },
+      // Blog consolidation — heatmap cluster
+      {
+        source: "/blog/stock-market-heatmap-tools",
+        destination: "/blog/how-to-read-stock-heat-map",
+        permanent: true,
+      },
     ];
   },
   experimental: {

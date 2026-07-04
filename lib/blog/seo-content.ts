@@ -566,4 +566,424 @@ export const seoBlogContent: Record<string, string> = {
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 `,
+  "how-to-analyze-a-stock-before-buying": `
+<div class="blog-meta">June 2026 · 14 min read</div>
+
+<p>You found a stock that looks interesting. Before you hit buy, you owe yourself 15 minutes of analysis. Not hours of spreadsheet modeling — just a structured check across four dimensions: fundamentals, valuation, technicals, and sentiment. This guide gives you the exact framework.</p>
+
+<h2 id="framework">The 4-Dimension Stock Analysis Framework</h2>
+
+<p>Professional analysts look at hundreds of data points. You don't need to. For most investment decisions, four dimensions cover 90% of what matters:</p>
+
+<ol>
+  <li><strong>Business quality</strong> — Is this a good company?</li>
+  <li><strong>Valuation</strong> — Am I paying a fair price?</li>
+  <li><strong>Technicals</strong> — Is the price trend working in my favor?</li>
+  <li><strong>Sentiment</strong> — What does the market think right now?</li>
+</ol>
+
+<p>Each dimension answers a different question. A stock can be a great company at a terrible price, or a mediocre company at a bargain. You need all four to make a balanced decision.</p>
+
+<h2 id="fundamentals">Step 1: Check Business Quality (5 min)</h2>
+
+<p>Business quality tells you whether the underlying company is healthy and competitive. Here's what to check:</p>
+
+<h3>Revenue growth</h3>
+<p>Look at revenue growth over the past 3-5 years. Consistent growth of 10%+ annually is strong. Declining revenue is a red flag unless there's a clear turnaround story. Check both absolute revenue and year-over-year growth rate.</p>
+
+<h3>Profit margins</h3>
+<p>Gross margin tells you about pricing power. Operating margin tells you about efficiency. Net margin tells you about the bottom line. Compare margins to industry peers. A company with 30% operating margins in an industry where 15% is normal has a competitive advantage.</p>
+
+<h3>Free cash flow</h3>
+<p>Earnings can be manipulated with accounting. Free cash flow (operating cash flow minus capital expenditures) is harder to fake. A company that consistently generates more free cash flow than net income is high quality.</p>
+
+<h3>Debt levels</h3>
+<p>Check the debt-to-equity ratio and interest coverage ratio. A debt-to-equity above 2.0 is aggressive for most industries. Interest coverage below 3x means the company could struggle to service its debt in a downturn.</p>
+
+<h2 id="valuation">Step 2: Check Valuation (3 min)</h2>
+
+<p>Valuation tells you whether the stock price makes sense relative to the company's earnings, growth, and assets. Key metrics:</p>
+
+<h3>P/E ratio</h3>
+<p>Price divided by earnings per share. Compare to the stock's own historical P/E, its industry average, and the S&P 500. A stock trading at 40x earnings when its 5-year average is 25x is expensive unless growth has accelerated.</p>
+
+<h3>PEG ratio</h3>
+<p>P/E divided by earnings growth rate. A PEG below 1.0 suggests the stock is undervalued relative to its growth. Above 2.0 suggests overvaluation. This metric is especially useful for growth stocks where P/E alone can be misleading.</p>
+
+<h3>Price-to-Sales (P/S)</h3>
+<p>For companies with thin margins or recent profitability, P/S is more useful than P/E. Compare to industry peers. A P/S of 2x in an industry where 5x is normal suggests value.</p>
+
+<h2 id="technicals">Step 3: Check Technicals (3 min)</h2>
+
+<p>Technical analysis isn't about predicting the future. It's about understanding the current trend and timing your entry. Three things matter:</p>
+
+<h3>Trend direction</h3>
+<p>Is the stock above or below its 200-day moving average? Above is an uptrend. Below is a downtrend. Buying into an uptrend gives you momentum on your side.</p>
+
+<h3>Support and resistance</h3>
+<p>Where has the stock bounced off in the past (support) and where has it been rejected (resistance)? Buying near support gives you a natural stop-loss level and better risk/reward.</p>
+
+<h3>RSI (Relative Strength Index)</h3>
+<p>RSI measures momentum on a 0-100 scale. Below 30 is oversold (potential bounce). Above 70 is overbought (potential pullback). Buying an oversold stock in an uptrend is one of the highest-probability setups.</p>
+
+<h2 id="sentiment">Step 4: Check Sentiment (3 min)</h2>
+
+<p>Sentiment tells you what the market currently thinks about the stock. This matters because even great companies can be terrible investments if everyone already loves them (priced in) or hates them (contrarian opportunity).</p>
+
+<h3>Analyst consensus</h3>
+<p>How many analysts rate it Buy vs Sell? A stock with 90% Buy ratings might have limited upside because everyone already owns it. A stock with 50% Buy ratings might have more room if the thesis plays out.</p>
+
+<h3>News sentiment</h3>
+<p>Is recent news positive, negative, or mixed? Has sentiment been trending up or down over the past month? Tools like <a href="https://www.stocksbrew.online">stocksbrew</a> score news sentiment automatically for your watchlist.</p>
+
+<h3>Social sentiment</h3>
+<p>What are investors saying on Reddit, Twitter/X, and StockTwits? Extreme bullishness can be a contrarian warning. Extreme bearishness can signal opportunity — if the fundamentals support a recovery.</p>
+
+<h2 id="decision">Putting It All Together</h2>
+
+<p>After running through all four dimensions, you should be able to answer one question: "Is this a good stock at a fair price with the trend and sentiment in my favor?" If the answer to 3 out of 4 is yes, it's worth a position. If 2 or fewer are yes, keep watching or pass.</p>
+
+<div class="cta-section">
+  <h3>Get AI-Powered Stock Analysis</h3>
+  <p>stocksbrew scores fundamentals, sentiment, and technicals for any stock in your watchlist. Free to start.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "best-stock-portfolio-tracker-free-2026": `
+<div class="blog-meta">June 2026 · 12 min read</div>
+
+<p>A portfolio tracker is the single most important tool for any investor who owns more than 3 stocks. It tells you how your investments are performing, whether your allocation makes sense, and when something needs attention. The good news: the best portfolio trackers in 2026 are free.</p>
+
+<p>We tested 10 free portfolio trackers across accuracy, features, speed, and usability. Here's what actually works.</p>
+
+<h2 id="what-to-look-for">What Makes a Great Portfolio Tracker?</h2>
+
+<ul>
+  <li><strong>Automatic data sync</strong> — Manual entry is dead. The best trackers connect to your brokerage or auto-detect holdings.</li>
+  <li><strong>Performance metrics</strong> — Total return, time-weighted return, dividend-adjusted returns. Not just today's P&L.</li>
+  <li><strong>Allocation view</strong> — Sector, asset class, and geographic breakdown of your portfolio.</li>
+  <li><strong>Intelligence, not just data</strong> — The best trackers tell you what's happening with your stocks, not just show you numbers.</li>
+</ul>
+
+<h2 id="rankings">10 Free Portfolio Trackers, Ranked</h2>
+
+<h3>1. stocksbrew — Best for Intelligent Monitoring</h3>
+<p><a href="https://www.stocksbrew.online">stocksbrew</a> isn't just a tracker — it's an AI intelligence platform for your portfolio. Add your holdings, and the AI scans 50+ sources daily to deliver a personalized brief: what moved, why, and what to watch. Each stock gets a sentiment score, earnings intel, and buy/hold/sell signals. The free tier covers 3 stocks.</p>
+
+<h3>2. Yahoo Finance — Best for Traditional Tracking</h3>
+<p>The classic. Yahoo Finance's portfolio tracker lets you create multiple portfolios, track performance, and see earnings dates. It's ad-heavy but comprehensive. The automatic news feed per holding is genuinely useful.</p>
+
+<h3>3. Google Finance — Best for Simplicity</h3>
+<p>If you want a clean, no-frills portfolio view, Google Finance is it. Add tickers, see prices, track basic performance. No ads, no clutter, but also no advanced features.</p>
+
+<h3>4. Kubera — Best UI</h3>
+<p>Kubera has the most beautiful portfolio interface. It tracks stocks, crypto, real estate, and alternative assets in one dashboard. The free tier is limited but the design sets the standard.</p>
+
+<h3>5. Sharesight — Best for Tax Reporting</h3>
+<p>Sharesight excels at tracking dividends, calculating tax obligations, and generating reports. If you need portfolio tracking for tax purposes, this is the best free option (limited to 10 holdings on the free tier).</p>
+
+<h3>6. Morningstar — Best for Fund Investors</h3>
+<p>If your portfolio is mostly ETFs and mutual funds, Morningstar's portfolio X-ray tool is unmatched. It breaks down your actual sector allocation, style box, and overlap between funds.</p>
+
+<h3>7-10. Brokerage Tools</h3>
+<p>Fidelity, Schwab, E*TRADE, and Robinhood all offer free portfolio tracking within their platforms. If you only use one brokerage, their built-in tracker is often the simplest option.</p>
+
+<h2 id="comparison">Quick Comparison</h2>
+<table>
+  <tr><th>Tracker</th><th>Best For</th><th>Intelligence</th><th>Auto-Sync</th></tr>
+  <tr><td>stocksbrew</td><td>Intelligent monitoring</td><td>AI briefs, sentiment, alerts</td><td>Manual (by design)</td></tr>
+  <tr><td>Yahoo Finance</td><td>Traditional tracking</td><td>News feed per stock</td><td>Some brokerages</td></tr>
+  <tr><td>Google Finance</td><td>Simplicity</td><td>Basic news</td><td>No</td></tr>
+  <tr><td>Sharesight</td><td>Tax reporting</td><td>Dividend tracking</td><td>Some brokerages</td></tr>
+  <tr><td>Morningstar</td><td>Fund analysis</td><td>X-ray analysis</td><td>No</td></tr>
+</table>
+
+<div class="cta-section">
+  <h3>Track Your Portfolio with AI</h3>
+  <p>stocksbrew monitors your holdings daily with AI-powered intelligence. Free for 3 stocks.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "how-to-read-stock-charts-beginners": `
+<div class="blog-meta">June 2026 · 13 min read</div>
+
+<p>Stock charts look like a mess of colored bars and squiggly lines until someone explains what you're actually looking at. Once you understand the basics, charts become one of the most useful tools in your investing toolkit — not for predicting the future, but for understanding what's happening right now.</p>
+
+<p>This guide covers everything a beginner needs to read stock charts confidently. No advanced pattern recognition. No obscure indicators. Just the fundamentals that matter.</p>
+
+<h2 id="chart-types">Chart Types: Start with Candlesticks</h2>
+
+<p>There are three main chart types. Line charts connect closing prices — simple but limited. Bar charts show open, high, low, close (OHLC) — more data but harder to read. <strong>Candlestick charts</strong> show the same OHLC data in a visual format that's intuitive once you understand it.</p>
+
+<p>Each candlestick represents one period (day, week, hour). A green (or white) candle means the price closed higher than it opened. A red (or black) candle means it closed lower. The "body" shows the open-to-close range. The "wicks" (thin lines above and below) show the high and low of the period.</p>
+
+<p>What to look for: Long green bodies with small wicks show strong buying pressure. Long red bodies show strong selling pressure. Small bodies with long wicks show indecision — neither buyers nor sellers won that period.</p>
+
+<h2 id="trend">Understanding Trends</h2>
+
+<p>A trend is simply the direction the stock is moving over time. There are three:</p>
+
+<ul>
+  <li><strong>Uptrend:</strong> Higher highs and higher lows. The stock is making new peaks and each pullback is higher than the last.</li>
+  <li><strong>Downtrend:</strong> Lower highs and lower lows. Each bounce fails to reach the previous high.</li>
+  <li><strong>Sideways:</strong> No clear direction. The stock bounces between a range. This is also called "consolidation" or "trading range."</li>
+</ul>
+
+<p>The most important rule: trade with the trend, not against it. Buying a stock in a downtrend because it looks "cheap" is how most beginners lose money.</p>
+
+<h2 id="support-resistance">Support and Resistance</h2>
+
+<p>Support is a price level where buyers have historically stepped in. Resistance is a level where sellers have stepped in. These levels exist because investors remember prices — if a stock bounced at $50 three times, buyers will place orders at $50 again.</p>
+
+<p>How to find them: look for price levels where the stock has reversed direction multiple times. The more times a level holds, the stronger it is. When support breaks, it often becomes resistance (and vice versa). This is called a "role reversal."</p>
+
+<h2 id="volume">Volume: The Confirmation Signal</h2>
+
+<p>Volume is the number of shares traded in a period, shown as bars at the bottom of the chart. Volume confirms price movements:</p>
+
+<ul>
+  <li><strong>Breakout on high volume</strong> — The stock breaks through resistance with 2x+ average volume. This is a strong signal. Real buyers are driving the move.</li>
+  <li><strong>Breakout on low volume</strong> — The stock breaks resistance but volume is below average. Weak signal. Could be a fake breakout.</li>
+  <li><strong>Decline on high volume</strong> — Heavy selling. Institutions are exiting. Take this seriously.</li>
+  <li><strong>Decline on low volume</strong> — Light selling. Could just be profit-taking, not a trend change.</li>
+</ul>
+
+<h2 id="moving-averages">The 3 Indicators That Matter Most</h2>
+
+<p>You don't need 20 indicators. Three cover most situations:</p>
+
+<h3>1. Moving Averages (50-day and 200-day)</h3>
+<p>A moving average smooths out price action by averaging the closing prices over a period. The 50-day MA shows the medium-term trend. The 200-day MA shows the long-term trend. When the 50-day is above the 200-day, the trend is up. When it crosses below (the "death cross"), the trend is shifting down.</p>
+
+<h3>2. RSI (Relative Strength Index)</h3>
+<p>RSI measures momentum on a 0-100 scale. Above 70 means the stock is overbought — it's been going up fast and may pull back. Below 30 means oversold — it's been falling and may bounce. RSI is most useful at extremes, not in the middle range.</p>
+
+<h3>3. MACD (Moving Average Convergence Divergence)</h3>
+<p>MACD shows the relationship between two moving averages. When the MACD line crosses above the signal line, it's a bullish signal. When it crosses below, bearish. MACD is a trend-following indicator — it works well in trending markets and poorly in sideways markets.</p>
+
+<h2 id="putting-together">Putting It Together</h2>
+
+<p>When you look at a stock chart, check these in order:</p>
+
+<ol>
+  <li><strong>What's the trend?</strong> (Up, down, or sideways?)</li>
+  <li><strong>Where are support and resistance?</strong> (Where has the stock bounced and reversed?)</li>
+  <li><strong>What's the volume doing?</strong> (Confirming or contradicting the price move?)</li>
+  <li><strong>What do the moving averages say?</strong> (Is the stock above or below its 50-day and 200-day?)</li>
+  <li><strong>Is RSI at an extreme?</strong> (Overbought or oversold?)</li>
+</ol>
+
+<p>If you can answer these five questions, you know more about that stock's current state than 90% of retail investors.</p>
+
+<div class="cta-section">
+  <h3>Get AI Analysis Alongside Charts</h3>
+  <p>stocksbrew delivers daily intelligence for your watchlist — sentiment, technicals, and fundamentals in one brief. Free to start.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "stock-market-for-beginners-2026": `
+<div class="blog-meta">June 2026 · 15 min read</div>
+
+<p>The stock market can feel intimidating when you're starting out. Jargon, charts, conflicting advice from everyone — your uncle, Twitter, YouTube, and that coworker who won't stop talking about options. This guide cuts through the noise and gives you what you actually need to know to start investing in 2026.</p>
+
+<h2 id="what-are-stocks">What Are Stocks, Really?</h2>
+
+<p>A stock is a tiny piece of ownership in a company. When you buy one share of Apple, you own a fraction of Apple's business — its stores, its intellectual property, its cash, and its future earnings. As the company grows and earns more money, your share becomes more valuable. That's the fundamental reason stocks go up over time.</p>
+
+<p>Stocks are traded on exchanges (NYSE, NASDAQ) where buyers and sellers agree on a price. The price you see is what someone is willing to pay right now. It changes every second the market is open based on supply and demand.</p>
+
+<h2 id="how-to-start">How to Start Investing in 3 Steps</h2>
+
+<h3>Step 1: Open a brokerage account</h3>
+<p>Major brokerages (Fidelity, Schwab, Robinhood, E*TRADE) offer free stock trading with no minimum deposit. Pick one that's reputable and has been around for years. Avoid obscure apps you've never heard of.</p>
+
+<h3>Step 2: Fund your account</h3>
+<p>Transfer money from your bank. Start with an amount you're comfortable not touching for at least 3-5 years. Don't invest money you'll need for rent next month.</p>
+
+<h3>Step 3: Buy your first stock or ETF</h3>
+<p>If you want simplicity, buy an S&P 500 index fund (like VOO or SPY). It holds the 500 largest US companies and has returned roughly 10% annually over the past century. If you want to pick individual stocks, start with 1-3 companies you understand and use daily.</p>
+
+<h2 id="key-concepts">Key Concepts Every Beginner Needs</h2>
+
+<h3>Diversification</h3>
+<p>Don't put all your money in one stock. If that company has a bad quarter, your entire portfolio drops. Spread your money across 10-20 stocks or, even simpler, buy index funds that hold hundreds of stocks automatically.</p>
+
+<h3>Time horizon</h3>
+<p>The stock market goes up over long periods but can drop 20-30% in any given year. If you need the money in 2 years, the stock market is risky. If you need it in 20 years, short-term drops are noise. Match your investments to your timeline.</p>
+
+<h3>Dollar-cost averaging</h3>
+<p>Instead of investing a lump sum, invest a fixed amount every month regardless of whether the market is up or down. This removes the pressure of "timing the market" and works surprisingly well over time.</p>
+
+<h3>Compound returns</h3>
+<p>A $10,000 investment earning 10% annually becomes $67,000 in 20 years and $174,000 in 30 years. Starting early matters more than investing more later. Time in the market beats timing the market.</p>
+
+<h2 id="mistakes">Common Beginner Mistakes to Avoid</h2>
+
+<ul>
+  <li><strong>Chasing hot stocks</strong> — By the time you hear about a stock on the news, the easy money is usually gone.</li>
+  <li><strong>Panic selling during dips</strong> — The market drops 10%+ almost every year. Selling during a dip locks in losses. Holding through it is how wealth is built.</li>
+  <li><strong>Checking your portfolio daily</strong> — For long-term investors, daily price movements are noise. Check weekly or monthly.</li>
+  <li><strong>Ignoring fees</strong> — Index funds charge 0.03-0.20% in fees. Actively managed funds charge 1-2%. Over 30 years, that fee difference can cost you tens of thousands of dollars.</li>
+  <li><strong>Investing without an emergency fund</strong> — Keep 3-6 months of expenses in cash before investing. You don't want to be forced to sell stocks during a downturn because you need cash.</li>
+</ul>
+
+<h2 id="tools">Free Tools for Beginners</h2>
+
+<ul>
+  <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> — Daily AI market brief for your watchlist. Free tier keeps you informed without spending hours reading news.</li>
+  <li><strong>Yahoo Finance</strong> — Stock quotes, financial data, earnings calendar. The go-to for quick research.</li>
+  <li><strong>Finviz</strong> — Stock screener for finding companies that match your criteria.</li>
+  <li><strong>Investopedia</strong> — The Wikipedia of investing. Great for looking up terms you don't understand.</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Start Your Investing Journey</h3>
+  <p>stocksbrew delivers daily market intelligence to help you learn the market. Free to start, no credit card required.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "how-to-build-a-stock-portfolio-from-scratch": `
+<div class="blog-meta">June 2026 · 14 min read</div>
+
+<p>Building a stock portfolio from scratch is one of the most important financial decisions you'll make. Get the structure right and your money compounds for decades. Get it wrong and you're taking concentrated risk without realizing it. This guide walks you through the process step by step.</p>
+
+<h2 id="step-1">Step 1: Define Your Goals and Timeline</h2>
+
+<p>Before picking a single stock, answer two questions:</p>
+
+<ul>
+  <li><strong>What is this money for?</strong> Retirement in 30 years? A house down payment in 5 years? Extra income now?</li>
+  <li><strong>When will you need it?</strong> This determines how much risk you can take. Money needed in 3 years belongs in bonds or savings. Money needed in 20+ years can handle stock market volatility.</li>
+</ul>
+
+<p>A 25-year-old investing for retirement can afford to hold 90-100% stocks because they have decades to recover from downturns. A 55-year-old approaching retirement needs more bonds and dividend stocks for stability and income.</p>
+
+<h2 id="step-2">Step 2: Choose Your Allocation</h2>
+
+<p>Asset allocation — how you split money between stocks, bonds, and cash — determines 90% of your returns over time. Here's a starting framework:</p>
+
+<ul>
+  <li><strong>Aggressive (20s-30s):</strong> 90% stocks, 10% bonds</li>
+  <li><strong>Growth (30s-40s):</strong> 80% stocks, 20% bonds</li>
+  <li><strong>Balanced (40s-50s):</strong> 60% stocks, 40% bonds</li>
+  <li><strong>Conservative (50s+):</strong> 40% stocks, 60% bonds</li>
+</ul>
+
+<p>Within your stock allocation, diversify across sectors, company sizes, and geographies. Don't put everything in tech just because it's been hot.</p>
+
+<h2 id="step-3">Step 3: Build Your Core (70% of Portfolio)</h2>
+
+<p>The core of your portfolio should be broad, diversified, and boring. This is the foundation that compounds over decades:</p>
+
+<ul>
+  <li><strong>S&P 500 index fund (VOO or SPY)</strong> — 40-50% of stock allocation. Exposure to the 500 largest US companies.</li>
+  <li><strong>International index fund (VXUS)</strong> — 15-20%. Non-US developed and emerging markets.</li>
+  <li><strong>Bond index fund (BND)</strong> — Per your allocation above. Stability and income.</li>
+</ul>
+
+<p>This core requires zero maintenance. It rebalances itself. It's the most important part of your portfolio.</p>
+
+<h2 id="step-4">Step 4: Add Individual Stocks (30% of Portfolio)</h2>
+
+<p>Once your core is established, you can add individual stocks for higher potential returns (and higher risk). Guidelines for picking individual stocks:</p>
+
+<h3>Diversify across sectors</h3>
+<p>Don't hold 5 tech stocks. Hold 1 tech, 1 healthcare, 1 consumer, 1 financial, 1 industrial. Aim for 10-20 individual stocks across at least 5 sectors.</p>
+
+<h3>Position sizing</h3>
+<p>No single stock should be more than 5% of your total portfolio. If one stock crashing 50% would ruin your year, you have too much in it. A 5% position that drops 50% is a 2.5% portfolio loss — painful but survivable.</p>
+
+<h3>Quality over quantity</h3>
+<p>10 well-chosen stocks beats 30 random ones. Each stock should have a clear reason for being in your portfolio. If you can't explain why you own it in one sentence, you probably shouldn't own it.</p>
+
+<h2 id="step-5">Step 5: Monitor and Maintain</h2>
+
+<p>A portfolio isn't "set and forget" forever. Review quarterly:</p>
+
+<ul>
+  <li><strong>Has the thesis changed?</strong> If the reason you bought a stock no longer applies, sell it.</li>
+  <li><strong>Is your allocation still right?</strong> If stocks went up 30% and bonds went down, you might now be 90/10 when you wanted 80/20. Rebalance.</li>
+  <li><strong>Are any positions too large?</strong> If one stock grew to 15% of your portfolio, trim it back to 5%.</li>
+  <li><strong>Is anything happening?</strong> Use tools like <a href="https://www.stocksbrew.online">stocksbrew</a> to monitor your holdings daily without spending hours reading news.</li>
+</ul>
+
+<h2 id="common-mistakes">Common Mistakes</h2>
+
+<ul>
+  <li><strong>Too many stocks</strong> — Owning 50 stocks means you're basically running a worse version of an index fund with more work.</li>
+  <li><strong>Too much in one sector</strong> — If all your stocks are tech, you're not diversified. You're concentrated.</li>
+  <li><strong>No bonds</strong> — Stocks feel great in bull markets. In bear markets, bonds are what let you sleep at night.</li>
+  <li><strong>Ignoring dividends</strong> — Reinvested dividends account for roughly 40% of the S&P 500's historical returns. Don't ignore them.</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Monitor Your Portfolio with AI</h3>
+  <p>stocksbrew tracks your holdings daily with AI-powered intelligence. Know what's happening without checking every hour. Free to start.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "when-to-sell-a-stock": `
+<div class="blog-meta">June 2026 · 11 min read</div>
+
+<p>Every investor knows the anxiety: you own a stock, it's up 40%, and you don't know whether to take profits or let it run. Or it's down 20% and you're wondering if this is a buying opportunity or the start of a collapse. Selling is harder than buying because it requires you to make a decision under uncertainty with real money on the line.</p>
+
+<p>Here are 7 signals that suggest it may be time to sell — not as absolute rules, but as data-backed indicators that deserve your attention.</p>
+
+<h2 id="signal-1">Signal 1: Your Original Thesis Is Broken</h2>
+
+<p>This is the most important signal. Every stock you own should have a reason — a thesis. "I bought AAPL because of the iPhone installed base and services growth." If that thesis is no longer true — if services growth has stalled and the installed base is shrinking — it's time to sell regardless of whether the stock is up or down.</p>
+
+<p>The key distinction: a thesis change is different from a price change. If the stock dropped 15% but your thesis is intact, that's not a sell signal. If the company's competitive position is deteriorating, that is.</p>
+
+<h2 id="signal-2">Signal 2: The Valuation Has Become Extreme</h2>
+
+<p>When a stock's P/E ratio is 3x its historical average and 2x its industry average, the market is pricing in perfection. Any disappointment — a missed earnings quarter, a guidance cut, a new competitor — can cause a sharp correction.</p>
+
+<p>This doesn't mean you should sell every stock that gets expensive. But if a stock in your portfolio has become wildly overvalued relative to its growth rate, trimming the position (selling half, for example) locks in gains while keeping upside exposure.</p>
+
+<h2 id="signal-3">Signal 3: Insiders Are Selling Aggressively</h2>
+
+<p>Insiders sell for many reasons — diversification, taxes, personal expenses. A CEO selling $2 million of $50 million in stock is routine. But when multiple insiders sell significant portions simultaneously, or when insider buying stops entirely while selling accelerates, pay attention.</p>
+
+<p>Track insider transactions through SEC filings (Form 4) or tools like OpenInsider. Look for patterns, not individual trades. Cluster selling by multiple executives in the same quarter is a yellow flag.</p>
+
+<h2 id="signal-4">Signal 4: Fundamentals Are Deteriorating</h2>
+
+<p>Three consecutive quarters of declining revenue, shrinking margins, or falling free cash flow are not a "transitional period" — they're a trend. Companies can recover from one bad quarter. Three in a row suggests structural issues.</p>
+
+<p>Key metrics to watch: revenue growth (declining), operating margins (compressing), debt levels (rising), and free cash flow (turning negative). If multiple metrics are moving in the wrong direction simultaneously, the market will eventually punish the stock.</p>
+
+<h2 id="signal-5">Signal 5: You've Found a Better Opportunity</h2>
+
+<p>Capital is finite. If you have $10,000 invested in a stock you're lukewarm on and you find a stock with a stronger thesis, better valuation, and clearer catalyst — sell the weak position and buy the strong one. This is called "opportunity cost" and it's one of the most underused selling frameworks.</p>
+
+<p>The bar should be high: the new opportunity should be meaningfully better, not marginally better. Constantly churning your portfolio for "slightly better" stocks generates taxes and transaction costs that eat into returns.</p>
+
+<h2 id="signal-6">Signal 6: The Position Has Grown Too Large</h2>
+
+<p>If a single stock is now 15-20% of your portfolio due to appreciation, you have concentration risk. One bad quarter can damage your entire portfolio. The rule of thumb: no single stock should exceed 10% of your portfolio. When it does, trim it back to 5% and redeploy the gains.</p>
+
+<p>This is one of the hardest sells emotionally because you're selling a winner. But position sizing discipline is what separates investors from gamblers.</p>
+
+<h2 id="signal-7">Signal 7: The Market Environment Has Changed</h2>
+
+<p>In a rising interest rate environment, growth stocks with high valuations tend to underperform. In a recession, cyclical stocks (industrials, materials, consumer discretionary) tend to underperform. If the macro environment has fundamentally shifted, your portfolio allocation should shift with it.</p>
+
+<p>This doesn't mean selling everything and going to cash. It means adjusting your sector weights. If rates are rising aggressively, trimming some high-multiple growth stocks and adding dividend payers or value stocks is rational risk management.</p>
+
+<h2 id="what-not-to-do">What Not to Do</h2>
+
+<ul>
+  <li><strong>Don't sell on a single bad day</strong> — Markets drop 1-3% regularly. This is noise, not signal.</li>
+  <li><strong>Don't sell to "lock in losses" for taxes unless it's December</strong> — Tax-loss selling should be strategic, not emotional.</li>
+  <li><strong>Don't sell because someone on Twitter said to</strong> — Have your own thesis. Trust your own analysis.</li>
+  <li><strong>Don't sell your winners to "rebalance into losers"</strong> — Let your winners run. Cut your losers. This sounds obvious but most investors do the opposite.</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Know When to Sell with AI Intelligence</h3>
+  <p>stocksbrew tracks sentiment, fundamentals, and technicals for your watchlist — and flags when something changes. Free to start.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
 };

@@ -29,7 +29,8 @@ export function redditPickToTicker(r: {
   };
 }
 
-function gridClassFor(cols: "1" | "2" | "3") {
+function gridClassFor(cols: "1" | "2" | "3", variant: "home" | "pulse" | "landing") {
+  if (variant === "landing") return "flex flex-col gap-1";
   if (cols === "1") return "flex flex-col gap-3";
   if (cols === "2") return "grid gap-4 sm:grid-cols-2";
   return "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
@@ -51,7 +52,7 @@ export function RedditBuzzFeed({
   items: RedditTicker[];
   isSubscribed: boolean;
   limit?: number;
-  variant?: "home" | "pulse";
+  variant?: "home" | "pulse" | "landing";
   gridCols?: "1" | "2" | "3";
   scrollClassName?: string;
   unlockBarClassName?: string;
@@ -76,7 +77,7 @@ export function RedditBuzzFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={`${gridClassFor(gridCols)} ${scrollClassName}`}>
+      <div className={`${gridClassFor(gridCols, variant)} ${scrollClassName}`}>
         {visibleItems.map((item, index) => (
           <RedditBuzzCard
             key={item.ticker}

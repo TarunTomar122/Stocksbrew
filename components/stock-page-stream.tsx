@@ -194,11 +194,10 @@ export async function StockPageStream({ params }: Props) {
   const tier = resolveStockTier(stock.instrument_id, tracked);
   const isLaunchBrief = tier === "ai_launch";
   const isTracked = tracked.includes(stock.instrument_id);
-  // Tiering: factual sections are free to all. The AI layer (The Call, the read,
-  // sentiment) loads for subscribers on any ticker, and for signed-in free users
-  // on launch-list tickers ("free covers the launch list"). Logged-out users get
-  // the factual scaffolding plus a sign-in prompt where the AI would be.
-  const shouldLoadAI = subscribed || (isSignedIn && isLaunchBrief);
+  // Tiering: factual sections are free to all. The AI layer (The Call, drivers,
+  // sentiment) loads for Pro only. Non-Pro users see chart + returns + free shelf
+  // with a compact unlock card where the call would be.
+  const shouldLoadAI = subscribed;
 
   // fundamentals come free from getStockSummary (same tm_latest_prices doc) -
   // no extra Firestore read needed.

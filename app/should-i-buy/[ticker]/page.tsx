@@ -199,6 +199,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `Should I Buy ${upper}? | stocksbrew`,
     description,
+    robots: { index: false, follow: true },
     openGraph: {
       title: `Should I Buy ${upper}? | stocksbrew`,
       description,

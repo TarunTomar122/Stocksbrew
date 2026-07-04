@@ -10,10 +10,12 @@ import { AuthButton } from "@/components/auth-button";
 import { TrackButton } from "@/components/track-button";
 import { StockRequestModal } from "@/components/stock-request-modal";
 import { ProBadge } from "@/components/pro-badge";
+import { TickerSearchField } from "@/components/ticker-search-field";
 import { useUser } from "@/lib/auth-context";
 import { captureEvent } from "@/lib/posthog";
 import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
+import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 
 type Props = {
   searchIndex?: SearchEntry[];
@@ -30,46 +32,23 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/watchlist", label: "Radar",  icon: "radar" },
 ];
 
-function formatPct(pct?: number): { text: string; positive: boolean } | null {
-  if (typeof pct !== "number") return null;
-  const positive = pct >= 0;
-  return {
-    text: `${positive ? "+" : ""}${pct.toFixed(2)}%`,
-    positive,
-  };
-}
-
-function scoreEntry(entry: SearchEntry, q: string): number {
-  const ticker = entry.ticker.toLowerCase();
-  const name = entry.name.toLowerCase();
-  if (ticker === q) return 100;
-  if (ticker.startsWith(q)) return 80;
-  if (name.startsWith(q)) return 60;
-  if (ticker.includes(q)) return 40;
-  if (name.includes(q)) return 20;
-  return 0;
-}
-
 export function Header({ searchIndex: initialSearchIndex = [], market, trackedIds = [], isSubscribed = false }: Props) {
   const router = useRouter();
   const { user, initialAuthed } = useUser();
   const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(initialSearchIndex);
-  const [searchIndexReady, setSearchIndexReady] = useState<boolean>(initialSearchIndex.length > 0);
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [requestQuery, setRequestQuery] = useState<string | null>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+  const isHome = pathname === "/";
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return searchIndex
-      .map((entry) => ({ entry, score: scoreEntry(entry, q) }))
+      .map((entry) => ({ entry, score: scoreSearchEntry(entry, q) }))
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
@@ -91,7 +70,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
         const entries = Array.isArray(payload.entries) ? payload.entries : [];
         if (!cancelled) {
           setSearchIndex(entries);
-          setSearchIndexReady(entries.length > 0);
         }
       } catch {
         // keep local fallback
@@ -114,20 +92,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   }, [market]);
 
   useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("[data-track-modal-root='true']")) {
-        return;
-      }
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
-
-  useEffect(() => {
     if (mobileSearchOpen) {
       setTimeout(() => mobileInputRef.current?.focus(), 50);
     } else {
@@ -148,46 +112,12 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
       ticker: entry.ticker,
       instrument_id: entry.instrument_id,
       market,
-      source: mobileSearchOpen ? "mobile_header" : "desktop_header",
+      source: "mobile_header",
     });
-    setOpen(false);
     setQuery("");
-    inputRef.current?.blur();
+    mobileInputRef.current?.blur();
     router.push(`/stock/${encodeURIComponent(entry.ticker)}`);
   }
-
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (results.length > 0) {
-        setActiveIndex((i) => (i + 1) % results.length);
-        setOpen(true);
-      }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (results.length > 0) {
-        setActiveIndex((i) => (i - 1 + results.length) % results.length);
-        setOpen(true);
-      }
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const picked = results[activeIndex];
-      if (picked) {
-        navigateTo(picked);
-      } else if (query.trim()) {
-        const ticker = query.trim().toUpperCase();
-        setOpen(false);
-        setQuery("");
-        inputRef.current?.blur();
-        router.push(`/stock/${encodeURIComponent(ticker)}`);
-      }
-    } else if (e.key === "Escape") {
-      setOpen(false);
-      inputRef.current?.blur();
-    }
-  }
-
-  const showDropdown = open && query.trim().length > 0;
 
   const navItems = NAV_ITEMS.filter((item) => !item.authOnly || user || initialAuthed);
 
@@ -237,121 +167,20 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             </nav>
           </div>
 
+          {!isHome ? (
           <div className="hidden min-w-0 flex-1 justify-end px-2 md:flex">
-            <div ref={containerRef} className="relative w-full max-w-[280px]">
-            <AnimatedIcon name="search" size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setOpen(true);
-              }}
-              onFocus={() => setOpen(true)}
-              onKeyDown={onKeyDown}
-              placeholder={searchIndexReady ? "Search ticker..." : "Preparing search..."}
-              autoComplete="off"
-              spellCheck={false}
-              className="h-10 w-full rounded-full border border-outline-variant bg-surface-container-low pl-11 pr-4 text-[14px] text-on-surface placeholder:text-on-surface-variant outline-none transition-colors focus:border-outline focus:bg-surface"
+            <TickerSearchField
+              variant="header"
+              market={market}
+              trackedIds={trackedIds}
+              isSubscribed={isSubscribed}
+              analyticsSource="desktop_header"
             />
-
-            {showDropdown && (
-              <div className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
-                  {results.length === 0 ? (
-                    <div className="px-4 py-4 flex flex-col gap-2">
-                      <p className="text-[14px] text-on-surface-variant">
-                        No matches for{" "}
-                        <span className="font-semibold text-on-surface">
-                          {query.trim().toUpperCase()}
-                        </span>
-                        .
-                      </p>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          captureEvent("stock_request_clicked", {
-                            query: query.trim().toUpperCase(),
-                            source: "desktop_header",
-                          });
-                          setOpen(false);
-                          setRequestQuery(query.trim().toUpperCase());
-                        }}
-                        className="inline-flex items-center gap-1.5 self-start rounded-full bg-on-surface px-3 py-1.5 text-[13px] font-semibold text-surface hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-                      >
-                        <AnimatedIcon name="add" size={14} />
-                        Request {query.trim().toUpperCase()}
-                      </button>
-                    </div>
-                  ) : (
-                    <ul className="max-h-[380px] overflow-y-auto py-1.5">
-                      {results.map((r, i) => {
-                        const pct = formatPct(r.day_change_pct);
-                        const isActive = i === activeIndex;
-                        const isTracked = trackedIds.includes(r.instrument_id);
-                        return (
-                          <li key={r.instrument_id}>
-                            <div
-                              onMouseEnter={() => setActiveIndex(i)}
-                              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                                isActive ? "bg-surface-container" : "hover:bg-surface-container-low"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  navigateTo(r);
-                                }}
-                                className="flex-1 min-w-0 text-left"
-                              >
-                                <div className="text-[14px] font-semibold text-on-surface">
-                                  {r.ticker}
-                                </div>
-                                <div className="text-[13px] text-on-surface-variant truncate">
-                                  {r.name}
-                                </div>
-                              </button>
-                              <div className="flex flex-col items-end flex-shrink-0">
-                                {typeof r.price === "number" && (
-                                  <span className="text-[13px] font-semibold text-on-surface tabular-nums">
-                                    {r.price.toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                )}
-                                {pct && (
-                                  <span
-                                    className={`text-[12px] font-semibold tabular-nums ${
-                                      pct.positive ? "text-[#10b981]" : "text-[#ef4444]"
-                                    }`}
-                                  >
-                                    {pct.text}
-                                  </span>
-                                )}
-                              </div>
-                              <TrackButton
-                                ticker={r.ticker}
-                                instrumentId={r.instrument_id}
-                                isTracked={isTracked}
-                                isSubscribed={isSubscribed}
-                                trackedCount={trackedIds.length}
-                                variant="icon"
-                              />
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
+          ) : null}
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+            {!isHome ? (
             <button
               type="button"
               aria-label="Search"
@@ -360,6 +189,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             >
               <AnimatedIcon name="search" size={20} />
             </button>
+            ) : null}
 
             <AuthButton />
           </div>
@@ -404,7 +234,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               ref={mobileInputRef}
               type="text"
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+              onChange={(e) => { setQuery(e.target.value); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   const picked = results[activeIndex];
@@ -459,7 +289,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             ) : (
               <ul>
                 {results.map((r, i) => {
-                  const pct = formatPct(r.day_change_pct);
+                  const pct = formatSearchPct(r.day_change_pct);
                   const isTracked = trackedIds.includes(r.instrument_id);
                   return (
                     <li key={r.instrument_id} className="flex items-center gap-3 px-5 py-3.5 border-b border-outline-variant">

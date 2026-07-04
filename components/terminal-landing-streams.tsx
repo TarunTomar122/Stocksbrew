@@ -3,31 +3,32 @@ import { LandingHeroCommand } from "@/components/landing-hero-command";
 import { LandingScannerReddit } from "@/components/landing-scanner-reddit";
 import { LandingSectorHeat } from "@/components/landing-sector-heat";
 import { LandingTape } from "@/components/landing-tape";
+import { TerminalLandingHeroCopy } from "@/components/terminal-landing-hero-copy";
 import { TerminalLandingProSection } from "@/components/terminal-landing-pro-section";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
 import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
-import { anomalyTag, buildLandingSectorCards, pickBiggestMover } from "@/lib/landing-sector-data";
-import { directiveZonePrice, normalizeDirectiveForUi } from "@/lib/directive-ui";
+import type { AnomalyItem } from "@/lib/daily-anomalies";
+import { anomalyTag, buildLandingSectorCards } from "@/lib/landing-sector-data";
+import {
+  findLandingHeroAnomaly,
+  mergeLandingHeroAnomaly,
+  shuffledLandingHeroBrewTickers,
+  stockSummaryToAnomaly,
+} from "@/lib/landing-hero-featured";
+import { buildLandingHeroCallData } from "@/lib/landing-hero-call";
+import { pickLandingHeroDriverRisk } from "@/lib/landing-hero-insights";
+import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
+import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { getSessionUser } from "@/lib/auth-server";
-import type { DirectiveZone } from "@/lib/stock";
-import { getStockFacts, getStockIntelligenceDoc, getStockPriceHistory } from "@/lib/stock";
+import { getStockFacts, getStockIntelligenceDoc, getStockPriceHistory, getStockSummary } from "@/lib/stock";
+import type { PriceHistoryPoint } from "@/lib/price-history-chart";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-
-function formatLevelLabel(zone: DirectiveZone | undefined, kind: "add" | "trim"): string | null {
-  const price = directiveZonePrice(zone);
-  if (price == null) return null;
-  const money = price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (kind === "add") {
-    return zone?.trigger_type === "price_above" ? `Add above $${money}` : `Add below $${money}`;
-  }
-  return zone?.trigger_type === "price_below" ? `Trim below $${money}` : `Trim above $${money}`;
-}
 
 function shortHeadline(text: string | null | undefined, maxLen = 110): string | null {
   if (!text?.trim()) return null;
@@ -69,19 +70,69 @@ const getLandingAnomalies = cache(async () => {
   return doc?.anomalies ?? [];
 });
 
+async function resolveLandingHeroFeatured(
+  anomalies: AnomalyItem[],
+): Promise<{ anomaly: AnomalyItem; priceHistory: PriceHistoryPoint[] } | null> {
+  const market = getCurrentMarket();
+
+  for (const ticker of shuffledLandingHeroBrewTickers()) {
+    const summary = await getStockSummary(ticker, market).catch(() => null);
+    if (!summary) continue;
+
+    const priceHistory = await getStockPriceHistory(summary.instrument_id).catch(() => []);
+
+    const fromAnomalies = findLandingHeroAnomaly(anomalies, ticker);
+    const anomaly = fromAnomalies
+      ? mergeLandingHeroAnomaly(fromAnomalies, summary)
+      : stockSummaryToAnomaly(summary);
+
+    return { anomaly, priceHistory };
+  }
+
+  return null;
+}
+
 export async function LandingTapeStream() {
   const anomalies = await getLandingAnomalies();
   return <div className="landing-stream-in"><LandingTape anomalies={anomalies} /></div>;
 }
 
-export async function LandingHeroCommandStream() {
+export async function LandingHeroStream() {
   const market = getCurrentMarket();
-  const [anomalies, user] = await Promise.all([getLandingAnomalies(), getLandingUserContext()]);
-  const featured = pickBiggestMover(anomalies);
-  if (!featured) return null;
+  const user = await getLandingUserContext();
+  const anomalies = await getLandingAnomalies();
+  const featuredPick = await resolveLandingHeroFeatured(anomalies);
 
+  const commandCard = featuredPick
+    ? await buildLandingHeroCommandProps(featuredPick.anomaly, market, user, featuredPick.priceHistory)
+    : null;
+
+  return (
+    <div className="landing-stream-in flex w-full flex-col items-center">
+      <TerminalLandingHeroCopy
+        market={market}
+        trackedIds={user.trackedIds}
+        isSubscribed={user.isSubscribed}
+      />
+      {commandCard ? (
+        <div className="mt-10 w-full max-w-4xl sm:mt-12">
+          <LandingHeroCommand {...commandCard} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+async function buildLandingHeroCommandProps(
+  featured: AnomalyItem,
+  market: ReturnType<typeof getCurrentMarket>,
+  user: Awaited<ReturnType<typeof getLandingUserContext>>,
+  preloadedPriceHistory?: PriceHistoryPoint[],
+) {
   const [priceHistory, intelligence, stockFacts] = await Promise.all([
-    getStockPriceHistory(featured.instrument_id).catch(() => []),
+    preloadedPriceHistory != null
+      ? Promise.resolve(preloadedPriceHistory)
+      : getStockPriceHistory(featured.instrument_id).catch(() => []),
     getStockIntelligenceDoc(featured.instrument_id, market).catch(() => null),
     getStockFacts(featured.instrument_id).catch(() => null),
   ]);
@@ -95,37 +146,54 @@ export async function LandingHeroCommandStream() {
     featured.catalyst?.trim() ||
     featured.visual_summary?.what_changed?.trim() ||
     null;
-  const headline = shortHeadline(moveHeadline || directive?.text);
   const analystTarget = stockFacts?.analyst?.target_price ?? null;
-  const analystUpside =
-    typeof analystTarget === "number" && Number.isFinite(analystTarget) && featured.price > 0
-      ? ((analystTarget - featured.price) / featured.price) * 100
-      : null;
+  const heroMetrics = buildLandingHeroMetrics(directive, featured.price, analystTarget);
+  const { driver, risk } = pickLandingHeroDriverRisk(featured, intelligence);
+  const call = buildLandingHeroCallData(
+    featured,
+    intelligence,
+    heroMetrics,
+    analystTarget,
+    shortHeadline(moveHeadline || directive?.text),
+    stockFacts?.returns ?? null,
+  );
+
+  return {
+    featured: {
+      instrument_id: featured.instrument_id,
+      ticker: featured.ticker,
+      name: featured.name,
+      price: featured.price,
+      day_change_pct: featured.day_change_pct,
+      sector: featured.sector,
+      catalyst: featured.catalyst?.trim() || null,
+      driver,
+      risk,
+      price_history: priceHistory.slice(-252),
+    },
+    call,
+    isSubscribed: user.isSubscribed,
+    isTracked: featuredTracked,
+    tier,
+  };
+}
+
+export async function LandingHeroCommandStream() {
+  const market = getCurrentMarket();
+  const [anomalies, user] = await Promise.all([getLandingAnomalies(), getLandingUserContext()]);
+  const featuredPick = await resolveLandingHeroFeatured(anomalies);
+  if (!featuredPick) return null;
+
+  const props = await buildLandingHeroCommandProps(
+    featuredPick.anomaly,
+    market,
+    user,
+    featuredPick.priceHistory,
+  );
 
   return (
     <div className="landing-stream-in">
-      <LandingHeroCommand
-      featured={{
-        instrument_id: featured.instrument_id,
-        ticker: featured.ticker,
-        name: featured.name,
-        price: featured.price,
-        day_change_pct: featured.day_change_pct,
-        overall_score: featured.overall_score,
-        overall_label: featured.overall_label,
-        sector: featured.sector,
-        catalyst: featured.catalyst?.trim() || null,
-        headline,
-        add_level: formatLevelLabel(directive?.add_on, "add"),
-        trim_level: formatLevelLabel(directive?.trim_on, "trim"),
-        analyst_target: analystTarget,
-        analyst_upside_pct: analystUpside,
-        price_history: priceHistory.slice(-63),
-      }}
-      isSubscribed={user.isSubscribed}
-      isTracked={featuredTracked}
-      tier={tier}
-    />
+      <LandingHeroCommand {...props} />
     </div>
   );
 }
@@ -154,6 +222,7 @@ export async function LandingScannerRedditStream() {
       <LandingScannerReddit
       scannerItems={redactScannerItemsAfterLimit(anomalies.map((a) => ({
         ticker: a.ticker,
+        instrument_id: a.instrument_id,
         price: a.price,
         changePct: a.day_change_pct,
         tag: anomalyTag(a),
@@ -165,6 +234,7 @@ export async function LandingScannerRedditStream() {
       dataAsOf={anomaliesDoc?.date ?? anomaliesDoc?.generated_at}
       fullItemLimit={user.fullItemLimit}
       isSubscribed={user.isSubscribed}
+      trackedIds={user.trackedIds}
     />
     </div>
   );

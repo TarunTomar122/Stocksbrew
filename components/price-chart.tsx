@@ -25,6 +25,8 @@ export type PriceChartZone = {
   color: string;
   label: string;
   dashed?: boolean;
+  /** Reference line opacity (line mode only). */
+  strokeOpacity?: number;
 };
 
 function niceStep(span: number, tickCount: number): number {
@@ -265,7 +267,7 @@ function ZoneLayers({
               y={zone.price}
               stroke={zone.color}
               strokeDasharray={zone.dashed ? "6 5" : "4 3"}
-              strokeOpacity={0.7}
+              strokeOpacity={zone.strokeOpacity ?? 0.7}
               strokeWidth={1.5}
             />
           );

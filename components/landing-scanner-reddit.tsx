@@ -64,21 +64,23 @@ export function LandingScannerReddit({
   dataAsOf,
   fullItemLimit,
   isSubscribed = false,
+  trackedIds = [],
 }: {
   scannerItems: ScannerItem[];
   redditPicks: RedditPick[];
   dataAsOf?: string;
   fullItemLimit?: number;
   isSubscribed?: boolean;
+  trackedIds?: string[];
 }) {
   const dataLabel = formatDataDate(dataAsOf);
 
   return (
     <section className="border-b border-outline-variant bg-background">
       <div className="landing-inner py-16 lg:py-20">
-        <div className="landing-card overflow-hidden">
-          <div className="grid lg:grid-cols-2">
-            <div className="border-b border-outline-variant p-5 md:p-6 lg:border-b-0 lg:border-r">
+        <div className="landing-card overflow-clip">
+          <div className="grid min-w-0 lg:grid-cols-2">
+            <div className="min-w-0 border-b border-outline-variant p-5 md:p-6 lg:border-b-0 lg:border-r">
               <SectionHeader
                 icon="trending_up"
                 tone="scanner"
@@ -87,15 +89,18 @@ export function LandingScannerReddit({
               />
               <MoversScanner
                 items={scannerItems}
-                limit={7}
+                limit={isSubscribed ? 8 : 7}
                 showCount={false}
                 embedded
                 fullItemLimit={fullItemLimit}
                 unlockSignedOutLabel={HOMEPAGE_UNLOCK_LABEL}
+                trackedIds={trackedIds}
+                isSubscribed={isSubscribed}
+                trackedCount={trackedIds.length}
               />
             </div>
 
-            <div className="flex flex-col p-5 md:p-6">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col p-5 md:p-6">
               <SectionHeader
                 icon="forum"
                 tone="reddit"
@@ -107,7 +112,7 @@ export function LandingScannerReddit({
                   <RedditBuzzFeed
                     items={redditPicks.map(redditPickToTicker)}
                     isSubscribed={isSubscribed}
-                    variant="pulse"
+                    variant="landing"
                     gridCols="1"
                     showTalkingPoints={false}
                     hideLockedRows

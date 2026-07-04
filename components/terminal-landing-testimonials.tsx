@@ -1,143 +1,107 @@
 import Image from "next/image";
 
-type Testimonial = {
-  quote: string;
+type ReviewSegment = { text: string; highlight?: boolean };
+
+type Review = {
+  segments: ReviewSegment[];
   displayName: string;
   handle: string;
-  time: string;
   photoUrl: string;
 };
 
-const TESTIMONIALS: Testimonial[] = [
+const REVIEWS: Review[] = [
   {
-    quote:
-      "I used to open six tabs before coffee. Now I check Radar and actually know if I should add or sit out. Talked me out of chasing SMCI on a green open last month.",
-    displayName: "marcus",
+    segments: [
+      { text: "I used to open six tabs before coffee. " },
+      { text: "Now I check Radar and actually know if I should add or sit out.", highlight: true },
+      { text: " Talked me out of chasing a gap-up loser last month." },
+    ],
+    displayName: "Marcus",
     handle: "marcus_pnl",
-    time: "Mar 12",
     photoUrl: "https://randomuser.me/api/portraits/men/32.jpg",
   },
   {
-    quote:
-      "The Reddit read on my watchlist caught the INTC pile-on a day early. I trimmed before my group chat even noticed.",
-    displayName: "pri",
-    handle: "priya_reads",
-    time: "Mar 11",
-    photoUrl: "https://randomuser.me/api/portraits/women/65.jpg",
-  },
-  {
-    quote:
-      "Got the NVDA ping at 7:12am with the actual reason, not just 'stock down.' Trimmed into strength instead of panic selling like I usually do.",
-    displayName: "james",
-    handle: "james_nvda",
-    time: "Mar 10",
-    photoUrl: "https://randomuser.me/api/portraits/men/45.jpg",
-  },
-  {
-    quote:
-      "Started on the free 3-stock plan. Upgraded after earnings week when it called the beat and fade before I saw it on X.",
-    displayName: "elena",
-    handle: "elena_earnings",
-    time: "Mar 9",
+    segments: [
+      { text: "The " },
+      { text: "Reddit read on my watchlist caught the pile-on a day early.", highlight: true },
+      { text: " I trimmed before my group chat even noticed." },
+    ],
+    displayName: "Margo",
+    handle: "margo_reads",
     photoUrl: "https://randomuser.me/api/portraits/women/44.jpg",
   },
   {
-    quote:
-      "Sector heat plus movers in one scroll. I am not a full-time trader and this is finally enough context to make a call without spiraling.",
-    displayName: "chris",
-    handle: "lunch_trader",
-    time: "Mar 8",
-    photoUrl: "https://randomuser.me/api/portraits/men/22.jpg",
-  },
-  {
-    quote:
-      "My friend sent me the link thinking it was another stock Twitter clone. The hold call on AAPL matched what I was already thinking, which never happens.",
-    displayName: "dan",
-    handle: "dan_holdgang",
-    time: "Mar 7",
-    photoUrl: "https://randomuser.me/api/portraits/men/67.jpg",
-  },
-  {
-    quote:
-      "Pre-market tab showed me where the gaps were before the open. Took a small position in RTX and had a plan instead of reacting at the bell.",
-    displayName: "aisha",
-    handle: "gapandgo",
-    time: "Mar 6",
-    photoUrl: "https://randomuser.me/api/portraits/women/68.jpg",
-  },
-  {
-    quote:
-      "Alerts are the thing. Woke up to a trim call on a name I forgot I still held. Probably saved me a dumb hold through a guidance cut.",
-    displayName: "tom",
-    handle: "tom_alerts",
-    time: "Mar 5",
-    photoUrl: "https://randomuser.me/api/portraits/men/51.jpg",
+    segments: [
+      { text: "Got the " },
+      { text: "trim call at 7am with the actual reason", highlight: true },
+      { text: ", not just 'stock down.' Finally something I can act on before the open." },
+    ],
+    displayName: "Ravi",
+    handle: "ravi_preopen",
+    photoUrl: "https://randomuser.me/api/portraits/men/45.jpg",
   },
 ];
 
-function XGlyph() {
+function StarRow() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-on-surface-variant">
-      <path
-        fill="currentColor"
-        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-      />
-    </svg>
-  );
-}
-
-function TweetCard({ quote, displayName, handle, time, photoUrl }: Testimonial) {
-  return (
-    <article className="tweet-card w-[21rem] shrink-0 p-4">
-      <div className="flex items-start gap-3">
-        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-container">
-          <Image
-            src={photoUrl}
-            alt=""
-            width={40}
-            height={40}
-            className="h-full w-full object-cover"
-            unoptimized
+    <div className="landing-review-stars" aria-label="5 out of 5 stars">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg key={i} width="18" height="18" viewBox="0 0 20 20" aria-hidden className="landing-review-star">
+          <path
+            fill="currentColor"
+            d="M10 1.5l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.9l-4.94 2.6.94-5.5-4-3.9 5.53-.8L10 1.5z"
           />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 truncate text-[14px] leading-tight">
-              <span className="font-bold text-on-surface">{displayName}</span>{" "}
-              <span className="text-on-surface-variant">@{handle}</span>{" "}
-              <span className="text-on-surface-variant">· {time}</span>
-            </div>
-            <XGlyph />
-          </div>
-          <p className="mt-2 whitespace-normal text-[14px] leading-relaxed text-on-surface">{quote}</p>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function TestimonialStrip({ items }: { items: Testimonial[] }) {
-  return (
-    <div className="flex shrink-0 items-stretch gap-4 pr-4">
-      {items.map((item) => (
-        <TweetCard key={item.handle} {...item} />
+        </svg>
       ))}
     </div>
   );
 }
 
+function ReviewCard({ segments, displayName, handle, photoUrl }: Review) {
+  return (
+    <article className="landing-review-card flex h-full flex-col items-center px-2 text-center sm:px-4">
+      <div className="flex h-5 w-full items-center justify-center">
+        <StarRow />
+      </div>
+      <blockquote className="landing-review-quote mt-5 flex-1">
+        {segments.map((segment, index) =>
+          segment.highlight ? (
+            <mark key={index} className="landing-review-highlight">
+              {segment.text}
+            </mark>
+          ) : (
+            <span key={index}>{segment.text}</span>
+          ),
+        )}
+      </blockquote>
+      <footer className="mt-auto flex items-center justify-center gap-2.5 pt-6">
+        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-surface-container">
+          <Image src={photoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" unoptimized />
+        </div>
+        <div className="min-w-0 text-left">
+          <p className="text-[14px] font-semibold leading-tight text-on-surface">{displayName}</p>
+          <p className="text-[13px] leading-tight text-on-surface-variant">@{handle}</p>
+        </div>
+      </footer>
+    </article>
+  );
+}
+
 export function TerminalLandingTestimonials() {
   return (
-    <section className="border-t border-outline-variant">
-      <div className="landing-inner py-24">
-        <div className="mb-1 font-mono text-[12px] text-accent-terminal">// the desk</div>
-        <h2 className="mb-8 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">What traders are saying</h2>
+    <section className="border-t border-outline-variant bg-background">
+      <div className="landing-inner py-16 lg:py-20">
+        <div className="mx-auto mb-10 max-w-2xl text-center">
+          <p className="landing-section-kicker text-landing-brand">Reviews</p>
+          <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl">
+            What people are saying
+          </h2>
+        </div>
 
-        <div className="testimonials-marquee overflow-hidden">
-          <div className="sb-testimonials-tape">
-            <TestimonialStrip items={TESTIMONIALS} />
-            <TestimonialStrip items={TESTIMONIALS} />
-          </div>
+        <div className="grid gap-10 md:grid-cols-3 md:items-stretch md:gap-6 lg:gap-10">
+          {REVIEWS.map((review) => (
+            <ReviewCard key={review.handle} {...review} />
+          ))}
         </div>
       </div>
     </section>

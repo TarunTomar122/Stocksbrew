@@ -38,16 +38,19 @@ export function LockedRoomToTarget({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (loading || user) return;
-    trackPaywallShown({ surface: "locked_room_to_target", ticker, signedIn: false });
+    if (loading) return;
+    trackPaywallShown({ surface: "locked_room_to_target", ticker, signedIn: Boolean(user) });
   }, [loading, user, ticker]);
 
   if (loading) return null;
 
   const signedIn = Boolean(user);
   const count = analystCount ?? ratingTotal;
-  const teaser =
-    count > 0
+  const teaser = signedIn
+    ? count > 0
+      ? `${count} analyst${count === 1 ? "" : "s"} cover ${ticker} — Pro unlocks consensus target and upside.`
+      : `Pro unlocks analyst target and upside on ${ticker}.`
+    : count > 0
       ? `${count} analyst${count === 1 ? "" : "s"} cover ${ticker} — sign in to see consensus target and upside.`
       : `Sign in to see analyst target and upside on ${ticker}.`;
 

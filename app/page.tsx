@@ -1,16 +1,16 @@
 import { Suspense } from "react";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { NewsletterModal } from "@/components/newsletter-modal";
-import { TerminalLandingHeroCopy } from "@/components/terminal-landing-hero-copy";
 import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
+import { TerminalLandingFaq } from "@/components/terminal-landing-faq";
 import {
-  LandingHeroCommandSkeleton,
+  LandingHeroSkeleton,
   LandingScannerRedditSkeleton,
   LandingSectorHeatSkeleton,
   LandingTapeSkeleton,
 } from "@/components/terminal-landing-skeleton";
 import {
-  LandingHeroCommandStream,
+  LandingHeroStream,
   LandingProSectionStream,
   LandingScannerRedditStream,
   LandingSectorHeatStream,
@@ -26,15 +26,10 @@ export default function HomePage() {
         </Suspense>
 
         <header className="landing-hero-glow relative border-b border-outline-variant">
-          <div className="landing-inner grid min-w-0 items-center gap-8 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] lg:gap-14 lg:py-24">
-            <div className="min-w-0">
-              <TerminalLandingHeroCopy />
-            </div>
-            <div className="min-w-0">
-              <Suspense fallback={<LandingHeroCommandSkeleton />}>
-                <LandingHeroCommandStream />
-              </Suspense>
-            </div>
+          <div className="landing-inner py-10 sm:py-14 lg:py-20">
+            <Suspense fallback={<LandingHeroSkeleton />}>
+              <LandingHeroStream />
+            </Suspense>
           </div>
         </header>
 
@@ -50,6 +45,7 @@ export default function HomePage() {
           <LandingProSectionStream />
         </Suspense>
         <TerminalLandingTestimonials />
+        <TerminalLandingFaq />
       </div>
 
       <FeedbackWidget />

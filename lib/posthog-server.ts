@@ -76,66 +76,153 @@ export async function runHogQL<T extends Record<string, unknown>>(
   }
 }
 
+export type TrafficDay = {
+  day: string;
+  visitors: number;
+};
+
+export type FunnelStep = {
+  key: string;
+  label: string;
+  count: number;
+};
+
 export type PostHogAnalyticsSnapshot = {
   configured: boolean;
   error?: string;
-  dauSeries: Array<{ day: string; dau: number }>;
-  eventCounts: Array<{ event: string; count: number }>;
-  topPaths: Array<{ path: string; views: number }>;
-  funnel: {
-    checkoutStarted: number;
-    subscriptionConverted: number;
-    conversionRate: number | null;
-  };
   periodDays: number;
+  summary: {
+    visitors: number;
+    returningVisitors: number;
+    newVisitors: number;
+  };
+  trafficSeries: TrafficDay[];
+  topPaths: Array<{ path: string; views: number }>;
+  trafficSources: Array<{ source: string; views: number }>;
+  funnel: FunnelStep[];
+  checkoutConversionRate: number | null;
 };
 
+function pct(part: number, whole: number): number | null {
+  if (whole <= 0) return null;
+  return Math.round((part / whole) * 1000) / 10;
+}
+
 export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsSnapshot> {
+  const periodDays = days === 7 ? 7 : 30;
   const empty: PostHogAnalyticsSnapshot = {
     configured: isPostHogQueryConfigured(),
-    dauSeries: [],
-    eventCounts: [],
+    periodDays,
+    summary: {
+      visitors: 0,
+      returningVisitors: 0,
+      newVisitors: 0,
+    },
+    trafficSeries: [],
     topPaths: [],
-    funnel: { checkoutStarted: 0, subscriptionConverted: 0, conversionRate: null },
-    periodDays: days,
+    trafficSources: [],
+    funnel: [],
+    checkoutConversionRate: null,
   };
 
   if (!empty.configured) return empty;
 
   const domain = POSTHOG_DOMAIN_SQL;
-  const interval = `interval ${days} day`;
+  const interval = `interval ${periodDays} day`;
+  const pageviewFilter = `event = '$pageview' AND ${domain}`;
 
-  const [dauRes, eventsRes, pathsRes, checkoutRes, convertedRes] = await Promise.all([
-    runHogQL<{ day: string; dau: number }>(`
-      SELECT toDate(timestamp) AS day, count(DISTINCT person_id) AS dau
+  const [
+    seriesRes,
+    summaryRes,
+    returningRes,
+    pathsRes,
+    sourcesRes,
+    visitorsRes,
+    signUpRes,
+    checkoutClickRes,
+    checkoutStartRes,
+    convertedRes,
+  ] = await Promise.all([
+    runHogQL<{ day: string; visitors: number }>(`
+      SELECT
+        toDate(timestamp) AS day,
+        count(DISTINCT person_id) AS visitors
       FROM events
       WHERE timestamp > now() - ${interval}
-        AND event = '$pageview'
-        AND ${domain}
+        AND ${pageviewFilter}
       GROUP BY day
-      ORDER BY day DESC
-      LIMIT 14
+      ORDER BY day ASC
+      LIMIT ${periodDays}
     `),
-    runHogQL<{ event: string; c: number }>(`
-      SELECT event, count() AS c
+    runHogQL<{ visitors: number }>(`
+      SELECT count(DISTINCT person_id) AS visitors
       FROM events
       WHERE timestamp > now() - ${interval}
-        AND ${domain}
-        AND event NOT LIKE '$%'
-      GROUP BY event
-      ORDER BY c DESC
-      LIMIT 12
+        AND ${pageviewFilter}
+      LIMIT 1
+    `),
+    runHogQL<{ c: number }>(`
+      SELECT count(DISTINCT person_id) AS c
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND ${pageviewFilter}
+        AND person_id IN (
+          SELECT person_id
+          FROM events
+          WHERE timestamp > now() - interval ${periodDays * 2} day
+            AND timestamp <= now() - ${interval}
+            AND ${pageviewFilter}
+        )
+      LIMIT 1
     `),
     runHogQL<{ path: string; views: number }>(`
       SELECT properties.path AS path, count() AS views
       FROM events
       WHERE timestamp > now() - ${interval}
-        AND event = '$pageview'
-        AND ${domain}
+        AND ${pageviewFilter}
         AND properties.path != ''
       GROUP BY path
       ORDER BY views DESC
+      LIMIT 12
+    `),
+    runHogQL<{ source: string; views: number }>(`
+      SELECT
+        multiIf(
+          length(toString(properties.utm_source)) > 0, toString(properties.utm_source),
+          length(toString(properties.source)) > 0, toString(properties.source),
+          length(toString(properties.referrer)) > 0, toString(properties.referrer),
+          'direct / none'
+        ) AS source,
+        count() AS views
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND ${pageviewFilter}
+      GROUP BY source
+      ORDER BY views DESC
       LIMIT 10
+    `),
+    runHogQL<{ c: number }>(`
+      SELECT count(DISTINCT person_id) AS c
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND ${pageviewFilter}
+      LIMIT 1
+    `),
+    runHogQL<{ c: number }>(`
+      SELECT count(DISTINCT person_id) AS c
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND event = 'user_signed_up'
+        AND ${domain}
+      LIMIT 1
+    `),
+    runHogQL<{ c: number }>(`
+      SELECT count(DISTINCT person_id) AS c
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND event = 'checkout_clicked'
+        AND ${domain}
+      LIMIT 1
     `),
     runHogQL<{ c: number }>(`
       SELECT count(DISTINCT person_id) AS c
@@ -156,34 +243,69 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
   ]);
 
   const firstError =
-    dauRes.error ?? eventsRes.error ?? pathsRes.error ?? checkoutRes.error ?? convertedRes.error;
+    seriesRes.error ??
+    summaryRes.error ??
+    returningRes.error ??
+    pathsRes.error ??
+    sourcesRes.error ??
+    visitorsRes.error ??
+    signUpRes.error ??
+    checkoutClickRes.error ??
+    checkoutStartRes.error ??
+    convertedRes.error;
 
-  const checkoutStarted = Number(checkoutRes.rows[0]?.c ?? 0);
-  const subscriptionConverted = Number(convertedRes.rows[0]?.c ?? 0);
+  const visitors = Number(summaryRes.rows[0]?.visitors ?? 0);
+  const returningVisitors = Number(returningRes.rows[0]?.c ?? 0);
+  const newVisitors = Math.max(0, visitors - returningVisitors);
+
+  const funnelVisitors = Number(visitorsRes.rows[0]?.c ?? 0);
+  const signUps = Number(signUpRes.rows[0]?.c ?? 0);
+  const checkoutClicked = Number(checkoutClickRes.rows[0]?.c ?? 0);
+  const checkoutStarted = Number(checkoutStartRes.rows[0]?.c ?? 0);
+  const converted = Number(convertedRes.rows[0]?.c ?? 0);
+
+  const funnel: FunnelStep[] = [
+    { key: "visitors", label: "Unique visitors", count: funnelVisitors },
+    { key: "sign_ups", label: "Sign-ups", count: signUps },
+    { key: "checkout_clicked", label: "Checkout clicked", count: checkoutClicked },
+    { key: "checkout_started", label: "Checkout started", count: checkoutStarted },
+    { key: "converted", label: "Subscribed", count: converted },
+  ];
 
   return {
     configured: true,
     error: firstError,
-    dauSeries: dauRes.rows.map((r) => ({
+    periodDays,
+    summary: {
+      visitors,
+      returningVisitors,
+      newVisitors,
+    },
+    trafficSeries: seriesRes.rows.map((r) => ({
       day: String(r.day),
-      dau: Number(r.dau ?? 0),
-    })),
-    eventCounts: eventsRes.rows.map((r) => ({
-      event: String(r.event),
-      count: Number(r.c ?? 0),
+      visitors: Number(r.visitors ?? 0),
     })),
     topPaths: pathsRes.rows.map((r) => ({
       path: String(r.path),
       views: Number(r.views ?? 0),
     })),
-    funnel: {
-      checkoutStarted,
-      subscriptionConverted,
-      conversionRate:
-        checkoutStarted > 0
-          ? Math.round((subscriptionConverted / checkoutStarted) * 1000) / 10
-          : null,
-    },
-    periodDays: days,
+    trafficSources: sourcesRes.rows.map((r) => ({
+      source: shortenSource(String(r.source)),
+      views: Number(r.views ?? 0),
+    })),
+    funnel,
+    checkoutConversionRate: pct(converted, checkoutStarted),
   };
+}
+
+function shortenSource(raw: string): string {
+  const value = raw.trim();
+  if (!value || value === "direct / none") return "Direct";
+  if (value.length <= 48) return value;
+  try {
+    const url = new URL(value);
+    return url.hostname.replace(/^www\./, "");
+  } catch {
+    return `${value.slice(0, 45)}…`;
+  }
 }

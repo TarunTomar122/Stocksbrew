@@ -1,7 +1,5 @@
 import { allBlogPosts } from "@/lib/blog-data";
 import { COMPARISON_PAGES } from "@/lib/compare-data";
-import { listEarningsIntelForSitemap } from "@/lib/earnings-intel";
-import { getMarketSnapshot } from "@/lib/firestore";
 import { listSectorContextDocs } from "@/lib/sector";
 import { getThematicScreens } from "@/lib/screens";
 import { allLearnPosts } from "@/lib/learn-data";
@@ -70,44 +68,7 @@ export async function GET() {
     entries.push(url(`/blog/${p.slug}`, "0.6", "monthly", p.date));
   }
 
-  // Earnings intel — index + one URL per ticker with a published report
-  try {
-    const intel = await listEarningsIntelForSitemap();
-    for (const { ticker, lastmod } of intel) {
-      entries.push(
-        url(
-          `/earnings-intel/${encodeURIComponent(ticker)}`,
-          "0.75",
-          "weekly",
-          lastmod,
-        ),
-      );
-    }
-  } catch {
-    /* Firestore may be unreachable at build time */
-  }
-
-  // Stock pages from price universe (safe - no universe key needed)
-  try {
-    const seen = new Set<string>();
-    for (const market of ["US", "IN"] as const) {
-      try {
-        const rows = await getMarketSnapshot(market);
-        for (const r of rows) {
-          const sym = String(r.symbol ?? "").toUpperCase();
-          if (!sym || seen.has(sym)) continue;
-          seen.add(sym);
-          entries.push(
-            url(`/stock/${encodeURIComponent(sym)}`, "0.8", "daily"),
-          );
-        }
-      } catch {
-        /* market may not exist */
-      }
-    }
-  } catch {
-    /* Firestore may be unreachable */
-  }
+  // Stock pages are noindexed (thin content) — removed from sitemap
 
   // Sector pages
   try {

@@ -55,7 +55,7 @@ export const COMPARISONS: HubLink[] = [
 
 export const WORKFLOW_GUIDES: HubLink[] = [
   {
-    href: "/blog/daily-market-intelligence-guide",
+    href: "/blog/best-market-intelligence-tools-2026",
     title: "Daily market intelligence guide",
     description: "How to build a 10-minute morning read without opening six tabs.",
   },

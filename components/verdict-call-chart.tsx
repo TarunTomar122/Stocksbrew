@@ -13,7 +13,13 @@ const RETURN_ROWS: Array<{ label: string; key: keyof StockReturns }> = [
   { label: "1Y", key: "one_year_pct" },
 ];
 
-function ReturnsRow({ returns }: { returns?: StockReturns | null }) {
+function ReturnsRow({
+  returns,
+  columnsAt = "lg",
+}: {
+  returns?: StockReturns | null;
+  columnsAt?: "md" | "lg";
+}) {
   const items = RETURN_ROWS.map(({ label, key }) => ({
     label,
     value: returns?.[key],
@@ -21,8 +27,10 @@ function ReturnsRow({ returns }: { returns?: StockReturns | null }) {
 
   if (!items.length) return null;
 
+  const autoMargin = columnsAt === "md" ? "md:mt-auto md:pt-6" : "lg:mt-auto lg:pt-6";
+
   return (
-    <div className="mt-5 border-t border-outline-variant/40 pt-4 lg:mt-auto lg:pt-6">
+    <div className={`mt-5 border-t border-outline-variant/40 pt-4 ${autoMargin}`}>
       <div
         className="grid divide-x divide-outline-variant/35"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
@@ -61,6 +69,7 @@ export function VerdictCallChart({
   lineColor,
   currentPrice,
   zoneHint,
+  columnsAt = "lg",
 }: {
   callSlot: ReactNode;
   hist: Point[];
@@ -70,15 +79,22 @@ export function VerdictCallChart({
   lineColor: string;
   currentPrice: number;
   zoneHint?: { label: string; color: string } | null;
+  columnsAt?: "md" | "lg";
 }) {
   const chartHist = useMemo(() => sliceChartRange(hist, "1y"), [hist]);
   const hasChart = chartHist.length >= 5;
+  const gridCols =
+    columnsAt === "md"
+      ? "md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]"
+      : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]";
+  const gridStretch = columnsAt === "md" ? "md:items-stretch" : "lg:items-stretch";
+  const gridGap = columnsAt === "md" ? "md:gap-8" : "lg:gap-8";
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-stretch lg:gap-8">
+    <div className={`grid gap-5 ${gridCols} ${gridStretch} ${gridGap}`}>
       <div className="flex min-w-0 flex-col">
         {callSlot}
-        <ReturnsRow returns={returns} />
+        <ReturnsRow returns={returns} columnsAt={columnsAt} />
       </div>
 
       {hasChart && (

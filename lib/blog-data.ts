@@ -10,39 +10,11 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
-    slug: "what-is-ai-market-brief",
-    title: "What Is an AI Market Brief and Why You Need One in 2026",
-    description: "Traditional market briefs are manual, slow, and generic. AI briefs are personalized, instant, and actionable. Here's why they matter.",
-    category: "intelligence",
-    tags: ["ai", "market-brief", "productivity"],
-    date: "2026-05-07",
-    readTime: "10 min read",
-  },
-  {
-    slug: "daily-market-intelligence-guide",
-    title: "Daily Portfolio Briefs: The Complete Guide for 2026",
-    description:
-      "What a repeatable brief workflow looks like—directives per holding, risk flags, opportunities—and how to get it without spending hours researching.",
-    category: "intelligence",
-    tags: ["market-intelligence", "daily", "strategy"],
-    date: "2026-05-07",
-    readTime: "12 min read",
-  },
-  {
     slug: "ai-stock-watchlist-vs-traditional",
     title: "AI Stock Watchlists vs Traditional Watchlists: What's Better?",
     description: "Traditional watchlists are just lists. AI watchlists add intelligence, scoring, and alerts. Here's how they compare.",
     category: "tools",
     tags: ["ai", "watchlist", "comparison"],
-    date: "2026-05-07",
-    readTime: "10 min read",
-  },
-  {
-    slug: "ai-stock-alerts-vs-price-alerts",
-    title: "AI Stock Alerts: How Smart Alerts Beat Price Alerts",
-    description: "Price alerts are dumb. AI alerts understand context: earnings, RSI, sector rotation, and fundamental changes.",
-    category: "tools",
-    tags: ["ai", "alerts", "trading"],
     date: "2026-05-07",
     readTime: "10 min read",
   },
@@ -55,24 +27,6 @@ export const allBlogPosts: BlogPost[] = [
     tags: ["tools", "comparison", "pricing"],
     date: "2026-05-07",
     readTime: "15 min read",
-  },
-  {
-    slug: "ai-stock-analysis-what-works",
-    title: "AI Stock Analysis in 2026: What Actually Works",
-    description: "Cutting through the AI hype. What AI can and can't do for stock analysis, and how to use it wisely.",
-    category: "intelligence",
-    tags: ["ai", "analysis", "strategy"],
-    date: "2026-05-07",
-    readTime: "10 min read",
-  },
-  {
-    slug: "free-market-intelligence-tools",
-    title: "The Best Free Portfolio Brief & Watchlist Tools You're Not Using",
-    description: "Free tools across 10 competitors—what's useful at $0 for briefs and alerts, and where the gaps are.",
-    category: "tools",
-    tags: ["free", "tools", "comparison"],
-    date: "2026-05-07",
-    readTime: "12 min read",
   },
   {
     slug: "stocksbrew-vs-finviz",
@@ -141,16 +95,6 @@ export const allBlogPosts: BlogPost[] = [
     readTime: "9 min read",
   },
   {
-    slug: "ai-stock-analysis-comparison",
-    title: "AI Stock Analysis Tools Compared: 8 Platforms Tested (2026)",
-    description:
-      "Prospero, Danelfin, TrendSpider, stocksbrew, and 4 more. We compared 8 AI stock analysis tools so you know which one fits your style.",
-    category: "comparison",
-    tags: ["ai", "comparison", "tools", "review"],
-    date: "2026-05-28",
-    readTime: "11 min read",
-  },
-  {
     slug: "daily-stock-market-analysis-routine",
     title: "A 10-Minute Daily Stock Market Analysis Routine for Busy Investors",
     description:
@@ -169,16 +113,6 @@ export const allBlogPosts: BlogPost[] = [
     tags: ["stock-picks", "screeners", "comparison", "guide"],
     date: "2026-06-01",
     readTime: "10 min read",
-  },
-  {
-    slug: "how-to-use-stock-alerts-effectively",
-    title: "How to Use Stock Alerts Effectively (Without Alert Fatigue)",
-    description:
-      "Stop getting buried in useless notifications. A practical guide to setting up stock alerts that actually matter for your portfolio.",
-    category: "guides",
-    tags: ["alerts", "productivity", "guide", "notifications"],
-    date: "2026-06-01",
-    readTime: "9 min read",
   },
   {
     slug: "sector-rotation-tracking-tools",
@@ -201,16 +135,6 @@ export const allBlogPosts: BlogPost[] = [
     readTime: "12 min read",
   },
 
-  {
-    slug: "stock-market-heatmap-tools",
-    title: "Best Free Stock Market Heatmap Tools in 2026 (Tested & Ranked)",
-    description:
-      "Stock market heatmaps give you a visual snapshot of market activity at a glance. We tested 8 free heatmap tools and ranked them by accuracy, speed, and usability.",
-    category: "tools",
-    tags: ["heatmap", "visualization", "free-tools", "market-overview"],
-    date: "2026-06-02",
-    readTime: "10 min read",
-  },
   {
     slug: "ai-stock-sentiment-analysis-tools",
     title: "AI Stock Sentiment Analysis: How to Read Market Mood in 2026",
@@ -295,5 +219,65 @@ export const allBlogPosts: BlogPost[] = [
     tags: ["portfolio", "rebalancing", "strategy", "risk-management"],
     date: "2026-05-27",
     readTime: "12 min read",
+  },
+  {
+    slug: "how-to-analyze-a-stock-before-buying",
+    title: "How to Analyze a Stock Before Buying: A Step-by-Step Guide",
+    description:
+      "Before you buy any stock, run it through this checklist. Covers fundamentals, technicals, valuation, and sentiment analysis in a practical framework.",
+    category: "guides",
+    tags: ["analysis", "beginners", "fundamentals", "valuation", "guide"],
+    date: "2026-06-10",
+    readTime: "14 min read",
+  },
+  {
+    slug: "best-stock-portfolio-tracker-free-2026",
+    title: "Best Free Stock Portfolio Trackers in 2026 (Tested and Ranked)",
+    description:
+      "We tested 10 free portfolio trackers so you don't have to. From AI-powered briefs to brokerage tools, here are the ones worth using.",
+    category: "tools",
+    tags: ["portfolio", "tracker", "free", "tools", "comparison"],
+    date: "2026-06-10",
+    readTime: "12 min read",
+  },
+  {
+    slug: "how-to-read-stock-charts-beginners",
+    title: "How to Read Stock Charts: A Beginner's Visual Guide",
+    description:
+      "Stock charts look complicated but they're not. Learn candlestick patterns, support and resistance, volume, and the 3 indicators that matter most.",
+    category: "guides",
+    tags: ["charts", "technical-analysis", "beginners", "guide"],
+    date: "2026-06-12",
+    readTime: "13 min read",
+  },
+  {
+    slug: "stock-market-for-beginners-2026",
+    title: "Stock Market for Beginners: The Complete 2026 Starter Guide",
+    description:
+      "Everything a beginner needs to know about the stock market in one guide. How stocks work, how to start investing, and the mistakes to avoid.",
+    category: "guides",
+    tags: ["beginners", "investing", "stocks", "education", "guide"],
+    date: "2026-06-12",
+    readTime: "15 min read",
+  },
+  {
+    slug: "how-to-build-a-stock-portfolio-from-scratch",
+    title: "How to Build a Stock Portfolio from Scratch in 2026",
+    description:
+      "Starting from zero? Here's how to build a diversified stock portfolio step by step. Covers allocation, diversification, position sizing, and when to add or remove stocks.",
+    category: "guides",
+    tags: ["portfolio", "diversification", "beginners", "strategy", "guide"],
+    date: "2026-06-15",
+    readTime: "14 min read",
+  },
+  {
+    slug: "when-to-sell-a-stock",
+    title: "When to Sell a Stock: 7 Signals That Say It's Time",
+    description:
+      "Knowing when to sell is harder than knowing when to buy. Here are 7 data-backed signals that indicate it may be time to exit a position.",
+    category: "intelligence",
+    tags: ["selling", "strategy", "signals", "risk-management", "guide"],
+    date: "2026-06-15",
+    readTime: "11 min read",
   },
 ];

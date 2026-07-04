@@ -22,14 +22,14 @@ function fmtPrice(v: number) {
   }).format(v);
 }
 
-function QuoteLine({ item, variant }: { item: RedditTicker; variant: "home" | "pulse" }) {
+function QuoteLine({ item, variant }: { item: RedditTicker; variant: "home" | "pulse" | "landing" }) {
   const hasQuote =
     item.company?.trim() || typeof item.price === "number" || typeof item.changePct === "number";
   if (!hasQuote) return null;
 
-  const isPulse = variant === "pulse";
-  const metaClass = isPulse ? "text-[11px] text-on-surface-variant" : "text-[11px] text-[#6b7280]";
-  const priceClass = isPulse
+  const isThemed = variant === "pulse" || variant === "landing";
+  const metaClass = isThemed ? "text-[11px] text-on-surface-variant" : "text-[11px] text-[#6b7280]";
+  const priceClass = isThemed
     ? "font-semibold tabular-nums text-on-surface"
     : "font-semibold tabular-nums text-[#111111]";
   const up = typeof item.changePct === "number" && item.changePct >= 0;
@@ -92,19 +92,22 @@ export function RedditBuzzCard({
 }: {
   item: RedditTicker;
   locked?: boolean;
-  variant?: "home" | "pulse";
+  variant?: "home" | "pulse" | "landing";
   showStockLink?: boolean;
   showTalkingPoints?: boolean;
 }) {
   const isPulse = variant === "pulse";
-  const surfaceClass = isPulse
-    ? "flex h-full flex-col rounded-[14px] border border-outline-variant bg-surface p-4"
-    : "flex h-full flex-col rounded-[14px] border border-[#e5e7eb] bg-white p-4";
+  const isLanding = variant === "landing";
+  const surfaceClass = isLanding
+    ? "flex flex-col py-4"
+    : isPulse
+      ? "flex h-full flex-col rounded-[14px] border border-outline-variant bg-surface p-4"
+      : "flex h-full flex-col rounded-[14px] border border-[#e5e7eb] bg-white p-4";
   const catalysts = (item.catalysts ?? []).filter(Boolean).slice(0, 3);
   const mentions = item.mention_count > 0 ? item.mention_count : null;
   const sentiment = item.sentiment?.toLowerCase() ?? "neutral";
   const sentimentMeta = getRedditSentimentMeta(sentiment);
-  const tickerClass = isPulse
+  const tickerClass = isLanding || isPulse
     ? "text-[14px] font-bold tracking-[-0.01em] text-on-surface group-hover:text-landing-brand"
     : "text-[14px] font-bold tracking-[-0.01em] text-[#111111] group-hover:text-[#0052ff]";
 
@@ -141,7 +144,7 @@ export function RedditBuzzCard({
         <p className="text-[12.5px] leading-[1.55] text-on-surface/90">{item.summary.trim()}</p>
       ) : null}
       {showTalkingPoints ? <TalkingPoints catalysts={catalysts} /> : null}
-      {showStockLink ? (
+      {showStockLink && !isLanding ? (
         <span
           className={`mt-3 text-[11px] font-medium ${isPulse ? "text-on-surface-variant group-hover:text-landing-brand" : "text-[#6b7280] group-hover:text-[#0052ff]"}`}
         >
@@ -155,13 +158,21 @@ export function RedditBuzzCard({
     <article className={surfaceClass} style={{ boxShadow: isPulse ? "var(--shadow-card)" : undefined }}>
       {header}
       {body}
+      {showStockLink && isLanding && !locked ? (
+        <span className="mt-2.5 text-[11px] font-semibold text-landing-reddit">
+          View {item.ticker} →
+        </span>
+      ) : null}
     </article>
   );
 
   if (locked) return card;
 
   return (
-    <Link href={`/stock/${encodeURIComponent(item.ticker)}`} className="group block h-full">
+    <Link
+      href={`/stock/${encodeURIComponent(item.ticker)}`}
+      className={`group block ${isLanding ? "w-full min-w-0 rounded-lg py-1 transition-colors hover:bg-surface-container-low/60" : "h-full"}`}
+    >
       {card}
     </Link>
   );

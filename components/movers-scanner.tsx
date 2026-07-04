@@ -6,9 +6,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
+import { TrackButton } from "@/components/track-button";
+import { resolveStockTier } from "@/lib/ai-launch-tier";
 
 export type ScannerItem = {
   ticker: string;
+  instrument_id?: string;
   price: number;
   changePct: number;
   tag: string;
@@ -28,6 +31,9 @@ export function MoversScanner({
   embedded = false,
   variant = embedded ? "landing" : "default",
   unlockSignedOutLabel,
+  trackedIds,
+  isSubscribed,
+  trackedCount,
 }: {
   items: ScannerItem[];
   limit?: number;
@@ -37,6 +43,9 @@ export function MoversScanner({
   embedded?: boolean;
   variant?: "default" | "landing" | "pulse";
   unlockSignedOutLabel?: string;
+  trackedIds?: string[];
+  isSubscribed?: boolean;
+  trackedCount?: number;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const [expanded, setExpanded] = useState(false);
@@ -82,7 +91,7 @@ export function MoversScanner({
     );
   };
 
-  const listShell = uiVariant === "landing" ? "overflow-hidden" : uiVariant === "pulse" ? "" : "panel overflow-hidden";
+  const listShell = uiVariant === "landing" ? "min-w-0 flex flex-col gap-1" : uiVariant === "pulse" ? "" : "panel overflow-hidden";
   const isLocked = (index: number) =>
     typeof fullItemLimit === "number" && Number.isFinite(fullItemLimit) && index >= fullItemLimit;
   const hasLockedRows =
@@ -294,44 +303,70 @@ export function MoversScanner({
             const up = a.changePct >= 0;
             const locked = isLocked(index);
             if (uiVariant === "landing") {
-              const rowBody = (
-                <>
-                  <StockLogo ticker={a.ticker} market="US" size={36} />
+              const instrumentId = a.instrument_id;
+              const isTracked = Boolean(instrumentId && trackedIds?.includes(instrumentId));
+              const stockHref = `/stock/${a.ticker}`;
+              const priceBlock = (
+                <div className="shrink-0 text-right">
+                  <p className="text-[14px] font-bold tabular-nums text-on-surface">${money(a.price)}</p>
+                  <p
+                    className="mt-0.5 flex items-center justify-end gap-0.5 text-[12px] font-semibold tabular-nums"
+                    style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+                  >
+                    <span className="text-[10px] leading-none">{up ? "▲" : "▼"}</span>
+                    {Math.abs(a.changePct).toFixed(2)}%
+                  </p>
+                </div>
+              );
+              return (
+                <div
+                  key={a.ticker}
+                  className="group flex w-full min-w-0 items-start gap-3 rounded-lg py-3.5 transition-colors hover:bg-surface-container-low"
+                >
+                  {locked ? (
+                    <StockLogo ticker={a.ticker} market="US" size={36} className="shrink-0" />
+                  ) : (
+                    <Link href={stockHref} className="shrink-0">
+                      <StockLogo ticker={a.ticker} market="US" size={36} />
+                    </Link>
+                  )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-bold text-on-surface">{a.ticker}</p>
+                    <div className="flex items-center gap-1.5">
+                      {locked ? (
+                        <p className="text-[14px] font-bold text-on-surface">{a.ticker}</p>
+                      ) : (
+                        <Link href={stockHref} className="text-[14px] font-bold text-on-surface hover:opacity-90">
+                          {a.ticker}
+                        </Link>
+                      )}
+                      {!locked && instrumentId ? (
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                          <TrackButton
+                            ticker={a.ticker}
+                            instrumentId={instrumentId}
+                            tier={resolveStockTier(instrumentId, trackedIds ?? [])}
+                            isSubscribed={isSubscribed}
+                            isTracked={isTracked}
+                            trackedCount={trackedCount}
+                            variant="icon"
+                          />
+                        </span>
+                      ) : null}
+                    </div>
                     {locked ? (
                       <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" className="mt-1" />
                     ) : a.tag ? (
-                      <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-on-surface-variant">{a.tag}</p>
+                      <Link href={stockHref} className="mt-1 block line-clamp-2 text-[13px] leading-snug text-on-surface-variant hover:opacity-90">
+                        {a.tag}
+                      </Link>
                     ) : null}
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[14px] font-bold tabular-nums text-on-surface">${money(a.price)}</p>
-                    <p
-                      className="mt-0.5 flex items-center justify-end gap-0.5 text-[12px] font-semibold tabular-nums"
-                      style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
-                    >
-                      <span className="text-[10px] leading-none">{up ? "▲" : "▼"}</span>
-                      {Math.abs(a.changePct).toFixed(2)}%
-                    </p>
-                  </div>
-                </>
-              );
-              return locked ? (
-                <div
-                  key={a.ticker}
-                  className="flex items-start gap-3 border-t border-outline-variant py-4 first:border-t-0"
-                >
-                  {rowBody}
+                  {locked ? priceBlock : (
+                    <Link href={stockHref} className="shrink-0 hover:opacity-90">
+                      {priceBlock}
+                    </Link>
+                  )}
                 </div>
-              ) : (
-                <Link
-                  key={a.ticker}
-                  href={`/stock/${a.ticker}`}
-                  className="flex items-start gap-3 border-t border-outline-variant py-4 transition-colors first:border-t-0 hover:bg-surface-container-low"
-                >
-                  {rowBody}
-                </Link>
               );
             }
             const defaultRowBody = (

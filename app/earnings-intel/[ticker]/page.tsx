@@ -30,6 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${ticker} Earnings Intel`,
     description,
     alternates: { canonical: `/earnings-intel/${ticker}` },
+    robots: { index: false, follow: true },
     openGraph: {
       title: `${ticker}: ${headline}`,
       description,

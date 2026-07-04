@@ -420,7 +420,7 @@ export const blogContent: Record<string, string> = {
     <h3>Step 4: Make Your Own Decisions</h3>
     <p>AI gives you information. You make decisions. Use AI to be better informed, not to outsource your judgment. The best investors in 2026 aren't the ones with the most sophisticated AI. They're the ones who use AI to be better informed while still thinking for themselves.</p>
 
-    <p>For more on how AI-powered daily intelligence works in practice, see our guide on <a href="/blog/what-is-ai-market-brief">AI market briefs</a> and our comparison of <a href="/blog/ai-stock-watchlist-vs-traditional">AI stock watchlists vs traditional watchlists</a>.</p>
+    <p>For more on how AI-powered daily intelligence works in practice, see our guide on <a href="/blog/best-market-intelligence-tools-2026">best market intelligence tools</a> and our comparison of <a href="/blog/ai-stock-watchlist-vs-traditional">AI stock watchlists vs traditional watchlists</a>.</p>
 `,
   "ai-stock-watchlist-vs-traditional": `
 <div class="blog-meta">Updated May 2026 &middot; 8 min read</div>
@@ -581,7 +581,7 @@ export const blogContent: Record<string, string> = {
       <li><strong>"TSLA sentiment shifted from bearish to neutral following positive delivery data"</strong> vs "TSLA is flat today"</li>
     </ul>
 
-    <p>Smart alerts give you context. They help you understand what's happening, not just that something happened. For a deeper dive on this topic, see our guide on <a href="/blog/ai-stock-alerts-vs-price-alerts">AI stock alerts and how smart alerts beat price alerts</a>.</p>
+    <p>Smart alerts give you context. They help you understand what's happening, not just that something happened. For a deeper dive on this topic, see our guide on <a href="/blog/best-free-stock-alert-tools-2026">the best free stock alert tools</a>.</p>
 
     <h2 id="who-should-use">Who Should Use an AI Watchlist?</h2>
 
@@ -1631,7 +1631,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 
-<p>For more on building an efficient market intelligence workflow, see our guide on <a href="/blog/daily-market-intelligence-guide">daily market intelligence</a> and our comparison of <a href="/blog/free-market-intelligence-tools">free market intelligence tools</a>.</p>
+<p>For more on building an efficient market intelligence workflow, see our guide on <a href="/blog/best-market-intelligence-tools-2026">best market intelligence tools</a>.</p>
 `,
   "earnings-calendar-for-my-watchlist": `
 <div class="blog-meta">May 2026 · 10 min read</div>
@@ -1715,7 +1715,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://www.stocksbrew.online/earnings" class="cta-button">See Your Earnings Calendar →</a>
 </div>
 
-<p>For more on earnings analysis, check our <a href="/blog/ai-stock-analysis-what-works">guide to AI stock analysis</a> and the <a href="/blog/what-is-ai-market-brief">AI market brief explainer</a>.</p>
+<p>For more on earnings analysis, check our <a href="/blog/best-market-intelligence-tools-2026">guide to market intelligence tools</a>.</p>
 `,
   "stay-updated-on-stocks-without-checking-daily": `
 <div class="blog-meta">May 2026 · 10 min read</div>
@@ -1930,7 +1930,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 
-<p>Related: <a href="/blog/ai-stock-alerts-vs-price-alerts">AI Stock Alerts vs Price Alerts</a> and <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a>.</p>
+<p>Related: <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a> and <a href="/blog/track-stock-news-for-your-portfolio">How to Track Stock News for Your Portfolio</a>.</p>
 `,
   "how-to-read-stock-heat-map": `
 <div class="blog-meta">Updated May 2026 &middot; 10 min read</div>
@@ -1986,7 +1986,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online/heat" class="cta-button">View Market Heat →</a>
 </div>
 
-<p>Related: <a href="/blog/daily-market-intelligence-guide">Daily Market Intelligence Guide</a>.</p>
+<p>Related: <a href="/blog/best-market-intelligence-tools-2026">Best Market Intelligence Tools</a>.</p>
 `,
   "stock-analysis-beginners-technical-vs-fundamental": `
 <div class="blog-meta">Updated May 2026 &middot; 12 min read</div>
@@ -2019,7 +2019,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online" class="cta-button">Try Free →</a>
 </div>
 
-<p>Related: <a href="/blog/ai-stock-analysis-what-works">AI Stock Analysis: What Actually Works</a>.</p>
+<p>Related: <a href="/blog/best-market-intelligence-tools-2026">Best Market Intelligence Tools</a>.</p>
 `,
   "free-stock-screeners-indian-investors": `
 <div class="blog-meta">Updated May 2026 &middot; 12 min read</div>
@@ -2043,7 +2043,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online" class="cta-button">Start Free →</a>
 </div>
 
-<p>Related: <a href="/blog/free-market-intelligence-tools">Best Free Market Intelligence Tools</a>.</p>
+<p>Related: <a href="/blog/best-market-intelligence-tools-2026">Best Market Intelligence Tools</a>.</p>
 `,
   "how-to-build-stock-watchlist": `
 <div class="blog-meta">Updated May 2026 &middot; 10 min read</div>
@@ -2150,7 +2150,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online" class="cta-button">Try stocksbrew Free &rarr;</a>
 </div>
 
-<p>Related: <a href="/blog/daily-market-intelligence-guide">Daily Portfolio Briefs Guide</a>.</p>
+<p>Related: <a href="/blog/best-market-intelligence-tools-2026">Best Market Intelligence Tools</a>.</p>
 `,
   "stock-picks-vs-stock-screeners": `
 <div class="blog-meta">Updated June 2026 &middot; 10 min read</div>
@@ -2190,7 +2190,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online" class="cta-button">Try stocksbrew Free &rarr;</a>
 </div>
 
-<p>Related: <a href="/blog/ai-stock-alerts-vs-price-alerts">AI Stock Alerts vs Price Alerts</a>.</p>
+<p>Related: <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
 `,
   "how-to-use-stock-alerts-effectively": `
 <div class="blog-meta">Updated June 2026 &middot; 9 min read</div>
@@ -2233,7 +2233,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online" class="cta-button">Try stocksbrew Free &rarr;</a>
 </div>
 
-<p>Related: <a href="/blog/ai-stock-alerts-vs-price-alerts">AI Stock Alerts vs Price Alerts</a>.</p>
+<p>Related: <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
 `,
   "sector-rotation-tracking-tools": `
 <div class="blog-meta">Updated June 2026 &middot; 11 min read</div>
@@ -2270,7 +2270,7 @@ export const blogContent: Record<string, string> = {
   <a href="https://stocksbrew.online" class="cta-button">Try stocksbrew Free &rarr;</a>
 </div>
 
-<p>Related: <a href="/blog/ai-stock-analysis-what-works">AI Stock Analysis: What Actually Works</a>.</p>
+<p>Related: <a href="/blog/best-market-intelligence-tools-2026">Best Market Intelligence Tools</a>.</p>
 `,
   "earnings-predictions-ai-vs-analyst": `
 <div class="blog-meta">Updated June 2026 &middot; 12 min read</div>

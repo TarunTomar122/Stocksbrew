@@ -129,6 +129,111 @@ export const USE_CASES: UseCase[] = [
       },
     ],
   },
+  {
+    slug: "long-term-investing",
+    title: "Long-term buy-and-hold investing",
+    headline: "Monitor your holdings without the daily noise",
+    description:
+      "Track long-term positions on Radar, get weekly digests instead of constant alerts, and stay informed when fundamentals shift.",
+    pain:
+      "Long-term investors don't want to check stocks daily. But they still need to know when something fundamentally changes — a guidance cut, a management shakeup, or a competitive threat.",
+    steps: [
+      { text: "Add your core holdings to Radar.", href: "/watchlist", linkLabel: "Open Radar" },
+      { text: "Enable weekly email digest instead of daily.", href: "/profile", linkLabel: "Profile settings" },
+      { text: "Read Earnings Intel quarterly to track thesis evolution.", href: "/earnings-intel", linkLabel: "Earnings Intel" },
+      { text: "Run Should I Buy annually to re-evaluate each position.", href: "/should-i-buy", linkLabel: "Should I Buy" },
+    ],
+    features: [
+      { name: "Radar", href: "/watchlist", description: "Weekly directives on each long-term holding" },
+      { name: "Earnings Intel", href: "/earnings-intel", description: "Quarterly thesis check after earnings" },
+      { name: "Should I Buy", href: "/should-i-buy", description: "Annual re-evaluation scorecard" },
+      { name: "Pulse", href: "/pulse", description: "Catch unusual attention on your names" },
+    ],
+    faqs: [
+      {
+        question: "Do I need to check stocksbrew daily?",
+        answer: "No. Set your digest to weekly. stocksbrew will only email you when something meaningful changes for your holdings — a directive shift, an earnings event, or a sentiment change.",
+      },
+      {
+        question: "Is stocksbrew useful for buy-and-hold investors?",
+        answer: "Yes. The value is knowing when something changes. You don't need daily updates on stocks you plan to hold for years, but you do need to know when the thesis breaks.",
+      },
+      {
+        question: "How often should I re-evaluate my positions?",
+        answer: "Quarterly after earnings, or whenever stocksbrew flags a directive change. Annual rebalancing is sufficient for most long-term portfolios.",
+      },
+    ],
+  },
+  {
+    slug: "day-trading",
+    title: "Day trading and active trading",
+    headline: "Pre-market prep and real-time narrative intelligence for active traders",
+    description:
+      "Use Premarket for overnight moves, Market Heat for momentum scanning, and Radar for tracking setups across multiple names.",
+    pain:
+      "Active traders need fast pre-market context, momentum scanning during the day, and alerts when setups invalidate. Most intelligence tools are built for long-term investors, not traders.",
+    steps: [
+      { text: "Check Premarket before the open for overnight movers.", href: "/premarket", linkLabel: "Premarket" },
+      { text: "Scan Market Heat during the day for sector momentum.", href: "/heat", linkLabel: "Market Heat" },
+      { text: "Run Should I Buy on watchlist candidates before entry.", href: "/should-i-buy", linkLabel: "Should I Buy" },
+      { text: "Track active names on Radar with Pro price triggers.", href: "/watchlist", linkLabel: "Radar" },
+    ],
+    features: [
+      { name: "Premarket", href: "/premarket", description: "Overnight moves and gap analysis" },
+      { name: "Market Heat", href: "/heat", description: "Sector and theme momentum in real time" },
+      { name: "Should I Buy", href: "/should-i-buy", description: "Fast conviction check before sizing up" },
+      { name: "Screens", href: "/screens", description: "Thematic screens for idea flow" },
+    ],
+    faqs: [
+      {
+        question: "Does stocksbrew provide real-time data?",
+        answer: "stocksbrew focuses on AI narrative intelligence, not real-time price feeds. Use your brokerage for execution and stocksbrew for context and idea generation.",
+      },
+      {
+        question: "Can stocksbrew replace my charting platform?",
+        answer: "No. stocksbrew provides the narrative — what's happening and why. Charting platforms provide the price action. Use both together for a complete picture.",
+      },
+      {
+        question: "How fast is pre-market data?",
+        answer: "Premarket briefs update with overnight developments including earnings, analyst changes, and news. Check it before the open for context on what to watch.",
+      },
+    ],
+  },
+  {
+    slug: "retirement-planning",
+    title: "Retirement portfolio management",
+    headline: "Monitor your retirement holdings with a weekly 5-minute brief",
+    description:
+      "Track retirement positions on Radar, get income-focused intelligence, and stay informed about payout safety without daily checking.",
+    pain:
+      "Retirement investors need income stability and capital preservation. They don't want to monitor stocks daily, but they can't afford to miss a dividend cut or a fundamental deterioration in a core holding.",
+    steps: [
+      { text: "Add your retirement holdings to Radar.", href: "/watchlist", linkLabel: "Open Radar" },
+      { text: "Enable weekly email digest.", href: "/profile", linkLabel: "Profile settings" },
+      { text: "Sync holdings to the earnings calendar.", href: "/earnings", linkLabel: "Earnings calendar" },
+      { text: "Run Should I Buy on any new dividend stock ideas.", href: "/should-i-buy", linkLabel: "Should I Buy" },
+    ],
+    features: [
+      { name: "Radar", href: "/watchlist", description: "Weekly directives on retirement holdings" },
+      { name: "Earnings Intel", href: "/earnings-intel", description: "Post-earnings context for income stocks" },
+      { name: "Should I Buy", href: "/should-i-buy", description: "Score new income ideas before adding" },
+      { name: "Pulse", href: "/pulse", description: "Catch unusual attention on your names" },
+    ],
+    faqs: [
+      {
+        question: "Is stocksbrew good for retirement portfolios?",
+        answer: "Yes. Set a weekly digest and let stocksbrew monitor your holdings. You'll get an email when something meaningful changes — a directive shift, an earnings event, or a sentiment change that warrants attention.",
+      },
+      {
+        question: "Can stocksbrew track dividend income?",
+        answer: "stocksbrew tracks dividend-related signals in daily briefs including ex-dates and payout safety indicators. For detailed dividend income tracking, pair with a tool like Sharesight.",
+      },
+      {
+        question: "How often should I check my retirement portfolio?",
+        answer: "Weekly is sufficient for most retirement investors. stocksbrew's weekly digest covers any meaningful changes. Quarterly deep-dives around earnings season add an extra layer of diligence.",
+      },
+    ],
+  },
 ];
 
 export function getUseCase(slug: string): UseCase | undefined {
