@@ -289,20 +289,22 @@ def _hydrate_article_bodies(articles: list[Article]) -> list[Article]:
         return []
 
     hydrated: list[Article | None] = [None] * len(articles)
+    pending: list[tuple[int, Article]] = []
+    urls: list[str] = []
+    for index, article in enumerate(articles):
+        if article.body_text or not article.url or "news.google.com" in article.url:
+            hydrated[index] = article
+            continue
+        pending.append((index, article))
+        urls.append(article.url)
 
-    def fetch_one(index: int, article: Article) -> tuple[int, Article]:
-        if article.body_text:
-            return index, article
-        body_text = _fetch_article_body(article)
-        if not body_text:
-            return index, article
-        return index, replace(article, body_text=body_text)
-
-    with ThreadPoolExecutor(max_workers=min(8, len(articles))) as executor:
-        futures = [executor.submit(fetch_one, index, article) for index, article in enumerate(articles)]
-        for future in as_completed(futures):
-            index, hydrated_article = future.result()
-            hydrated[index] = hydrated_article
+    if pending:
+        from backend.curated_fetcher import extract_urls
+        for (index, article), extracted in zip(pending, extract_urls(urls), strict=False):
+            if extracted.status == "ok" and extracted.body_text:
+                hydrated[index] = replace(article, body_text=extracted.body_text)
+            else:
+                hydrated[index] = article
 
     return [article for article in hydrated if article is not None]
 

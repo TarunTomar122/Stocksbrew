@@ -57,6 +57,17 @@ def is_junk_text(text: str) -> bool:
         return True
     if raw.startswith("http://") or raw.startswith("https://"):
         return True
+    lowered = raw.lower()
+    junk_phrases = (
+        "your privacy choices",
+        "your privacy is important to us",
+        "we use cookies",
+        "accept all cookies",
+        "reject all cookies",
+        "manage privacy settings",
+    )
+    if any(phrase in lowered for phrase in junk_phrases):
+        return True
     return False
 
 
@@ -74,6 +85,14 @@ def firecrawl_enabled() -> bool:
     if provider == "trafilatura":
         return False
     return provider in {"firecrawl", "auto"}
+
+
+def firecrawl_poll_seconds() -> float:
+    return max(0.25, float(os.getenv("FIRECRAWL_BATCH_POLL_SECONDS", "1") or 1))
+
+
+def firecrawl_batch_timeout_seconds() -> float:
+    return max(5.0, float(os.getenv("FIRECRAWL_BATCH_TIMEOUT_SECONDS", "60") or 60))
 
 
 def _publisher_from_url(url: str) -> str:
@@ -190,6 +209,22 @@ def _extract_trafilatura(url: str, *, fetcher: Callable[[str], str] | None = Non
     summary = _first_paragraph(body)
     elapsed_ms = int((time.time() - started) * 1000)
 
+    if is_junk_text(body):
+        result = ExtractedArticle(
+            url=url,
+            title=title,
+            body_text=body,
+            summary=summary,
+            published_at=published_iso,
+            publisher=publisher,
+            status="no_content",
+            word_count=word_count,
+            provider="trafilatura",
+            note="junk or consent-page content extracted",
+        )
+        _log_extract_call(provider="trafilatura", url=url, status=result.status, word_count=word_count, elapsed_ms=elapsed_ms)
+        return result
+
     if not body or word_count < 60:
         result = ExtractedArticle(
             url=url,
@@ -238,44 +273,16 @@ def _extract_trafilatura(url: str, *, fetcher: Callable[[str], str] | None = Non
     return result
 
 
-def _extract_firecrawl(url: str) -> ExtractedArticle:
-    publisher = _publisher_from_url(url)
-    started = time.time()
-    api_url = f"{firecrawl_api_url()}/scrape"
+def _firecrawl_headers() -> dict[str, str]:
     headers = {"Content-Type": "application/json"}
     api_key = os.getenv("FIRECRAWL_API_KEY", "").strip()
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
-    try:
-        response = requests.post(
-            api_url,
-            headers=headers,
-            json={"url": url, "formats": ["markdown"]},
-            timeout=45,
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except Exception as exc:
-        elapsed_ms = int((time.time() - started) * 1000)
-        result = ExtractedArticle(
-            url=url,
-            title="",
-            body_text="",
-            summary="",
-            published_at="",
-            publisher=publisher,
-            status="fetch_failed",
-            word_count=0,
-            provider="firecrawl",
-            note=f"firecrawl request failed: {exc}",
-        )
-        _log_extract_call(provider="firecrawl", url=url, status=result.status, word_count=0, elapsed_ms=elapsed_ms)
-        return result
 
-    data = payload.get("data") if isinstance(payload, dict) else {}
-    if not isinstance(data, dict):
-        data = {}
+def _extract_firecrawl_data(url: str, data: dict, *, elapsed_ms: int) -> ExtractedArticle:
+    publisher = _publisher_from_url(url)
     metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
     markdown = str(data.get("markdown") or "")
     body = _markdown_to_text(markdown)
@@ -283,7 +290,22 @@ def _extract_firecrawl(url: str) -> ExtractedArticle:
     summary = strip_html(str(metadata.get("description") or metadata.get("ogDescription") or "")) or _first_paragraph(body)
     published_iso = _normalize_date(str(metadata.get("publishedTime") or metadata.get("date") or ""))
     word_count = len(body.split())
-    elapsed_ms = int((time.time() - started) * 1000)
+
+    if is_junk_text(body):
+        result = ExtractedArticle(
+            url=url,
+            title=title,
+            body_text=body,
+            summary=summary,
+            published_at=published_iso,
+            publisher=publisher,
+            status="no_content",
+            word_count=word_count,
+            provider="firecrawl",
+            note="junk or consent-page content extracted",
+        )
+        _log_extract_call(provider="firecrawl", url=url, status=result.status, word_count=word_count, elapsed_ms=elapsed_ms)
+        return result
 
     if not body or word_count < 60:
         result = ExtractedArticle(
@@ -333,6 +355,115 @@ def _extract_firecrawl(url: str) -> ExtractedArticle:
     return result
 
 
+def _extract_firecrawl(url: str) -> ExtractedArticle:
+    publisher = _publisher_from_url(url)
+    started = time.time()
+    api_url = f"{firecrawl_api_url()}/scrape"
+
+    try:
+        response = requests.post(
+            api_url,
+            headers=_firecrawl_headers(),
+            json={"url": url, "formats": ["markdown"], "onlyMainContent": True},
+            timeout=45,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        elapsed_ms = int((time.time() - started) * 1000)
+        result = ExtractedArticle(
+            url=url,
+            title="",
+            body_text="",
+            summary="",
+            published_at="",
+            publisher=publisher,
+            status="fetch_failed",
+            word_count=0,
+            provider="firecrawl",
+            note=f"firecrawl request failed: {exc}",
+        )
+        _log_extract_call(provider="firecrawl", url=url, status=result.status, word_count=0, elapsed_ms=elapsed_ms)
+        return result
+
+    data = payload.get("data") if isinstance(payload, dict) else {}
+    if not isinstance(data, dict):
+        data = {}
+    elapsed_ms = int((time.time() - started) * 1000)
+    return _extract_firecrawl_data(url, data, elapsed_ms=elapsed_ms)
+
+
+def _extract_firecrawl_batch(urls: list[str]) -> list[ExtractedArticle | None]:
+    if not urls:
+        return []
+
+    started = time.time()
+    try:
+        response = requests.post(
+            f"{firecrawl_api_url()}/batch/scrape",
+            headers=_firecrawl_headers(),
+            json={"urls": urls, "formats": ["markdown"], "onlyMainContent": True},
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        status_url = str(payload.get("url") or "")
+        if not status_url:
+            return [None] * len(urls)
+
+        deadline = time.time() + firecrawl_batch_timeout_seconds()
+        while time.time() < deadline:
+            status_response = requests.get(status_url, headers=_firecrawl_headers(), timeout=30)
+            status_response.raise_for_status()
+            status_payload = status_response.json()
+            status = str(status_payload.get("status") or "").lower()
+            if status == "completed":
+                rows = status_payload.get("data")
+                if not isinstance(rows, list):
+                    return [None] * len(urls)
+                elapsed_ms = int((time.time() - started) * 1000)
+                results: list[ExtractedArticle | None] = []
+                for index, url in enumerate(urls):
+                    row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+                    results.append(_extract_firecrawl_data(url, row, elapsed_ms=elapsed_ms))
+                return results
+            if status in {"failed", "cancelled"}:
+                return [None] * len(urls)
+            time.sleep(firecrawl_poll_seconds())
+    except Exception as exc:
+        logger.info("firecrawl_batch_failed urls=%s error=%s", len(urls), exc)
+    return [None] * len(urls)
+
+
+def extract_urls(urls: list[str]) -> list[ExtractedArticle]:
+    """Batch Firecrawl where available; preserve extract_url fallback semantics."""
+    if not urls:
+        return []
+    provider = extract_provider()
+    if provider == "trafilatura" or not firecrawl_enabled():
+        return [_extract_trafilatura(url) for url in urls]
+
+    firecrawl_results = _extract_firecrawl_batch(urls)
+    results: list[ExtractedArticle] = []
+    for url, firecrawl_result in zip(urls, firecrawl_results, strict=False):
+        if firecrawl_result and firecrawl_result.status == "ok" and not is_junk_text(firecrawl_result.body_text):
+            results.append(firecrawl_result)
+            continue
+        trafilatura_result = _extract_trafilatura(url)
+        if trafilatura_result.status == "ok" and not is_junk_text(trafilatura_result.body_text):
+            results.append(trafilatura_result)
+            continue
+        if (
+            firecrawl_result is not None
+            and not is_junk_text(firecrawl_result.body_text)
+            and firecrawl_result.word_count >= trafilatura_result.word_count
+        ):
+            results.append(firecrawl_result)
+        else:
+            results.append(trafilatura_result)
+    return results
+
+
 def extract_url(url: str, *, fetcher: Callable[[str], str] | None = None) -> ExtractedArticle:
     """Firecrawl-first when enabled; trafilatura fallback on failure or junk."""
     provider = extract_provider()
@@ -349,7 +480,11 @@ def extract_url(url: str, *, fetcher: Callable[[str], str] | None = None) -> Ext
     if trafilatura_result.status == "ok" and not is_junk_text(trafilatura_result.body_text):
         return trafilatura_result
 
-    if firecrawl_result is not None and firecrawl_result.word_count >= trafilatura_result.word_count:
+    if (
+        firecrawl_result is not None
+        and not is_junk_text(firecrawl_result.body_text)
+        and firecrawl_result.word_count >= trafilatura_result.word_count
+    ):
         return firecrawl_result
     return trafilatura_result
 

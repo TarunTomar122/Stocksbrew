@@ -17,12 +17,12 @@ from pathlib import Path
 from typing import Callable
 
 from backend.models import Article, SourceDefinition
-from backend.url_extractor import ExtractedArticle, extract_url
+from backend.url_extractor import ExtractedArticle, extract_url, extract_urls
 
 CURATED_URLS_DIR = Path(__file__).resolve().parent / "config" / "curated_urls"
 
 # Backwards-compatible re-export for existing imports.
-__all__ = ["ExtractedArticle", "extract_url", "fetch_curated", "load_curated_urls"]
+__all__ = ["ExtractedArticle", "extract_url", "extract_urls", "fetch_curated", "load_curated_urls"]
 
 
 def load_curated_urls(urls_file: str) -> list[str]:

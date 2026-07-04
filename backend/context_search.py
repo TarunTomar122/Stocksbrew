@@ -199,15 +199,14 @@ def search_context_articles_for_ticker(
         return [], {"source_id": SOURCE_ID, "ok": False, "article_count": 0, "error": str(exc)}
 
     if extract_func is None:
-        from backend.curated_fetcher import extract_url
-        extract_func = extract_url
+        from backend.curated_fetcher import extract_urls
+        extracted_rows = extract_urls([result.url for result in results])
+    else:
+        extracted_rows = [extract_func(result.url) for result in results]
 
     now_iso = datetime.now(timezone.utc).isoformat()
     articles: list[Article] = []
-    attempts = 0
-    for result in results:
-        attempts += 1
-        extracted = extract_func(result.url)
+    for result, extracted in zip(results, extracted_rows, strict=False):
         if getattr(extracted, "status", "") != "ok":
             continue
 
@@ -261,6 +260,6 @@ def search_context_articles_for_ticker(
         "source_name": "Context Search",
         "ok": True,
         "article_count": len(articles),
-        "attempt_count": attempts,
+        "attempt_count": len(results),
         "error": "",
     }
