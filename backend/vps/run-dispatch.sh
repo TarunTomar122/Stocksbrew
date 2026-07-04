@@ -16,6 +16,10 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
+if [[ -z "${FIREBASE_SERVICE_ACCOUNT_PATH:-}" && -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+  export FIREBASE_SERVICE_ACCOUNT_PATH="${GOOGLE_APPLICATION_CREDENTIALS}"
+fi
+
 REPO_DIR="${TIKRR_REPO_DIR:-/opt/tikrr}"
 MARKET="${MARKET:-US}"
 LIMIT="${LIMIT:-100}"

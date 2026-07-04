@@ -126,11 +126,47 @@ systemctl show tikrr-reddit-buzz.service -p MemoryMax -p MemorySwapMax
 
 ## Deploy updates
 
+`/opt/tikrr` is a normal Git checkout. GitHub is the source of truth; do not
+rsync source files into production.
+
+From local after pushing:
+
 ```bash
 TIKRR_VPS_HOST=144.217.6.112 bash backend/vps/deploy-code.sh
 ```
 
+Or directly on the VPS:
+
+```bash
+cd /opt/tikrr
+git pull --ff-only
+.venv/bin/pip install -r backend/requirements.txt
+sudo TIKRR_REPO_DIR=/opt/tikrr TIKRR_USER=ubuntu ENABLE_TIMERS=1 bash backend/vps/install-systemd.sh
+```
+
+To work on the VPS:
+
+```bash
+cd /opt/tikrr
+git pull --ff-only
+# edit, test, commit
+git push origin main
+```
+
+Then pull locally. Runtime secrets stay outside the repo in `/etc/tikrr`.
+
 Cutover completed on `2026-07-01`.
+
+Git checkout cutover completed on `2026-07-04`.
+
+Rollback for the Git checkout cutover:
+
+```bash
+sudo systemctl stop 'tikrr-*.timer'
+sudo mv /opt/tikrr /opt/tikrr.failed
+sudo mv /opt/tikrr.pre-git-20260704T031012Z /opt/tikrr
+sudo TIKRR_REPO_DIR=/opt/tikrr TIKRR_USER=ubuntu ENABLE_TIMERS=1 bash /opt/tikrr/backend/vps/install-systemd.sh
+```
 
 First scheduled VPS timer after cutover:
 
