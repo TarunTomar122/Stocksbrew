@@ -6,7 +6,7 @@ import { loadDevBusinessMetrics } from "@/lib/dev-business-metrics";
 import { isPostHogQueryConfigured, loadPostHogAnalytics } from "@/lib/posthog-server";
 
 function parsePeriodDays(raw: string | undefined): 7 | 30 {
-  return raw === "7" ? 7 : 30;
+  return raw === "30" ? 30 : 7;
 }
 
 export default async function DevAnalyticsPage({

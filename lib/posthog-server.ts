@@ -79,6 +79,12 @@ export async function runHogQL<T extends Record<string, unknown>>(
 export type TrafficDay = {
   day: string;
   visitors: number;
+  signups: number;
+};
+
+export type VisitorLocation = {
+  country: string;
+  visitors: number;
 };
 
 export type FunnelStep = {
@@ -97,6 +103,7 @@ export type PostHogAnalyticsSnapshot = {
     newVisitors: number;
   };
   trafficSeries: TrafficDay[];
+  visitorLocations: VisitorLocation[];
   topPaths: Array<{ path: string; views: number }>;
   trafficSources: Array<{ source: string; views: number }>;
   funnel: FunnelStep[];
@@ -108,7 +115,7 @@ function pct(part: number, whole: number): number | null {
   return Math.round((part / whole) * 1000) / 10;
 }
 
-export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsSnapshot> {
+export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSnapshot> {
   const periodDays = days === 7 ? 7 : 30;
   const empty: PostHogAnalyticsSnapshot = {
     configured: isPostHogQueryConfigured(),
@@ -119,6 +126,7 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
       newVisitors: 0,
     },
     trafficSeries: [],
+    visitorLocations: [],
     topPaths: [],
     trafficSources: [],
     funnel: [],
@@ -133,8 +141,10 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
 
   const [
     seriesRes,
+    signupsSeriesRes,
     summaryRes,
     returningRes,
+    locationsRes,
     pathsRes,
     sourcesRes,
     visitorsRes,
@@ -150,6 +160,18 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
       FROM events
       WHERE timestamp > now() - ${interval}
         AND ${pageviewFilter}
+      GROUP BY day
+      ORDER BY day ASC
+      LIMIT ${periodDays}
+    `),
+    runHogQL<{ day: string; signups: number }>(`
+      SELECT
+        toDate(timestamp) AS day,
+        count(DISTINCT person_id) AS signups
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND event = 'user_signed_up'
+        AND ${domain}
       GROUP BY day
       ORDER BY day ASC
       LIMIT ${periodDays}
@@ -174,6 +196,21 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
             AND ${pageviewFilter}
         )
       LIMIT 1
+    `),
+    runHogQL<{ country: string; visitors: number }>(`
+      SELECT
+        if(
+          length(toString(properties.$geoip_country_name)) > 0,
+          toString(properties.$geoip_country_name),
+          'Unknown'
+        ) AS country,
+        count(DISTINCT person_id) AS visitors
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND ${pageviewFilter}
+      GROUP BY country
+      ORDER BY visitors DESC
+      LIMIT 12
     `),
     runHogQL<{ path: string; views: number }>(`
       SELECT properties.path AS path, count() AS views
@@ -244,8 +281,10 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
 
   const firstError =
     seriesRes.error ??
+    signupsSeriesRes.error ??
     summaryRes.error ??
     returningRes.error ??
+    locationsRes.error ??
     pathsRes.error ??
     sourcesRes.error ??
     visitorsRes.error ??
@@ -272,6 +311,14 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
     { key: "converted", label: "Subscribed", count: converted },
   ];
 
+  const visitorsByDay = new Map(
+    seriesRes.rows.map((r) => [String(r.day), Number(r.visitors ?? 0)]),
+  );
+  const signupsByDay = new Map(
+    signupsSeriesRes.rows.map((r) => [String(r.day), Number(r.signups ?? 0)]),
+  );
+  const allDays = [...new Set([...visitorsByDay.keys(), ...signupsByDay.keys()])].sort();
+
   return {
     configured: true,
     error: firstError,
@@ -281,8 +328,13 @@ export async function loadPostHogAnalytics(days = 30): Promise<PostHogAnalyticsS
       returningVisitors,
       newVisitors,
     },
-    trafficSeries: seriesRes.rows.map((r) => ({
-      day: String(r.day),
+    trafficSeries: allDays.map((day) => ({
+      day,
+      visitors: visitorsByDay.get(day) ?? 0,
+      signups: signupsByDay.get(day) ?? 0,
+    })),
+    visitorLocations: locationsRes.rows.map((r) => ({
+      country: String(r.country),
       visitors: Number(r.visitors ?? 0),
     })),
     topPaths: pathsRes.rows.map((r) => ({

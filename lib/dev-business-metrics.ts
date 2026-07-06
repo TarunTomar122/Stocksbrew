@@ -44,7 +44,7 @@ function fmtDate(value: unknown): string | null {
 }
 
 /** Minimal Firestore counts for conversion sanity checks alongside PostHog. */
-export async function loadDevBusinessMetrics(periodDays = 30): Promise<DevBusinessMetrics> {
+export async function loadDevBusinessMetrics(periodDays = 7): Promise<DevBusinessMetrics> {
   const [usersSnap, feedbackSnap] = await Promise.all([
     adminFirestore.collection("users").get(),
     adminFirestore.collection("feedback").get(),

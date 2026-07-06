@@ -7,6 +7,7 @@ import {
   Cell,
   ComposedChart,
   Line,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -45,7 +46,8 @@ function pct(part: number, whole: number) {
 }
 
 export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props) {
-  const { summary, trafficSeries, topPaths, trafficSources, funnel, periodDays } = posthog;
+  const { summary, trafficSeries, visitorLocations, topPaths, trafficSources, funnel, periodDays } =
+    posthog;
   const periodLabel = `${periodDays}d`;
   const maxFunnel = Math.max(1, ...funnel.map((s) => s.count));
   const visitorToSignup =
@@ -67,6 +69,11 @@ export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props
   const sourceChartData = trafficSources.map((row) => ({
     name: row.source,
     views: row.views,
+  }));
+
+  const locationChartData = visitorLocations.map((row) => ({
+    name: row.country,
+    visitors: row.visitors,
   }));
 
   return (
@@ -97,7 +104,10 @@ export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props
       {posthogReady && (
         <>
           {/* Traffic trend */}
-          <Panel title={`Visitors · last ${periodDays} days`} subtitle="Daily unique visitors">
+          <Panel
+            title={`Traffic · last ${periodDays} days`}
+            subtitle="Daily unique visitors and sign-ups"
+          >
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trafficSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -110,35 +120,60 @@ export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props
                     tickLine={false}
                   />
                   <YAxis
+                    yAxisId="visitors"
                     allowDecimals={false}
                     tick={{ fill: MUTED, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                     width={36}
                   />
+                  <YAxis
+                    yAxisId="signups"
+                    orientation="right"
+                    allowDecimals={false}
+                    tick={{ fill: GREEN, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={28}
+                  />
                   <Tooltip
                     contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
                     labelFormatter={(label) => String(label)}
-                    formatter={(value, name) =>
-                      name === "Trend" ? [null, null] : [fmtNum(Number(value)), "Visitors"]
-                    }
+                    formatter={(value, name) => [fmtNum(Number(value)), String(name)]}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
                   />
                   <Bar
+                    yAxisId="visitors"
                     dataKey="visitors"
                     fill="#e5e7eb"
                     radius={[4, 4, 0, 0]}
-                    barSize={periodDays <= 7 ? 36 : 14}
+                    barSize={periodDays <= 7 ? 28 : 12}
                     name="Visitors"
                   />
                   <Line
+                    yAxisId="visitors"
                     type="monotone"
                     dataKey="visitors"
                     stroke={INK}
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: INK, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: INK }}
-                    name="Trend"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Visitor trend"
                     legendType="none"
+                  />
+                  <Line
+                    yAxisId="signups"
+                    type="monotone"
+                    dataKey="signups"
+                    stroke={GREEN}
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: GREEN, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: GREEN }}
+                    name="Sign-ups"
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -216,6 +251,42 @@ export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Visitor locations */}
+            <Panel
+              title={`Visitor locations · ${periodLabel}`}
+              subtitle="Unique visitors by country (PostHog GeoIP)"
+            >
+              <div className="h-[320px] w-full">
+                {locationChartData.length === 0 ? (
+                  <Empty>No location data yet.</Empty>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={locationChartData}
+                      layout="vertical"
+                      margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+                    >
+                      <CartesianGrid stroke={GRID} horizontal={false} />
+                      <XAxis type="number" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={110}
+                        tick={{ fill: INK, fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
+                        formatter={(value) => [fmtNum(Number(value)), "Visitors"]}
+                      />
+                      <Bar dataKey="visitors" fill={GREEN} radius={[0, 4, 4, 0]} barSize={18} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </Panel>
+
             {/* Top pages */}
             <Panel title={`Popular pages · ${periodLabel}`} subtitle="By pageview count">
               <div className="h-[320px] w-full">

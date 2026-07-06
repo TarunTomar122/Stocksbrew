@@ -14,7 +14,7 @@ export function AnalyticsPeriodToggle({ days }: Props) {
         return (
           <Link
             key={option}
-            href={`/dev/analytics?days=${option}`}
+            href={option === 7 ? "/dev/analytics" : `/dev/analytics?days=${option}`}
             className={`rounded-lg px-4 py-1.5 text-[13px] font-medium transition-colors ${
               active
                 ? "bg-white text-[#111111] shadow-sm"
