@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from backend.email import send_email
 from backend.email_runtime import load_recent_send_index, log_email_send
@@ -14,10 +15,32 @@ logger = logging.getLogger(__name__)
 
 EMAIL_TYPE = "premarket_brief"
 OVERNIGHT_LOOKBACK_HOURS = 14
+PREMARKET_SNAPSHOT_MAX_AGE_HOURS = 6
+MARKET_TZ = {"US": "America/New_York", "IN": "Asia/Kolkata"}
 
 
 def today_key() -> str:
     return datetime.now(timezone.utc).date().isoformat()
+
+
+def market_today_key(market: str) -> str:
+    tz_name = MARKET_TZ.get(str(market or "US").upper(), "America/New_York")
+    return datetime.now(ZoneInfo(tz_name)).date().isoformat()
+
+
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        parsed = datetime.fromisoformat(text)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def dedupe_key_for_date(date_key: str) -> str:
@@ -48,8 +71,16 @@ def macro_phase_line(store: TraceMoneyStore, market: str) -> str | None:
     return f"The market is {phase_label}{tail}."
 
 
-def has_sendable_premarket_snapshot(premarket: dict[str, Any] | None) -> bool:
+def has_sendable_premarket_snapshot(premarket: dict[str, Any] | None, *, market: str = "US") -> bool:
     if not premarket:
+        return False
+    if str(premarket.get("date") or "") != market_today_key(market):
+        return False
+    generated_at = _parse_iso_datetime(premarket.get("generated_at"))
+    if generated_at is None:
+        return False
+    age_seconds = (datetime.now(timezone.utc) - generated_at).total_seconds()
+    if age_seconds < 0 or age_seconds > PREMARKET_SNAPSHOT_MAX_AGE_HOURS * 3600:
         return False
     quoted = int(premarket.get("quoted_count") or 0)
     if quoted > 0:
@@ -155,8 +186,15 @@ def process_premarket_briefs(
     premarket = store.get_premarket_movers(market)
     phase_line = macro_phase_line(store, market)
 
-    if not skip_snapshot_gate and not has_sendable_premarket_snapshot(premarket):
-        logger.info("No sendable pre-market snapshot for %s — skipping batch", market)
+    if not skip_snapshot_gate and not has_sendable_premarket_snapshot(premarket, market=market):
+        logger.info(
+            "No fresh sendable pre-market snapshot for %s — skipping batch "
+            "(date=%s generated_at=%s quoted_count=%s)",
+            market,
+            (premarket or {}).get("date"),
+            (premarket or {}).get("generated_at"),
+            (premarket or {}).get("quoted_count"),
+        )
         return {
             "checked": 0,
             "sent": 0,

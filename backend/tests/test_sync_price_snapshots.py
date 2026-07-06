@@ -73,6 +73,49 @@ class SyncPriceSnapshotsTests(unittest.TestCase):
         self.assertNotIn("analyst_consensus", store.saved_rows[0])
         self.assertEqual(store.fundamental_rows, [])
 
+    def test_snapshot_recomputes_change_from_current_and_previous_close(self) -> None:
+        store = FakeStore()
+        instrument = {
+            "instrument_id": "US_NVDA",
+            "market": "US",
+            "ticker": "NVDA",
+            "sector": "Technology",
+            "currency": "USD",
+        }
+
+        class FakeClient:
+            def __init__(self, **_kwargs) -> None:
+                pass
+
+            def fetch_quotes(self, _instruments, *, include_fundamentals: bool = True):
+                return {
+                    "US_NVDA": {
+                        "captured_at": "2026-07-06T14:30:00+00:00",
+                        "currency": "USD",
+                        "quote": {
+                            "current": 107.0,
+                            "previous_close": 105.0,
+                            "day_change_abs": 7.0,
+                            "day_change_pct": 7.0,
+                        },
+                    }
+                }
+
+        with (
+            patch("backend.scripts.sync_price_snapshots.list_instruments", return_value=[instrument]),
+            patch("backend.scripts.sync_price_snapshots.YFinanceClient", FakeClient),
+        ):
+            sync_price_snapshots(
+                market="US",
+                universe_id="test",
+                session_phase="open_check",
+                store=store,
+            )
+
+        quote = store.saved_rows[0]["quote"]
+        self.assertEqual(quote["day_change_abs"], 2.0)
+        self.assertEqual(quote["day_change_pct"], 1.9)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,13 +1,31 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from backend.emails.weekly_brief import build_weekly_brief_email
+from backend.weekly_email import has_sendable_weekly_snapshot
 from backend.weekly_tape_llm import generate_weekly_stories
 
 
 class WeeklyBriefTemplateTests(unittest.TestCase):
+    def test_weekly_snapshot_gate_requires_current_week_and_recent_generation(self) -> None:
+        snapshot = {
+            "week_key": "2026-W27",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "quoted_count": 10,
+        }
+
+        self.assertTrue(has_sendable_weekly_snapshot(snapshot, week_key="2026-W27"))
+        self.assertFalse(has_sendable_weekly_snapshot({**snapshot, "week_key": "2026-W26"}, week_key="2026-W27"))
+        self.assertFalse(
+            has_sendable_weekly_snapshot(
+                {**snapshot, "generated_at": (datetime.now(timezone.utc) - timedelta(hours=40)).isoformat()},
+                week_key="2026-W27",
+            )
+        )
+
     def test_weekly_layout_includes_stories_book_movers_and_sectors(self) -> None:
         weekly = {
             "week_label": "Jun 23–27, 2026",

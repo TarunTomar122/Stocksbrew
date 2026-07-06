@@ -5,6 +5,7 @@ import argparse
 import json
 
 from backend.instrument_universe import list_instruments
+from backend.price_utils import normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.storage import TraceMoneyStore
 
@@ -108,6 +109,7 @@ def sync_price_snapshots(
         quote_payload = raw_quotes.get(instrument_id)
         if not quote_payload:
             continue
+        quote = normalize_quote_change(quote_payload["quote"])
         snapshot = {
             "instrument_id": instrument_id,
             "market": instrument["market"],
@@ -116,7 +118,7 @@ def sync_price_snapshots(
             "session_phase": session_phase,
             "source": "yfinance",
             "currency": quote_payload.get("currency") or instrument.get("currency", "USD"),
-            "quote": quote_payload["quote"],
+            "quote": quote,
             "provider_metadata": {
                 "yahoo_symbol": quote_payload.get("yahoo_symbol", ""),
                 "exchange": quote_payload.get("exchange", instrument.get("exchange", "")),

@@ -120,7 +120,6 @@ def fetch_prices_for_alerts(
                 raw = (
                     info.get("regularMarketPrice")
                     or info.get("currentPrice")
-                    or info.get("previousClose")
                 )
                 prices[ticker] = float(raw) if raw else None
             except Exception as exc:

@@ -79,6 +79,43 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertNotIn("fundamentals", row)
         self.assertNotIn("analyst_consensus", row)
 
+    def test_quote_only_fetch_uses_latest_daily_close_when_intraday_is_newer(self) -> None:
+        daily = pd.DataFrame(
+            [
+                {"Open": 99.0, "High": 101.0, "Low": 98.0, "Close": 100.0, "Volume": 10},
+                {"Open": 102.0, "High": 106.0, "Low": 101.0, "Close": 105.0, "Volume": 20},
+            ],
+            index=[
+                datetime(2026, 7, 1, tzinfo=timezone.utc),
+                datetime(2026, 7, 2, tzinfo=timezone.utc),
+            ],
+        )
+        intraday = pd.DataFrame(
+            [{"Open": 106.0, "High": 108.0, "Low": 105.0, "Close": 107.0, "Volume": 5}],
+            index=[datetime(2026, 7, 6, 14, 30, tzinfo=timezone.utc)],
+        )
+
+        def fake_download(*_args, **kwargs):
+            return intraday if kwargs["interval"] == "1m" else daily
+
+        instrument = {
+            "instrument_id": "US_NVDA",
+            "market": "US",
+            "ticker": "NVDA",
+            "quote_symbol": "NVDA",
+            "exchange": "NASDAQ",
+            "currency": "USD",
+        }
+        with patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download):
+            row = YFinanceClient(max_workers=1).fetch_quotes(
+                [instrument],
+                include_fundamentals=False,
+            )["US_NVDA"]
+
+        self.assertEqual(row["quote"]["current"], 107.0)
+        self.assertEqual(row["quote"]["previous_close"], 105.0)
+        self.assertEqual(row["quote"]["day_change_pct"], 1.9)
+
     def test_quote_only_fetch_flattens_single_symbol_multiindex_download(self) -> None:
         index = [
             datetime(2026, 7, 1, tzinfo=timezone.utc),
@@ -252,7 +289,8 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertTrue(calls[1]["prepost"])
         self.assertEqual(rows["US_NVDA"]["pre_market_price"], 104.0)
-        self.assertEqual(rows["US_NVDA"]["previous_close"], 100.0)
+        self.assertEqual(rows["US_NVDA"]["previous_close"], 101.0)
+        self.assertEqual(rows["US_NVDA"]["pre_market_change_pct"], 2.97)
 
 
 if __name__ == "__main__":

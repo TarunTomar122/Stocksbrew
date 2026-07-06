@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.email import send_email
@@ -14,14 +15,38 @@ from backend.weekly_tape_llm import load_weekly_stories_for_email
 logger = logging.getLogger(__name__)
 
 EMAIL_TYPE = "weekly_brief"
+WEEKLY_SNAPSHOT_MAX_AGE_HOURS = 36
 
 
 def dedupe_key_for_week(week_key: str | None = None) -> str:
     return f"weekly_brief_{week_key or iso_week_dedupe_key()}"
 
 
-def has_sendable_weekly_snapshot(weekly: dict[str, Any] | None) -> bool:
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        parsed = datetime.fromisoformat(text)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def has_sendable_weekly_snapshot(weekly: dict[str, Any] | None, *, week_key: str | None = None) -> bool:
     if not weekly:
+        return False
+    if week_key and str(weekly.get("week_key") or "") != week_key:
+        return False
+    generated_at = _parse_iso_datetime(weekly.get("generated_at"))
+    if generated_at is None:
+        return False
+    age = datetime.now(timezone.utc) - generated_at
+    if age < timedelta(0) or age > timedelta(hours=WEEKLY_SNAPSHOT_MAX_AGE_HOURS):
         return False
     quoted = int(weekly.get("quoted_count") or 0)
     if quoted > 0:
@@ -62,8 +87,15 @@ def process_weekly_briefs(
     weekly = store.get_weekly_movers(market)
     phase_line = macro_phase_line(store, market)
 
-    if not skip_snapshot_gate and not has_sendable_weekly_snapshot(weekly):
-        logger.info("No sendable weekly snapshot for %s — skipping batch", market)
+    if not skip_snapshot_gate and not has_sendable_weekly_snapshot(weekly, week_key=week_key):
+        logger.info(
+            "No fresh sendable weekly snapshot for %s — skipping batch "
+            "(week_key=%s generated_at=%s quoted_count=%s)",
+            market,
+            (weekly or {}).get("week_key"),
+            (weekly or {}).get("generated_at"),
+            (weekly or {}).get("quoted_count"),
+        )
         return {
             "checked": 0,
             "sent": 0,

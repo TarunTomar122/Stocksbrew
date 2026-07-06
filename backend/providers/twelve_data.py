@@ -9,6 +9,7 @@ from typing import Any, Callable
 import requests
 
 from backend.env import load_backend_env
+from backend.price_utils import normalize_quote_change
 
 load_backend_env()
 
@@ -119,6 +120,16 @@ class TwelveDataClient:
             current = _to_float(row.get("close"))
             if current == 0.0:
                 current = _to_float(row.get("price"))
+            quote = normalize_quote_change({
+                "current": current,
+                "day_change_abs": _to_float(row.get("change")),
+                "day_change_pct": _to_float(row.get("percent_change")),
+                "open": _to_float(row.get("open")),
+                "high": _to_float(row.get("high")),
+                "low": _to_float(row.get("low")),
+                "previous_close": _to_float(row.get("previous_close")),
+                "volume": _to_float(row.get("volume")),
+            })
             quotes[upper_symbol] = {
                 "symbol": upper_symbol,
                 "name": row.get("name", ""),
@@ -128,16 +139,7 @@ class TwelveDataClient:
                     row.get("last_update_at") or row.get("datetime") or row.get("timestamp"),
                     fetched_at,
                 ),
-                "quote": {
-                    "current": current,
-                    "day_change_abs": _to_float(row.get("change")),
-                    "day_change_pct": _to_float(row.get("percent_change")),
-                    "open": _to_float(row.get("open")),
-                    "high": _to_float(row.get("high")),
-                    "low": _to_float(row.get("low")),
-                    "previous_close": _to_float(row.get("previous_close")),
-                    "volume": _to_float(row.get("volume")),
-                },
+                "quote": quote,
             }
         return quotes
 

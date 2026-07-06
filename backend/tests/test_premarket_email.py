@@ -1,12 +1,52 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-from backend.premarket_email import load_premarket_intel_for_book
+from backend.premarket_email import (
+    has_sendable_premarket_snapshot,
+    load_premarket_intel_for_book,
+    market_today_key,
+)
 
 
 class PremarketEmailIntelTests(unittest.TestCase):
+    def test_sendable_snapshot_requires_current_market_date_and_recent_generation(self) -> None:
+        snapshot = {
+            "date": market_today_key("US"),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "quoted_count": 3,
+        }
+
+        self.assertTrue(has_sendable_premarket_snapshot(snapshot, market="US"))
+
+    def test_sendable_snapshot_rejects_stale_market_date(self) -> None:
+        snapshot = {
+            "date": "2000-01-01",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "quoted_count": 3,
+        }
+
+        self.assertFalse(has_sendable_premarket_snapshot(snapshot, market="US"))
+
+    def test_sendable_snapshot_rejects_old_generation_time(self) -> None:
+        snapshot = {
+            "date": market_today_key("US"),
+            "generated_at": (datetime.now(timezone.utc) - timedelta(hours=8)).isoformat(),
+            "quoted_count": 3,
+        }
+
+        self.assertFalse(has_sendable_premarket_snapshot(snapshot, market="US"))
+
+    def test_sendable_snapshot_rejects_missing_generation_time(self) -> None:
+        snapshot = {
+            "date": market_today_key("US"),
+            "quoted_count": 3,
+        }
+
+        self.assertFalse(has_sendable_premarket_snapshot(snapshot, market="US"))
+
     def test_load_premarket_intel_for_book_merges_context_and_overnight(self) -> None:
         store = MagicMock()
         store.get_premarket_context.return_value = {

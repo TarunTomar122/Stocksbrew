@@ -142,6 +142,58 @@ def _history_metrics(history) -> tuple[float, float, float, float, float, float,
     return current, previous_close, open_price, high, low, volume, captured_at.astimezone(timezone.utc).isoformat()
 
 
+def _row_datetime(row: Any) -> datetime:
+    captured = getattr(row.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
+    if captured.tzinfo is None:
+        captured = captured.replace(tzinfo=timezone.utc)
+    return captured.astimezone(timezone.utc)
+
+
+def _row_date(row: Any) -> Any:
+    captured = getattr(row.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
+    if captured.tzinfo is None:
+        captured = captured.replace(tzinfo=timezone.utc)
+    return captured.date()
+
+
+def _latest_daily_close(history: Any) -> float:
+    if history is None or getattr(history, "empty", True):
+        return 0.0
+    try:
+        return _to_float(history.iloc[-1]["Close"])
+    except (KeyError, IndexError, TypeError):
+        return 0.0
+
+
+def _previous_daily_close(history: Any) -> float:
+    if history is None or getattr(history, "empty", True):
+        return 0.0
+    try:
+        if len(history) > 1:
+            return _to_float(history.iloc[-2]["Close"])
+        return _to_float(history.iloc[-1].get("Open"))
+    except (KeyError, IndexError, TypeError):
+        return 0.0
+
+
+def _previous_close_for_intraday(history: Any, captured_at: datetime, captured_date: Any | None = None) -> float:
+    """Pick the close that an intraday print should be compared against.
+
+    Yahoo daily bars may or may not include the current trading day while the
+    market is open. If the latest daily bar is older than the intraday print,
+    its close is the prior close. If it is the same date, the latest daily bar
+    is today's developing bar, so the prior row is the previous close.
+    """
+    if history is None or getattr(history, "empty", True):
+        return 0.0
+    latest = history.iloc[-1]
+    latest_date = _row_date(latest)
+    intraday_date = captured_date or captured_at.date()
+    if latest_date < intraday_date:
+        return _latest_daily_close(history)
+    return _previous_daily_close(history)
+
+
 def _consensus_label(info: dict[str, Any]) -> str:
     key = str(info.get("recommendationKey", "")).strip().replace("_", " ")
     if key:
@@ -229,10 +281,9 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
             intraday_current = _finite_positive(latest.get("Close"))
             if intraday_current:
                 current = intraday_current
-                captured = getattr(latest.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
-                if captured.tzinfo is None:
-                    captured = captured.replace(tzinfo=timezone.utc)
-                captured_at = captured.astimezone(timezone.utc).isoformat()
+                captured = _row_datetime(latest)
+                captured_at = captured.isoformat()
+                prev_close = _previous_close_for_intraday(daily, captured, captured_date=_row_date(latest))
 
         day_change_abs = current - prev_close if prev_close else 0.0
         day_change_pct = ((day_change_abs / prev_close) * 100.0) if prev_close else 0.0
@@ -545,7 +596,7 @@ def fetch_premarket_quotes(
         intraday = intraday_by_symbol.get(symbol)
         if daily is None or intraday is None:
             continue
-        _hist_current, prev_close, _open, _high, _low, _volume, _daily_at = _history_metrics(daily)
+        prev_close = _latest_daily_close(daily)
         if prev_close <= 0:
             continue
 

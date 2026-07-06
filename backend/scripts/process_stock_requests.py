@@ -41,6 +41,7 @@ from backend.llm_client import (
     schema_system_prompt,
 )
 from backend.market_strategy import normalize_ticker_entry
+from backend.price_utils import normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.scripts.materialize_views import materialize_views
 from backend.storage import TraceMoneyStore
@@ -442,6 +443,7 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
     quote = YFinanceClient(max_workers=1).fetch_quotes([instrument]).get(instrument_id)
     if not quote:
         raise ValueError(f"No quote fetched for {instrument_id}")
+    quote_payload = normalize_quote_change(quote["quote"])
     snapshot = {
         "instrument_id": instrument_id,
         "market": market,
@@ -450,7 +452,7 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
         "session_phase": "manual",
         "source": "yfinance",
         "currency": quote.get("currency") or instrument.get("currency", "USD"),
-        "quote": quote["quote"],
+        "quote": quote_payload,
         "fundamentals": quote.get("fundamentals", {}),
         "analyst_consensus": quote.get("analyst_consensus", {}),
         "provider_metadata": {
@@ -488,11 +490,11 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
                 "sectorId": None,
                 "lastUpdated": quote.get("captured_at"),
                 "price": {
-                    "current": quote.get("quote", {}).get("current"),
-                    "change": quote.get("quote", {}).get("day_change_abs"),
-                    "changePct": quote.get("quote", {}).get("day_change_pct"),
-                    "previousClose": quote.get("quote", {}).get("previous_close"),
-                    "volume": quote.get("quote", {}).get("volume"),
+                    "current": quote_payload.get("current"),
+                    "change": quote_payload.get("day_change_abs"),
+                    "changePct": quote_payload.get("day_change_pct"),
+                    "previousClose": quote_payload.get("previous_close"),
+                    "volume": quote_payload.get("volume"),
                 },
             }
         ],
