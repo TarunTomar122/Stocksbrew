@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
 import { RedditBuzzCard } from "@/components/reddit-buzz-card";
 import { relativeTime } from "@/lib/freshness";
@@ -109,7 +109,10 @@ function BuzzPanel({
         </div>
       </div>
       {lockedCount > 0 ? (
-        <FeedUnlockBar surface="reddit_buzz" className="border-[#e5e7eb] bg-white" compact />
+        <>
+          <FeedUnlockBar surface="reddit_buzz" className="border-[#e5e7eb] bg-white" compact />
+          <FeedStickyUnlock surface="reddit_buzz" />
+        </>
       ) : null}
     </div>
   );

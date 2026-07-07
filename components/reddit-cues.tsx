@@ -2,7 +2,7 @@ import Link from "next/link";
 import { hasRedditBrief, type RedditSnapshot, type RedditTicker } from "@/lib/reddit-cues";
 import { StockLogo } from "@/components/stock-logo";
 import { ProBadge } from "@/components/pro-badge";
-import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedRowLockedBlur, FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { FeedPaywallSlot, RedditBuzzPaywall } from "@/components/feed-pro-paywalls";
 import { FREE_REDDIT_BUZZ_VISIBLE_LIMIT } from "@/lib/pro-features";
 import { MARKET_FEED_FRESHNESS, SHOW_DATA_FRESHNESS_UI, freshnessInfo, relativeTime } from "@/lib/freshness";
@@ -168,7 +168,10 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
       </div>
 
       {!isSubscribed && (lockedCount > 0 || hiddenCount > 0) ? (
-        <FeedUnlockBar surface="reddit_buzz" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+        <>
+          <FeedUnlockBar surface="reddit_buzz" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+          <FeedStickyUnlock surface="reddit_buzz" />
+        </>
       ) : null}
 
       {!isSubscribed && lockedCount > 0 ? (

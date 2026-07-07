@@ -182,5 +182,59 @@ export function FeedUnlockBar({
   );
 }
 
+/**
+ * Sticky unlock banner that pins to viewport bottom on mobile.
+ * Wrap your locked feed section with this — it shows a fixed CTA
+ * when the inline FeedUnlockBar scrolls out of view.
+ */
+export function FeedStickyUnlock({
+  surface,
+  signedOutLabel = "Sign in free",
+  signedInLabel = "Unlock Pro",
+}: {
+  surface: PaywallSurface;
+  signedOutLabel?: string;
+  signedInLabel?: string;
+}) {
+  const { user, busy, handleUnlock } = useFeedUnlockCta(surface);
+  const [show, setShow] = useState(false);
+  const sentinelRef = { current: null as HTMLDivElement | null };
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShow(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const label = busy ? "Signing in…" : user ? signedInLabel : signedOutLabel;
+
+  return (
+    <>
+      {/* Sentinel: invisible div at the inline unlock bar position */}
+      <div ref={sentinelRef} aria-hidden className="h-0" />
+      {/* Sticky banner — only visible when sentinel is off-screen */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center border-t border-outline-variant bg-surface p-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] transition-transform duration-200 sm:hidden ${
+          show ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        <button
+          type="button"
+          disabled={busy}
+          onClick={handleUnlock}
+          className={proCtaClassName({ size: "md", className: "w-full" })}
+        >
+          {label}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** @deprecated Use FeedRowLockedBlur + FeedUnlockBar */
 export const FeedRowLockTeaser = FeedRowLockedBlur;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedRowLockedBlur, FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import type { InterestingStockRow } from "@/lib/interesting-stocks";
 import { FREE_INTERESTING_STOCKS_VISIBLE_LIMIT } from "@/lib/pro-features";
@@ -142,13 +142,20 @@ export function InterestingStocksFeed({
           : null}
       </div>
       {hasLocked ? (
-        <FeedUnlockBar
-          surface="interesting_stocks"
-          className="rounded-xl border border-outline-variant bg-surface"
-          compact
-          signedOutLabel="Sign in free"
-          signedInLabel="Unlock all 10 setups"
-        />
+        <>
+          <FeedUnlockBar
+            surface="interesting_stocks"
+            className="rounded-xl border border-outline-variant bg-surface"
+            compact
+            signedOutLabel="Sign in free"
+            signedInLabel="Unlock all 10 setups"
+          />
+          <FeedStickyUnlock
+            surface="interesting_stocks"
+            signedOutLabel="Sign in free"
+            signedInLabel="Unlock all 10 setups"
+          />
+        </>
       ) : null}
     </div>
   );

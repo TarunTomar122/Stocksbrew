@@ -1,6 +1,6 @@
 "use client";
 
-import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { RedditBuzzCard } from "@/components/reddit-buzz-card";
 import { FREE_REDDIT_BUZZ_VISIBLE_LIMIT } from "@/lib/pro-features";
 import type { RedditTicker } from "@/lib/reddit-cues-shared";
@@ -89,13 +89,20 @@ export function RedditBuzzFeed({
         ))}
       </div>
       {hasLocked ? (
-        <FeedUnlockBar
-          surface="reddit_buzz"
-          className={`rounded-xl border ${unlockClass}`}
-          compact
-          signedOutLabel={unlockSignedOutLabel}
-          signedInLabel={unlockSignedInLabel}
-        />
+        <>
+          <FeedUnlockBar
+            surface="reddit_buzz"
+            className={`rounded-xl border ${unlockClass}`}
+            compact
+            signedOutLabel={unlockSignedOutLabel}
+            signedInLabel={unlockSignedInLabel}
+          />
+          <FeedStickyUnlock
+            surface="reddit_buzz"
+            signedOutLabel={unlockSignedOutLabel}
+            signedInLabel={unlockSignedInLabel}
+          />
+        </>
       ) : null}
     </div>
   );

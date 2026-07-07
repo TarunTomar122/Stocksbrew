@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedRowLockedBlur, FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import {
   anomalyDetail,
@@ -252,7 +252,10 @@ function CardsSection({
         ))}
       </div>
       {hasLocked ? (
-        <FeedUnlockBar surface="market_anomalies" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+        <>
+          <FeedUnlockBar surface="market_anomalies" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+          <FeedStickyUnlock surface="market_anomalies" />
+        </>
       ) : null}
     </div>
   );
@@ -290,7 +293,10 @@ function MovesTable({
     )),
   ];
   const unlockBar = hasLocked ? (
-    <FeedUnlockBar surface="market_anomalies" className="border-[#e5e7eb] bg-white" compact />
+    <>
+      <FeedUnlockBar surface="market_anomalies" className="border-[#e5e7eb] bg-white" compact />
+      <FeedStickyUnlock surface="market_anomalies" />
+    </>
   ) : null;
 
   if (scrollable) {

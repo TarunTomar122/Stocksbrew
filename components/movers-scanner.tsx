@@ -4,7 +4,7 @@ import { AnimatedIcon } from "@/components/animated-icon";
 
 import Link from "next/link";
 import { useState } from "react";
-import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedRowLockedBlur, FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
@@ -218,11 +218,14 @@ export function MoversScanner({
               </>
             ) : null}
             {hasLockedRows ? (
-              <FeedUnlockBar
-                surface="market_anomalies"
-                className="mt-4 rounded-xl border border-outline-variant"
-                signedOutLabel={unlockSignedOutLabel}
-              />
+              <>
+                <FeedUnlockBar
+                  surface="market_anomalies"
+                  className="mt-4 rounded-xl border border-outline-variant"
+                  signedOutLabel={unlockSignedOutLabel}
+                />
+                <FeedStickyUnlock surface="market_anomalies" signedOutLabel={unlockSignedOutLabel} />
+              </>
             ) : null}
           </>
         ) : (
@@ -409,12 +412,15 @@ export function MoversScanner({
             );
           })}
           {hasLockedRows ? (
-            <FeedUnlockBar
-              surface="market_anomalies"
-              compact
-              className={uiVariant === "landing" ? "" : "border-outline-variant"}
-              signedOutLabel={unlockSignedOutLabel}
-            />
+            <>
+              <FeedUnlockBar
+                surface="market_anomalies"
+                compact
+                className={uiVariant === "landing" ? "" : "border-outline-variant"}
+                signedOutLabel={unlockSignedOutLabel}
+              />
+              <FeedStickyUnlock surface="market_anomalies" signedOutLabel={unlockSignedOutLabel} />
+            </>
           ) : null}
         </div>
       )}
