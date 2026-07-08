@@ -14,6 +14,7 @@ import { LockedRoomToTarget } from "@/components/locked-room-to-target";
 import { FundamentalsBreakdown } from "@/components/fundamentals-breakdown";
 import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
 import { TrackButton } from "@/components/track-button";
+import { StockShareCard } from "@/components/stock-share-card";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import Link from "next/link";
 import type {
@@ -532,6 +533,7 @@ export function StockDetail(props: Props) {
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <p className="line-clamp-2 min-w-0 text-[13px] font-medium leading-snug text-on-surface/75">{stock.name}</p>
                   <TrackButton {...trackButtonProps} />
+                  <StockShareCard ticker={stock.ticker} market={market} />
                 </div>
               </div>
               <div className="shrink-0 text-right">
@@ -580,6 +582,7 @@ export function StockDetail(props: Props) {
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-extrabold leading-none tracking-tight text-on-surface">{stock.name}</h1>
                 <TrackButton {...trackButtonProps} />
+                <StockShareCard ticker={stock.ticker} market={market} />
                 {hasAnomalyMove && (
                   <a
                     href="#stock-todays-move"
