@@ -313,6 +313,16 @@ def _article_fingerprint(articles: list[Article]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _needs_incremental_brief_refresh(
+    *,
+    article_fingerprint: str,
+    previous_fingerprint: str,
+    existing_stock_intelligence_doc: dict[str, Any] | None,
+) -> tuple[bool, bool]:
+    missing_brief = not bool(existing_stock_intelligence_doc)
+    return article_fingerprint != previous_fingerprint or missing_brief, missing_brief
+
+
 def _latest_article_at(articles: list[Article]) -> str:
     timestamps = [
         str(getattr(article, "published_at", "") or "").strip()
@@ -466,6 +476,11 @@ def main() -> None:
         if args.incremental
         else {}
     )
+    existing_stock_intelligence = (
+        store.get_stock_intelligence_docs_batch(args.market, universe_id, selected_instrument_ids)
+        if args.incremental
+        else {}
+    )
     changed_instrument_ids: list[str] = []
     changed_instrument_set: set[str] = set()
     freshness_payloads: dict[str, dict[str, Any]] = {}
@@ -616,7 +631,11 @@ def main() -> None:
                 article_fingerprint = _article_fingerprint(instrument_articles)
                 previous = prior_freshness.get(instrument_id) or {}
                 previous_fingerprint = str(previous.get("article_fingerprint") or "")
-                changed = article_fingerprint != previous_fingerprint
+                changed, missing_brief = _needs_incremental_brief_refresh(
+                    article_fingerprint=article_fingerprint,
+                    previous_fingerprint=previous_fingerprint,
+                    existing_stock_intelligence_doc=existing_stock_intelligence.get(instrument_id),
+                )
                 if changed:
                     changed_instrument_set.add(instrument_id)
                 freshness_payloads[instrument_id] = {
@@ -634,6 +653,7 @@ def main() -> None:
                         len(instrument_articles) - int(previous.get("article_count") or 0),
                     ),
                     "needs_brief_refresh": changed,
+                    "missing_stock_intelligence": missing_brief,
                 }
             changed_instrument_ids = sorted(changed_instrument_set)
             print(
@@ -647,7 +667,7 @@ def main() -> None:
         else:
             store.save_news_articles(args.market, universe_id, raw_payload, source_health=source_health)
 
-        if not raw_articles:
+        if not raw_articles and not args.include_no_news:
             if freshness_payloads:
                 store.save_news_freshness_docs(list(freshness_payloads.values()))
             print("[per-stock] no articles after partitioned fetch - skipping enrichment and synthesis")
@@ -658,6 +678,10 @@ def main() -> None:
                 len(instruments),
             )
             return
+
+        if not raw_articles and args.include_no_news:
+            enriched_articles = []
+            print("[per-stock] no articles after partitioned fetch - continuing with no-news fallback briefs")
 
         if args.incremental and not changed_instrument_ids:
             if freshness_payloads:

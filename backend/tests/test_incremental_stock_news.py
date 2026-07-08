@@ -7,6 +7,7 @@ from backend.scripts.build_per_stock_intelligence import (
     _article_fingerprint,
     _filter_articles_for_instruments,
     _map_articles_to_instruments,
+    _needs_incremental_brief_refresh,
 )
 
 
@@ -82,6 +83,30 @@ class IncrementalStockNewsTest(unittest.TestCase):
         second = first + [_article("a2", title="NVIDIA gets analyst upgrade", focus_ticker="NVDA")]
 
         self.assertNotEqual(_article_fingerprint(first), _article_fingerprint(second))
+
+    def test_incremental_refresh_rebuilds_missing_stock_intelligence_doc(self) -> None:
+        fingerprint = _article_fingerprint([_article("a1", title="SanDisk update", focus_ticker="SNDK")])
+
+        changed, missing = _needs_incremental_brief_refresh(
+            article_fingerprint=fingerprint,
+            previous_fingerprint=fingerprint,
+            existing_stock_intelligence_doc=None,
+        )
+
+        self.assertTrue(changed)
+        self.assertTrue(missing)
+
+    def test_incremental_refresh_skips_existing_doc_when_articles_unchanged(self) -> None:
+        fingerprint = _article_fingerprint([_article("a1", title="SanDisk update", focus_ticker="SNDK")])
+
+        changed, missing = _needs_incremental_brief_refresh(
+            article_fingerprint=fingerprint,
+            previous_fingerprint=fingerprint,
+            existing_stock_intelligence_doc={"instrument_id": "US_SNDK"},
+        )
+
+        self.assertFalse(changed)
+        self.assertFalse(missing)
 
 
 if __name__ == "__main__":

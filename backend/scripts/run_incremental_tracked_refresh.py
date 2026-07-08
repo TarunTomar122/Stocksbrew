@@ -123,6 +123,7 @@ def main() -> None:
         ",".join(changed_ids),
         "--incremental",
         "--upsert",
+        "--include-no-news",
         "--per-stock-cap",
         str(args.per_stock_cap),
         "--broad-cap",
