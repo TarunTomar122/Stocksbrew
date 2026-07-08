@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import path from "path";
 
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/dist/server/web/spec-extension/image-response";
 
 import { getContrarianCalls, type ContrarianCard } from "@/lib/contrarian";
 import { MEDIUM_DESCRIPTION, SITE_TITLE_DEFAULT, TAGLINE } from "@/lib/brand-copy";
