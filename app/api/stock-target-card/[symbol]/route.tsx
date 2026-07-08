@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { ImageResponse } = require("next/dist/compiled/@vercel/og/index.node") as typeof import("@vercel/og");
+import { ImageResponse } from "next/dist/server/web/spec-extension/image-response";
 import type { NextRequest } from "next/server";
 
 import {
