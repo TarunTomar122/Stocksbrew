@@ -326,6 +326,12 @@ function zoneProximityDistance(
 
 /** Show the single zone visual closest to the live quote. */
 export function pickVisibleChartZoneKeys(directive: Directive, currentPrice: number): ChartZoneKey[] {
+  const stance = (directive.stance ?? "").trim().toLowerCase();
+  const trimPrice = directiveZonePrice(directive.trim_on);
+  if ((stance === "trim" || stance === "avoid") && trimPrice != null) {
+    return ["trim"];
+  }
+
   const breakPrice = directiveZonePrice(directive.breaks_if);
   if (
     breakPrice != null &&
@@ -440,7 +446,7 @@ export function resolvePriceAwareCall(
     if (currentPrice >= trimPrice) {
       headline = "Trim";
       body = `At ${priceLabel} you're in the trim zone — take profits into strength.`;
-    } else {
+    } else if (!directive.text?.trim()) {
       headline = "Trim into strength";
       body = `Hold at ${priceLabel}; trim above ${formatMoney(trimPrice)} if it extends.`;
     }
@@ -499,6 +505,8 @@ export function buildDirectiveSmartAlerts(
 
   const rows: DirectiveSmartAlert[] = [];
   const seen = new Set<string>();
+  const stance = (directive.stance ?? "").trim().toLowerCase();
+  const suppressAddZone = stance === "trim" || stance === "avoid";
 
   const pushPriceZone = (
     id: string,
@@ -524,7 +532,9 @@ export function buildDirectiveSmartAlerts(
     });
   };
 
-  pushPriceZone("add", "Add zone", directive.add_on);
+  if (!suppressAddZone) {
+    pushPriceZone("add", "Add zone", directive.add_on);
+  }
   pushPriceZone("trim", "Trim zone", directive.trim_on);
 
   return rows;

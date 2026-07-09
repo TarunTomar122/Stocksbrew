@@ -271,6 +271,7 @@ export function StockDetail(props: Props) {
   const trimPrice = directive ? directiveZonePrice(directive.trim_on) : null;
   const addPrice = directive ? directiveZonePrice(directive.add_on) : null;
   const breakPrice = directive ? directiveZonePrice(directive.breaks_if) : null;
+  const isTrimLikeCall = stance === "trim" || stance === "avoid";
   const profitTarget =
     n(trimPrice) && directive?.trim_on?.trigger_type === "price_above"
       ? trimPrice
@@ -282,7 +283,7 @@ export function StockDetail(props: Props) {
   const riskAnchor =
     n(breakPrice) && directive?.breaks_if?.trigger_type === "price_below"
       ? breakPrice
-      : n(addPrice) && directive?.add_on?.trigger_type === "price_below" && addPrice! < stock.price
+      : !isTrimLikeCall && n(addPrice) && directive?.add_on?.trigger_type === "price_below" && addPrice! < stock.price
         ? addPrice
         : null;
   const breakRiskPct =
@@ -290,7 +291,7 @@ export function StockDetail(props: Props) {
       ? ((stock.price - riskAnchor!) / stock.price) * 100
       : null;
   const riskRewardRatio =
-    n(profitTargetPct) && n(breakRiskPct) && breakRiskPct! > 0 && profitTargetPct! > 0
+    !isTrimLikeCall && n(profitTargetPct) && n(breakRiskPct) && breakRiskPct! > 0 && profitTargetPct! > 0
       ? profitTargetPct! / breakRiskPct!
       : null;
 
@@ -307,7 +308,7 @@ export function StockDetail(props: Props) {
   if (flipBullets.length === 0 && whatFlips) flipBullets.push(whatFlips);
 
   const analystTargetFooter =
-    n(target) && stock.price > 0 && stock.price < target!
+    !isTrimLikeCall && n(target) && stock.price > 0 && stock.price < target!
       ? `${(((target! - stock.price) / stock.price) * 100).toFixed(0)}% below our analyst target of ${money(target!)}`
       : null;
 
@@ -322,12 +323,14 @@ export function StockDetail(props: Props) {
   }> = [];
   if (n(profitTarget)) {
     callMetrics.push({
-      label: "Target",
+      label: isTrimLikeCall ? "Trim above" : "Target",
       value: money(profitTarget!),
       hint: n(profitTargetPct)
-        ? `${profitTargetPct! >= 0 ? "+" : ""}${profitTargetPct!.toFixed(1)}% upside`
+        ? isTrimLikeCall
+          ? `${profitTargetPct! >= 0 ? "+" : ""}${profitTargetPct!.toFixed(1)}% to trim zone`
+          : `${profitTargetPct! >= 0 ? "+" : ""}${profitTargetPct!.toFixed(1)}% upside`
         : undefined,
-      hintTone: n(profitTargetPct) && profitTargetPct! >= 0 ? "bullish" : "bearish",
+      hintTone: isTrimLikeCall ? "neutral" : n(profitTargetPct) && profitTargetPct! >= 0 ? "bullish" : "bearish",
     });
   }
   if (n(breakPrice) && directive?.breaks_if?.trigger_type === "price_below") {
