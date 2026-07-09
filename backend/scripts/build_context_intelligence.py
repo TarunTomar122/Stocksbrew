@@ -20,6 +20,20 @@ def _coerce_article(payload: dict) -> Article:
     return Article(**row)
 
 
+def _save_contextual_stock_docs(
+    store: TraceMoneyStore,
+    market: str,
+    universe: str,
+    docs: list[dict],
+    *,
+    scoped: bool,
+) -> None:
+    if scoped:
+        store.upsert_stock_intelligence_docs(market, universe, docs)
+    else:
+        store.save_stock_intelligence_docs(market, universe, docs)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Build market and sector context docs"
@@ -117,10 +131,12 @@ def main() -> None:
         args.universe,
         sector_context_docs,
     )
-    store.save_stock_intelligence_docs(
+    _save_contextual_stock_docs(
+        store,
         args.market,
         args.universe,
         contextual_stock_docs,
+        scoped=bool(args.instrument_ids),
     )
 
     if args.print_json:
