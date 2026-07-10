@@ -1010,6 +1010,14 @@ class TraceMoneyStore:
         for article in articles:
             article_id = str(article.get("id") or "")
             if article_id:
+                # Firestore field limit is 1 MiB (1,048,576 bytes).  Truncate
+                # body_text to 900 KB so we stay safely under the ceiling.
+                if "body_text" in article:
+                    bt = article["body_text"]
+                    max_bytes = 900_000
+                    if len(bt.encode("utf-8")) > max_bytes:
+                        article["body_text"] = bt.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
+                        article["body_text_truncated"] = True
                 namespace.collection("articles").document(article_id).set(article, merge=True)
 
     def list_news_articles(self, market: str, universe_id: str) -> list[dict[str, Any]]:
