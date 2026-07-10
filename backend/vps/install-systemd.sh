@@ -36,7 +36,8 @@ Description=Run Tikrr ${name}
 
 [Timer]
 OnCalendar=${schedule}
-Persistent=false
+Persistent=true
+AccuracySec=1min
 Unit=tikrr-${name}.service
 
 [Install]
@@ -71,10 +72,16 @@ write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
 write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--limit 0 --max-workers 4"
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
 write_pair premarket-email "Mon..Fri *-*-* 12:00:00" premarket_pipeline
+write_pair newsletter-email "Mon..Fri *-*-* 12:12:00" newsletter_pipeline "--newsletter-mode morning"
 write_pair open-email "Mon..Fri *-*-* 13:50:00" open_email
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls
+write_pair radar-official-open "Mon..Fri *-*-* 12:35:00" radar_official_sources "--recent-days 3 --include-ir"
+write_pair radar-materialize-open "Mon..Fri *-*-* 13:43:00" radar_materialize "--activate --with-llm"
+write_pair radar-official-close "Mon..Fri *-*-* 21:10:00" radar_official_sources "--recent-days 3 --include-ir"
+write_pair radar-materialize-close "Mon..Fri *-*-* 21:45:00" radar_materialize "--activate --with-llm"
+write_pair radar-outcomes "Mon..Fri *-*-* 23:00:00" radar_outcomes "--limit 0"
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"

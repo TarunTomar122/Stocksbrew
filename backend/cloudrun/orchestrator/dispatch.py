@@ -333,7 +333,12 @@ def main() -> None:
             "premarket_pipeline",
             "open_email",
             "weekly_email",
+            "newsletter_email",
+            "newsletter_pipeline",
             "contrarian_calls",
+            "radar_official_sources",
+            "radar_materialize",
+            "radar_outcomes",
         ],
         required=True,
     )
@@ -367,6 +372,10 @@ def main() -> None:
     parser.add_argument("--refresh-home", action="store_true")
     parser.add_argument("--refresh-watchlists", action="store_true")
     parser.add_argument("--watchlist-with-llm", action="store_true")
+    parser.add_argument("--activate", action="store_true")
+    parser.add_argument("--with-llm", action="store_true")
+    parser.add_argument("--newsletter-mode", choices=["morning", "close"], default="morning")
+    parser.add_argument("--include-ir", action="store_true")
     parser.add_argument("--wait-for-completion", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -422,7 +431,14 @@ def main() -> None:
         "premarket_pipeline": os.getenv("PREMARKET_PIPELINE_JOB_NAME", "tikrr-premarket-pipeline"),
         "open_email": os.getenv("OPEN_EMAIL_JOB_NAME", "tikrr-open-email"),
         "weekly_email": os.getenv("WEEKLY_EMAIL_JOB_NAME", "tikrr-weekly-email"),
+        "newsletter_email": os.getenv("NEWSLETTER_EMAIL_JOB_NAME", "tikrr-newsletter-email"),
+        "newsletter_pipeline": os.getenv("NEWSLETTER_PIPELINE_JOB_NAME", "tikrr-newsletter-pipeline"),
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
+        "radar_official_sources": os.getenv(
+            "RADAR_OFFICIAL_SOURCES_JOB_NAME", "tikrr-radar-official-sources"
+        ),
+        "radar_materialize": os.getenv("RADAR_MATERIALIZE_JOB_NAME", "tikrr-radar-materialize"),
+        "radar_outcomes": os.getenv("RADAR_OUTCOMES_JOB_NAME", "tikrr-radar-outcomes"),
     }
     job_name = job_name_by_lane[args.lane]
     client: Any
@@ -640,6 +656,26 @@ def main() -> None:
             ]
         elif args.lane == "premarket_pipeline":
             single_extra_args = ["--limit", str(max(0, args.limit))]
+        elif args.lane == "newsletter_pipeline":
+            single_extra_args = [
+                "--mode",
+                args.newsletter_mode,
+                "--limit",
+                str(max(0, args.limit)),
+            ]
+        elif args.lane == "newsletter_email":
+            single_extra_args = ["--limit", str(max(0, args.limit))]
+        elif args.lane == "radar_official_sources":
+            single_extra_args = ["--recent-days", str(max(1, args.recent_days))]
+            if args.include_ir:
+                single_extra_args.append("--include-ir")
+        elif args.lane == "radar_materialize":
+            if args.activate:
+                single_extra_args.append("--activate")
+            if args.with_llm:
+                single_extra_args.append("--with-llm")
+        elif args.lane == "radar_outcomes":
+            single_extra_args = ["--limit", str(max(0, args.limit))]
 
         summary = _run_single_job_lane(
             lane=args.lane,
@@ -678,7 +714,12 @@ def main() -> None:
         "premarket_pipeline",
         "open_email",
         "weekly_email",
+        "newsletter_email",
+        "newsletter_pipeline",
         "contrarian_calls",
+        "radar_official_sources",
+        "radar_materialize",
+        "radar_outcomes",
     } and summary.get("status") not in {"success", "dispatched"}:
         status = "failed"
     if status == "dispatched":

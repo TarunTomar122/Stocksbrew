@@ -50,6 +50,7 @@ Do not run both Cloud Scheduler and VPS timers for these lanes at the same time:
 
 - `open_email`
 - `premarket_email`
+- `newsletter_email`
 - `weekly_email`
 - `daily_postclose`
 - `tracked_open_briefs`
