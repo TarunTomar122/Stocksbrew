@@ -183,6 +183,8 @@ class StockIntelligenceTest(unittest.TestCase):
             docs_payload = build_stock_intelligence_docs("US", "us_test_1", instruments, articles, store=Store())
 
         self.assertEqual(len(docs_payload), 1)
+        self.assertEqual(docs_payload[0]["source"], "llm")
+        self.assertEqual(docs_payload[0]["coverage_type"], "on_demand_news")
         self.assertNotIn("Apr 22", docs_payload[0]["catalyst"])
         self.assertNotIn("Apr 22", docs_payload[0]["body"])
         cards = docs_payload[0]["visual_cards"]["catalyst_cards"]
@@ -526,6 +528,19 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(out[0]["event"], "Earnings setup")
         self.assertNotIn("Apr 22", out[0]["event"])
         self.assertNotIn("Apr 22", out[0]["window"])
+
+    def test_normalize_catalyst_cards_drops_ungrounded_earnings_date(self) -> None:
+        cards = [
+            {
+                "event": "Earnings setup",
+                "detail": "Earnings report on April 30th could reset sentiment.",
+                "window": "near-term",
+                "expected_impact": 1,
+                "priced_in": "med",
+            }
+        ]
+        out = _normalize_catalyst_cards(cards, earnings=None)
+        self.assertEqual(out, [])
 
     def test_no_news_doc_matches_current_ui_contract(self) -> None:
         class Store:

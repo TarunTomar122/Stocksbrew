@@ -1073,6 +1073,7 @@ def build_no_news_intelligence_doc(
     quote = (latest_price_doc or {}).get("quote") or {}
     day_change = _nn_to_float(quote.get("day_change_pct")) or 0.0
     current_price = _nn_to_float(quote.get("current"))
+    ticker = str(instrument.get("ticker") or "").strip().upper()
 
     headline = str(brief.get("headline", "")).strip()
     body = str(brief.get("body", "")).strip()
@@ -1083,21 +1084,49 @@ def build_no_news_intelligence_doc(
     key_findings = [str(point).strip() for point in (brief.get("key_findings") or []) if str(point).strip()][:4]
 
     raw_drivers = brief.get("drivers", []) or []
-    drivers = [item for item in raw_drivers if isinstance(item, dict)][:4]
+    drivers = _normalize_driver_cards(raw_drivers, key_findings, limit=4)
+    if not drivers:
+        drivers = _fundamental_driver_cards(_summarize_intel_pro(intel_pro_doc), limit=3)
     raw_catalyst_cards = brief.get("catalyst_cards", []) or []
-    catalyst_cards = [
-        item for item in raw_catalyst_cards
-        if isinstance(item, dict) and str(item.get("detail", "")).strip()
-    ][:3]
+    catalyst_cards = _normalize_raw_catalyst_cards(raw_catalyst_cards, limit=3)
     raw_risk_cards = brief.get("risk_cards", []) or []
-    risk_cards = [
-        item for item in raw_risk_cards
-        if isinstance(item, dict) and str(item.get("detail", "")).strip()
-    ][:3]
+    risk_cards = _normalize_risk_cards(raw_risk_cards, limit=3)
     raw_directive = brief.get("directive")
     directive = None
     if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
         directive = _repair_directive(dict(raw_directive), current_price=current_price)
+
+    def _mentions_wrong_ticker(value: str) -> bool:
+        symbols = set(re.findall(r"\b[A-Z]{2,5}\b", str(value or "")))
+        allowed = {ticker, "AI", "CEO", "CFO", "EPS", "ETF", "IPO", "Q1", "Q2", "Q3", "Q4", "TTM", "YoY"}
+        return bool(symbols - allowed)
+
+    if _mentions_wrong_ticker(" ".join([headline, body, thesis])):
+        headline = f"{ticker} coverage is quiet"
+        body = (
+            f"Recent company-specific coverage is thin for {ticker}. "
+            "Use the current fundamentals, analyst target, and technical context rather than treating stale headlines as a fresh catalyst."
+        )
+        thesis = headline
+        catalyst = ""
+        catalyst_cards = []
+    if not headline:
+        headline = f"{ticker} coverage is quiet"
+    if not body:
+        body = (
+            f"Recent company-specific coverage is thin for {ticker}. "
+            "Use price, fundamentals, and analyst context until fresh stock-specific news appears."
+        )
+    if not thesis:
+        thesis = headline
+    if not drivers:
+        drivers = [{
+            "label": "Quiet tape",
+            "detail": f"Recent company-specific coverage is thin for {ticker}, so the setup depends more on price and fundamentals.",
+            "direction": "mixed",
+            "strength": 2,
+            "horizon": "week",
+        }]
 
     previous_v2 = None
     anomaly_doc = None
@@ -1124,6 +1153,8 @@ def build_no_news_intelligence_doc(
         "instrument_id": instrument_id,
         "market": market,
         "universe_id": universe_id,
+        "source": LLM_BRIEF_SOURCE,
+        "coverage_type": "on_demand_no_news",
         "generated_at": now_utc.isoformat(),
         "as_of": now_utc.isoformat(),
         "headline": headline,
@@ -2058,6 +2089,21 @@ def _parse_window_date_iso(raw_window: str) -> str | None:
         return None
 
 
+_MONTH_DATE_RE = re.compile(
+    r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|"
+    r"dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?\b",
+    re.IGNORECASE,
+)
+
+
+def _has_calendar_date_phrase(value: str) -> bool:
+    cleaned = " ".join(str(value or "").split()).strip()
+    if not cleaned:
+        return False
+    return bool(_parse_window_date_iso(cleaned) or _MONTH_DATE_RE.search(cleaned))
+
+
 def _drop_stale_catalysts(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
     today_iso = datetime.now(timezone.utc).date().isoformat()
     kept: list[dict[str, Any]] = []
@@ -2130,6 +2176,11 @@ def _normalize_catalyst_cards(
             or _parse_window_date_iso(detail)
             or _parse_window_date_iso(window)
         )
+        has_date_phrase = (
+            _has_calendar_date_phrase(event)
+            or _has_calendar_date_phrase(detail)
+            or _has_calendar_date_phrase(window)
+        )
 
         if earnings_like:
             if upcoming_earnings_date:
@@ -2142,16 +2193,23 @@ def _normalize_catalyst_cards(
                 continue
 
             # Reported or missing earnings should not surface a concrete date.
-            card["window"] = "post-earnings" if isinstance(earnings, dict) and str(earnings.get("status") or "").strip().lower() == "reported" else "near-term"
-            if event and _parse_window_date_iso(event):
+            is_reported = isinstance(earnings, dict) and str(earnings.get("status") or "").strip().lower() == "reported"
+            if has_date_phrase and not is_reported:
+                continue
+            card["window"] = "post-earnings" if is_reported else "near-term"
+            if event and _has_calendar_date_phrase(event):
                 card["event"] = "Earnings setup"
             elif not event:
                 card["event"] = "Earnings setup"
-            if detail and _parse_window_date_iso(detail):
+            if detail and _has_calendar_date_phrase(detail):
                 card["detail"] = re.sub(
-                    r"\b(\d{4}-\d{2}-\d{2})\b",
+                    r"\b(\d{4}-\d{2}-\d{2})\b|"
+                    r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+                    r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|"
+                    r"dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?\b",
                     "",
                     detail,
+                    flags=re.IGNORECASE,
                 ).strip(" ,.-")
             normalized.append(card)
             continue
@@ -2172,7 +2230,7 @@ def _has_invalid_earnings_timing(text: str, earnings: dict[str, Any] | None) -> 
     hinted_date = _parse_window_date_iso(cleaned)
     if upcoming_earnings_date:
         return bool(hinted_date and hinted_date != upcoming_earnings_date)
-    if hinted_date:
+    if hinted_date or _has_calendar_date_phrase(cleaned):
         return True
     return "upcoming earnings" in lowered or "earnings report" in lowered
 
@@ -2327,6 +2385,7 @@ GENERIC_STARTS = (
 LOW_SIGNAL_TITLE_TERMS = (
     "feature highlights",
     "investment ideas",
+    "stock price prediction",
     "better buy",
     "what q1 earnings could mean",
     "looks alarmingly like",
@@ -2351,6 +2410,11 @@ LOW_SIGNAL_TITLE_TERMS = (
     "here's what",
     "must-buy",
     "stock alert",
+    "covered in the report",
+    "includes new research",
+    "reports cover",
+    "major stocks",
+    "new catalyst as",
 )
 
 
@@ -2366,6 +2430,7 @@ def _clean_sentence(value: str) -> str:
 
 CLICKBAIT_POINT_TERMS = (
     "buy or sell",
+    "stock price prediction",
     "should you buy",
     "what comes next",
     "what to watch",
@@ -2385,7 +2450,38 @@ CLICKBAIT_POINT_TERMS = (
     "stock alert",
     "is it time to",
     "is it too late",
+    "covered in the report",
+    "includes new research",
+    "reports cover",
+    "major stocks",
+    "new catalyst as",
+    "stock price near",
+    "one of the most",
+    "above its 200",
 )
+
+INCOMPLETE_TAIL_WORDS = {
+    "a", "an", "the", "to", "for", "from", "with", "without", "near",
+    "above", "below", "next", "last", "this", "that", "its", "their",
+}
+
+
+def _looks_incomplete_fragment(value: str) -> bool:
+    cleaned = _clean_sentence(value)
+    if not cleaned:
+        return True
+    words = re.findall(r"[A-Za-z0-9]+", cleaned)
+    if not words:
+        return True
+    if words[-1].lower() in INCOMPLETE_TAIL_WORDS:
+        return True
+    lowered = cleaned.lower()
+    return any(marker in lowered for marker in (
+        "stock price near",
+        "above its 200",
+        "below its 200",
+        "one of the most",
+    ))
 
 
 def _looks_like_raw_title(value: str) -> bool:
@@ -2411,6 +2507,12 @@ def _is_informative_point(value: str) -> bool:
         return False
     if len(cleaned.split()) < 4:
         return False
+    if cleaned[0:1].islower():
+        return False
+    if _looks_incomplete_fragment(cleaned):
+        return False
+    if " is mentioned" in lowered or " are mentioned" in lowered:
+        return False
     if any(term in lowered for term in CLICKBAIT_POINT_TERMS):
         return False
     if _is_vague(cleaned):
@@ -2418,6 +2520,248 @@ def _is_informative_point(value: str) -> bool:
     if _looks_like_raw_title(cleaned):
         return False
     return True
+
+
+def _too_long_headline(value: str) -> bool:
+    return len(str(value or "").split()) > 14
+
+
+def _is_circular_brief_body(body: str, headline: str, catalyst: str) -> bool:
+    cleaned = _normalize_text(body)
+    if not cleaned:
+        return False
+    if "the near-term catalyst is" in cleaned:
+        return True
+    headline_norm = _normalize_text(headline)
+    catalyst_norm = _normalize_text(catalyst)
+    repeated = 0
+    for part in (headline_norm, catalyst_norm):
+        if part and len(part.split()) >= 6 and cleaned.count(part) >= 2:
+            repeated += 1
+    return repeated > 0
+
+
+def _is_low_quality_catalyst(value: str) -> bool:
+    cleaned = _normalize_text(value)
+    if not cleaned:
+        return True
+    if str(value or "").strip()[0:1].islower():
+        return True
+    if _looks_incomplete_fragment(value):
+        return True
+    if _too_long_headline(value):
+        return True
+    return any(marker in cleaned for marker in (
+        " is mentioned",
+        " are mentioned",
+        "new catalyst as",
+        "covered in the report",
+        "includes new research",
+        "reports cover",
+        "major stocks",
+        "target cuts",
+    ))
+
+
+def _is_low_quality_brief_text(value: str) -> bool:
+    cleaned = _normalize_text(value)
+    if not cleaned:
+        return True
+    if str(value or "").strip()[0:1].islower():
+        return True
+    if _looks_incomplete_fragment(value):
+        return True
+    return any(marker in cleaned for marker in (
+        " is mentioned",
+        " are mentioned",
+        "covered in the report",
+        "includes new research",
+        "reports cover",
+        "major stocks",
+        "new catalyst as",
+    ))
+
+
+def _complete_sentence(value: str) -> str:
+    cleaned = " ".join(str(value or "").split()).strip()
+    if not cleaned:
+        return ""
+    if cleaned[-1] not in ".!?":
+        cleaned = f"{cleaned}."
+    return cleaned
+
+
+def _short_card_label(value: str, fallback: str = "Setup driver") -> str:
+    cleaned = _clean_sentence(value)
+    if not cleaned:
+        return fallback
+    first_clause = re.split(r"[.;:,-]\s+", cleaned, maxsplit=1)[0].strip()
+    words = first_clause.split()
+    if len(words) > 6:
+        first_clause = " ".join(words[:6])
+    return first_clause or fallback
+
+
+def _same_card_text(left: str, right: str) -> bool:
+    return _normalize_text(left) == _normalize_text(right)
+
+
+def _drivers_from_points(points: list[str], *, limit: int = 3) -> list[dict[str, Any]]:
+    drivers: list[dict[str, Any]] = []
+    for point in points:
+        detail = _complete_sentence(_clean_sentence(point))
+        if not _is_informative_point(detail):
+            continue
+        label = _short_card_label(detail)
+        if _same_card_text(label, detail) and len(detail.split()) < 8:
+            continue
+        if _normalize_text(detail).startswith(_normalize_text(label)) and len(detail.split()) < 10:
+            continue
+        drivers.append({
+            "label": label,
+            "detail": detail,
+            "direction": "mixed",
+            "strength": 3,
+            "horizon": "week",
+        })
+        if len(drivers) >= limit:
+            break
+    return drivers
+
+
+def _fundamental_driver_cards(fundamentals: dict[str, Any] | None, *, limit: int = 2) -> list[dict[str, Any]]:
+    if not isinstance(fundamentals, dict):
+        return []
+    drivers: list[dict[str, Any]] = []
+    for metric in fundamentals.get("standout_metrics") or []:
+        if not isinstance(metric, dict):
+            continue
+        label = str(metric.get("label") or "").strip()
+        summary = str(metric.get("summary") or "").strip()
+        value = str(metric.get("value") or "").strip()
+        detail = summary or (f"{label} screens favorably versus peers" if label else "")
+        if value and value not in detail:
+            detail = f"{detail.rstrip('.')} ({value})"
+        detail = _complete_sentence(detail)
+        if not any(char.isalpha() for char in label) or len(label) < 3:
+            label = _short_card_label(detail, fallback="Fundamental strength")
+        if not label or not _is_informative_point(detail):
+            continue
+        drivers.append({
+            "label": _short_card_label(label),
+            "detail": detail,
+            "direction": "up",
+            "strength": 4,
+            "horizon": "quarter",
+        })
+        if len(drivers) >= limit:
+            break
+    return drivers
+
+
+def _normalize_driver_cards(
+    raw_cards: list[Any],
+    fallback_points: list[str],
+    *,
+    limit: int = 4,
+) -> list[dict[str, Any]]:
+    fallback_details = [
+        _complete_sentence(_clean_sentence(point))
+        for point in fallback_points
+        if _is_informative_point(point)
+    ]
+    fallback_index = 0
+    normalized: list[dict[str, Any]] = []
+    for raw in raw_cards:
+        if not isinstance(raw, dict):
+            continue
+        label = str(raw.get("label") or raw.get("driver") or raw.get("title") or "").strip()
+        detail = str(
+            raw.get("detail")
+            or raw.get("description")
+            or raw.get("why_it_matters")
+            or raw.get("rationale")
+            or ""
+        ).strip()
+        if not detail or _same_card_text(label, detail):
+            while fallback_index < len(fallback_details):
+                candidate = fallback_details[fallback_index]
+                fallback_index += 1
+                if not _same_card_text(label, candidate):
+                    detail = candidate
+                    break
+        detail = _complete_sentence(_clean_sentence(detail))
+        if not _is_informative_point(detail):
+            continue
+        label = _short_card_label(label or detail)
+        if _same_card_text(label, detail) and len(detail.split()) < 8:
+            continue
+        if _normalize_text(detail).startswith(_normalize_text(label)) and len(detail.split()) < 10:
+            continue
+        normalized.append({
+            "label": label,
+            "detail": detail,
+            "direction": str(raw.get("direction") or "mixed").lower()
+            if str(raw.get("direction") or "").lower() in {"up", "down", "mixed"}
+            else "mixed",
+            "strength": max(1, min(5, int(_to_float(raw.get("strength")) or 3))),
+            "horizon": str(raw.get("horizon") or "week").lower()
+            if str(raw.get("horizon") or "").lower() in {"today", "week", "quarter"}
+            else "week",
+        })
+        if len(normalized) >= limit:
+            break
+    return normalized
+
+
+def _normalize_risk_cards(raw_cards: list[Any], *, limit: int = 3) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for raw in raw_cards:
+        if not isinstance(raw, dict):
+            continue
+        risk = str(raw.get("risk") or raw.get("label") or raw.get("title") or "").strip()
+        detail = str(raw.get("detail") or raw.get("description") or raw.get("why_it_matters") or "").strip()
+        detail = _complete_sentence(_clean_sentence(detail))
+        if not risk or not _is_informative_point(detail):
+            continue
+        if "nothing concrete" in risk.lower() or "nothing concrete" in detail.lower():
+            continue
+        normalized.append({
+            "risk": _short_card_label(risk, fallback="Key risk"),
+            "detail": detail,
+            "trigger": str(raw.get("trigger") or "headline deterioration").strip() or "headline deterioration",
+            "severity": max(1, min(5, int(_to_float(raw.get("severity")) or 3))),
+            "probability": max(1, min(5, int(_to_float(raw.get("probability")) or 3))),
+        })
+        if len(normalized) >= limit:
+            break
+    return normalized
+
+
+def _normalize_raw_catalyst_cards(raw_cards: list[Any], *, limit: int = 3) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for raw in raw_cards:
+        if not isinstance(raw, dict):
+            continue
+        event = str(raw.get("event") or raw.get("label") or raw.get("title") or "").strip()
+        detail = str(raw.get("detail") or raw.get("description") or raw.get("why_it_matters") or "").strip()
+        detail = _complete_sentence(_clean_sentence(detail))
+        if not event or _is_low_quality_catalyst(event) or not _is_informative_point(detail):
+            continue
+        if "nothing concrete" in event.lower() or "nothing concrete" in detail.lower():
+            continue
+        normalized.append({
+            "event": _short_card_label(event, fallback="Near-term catalyst"),
+            "detail": detail,
+            "window": str(raw.get("window") or "near-term").strip() or "near-term",
+            "expected_impact": max(-2, min(2, _to_float(raw.get("expected_impact")) or 0)),
+            "priced_in": str(raw.get("priced_in") or "med").lower()
+            if str(raw.get("priced_in") or "").lower() in {"low", "med", "high"}
+            else "med",
+        })
+        if len(normalized) >= limit:
+            break
+    return normalized
 
 
 def _clean_title(value: str) -> str:
@@ -2631,9 +2975,9 @@ def _is_vague(text: str) -> bool:
 
 
 def _build_headline(instrument: dict[str, Any], label: str, top_fact: str, top_title: str) -> str:
-    if top_fact and not _is_vague(top_fact):
+    if top_fact and _is_informative_point(top_fact):
         return top_fact
-    if top_title and not _is_vague(top_title):
+    if top_title and _is_informative_point(top_title):
         return top_title
     return f"{instrument['ticker']} coverage is {label}, but nothing concrete yet"
 
@@ -2653,9 +2997,9 @@ def _build_body(
 
     # Nothing concrete - say so plainly
     lead = ""
-    if top_fact and not _is_vague(top_fact):
+    if top_fact and _is_informative_point(top_fact):
         lead = top_fact
-    elif top_title and not _is_vague(top_title):
+    elif top_title and _is_informative_point(top_title):
         lead = top_title
 
     if not lead:
@@ -2670,7 +3014,7 @@ def _build_body(
     parts.append(lead.rstrip("."))
 
     # Add second fact if it adds something different
-    if second_fact and not _is_vague(second_fact) and second_fact.lower() != lead.lower():
+    if second_fact and _is_informative_point(second_fact) and second_fact.lower() != lead.lower():
         parts.append(second_fact.rstrip("."))
 
     body = ". ".join(parts)
@@ -2685,12 +3029,12 @@ def _build_body(
         body += ". Only one source is backing this right now - confidence is limited"
 
     # Add a forward-looking hook if we have catalyst or risk
-    has_catalyst = catalyst and "nothing concrete" not in catalyst.lower()
+    has_catalyst = catalyst and not _is_low_quality_catalyst(catalyst) and "nothing concrete" not in catalyst.lower()
     has_risk = risk and "nothing concrete" not in risk.lower() and "only one source" not in risk.lower()
     if has_catalyst and has_risk:
         body += f". Watch for {catalyst.lower()}, though {risk.lower()} remains a factor"
     elif has_catalyst:
-        body += f". The near-term catalyst is {catalyst.lower()}"
+        body += f". Catalyst watch: {catalyst.lower()}"
     elif has_risk:
         body += f". Key risk to monitor: {risk.lower()}"
 
@@ -3320,21 +3664,9 @@ def build_stock_intelligence_docs(
             raw_drivers = llm_brief.get("drivers", [])
             raw_catalyst_cards = llm_brief.get("catalyst_cards", [])
             raw_risk_cards = llm_brief.get("risk_cards", [])
-            drivers = [item for item in raw_drivers if isinstance(item, dict)][:4]
-            # Drop catalyst/risk cards the LLM padded without a real detail or
-            # with placeholder labels - empty beats generic.
-            catalyst_cards = [
-                item for item in raw_catalyst_cards
-                if isinstance(item, dict)
-                and str(item.get("detail", "")).strip()
-                and "nothing concrete" not in str(item.get("event", "")).lower()
-            ][:3]
-            risk_cards = [
-                item for item in raw_risk_cards
-                if isinstance(item, dict)
-                and str(item.get("detail", "")).strip()
-                and "nothing concrete" not in str(item.get("risk", item.get("label", ""))).lower()
-            ][:3]
+            drivers = _normalize_driver_cards(raw_drivers, final_key_points, limit=4)
+            catalyst_cards = _normalize_raw_catalyst_cards(raw_catalyst_cards, limit=3)
+            risk_cards = _normalize_risk_cards(raw_risk_cards, limit=3)
             raw_directive = llm_brief.get("directive")
             if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
                 directive = _repair_directive(dict(raw_directive), current_price=current_price)
@@ -3348,39 +3680,40 @@ def build_stock_intelligence_docs(
             final_key_points = key_points
             thesis = headline
             setup_state = "unclear"
-            drivers = [
-                {"label": point, "direction": "mixed", "strength": 3, "horizon": "week"}
-                for point in final_key_points[:3]
-            ]
+            drivers = _drivers_from_points(final_key_points[:3])
             catalyst_cards = [{
                 "event": catalyst,
+                "detail": f"Flagged in coverage with {label} tone; watch if follow-through materialises.",
                 "window": "near-term",
                 "expected_impact": 1 if label in ("bullish", "constructive") else -1 if label in ("bearish", "cautious") else 0,
                 "priced_in": "med",
             }] if catalyst else []
             risk_cards = [{
                 "risk": risk,
+                "detail": "Watch for confirming or disconfirming signals in upcoming coverage.",
                 "trigger": "headline deterioration",
                 "severity": 3,
                 "probability": 3,
             }] if risk else []
 
         if not drivers:
-            drivers = [
-                {"label": point, "direction": "mixed", "strength": 3, "horizon": "week"}
-                for point in final_key_points[:3]
-            ]
+            drivers = _drivers_from_points(final_key_points[:3])
+        if not drivers:
+            drivers = _fundamental_driver_cards(fundamentals_block)
         generic_markers = (
             "nothing concrete",
             "no ticker-specific catalyst",
             "no specific catalyst",
             "only one source",
             "limited coverage",
+            " is mentioned",
+            " are mentioned",
+            "near-term catalyst is",
         )
 
         def _is_generic(value: str) -> bool:
             lv = (value or "").lower()
-            return any(m in lv for m in generic_markers)
+            return _is_low_quality_catalyst(value) or any(m in lv for m in generic_markers)
 
         if not catalyst_cards and catalyst and not _is_generic(catalyst):
             catalyst_cards = [{
@@ -3410,9 +3743,19 @@ def build_stock_intelligence_docs(
 
         if _has_invalid_earnings_timing(catalyst, earnings_ctx):
             catalyst = str(catalyst_cards[0].get("event", "")).strip() if catalyst_cards else ""
-        if _has_invalid_earnings_timing(headline, earnings_ctx):
+        if _is_low_quality_catalyst(catalyst):
+            catalyst = str(catalyst_cards[0].get("event", "")).strip() if catalyst_cards else ""
+        if (
+            _has_invalid_earnings_timing(headline, earnings_ctx)
+            or _too_long_headline(headline)
+            or _is_low_quality_brief_text(headline)
+        ):
             headline = _build_headline(instrument, label, top_fact, top_title)
-        if _has_invalid_earnings_timing(body, earnings_ctx):
+        if (
+            _has_invalid_earnings_timing(body, earnings_ctx)
+            or _is_circular_brief_body(body, headline, catalyst)
+            or _is_low_quality_brief_text(body)
+        ):
             body = _build_body(
                 instrument, source_count, len(matched_articles),
                 top_title, top_fact, second_fact,
@@ -3571,6 +3914,8 @@ def build_stock_intelligence_docs(
 
         docs.append({
             **directive_v2_input,
+            "source": LLM_BRIEF_SOURCE,
+            "coverage_type": "on_demand_news",
             "directive_v2": build_directive_v2(directive_v2_input, previous_v2=previous_v2),
             "lanes": [
                 {"label": "Positive Mentions", "positive_pct": positive_pct},
