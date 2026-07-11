@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getSearchIndex } from "@/lib/search";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_MODEL = process.env.RADAR_IMAGE_EXTRACT_MODEL || "gpt-4o-mini";
+const DEFAULT_MODEL = process.env.RADAR_IMAGE_EXTRACT_MODEL || "deepseek/deepseek-v4-flash";
 
 function normalizeTicker(raw: string): string {
   return raw.trim().toUpperCase().replace(/[^A-Z.]/g, "");

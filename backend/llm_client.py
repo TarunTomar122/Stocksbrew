@@ -18,7 +18,7 @@ load_backend_env()
 logger = logging.getLogger(__name__)
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+DEFAULT_OPENAI_MODEL = "deepseek/deepseek-v4-flash"
 CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"

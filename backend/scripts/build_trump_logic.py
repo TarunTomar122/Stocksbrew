@@ -21,7 +21,7 @@ from backend.llm_client import (
 from backend.storage import TraceMoneyStore
 from backend.truth_social_client import fetch_trump_truth_posts
 
-OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 DEFAULT_BATCH_SIZE = 50
 DEFAULT_INCREMENTAL_FETCH_DAYS = 5
 

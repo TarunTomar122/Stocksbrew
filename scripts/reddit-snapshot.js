@@ -55,7 +55,7 @@ const LLM_MODEL =
   process.env.LLM_MODEL ||
   process.env.MIMO_MODEL ||
   process.env.TRACE_MONEY_LLM_MODEL ||
-  (USE_CEREBRAS ? process.env.CEREBRAS_MODEL || "gpt-oss-120b" : process.env.OPENAI_MODEL || "gpt-4o-mini");
+  (USE_CEREBRAS ? process.env.CEREBRAS_MODEL || "gpt-oss-120b" : process.env.OPENAI_MODEL || "deepseek/deepseek-v4-flash");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

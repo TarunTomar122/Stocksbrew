@@ -29,7 +29,7 @@ from backend.instrument_universe import list_instruments
 from backend.storage import TraceMoneyStore
 
 
-OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 
 GROUNDING_CONTRACT = """NON-NEGOTIABLE GROUNDING RULES (read payload.timing and payload.reported_actuals first):
 

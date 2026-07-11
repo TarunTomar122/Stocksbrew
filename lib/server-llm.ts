@@ -1,7 +1,7 @@
 export type LlmProvider = "openai" | "cerebras";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_DEFAULT_MODEL = "gpt-4.1-mini";
+const OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
 const CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions";
 const CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b";
 

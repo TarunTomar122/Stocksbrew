@@ -53,7 +53,7 @@ SUFFIX_RE = re.compile(
 )
 PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
-OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 STALE_RUNNING_TTL_MINUTES = 20
 RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending", "needs_confirmation"}
 INVALID_REQUEST_TOKENS = {

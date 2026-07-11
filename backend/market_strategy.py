@@ -81,7 +81,7 @@ def default_llm_model() -> str:
     has_openai = bool(os.getenv("OPENAI_API_KEY", "").strip())
     if provider == "cerebras" or (provider not in {"openai", "cerebras"} and has_cerebras and not has_openai):
         return os.getenv("CEREBRAS_MODEL", "").strip() or "gpt-oss-120b"
-    return os.getenv("OPENAI_MODEL", "").strip() or "gpt-4.1-mini"
+    return os.getenv("OPENAI_MODEL", "").strip() or "deepseek/deepseek-v4-flash"
 
 
 def default_llm_concurrency() -> int:

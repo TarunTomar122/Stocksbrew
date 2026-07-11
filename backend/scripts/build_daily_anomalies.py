@@ -18,7 +18,7 @@ from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
 
 
-OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
+OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 MIN_EXPLAIN_MOVE_PCT = 2.0
 ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS = max(
     48,
