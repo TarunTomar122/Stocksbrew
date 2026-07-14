@@ -412,12 +412,22 @@ def schema_system_prompt(
     prompt: str,
     schema: dict[str, Any],
 ) -> str:
-    """Append a schema contract to a system prompt for JSON-object mode."""
+    """Append the output-object schema to a prompt used with JSON-object mode.
+
+    Callers commonly pass an OpenAI-style response-format envelope containing
+    ``name``, ``strict``, and ``schema``.  That envelope is not itself the
+    output schema; showing it as one can make a model return the envelope
+    verbatim instead of an instance of the requested object.
+    """
+    output_schema = schema
+    if "type" not in schema and isinstance(schema.get("schema"), dict):
+        output_schema = schema["schema"]
     return (
         f"{prompt}\n\n"
         "Return exactly one JSON object and no markdown. "
-        "The JSON object must match this schema:\n"
-        f"{json.dumps(schema, ensure_ascii=True)}"
+        "Return an instance containing the requested data; never return or repeat the schema definition. "
+        "The JSON object must match this output schema:\n"
+        f"{json.dumps(output_schema, ensure_ascii=True)}"
     )
 
 
