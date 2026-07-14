@@ -19,6 +19,7 @@ import { scrubLegacyBrand } from "@/lib/brand";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { PortfolioExposure, PortfolioScenario } from "@/lib/portfolio-scenarios";
+import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
 
 // =============================================================================
 // TYPES
@@ -820,7 +821,7 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, sug
               </div>
             </div>
             <ProCtaLink href="/subscribe" size="sm" showStar className="h-[40px] whitespace-nowrap">
-              Unlock Pro · $12/mo →
+              Unlock Pro · {US_PRO_MONTHLY_MO} →
             </ProCtaLink>
           </div>
         ) : undefined}

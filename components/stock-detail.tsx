@@ -43,6 +43,7 @@ import {
   resolvePriceAwareCall,
   setupStateLabel,
 } from "@/lib/directive-ui";
+import { formatRiskRewardRatio } from "@/lib/risk-reward";
 import { hasRedditBuzzData, StockRedditBuzzRailCard } from "@/components/stock-social-proof-card";
 import { StockNewsRailCard } from "@/components/stock-news-rail-card";
 import { StockTodaysMoveRailCard } from "@/components/stock-todays-move-rail-card";
@@ -344,7 +345,7 @@ export function StockDetail(props: Props) {
   if (n(riskRewardRatio)) {
     callMetrics.push({
       label: "Reward / risk",
-      value: `${Math.round(riskRewardRatio!)} : 1`,
+      value: formatRiskRewardRatio(riskRewardRatio!),
       hint: riskRewardRatio! >= 1.5 ? "Favorable" : riskRewardRatio! >= 1 ? "Balanced" : "Tight",
       hintTone: riskRewardRatio! >= 1.5 ? "bullish" : "neutral",
     });

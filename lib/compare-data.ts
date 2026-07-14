@@ -45,7 +45,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Watchlist intelligence", stocksbrew: "Radar briefs + daily digest", competitor: "Stock pages + screener exports" },
       { dimension: "Alerts", stocksbrew: "Email on buy/sell zones (Pro)", competitor: "Price and news alerts (plan-dependent)" },
       { dimension: "Free tier", stocksbrew: "3 Radar stocks, Should I Buy, Earnings Intel", competitor: "Free tier on tickertape.in" },
-      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr unlimited Radar", competitor: "See Tickertape pricing page" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Radar", competitor: "See Tickertape pricing page" },
     ],
     stocksbrewStrengths: [
       "Clear US watchlist directives on Radar",
@@ -92,7 +92,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "How much does each cost?",
         answer:
-          "stocksbrew is free for 3 Radar stocks; Pro is $12/month or $99/year. Tickertape offers free and paid tiers on tickertape.in; see their pricing page for current plans.",
+          "stocksbrew is free for 3 Radar stocks; Pro is $9/month or $99/year. Tickertape offers free and paid tiers on tickertape.in; see their pricing page for current plans.",
       },
       {
         question: "Can I use both tools together?",
@@ -125,14 +125,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "AI features", stocksbrew: "Core — signal scoring, sentiment, earnings intel", competitor: "Quant ratings, AI summaries (limited)" },
       { dimension: "Dividend analysis", stocksbrew: "Dividend tracking in daily briefs", competitor: "Excellent — dividend grades, safety scores, history" },
       { dimension: "Free tier", stocksbrew: "Daily brief, watchlist radar, sector overview", competitor: "3 articles/mo, limited screeners" },
-      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr unlimited Radar", competitor: "Premium $19.99/mo or $239/yr" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Radar", competitor: "Premium $19.99/mo or $239/yr" },
     ],
     stocksbrewStrengths: [
       "AI personalized brief — ready in 5 minutes, no manual filtering",
       "Scans 50+ sources including filings, social media, and transcripts",
       "Sentiment tracking across news and social for each watchlist stock",
       "AI alerts triggered by breakouts, RSI, earnings, and sentiment shifts",
-      "Price — $12/mo vs $20/mo, no annual lock-in",
+      "Price — $9/mo vs $20/mo, no annual lock-in",
     ],
     competitorStrengths: [
       "Deep human-written analysis with diverse perspectives",
@@ -174,7 +174,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is more affordable?",
         answer:
-          "stocksbrew Pro costs $12/mo or $99/yr. Seeking Alpha Premium costs $19.99/mo or $239/yr. stocksbrew is roughly 40% cheaper and doesn't require an annual commitment.",
+          "stocksbrew Pro costs $9/mo or $99/yr. Seeking Alpha Premium costs $19.99/mo or $239/yr. stocksbrew is roughly 40% cheaper and doesn't require an annual commitment.",
       },
       {
         question: "Which has better dividend analysis?",
@@ -208,14 +208,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Portfolio analysis", stocksbrew: "Portfolio analyzer with health scoring", competitor: "No portfolio tracking" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings previews and post-earnings analysis", competitor: "Earnings calendar + basic data" },
       { dimension: "Free tier", stocksbrew: "Daily brief, watchlist radar, sector overview", competitor: "1 chart layout, basic indicators, delayed data" },
-      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr", competitor: "Essential $12.95/mo up to Premium $49.95/mo" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Essential $12.95/mo up to Premium $49.95/mo" },
     ],
     stocksbrewStrengths: [
       "Personalized AI daily brief — 5 minutes covers your entire watchlist",
       "Scans 50+ sources for news, sentiment, filings, and earnings",
       "AI alerts for breakouts, RSI levels, and sentiment shifts",
       "Portfolio health scoring and earning intel",
-      "Lower price — $12/mo vs TradingView's $13-50/mo",
+      "Lower price — $9/mo vs TradingView's $13-50/mo",
     ],
     competitorStrengths: [
       "Best-in-class charting with 100+ indicators",
@@ -247,7 +247,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is cheaper?",
         answer:
-          "stocksbrew Pro costs $12/mo. TradingView paid plans range from $12.95/mo (Essential) to $49.95/mo (Premium). For daily intelligence, stocksbrew is significantly more affordable.",
+          "stocksbrew Pro costs $9/mo. TradingView paid plans range from $12.95/mo (Essential) to $49.95/mo (Premium). For daily intelligence, stocksbrew is significantly more affordable.",
       },
       {
         question: "Should I use both?",
@@ -286,7 +286,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "None" },
       { dimension: "Ad experience", stocksbrew: "No ads", competitor: "Heavy — popups, banners, auto-play video" },
       { dimension: "Time to value", stocksbrew: "5 min/day — read AI brief", competitor: "10-20 min/day — navigate, read, filter manually" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $12/mo or $99/yr", competitor: "Free (ad-supported)" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free (ad-supported)" },
     ],
     stocksbrewStrengths: [
       "AI-generated personalized brief — no manual news filtering needed",
@@ -330,7 +330,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Is stocksbrew free like Yahoo Finance?",
         answer:
-          "stocksbrew has a generous free tier with daily briefs and watchlist radar. Yahoo Finance is completely free (ad-supported). stocksbrew Pro costs $12/mo for unlimited features — but removes all ads and gives you AI intelligence Yahoo can't match.",
+          "stocksbrew has a generous free tier with daily briefs and watchlist radar. Yahoo Finance is completely free (ad-supported). stocksbrew Pro costs $9/mo for unlimited features — but removes all ads and gives you AI intelligence Yahoo can't match.",
       },
       {
         question: "Which has better financial data?",
@@ -363,14 +363,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Track record", stocksbrew: "N/A — not a prediction tool", competitor: "Published performance against S&P 500" },
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source tracking with trend detection", competitor: "Basic sentiment in analysis" },
       { dimension: "Earnings analysis", stocksbrew: "Dedicated AI earnings intel pre/post", competitor: "Considered in pick models" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $12/mo or $99/yr", competitor: "Free / Premium $30-80/mo" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free / Premium $30-80/mo" },
     ],
     stocksbrewStrengths: [
       "AI intelligence, not predictions — helps you make your own decisions",
       "Full personalization to your specific watchlist",
       "50+ data sources including SEC filings and earnings transcripts",
       "Multi-source sentiment tracking with trend arrows",
-      "Much lower price — $12/mo vs $30-80/mo",
+      "Much lower price — $9/mo vs $30-80/mo",
     ],
     competitorStrengths: [
       "Published track record against the S&P 500",
@@ -412,7 +412,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is more affordable?",
         answer:
-          "stocksbrew Pro costs $12/mo. Prospero Premium costs $30-80/mo. stocksbrew is 3-7x cheaper, reflecting the different AI approach — intelligence is less compute-intensive than predictive modeling.",
+          "stocksbrew Pro costs $9/mo. Prospero Premium costs $30-80/mo. stocksbrew is 3-7x cheaper, reflecting the different AI approach — intelligence is less compute-intensive than predictive modeling.",
       },
     ],
   },
@@ -442,7 +442,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, earnings, sentiment", competitor: "Price alerts, report availability alerts" },
       { dimension: "Portfolio analysis", stocksbrew: "Health scoring with risk flags", competitor: "X-ray, style box, sector allocation (Investor tier)" },
       { dimension: "Free tier", stocksbrew: "Daily brief, watchlist radar, sector overview", competitor: "Limited quotes, ratings, articles" },
-      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr", competitor: "Premium $249/yr or Investor $299/yr" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Premium $249/yr or Investor $299/yr" },
     ],
     stocksbrewStrengths: [
       "Unlimited watchlist coverage — track any US stock, not just analyst-covered names",
@@ -524,14 +524,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Premium-only — screener-based email alerts" },
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "None" },
       { dimension: "Free tier", stocksbrew: "Daily brief, Radar for 3 stocks, Should I Buy", competitor: "Full screener with delayed data, heatmaps" },
-      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr", competitor: "Elite $39.50/mo" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Elite $39.50/mo" },
     ],
     stocksbrewStrengths: [
       "AI daily brief replaces manual scanning — 5 minutes covers your watchlist",
       "Buy/hold/sell calls with rationale from 50+ sources",
       "Multi-source sentiment tracking with trend detection",
       "Earnings intel: AI analysis before and after every report",
-      "Lower price — $12/mo vs $39.50/mo",
+      "Lower price — $9/mo vs $39.50/mo",
     ],
     competitorStrengths: [
       "Best free stock screener with 60+ filters",
@@ -573,7 +573,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is cheaper?",
         answer:
-          "Finviz basic is free. Finviz Elite costs $39.50/mo. stocksbrew has a free tier and Pro costs $12/mo. For the monitoring job, stocksbrew is 3x cheaper than Finviz Elite.",
+          "Finviz basic is free. Finviz Elite costs $39.50/mo. stocksbrew has a free tier and Pro costs $9/mo. For the monitoring job, stocksbrew is 3x cheaper than Finviz Elite.",
       },
       {
         question: "Should I use both?",
@@ -606,14 +606,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Earnings analysis", stocksbrew: "AI earnings intel with pre/post analysis", competitor: "Core strength — earnings estimate tracking" },
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Rank change alerts (Premium)" },
       { dimension: "Free tier", stocksbrew: "Daily brief, Radar for 3 stocks", competitor: "Limited rankings, daily market commentary" },
-      { dimension: "Paid entry", stocksbrew: "Pro $12/mo or $99/yr", competitor: "Premium $249/yr" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Premium $249/yr" },
     ],
     stocksbrewStrengths: [
       "Multi-source AI intelligence — not limited to earnings estimates",
       "Personalized brief for your specific watchlist, not generic picks",
       "Narrative format with context, not just a number",
       "Multi-source sentiment tracking with trend detection",
-      "Lower monthly price — $12/mo vs ~$21/mo",
+      "Lower monthly price — $9/mo vs ~$21/mo",
     ],
     competitorStrengths: [
       "Decades of backtested performance on earnings estimate revisions",
@@ -655,7 +655,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is more affordable?",
         answer:
-          "stocksbrew Pro costs $12/mo or $99/yr. Zacks Premium costs $249/yr (~$21/mo). stocksbrew is cheaper on a monthly basis but Zacks offers annual-only pricing.",
+          "stocksbrew Pro costs $9/mo or $99/yr. Zacks Premium costs $249/yr (~$21/mo). stocksbrew is cheaper on a monthly basis but Zacks offers annual-only pricing.",
       },
     ],
   },
@@ -683,7 +683,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "AI features", stocksbrew: "Full — sentiment, technicals, filings, earnings", competitor: "Limited — some AI-assisted research tools" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis pre and post report", competitor: "Earnings commentary in articles" },
       { dimension: "Community", stocksbrew: "None", competitor: "Large — discussion boards, member community" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $12/mo or $99/yr", competitor: "Stock Advisor $99/yr first year, $199/yr after" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Stock Advisor $99/yr first year, $199/yr after" },
     ],
     stocksbrewStrengths: [
       "Daily AI intelligence — not just monthly stock picks",
@@ -765,14 +765,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment with trends", competitor: "News sentiment scoring per stock" },
       { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Analyst-based and insider-based screeners" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis with scenarios", competitor: "Earnings estimates and surprise history" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $12/mo or $99/yr", competitor: "Free tier / Premium $30/mo or $360/yr" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free tier / Premium $30/mo or $360/yr" },
     ],
     stocksbrewStrengths: [
       "Broader intelligence — 50+ sources vs analyst/insider focus",
       "Personalized AI brief for your specific watchlist",
       "Multi-source sentiment tracking with trend detection",
       "AI alerts triggered by breakouts, earnings, and sentiment",
-      "Lower price — $12/mo vs $30/mo",
+      "Lower price — $9/mo vs $30/mo",
     ],
     competitorStrengths: [
       "Best analyst rating aggregation with success rate tracking",
@@ -814,7 +814,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is more affordable?",
         answer:
-          "stocksbrew Pro costs $12/mo or $99/yr. TipRanks Premium costs $30/mo or $360/yr. stocksbrew is 2.5x cheaper.",
+          "stocksbrew Pro costs $9/mo or $99/yr. TipRanks Premium costs $30/mo or $360/yr. stocksbrew is 2.5x cheaper.",
       },
     ],
   },
@@ -842,7 +842,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Analyst estimates", stocksbrew: "Analyst signals in AI brief", competitor: "Consensus estimates and price targets" },
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "Basic news feed per stock" },
       { dimension: "Ad experience", stocksbrew: "No ads", competitor: "Minimal — clean interface" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $12/mo or $99/yr", competitor: "Generous free tier / Pro $10/mo" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Generous free tier / Pro $10/mo" },
     ],
     stocksbrewStrengths: [
       "AI does the analysis — no manual data interpretation needed",
@@ -891,7 +891,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is cheaper?",
         answer:
-          "StockAnalysis Pro costs $10/mo. stocksbrew Pro costs $12/mo or $99/yr. They are similarly priced but offer fundamentally different value — data access vs AI intelligence.",
+          "StockAnalysis Pro costs $10/mo. stocksbrew Pro costs $9/mo or $99/yr. They are similarly priced but offer fundamentally different value — data access vs AI intelligence.",
       },
     ],
   },
@@ -919,14 +919,14 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief covering your stocks", competitor: "No brief — manual score lookup" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis with scenarios", competitor: "Earnings considered in score model" },
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Score change alerts (paid)" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $12/mo or $99/yr", competitor: "Free tier / Plus $19/mo or $190/yr" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free tier / Plus $19/mo or $190/yr" },
     ],
     stocksbrewStrengths: [
       "Narrative brief with context — not just a number",
       "Tracks signal evolution over time, not just snapshots",
       "Personalized to your specific watchlist",
       "Multi-source sentiment tracking with trend arrows",
-      "Lower price — $12/mo vs $19/mo",
+      "Lower price — $9/mo vs $19/mo",
     ],
     competitorStrengths: [
       "Simple 1-10 AI score anyone can understand",
@@ -968,7 +968,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is more affordable?",
         answer:
-          "stocksbrew Pro costs $12/mo or $99/yr. Danelfin Plus costs $19/mo or $190/yr. stocksbrew is cheaper and offers more features at the paid tier.",
+          "stocksbrew Pro costs $9/mo or $99/yr. Danelfin Plus costs $19/mo or $190/yr. stocksbrew is cheaper and offers more features at the paid tier.",
       },
     ],
   },

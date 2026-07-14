@@ -75,6 +75,8 @@ export async function deleteUserAccount(uid: string): Promise<void> {
   await decrementTrackedInstruments(trackedStocks);
 
   await deleteCollection(userRef.collection("watchlist_events"));
+  await deleteCollection(adminFirestore.collection("tm_radar_inbox").doc(uid).collection("items"));
+  await deleteCollection(adminFirestore.collection("tm_radar_user_views").doc(uid).collection("history"));
   await deleteQueryBatch(
     adminFirestore.collection("tm_user_alert_flags").where("user_id", "==", uid),
   );
@@ -85,6 +87,8 @@ export async function deleteUserAccount(uid: string): Promise<void> {
     adminFirestore.collection("tm_watchlist_view_refresh_control").doc(uid),
     adminFirestore.collection("tm_portfolio_exposure").doc(uid),
     adminFirestore.collection("tm_portfolio_scenarios").doc(uid),
+    adminFirestore.collection("tm_radar_inbox").doc(uid),
+    adminFirestore.collection("tm_radar_user_views").doc(uid),
   ];
 
   const batch = adminFirestore.batch();

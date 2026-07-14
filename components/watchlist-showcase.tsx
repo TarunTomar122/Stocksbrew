@@ -7,6 +7,7 @@ import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { StockLogo } from "@/components/stock-logo";
+import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
 
 type Slide = {
   id: string;
@@ -433,7 +434,7 @@ export function WatchlistShowcase() {
               {user ? "Get Pro" : signingIn ? "Signing in…" : "Sign in"}
             </button>
             <span className="text-[12px] text-white/65">
-              Pro $12/mo · cancel anytime
+              Pro {US_PRO_MONTHLY_MO} · cancel anytime
             </span>
           </div>
         </div>

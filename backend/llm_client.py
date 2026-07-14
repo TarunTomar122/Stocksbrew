@@ -23,7 +23,7 @@ CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_ENRICHMENT_MODEL = "qwen/qwen-2.5-7b-instruct"
-DEFAULT_OPENROUTER_MODEL = DEFAULT_ENRICHMENT_MODEL
+DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
 LLM_BRIEF_SOURCE = "llm"
 
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
@@ -267,7 +267,7 @@ def post_chat_completion(
         except requests.RequestException as error:
             last_error = error
             status = getattr(getattr(error, "response", None), "status_code", None)
-            if status not in RETRYABLE_STATUS_CODES and attempt >= max_attempts:
+            if status is not None and status not in RETRYABLE_STATUS_CODES:
                 raise
             if attempt >= max_attempts:
                 raise
@@ -288,25 +288,26 @@ def post_chat_completion(
 
 def llm_provider() -> str:
     explicit = os.getenv("LLM_PROVIDER", "").strip().lower()
-    if explicit in {"cerebras", "openai", "openrouter"}:
-        return explicit
-    has_cerebras = bool(os.getenv("CEREBRAS_API_KEY", "").strip())
-    has_openai = bool(os.getenv("OPENAI_API_KEY", "").strip())
-    has_openrouter = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
-    if has_cerebras and not has_openai:
-        return "cerebras"
-    if has_openrouter and not has_openai:
+    if explicit == "cerebras":
+        logger.warning("Ignoring legacy LLM_PROVIDER=cerebras; using openrouter")
         return "openrouter"
-    return "openai"
+    if explicit in {"openai", "openrouter"}:
+        return explicit
+    if os.getenv("OPENROUTER_API_KEY", "").strip():
+        return "openrouter"
+    if os.getenv("OPENAI_API_KEY", "").strip():
+        return "openai"
+    return "openrouter"
 
 
 def llm_enrichment_provider() -> str:
     explicit = os.getenv("LLM_ENRICHMENT_PROVIDER", "").strip().lower()
-    if explicit:
-        return explicit
-    if os.getenv("OPENROUTER_API_KEY", "").strip():
+    if explicit == "cerebras":
+        logger.warning("Ignoring legacy LLM_ENRICHMENT_PROVIDER=cerebras; using openrouter")
         return "openrouter"
-    return llm_provider()
+    if explicit in {"openai", "openrouter"}:
+        return explicit
+    return "openrouter"
 
 
 def is_llm_brief_source(source: str | None) -> bool:
@@ -319,8 +320,6 @@ def llm_api_key() -> str:
     explicit = os.getenv("LLM_API_KEY", "").strip()
     if explicit:
         return explicit
-    if llm_provider() == "cerebras":
-        return os.getenv("CEREBRAS_API_KEY", "").strip()
     if llm_provider() == "openrouter":
         return os.getenv("OPENROUTER_API_KEY", "").strip()
     return os.getenv("OPENAI_API_KEY", "").strip()
@@ -339,8 +338,6 @@ def llm_api_url() -> str:
     explicit = os.getenv("LLM_API_URL", "").strip()
     if explicit:
         return explicit
-    if llm_provider() == "cerebras":
-        return os.getenv("CEREBRAS_API_URL", "").strip() or CEREBRAS_API_URL
     if llm_provider() == "openrouter":
         return os.getenv("OPENROUTER_API_URL", "").strip() or OPENROUTER_API_URL
     return OPENAI_API_URL
@@ -360,8 +357,6 @@ def llm_model(default: str | None = None) -> str:
     explicit = os.getenv("LLM_MODEL", "").strip()
     if explicit:
         return explicit
-    if llm_provider() == "cerebras":
-        return os.getenv("CEREBRAS_MODEL", "").strip() or default or CEREBRAS_DEFAULT_MODEL
     if llm_provider() == "openrouter":
         return os.getenv("OPENROUTER_MODEL", "").strip() or default or DEFAULT_OPENROUTER_MODEL
     return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
@@ -379,7 +374,7 @@ def llm_enrichment_model(default: str | None = None) -> str:
 def require_llm_api_key() -> str:
     api_key = llm_api_key()
     if not api_key:
-        raise ValueError("LLM_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY is required")
+        raise ValueError("OPENROUTER_API_KEY (or explicit LLM_API_KEY) is required")
     return api_key
 
 

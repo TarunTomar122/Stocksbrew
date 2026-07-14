@@ -46,10 +46,7 @@ function fmtPct(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function fmtRatio(value: number): string {
-  return value >= 10 ? `${Math.round(value)} : 1` : `${value.toFixed(1)} : 1`;
-}
-
+import { formatRiskRewardRatio } from "@/lib/risk-reward";
 /** Human range label from the actual span of the price series. */
 function rangeLabel(points: PriceHistoryPoint[]): string {
   if (points.length < 2) return "recent";
@@ -175,8 +172,24 @@ export async function GET(
   const up = dayPct >= 0;
   const dayColor = up ? GREEN : RED;
 
-  const target = facts?.analyst?.target_price ?? null;
-  const hasTarget = typeof target === "number" && Number.isFinite(target) && target > 0;
+  const directive: Directive | null =
+    normalizeDirectiveForUi(intel?.directive_v2 ?? null) ?? intel?.directive ?? null;
+  const stance = directive?.stance;
+  const accPrice = directiveZonePrice(directive?.add_on);
+  const trimPrice = directiveZonePrice(directive?.trim_on);
+  const isTrimStance = stance === "trim" || stance === "avoid";
+  const isTrimLikeCall = isTrimStance;
+
+  const analystTarget = facts?.analyst?.target_price ?? null;
+  // Match stock page: directive trim_above first, analyst consensus as fallback.
+  const profitTarget =
+    trimPrice !== null && directive?.trim_on?.trigger_type === "price_above"
+      ? trimPrice
+      : typeof analystTarget === "number" && Number.isFinite(analystTarget) && analystTarget > 0
+        ? analystTarget
+        : null;
+  const target = profitTarget;
+  const hasTarget = target !== null;
   const upsidePct = hasTarget ? ((target - price) / price) * 100 : null;
   const upsidePositive = (upsidePct ?? 0) >= 0;
   const accent = upsidePositive ? GREEN : RED;
@@ -188,14 +201,6 @@ export async function GET(
   const closes = history.map((p) => p.close).filter((c) => Number.isFinite(c));
   const chartMin = closes.length ? Math.min(...closes) : null;
   const chartMax = closes.length ? Math.max(...closes) : null;
-
-  // Directive-derived zones (add/trim) + risk-reward ratio.
-  const directive: Directive | null =
-    normalizeDirectiveForUi(intel?.directive_v2 ?? null) ?? intel?.directive ?? null;
-  const stance = directive?.stance;
-  const accPrice = directiveZonePrice(directive?.add_on);
-  const trimPrice = directiveZonePrice(directive?.trim_on);
-  const isTrimStance = stance === "trim" || stance === "avoid";
 
   // Show whichever zone matches the stance (accumulate band below, trim band above).
   const accZone = !isTrimStance && accPrice !== null && accPrice > 0 ? accPrice : null;
@@ -219,8 +224,7 @@ export async function GET(
     const risk = price - support;
     if (reward > 0 && risk > 0) riskReward = reward / risk;
   }
-  // Cap the headline number so it reads credible, not spammy.
-  const riskRewardLabel = riskReward === null ? null : riskReward > 10 ? "10+ : 1" : fmtRatio(riskReward);
+  const riskRewardLabel = riskReward === null ? null : formatRiskRewardRatio(riskReward);
 
   // Room to the 52-week high (how much runway is left to reclaim the high).
   const week52High = stock.fundamentals?.week_52_high;
@@ -364,10 +368,10 @@ export async function GET(
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontSize: 18, fontWeight: 700, color: MUTED, letterSpacing: "0.09em" }}>
-                ANALYST PRICE TARGET
+                {isTrimLikeCall ? "TRIM ABOVE" : "OUR TARGET"}
               </span>
               <span style={{ fontSize: 50, fontWeight: 800, color: INK, letterSpacing: "-0.025em" }}>
-                {fmtMoney(target as number, sym)}
+                {fmtMoney(target, sym)}
               </span>
             </div>
             <div style={{ display: "flex", flex: 1 }} />
@@ -387,7 +391,7 @@ export async function GET(
                 {fmtPct(upsidePct as number)}
               </span>
               <span style={{ fontSize: 22, fontWeight: 600, color: "#ffffff", opacity: 0.9 }}>
-                {upsidePositive ? "upside" : "downside"}
+                {isTrimLikeCall ? "to trim zone" : upsidePositive ? "upside" : "downside"}
               </span>
             </div>
           </div>
@@ -402,7 +406,7 @@ export async function GET(
               border: "1px solid #eef1f5",
             }}
           >
-            <span style={{ fontSize: 24, fontWeight: 600, color: MUTED }}>No analyst price target available</span>
+            <span style={{ fontSize: 24, fontWeight: 600, color: MUTED }}>No price target available</span>
           </div>
         )}
 

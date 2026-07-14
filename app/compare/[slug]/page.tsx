@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { COMPARISON_PAGES, getComparisonPage } from "@/lib/compare-data";
+import { US_PRO_MONTHLY } from "@/lib/pricing";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -144,7 +145,7 @@ export default async function ComparePage({ params }: Props) {
           <p className="text-[13px] text-[#6b7280]">
             stocksbrew: free for 3 Radar stocks,{" "}
             <Link href="/subscribe" className="underline underline-offset-2 hover:text-[#111111]">
-              Pro at $12/month
+              Pro at ${US_PRO_MONTHLY}/month
             </Link>
             . {page.competitorName}: see{" "}
             {page.competitorPricingUrl ? (

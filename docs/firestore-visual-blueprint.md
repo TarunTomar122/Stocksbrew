@@ -61,10 +61,17 @@ Runtime extension:
   - `tm_views_instrument/{instrument_id}__{universe}`
 - User-facing derived:
   - `tm_watchlist_views/{uid}`
+  - `tm_radar_user_views/{uid}` and `/history/{timestamp}` — validated daily brief, max-three attention items, upcoming events, and quiet state
+  - `tm_radar_inbox/{uid}/items/{event_id}` — per-user item lifecycle (`new`, seen, snoozed, resolved)
   - `tm_user_alert_flags/*`
   - `tm_heat_list/{market}`
   - `tm_divergence/{market}`
   - `tm_sentiment_flip/{market}`
+- Radar evidence and event ledger:
+  - `tm_radar_evidence/{evidence_id}` — normalized, cited SEC/IR and provider evidence
+  - `tm_radar_events/{event_id}` — immutable deduplicated state transitions
+  - `tm_radar_stock_state/{instrument_id}` and `/history/{timestamp}` — latest reducer state and run snapshots
+  - `tm_directive_history/{instrument_id}/calls/{date}` — original calls plus measured 1d/7d/30d outcomes
 
 ## 4) Frontend read contract
 

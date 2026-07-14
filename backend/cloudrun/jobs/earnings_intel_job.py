@@ -162,12 +162,19 @@ def main() -> None:
         cmd.extend(["--model", args.model.strip()])
 
     print({"run_id": args.run_id, "lane": args.lane, "step": "build_intel", "cmd": " ".join(cmd)})
-    build = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    build = subprocess.run(cmd, check=False, capture_output=True, text=True)
     # Re-emit captured output so the job logs still show the build summary.
     if build.stdout:
         print(build.stdout, end="")
     if build.stderr:
         print(build.stderr, end="", file=sys.stderr)
+    if build.returncode != 0:
+        raise subprocess.CalledProcessError(
+            build.returncode,
+            cmd,
+            output=build.stdout,
+            stderr=build.stderr,
+        )
 
     # Step 4: refresh the AI news brief for every stock that just reported, so a
     # stock nobody is watching (whose brief may be weeks stale) gets a fresh

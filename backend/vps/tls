@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+tmux list-sessions 2>/dev/null || echo "(no sessions running)"

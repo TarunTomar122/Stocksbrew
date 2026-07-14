@@ -1,5 +1,6 @@
 import { AnimatedIcon } from "@/components/animated-icon";
 import { LandingProPricingCta } from "@/components/landing-pro-pricing-cta";
+import { US_PRO_MONTHLY_LABEL, US_PRO_MONTHLY_MO, US_PRO_PLAN_LINE, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 
 type Props = {
   isSignedIn: boolean;
@@ -50,7 +51,7 @@ export const PRO_BULLETS = [
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Subscribe - $12/mo" : "Sign in & choose Pro";
+  const ctaLabel = isSignedIn ? `Subscribe - ${US_PRO_MONTHLY_MO}` : "Sign in & choose Pro";
 
   return (
     <section className="flex flex-col gap-16">
@@ -85,7 +86,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
         <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 gap-5 md:grid-cols-2">
           <PricingCard
             tag="Monthly"
-            price="$12"
+            price={US_PRO_MONTHLY_LABEL}
             period="/ month"
             note="Monthly starts today"
             isSignedIn={isSignedIn}
@@ -93,10 +94,10 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           />
           <PricingCard
             tag="Yearly"
-            price="$99"
+            price={US_PRO_YEARLY_LABEL}
             period="/ year"
-            save="Save 31%"
-            trial="3 days free, then $99/yr"
+            save={`Save ${US_YEARLY_SAVE_PCT}%`}
+            trial={`3 days free, then ${US_PRO_YEARLY_LABEL}/yr`}
             highlight
             isSignedIn={isSignedIn}
             ctaLabel={ctaLabel}

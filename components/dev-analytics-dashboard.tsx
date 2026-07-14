@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import type { DevBusinessMetrics } from "@/lib/dev-business-metrics";
+import type { DevEngagementMetrics } from "@/lib/dev-engagement-metrics";
 import type { PostHogAnalyticsSnapshot } from "@/lib/posthog-server";
 
 const INK = "#111111";
@@ -27,6 +28,7 @@ const BAR_COLORS = ["#111111", "#374151", "#6b7280", "#9ca3af", "#d1d5db"];
 type Props = {
   posthog: PostHogAnalyticsSnapshot;
   business: DevBusinessMetrics;
+  engagement: DevEngagementMetrics;
   posthogReady: boolean;
 };
 
@@ -45,7 +47,7 @@ function pct(part: number, whole: number) {
   return `${Math.round((part / whole) * 1000) / 10}%`;
 }
 
-export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props) {
+export function DevAnalyticsDashboard({ posthog, business, engagement, posthogReady }: Props) {
   const { summary, trafficSeries, visitorLocations, topPaths, trafficSources, funnel, periodDays } =
     posthog;
   const periodLabel = `${periodDays}d`;
@@ -363,6 +365,26 @@ export function DevAnalyticsDashboard({ posthog, business, posthogReady }: Props
         </>
       )}
 
+      <div className="grid gap-6 lg:grid-cols-2">
+        <EngagementEmailPanel
+          title={`Radar power users · ${periodLabel}`}
+          subtitle="Has stocks on Radar and visited /watchlist more than once"
+          rows={engagement.radarRepeatVisitors}
+          emptyMessage={
+            engagement.radarRepeatVisitorsError
+              ? engagement.radarRepeatVisitorsError
+              : `No repeat Radar visitors in the last ${periodDays} days.`
+          }
+          error={Boolean(engagement.radarRepeatVisitorsError)}
+        />
+        <EngagementEmailPanel
+          title="Daily brief modal signups"
+          subtitle="Subscribed via the homepage market briefing modal"
+          rows={engagement.newsletterModalSignups}
+          emptyMessage="No modal signups yet."
+        />
+      </div>
+
       <Panel
         title={`User feedback · ${periodLabel}`}
         subtitle={
@@ -413,6 +435,46 @@ function Kpi({
       </p>
       {hint && <p className="mt-0.5 text-[10px] text-[#9ca3af]">{hint}</p>}
     </article>
+  );
+}
+
+function EngagementEmailPanel({
+  title,
+  subtitle,
+  rows,
+  emptyMessage,
+  error = false,
+}: {
+  title: string;
+  subtitle: string;
+  rows: DevEngagementMetrics["radarRepeatVisitors"];
+  emptyMessage: string;
+  error?: boolean;
+}) {
+  return (
+    <Panel title={title} subtitle={`${subtitle} · ${rows.length} total`}>
+      {rows.length === 0 ? (
+        <Empty>{emptyMessage}</Empty>
+      ) : (
+        <div className="max-h-[360px] space-y-2 overflow-y-auto scrollbar-hide">
+          {rows.map((row) => (
+            <div
+              key={`${row.email}-${row.uid ?? "anon"}`}
+              className={`rounded-xl border p-3 ${
+                error ? "border-[#fecaca] bg-[#fef2f2]" : "border-[#f1f5f9] bg-[#fafafa]"
+              }`}
+            >
+              <p className="font-mono text-[13px] font-medium text-[#111111]">{row.email}</p>
+              <p className="mt-1 text-[11px] text-[#9ca3af]">
+                {[row.detail, row.createdAt, row.uid ? `uid ${row.uid.slice(0, 8)}…` : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
   );
 }
 

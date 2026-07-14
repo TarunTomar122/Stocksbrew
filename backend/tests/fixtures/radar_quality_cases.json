@@ -1,0 +1,51 @@
+[
+  {
+    "name": "plain cited technical change",
+    "what_changed": "AAPL's 14-day RSI fell to 31.",
+    "why_it_matters": "Selling has become unusually one-sided; RSI alone does not confirm a reversal.",
+    "next_trigger": "Watch for RSI to move back above 35.",
+    "payload": { "current_rsi": 31 },
+    "citations": true,
+    "valid": true
+  },
+  {
+    "name": "ai filler",
+    "what_changed": "In today's fast-paced market, AAPL is a game-changer.",
+    "why_it_matters": "It is important to note that momentum shifted.",
+    "next_trigger": "Stay tuned.",
+    "payload": {},
+    "citations": true,
+    "valid": false,
+    "issue": "ai_like_filler"
+  },
+  {
+    "name": "unsupported action",
+    "what_changed": "AAPL's RSI fell to 31.",
+    "why_it_matters": "You should buy now.",
+    "next_trigger": "Watch RSI.",
+    "payload": { "current_rsi": 31 },
+    "citations": true,
+    "valid": false,
+    "issue": "unsupported_action"
+  },
+  {
+    "name": "invented number",
+    "what_changed": "AAPL's RSI fell to 31.",
+    "why_it_matters": "Revenue will rise 42%.",
+    "next_trigger": "Watch RSI.",
+    "payload": { "current_rsi": 31 },
+    "citations": true,
+    "valid": false,
+    "issue": "unsupported_number"
+  },
+  {
+    "name": "missing source",
+    "what_changed": "AAPL's RSI fell to 31.",
+    "why_it_matters": "Selling has become unusually one-sided.",
+    "next_trigger": "Watch RSI.",
+    "payload": { "current_rsi": 31 },
+    "citations": false,
+    "valid": false,
+    "issue": "missing_evidence"
+  }
+]

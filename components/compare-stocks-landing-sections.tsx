@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FaqSection } from "@/components/marketing/faq-section";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
+import { US_PRO_MONTHLY } from "@/lib/pricing";
 
 const COMPARE_STOCKS_FAQS = [
   {
@@ -195,7 +196,7 @@ export function CompareStocksLandingSections() {
           <FaqSection faqs={COMPARE_STOCKS_FAQS} />
 
           <p className="text-[12px] text-[#9ca3af] leading-relaxed max-w-[640px]">
-            Research and education only. Not investment advice. Not a broker. Free Radar capped at 3 stocks; Pro unlocks unlimited tracking at $12/month.
+            Research and education only. Not investment advice. Not a broker. Free Radar capped at 3 stocks; Pro unlocks unlimited tracking at ${US_PRO_MONTHLY}/month.
           </p>
         </div>
       </div>

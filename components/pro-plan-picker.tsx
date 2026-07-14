@@ -8,16 +8,17 @@ import { useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { useUser } from "@/lib/auth-context";
 import { trackLandingCtaClicked } from "@/lib/product-analytics";
+import { US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 import { signInWithGoogle } from "@/lib/sign-in";
 
 const PLANS = {
-  monthly: { price: 12, suffix: "/month", detail: "Billed monthly" },
+  monthly: { price: US_PRO_MONTHLY, suffix: "/month", detail: "Billed monthly" },
   yearly: {
-    price: 99,
+    price: US_PRO_YEARLY,
     suffix: "/year",
-    detail: "$8.25/mo billed annually",
+    detail: `$${(US_PRO_YEARLY / 12).toFixed(2)}/mo billed annually`,
     trial: "3 days free",
-    save: "Save 31%",
+    save: `Save ${US_YEARLY_SAVE_PCT}%`,
   },
 } as const;
 
@@ -166,7 +167,7 @@ export function ProPlanPicker() {
         {plan === "yearly" ? (
           <span className="pro-billing-save-note">≈ 2 months free</span>
         ) : (
-          <span className="pro-billing-save-note pro-billing-save-note-muted">Switch to yearly to save 31%</span>
+          <span className="pro-billing-save-note pro-billing-save-note-muted">Switch to yearly to save {US_YEARLY_SAVE_PCT}%</span>
         )}
       </div>
 

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Start or attach OpenCode in tmux session "oc"
+export PATH="$HOME/.opencode/bin:$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
+[[ -f "$HOME/.config/opencode/credentials.env" ]] && set -a && source "$HOME/.config/opencode/credentials.env" && set +a
+SESSION=oc
+DIR="${1:-$HOME/projects}"
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  tmux attach -t "$SESSION"
+else
+  tmux new-session -s "$SESSION" -c "$DIR" "opencode"
+fi

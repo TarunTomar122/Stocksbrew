@@ -5,6 +5,7 @@ import { AnimatedIcon } from "@/components/animated-icon";
 import { useState } from "react";
 
 import { ProCtaLink } from "@/components/pro-cta";
+import { US_PRO_PLAN_LINE } from "@/lib/pricing";
 
 export function LaunchBanner() {
   const [dismissed, setDismissed] = useState(false);
@@ -14,7 +15,7 @@ export function LaunchBanner() {
     <div className="relative z-[60] flex items-center justify-center gap-3 bg-[#111111] px-10 py-2.5 text-white">
       <span className="text-[13px] font-medium leading-none whitespace-nowrap">
         Try stocksbrew Pro free for 3 days
-        <span className="hidden sm:inline"> · then $12/mo or $99/yr</span>
+        <span className="hidden sm:inline"> · then {US_PRO_PLAN_LINE}</span>
       </span>
       <ProCtaLink href="/subscribe" size="sm" className="px-3 py-1 text-[12px]">
         Subscribe →

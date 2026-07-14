@@ -179,6 +179,76 @@ export type WatchlistTodaySetup = {
   generated_at?: string;
 };
 
+export type RadarCitation = {
+  title: string;
+  url: string;
+  publisher?: string;
+  published_at?: string;
+};
+
+export type RadarAttentionItem = {
+  item_id: string;
+  instrument_id: string;
+  ticker: string;
+  instrument_name?: string;
+  position_type?: "holding" | "watchlist";
+  event_type: string;
+  direction: "positive" | "negative" | "neutral" | "mixed";
+  headline: string;
+  what_changed: string;
+  why_it_matters: string;
+  next_trigger?: string;
+  occurred_at: string;
+  priority: number;
+  priority_score: number;
+  event_ids: string[];
+  citations: RadarCitation[];
+};
+
+export type RadarUserView = {
+  uid: string;
+  generated_at: string;
+  as_of: string;
+  narrative: {
+    headline: string;
+    body: string;
+  };
+  attention_items: RadarAttentionItem[];
+  upcoming_events: Array<{
+    instrument_id: string;
+    ticker: string;
+    event_type: string;
+    expected_at: string;
+    description: string;
+    confidence?: number;
+  }>;
+  quiet_summary: {
+    instrument_ids: string[];
+    body: string;
+    count: number;
+  };
+  source_versions: Array<{
+    source_id: string;
+    version: string;
+    as_of: string;
+  }>;
+  generated_copy_status: "generated" | "fallback" | "pending" | "stale" | "failed";
+  shadow_mode?: boolean;
+  quality?: {
+    passed: boolean;
+    issues?: string[];
+  };
+};
+
+export function isActiveRadarUserView(view: RadarUserView | null | undefined): view is RadarUserView {
+  return Boolean(
+    view &&
+      view.shadow_mode !== true &&
+      view.quality?.passed !== false &&
+      (view.generated_copy_status === "generated" || view.generated_copy_status === "fallback"),
+  );
+}
+
 export type WatchlistView = {
   uid: string;
   source_version?: number;
@@ -236,6 +306,57 @@ export async function getWatchlistView(uid: string): Promise<WatchlistView | nul
   if (!doc.exists) return null;
   return doc.data() as WatchlistView;
 }
+
+export async function getRadarUserView(uid: string): Promise<RadarUserView | null> {
+  const doc = await adminFirestore.collection("tm_radar_user_views").doc(uid).get();
+  if (!doc.exists) return null;
+  const payload = doc.data() as Partial<RadarUserView>;
+  if (
+    payload.uid !== uid ||
+    !payload.narrative ||
+    !Array.isArray(payload.attention_items) ||
+    !payload.generated_at
+  ) {
+    return null;
+  }
+  const generatedAt = Date.parse(payload.generated_at);
+  if (!Number.isFinite(generatedAt) || Date.now() - generatedAt > 72 * 60 * 60 * 1000) {
+    return null;
+  }
+  return {
+    ...(payload as RadarUserView),
+    attention_items: payload.attention_items.slice(0, 3),
+    upcoming_events: Array.isArray(payload.upcoming_events)
+      ? payload.upcoming_events.slice(0, 6)
+      : [],
+  };
+}
+
+export async function getRadarStockStates(
+  instrumentIds: string[],
+): Promise<Record<string, RadarStockStateDoc>> {
+  const ids = [...new Set(instrumentIds.map((id) => String(id || "").trim().toUpperCase()).filter(Boolean))];
+  if (ids.length === 0) return {};
+  const byId = await getDocsById<RadarStockStateDoc>(
+    adminFirestore.collection("tm_radar_stock_state"),
+    ids,
+  );
+  const out: Record<string, RadarStockStateDoc> = {};
+  for (const [id, doc] of byId) out[id] = doc;
+  return out;
+}
+
+export type RadarStockStateDoc = {
+  ticker?: string;
+  rsi_14?: number | null;
+  rsi_state?: string;
+  earnings_date?: string | null;
+  earnings_status?: string | null;
+  day_change_pct?: number | null;
+  analyst_rating?: string | null;
+  last_filing_kind?: string | null;
+  guidance_direction?: string | null;
+};
 
 export async function overlayLatestPrices(rows: WatchlistRow[]): Promise<WatchlistRow[]> {
   const ids = rows.map((row) => row.instrument_id).filter(Boolean);

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Tunnel to VPS T3 (systemd instance) and open browser.
+# Works on office WiFi — no Tailscale needed on the Mac.
+# Docs: backend/vps/T3_ACCESS.md
+# Install: cp backend/vps/t3vps ~/bin/t3vps && chmod +x ~/bin/t3vps
+set -euo pipefail
+
+PORT=3773
+URL="http://localhost:${PORT}"
+
+t3_up() {
+  curl -sf -o /dev/null --max-time 3 "$URL" 2>/dev/null
+}
+
+tunnel_pids() {
+  pgrep -f "ssh.*${PORT}:100\\.127\\.22\\.69:${PORT}.* vps" 2>/dev/null || true
+}
+
+kill_stale_tunnel() {
+  local pids
+  pids="$(tunnel_pids)"
+  [[ -z "$pids" ]] && return 0
+  if t3_up; then
+    return 0
+  fi
+  echo "Killing stale SSH tunnel..."
+  # shellcheck disable=SC2086
+  kill $pids 2>/dev/null || true
+  sleep 1
+}
+
+start_tunnel() {
+  if command -v autossh >/dev/null 2>&1; then
+    echo "Starting autossh tunnel (auto-reconnect on flaky WiFi)..."
+    autossh -M 0 -f -N vps
+  else
+    echo "Starting SSH tunnel: ssh -f -N vps"
+    ssh -f -N vps
+  fi
+}
+
+kill_stale_tunnel
+
+if ! t3_up; then
+  start_tunnel
+  for _ in {1..20}; do
+    t3_up && break
+    sleep 1
+  done
+fi
+
+if ! t3_up; then
+  echo "T3 not reachable at ${URL}" >&2
+  echo "Office WiFi tip: SSH (port 22) must work — Tailscale is not required." >&2
+  echo "Check: ssh vps 'systemctl --user status t3code.service'" >&2
+  exit 1
+fi
+
+echo "Opening ${URL}"
+open "$URL"

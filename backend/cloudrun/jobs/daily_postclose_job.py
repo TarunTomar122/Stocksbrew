@@ -48,9 +48,16 @@ def main() -> None:
 
     _run([sys.executable, "-m", "backend.scripts.build_thematic_screens", *common])
     _run([sys.executable, "-m", "backend.scripts.build_user_alert_flags", *common])
-    _run([sys.executable, "-m", "backend.scripts.materialize_views", *common, "--activate"])
+    _run([
+        sys.executable,
+        "-m",
+        "backend.scripts.materialize_views",
+        *common,
+        "--activate",
+        "--allow-missing-context",
+    ])
     _run([sys.executable, "-m", "backend.scripts.materialize_search_index", "--market", args.market, "--active-only"])
-    _run([sys.executable, "-m", "backend.scripts.build_watchlist_views"])
+    _run([sys.executable, "-m", "backend.scripts.build_watchlist_views", "--no-llm"])
     _run([sys.executable, "-m", "backend.scripts.build_snapshot", "--market", args.market])
 
     coverage_universe = get_coverage_universe_id(args.market)

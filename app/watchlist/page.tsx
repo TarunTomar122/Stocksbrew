@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 
 import { ProCtaLink } from "@/components/pro-cta";
+import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { DemoRadar } from "@/components/demo-radar";
@@ -15,7 +16,10 @@ import {
 } from "@/components/page-stream-skeletons";
 import { scrubLegacyBrand } from "@/lib/brand";
 import {
+  getRadarUserView,
+  getRadarStockStates,
   getWatchlistView,
+  isActiveRadarUserView,
   overlayLatestPrices,
   buildHoldingsDiagnosis,
   getPillarLiftSuggestions,
@@ -24,7 +28,7 @@ import {
   weakestPillarFromTilt,
   type PillarLiftPayload,
 } from "@/lib/watchlist-view";
-import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup } from "@/lib/watchlist-view";
+import type { WatchlistBrief, WatchlistRow, WatchlistPulse, WatchlistTodaySetup, RadarUserView } from "@/lib/watchlist-view";
 import type { Directive } from "@/lib/stock";
 import { StockLogo } from "@/components/stock-logo";
 import { StrategicDirective } from "@/components/strategic-directive";
@@ -38,6 +42,10 @@ import { DiagnosisSectorChart, DiagnosisFactorRadar } from "@/components/diagnos
 import { RadarUpdatingBanner } from "@/components/radar-updating-banner";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { RadarWorkspace, type RadarChatStarter } from "@/components/radar-workspace";
+import { RadarDailyBrief } from "@/components/radar-daily-brief";
+import { buildRadarRowSignals } from "@/lib/radar-row-signals";
+import { buildBookCallHints } from "@/lib/radar-hub-data";
+import { compareBookRowsByAttention } from "@/lib/radar-book-sort";
 import { RadarBuildingState } from "@/components/radar-building-state";
 import { RadarEmptyBuildingGate } from "@/components/radar-empty-building-gate";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
@@ -194,8 +202,12 @@ async function WatchlistRadarStream() {
   const userDoc = await getUserDoc(session.uid);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
-  const watchlistView = await getWatchlistView(session.uid).catch(() => null);
-  const portfolioExposure = await getPortfolioExposure(session.uid).catch(() => null);
+  const [watchlistView, radarUserView, portfolioExposure] = await Promise.all([
+    getWatchlistView(session.uid).catch(() => null),
+    getRadarUserView(session.uid).catch(() => null),
+    getPortfolioExposure(session.uid).catch(() => null),
+  ]);
+  const activeRadarUserView = isActiveRadarUserView(radarUserView) ? radarUserView : null;
   const nvdaScenario = SHOW_SCENARIO_LAB
     ? await getPortfolioScenario(session.uid).catch(() => null)
     : null;
@@ -301,10 +313,29 @@ async function WatchlistRadarStream() {
     rows.map((r) => String(r.ticker || "").trim().toUpperCase()).filter(Boolean),
   );
   const [anomaliesDoc, redditSnap, premarketDoc] = await Promise.all([
-    getDailyAnomalies(regimeMarket).catch(() => null),
-    getRedditCues(regimeMarket).catch(() => null),
+    activeRadarUserView
+      ? Promise.resolve(null)
+      : getDailyAnomalies(regimeMarket).catch(() => null),
+    activeRadarUserView ? Promise.resolve(null) : getRedditCues(regimeMarket).catch(() => null),
     getPremarketMovers(regimeMarket).catch(() => null),
   ]);
+  const radarStockStates = activeRadarUserView
+    ? await getRadarStockStates(rows.map((r) => r.instrument_id)).catch(() => ({}))
+    : {};
+  const radarPositionByInstrumentId = Object.fromEntries(
+    rows.map((r) => [
+      r.instrument_id.toUpperCase(),
+      r.position_type === "holding" ? ("holding" as const) : ("watchlist" as const),
+    ]),
+  );
+  const radarRowSignals = activeRadarUserView
+    ? buildRadarRowSignals(
+        rows.map((r) => r.instrument_id),
+        radarStockStates,
+        activeRadarUserView,
+        radarPositionByInstrumentId,
+      )
+    : {};
   const premarketLive = isPremarketLive(premarketDoc, regimeMarket);
   const bookPremarket: BookPremarket[] = premarketLive
     ? rows
@@ -470,8 +501,19 @@ async function WatchlistRadarStream() {
   const tapeItems = buildTapeItems(rows, flatAlerts, premarketLive ? premarketDoc : null);
 
   // ── ledger groupings ────────────────────────────────────────────────────────
-  const holdings = rows.filter((r) => r.position_type === "holding").sort(byAttention);
-  const watching = rows.filter((r) => r.position_type !== "holding").sort(byAttention);
+  const bookCallHints = activeRadarUserView ? buildBookCallHints(rows) : null;
+  const sortBook = activeRadarUserView
+    ? (a: WatchlistRow, b: WatchlistRow) => {
+        if (!bookCallHints) return byAttention(a, b);
+        return compareBookRowsByAttention(a, b, {
+          callHints: bookCallHints,
+          radarSignals: radarRowSignals,
+          preferRadar: true,
+        });
+      }
+    : byAttention;
+  const holdings = rows.filter((r) => r.position_type === "holding").sort(sortBook);
+  const watching = rows.filter((r) => r.position_type !== "holding").sort(sortBook);
 
   // ── portfolio score + pillar averages (holdings only) ─────────────────────
   const holdingsDiagnosis = buildHoldingsDiagnosis(holdings);
@@ -557,28 +599,37 @@ async function WatchlistRadarStream() {
           rows={rows}
           builtAt={builtAt}
           pulse={pulse}
-          tapeItems={tapeItems}
+          tapeItems={activeRadarUserView ? [] : tapeItems}
+          radarView={activeRadarUserView}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
           watchlistPositions={watchlistPositions}
         />
 
-        <RadarSignalsOnBook
-          anomalies={bookAnomalies}
-          buzz={bookBuzz}
-          premarket={bookPremarket}
-          trackedIds={tracked}
-          isSubscribed={isSubscribed}
-        />
+        {activeRadarUserView ? (
+          <RadarDailyBrief view={activeRadarUserView} />
+        ) : (
+          <RadarSignalsOnBook
+            anomalies={bookAnomalies}
+            buzz={bookBuzz}
+            premarket={bookPremarket}
+            trackedIds={tracked}
+            isSubscribed={isSubscribed}
+          />
+        )}
 
         <YourBookSection
           holdings={holdings}
           watching={watching}
           earningsReadySlot={
-            <Suspense fallback={<RadarEarningsRailSkeleton />}>
-              <RadarEarningsRailsStream rows={rows} />
-            </Suspense>
+            activeRadarUserView ? undefined : (
+              <Suspense fallback={<RadarEarningsRailSkeleton />}>
+                <RadarEarningsRailsStream rows={rows} />
+              </Suspense>
+            )
           }
+          preferRadarSignals={Boolean(activeRadarUserView)}
+          radarSignalsByInstrumentId={radarRowSignals}
           suggestions={suggestions}
           isSubscribed={isSubscribed}
           trackedCount={tracked.length}
@@ -616,6 +667,7 @@ function HeaderStrip({
   builtAt,
   pulse,
   tapeItems,
+  radarView,
   isSubscribed,
   trackedCount,
   watchlistPositions,
@@ -624,6 +676,7 @@ function HeaderStrip({
   builtAt?: string;
   pulse: WatchlistPulse | null;
   tapeItems: TapeItem[];
+  radarView?: RadarUserView | null;
   isSubscribed: boolean;
   trackedCount: number;
   watchlistPositions: Record<string, "holding" | "watchlist">;
@@ -655,8 +708,24 @@ function HeaderStrip({
           </div>
           <p className="font-mono text-[11px] text-on-surface-variant">
             {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
-            {builtAt ? formatRelative(builtAt) : "never"}
-            {pulse?.subtitle ? ` · ${pulse.subtitle}` : ""}
+            {radarView?.generated_at
+              ? formatRelative(radarView.generated_at)
+              : builtAt
+                ? formatRelative(builtAt)
+                : "never"}
+            {radarView ? (
+              <>
+                {" · "}
+                {radarView.attention_items.length > 0
+                  ? `${radarView.attention_items.length} need attention`
+                  : "book quiet"}
+                {radarView.upcoming_events.length > 0
+                  ? ` · ${radarView.upcoming_events.length} earnings ahead`
+                  : ""}
+              </>
+            ) : pulse?.subtitle ? (
+              ` · ${pulse.subtitle}`
+            ) : null}
           </p>
         </div>
 
@@ -1425,6 +1494,8 @@ function YourBookSection({
   trackedCount,
   refreshing,
   portfolio,
+  preferRadarSignals = false,
+  radarSignalsByInstrumentId = {},
 }: {
   holdings: WatchlistRow[];
   watching: WatchlistRow[];
@@ -1434,6 +1505,8 @@ function YourBookSection({
   trackedCount: number;
   refreshing?: boolean;
   portfolio?: Dict;
+  preferRadarSignals?: boolean;
+  radarSignalsByInstrumentId?: Record<string, import("@/lib/radar-row-signals").RadarRowSignal>;
 }) {
   // Flatten suggestion dicts to the shape RadarLedger expects.
   const suggestionList = suggestions.slice(0, 6).map((item) => ({
@@ -1476,6 +1549,8 @@ function YourBookSection({
         watching={watching}
         suggestions={suggestionList}
         earningsReadySlot={earningsReadySlot}
+        preferRadarSignals={preferRadarSignals}
+        radarSignalsByInstrumentId={radarSignalsByInstrumentId}
         belowLedgerSlot={atLimit ? (
           <div className="relative overflow-hidden rounded-2xl bg-[#1e1b4b] px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             {/* Subtle gradient glow */}
@@ -1510,7 +1585,7 @@ function YourBookSection({
             </div>
 
             <ProCtaLink href="/subscribe" size="sm" showStar className="h-[40px] whitespace-nowrap">
-              Get Pro · $12/mo →
+              Get Pro · {US_PRO_MONTHLY_MO} →
             </ProCtaLink>
           </div>
         ) : undefined}

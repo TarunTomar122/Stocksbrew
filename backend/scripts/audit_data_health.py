@@ -329,6 +329,41 @@ def build_health(store: TraceMoneyStore, market: str) -> dict[str, Any]:
     )
     items["watchlist_views"]["collection_count"] = _count_collection(store, "tm_watchlist_views")
 
+    radar_specs = (
+        ("radar_evidence", "tm_radar_evidence", "detected_at", 24, 72),
+        ("radar_events", "tm_radar_events", "detected_at", 24, 72),
+        ("radar_stock_state", "tm_radar_stock_state", "as_of", 24, 72),
+        ("radar_user_views", "tm_radar_user_views", "updated_at", 24, 72),
+    )
+    for name, collection, timestamp_field, aging, stale in radar_specs:
+        latest = _first_ordered_doc(store, collection, timestamp_field, market=market)
+        if latest is None:
+            latest = _first_ordered_doc(store, collection, timestamp_field)
+        items[name] = _freshness_item(
+            name=name,
+            path=f"{collection} latest {timestamp_field}",
+            data=latest,
+            timestamp_fields=[timestamp_field, "updated_at"],
+            aging_hours=aging,
+            stale_hours=stale,
+        )
+        items[name]["collection_count"] = _count_collection(store, collection)
+
+    latest_run = _first_ordered_doc(store, "tm_pipeline_runs", "updated_at", market=market)
+    items["pipeline_runs"] = _freshness_item(
+        name="pipeline_runs",
+        path=f"tm_pipeline_runs latest updated_at (market={market})",
+        data=latest_run,
+        timestamp_fields=["updated_at", "created_at"],
+        aging_hours=12,
+        stale_hours=36,
+    )
+    if latest_run:
+        items["pipeline_runs"]["latest_lane"] = latest_run.get("lane")
+        items["pipeline_runs"]["latest_run_status"] = latest_run.get("status")
+        if latest_run.get("status") == "failed":
+            items["pipeline_runs"]["status"] = "stale"
+
     severity_order = {"unknown": 0, "fresh": 1, "aging": 2, "stale": 3}
     worst = max((item["status"] for item in items.values()), key=lambda s: severity_order.get(str(s), 0))
     stale_items = sorted([name for name, item in items.items() if item["status"] == "stale"])

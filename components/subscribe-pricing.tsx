@@ -17,6 +17,7 @@ import {
 import { ProBenefitsGrid } from "@/components/pro-benefits-grid";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
 import { SUBSCRIBE_BENEFITS, buildSubscribeContextLines } from "@/lib/subscribe-benefits";
+import { US_PRO_MONTHLY_LABEL, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 
 const DEV_FAKE_SUBSCRIBE = process.env.NODE_ENV === "development";
 
@@ -24,16 +25,16 @@ const PLANS_US = [
   {
     id: "monthly" as const,
     label: "Monthly",
-    price: "$12",
+    price: US_PRO_MONTHLY_LABEL,
     period: "per month",
     save: null,
   },
   {
     id: "yearly" as const,
     label: "Yearly",
-    price: "$99",
+    price: US_PRO_YEARLY_LABEL,
     period: "per year",
-    save: "Save 31%",
+    save: `Save ${US_YEARLY_SAVE_PCT}%`,
     badge: "Best value",
     trial: "3 days free",
   },

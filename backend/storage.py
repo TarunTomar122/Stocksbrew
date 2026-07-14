@@ -1358,6 +1358,207 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_watchlist_views").document(uid).get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    # ─── Radar evidence / events / personalized read model ──────────────
+
+    def save_radar_evidence(self, payloads: list[dict[str, Any]]) -> int:
+        """Upsert normalized source evidence by stable evidence_id."""
+        collection = self.db.collection("tm_radar_evidence")
+        saved = 0
+        for start in range(0, len(payloads), 450):
+            batch = self.db.batch()
+            for payload in payloads[start:start + 450]:
+                evidence_id = str(payload.get("evidence_id") or "").strip()
+                if not evidence_id:
+                    continue
+                batch.set(collection.document(evidence_id), _serialize(payload) or {}, merge=True)
+                saved += 1
+            batch.commit()
+        return saved
+
+    def list_radar_evidence(
+        self,
+        instrument_ids: list[str],
+        *,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Read recent normalized evidence for at most 30 instruments per query."""
+        wanted = sorted({
+            str(instrument_id or "").strip().upper()
+            for instrument_id in instrument_ids
+            if str(instrument_id or "").strip()
+        })
+        if not wanted:
+            return []
+        rows_by_id: dict[str, dict[str, Any]] = {}
+        collection = self.db.collection("tm_radar_evidence")
+        for start in range(0, len(wanted), 30):
+            chunk = wanted[start:start + 30]
+            docs = collection.where("instrument_ids", "array_contains_any", chunk).stream()
+            for doc in docs:
+                rows_by_id[doc.id] = _serialize(doc.to_dict()) or {}
+        rows = list(rows_by_id.values())
+        rows.sort(
+            key=lambda row: str(row.get("published_at") or row.get("detected_at") or ""),
+            reverse=True,
+        )
+        return rows[: max(0, limit)]
+
+    def save_radar_events(self, payloads: list[dict[str, Any]]) -> int:
+        """Store idempotent event records. Stable IDs make reruns safe."""
+        collection = self.db.collection("tm_radar_events")
+        saved = 0
+        for start in range(0, len(payloads), 450):
+            batch = self.db.batch()
+            for payload in payloads[start:start + 450]:
+                event_id = str(payload.get("event_id") or "").strip()
+                if not event_id:
+                    continue
+                batch.set(collection.document(event_id), _serialize(payload) or {}, merge=False)
+                saved += 1
+            batch.commit()
+        return saved
+
+    def list_radar_events(
+        self,
+        instrument_ids: list[str],
+        *,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Read recent candidate events for at most 30 tracked instruments."""
+        wanted = sorted({
+            str(instrument_id or "").strip().upper()
+            for instrument_id in instrument_ids
+            if str(instrument_id or "").strip()
+        })
+        if not wanted:
+            return []
+        rows: list[dict[str, Any]] = []
+        collection = self.db.collection("tm_radar_events")
+        for start in range(0, len(wanted), 30):
+            chunk = wanted[start:start + 30]
+            docs = collection.where("instrument_id", "in", chunk).stream()
+            rows.extend(_serialize(doc.to_dict()) or {} for doc in docs)
+        rows.sort(
+            key=lambda row: str(row.get("detected_at") or row.get("occurred_at") or ""),
+            reverse=True,
+        )
+        return rows[: max(0, limit)]
+
+    def get_radar_stock_states(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
+        collection = self.db.collection("tm_radar_stock_state")
+        refs = [
+            collection.document(str(instrument_id).strip().upper())
+            for instrument_id in instrument_ids
+            if str(instrument_id or "").strip()
+        ]
+        rows: dict[str, dict[str, Any]] = {}
+        for doc in self.db.get_all(refs):
+            if doc.exists:
+                rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
+
+    def save_radar_source_registry(self, instrument_id: str, urls: list[str]) -> None:
+        instrument_id = str(instrument_id or "").strip().upper()
+        if not instrument_id.startswith("US_"):
+            raise ValueError("Radar source registry currently supports US instruments only")
+        self.db.collection("tm_radar_source_registry").document(instrument_id).set(
+            {
+                "instrument_id": instrument_id,
+                "investor_relations_urls": list(dict.fromkeys(urls))[:5],
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            merge=False,
+        )
+
+    def save_radar_stock_state(
+        self,
+        instrument_id: str,
+        payload: dict[str, Any],
+        *,
+        archive: bool = True,
+    ) -> None:
+        instrument_id = str(instrument_id or "").strip().upper()
+        if not instrument_id:
+            raise ValueError("instrument_id is required")
+        ref = self.db.collection("tm_radar_stock_state").document(instrument_id)
+        serialized = _serialize(payload) or {}
+        as_of = str(serialized.get("as_of") or datetime.now(timezone.utc).isoformat())
+        if archive:
+            history_id = as_of[:19].replace(":", "") + "Z"
+            ref.collection("history").document(history_id).set(serialized, merge=False)
+        ref.set(serialized, merge=False)
+
+    def save_radar_inbox_items(self, uid: str, items: list[dict[str, Any]]) -> int:
+        """Upsert ranked items while preserving user lifecycle state."""
+        collection = self.db.collection("tm_radar_inbox").document(uid).collection("items")
+        saved = 0
+        for item in items:
+            item_id = str(item.get("item_id") or item.get("event_id") or "").strip()
+            if not item_id:
+                continue
+            ref = collection.document(item_id)
+            existing = ref.get()
+            current = _serialize(existing.to_dict()) or {} if existing.exists else {}
+            lifecycle = {
+                key: current.get(key)
+                for key in ("status", "seen_at", "snoozed_until", "resolved_at")
+                if current.get(key) is not None
+            }
+            ref.set(
+                {
+                    **(_serialize(item) or {}),
+                    **lifecycle,
+                    "status": lifecycle.get("status") or "new",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                merge=False,
+            )
+            saved += 1
+        return saved
+
+    def save_radar_user_view(self, uid: str, payload: dict[str, Any]) -> None:
+        """Save the latest Radar view and an immutable timestamped snapshot."""
+        ref = self.db.collection("tm_radar_user_views").document(uid)
+        serialized = {
+            **(_serialize(payload) or {}),
+            "uid": uid,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        snapshot_at = str(serialized.get("as_of") or serialized["updated_at"])
+        snapshot_id = snapshot_at[:19].replace(":", "") + "Z"
+        ref.collection("history").document(snapshot_id).set(serialized, merge=False)
+        ref.set(serialized, merge=False)
+
+    def get_radar_user_view(self, uid: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_radar_user_views").document(uid).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_directive_outcome(
+        self,
+        instrument_id: str,
+        call_date: str,
+        horizon: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Attach measured outcomes without changing the original call fields."""
+        ref = (
+            self.db.collection("tm_directive_history")
+            .document(str(instrument_id).strip().upper())
+            .collection("calls")
+            .document(str(call_date)[:10])
+        )
+        ref.set(
+            {
+                "outcomes": {
+                    str(horizon): {
+                        **(_serialize(payload) or {}),
+                        "evaluated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                }
+            },
+            merge=True,
+        )
+
     def list_subscribed_users(self) -> list[dict[str, Any]]:
         """Return all user docs with tracked_stocks set (for batched view-build jobs)."""
         docs = (

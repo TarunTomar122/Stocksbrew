@@ -231,7 +231,13 @@ def _events_from_reddit(market: str, doc: dict[str, Any] | None) -> list[dict[st
     return events
 
 
-def _events_from_earnings(market: str, store: TraceMoneyStore, max_events: int) -> list[dict[str, Any]]:
+def _events_from_earnings(
+    market: str,
+    store: TraceMoneyStore,
+    max_events: int,
+    *,
+    today: date | None = None,
+) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     by_ticker: dict[str, dict[str, Any]] = {}
     # Scan the per-ticker "__latest" pointers for this market.
@@ -260,7 +266,7 @@ def _events_from_earnings(market: str, store: TraceMoneyStore, max_events: int) 
         ticker = _text(data.get("ticker")).upper()
         instrument_id = _text(data.get("instrument_id"))
         event_date = _text(data.get("event_date"))
-        if not _event_date_within_recent_window(event_date):
+        if not _event_date_within_recent_window(event_date, today=today):
             continue
         report = data.get("report") if isinstance(data.get("report"), dict) else {}
         title = _text(report.get("headline")) or f"{ticker} earnings update"

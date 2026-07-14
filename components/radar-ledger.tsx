@@ -7,9 +7,10 @@ import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
 import { buildBookCallHints, type BookCallHint, type RadarCallKind } from "@/lib/radar-hub-data";
+import { compareBookRowsByAttention } from "@/lib/radar-book-sort";
+import { resolveRadarLedgerCell } from "@/lib/radar-ledger-insight";
+import type { RadarRowSignal } from "@/lib/radar-row-signals";
 import type { WatchlistRow } from "@/lib/watchlist-view";
-
-type DirectiveV2 = NonNullable<WatchlistRow["directive_v2"]>;
 type HoldingPatch = Partial<NonNullable<WatchlistRow["holding"]>>;
 
 type Tab = "holdings" | "watching";
@@ -40,6 +41,9 @@ type Props = {
   /** Controlled tab — when provided, RadarLedger hides its own pills */
   activeTab?: Tab;
   onTabChange?: (tab: Tab) => void;
+  /** Event-backed signals from the Radar pipeline (replaces legacy brief_tile copy). */
+  preferRadarSignals?: boolean;
+  radarSignalsByInstrumentId?: Record<string, RadarRowSignal>;
 };
 
 // -----------------------------------------------------------------------------
@@ -169,26 +173,6 @@ function fmtHoldingValue(row: WatchlistRow): string {
   return "-";
 }
 
-const PRIORITY_BADGE: Record<
-  NonNullable<DirectiveV2["priority"]>,
-  { label: string; bg: string; fg: string }
-> = {
-  high: { label: "High", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444" },
-  medium: { label: "Medium", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b" },
-  low: { label: "Low", bg: "var(--surface-container)", fg: "var(--on-surface-variant)" },
-};
-
-const STANCE_CHIP: Record<
-  string,
-  { label: string; bg: string; fg: string; dot: string }
-> = {
-  accumulate: { label: "Accumulate", bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981", dot: "#10b981" },
-  trim: { label: "Trim", bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b", dot: "#f59e0b" },
-  watch: { label: "Watch", bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1e3a8a", dot: "#0052ff" },
-  avoid: { label: "Avoid", bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444", dot: "#ef4444" },
-  hold: { label: "Hold", bg: "var(--surface-container)", fg: "var(--on-surface)", dot: "var(--on-surface)" },
-};
-
 function rsiExtremeFromRow(row: WatchlistRow): {
   label: string;
   tone: "overbought" | "oversold";
@@ -219,49 +203,6 @@ function mergeHoldingPatch(row: WatchlistRow, patch?: HoldingPatch): WatchlistRo
   };
 }
 
-function PriorityBadge({ priority }: { priority: DirectiveV2["priority"] }) {
-  const meta = priority ? PRIORITY_BADGE[priority] : PRIORITY_BADGE.medium;
-  return (
-    <span
-      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em]"
-      style={{ background: meta.bg, color: meta.fg }}
-    >
-      {meta.label}
-    </span>
-  );
-}
-
-function TriggerChip({ trigger }: { trigger: string }) {
-  const label = trigger.trim();
-  if (!label) return null;
-  return (
-    <span className="inline-flex max-w-[120px] shrink-0 items-center truncate rounded bg-surface-container px-1.5 py-0.5 text-[9px] font-medium text-on-surface-variant">
-      {label.length > 18 ? `${label.slice(0, 16)}…` : label}
-    </span>
-  );
-}
-
-type StanceChipMeta = { label: string; bg: string; fg: string; dot: string };
-
-function StanceChip({ meta, size = "sm" }: { meta: StanceChipMeta; size?: "xs" | "sm" }) {
-  const cls = size === "xs"
-    ? "px-1.5 py-0.5 text-[9px] gap-1"
-    : "px-2 py-0.5 text-[10px] gap-1.5";
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded font-semibold tracking-[0.04em] uppercase ${cls}`}
-      style={{ background: meta.bg, color: meta.fg }}
-    >
-      <span
-        className="h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ background: meta.dot }}
-        aria-hidden
-      />
-      {meta.label}
-    </span>
-  );
-}
-
 function callVerb(kind: RadarCallKind): string {
   switch (kind) {
     case "buy_dip":
@@ -273,16 +214,6 @@ function callVerb(kind: RadarCallKind): string {
     case "exit":
       return "Exit";
   }
-}
-
-function stanceChipFromCall(call: BookCallHint): StanceChipMeta {
-  const base =
-    call.callKind === "buy_dip" || call.callKind === "entry"
-      ? STANCE_CHIP.accumulate
-      : call.callKind === "trim"
-        ? STANCE_CHIP.trim
-        : STANCE_CHIP.avoid;
-  return { ...base, label: callVerb(call.callKind) };
 }
 
 function TodayCallLine({ call, compact = false }: { call: BookCallHint; compact?: boolean }) {
@@ -317,97 +248,34 @@ function DirectiveDisplay({
   row,
   compact = false,
   call,
+  preferRadar = false,
+  radarSignal,
 }: {
   row: WatchlistRow;
   compact?: boolean;
   call?: BookCallHint;
+  preferRadar?: boolean;
+  radarSignal?: RadarRowSignal;
 }) {
-  const d2 = row.directive_v2;
-  const stance = String(row.ai_directive?.stance ?? "").toLowerCase();
-  const stanceMeta = STANCE_CHIP[stance];
+  const cell = resolveRadarLedgerCell(row, call, {
+    preferRadar,
+    radarSignal,
+  });
+  if (!cell) return compact ? null : <span className="text-[11px] text-on-surface-variant">—</span>;
 
-  if (d2?.title) {
-    const detail = d2.detail
-      ? d2.detail.replace(/;?\s*position size unknown/gi, "").replace(/^;\s*/, "").trim() || null
-      : null;
-
-    // When a live book call is showing (e.g. price in add-below zone), match the chip to that call —
-    // not the stale strategic stance (trim names can still have an active buy-below zone).
-    const chipMeta =
-      call != null
-        ? stanceChipFromCall(call)
-        : stanceMeta ??
-          (() => {
-            const t = d2.title.toLowerCase();
-            if (t.startsWith("accumulate")) return STANCE_CHIP.accumulate;
-            if (t.startsWith("trim")) return STANCE_CHIP.trim;
-            if (t.startsWith("avoid")) return STANCE_CHIP.avoid;
-            if (t.startsWith("hold")) return STANCE_CHIP.hold;
-            return STANCE_CHIP.watch;
-          })();
-
-    if (compact) {
-      return (
-        <div className="mt-0.5 flex flex-col gap-0.5 min-w-0">
-          {call ? <TodayCallLine call={call} compact /> : null}
-          <div className="flex flex-wrap items-center gap-1">
-            <StanceChip meta={chipMeta} size="xs" />
-            {d2.priority === "high" && <PriorityBadge priority={d2.priority} />}
-            {d2.trigger && !call?.urgent && <TriggerChip trigger={d2.trigger} />}
-          </div>
-          {detail && !call ? (
-            <span className="text-[9px] text-on-surface-variant leading-snug line-clamp-1">{detail}</span>
-          ) : null}
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex min-w-0 flex-col gap-1">
-        {call ? <TodayCallLine call={call} /> : null}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StanceChip meta={chipMeta} />
-          {d2.priority === "high" && <PriorityBadge priority={d2.priority} />}
-          {d2.trigger && !call?.urgent && <TriggerChip trigger={d2.trigger} />}
-        </div>
-        {detail && !call ? (
-          <p className="text-[10px] leading-snug text-on-surface-variant line-clamp-2">{detail}</p>
-        ) : null}
-      </div>
-    );
+  if (cell.mode === "action") {
+    return <TodayCallLine call={cell.call} compact={compact} />;
   }
 
-  if (stanceMeta && !call) {
-    return (
-      <div className={compact ? "mt-0.5" : ""}>
-        {call ? <TodayCallLine call={call} compact={compact} /> : null}
-        <span
-          className={`inline-flex w-fit items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em] ${
-            compact ? "rounded px-1.5 py-0.5 text-[9px]" : ""
-          }`}
-          style={{ background: stanceMeta.bg, color: stanceMeta.fg }}
-        >
-          <span
-            aria-hidden
-            className={`rounded-full ${compact ? "h-1 w-1" : "h-1.5 w-1.5"}`}
-            style={{ background: stanceMeta.dot }}
-          />
-          {stanceMeta.label}
-        </span>
-      </div>
-    );
-  }
-
-  if (call) {
-    return (
-      <div className={compact ? "mt-0.5 flex flex-col gap-0.5 min-w-0" : "flex min-w-0 flex-col gap-1"}>
-        <TodayCallLine call={call} compact={compact} />
-        <StanceChip meta={stanceChipFromCall(call)} size={compact ? "xs" : "sm"} />
-      </div>
-    );
-  }
-
-  return compact ? null : <span className="text-[11px] text-on-surface-variant">—</span>;
+  return (
+    <p
+      className={`leading-snug [overflow-wrap:anywhere] ${
+        compact ? "mt-0.5 text-[10px] line-clamp-2" : "text-[11px] line-clamp-3"
+      } ${radarSignal?.urgent ? "font-semibold text-on-surface" : "text-on-surface-variant"}`}
+    >
+      {cell.headline}
+    </p>
+  );
 }
 
 type SharesEditHandlers = {
@@ -487,7 +355,15 @@ function InlineSharesCell({
 // main component
 // -----------------------------------------------------------------------------
 
-export function RadarLedger({ holdings, watching, suggestions = [], activeTab, onTabChange }: Props) {
+export function RadarLedger({
+  holdings,
+  watching,
+  suggestions = [],
+  activeTab,
+  onTabChange,
+  preferRadarSignals = false,
+  radarSignalsByInstrumentId = {},
+}: Props) {
   const router = useRouter();
   const [internalTab, setInternalTab] = useState<Tab>(
     holdings.length === 0 && watching.length > 0 ? "watching" : "holdings",
@@ -520,15 +396,14 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
   const showSharesColumn = tab === "holdings" && (bulkEditing || allSharesEntered);
   const showValueColumn = tab === "holdings" && allSharesEntered;
   const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => {
-      const au = callHints.get(a.ticker.toUpperCase())?.urgent ? 1 : 0;
-      const bu = callHints.get(b.ticker.toUpperCase())?.urgent ? 1 : 0;
-      if (bu !== au) return bu - au;
-      const ah = callHints.has(a.ticker.toUpperCase()) ? 1 : 0;
-      const bh = callHints.has(b.ticker.toUpperCase()) ? 1 : 0;
-      return bh - ah;
-    });
-  }, [rows, callHints]);
+    return [...rows].sort((a, b) =>
+      compareBookRowsByAttention(a, b, {
+        callHints,
+        radarSignals: radarSignalsByInstrumentId,
+        preferRadar: preferRadarSignals,
+      }),
+    );
+  }, [rows, callHints, preferRadarSignals, radarSignalsByInstrumentId]);
   const urgentInTab = sortedRows.filter((r) => callHints.get(r.ticker.toUpperCase())?.urgent).length;
 
   useEffect(() => {
@@ -653,6 +528,8 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                   row={row}
                   hasBorder={i > 0}
                   call={callHints.get(row.ticker.toUpperCase())}
+                  preferRadar={preferRadarSignals}
+                  radarSignal={radarSignalsByInstrumentId[row.instrument_id.toUpperCase()]}
                 />
               ))}
             </div>
@@ -679,7 +556,7 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                       <th className="px-3 py-3 text-right font-semibold">Value</th>
                     )}
                     <th className="px-3 py-3 text-right font-semibold">Runway</th>
-                    <th className="px-4 py-3 font-semibold">Directive</th>
+                    <th className="px-4 py-3 font-semibold">Signal</th>
                     <th className="px-3 py-3 w-8" />
                   </tr>
                 </thead>
@@ -693,6 +570,8 @@ export function RadarLedger({ holdings, watching, suggestions = [], activeTab, o
                       onSharesSaved={applyHoldingPatch}
                       bulkEditing={bulkEditing}
                       call={callHints.get(row.ticker.toUpperCase())}
+                      preferRadar={preferRadarSignals}
+                      radarSignal={radarSignalsByInstrumentId[row.instrument_id.toUpperCase()]}
                     />
                   ))}
                 </tbody>
@@ -961,10 +840,14 @@ function MobileRow({
   row,
   hasBorder,
   call,
+  preferRadar = false,
+  radarSignal,
 }: {
   row: WatchlistRow;
   hasBorder: boolean;
   call?: BookCallHint;
+  preferRadar?: boolean;
+  radarSignal?: RadarRowSignal;
 }) {
   const router = useRouter();
   const market = row.market === "IN" ? "IN" : "US";
@@ -989,7 +872,7 @@ function MobileRow({
             {row.ticker}
           </span>
           {/* Signal chips below name */}
-          {(rsi || cats.length > 0) && (
+          {(rsi || cats.length > 0) && !preferRadar && (
             <div className="flex flex-wrap items-center gap-1 mt-0.5">
               {rsi && (
                 <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
@@ -1013,7 +896,13 @@ function MobileRow({
             </div>
           )}
           {/* Directive below name */}
-          <DirectiveDisplay row={row} compact call={call} />
+          <DirectiveDisplay
+            row={row}
+            compact
+            call={call}
+            preferRadar={preferRadar}
+            radarSignal={radarSignal}
+          />
         </div>
       </div>
 
@@ -1046,11 +935,15 @@ function LedgerRow({
   onSharesSaved,
   bulkEditing,
   call,
+  preferRadar = false,
+  radarSignal,
 }: {
   row: WatchlistRow;
   showHoldingValue?: boolean;
   showShares?: boolean;
   call?: BookCallHint;
+  preferRadar?: boolean;
+  radarSignal?: RadarRowSignal;
 } & SharesEditHandlers) {
   const router = useRouter();
   const dayChange = row.day_change_pct;
@@ -1079,7 +972,7 @@ function LedgerRow({
             <span className="text-[13px] font-semibold text-on-surface leading-none">
               {row.ticker}
             </span>
-            {(rsi || cats.length > 0) && (
+            {(rsi || cats.length > 0) && !preferRadar && (
               <div className="flex flex-wrap items-center gap-1">
                 {rsi && (
                   <span
@@ -1149,7 +1042,12 @@ function LedgerRow({
         </span>
       </td>
       <td className="px-4 py-3">
-        <DirectiveDisplay row={row} call={call} />
+        <DirectiveDisplay
+          row={row}
+          call={call}
+          preferRadar={preferRadar}
+          radarSignal={radarSignal}
+        />
       </td>
       <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
         <RowMenu row={row} />

@@ -297,7 +297,7 @@ class DailyAnomaliesTest(unittest.TestCase):
 
         self.assertIsNone(explanation)
 
-    def test_missing_intelligence_fill_allows_context_fallback(self) -> None:
+    def test_missing_intelligence_fill_does_not_rebuild_market_context(self) -> None:
         with patch.object(build_daily_anomalies.subprocess, "run") as run:
             build_daily_anomalies._run_intelligence_fill_for_missing(
                 market="US",
@@ -309,7 +309,7 @@ class DailyAnomaliesTest(unittest.TestCase):
             )
 
         cmd = run.call_args.args[0]
-        self.assertNotIn("--skip-context", cmd)
+        self.assertIn("--skip-context", cmd)
         self.assertIn("--instrument-ids", cmd)
 
 

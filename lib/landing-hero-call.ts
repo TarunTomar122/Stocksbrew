@@ -10,6 +10,7 @@ import {
   setupStateLabel,
 } from "@/lib/directive-ui";
 import type { LandingHeroMetrics } from "@/lib/landing-hero-metrics";
+import { formatRiskRewardRatio } from "@/lib/risk-reward";
 import type { Directive, StockIntelligenceDoc } from "@/lib/stock";
 
 const n = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -144,7 +145,7 @@ function buildCallMetrics(
   if (n(riskRewardRatio)) {
     out.push({
       label: "Reward / risk",
-      value: `${riskRewardRatio >= 10 ? Math.round(riskRewardRatio) : riskRewardRatio.toFixed(1)} : 1`,
+      value: formatRiskRewardRatio(riskRewardRatio),
       hint: metrics.risk_reward_hint ?? undefined,
       hintTone:
         metrics.risk_reward_hint === "Favorable"

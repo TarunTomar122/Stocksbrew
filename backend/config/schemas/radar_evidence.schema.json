@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/radar_evidence.schema.json",
+  "title": "Trace Money Radar Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id", "market", "provider", "source_tier", "document_kind",
+    "url", "title", "published_at", "detected_at", "instrument_ids",
+    "facts", "citation", "extraction_confidence"
+  ],
+  "properties": {
+    "evidence_id": { "type": "string", "minLength": 1 },
+    "market": { "const": "US" },
+    "provider": { "type": "string", "minLength": 1 },
+    "source_tier": { "type": "string", "enum": ["official", "publisher", "curated"] },
+    "document_kind": {
+      "type": "string",
+      "enum": ["filing", "investor_relations", "press_release", "news_article", "analyst_report", "transcript"]
+    },
+    "url": { "type": "string" },
+    "title": { "type": "string", "minLength": 1 },
+    "published_at": { "type": "string", "format": "date-time" },
+    "detected_at": { "type": "string", "format": "date-time" },
+    "instrument_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^US_[A-Z0-9._-]+$" }
+    },
+    "facts": { "type": "object" },
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publisher", "url"],
+      "properties": {
+        "publisher": { "type": "string", "minLength": 1 },
+        "url": { "type": "string" }
+      }
+    },
+    "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

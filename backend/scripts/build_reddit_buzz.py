@@ -64,6 +64,7 @@ Return JSON object:
 }
 Rules:
 - Output valid JSON only.
+- Write all user-facing text in English (context, catalysts, top_themes, why_notable, evidence_span).
 - Use only US stock tickers; no crypto.
 - `candidate_tickers` is a deterministic pre-scan of supported tickers found in the posts.
 - Prefer producing ticker narratives for candidate tickers with concrete post evidence.

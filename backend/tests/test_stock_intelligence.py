@@ -5,6 +5,12 @@ from unittest.mock import patch
 
 from backend.models import Article
 from backend.stock_intelligence import (
+    _expand_card_detail,
+    _fundamental_driver_cards,
+    _fundamental_risk_cards,
+    _looks_like_metric_shorthand,
+    _normalize_driver_cards,
+    _normalize_risk_cards,
     _normalize_catalyst_cards,
     _repair_directive,
     _stock_market_regime,
@@ -592,6 +598,61 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(doc["visual_cards"], doc["visual_summary"])
         self.assertEqual(doc["anomaly_digest"]["headline"], "Reddit beats earnings")
         self.assertEqual(doc["anomaly_digest"]["why_it_matters"], "Guidance improved.")
+
+    def test_metric_shorthand_detection(self) -> None:
+        self.assertTrue(_looks_like_metric_shorthand("2 - Buy signal (2.0)."))
+        self.assertTrue(_looks_like_metric_shorthand("3.5% - moderate short interest"))
+        self.assertFalse(
+            _looks_like_metric_shorthand(
+                "Quant models rate this a Buy, supporting constructive momentum in the setup."
+            )
+        )
+
+    def test_fundamental_driver_cards_use_full_sentences(self) -> None:
+        cards = _fundamental_driver_cards(
+            {
+                "standout_metrics": [
+                    {"label": "Quant rank", "value": 2, "summary": "2 - Buy signal"},
+                    {"label": "Short float", "value": 3.49, "summary": "3.5% - moderate short interest"},
+                ]
+            },
+            limit=2,
+        )
+        self.assertEqual(len(cards), 2)
+        self.assertNotIn(" - ", cards[0]["detail"])
+        self.assertIn("Buy", cards[0]["detail"])
+        self.assertIn("short interest", cards[1]["detail"].lower())
+
+    def test_normalize_driver_cards_rewrites_shorthand(self) -> None:
+        out = _normalize_driver_cards(
+            [{"label": "Momentum", "detail": "2 - Buy signal (2.0).", "direction": "up"}],
+            [],
+            limit=1,
+        )
+        self.assertEqual(len(out), 1)
+        self.assertGreaterEqual(len(out[0]["detail"].split()), 8)
+        self.assertNotRegex(out[0]["detail"], r"^\d+\s*-\s*")
+
+    def test_normalize_risk_cards_rejects_shorthand_without_expansion(self) -> None:
+        out = _normalize_risk_cards(
+            [{"risk": "Valuation", "detail": "28.5 - weak", "severity": 4, "probability": 3}],
+            limit=1,
+        )
+        self.assertEqual(len(out), 1)
+        self.assertGreaterEqual(len(out[0]["detail"].split()), 8)
+
+    def test_fundamental_risk_cards_use_full_sentences(self) -> None:
+        cards = _fundamental_risk_cards(
+            {
+                "weak_metrics": [
+                    {"label": "PEG", "value": 3.2, "summary": "Pricing in heavy growth (3.20)"},
+                ]
+            },
+            limit=1,
+        )
+        self.assertEqual(len(cards), 1)
+        self.assertIn("PEG", cards[0]["detail"])
+        self.assertGreaterEqual(len(cards[0]["detail"].split()), 8)
 
 
 if __name__ == "__main__":

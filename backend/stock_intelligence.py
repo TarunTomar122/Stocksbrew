@@ -391,7 +391,7 @@ Fields to write:
 - **setup_state**: one of ["accumulation", "breakout", "trend", "rotation", "exhaustion", "unclear"].
 - **drivers**: 2-4 objects with keys:
   - label: short driver statement (3-6 words)
-  - detail: ONE sentence explaining what the label means - concrete, tied to evidence. Example: label="Analyst upgrades on AI demand" → detail="Three analysts raised price targets this week citing data-center order growth."
+  - detail: ONE complete English sentence (12-25 words) for a retail investor. Explain the implication in plain language — not a metric dump. NEVER output scorecard shorthand like "2 - Buy signal", "3.5% - moderate short interest", or "41% vs target". BAD detail: "2 - Buy signal (2.0)." GOOD detail: "Quant models rate this a Buy, supporting constructive momentum even after the recent pullback."
   - direction: "up" | "down" | "mixed"
   - strength: integer 1-5
   - horizon: "today" | "week" | "quarter"
@@ -403,7 +403,7 @@ Fields to write:
   - If earnings are reported or missing, do not put a date in the catalyst card. Use a non-date window like "near-term", "week", or "quarter" instead.
 - **risk_cards**: 1-3 objects with keys:
   - risk: short risk name (3-6 words)
-  - detail: ONE sentence explaining the downside scenario concretely.
+  - detail: ONE complete English sentence (12-25 words) explaining the downside scenario concretely. Same rule as drivers: full sentences only, never metric shorthand or scorecard fragments.
   - trigger, severity (1-5), probability (1-5)
 
 - **directive**: ONE present-tense call plus optional future zones. Do not hide the main call behind a nearby price. Object with:
@@ -432,7 +432,7 @@ FUNDAMENTALS - USE THEM:
 - Let fundamentals shape the directive, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
 - A beaten-down name with strong growth and a Buy-tilted quant rank can be "accumulate on dips". A high-multiple winner with strong evidence can still be "accumulate" or "watch for breakout" if the setup remains constructive.
 - Use fundamentals to pick concrete trigger prices. If price is already above analyst target AND still showing strength, a conditional trim on further extension above $X can work. If price is below target or selling off, prefer watch/accumulate at support instead.
-- Drivers and risk_cards should weave fundamentals + news: "label: Margin expansion outpaces peers / detail: Operating margin sits in the sector's top quartile while revenue still compounds at 16% YoY."
+- Drivers and risk_cards should weave fundamentals + news into full sentences a human would say aloud. BAD detail: "16% - strong pace, ahead of sector". GOOD detail: "Revenue is compounding 16% YoY, ahead of the sector, which keeps the growth story intact."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
 
@@ -853,9 +853,9 @@ The user sees the price chart. Don't describe the price. Tell them what the quie
 - **risk**: What the lack of coverage might be hiding.
 - **thesis**: One line, max 12 words.
 - **setup_state**: one of ["accumulation", "breakout", "trend", "rotation", "exhaustion", "unclear"].
-- **drivers**: 2-4 concise driver objects.
+- **drivers**: 2-4 concise driver objects. Each `detail` must be one complete English sentence (12-25 words), never metric shorthand.
 - **catalyst_cards**: 1-3 trigger cards.
-- **risk_cards**: 1-3 downside cards.
+- **risk_cards**: 1-3 downside cards. Each `detail` must be one complete English sentence (12-25 words), never metric shorthand.
 
 STYLE: Conversational, sharp, zero filler. Keep user-facing fields naturally short through writing, not truncation.
 Do not repeat the same fact across body/key_findings/thesis/drivers/catalyst/risk.
@@ -1091,6 +1091,8 @@ def build_no_news_intelligence_doc(
     catalyst_cards = _normalize_raw_catalyst_cards(raw_catalyst_cards, limit=3)
     raw_risk_cards = brief.get("risk_cards", []) or []
     risk_cards = _normalize_risk_cards(raw_risk_cards, limit=3)
+    if not risk_cards:
+        risk_cards = _fundamental_risk_cards(_summarize_intel_pro(intel_pro_doc), limit=2)
     raw_directive = brief.get("directive")
     directive = None
     if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
@@ -2606,11 +2608,218 @@ def _same_card_text(left: str, right: str) -> bool:
     return _normalize_text(left) == _normalize_text(right)
 
 
+_METRIC_SHORTHAND_RE = re.compile(r"^[+-]?\d+(?:\.\d+)?%?\s*-\s+", re.IGNORECASE)
+
+
+def _float_metric_value(raw: Any) -> float | None:
+    if raw in (None, ""):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _looks_like_metric_shorthand(value: str) -> bool:
+    cleaned = " ".join(str(value or "").split()).strip().rstrip(".")
+    if not cleaned:
+        return False
+    if _METRIC_SHORTHAND_RE.match(cleaned):
+        return True
+    if re.search(r"\(\d+(?:\.\d+)?\)\.?$", cleaned) and len(cleaned.split()) <= 10:
+        return True
+    if re.fullmatch(r"[+-]?\d+(?:\.\d+)?%?\s+vs\s+target", cleaned, re.IGNORECASE):
+        return True
+    return False
+
+
+def _is_informative_card_detail(value: str) -> bool:
+    cleaned = _clean_sentence(value)
+    if not _is_informative_point(cleaned):
+        return False
+    if _looks_like_metric_shorthand(cleaned):
+        return False
+    return len(cleaned.split()) >= 8
+
+
+def _metric_to_prose_sentence(metric: dict[str, Any], *, negative: bool = False) -> str:
+    label = str(metric.get("label") or "").strip()
+    value = _float_metric_value(metric.get("value"))
+    benchmark = _float_metric_value(metric.get("benchmark"))
+    summary = str(metric.get("summary") or "").strip()
+    tailwind = "a tailwind for the setup"
+    headwind = "a headwind for the setup"
+    stance = headwind if negative else tailwind
+
+    if label == "Quant rank" and value is not None:
+        tiers = {1: "Strong Buy", 2: "Buy", 3: "Hold", 4: "Sell", 5: "Strong Sell"}
+        tier = tiers.get(int(round(value)), "neutral")
+        return (
+            f"Quant ranking models classify this as {tier} (rank {int(round(value))} of 5), "
+            f"which is {stance}."
+        )
+    if label == "Analyst rating" and value is not None:
+        if value <= 2:
+            read = "buy-tilted"
+        elif value >= 4:
+            read = "sell-tilted"
+        else:
+            read = "hold-tilted"
+        return f"Street consensus is {read} (rating {value:.2f}), which is {stance}."
+    if label == "Beat likelihood" and value is not None:
+        if value > 1:
+            read = "earnings are more likely to beat consensus this quarter"
+        elif value < -1:
+            read = "earnings are more likely to miss consensus this quarter"
+        else:
+            read = "earnings look roughly in line with consensus"
+        return f"The beat-likelihood read ({value:+.1f}%) suggests {read}, which is {stance}."
+    if label == "Short float" and value is not None:
+        if value < 3:
+            read = f"Short interest is low at {value:.1f}% of float, so bears are not heavily positioned against the name."
+        elif value < 8:
+            read = (
+                f"Short interest is {value:.1f}% of float, a moderate level that can add fuel "
+                "if sentiment improves."
+            )
+        else:
+            read = (
+                f"Short interest is {value:.1f}% of float, an elevated level that raises "
+                "squeeze and volatility risk."
+            )
+        return read if not negative else read.replace("can add fuel", "can amplify downside moves")
+    if label == "Insider activity" and value is not None:
+        if abs(value) < 0.1:
+            read = "Insider buying and selling have been quiet over the last six months."
+        else:
+            direction = "buying" if value > 0 else "selling"
+            read = f"Insiders have been net {direction} over the last six months ({value:+.2f}%)."
+        return f"{read} That is {stance}."
+    if label == "RSI (14)" and value is not None:
+        if value >= 70:
+            read = "RSI is in overbought territory, so the move may be stretched near term."
+        elif value <= 30:
+            read = "RSI is oversold, which can set up a bounce if selling pressure eases."
+        elif 50 <= value < 70:
+            read = "RSI sits in a healthy uptrend zone, suggesting momentum is still constructive."
+        else:
+            read = "RSI is neutral, so price action rather than momentum extremes is driving the tape."
+        return read
+    if label == "Analyst consensus" and value is not None:
+        if value >= 80:
+            read = f"{value:.0f}% of analysts rate the stock a buy, signaling strong Street conviction."
+        elif value >= 60:
+            read = f"{value:.0f}% of analysts rate the stock a buy, a constructive but not unanimous tilt."
+        elif value >= 40:
+            read = f"Only {value:.0f}% of analysts rate the stock a buy, so the Street view is split."
+        else:
+            read = f"Just {value:.0f}% of analysts rate the stock a buy, reflecting bearish consensus."
+        return read
+    if label in {"1-month performance", "1-week performance", "1-year performance"} and value is not None:
+        window = {"1-month performance": "last month", "1-week performance": "last week", "1-year performance": "the past year"}[label]
+        direction = "outperformed" if value > 2 else "lagged" if value < -2 else "tracked the market"
+        return f"The stock {direction} over the {window} ({value:+.1f}%), which is {stance}."
+    if label == "5-year CAGR" and value is not None:
+        if value >= 20:
+            read = f"The stock has compounded at {value:+.1f}% annualized over five years, a multibagger pace."
+        elif value >= 10:
+            read = f"The stock has delivered a solid {value:+.1f}% annualized return over five years."
+        elif value >= 0:
+            read = f"Long-run returns are muted at {value:+.1f}% annualized over five years."
+        else:
+            read = f"The stock has destroyed value with a {value:+.1f}% annualized return over five years."
+        return read
+    if label == "Analyst target" and value is not None and benchmark is not None and benchmark > 0:
+        upside = (value - benchmark) / benchmark * 100
+        if upside > 0:
+            return (
+                f"The consensus price target is {upside:+.1f}% above the current price, "
+                f"leaving meaningful upside if the Street is right."
+            )
+        return (
+            f"The consensus price target is {abs(upside):.1f}% below the current price, "
+            f"so the stock already trades ahead of analyst expectations."
+        )
+    if label in {"P/E TTM", "Forward P/E"} and value is not None and benchmark is not None and benchmark > 0:
+        diff = (value - benchmark) / benchmark * 100
+        multiple = "trailing" if label == "P/E TTM" else "forward"
+        if abs(diff) < 5:
+            return f"The {multiple} P/E ({value:.1f}) is roughly in line with the sector average ({benchmark:.1f})."
+        tag = "cheaper" if diff < 0 else "richer"
+        return (
+            f"The stock trades about {abs(diff):.0f}% {tag} than its sector on {multiple} P/E "
+            f"({value:.1f} vs {benchmark:.1f}), which is {stance}."
+        )
+    if label == "PEG" and value is not None:
+        if value < 1:
+            return f"The PEG ratio of {value:.2f} suggests growth-adjusted valuation still looks reasonable."
+        if value < 2:
+            return f"The PEG ratio of {value:.2f} looks fairly priced relative to expected growth."
+        return f"The PEG ratio of {value:.2f} prices in aggressive growth, leaving less room for disappointment."
+    if "growth" in label.lower() and value is not None:
+        tier = "strong" if not negative else "weak"
+        if benchmark is not None:
+            direction = "ahead of" if value > benchmark + 1 else "below" if value < benchmark - 1 else "in line with"
+            return (
+                f"{label} is running at {value:+.1f}%, {direction} the sector benchmark "
+                f"({benchmark:+.1f}%), which is {stance}."
+            )
+        return f"{label} is running at {value:+.1f}%, a {tier} growth signal that is {stance}."
+    if label in {"ROE", "Operating margin", "Payout ratio", "Debt / Equity", "Institutional ownership"} and value is not None:
+        descriptors = {
+            "ROE": "return on equity",
+            "Operating margin": "operating margin",
+            "Payout ratio": "payout ratio",
+            "Debt / Equity": "debt-to-equity",
+            "Institutional ownership": "institutional ownership",
+        }
+        thing = descriptors.get(label, label.lower())
+        unit = "%" if label != "Debt / Equity" else ""
+        quality = "strong" if not negative else "weak"
+        return (
+            f"{thing.title()} at {value:.2f}{unit} screens as {quality} versus peers, "
+            f"which is {stance}."
+        )
+    if summary and not _looks_like_metric_shorthand(summary) and len(summary.split()) >= 8:
+        return _complete_sentence(summary)
+    if label and value is not None:
+        return _complete_sentence(
+            f"{label} at {value:g} stands out in the scorecard and is {stance}."
+        )
+    return ""
+
+
+def _expand_card_detail(detail: str, label: str = "") -> str:
+    cleaned = " ".join(str(detail or "").split()).strip().rstrip(".")
+    cleaned = re.sub(r"\s*\(\d+(?:\.\d+)?\)\.?$", "", cleaned).strip()
+    match = _METRIC_SHORTHAND_RE.match(cleaned)
+    if not match:
+        return _complete_sentence(cleaned)
+    rest = cleaned[match.end():].strip()
+    num = match.group(0).strip().rstrip("-").strip()
+    lowered = rest.lower()
+    if "buy signal" in lowered or "sell signal" in lowered or "strong buy" in lowered:
+        return _complete_sentence(
+            f"Quant models show a {rest}, which supports the constructive side of the setup."
+        )
+    if "short interest" in lowered:
+        return _complete_sentence(
+            f"Short interest at {num} is {rest}, which can shape how sharply the stock reacts to news."
+        )
+    if label:
+        return _complete_sentence(
+            f"{label}: {rest} — worth watching because it shapes the risk/reward from here."
+        )
+    return _complete_sentence(
+        f"The scorecard flags {rest} ({num}), which matters for how much upside is still on the table."
+    )
+
+
 def _drivers_from_points(points: list[str], *, limit: int = 3) -> list[dict[str, Any]]:
     drivers: list[dict[str, Any]] = []
     for point in points:
         detail = _complete_sentence(_clean_sentence(point))
-        if not _is_informative_point(detail):
+        if not _is_informative_card_detail(detail):
             continue
         label = _short_card_label(detail)
         if _same_card_text(label, detail) and len(detail.split()) < 8:
@@ -2637,18 +2846,11 @@ def _fundamental_driver_cards(fundamentals: dict[str, Any] | None, *, limit: int
         if not isinstance(metric, dict):
             continue
         label = str(metric.get("label") or "").strip()
-        summary = str(metric.get("summary") or "").strip()
-        value = str(metric.get("value") or "").strip()
-        detail = summary or (f"{label} screens favorably versus peers" if label else "")
-        if value and value not in detail:
-            detail = f"{detail.rstrip('.')} ({value})"
-        detail = _complete_sentence(detail)
-        if not any(char.isalpha() for char in label) or len(label) < 3:
-            label = _short_card_label(detail, fallback="Fundamental strength")
-        if not label or not _is_informative_point(detail):
+        detail = _complete_sentence(_metric_to_prose_sentence(metric, negative=False))
+        if not label or not _is_informative_card_detail(detail):
             continue
         drivers.append({
-            "label": _short_card_label(label),
+            "label": _short_card_label(label or detail),
             "detail": detail,
             "direction": "up",
             "strength": 4,
@@ -2657,6 +2859,29 @@ def _fundamental_driver_cards(fundamentals: dict[str, Any] | None, *, limit: int
         if len(drivers) >= limit:
             break
     return drivers
+
+
+def _fundamental_risk_cards(fundamentals: dict[str, Any] | None, *, limit: int = 2) -> list[dict[str, Any]]:
+    if not isinstance(fundamentals, dict):
+        return []
+    risks: list[dict[str, Any]] = []
+    for metric in fundamentals.get("weak_metrics") or []:
+        if not isinstance(metric, dict):
+            continue
+        label = str(metric.get("label") or "").strip()
+        detail = _complete_sentence(_metric_to_prose_sentence(metric, negative=True))
+        if not label or not _is_informative_card_detail(detail):
+            continue
+        risks.append({
+            "risk": _short_card_label(label or detail, fallback="Key risk"),
+            "detail": detail,
+            "trigger": "fundamental deterioration",
+            "severity": 4,
+            "probability": 3,
+        })
+        if len(risks) >= limit:
+            break
+    return risks
 
 
 def _normalize_driver_cards(
@@ -2668,7 +2893,7 @@ def _normalize_driver_cards(
     fallback_details = [
         _complete_sentence(_clean_sentence(point))
         for point in fallback_points
-        if _is_informative_point(point)
+        if _is_informative_card_detail(_complete_sentence(_clean_sentence(point)))
     ]
     fallback_index = 0
     normalized: list[dict[str, Any]] = []
@@ -2690,8 +2915,10 @@ def _normalize_driver_cards(
                 if not _same_card_text(label, candidate):
                     detail = candidate
                     break
+        if _looks_like_metric_shorthand(detail):
+            detail = _expand_card_detail(detail, label)
         detail = _complete_sentence(_clean_sentence(detail))
-        if not _is_informative_point(detail):
+        if not _is_informative_card_detail(detail):
             continue
         label = _short_card_label(label or detail)
         if _same_card_text(label, detail) and len(detail.split()) < 8:
@@ -2721,8 +2948,10 @@ def _normalize_risk_cards(raw_cards: list[Any], *, limit: int = 3) -> list[dict[
             continue
         risk = str(raw.get("risk") or raw.get("label") or raw.get("title") or "").strip()
         detail = str(raw.get("detail") or raw.get("description") or raw.get("why_it_matters") or "").strip()
+        if _looks_like_metric_shorthand(detail):
+            detail = _expand_card_detail(detail, risk)
         detail = _complete_sentence(_clean_sentence(detail))
-        if not risk or not _is_informative_point(detail):
+        if not risk or not _is_informative_card_detail(detail):
             continue
         if "nothing concrete" in risk.lower() or "nothing concrete" in detail.lower():
             continue
@@ -3740,6 +3969,8 @@ def build_stock_intelligence_docs(
                 "severity": 3,
                 "probability": 3,
             }]
+        if not risk_cards:
+            risk_cards = _fundamental_risk_cards(fundamentals_block, limit=2)
 
         if _has_invalid_earnings_timing(catalyst, earnings_ctx):
             catalyst = str(catalyst_cards[0].get("event", "")).strip() if catalyst_cards else ""

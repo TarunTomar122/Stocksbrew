@@ -21,6 +21,8 @@ type Props = {
   suggestions: Suggestion[];
   earningsReadySlot?: React.ReactNode;
   belowLedgerSlot?: React.ReactNode;
+  preferRadarSignals?: boolean;
+  radarSignalsByInstrumentId?: Record<string, import("@/lib/radar-row-signals").RadarRowSignal>;
 };
 
 export function YourBookLayout({
@@ -29,6 +31,8 @@ export function YourBookLayout({
   suggestions,
   earningsReadySlot,
   belowLedgerSlot,
+  preferRadarSignals = false,
+  radarSignalsByInstrumentId = {},
 }: Props) {
   const [tab, setTab] = useState<Tab>(
     holdings.length === 0 && watching.length > 0 ? "watching" : "holdings",
@@ -66,6 +70,8 @@ export function YourBookLayout({
             suggestions={suggestions}
             activeTab={tab}
             onTabChange={setTab}
+            preferRadarSignals={preferRadarSignals}
+            radarSignalsByInstrumentId={radarSignalsByInstrumentId}
           />
           {belowLedgerSlot}
         </div>

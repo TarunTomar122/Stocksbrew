@@ -1,7 +1,34 @@
+from datetime import date
+
 from backend.earnings_actuals import fetch_yfinance_quarterly_actuals, pick_actual_for_event
 from backend.earnings_copy import earnings_evidence_lines, is_missing_actual_copy
 from backend.scripts import build_earnings_intel
 from backend.scripts import build_market_events
+
+
+def test_yfinance_actuals_reject_non_finite_eps(monkeypatch) -> None:
+    class Frame:
+        empty = False
+
+        def iterrows(self):
+            return [
+                (
+                    "2026-07-09 16:00:00-04:00",
+                    {
+                        "Reported EPS": float("nan"),
+                        "EPS Estimate": 1.5,
+                        "Surprise(%)": float("nan"),
+                    },
+                )
+            ]
+
+    class Ticker:
+        earnings_dates = Frame()
+
+    import yfinance as yf
+
+    monkeypatch.setattr(yf, "Ticker", lambda _ticker: Ticker())
+    assert fetch_yfinance_quarterly_actuals("DAL") == []
 
 
 def test_pick_actual_rejects_zero_eps_placeholder() -> None:
@@ -161,6 +188,7 @@ def test_market_events_skips_reports_older_than_two_weeks() -> None:
         "US",
         Store(),
         10,
+        today=date(2026, 6, 12),
     )
     assert [event["ticker"] for event in events] == ["NEW"]
 
@@ -203,7 +231,12 @@ def test_market_events_earnings_evidence_skips_disclaimer(monkeypatch) -> None:
             return [Snap()]
 
     Store.db = type("Db", (), {"collection": lambda self, _name: Collection()})()
-    events = build_market_events._events_from_earnings("US", Store(), 5)
+    events = build_market_events._events_from_earnings(
+        "US",
+        Store(),
+        5,
+        today=date(2026, 6, 12),
+    )
     assert events[0]["evidence"] == [
         "Stock rose 3.1% on the report day.",
         "Guidance was reiterated.",

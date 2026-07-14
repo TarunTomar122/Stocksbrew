@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AnalyticsPeriodToggle } from "@/components/analytics-period-toggle";
 import { DevAnalyticsDashboard } from "@/components/dev-analytics-dashboard";
 import { loadDevBusinessMetrics } from "@/lib/dev-business-metrics";
+import { loadDevEngagementMetrics } from "@/lib/dev-engagement-metrics";
 import { isPostHogQueryConfigured, loadPostHogAnalytics } from "@/lib/posthog-server";
 
 function parsePeriodDays(raw: string | undefined): 7 | 30 {
@@ -21,8 +22,9 @@ export default async function DevAnalyticsPage({
   const params = await searchParams;
   const days = parsePeriodDays(params.days);
 
-  const [business, posthog] = await Promise.all([
+  const [business, engagement, posthog] = await Promise.all([
     loadDevBusinessMetrics(days),
+    loadDevEngagementMetrics(days),
     loadPostHogAnalytics(days),
   ]);
 
@@ -55,7 +57,12 @@ export default async function DevAnalyticsPage({
       )}
 
       <div className="mt-8">
-        <DevAnalyticsDashboard posthog={posthog} business={business} posthogReady={posthogReady} />
+        <DevAnalyticsDashboard
+          posthog={posthog}
+          business={business}
+          engagement={engagement}
+          posthogReady={posthogReady}
+        />
       </div>
     </main>
   );

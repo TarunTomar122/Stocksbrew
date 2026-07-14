@@ -13,6 +13,7 @@ sleep between calls.
 from __future__ import annotations
 
 from datetime import datetime
+import math
 from typing import Any
 
 import requests
@@ -26,7 +27,8 @@ def _to_float(value: Any) -> float | None:
     try:
         if value in (None, "", "None", "none"):
             return None
-        return float(value)
+        parsed = float(value)
+        return parsed if math.isfinite(parsed) else None
     except (TypeError, ValueError):
         return None
 

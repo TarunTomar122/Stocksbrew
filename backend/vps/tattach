@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+if [[ -z "${1:-}" ]]; then
+  echo "Usage: tattach <session>"
+  tmux list-sessions 2>/dev/null || true
+  exit 1
+fi
+exec tmux attach -t "$1"

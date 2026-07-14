@@ -1,4 +1,5 @@
 import { directiveZonePrice } from "@/lib/directive-ui";
+import { capRiskRewardRatio } from "@/lib/risk-reward";
 import type { Directive } from "@/lib/stock";
 
 const n = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -38,7 +39,7 @@ export function buildLandingHeroMetrics(
 
   const riskRewardRatio =
     n(profitTargetPct) && n(breakRiskPct) && breakRiskPct > 0 && profitTargetPct > 0
-      ? profitTargetPct / breakRiskPct
+      ? capRiskRewardRatio(profitTargetPct / breakRiskPct)
       : null;
 
   let riskRewardHint: LandingHeroMetrics["risk_reward_hint"] = null;

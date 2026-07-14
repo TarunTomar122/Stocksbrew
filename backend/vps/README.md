@@ -48,8 +48,10 @@ TIKRR_REPO_DIR=/opt/tikrr
 TIKRR_LOCK_DIR=/tmp/tikrr-locks
 GOOGLE_CLOUD_PROJECT=tikrr-496409
 GOOGLE_APPLICATION_CREDENTIALS=/etc/tikrr/firebase-service-account.json
-LLM_PROVIDER=cerebras
-CEREBRAS_API_KEY=...
+LLM_PROVIDER=openrouter
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=openai/gpt-4o-mini
+SEC_USER_AGENT=Stocksbrew Radar your-real-contact@example.com
 CONTEXT_DEV_API_KEY=...
 TAVILY_API_KEY=...
 BREVO_API_KEY=...
@@ -72,12 +74,27 @@ ssh ubuntu@144.217.6.112 'nano /etc/tikrr/backend.env'
 Fill:
 
 ```bash
-CEREBRAS_API_KEY=...
+OPENROUTER_API_KEY=...
+SEC_USER_AGENT=Stocksbrew Radar your-real-contact@example.com
 CONTEXT_DEV_API_KEY=...
 CONTEXT_API_KEY=...
 TAVILY_API_KEY=...
 BREVO_API_KEY=...
 ```
+
+Radar official sources also require a curated IR allowlist. Validate entries
+before writing them:
+
+```bash
+python3 -m backend.scripts.sync_radar_source_registry \
+  --entry US_AAPL=https://investor.apple.com/ \
+  --entry US_MSFT=https://www.microsoft.com/en-us/Investor/ \
+  --write
+```
+
+`--include-ir` uses the Firecrawl endpoint configured for `url_extractor.py`;
+confirm that endpoint is reachable from the VPS. SEC ingestion works
+independently when no IR URLs are registered.
 
 Install timers without enabling:
 

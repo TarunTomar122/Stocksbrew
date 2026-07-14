@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace-money/radar_stock_state.schema.json",
+  "title": "Trace Money Radar Stock State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instrument_id", "ticker", "as_of", "rsi_state", "seen_event_ids"],
+  "properties": {
+    "instrument_id": { "type": "string", "pattern": "^US_[A-Z0-9._-]+$" },
+    "ticker": { "type": "string", "pattern": "^[A-Z0-9._-]+$" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "rsi_14": { "type": ["number", "null"] },
+    "rsi_state": { "type": "string", "enum": ["oversold", "neutral", "overbought"] },
+    "analyst_rating": { "type": ["string", "null"] },
+    "analyst_target": { "type": ["number", "null"] },
+    "price": { "type": ["number", "null"] },
+    "day_change_pct": { "type": ["number", "null"] },
+    "earnings_status": { "type": ["string", "null"] },
+    "earnings_date": { "type": ["string", "null"] },
+    "guidance_direction": { "type": ["string", "null"] },
+    "last_filing_id": { "type": ["string", "null"] },
+    "last_filing_kind": { "type": ["string", "null"] },
+    "seen_event_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "maxItems": 200
+    }
+  }
+}
