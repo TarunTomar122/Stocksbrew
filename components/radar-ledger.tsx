@@ -192,6 +192,75 @@ function rsiExtremeFromRow(row: WatchlistRow): {
   return { label: `RSI${suffix}`, tone: "oversold" };
 }
 
+type SignalChipTone = "bull" | "bear" | "warn" | "earnings" | "neutral";
+
+const SIGNAL_CHIP_CLASS: Record<SignalChipTone, string> = {
+  bull: "chip-bull",
+  bear: "chip-bear",
+  warn: "chip-warn",
+  earnings: "chip-earnings",
+  neutral: "chip-neutral",
+};
+
+function catalystChipTone(catalyst: Record<string, unknown>): SignalChipTone {
+  const kind = String(catalyst.kind ?? "").toLowerCase();
+  if (kind === "earnings") return "earnings";
+  const urgency = String(catalyst.urgency ?? "").toLowerCase();
+  if (urgency === "high") return "bear";
+  if (urgency === "med") return "warn";
+  return "neutral";
+}
+
+function formatCatalystChipLabel(catalyst: Record<string, unknown>): { short: string; full: string } {
+  const title = String(catalyst.title ?? catalyst.kind ?? "").trim();
+  const kind = String(catalyst.kind ?? "").toLowerCase();
+  if (!title) return { short: "", full: "" };
+
+  if (kind === "earnings" || /^earnings\b/i.test(title)) {
+    const rest = title.replace(/^earnings\s+/i, "").trim();
+    if (rest) {
+      const parts = rest.split(/\s+/);
+      const last = parts[parts.length - 1] ?? "";
+      if (parts.length >= 2 && /^(AMC|BMO|TAS|DMH)$/i.test(last)) {
+        const date = parts.slice(0, -1).join(" ");
+        return {
+          short: `${date} · ${last.toUpperCase()}`,
+          full: `Earnings ${date} (${last.toUpperCase()})`,
+        };
+      }
+      return { short: rest, full: `Earnings ${rest}` };
+    }
+  }
+
+  const full = title;
+  const short = title.length > 28 ? `${title.slice(0, 26)}…` : title;
+  return { short, full };
+}
+
+function SignalChip({
+  label,
+  tone,
+  title,
+}: {
+  label: string;
+  tone: SignalChipTone;
+  title?: string;
+}) {
+  if (!label) return null;
+  return (
+    <span
+      title={title ?? label}
+      className={`inline-flex max-w-[11rem] items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold leading-snug ${SIGNAL_CHIP_CLASS[tone]}`}
+    >
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+function changeToneClass(positive: boolean): string {
+  return positive ? "text-[var(--signal-bullish)]" : "text-[var(--signal-bearish)]";
+}
+
 function mergeHoldingPatch(row: WatchlistRow, patch?: HoldingPatch): WatchlistRow {
   if (!patch) return row;
   return {
@@ -220,7 +289,7 @@ function TodayCallLine({ call, compact = false }: { call: BookCallHint; compact?
   if (call.urgent) {
     return (
       <div className={compact ? "mt-1" : "mb-1"}>
-        <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface">
           Now · {callVerb(call.callKind)}
         </p>
         <p
@@ -270,7 +339,7 @@ function DirectiveDisplay({
   return (
     <p
       className={`leading-snug [overflow-wrap:anywhere] ${
-        compact ? "mt-0.5 text-[10px] line-clamp-2" : "text-[11px] line-clamp-3"
+        compact ? "mt-0.5 text-[11px] line-clamp-2" : "text-[12px] line-clamp-3"
       } ${radarSignal?.urgent ? "font-semibold text-on-surface" : "text-on-surface-variant"}`}
     >
       {cell.headline}
@@ -545,10 +614,10 @@ export function RadarLedger({
             <div className="min-w-0 overflow-x-auto overflow-y-auto max-h-[540px]">
               <table className="w-full min-w-[720px] border-collapse text-[13px] xl:min-w-[800px]">
                 <thead className="sticky top-0 z-10 bg-surface">
-                  <tr className="border-b border-outline-variant text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-                    <th className="px-4 py-3 font-semibold">Ticker</th>
-                    <th className="px-3 py-3 text-right font-semibold">Price</th>
-                    <th className="px-3 py-3 text-right font-semibold">Change</th>
+                  <tr className="border-b border-outline-variant text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface">
+                    <th className="px-4 py-3 font-semibold min-w-[9rem]">Ticker</th>
+                    <th className="px-3 py-3 text-right font-semibold min-w-[5.5rem]">Price</th>
+                    <th className="px-3 py-3 text-right font-semibold min-w-[5.5rem] whitespace-nowrap">Change</th>
                     {showSharesColumn && (
                       <th className="px-3 py-3 text-right font-semibold">Shares</th>
                     )}
@@ -610,13 +679,13 @@ function DailySummary({
       {avgPct !== null && (
         <div className="flex flex-col items-end gap-0.5">
           <span
-            className={`text-[14px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
+            className={`text-[14px] font-semibold tabular-nums ${positive ? "text-[var(--signal-bullish)]" : "text-[var(--signal-bearish)]"}`}
           >
             {fmtSignedPct(avgPct)}
           </span>
           {totalAbs !== null && (
             <span
-              className={`text-[12px] tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}
+              className={`text-[12px] tabular-nums ${positive ? "text-[var(--signal-bullish)]" : "text-[var(--signal-bearish)]"}`}
             >
               {fmtSignedAbs(totalAbs, currency)}
             </span>
@@ -861,7 +930,7 @@ function MobileRow({
     <div
       className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer ${
         hasBorder ? "border-t border-outline-variant" : ""
-      } ${call?.urgent ? "border-l-2 border-l-on-surface" : ""}`}
+      } ${call?.urgent ? "border-l-[3px] border-l-[var(--signal-neutral)] bg-surface-container-low/60" : ""}`}
       onClick={() => router.push(href)}
     >
       {/* LEFT: logo + ticker + directive */}
@@ -873,24 +942,24 @@ function MobileRow({
           </span>
           {/* Signal chips below name */}
           {(rsi || cats.length > 0) && !preferRadar && (
-            <div className="flex flex-wrap items-center gap-1 mt-0.5">
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
               {rsi && (
-                <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
-                  rsi.tone === "overbought" ? "tint-bear text-[#ef4444]" : "tint-bull text-[#10b981]"
-                }`}>
-                  {rsi.label}
-                </span>
+                <SignalChip
+                  label={rsi.label}
+                  tone={rsi.tone === "overbought" ? "bear" : "bull"}
+                  title={rsi.tone === "overbought" ? "RSI overbought" : "RSI oversold"}
+                />
               )}
               {cats.slice(0, 1).map((c, i) => {
-                const label = String(c.title ?? c.kind ?? "").trim();
-                if (!label) return null;
-                const urgency = String(c.urgency ?? "").toLowerCase();
+                const { short, full } = formatCatalystChipLabel(c);
+                if (!short) return null;
                 return (
-                  <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
-                    urgency === "high" ? "tint-bear text-[#ef4444]" : "tint-warn text-[#f59e0b]"
-                  }`}>
-                    {label.length > 16 ? `${label.slice(0, 14)}…` : label}
-                  </span>
+                  <SignalChip
+                    key={i}
+                    label={short}
+                    tone={catalystChipTone(c)}
+                    title={full}
+                  />
                 );
               })}
             </div>
@@ -913,7 +982,7 @@ function MobileRow({
             {fmtPrice(row.price, row.currency)}
           </span>
           {typeof dayChange === "number" && (
-            <span className={`text-[12px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+            <span className={`text-[12px] font-semibold tabular-nums ${changeToneClass(positive)}`}>
               {fmtSignedPct(dayChange)}
             </span>
           )}
@@ -957,7 +1026,7 @@ function LedgerRow({
   return (
     <tr
       className={`border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low hover:[box-shadow:inset_0_0_0_1px_var(--outline-variant)] transition-colors cursor-pointer ${
-        call?.urgent ? "border-l-2 border-l-on-surface" : ""
+        call?.urgent ? "border-l-[3px] border-l-[var(--signal-neutral)] bg-surface-container-low/60" : ""
       }`}
       onClick={() => router.push(href)}
     >
@@ -973,33 +1042,24 @@ function LedgerRow({
               {row.ticker}
             </span>
             {(rsi || cats.length > 0) && !preferRadar && (
-              <div className="flex flex-wrap items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {rsi && (
-                  <span
-                    className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em] ${
-                      rsi.tone === "overbought"
-                        ? "tint-bear text-[#ef4444]"
-                        : "tint-bull text-[#10b981]"
-                    }`}
-                  >
-                    {rsi.label}
-                  </span>
+                  <SignalChip
+                    label={rsi.label}
+                    tone={rsi.tone === "overbought" ? "bear" : "bull"}
+                    title={rsi.tone === "overbought" ? "RSI overbought" : "RSI oversold"}
+                  />
                 )}
                 {cats.slice(0, 2).map((c, i) => {
-                  const label = String(c.title ?? c.kind ?? "").trim();
-                  if (!label) return null;
-                  const urgency = String(c.urgency ?? "").toLowerCase();
+                  const { short, full } = formatCatalystChipLabel(c);
+                  if (!short) return null;
                   return (
-                    <span
+                    <SignalChip
                       key={`cat-${i}`}
-                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.04em] ${
-                        urgency === "high"
-                          ? "tint-bear text-[#ef4444]"
-                          : "tint-warn text-[#f59e0b]"
-                      }`}
-                    >
-                      {label.length > 20 ? `${label.slice(0, 18)}…` : label}
-                    </span>
+                      label={short}
+                      tone={catalystChipTone(c)}
+                      title={full}
+                    />
                   );
                 })}
               </div>
@@ -1012,13 +1072,13 @@ function LedgerRow({
           {fmtPrice(row.price, row.currency)}
         </span>
       </td>
-      <td className="px-3 py-3 text-right">
+      <td className="px-3 py-3 text-right min-w-[5.5rem] whitespace-nowrap">
         <div className="flex flex-col items-end gap-0.5">
-          <span className={`text-[13px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+          <span className={`text-[13px] font-semibold tabular-nums ${changeToneClass(positive)}`}>
             {fmtSignedPct(dayChange)}
           </span>
           {row.day_change_abs !== null && row.day_change_abs !== undefined && (
-            <span className={`text-[11px] tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+            <span className={`text-[11px] tabular-nums ${changeToneClass(positive)}`}>
               {fmtSignedAbs(row.day_change_abs, row.currency)}
             </span>
           )}

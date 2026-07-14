@@ -1242,6 +1242,33 @@
 .tint-info  { background: color-mix(in srgb, #2563eb 13%, var(--surface)); }
 .tint-warn  { background: color-mix(in srgb, var(--signal-neutral) 14%, var(--surface)); }
 
+/* Ledger / table signal chips — foreground + border tuned for WCAG contrast on light surfaces. */
+.chip-bull {
+  color: var(--signal-bullish);
+  background: color-mix(in srgb, var(--signal-bullish) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--signal-bullish) 38%, var(--outline-variant));
+}
+.chip-bear {
+  color: var(--signal-bearish);
+  background: color-mix(in srgb, var(--signal-bearish) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--signal-bearish) 38%, var(--outline-variant));
+}
+.chip-warn {
+  color: var(--signal-neutral);
+  background: color-mix(in srgb, var(--signal-neutral) 9%, var(--surface-container-low));
+  border-color: color-mix(in srgb, var(--signal-neutral) 42%, var(--outline-variant));
+}
+.chip-earnings {
+  color: var(--signal-neutral);
+  background: var(--surface-container-low);
+  border-color: color-mix(in srgb, var(--signal-neutral) 48%, var(--outline-variant));
+}
+.chip-neutral {
+  color: var(--on-surface);
+  background: var(--surface-container);
+  border-color: var(--outline-variant);
+}
+
 /* Sentiment / status pills — stronger tint in light mode for legibility */
 .sentiment-pill {
   font-weight: 600;
