@@ -392,6 +392,52 @@ export async function overlayLatestPrices(rows: WatchlistRow[]): Promise<Watchli
   });
 }
 
+/**
+ * Lightweight market data for arbitrary instruments (e.g. suggestion ideas that
+ * aren't in the user's book). Reads live prices + analyst facts and computes the
+ * analyst target runway. Batched: two `getDocsById` reads regardless of count.
+ */
+export async function getIdeaMarketData(
+  instrumentIds: string[],
+): Promise<
+  Map<
+    string,
+    { price: number | null; currency: string | null; dayChangePct: number | null; targetUpsidePct: number | null }
+  >
+> {
+  const ids = [...new Set(instrumentIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  const out = new Map<
+    string,
+    { price: number | null; currency: string | null; dayChangePct: number | null; targetUpsidePct: number | null }
+  >();
+  if (ids.length === 0) return out;
+
+  const [pricesById, factsById] = await Promise.all([
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_latest_prices"), ids),
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
+  ]);
+
+  for (const id of ids) {
+    const latest = pricesById.get(id);
+    const quote = (latest?.quote as Record<string, unknown> | undefined) || {};
+    const price = toNumber(quote.current);
+    const currency =
+      typeof latest?.currency === "string"
+        ? (latest.currency as string)
+        : id.toUpperCase().startsWith("IN_")
+          ? "INR"
+          : "USD";
+    const facts = (factsById.get(id) as Record<string, unknown> | undefined) || {};
+    out.set(id, {
+      price,
+      currency,
+      dayChangePct: toNumber(quote.day_change_pct),
+      targetUpsidePct: targetUpsidePct(price, facts, {}),
+    });
+  }
+  return out;
+}
+
 // -----------------------------------------------------------------------------
 // Builder (called on track/untrack to keep the view fresh)
 // -----------------------------------------------------------------------------

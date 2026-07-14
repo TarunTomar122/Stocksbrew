@@ -1235,6 +1235,160 @@
   box-shadow: var(--shadow-card-hover);
 }
 
+/* ── Radar Next — command-center theme ─────────────────────────────────────
+   A fresh, self-contained look for the redesigned Radar. Mirrors the homepage
+   command-center aesthetic (mac chrome, glow, mono chrome) but scoped so it
+   never leaks into the rest of the app. */
+.radar-next {
+  --rn-accent: var(--signal-bullish);
+  --rn-cyan: var(--accent-terminal);
+  --rn-bull: var(--signal-bullish);
+  --rn-bear: var(--signal-bearish);
+  --rn-card: var(--surface);
+  --rn-card-2: var(--surface-container-low);
+  --rn-line: var(--outline-variant);
+  --rn-ink: var(--on-surface);
+  --rn-muted: var(--on-surface-variant);
+  color: var(--rn-ink);
+}
+.dark .radar-next {
+  --rn-card: var(--surface-container-low);
+  --rn-card-2: var(--surface-container);
+}
+
+/* No ambient wash — keep the board on the plain app background. */
+.radar-next-glow {
+  position: relative;
+}
+
+@media (max-width: 639px) {
+  .radar-next .rn-window {
+    border-radius: 12px;
+  }
+  .radar-next .rn-card {
+    border-radius: 12px;
+  }
+}
+
+/* Window shell */
+.rn-window {
+  border-radius: 18px;
+  background: var(--rn-card);
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.05),
+    0 18px 44px rgba(15, 23, 42, 0.10),
+    inset 0 0 0 1px var(--rn-line);
+  overflow: hidden;
+}
+.dark .rn-window {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 18px 44px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px var(--rn-line);
+}
+
+.rn-chrome {
+  border-bottom: 1px solid var(--rn-line);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--surface-container-high) 80%, var(--surface)) 0%,
+    color-mix(in srgb, var(--surface-container) 90%, var(--surface)) 100%);
+}
+.rn-light { display: block; height: 0.72rem; width: 0.72rem; border-radius: 9999px; box-shadow: inset 0 -1px 1px rgba(0,0,0,0.12); }
+.rn-light--r { background: #ff5f57; }
+.rn-light--y { background: #febc2e; }
+.rn-light--g { background: #28c840; }
+
+/* Card primitive */
+.rn-card {
+  border-radius: 14px;
+  background: var(--rn-card);
+  box-shadow: inset 0 0 0 1px var(--rn-line);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.rn-card--hover:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--rn-accent) 26%, transparent),
+    inset 0 0 0 1px var(--rn-line);
+}
+.dark .rn-card--hover:hover {
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.4),
+    0 0 0 1px color-mix(in srgb, var(--rn-accent) 30%, transparent),
+    inset 0 0 0 1px var(--rn-line);
+}
+.rn-inset {
+  border-radius: 12px;
+  background: var(--rn-card-2);
+  box-shadow: inset 0 0 0 1px var(--rn-line);
+}
+
+/* Kicker label */
+.rn-kick {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rn-muted);
+}
+
+/* Live pulse dot */
+.rn-pulse { position: relative; display: inline-flex; height: 0.5rem; width: 0.5rem; }
+.rn-pulse::before {
+  content: ""; position: absolute; inset: 0; border-radius: 9999px;
+  background: var(--rn-bull); opacity: 0.55; animation: rn-ping 1.6s cubic-bezier(0,0,0.2,1) infinite;
+}
+.rn-pulse::after {
+  content: ""; position: relative; display: inline-flex; height: 0.5rem; width: 0.5rem;
+  border-radius: 9999px; background: var(--rn-bull);
+}
+@keyframes rn-ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+
+/* Grade ring */
+.rn-ring-track { stroke: var(--rn-line); }
+.rn-ring-fill { stroke: var(--rn-accent); transition: stroke-dashoffset 0.6s ease; }
+
+/* Stat number */
+.rn-stat {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Subtle scanline sweep for the header */
+.rn-scan { position: relative; overflow: hidden; }
+.rn-scan::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rn-ink) 4%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: rn-sweep 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes rn-sweep { 0% { transform: translateX(-100%);} 55%,100% { transform: translateX(100%);} }
+
+/* Loading bone with shimmer */
+.rn-bone {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--rn-card-2);
+}
+.rn-bone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rn-ink) 6%, transparent), transparent);
+  animation: rn-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes rn-shimmer { 100% { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rn-pulse::before, .rn-scan::after, .rn-bone::after { animation: none; }
+}
+
 /* Status tints that adapt to theme (faint signal color over the surface). */
 .tint-bull  { background: color-mix(in srgb, var(--signal-bullish) 12%, var(--surface)); }
 .tint-bear  { background: color-mix(in srgb, var(--signal-bearish) 12%, var(--surface)); }

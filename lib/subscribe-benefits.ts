@@ -83,7 +83,40 @@ export const PRO_WELCOME_STEPS: ProWelcomeStep[] = [
 ];
 
 /** Short, account-aware lines for the subscribe checkout card. */
-export type SubscribeContextLine = { emoji: string; text: string };
+export type SubscribeContextLine = { icon: string; text: string };
+
+export type SubscribeTrustItem = {
+  icon: string;
+  title: string;
+  body: string;
+  href?: string;
+};
+
+export const SUBSCRIBE_SUPPORT_EMAIL = "tomartarun2001@gmail.com";
+
+export const SUBSCRIBE_TRUST_ITEMS: SubscribeTrustItem[] = [
+  {
+    icon: "sync_alt",
+    title: "7-day full refund",
+    body: "Try Pro for a week. If it's not useful, email us and we'll refund you. No hoops.",
+  },
+  {
+    icon: "support_agent",
+    title: "Talk to a human",
+    body: "Questions before you pay? We read every message.",
+    href: `mailto:${SUBSCRIBE_SUPPORT_EMAIL}`,
+  },
+  {
+    icon: "lock",
+    title: "Secure checkout",
+    body: "Card details handled by Dodo Payments. We never store them.",
+  },
+  {
+    icon: "cancel",
+    title: "Cancel anytime",
+    body: "One click in Profile. No annual lock-in on monthly.",
+  },
+];
 
 export function buildSubscribeContextLines(trackedCount: number): SubscribeContextLine[] {
   const count = Math.max(0, trackedCount);
@@ -91,32 +124,34 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
 
   if (count >= 3) {
     return [
-      {
-        emoji: "🎯",
-        text: `Full calls on all ${count} names already on your Radar — lift the 3-stock free cap.`,
-      },
-      { emoji: "📚", text: "Add the rest of your book without swapping tickers in and out." },
-      { emoji: "🔔", text: "Morning digest + alerts tuned to what you actually hold." },
-      { emoji: "📅", text: "Pre-earnings setups and move reads on every name you track." },
+      { icon: "radar", text: `Full calls on all ${count} names, past the 3-stock free cap.` },
+      { icon: "inventory_2", text: "Add the rest of your book without swapping tickers." },
+      { icon: "notifications", text: "Morning digest + alerts tuned to your holdings." },
+      { icon: "event_upcoming", text: "Pre-earnings reads and move intel on your book." },
     ];
   }
 
   if (count > 0) {
     return [
-      {
-        emoji: "🎯",
-        text: `Our add · hold · trim call on the ${count} ${stockWord} already on your Radar.`,
-      },
-      { emoji: "📈", text: "Track more names without hitting the free 3-stock wall." },
-      { emoji: "☀️", text: "Morning digest and smart alerts for your book." },
-      { emoji: "📅", text: "Pre-earnings setups before the print on holdings you care about." },
+      { icon: "verified", text: `Add · hold · trim on the ${count} ${stockWord} on your Radar.` },
+      { icon: "show_chart", text: "Track more names without hitting the free limit." },
+      { icon: "wb_twilight", text: "Morning digest + alerts when setups shift." },
+      { icon: "event_upcoming", text: "Pre-earnings setups on names you care about." },
     ];
   }
 
   return [
-    { emoji: "📡", text: "Track your whole portfolio on Radar — free stops at 3 stocks." },
-    { emoji: "🎯", text: "A clear add · hold · trim call on every name you add." },
-    { emoji: "🔔", text: "Morning digest and alerts when setups shift on your book." },
-    { emoji: "📊", text: "Pre-earnings intel and move reads before you need them." },
+    { icon: "radar", text: "Track your whole portfolio on Radar. Free stops at 3 stocks." },
+    { icon: "verified", text: "A clear add · hold · trim call on every name." },
+    { icon: "notifications", text: "Morning digest and alerts when setups shift." },
+    { icon: "monitoring", text: "Pre-earnings intel before you need it." },
   ];
 }
+
+/** One-line trust chips under the CTA — titles only, no paragraph blocks. */
+export const SUBSCRIBE_TRUST_STRIP: Array<{ icon: string; label: string; href?: string }> = [
+  { icon: "sync_alt", label: "7-day refund" },
+  { icon: "lock", label: "Secure checkout" },
+  { icon: "support_agent", label: "Human support", href: `mailto:${SUBSCRIBE_SUPPORT_EMAIL}` },
+  { icon: "cancel", label: "Cancel anytime" },
+];

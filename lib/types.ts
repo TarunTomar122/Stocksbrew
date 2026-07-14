@@ -66,6 +66,7 @@ export type DashboardRow = {
   instrument_id: string;
   ticker: string;
   name: string;
+  sector?: string;
   price: number;
   day_change_pct: number;
   ai_sentiment_score: number;

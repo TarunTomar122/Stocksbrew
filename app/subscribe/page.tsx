@@ -48,11 +48,9 @@ export default async function SubscribePage({ searchParams }: Props) {
   const market: "US" | "IN" = ipCountry === "IN" ? "IN" : "US";
 
   const trustItems = [
-    { icon: "lock", text: "Secure checkout via Dodo Payments" },
+    { icon: "lock", text: "Secure checkout" },
+    { icon: "sync_alt", text: "7-day refund" },
     { icon: "cancel", text: "Cancel anytime" },
-    ...(session?.email
-      ? [{ icon: "support_agent", text: session.email }]
-      : [{ icon: "login", text: "Sign in to subscribe" }]),
   ];
 
   return (
@@ -61,7 +59,7 @@ export default async function SubscribePage({ searchParams }: Props) {
         open={callbackSuccess && isSubscribed}
         subscriptionId={subscriptionId ?? undefined}
       />
-      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-8 px-4 py-12 sm:px-6 md:py-16">
+      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6 px-4 py-10 sm:px-6 md:py-12">
 
         {justSubscribed && !isSubscribed && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
@@ -85,7 +83,7 @@ export default async function SubscribePage({ searchParams }: Props) {
           <div className="rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-center">
             <p className="text-[14px] font-semibold text-on-surface">You&apos;ve hit the free 3-stock limit</p>
             <p className="mt-1 text-[13px] text-on-surface-variant">
-              Upgrade to Pro to track every name you hold — or remove a stock on Radar first.
+              Upgrade to Pro to track every name you hold, or remove a stock on Radar first.
             </p>
           </div>
         ) : null}
@@ -100,7 +98,7 @@ export default async function SubscribePage({ searchParams }: Props) {
         />
 
         {!isSubscribed ? (
-          <div className="flex flex-wrap items-center justify-center gap-5 font-mono text-[11px] text-on-surface-variant">
+          <div className="flex flex-wrap items-center justify-center gap-4 font-mono text-[10px] text-on-surface-variant">
             {trustItems.map(({ icon, text }) => (
               <span key={text} className="inline-flex items-center gap-1.5">
                 <AnimatedIcon name={icon} size={15} aria-hidden />
