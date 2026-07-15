@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.entity_utils import safe_mention_ticker
 from backend.instrument_universe import list_instruments
 from backend.storage import TraceMoneyStore
 
@@ -53,7 +54,7 @@ def _instrument_ids_for_article(article: dict[str, Any], market: str) -> list[tu
             continue
         if str(mention.get("mention_role", "")).lower() == "incidental":
             continue
-        ticker = str(mention.get("ticker", "")).strip().upper()
+        ticker = safe_mention_ticker(mention.get("ticker"))
         if not ticker:
             continue
         mention_market = str(mention.get("market") or article_market).upper()
@@ -70,7 +71,7 @@ def _instrument_ids_for_article(article: dict[str, Any], market: str) -> list[tu
     # Older enrichments may only have stock_tickers. Keep this fallback broad
     # but unique, because otherwise old runs never generate the signal.
     for ticker_raw in article.get("stock_tickers") or []:
-        ticker = str(ticker_raw).strip().upper()
+        ticker = safe_mention_ticker(ticker_raw)
         if not ticker:
             continue
         instrument_id = f"{article_market}_{ticker}"

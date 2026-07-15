@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from backend.divergence import build_divergence_list
+from backend.divergence import _instrument_ids_for_article, build_divergence_list
 
 
 class FakeStore:
@@ -71,6 +71,20 @@ class FakeStore:
 
 
 class DivergenceTest(unittest.TestCase):
+    def test_invalid_entity_tickers_are_ignored(self) -> None:
+        article = {
+            "market": "US",
+            "sentiment_score": 0.5,
+            "entity_mentions": [
+                {"type": "stock", "ticker": "XAU/USD"},
+                {"type": "stock", "ticker": "EUR/USD"},
+                {"type": "stock", "ticker": "N/A"},
+                {"type": "stock", "ticker": "BRK.B"},
+            ],
+        }
+
+        self.assertEqual(_instrument_ids_for_article(article, "US"), [("US_BRK.B", 0.5)])
+
     def test_builds_both_divergence_directions(self) -> None:
         instruments = [
             {"instrument_id": "US_NVDA", "ticker": "NVDA", "name": "Nvidia", "sector": "Semiconductors"},
