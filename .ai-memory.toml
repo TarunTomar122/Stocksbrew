@@ -1,0 +1,6 @@
+workspace = "default"
+project = "tikrr"
+project_strategy = "repo-root"
+drop_subagent_captures = "false"
+inject_on_session_start = "true"
+max_chars = "12000"
