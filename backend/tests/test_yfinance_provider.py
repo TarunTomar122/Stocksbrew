@@ -115,7 +115,13 @@ class YFinanceProviderTest(unittest.TestCase):
             "exchange": "NASDAQ",
             "currency": "USD",
         }
-        with patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download):
+        class FakeTicker:
+            history_metadata = {"previousClose": 105.0}
+
+        with (
+            patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download),
+            patch("backend.providers.yfinance_provider.yf.Ticker", return_value=FakeTicker()),
+        ):
             row = YFinanceClient(max_workers=1).fetch_quotes(
                 [instrument],
                 include_fundamentals=False,
@@ -125,7 +131,7 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertEqual(row["quote"]["previous_close"], 105.0)
         self.assertEqual(row["quote"]["day_change_pct"], 1.9)
 
-    def test_quote_only_fetch_ignores_sparse_daily_rows(self) -> None:
+    def test_quote_only_fetch_repairs_missing_previous_session_from_metadata(self) -> None:
         daily = pd.DataFrame(
             [
                 {"Open": 99.0, "High": 101.0, "Low": 98.0, "Close": 100.0, "Volume": 10},
@@ -154,15 +160,21 @@ class YFinanceProviderTest(unittest.TestCase):
             "exchange": "NASDAQ",
             "currency": "USD",
         }
-        with patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download):
+        class FakeTicker:
+            history_metadata = {"previousClose": 104.0}
+
+        with (
+            patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download),
+            patch("backend.providers.yfinance_provider.yf.Ticker", return_value=FakeTicker()),
+        ):
             row = YFinanceClient(max_workers=1).fetch_quotes(
                 [instrument],
                 include_fundamentals=False,
             )["US_AAPL"]
 
         self.assertEqual(row["quote"]["current"], 106.0)
-        self.assertEqual(row["quote"]["previous_close"], 100.0)
-        self.assertEqual(row["quote"]["day_change_pct"], 6.0)
+        self.assertEqual(row["quote"]["previous_close"], 104.0)
+        self.assertEqual(row["quote"]["day_change_pct"], 1.92)
 
     def test_quote_only_fetch_flattens_single_symbol_multiindex_download(self) -> None:
         index = [

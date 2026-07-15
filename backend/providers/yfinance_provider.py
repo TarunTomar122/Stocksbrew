@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import math
 import time
 from typing import Any
@@ -209,6 +209,49 @@ def _previous_close_for_intraday(history: Any, captured_at: datetime, captured_d
     return _previous_daily_close(history)
 
 
+def _previous_weekday(value: date) -> date:
+    candidate = value - timedelta(days=1)
+    while candidate.weekday() >= 5:
+        candidate -= timedelta(days=1)
+    return candidate
+
+
+def _missing_previous_session_bar(history: Any, captured_date: date) -> bool:
+    """Detect when Yahoo's daily frame skipped the prior weekday session.
+
+    Yahoo can publish today's developing daily bar while omitting yesterday's
+    completed bar. In that case blindly using the second-to-last row compares
+    today's quote with a two-day-old close. Holiday false positives are safe:
+    the metadata endpoint returns the same valid previous close.
+    """
+    if history is None or getattr(history, "empty", True):
+        return False
+    try:
+        dates = [_row_date(history.iloc[index]) for index in range(len(history))]
+    except (IndexError, TypeError, AttributeError):
+        return False
+    eligible = [value for value in dates if value <= captured_date]
+    if not eligible:
+        return False
+    latest_date = eligible[-1]
+    if latest_date == captured_date:
+        if len(eligible) < 2:
+            return True
+        comparison_date = eligible[-2]
+    else:
+        comparison_date = latest_date
+    return comparison_date < _previous_weekday(captured_date)
+
+
+def _metadata_previous_close(symbol: str) -> float | None:
+    try:
+        metadata = yf.Ticker(symbol).history_metadata or {}
+    except Exception as exc:
+        print(f"[yfinance metadata previous-close failed] {symbol}: {exc}")
+        return None
+    return _finite_positive(metadata.get("previousClose"))
+
+
 def _consensus_label(info: dict[str, Any]) -> str:
     key = str(info.get("recommendationKey", "")).strip().replace("_", " ")
     if key:
@@ -288,6 +331,7 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
     daily_by_symbol = _batch_download_frames(symbols, period="5d", interval="1d")
     intraday_by_symbol = _batch_download_frames(symbols, period="1d", interval="1m")
     rows: dict[str, dict[str, Any]] = {}
+    metadata_symbols: list[str] = []
 
     for symbol in symbols:
         daily = daily_by_symbol.get(symbol)
@@ -306,6 +350,8 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
                 captured = _row_datetime(latest)
                 captured_at = captured.isoformat()
                 prev_close = _previous_close_for_intraday(daily, captured, captured_date=_row_date(latest))
+                if _missing_previous_session_bar(daily, _row_date(latest)):
+                    metadata_symbols.append(symbol)
 
         day_change_abs = current - prev_close if prev_close else 0.0
         day_change_pct = ((day_change_abs / prev_close) * 100.0) if prev_close else 0.0
@@ -320,6 +366,32 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
             "volume": volume,
             "captured_at": captured_at,
         }
+
+    if metadata_symbols:
+        repaired: dict[str, float] = {}
+        with ThreadPoolExecutor(max_workers=min(8, len(metadata_symbols))) as executor:
+            futures = {
+                executor.submit(_metadata_previous_close, symbol): symbol
+                for symbol in metadata_symbols
+            }
+            for future in as_completed(futures):
+                symbol = futures[future]
+                previous_close = future.result()
+                if previous_close is not None:
+                    repaired[symbol] = previous_close
+        for symbol, previous_close in repaired.items():
+            row = rows.get(symbol)
+            if not row:
+                continue
+            current = float(row["current"])
+            day_change_abs = current - previous_close
+            row["previous_close"] = previous_close
+            row["day_change_abs"] = round(day_change_abs, 4)
+            row["day_change_pct"] = round((day_change_abs / previous_close) * 100.0, 2)
+        print(
+            f"[yfinance previous-close metadata repair] "
+            f"requested={len(metadata_symbols)} repaired={len(repaired)}"
+        )
     return rows
 
 
