@@ -1385,6 +1385,39 @@
 }
 @keyframes rn-shimmer { 100% { transform: translateX(100%); } }
 
+/* Book table — clearer shell + unified row hover */
+.radar-next .rn-book-shell {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    inset 0 0 0 1px color-mix(in srgb, var(--rn-muted) 18%, var(--rn-line));
+}
+.dark .radar-next .rn-book-shell {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px color-mix(in srgb, var(--rn-muted) 12%, var(--rn-line));
+}
+.radar-next .rn-book-table tbody td {
+  transition: background-color 0.15s ease;
+}
+.radar-next .rn-book-table tbody tr:not(:last-child) td {
+  box-shadow: inset 0 -1px 0 var(--rn-line);
+}
+.radar-next .rn-book-table tbody tr:hover td {
+  background: var(--rn-card-2);
+}
+.radar-next .rn-book-table tbody tr.rn-book-row--attention td {
+  background: color-mix(in srgb, var(--rn-row-accent) 8%, var(--rn-card));
+}
+.radar-next .rn-book-table tbody tr.rn-book-row--attention:hover td {
+  background: color-mix(in srgb, var(--rn-row-accent) 12%, var(--rn-card-2));
+}
+.radar-next .rn-book-table tbody tr.rn-book-row--attention td:first-child {
+  box-shadow: inset 3px 0 0 var(--rn-row-accent);
+}
+.radar-next .rn-book-table tbody tr.rn-book-row--attention:not(:last-child) td:first-child {
+  box-shadow: inset 3px 0 0 var(--rn-row-accent), inset 0 -1px 0 var(--rn-line);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rn-pulse::before, .rn-scan::after, .rn-bone::after { animation: none; }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import type { BookFlag, BookFlagTone, BookRow } from "@/components/radar-next/types";
@@ -130,7 +130,7 @@ function BookTable({
     return <p className="px-4 py-10 text-center text-[13px] text-[var(--rn-muted)]">Nothing here yet.</p>;
   }
   return (
-    <table className="w-full min-w-0 border-collapse sm:min-w-[340px]">
+    <table className="rn-book-table w-full min-w-0 border-collapse sm:min-w-[340px]">
       <thead className="sticky top-0 z-20 bg-[var(--rn-card)]">
         <tr className="text-left">
           <SortHeader
@@ -161,32 +161,23 @@ function BookTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, index) => {
+        {rows.map((row) => {
           const price =
             row.price !== null
               ? `${row.currency}${row.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : "-";
-          const isLast = index === rows.length - 1;
           const accent = row.needsAttention ? attentionAccent(row.attentionDirection) : null;
-          const cellHover = accent
-            ? "transition-colors group-hover:bg-[color-mix(in_srgb,var(--rn-card-2)_70%,transparent)]"
-            : "transition-colors group-hover:bg-[var(--rn-card-2)]";
-          const firstCellHover = `${cellHover} sm:rounded-l-[10px]${isLast ? " sm:rounded-bl-[10px]" : ""}`;
-          const lastCellHover = `${cellHover} sm:rounded-r-[10px]${isLast ? " sm:rounded-br-[10px]" : ""}`;
           return (
             <tr
               key={`${row.market}-${row.ticker}`}
-              className="group border-b border-[var(--rn-line)] last:border-b-0"
+              className={`group${accent ? " rn-book-row--attention" : ""}`}
               style={
                 accent
-                  ? {
-                      background: `color-mix(in srgb, ${accent} 8%, var(--rn-card))`,
-                      boxShadow: `inset 3px 0 0 ${accent}`,
-                    }
+                  ? ({ "--rn-row-accent": accent } as CSSProperties)
                   : undefined
               }
             >
-              <td className={`px-2 py-3.5 sm:px-4 sm:py-3 ${firstCellHover}`}>
+              <td className="px-2 py-3.5 sm:px-4 sm:py-3">
                 <Link href={row.href} className="flex items-center gap-2.5 no-underline sm:gap-3">
                   <StockLogo ticker={row.ticker} market={row.market} size={28} className="shrink-0" />
                   <span className="min-w-0">
@@ -213,11 +204,11 @@ function BookTable({
                   </span>
                 </Link>
               </td>
-              <td className={`px-2 py-3.5 text-right align-middle font-mono text-[13px] font-semibold tabular-nums text-[var(--rn-ink)] sm:px-4 sm:py-3 ${cellHover}`}>
+              <td className="px-2 py-3.5 text-right align-middle font-mono text-[13px] font-semibold tabular-nums text-[var(--rn-ink)] sm:px-4 sm:py-3">
                 {price}
               </td>
               <td
-                className={`px-2 py-3.5 text-right align-middle font-mono text-[13px] font-semibold tabular-nums sm:px-4 sm:py-3 ${lastCellHover}`}
+                className="px-2 py-3.5 text-right align-middle font-mono text-[13px] font-semibold tabular-nums sm:px-4 sm:py-3"
                 style={{ color: changeColor(row.dayChangePct) }}
               >
                 {row.dayChangePct === null
@@ -282,7 +273,7 @@ export function Book({ holdings, watching }: { holdings: BookRow[]; watching: Bo
           <TabButton id="watching" label="watching" count={watching.length} />
         </div>
       </div>
-      <div className="rn-card flex min-h-0 flex-1 flex-col overflow-hidden max-sm:rounded-xl">
+      <div className="rn-card rn-book-shell flex min-h-0 flex-1 flex-col overflow-hidden max-sm:rounded-xl">
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto max-h-[min(72dvh,520px)] sm:max-h-[460px]">
           <BookTable rows={rows} sort={sort} onPickSort={onPickSort} />
         </div>

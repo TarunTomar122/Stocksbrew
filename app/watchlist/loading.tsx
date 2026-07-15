@@ -1,1 +1,1 @@
-export { RadarPageSkeleton as default } from "@/components/radar-hub-skeleton";
+export { RadarNextSkeleton as default } from "@/components/radar-next/skeleton";
