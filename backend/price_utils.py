@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 
@@ -7,9 +8,10 @@ def as_float(value: Any) -> float | None:
     if value in (None, "", "null"):
         return None
     try:
-        return float(value)
+        parsed = float(value)
     except (TypeError, ValueError):
         return None
+    return parsed if math.isfinite(parsed) else None
 
 
 def normalize_quote_change(quote: dict[str, Any]) -> dict[str, Any]:
@@ -23,3 +25,18 @@ def normalize_quote_change(quote: dict[str, Any]) -> dict[str, Any]:
     out["day_change_abs"] = change_abs
     out["day_change_pct"] = round((change_abs / previous_close) * 100.0, 2)
     return out
+
+
+def has_valid_quote_change(quote: dict[str, Any]) -> bool:
+    current = as_float(quote.get("current"))
+    previous_close = as_float(quote.get("previous_close"))
+    change_abs = as_float(quote.get("day_change_abs"))
+    change_pct = as_float(quote.get("day_change_pct"))
+    return bool(
+        current is not None
+        and current > 0
+        and previous_close is not None
+        and previous_close > 0
+        and change_abs is not None
+        and change_pct is not None
+    )

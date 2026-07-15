@@ -23,6 +23,15 @@ class YFinanceProviderTest(unittest.TestCase):
         }
         self.assertEqual(yahoo_symbol_for(instrument), "NVDA")
 
+    def test_yahoo_symbol_for_us_dot_class_uses_dash(self) -> None:
+        instrument = {
+            "market": "US",
+            "ticker": "BF.B",
+            "quote_symbol": "BF.B",
+            "exchange": "NYSE",
+        }
+        self.assertEqual(yahoo_symbol_for(instrument), "BF-B")
+
     def test_yahoo_symbol_for_india_nse(self) -> None:
         instrument = {
             "market": "IN",
@@ -115,6 +124,45 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertEqual(row["quote"]["current"], 107.0)
         self.assertEqual(row["quote"]["previous_close"], 105.0)
         self.assertEqual(row["quote"]["day_change_pct"], 1.9)
+
+    def test_quote_only_fetch_ignores_sparse_daily_rows(self) -> None:
+        daily = pd.DataFrame(
+            [
+                {"Open": 99.0, "High": 101.0, "Low": 98.0, "Close": 100.0, "Volume": 10},
+                {"Open": float("nan"), "High": float("nan"), "Low": float("nan"), "Close": float("nan"), "Volume": float("nan")},
+                {"Open": 104.0, "High": 107.0, "Low": 103.0, "Close": 105.0, "Volume": 20},
+            ],
+            index=[
+                datetime(2026, 7, 13, tzinfo=timezone.utc),
+                datetime(2026, 7, 14, tzinfo=timezone.utc),
+                datetime(2026, 7, 15, tzinfo=timezone.utc),
+            ],
+        )
+        intraday = pd.DataFrame(
+            [{"Open": 105.0, "High": 107.0, "Low": 104.0, "Close": 106.0, "Volume": 5}],
+            index=[datetime(2026, 7, 15, 14, 30, tzinfo=timezone.utc)],
+        )
+
+        def fake_download(*_args, **kwargs):
+            return intraday if kwargs["interval"] == "1m" else daily
+
+        instrument = {
+            "instrument_id": "US_AAPL",
+            "market": "US",
+            "ticker": "AAPL",
+            "quote_symbol": "AAPL",
+            "exchange": "NASDAQ",
+            "currency": "USD",
+        }
+        with patch("backend.providers.yfinance_provider.yf.download", side_effect=fake_download):
+            row = YFinanceClient(max_workers=1).fetch_quotes(
+                [instrument],
+                include_fundamentals=False,
+            )["US_AAPL"]
+
+        self.assertEqual(row["quote"]["current"], 106.0)
+        self.assertEqual(row["quote"]["previous_close"], 100.0)
+        self.assertEqual(row["quote"]["day_change_pct"], 6.0)
 
     def test_quote_only_fetch_flattens_single_symbol_multiindex_download(self) -> None:
         index = [

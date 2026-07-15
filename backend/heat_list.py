@@ -17,6 +17,7 @@ reason string that the /heat page surfaces directly ("RSI 74 breakout",
 from __future__ import annotations
 
 import math
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -45,6 +46,7 @@ MONTHS = {
 
 # Minimum overall heat score for a row to appear in the output.
 MIN_HEAT_SCORE = 20.0
+SAFE_MENTION_TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,19}$")
 
 
 # ─── Mention velocity helpers (bonus signal, builds over time) ────────────────
@@ -73,7 +75,7 @@ def bucket_enrichments_by_day(
             if str(mention.get("type", "")).lower() != "stock":
                 continue
             ticker = str(mention.get("ticker", "")).strip().upper()
-            if not ticker:
+            if not ticker or not SAFE_MENTION_TICKER_RE.fullmatch(ticker):
                 continue
             market = str(article.get("market", "")).upper() or "US"
             iid = f"{market}_{ticker}"

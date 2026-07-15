@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
@@ -275,7 +276,8 @@ def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict
 
 def _to_float(value: Any) -> float | None:
     if isinstance(value, (int, float)):
-        return float(value)
+        parsed = float(value)
+        return parsed if math.isfinite(parsed) else None
     return None
 
 

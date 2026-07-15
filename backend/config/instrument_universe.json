@@ -397,7 +397,6 @@
           "US_CPAY",
           "US_CTVA",
           "US_CSGP",
-          "US_CTRA",
           "US_CRH",
           "US_CCI",
           "US_CSX",
@@ -556,7 +555,6 @@
           "US_AGX",
           "US_EMN",
           "US_ESE",
-          "US_CWEN-A",
           "US_CWEN",
           "US_GKOS",
           "US_JXN",
@@ -6949,6 +6947,7 @@
           "instrument_id": "US_BF_B",
           "market": "US",
           "ticker": "BF.B",
+          "quote_symbol_yahoo": "BF-B",
           "name": "Brown\u2013Forman",
           "exchange": "NYSE",
           "country": "US",
@@ -8138,8 +8137,10 @@
           "universes": [
             "us_core_155"
           ],
-          "status": "active",
-          "updated_at": "2026-05-03T12:00:00Z"
+          "status": "inactive",
+          "inactive_reason": "Merged into Devon Energy on 2026-05-07",
+          "successor_instrument_id": "US_DVN",
+          "updated_at": "2026-07-15T14:15:00Z"
         },
         {
           "instrument_id": "US_CRH",
@@ -12379,8 +12380,10 @@
           "universes": [
             "us_core_155"
           ],
-          "status": "active",
-          "updated_at": "2026-05-04T11:33:58.398843+00:00"
+          "status": "inactive",
+          "inactive_reason": "Class A converted into Clearway Energy Class C",
+          "successor_instrument_id": "US_CWEN",
+          "updated_at": "2026-07-15T14:15:00Z"
         },
         {
           "instrument_id": "US_CWEN",

@@ -41,7 +41,7 @@ from backend.llm_client import (
     schema_system_prompt,
 )
 from backend.market_strategy import normalize_ticker_entry
-from backend.price_utils import normalize_quote_change
+from backend.price_utils import has_valid_quote_change, normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.scripts.materialize_views import materialize_views
 from backend.storage import TraceMoneyStore
@@ -444,6 +444,8 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
     if not quote:
         raise ValueError(f"No quote fetched for {instrument_id}")
     quote_payload = normalize_quote_change(quote["quote"])
+    if not has_valid_quote_change(quote_payload):
+        raise ValueError(f"Invalid non-finite quote fetched for {instrument_id}")
     snapshot = {
         "instrument_id": instrument_id,
         "market": market,

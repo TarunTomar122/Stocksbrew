@@ -5,7 +5,7 @@ import argparse
 import json
 
 from backend.instrument_universe import list_instruments
-from backend.price_utils import normalize_quote_change
+from backend.price_utils import has_valid_quote_change, normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.storage import TraceMoneyStore
 
@@ -104,12 +104,17 @@ def sync_price_snapshots(
 
     saved_rows = []
     fundamental_rows = []
+    invalid_instrument_ids: list[str] = []
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]
         quote_payload = raw_quotes.get(instrument_id)
         if not quote_payload:
             continue
         quote = normalize_quote_change(quote_payload["quote"])
+        if not has_valid_quote_change(quote):
+            invalid_instrument_ids.append(instrument_id)
+            print(f"Skipping invalid non-finite quote for {instrument_id}")
+            continue
         snapshot = {
             "instrument_id": instrument_id,
             "market": instrument["market"],
@@ -166,6 +171,8 @@ def sync_price_snapshots(
             "session_phase": session_phase,
             "market_rows": len(shard_rows),
             "merge_market_snapshot": bool(merge_market_snapshot),
+            "invalid_quote_count": len(invalid_instrument_ids),
+            "invalid_instrument_ids": invalid_instrument_ids,
         },
     )
 
@@ -176,6 +183,8 @@ def sync_price_snapshots(
         "saved_count": len(saved_rows),
         "market_rows": len(shard_rows),
         "instrument_ids": [row["instrument_id"] for row in saved_rows],
+        "invalid_quote_count": len(invalid_instrument_ids),
+        "invalid_instrument_ids": invalid_instrument_ids,
     }
 
 

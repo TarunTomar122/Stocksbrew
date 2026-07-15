@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import unittest
 from unittest.mock import patch
 
@@ -25,6 +26,22 @@ class DailyAnomaliesTest(unittest.TestCase):
         )
 
         self.assertEqual(selected, ["US_A", "US_B", "US_D", "US_E"])
+
+    def test_select_mover_ids_ignores_non_finite_changes(self) -> None:
+        prices = {
+            "US_A": {"quote": {"day_change_pct": 2.5}},
+            "US_B": {"quote": {"day_change_pct": math.nan}},
+            "US_C": {"quote": {"day_change_pct": -3.0}},
+        }
+
+        selected = build_daily_anomalies._select_mover_ids(
+            prices=prices,
+            instrument_ids=["US_A", "US_B", "US_C"],
+            threshold_pct=1.0,
+            limit_per_side=15,
+        )
+
+        self.assertEqual(selected, ["US_A", "US_C"])
 
     def test_internal_move_payload_filters_generic_earnings_and_keeps_context(self) -> None:
         payload = build_daily_anomalies._internal_move_payload(

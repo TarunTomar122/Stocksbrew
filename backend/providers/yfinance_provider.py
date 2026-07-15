@@ -113,6 +113,10 @@ def yahoo_symbol_for(instrument: dict[str, Any]) -> str:
     # for legacy instrument IDs/tickers until the universe is fully renamed.
     if instrument.get("market") == "US" and symbol == "SQ":
         return "XYZ"
+    if instrument.get("market") == "US":
+        # Yahoo encodes US share classes with a dash (BF-B, BRK-B), while
+        # exchange/display symbols commonly use a dot.
+        symbol = symbol.replace(".", "-")
     exchange = str(instrument.get("quote_exchange", instrument.get("exchange", ""))).strip().upper()
     if instrument.get("market") == "IN":
         if exchange == "BSE":
@@ -125,17 +129,17 @@ def _history_metrics(history) -> tuple[float, float, float, float, float, float,
     if history is None or getattr(history, "empty", True):
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, datetime.now(timezone.utc).isoformat()
     latest = history.iloc[-1]
-    previous_close = float(history.iloc[-2]["Close"]) if len(history) > 1 else _to_float(latest.get("Open"))
-    open_price = _to_float(latest.get("Open"))
-    high = _to_float(latest.get("High"))
-    low = _to_float(latest.get("Low"))
-    current = _to_float(latest.get("Close"))
-    if not math.isfinite(current):
-        for fallback in (high, open_price, previous_close):
-            if math.isfinite(fallback) and fallback > 0:
-                current = fallback
-                break
-    volume = _to_float(latest.get("Volume"))
+    previous_close = (
+        _finite_positive(history.iloc[-2]["Close"])
+        if len(history) > 1
+        else _finite_positive(latest.get("Open"))
+    ) or 0.0
+    open_price = _finite_positive(latest.get("Open")) or 0.0
+    high = _finite_positive(latest.get("High")) or 0.0
+    low = _finite_positive(latest.get("Low")) or 0.0
+    current = _finite_positive(latest.get("Close")) or high or open_price or previous_close
+    raw_volume = _to_float(latest.get("Volume"), default=float("nan"))
+    volume = raw_volume if math.isfinite(raw_volume) and raw_volume >= 0 else 0.0
     captured_at = getattr(latest.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
     if captured_at.tzinfo is None:
         captured_at = captured_at.replace(tzinfo=timezone.utc)
@@ -160,20 +164,31 @@ def _latest_daily_close(history: Any) -> float:
     if history is None or getattr(history, "empty", True):
         return 0.0
     try:
-        return _to_float(history.iloc[-1]["Close"])
-    except (KeyError, IndexError, TypeError):
-        return 0.0
+        for value in reversed(history["Close"].tolist()):
+            close = _finite_positive(value)
+            if close is not None:
+                return close
+    except (KeyError, IndexError, TypeError, AttributeError):
+        pass
+    return 0.0
 
 
 def _previous_daily_close(history: Any) -> float:
     if history is None or getattr(history, "empty", True):
         return 0.0
     try:
-        if len(history) > 1:
-            return _to_float(history.iloc[-2]["Close"])
-        return _to_float(history.iloc[-1].get("Open"))
-    except (KeyError, IndexError, TypeError):
-        return 0.0
+        closes = [
+            close
+            for value in history["Close"].tolist()
+            if (close := _finite_positive(value)) is not None
+        ]
+        if len(closes) > 1:
+            return closes[-2]
+        if closes:
+            return _finite_positive(history.iloc[-1].get("Open")) or closes[-1]
+    except (KeyError, IndexError, TypeError, AttributeError):
+        pass
+    return 0.0
 
 
 def _previous_close_for_intraday(history: Any, captured_at: datetime, captured_date: Any | None = None) -> float:
@@ -256,7 +271,14 @@ def _batch_download_frames(symbols: list[str], *, period: str, interval: str, pr
     out: dict[str, Any] = {}
     for symbol in symbols:
         symbol_frame = _download_symbol_frame(frame, symbol, single=single)
-        if symbol_frame is not None and not getattr(symbol_frame, "empty", True):
+        if symbol_frame is None or getattr(symbol_frame, "empty", True):
+            continue
+        try:
+            valid_close = symbol_frame["Close"].map(lambda value: _finite_positive(value) is not None)
+            symbol_frame = symbol_frame.loc[valid_close]
+        except (KeyError, TypeError, AttributeError):
+            pass
+        if not getattr(symbol_frame, "empty", True):
             out[symbol] = symbol_frame
     return out
 
