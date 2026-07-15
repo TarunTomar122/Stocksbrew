@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from backend.storage import TraceMoneyStore
 from backend.watchlist_view import (
@@ -52,21 +52,75 @@ def _stance_map(rows: list[dict]) -> dict[str, dict]:
     return out
 
 
+def _parse_earnings_date(row: dict) -> date | None:
+    for catalyst in row.get("catalysts") or []:
+        if not isinstance(catalyst, dict):
+            continue
+        if str(catalyst.get("kind") or "").strip().lower() != "earnings":
+            continue
+        raw = str(catalyst.get("date") or "").strip()[:10]
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            continue
+    return None
+
+
+def _queue_earnings_events(
+    store: TraceMoneyStore,
+    *,
+    uid: str,
+    current_rows: list[dict],
+) -> int:
+    today = datetime.now(timezone.utc).date()
+    queued = 0
+    for row in current_rows or []:
+        event_date = _parse_earnings_date(row)
+        if event_date is None or not (0 <= (event_date - today).days <= 1):
+            continue
+        instrument_id = str(row.get("instrument_id") or "").strip().upper()
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if not instrument_id or not ticker:
+            continue
+        event_id = f"earnings_{uid}_{instrument_id}_{event_date.isoformat()}"
+        event_ref = store.db.collection("tm_lifecycle_events").document(event_id)
+        if event_ref.get().exists:
+            continue
+        event_ref.set(
+            {
+                "type": "earnings_24h",
+                "uid": uid,
+                "processed_at": None,
+                "created_at": _now_iso(),
+                "payload": {
+                    "instrument_id": instrument_id,
+                    "ticker": ticker,
+                    "position_type": str(row.get("position_type") or "watchlist"),
+                    "event_date": event_date.isoformat(),
+                },
+            },
+            merge=False,
+        )
+        queued += 1
+    return queued
+
+
 def _queue_directive_change_events(
     store: TraceMoneyStore,
     *,
     uid: str,
+    is_subscribed: bool,
     previous_rows: list[dict],
     current_rows: list[dict],
 ) -> int:
-    if DIRECTIVE_CHANGE_EMAILS_PAUSED:
+    if DIRECTIVE_CHANGE_EMAILS_PAUSED or not is_subscribed:
         return 0
+    queued = _queue_earnings_events(store, uid=uid, current_rows=current_rows)
     previous = _stance_map(previous_rows)
     current = _stance_map(current_rows)
     if not previous or not current:
-        return 0
+        return queued
 
-    queued = 0
     now = _now_iso()
     for instrument_id, curr in current.items():
         prev = previous.get(instrument_id)
@@ -86,7 +140,10 @@ def _queue_directive_change_events(
             continue
 
         event_id = f"directive_{uid}_{instrument_id}_{curr_stance}_{now[:13].replace(':', '')}"
-        store.db.collection("tm_lifecycle_events").document(event_id).set(
+        event_ref = store.db.collection("tm_lifecycle_events").document(event_id)
+        if event_ref.get().exists:
+            continue
+        event_ref.set(
             {
                 "type": "directive_change",
                 "uid": uid,
@@ -244,6 +301,7 @@ def main() -> None:
             queued = _queue_directive_change_events(
                 store,
                 uid=uid,
+                is_subscribed=bool(user.get("is_subscribed")),
                 previous_rows=existing.get("rows") or [],
                 current_rows=payload.get("rows") or [],
             )

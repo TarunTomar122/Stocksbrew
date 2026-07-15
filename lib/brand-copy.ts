@@ -9,20 +9,20 @@ export const TAGLINE = "Know what to do with your stocks.";
 export const SITE_TITLE_DEFAULT = "stocksbrew · Stock Calls & Radar";
 
 export const SHORT_DESCRIPTION =
-  "Clear calls on your watchlist. Fundamentals, news, Reddit, and earnings in one read. Set triggers on Radar and get emailed in buy or sell zones. US markets.";
+  "Detailed stock calls and zones, Stocksbrew target prices, Radar tracking, and automatic or manual alerts. US markets.";
 
 export const MEDIUM_DESCRIPTION =
-  "stocksbrew turns your watchlist into clear calls: what to do, what to watch, what to avoid. Set triggers and get emailed in buy or sell zones. Free for 3 stocks.";
+  "stocksbrew turns your watchlist into detailed calls, target prices, and alerts for earnings, buy zones, trim zones, and the price levels you set. Free for 3 stocks.";
 
 export const LONG_DESCRIPTION =
-  "stocksbrew gives you personalized recommendations on what to do with each stock you follow. We combine fundamentals, news, Reddit, earnings, and price action into one clear call: buy, hold, sell, or watch. Add names to Radar, set triggers, and get emailed when something moves into a buy or sell zone. Built for US markets today. Not investment advice. Not a broker.";
+  "stocksbrew combines fundamentals, news, Reddit, earnings, and price action into a detailed add, hold, or trim call with buy and trim zones, drivers, and risks. Pro adds the Stocksbrew target price, unlimited Radar tracking, automatic earnings and zone alerts, and manual price alerts. Built for US markets today. Not investment advice. Not a broker.";
 
 export const HERO_HEADLINE = "Know what to do with your stocks.";
 export const HERO_HEADLINE_LEAD = "Know what to do";
 export const HERO_HEADLINE_EMPHASIS = "with your stocks.";
 
 export const HERO_SUBHEAD =
-  "stocksbrew reads the fundamentals, the news, and the Reddit noise, then gives you the call in plain English.";
+  "stocksbrew reads the fundamentals, news, Reddit, earnings, and price action, then turns them into a call, target, and alerts.";
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";

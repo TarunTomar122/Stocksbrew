@@ -13,42 +13,61 @@ export type ProWelcomeStep = {
   linkLabel: string;
 };
 
+export type ProValuePillar = {
+  id: "calls" | "target" | "radar";
+  icon: string;
+  title: string;
+  shortTitle: string;
+  body: string;
+};
+
+/** The three outcomes every Pro surface should sell and explain. */
+export const PRO_VALUE_PILLARS: ProValuePillar[] = [
+  {
+    id: "calls",
+    icon: "verified",
+    title: "Detailed calls and zones",
+    shortTitle: "Calls and zones",
+    body: "See the add, hold, or trim call, the buy and trim zones, plus the drivers and risks behind it.",
+  },
+  {
+    id: "target",
+    icon: "flag",
+    title: "The Stocksbrew target price",
+    shortTitle: "Target price",
+    body: "See our target price and the room from today's price, with the evidence that can move it.",
+  },
+  {
+    id: "radar",
+    icon: "notifications_active",
+    title: "Radar tracking and alerts",
+    shortTitle: "Radar and alerts",
+    body: "Track every stock you care about. Get automatic earnings and zone alerts, or set your own price alert.",
+  },
+];
+
 /** Shared copy for pricing, post-checkout welcome, and profile upsell. */
 export const SUBSCRIBE_BENEFITS: SubscribeBenefit[] = [
   {
-    icon: "radar",
-    title: "Your full Radar",
-    body: "Track every stock you care about.",
-    href: "/watchlist",
-    linkLabel: "Radar",
-  },
-  {
     icon: "verified",
-    title: "The call",
-    body: "Buy, hold, sell, or watch, with the reason.",
+    title: "Detailed calls and zones",
+    body: "Add, hold, or trim, with buy zones, trim zones, drivers, and risks.",
+    href: "/stock/NVDA",
+    linkLabel: "See a stock call",
+  },
+  {
+    icon: "flag",
+    title: "Stocksbrew target price",
+    body: "Our target, the room from today, and what would change the case.",
+    href: "/stock/NVDA",
+    linkLabel: "See a target",
+  },
+  {
+    icon: "notifications_active",
+    title: "Radar and alerts",
+    body: "Unlimited tracking, automatic earnings and zone alerts, plus manual price alerts.",
     href: "/watchlist",
-    linkLabel: "Your Book",
-  },
-  {
-    icon: "event_upcoming",
-    title: "Before earnings",
-    body: "Our read before the number drops.",
-    href: "/events",
-    linkLabel: "Events",
-  },
-  {
-    icon: "hub",
-    title: "Your book",
-    body: "Crowding, overlap, and gaps in plain English.",
-    href: "/watchlist",
-    linkLabel: "Diagnosis on Radar",
-  },
-  {
-    icon: "bolt",
-    title: "Why it moved",
-    body: "Big moves, Reddit, and news explained.",
-    href: "/anomalies",
-    linkLabel: "Top Movers",
+    linkLabel: "Open Radar",
   },
   {
     icon: "cancel",
@@ -63,22 +82,22 @@ export const PRO_UNLOCKED_BENEFITS = SUBSCRIBE_BENEFITS.filter(
 
 export const PRO_WELCOME_STEPS: ProWelcomeStep[] = [
   {
-    title: "Add your stocks to Radar",
-    body: "Search any ticker or upload a portfolio screenshot.",
+    title: "Build your Radar",
+    body: "Add the stocks you own and the stocks you are waiting to buy.",
     href: "/watchlist",
     linkLabel: "Open Radar",
   },
   {
-    title: "Get the morning call on each name",
-    body: "Buy, hold, sell, or watch, with the reason.",
+    title: "Read the call and target",
+    body: "Open any tracked stock for its zones, drivers, risks, and Stocksbrew target price.",
     href: "/watchlist",
-    linkLabel: "See your Book",
+    linkLabel: "See your stocks",
   },
   {
-    title: "Turn on alerts for what matters",
-    body: "Earnings, big moves, and setup changes in your inbox.",
+    title: "Choose your alerts",
+    body: "Keep automatic earnings and zone alerts on, or set a manual price alert on any stock.",
     href: "/profile",
-    linkLabel: "Profile settings",
+    linkLabel: "Alert settings",
   },
 ];
 
@@ -124,31 +143,31 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
 
   if (count >= 3) {
     return [
-      { icon: "radar", text: `Full calls on all ${count} names, past the 3-stock free cap.` },
-      { icon: "inventory_2", text: "Add the rest of your book without swapping tickers." },
-      { icon: "notifications", text: "Morning digest + alerts tuned to your holdings." },
-      { icon: "event_upcoming", text: "Pre-earnings reads and move intel on your book." },
+      { icon: "verified", text: `Detailed calls, zones, drivers, and risks on all ${count} names.` },
+      { icon: "flag", text: "Stocksbrew target prices with room from today." },
+      { icon: "radar", text: "Add the rest of your book without the 3-stock cap." },
+      { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
     ];
   }
 
   if (count > 0) {
     return [
-      { icon: "verified", text: `Add · hold · trim on the ${count} ${stockWord} on your Radar.` },
-      { icon: "show_chart", text: "Track more names without hitting the free limit." },
-      { icon: "wb_twilight", text: "Morning digest + alerts when setups shift." },
-      { icon: "event_upcoming", text: "Pre-earnings setups on names you care about." },
+      { icon: "verified", text: `Detailed calls and zones on the ${count} ${stockWord} on your Radar.` },
+      { icon: "flag", text: "Stocksbrew target prices with upside or downside context." },
+      { icon: "radar", text: "Track more names without hitting the free limit." },
+      { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
     ];
   }
 
   return [
-    { icon: "radar", text: "Track your whole portfolio on Radar. Free stops at 3 stocks." },
-    { icon: "verified", text: "A clear add · hold · trim call on every name." },
-    { icon: "notifications", text: "Morning digest and alerts when setups shift." },
-    { icon: "monitoring", text: "Pre-earnings intel before you need it." },
+    { icon: "verified", text: "Detailed calls, buy and trim zones, drivers, and risks." },
+    { icon: "flag", text: "Stocksbrew target prices with room from today." },
+    { icon: "radar", text: "Track every stock you own or watch on Radar." },
+    { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
   ];
 }
 
-/** One-line trust chips under the CTA — titles only, no paragraph blocks. */
+/** One-line trust chips under the CTA. */
 export const SUBSCRIBE_TRUST_STRIP: Array<{ icon: string; label: string; href?: string }> = [
   { icon: "sync_alt", label: "7-day refund" },
   { icon: "lock", label: "Secure checkout" },

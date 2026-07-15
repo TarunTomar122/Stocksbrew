@@ -339,6 +339,7 @@ def main() -> None:
             "radar_official_sources",
             "radar_materialize",
             "radar_outcomes",
+            "radar_alerts",
         ],
         required=True,
     )
@@ -439,6 +440,7 @@ def main() -> None:
         ),
         "radar_materialize": os.getenv("RADAR_MATERIALIZE_JOB_NAME", "tikrr-radar-materialize"),
         "radar_outcomes": os.getenv("RADAR_OUTCOMES_JOB_NAME", "tikrr-radar-outcomes"),
+        "radar_alerts": os.getenv("RADAR_ALERTS_JOB_NAME", "tikrr-radar-alerts"),
     }
     job_name = job_name_by_lane[args.lane]
     client: Any
@@ -720,6 +722,7 @@ def main() -> None:
         "radar_official_sources",
         "radar_materialize",
         "radar_outcomes",
+        "radar_alerts",
     } and summary.get("status") not in {"success", "dispatched"}:
         status = "failed"
     if status == "dispatched":

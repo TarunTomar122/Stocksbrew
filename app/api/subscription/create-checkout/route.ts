@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const period: "monthly" | "yearly" = body.period === "yearly" ? "yearly" : "monthly";
   const market: "US" | "IN" = body.market === "IN" ? "IN" : "US";
-  // India doesn't offer yearly — fall back to monthly silently
+  // India doesn't offer yearly, so fall back to monthly silently.
   const effectivePeriod: "monthly" | "yearly" = market === "IN" ? "monthly" : period;
   const productId = productIdFor(effectivePeriod, market);
   if (!productId) {
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       user_id: uid,
       plan: effectivePeriod,
     },
-    return_url: `${appUrl}/subscribe`,
+    return_url: `${appUrl}/subscribe?success=1&from=checkout&plan=${effectivePeriod}`,
   };
   // Dodo applies product-level trials unless overridden. Only yearly may trial.
   if (!trialEligible) {

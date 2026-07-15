@@ -39,13 +39,16 @@ export async function createStockAlert(payload: CreateAlertPayload): Promise<Cre
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = (await res.json().catch(() => ({}))) as { error?: string; alert_id?: string };
+  const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; alert_id?: string };
 
   if (res.status === 401) {
     return { ok: false, error: "Sign in to get email alerts.", unauthorized: true };
   }
   if (res.status === 409) {
     return { ok: true, alreadyExists: true };
+  }
+  if (res.status === 403 && data.error === "pro_required") {
+    return { ok: false, error: data.message || "Pro is required to create stock alerts." };
   }
   if (!res.ok) {
     return { ok: false, error: data.error || "Could not set alert." };

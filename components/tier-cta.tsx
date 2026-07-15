@@ -36,27 +36,25 @@ export function TierCTA({
       <div className="flex flex-col items-start gap-3 rounded-2xl tint-bull px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="min-w-0 text-[13px] font-medium leading-relaxed text-[#10b981]">
           {isSubscribed
-            ? "Launch list - full AI tab with personalized calls."
-            : "Free launch list - full AI tab on select stocks only. Upgrade for more."}
+            ? "Pro is active. Track this stock for its detailed call, target, and alerts on Radar."
+            : "Add this stock to Radar for free. Pro unlocks the detailed call, Stocksbrew target, and alerts."}
         </span>
-        {user && isSubscribed && (
-          <div
-            className={
-              isTracked
-                ? "shrink-0 self-end sm:self-auto"
-                : "w-full shrink-0 sm:w-auto [&>div]:w-full sm:[&>div]:w-auto [&_button]:w-full sm:[&_button]:w-auto"
-            }
-          >
-            <TrackButton
-              ticker={ticker}
-              instrumentId={instrumentId}
-              tier={tier}
-              isSubscribed={isSubscribed}
-              isTracked={isTracked}
-              trackedAsBadge={isTracked}
-            />
-          </div>
-        )}
+        <div
+          className={
+            isTracked
+              ? "shrink-0 self-end sm:self-auto"
+              : "w-full shrink-0 sm:w-auto [&>div]:w-full sm:[&>div]:w-auto [&_button]:w-full sm:[&_button]:w-auto"
+          }
+        >
+          <TrackButton
+            ticker={ticker}
+            instrumentId={instrumentId}
+            tier={tier}
+            isSubscribed={isSubscribed}
+            isTracked={isTracked}
+            trackedAsBadge={isTracked}
+          />
+        </div>
       </div>
     );
   }
@@ -65,7 +63,7 @@ export function TierCTA({
     return (
       <div className="flex flex-col items-start gap-2 rounded-2xl tint-info px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#3b82f6]">
-          On your Radar - updates with each run.
+          On your Radar. Pro keeps the call, target, and alert levels up to date.
         </span>
         <div className={isTracked ? "shrink-0 self-end sm:self-auto" : "self-end sm:self-auto"}>
           <TrackButton
@@ -86,7 +84,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`Want the full read on ${ticker}?`}
-        body="Sign in for the free launch list. Pro adds any stock to Radar with the same AI tab."
+        body="Sign in to add it to Radar. Pro unlocks detailed zones, drivers, risks, our target price, and alerts."
         primary={{
           label: "Sign in with Google",
           onClick: async () => {
@@ -109,8 +107,8 @@ export function TierCTA({
   if (!isSubscribed) {
     return (
       <CtaCard
-        title={`${ticker} isn’t on the free list`}
-        body="Subscribe, add it to Radar, get the same AI briefs as launch names."
+        title={`Unlock the full ${ticker} setup`}
+        body="Pro gives you the detailed call and zones, the Stocksbrew target price, and Radar alerts."
         primary={{
           label: "Get Pro",
           onClick: () => router.push("/subscribe"),
@@ -125,7 +123,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`${ticker} is in your Radar`}
-        body="We’re tracking it - remove to free a slot."
+        body="Radar is tracking it. Open the call, target, and alerts whenever the setup changes."
         action={
           <TrackButton
             ticker={ticker}
@@ -143,7 +141,7 @@ export function TierCTA({
   return (
     <CtaCard
       title={`Add ${ticker} to Radar`}
-      body="Holding = you own it. Watching = on your list. You get personalized calls and alerts on both."
+      body="Choose Holding if you own it or Watching if you are waiting. Pro adds the detailed call, target, and alerts to both."
       action={
         <TrackButton
           ticker={ticker}

@@ -1,15 +1,13 @@
 "use client";
 
 import { AnimatedIcon } from "@/components/animated-icon";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
-import { getFirebaseAuth } from "@/lib/firebase-client";
 import { useUser } from "@/lib/auth-context";
 import { trackLandingCtaClicked } from "@/lib/product-analytics";
 import { US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
 const PLANS = {
   monthly: { price: US_PRO_MONTHLY, suffix: "/month", detail: "Billed monthly" },
@@ -24,20 +22,11 @@ const PLANS = {
 
 const COMPARE_ROWS = [
   { label: "Track stocks on Radar", free: "Up to 3 names", pro: "Unlimited" },
-  { label: "Buy, hold, sell, or watch calls", free: true, pro: true },
-  { label: "Email alerts when setups shift", free: false, pro: true },
-  { label: "Pre-earnings setups", free: false, pro: true },
-  { label: "Portfolio crowding report", free: false, pro: true },
-  { label: "Reddit & news reads on your book", free: "Preview", pro: true },
+  { label: "Detailed calls, zones, drivers, and risks", free: "Preview", pro: true },
+  { label: "Stocksbrew target price", free: false, pro: true },
+  { label: "Automatic earnings and zone alerts", free: false, pro: true },
+  { label: "Manual price alerts", free: false, pro: true },
 ] as const;
-
-const SOCIAL_AVATARS = [
-  "https://randomuser.me/api/portraits/men/32.jpg",
-  "https://randomuser.me/api/portraits/women/65.jpg",
-  "https://randomuser.me/api/portraits/men/45.jpg",
-  "https://randomuser.me/api/portraits/women/44.jpg",
-  "https://randomuser.me/api/portraits/men/22.jpg",
-];
 
 function CheckIcon() {
   return (
@@ -74,17 +63,6 @@ function FeatureRow({ label, value }: { label: string; value: boolean | string }
       </span>
     </li>
   );
-}
-
-async function syncServerSession(): Promise<void> {
-  const u = getFirebaseAuth().currentUser;
-  if (!u) return;
-  const idToken = await u.getIdToken();
-  await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
-  });
 }
 
 function FreeRadarCta() {
@@ -222,19 +200,12 @@ export function ProPlanPicker() {
         </div>
       </div>
 
-      <div className="pro-compare-social mt-10">
-        <div className="flex items-center justify-center">
-          {SOCIAL_AVATARS.map((url) => (
-            <div
-              key={url}
-              className="relative -ml-2.5 first:ml-0 h-9 w-9 overflow-hidden rounded-full border-2 border-background bg-surface-container"
-            >
-              <Image src={url} alt="" width={36} height={36} className="h-full w-full object-cover" unoptimized />
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-center text-[13px] text-on-surface-variant">
-          Used by traders who wanted a clearer call than another tab spiral
+      <div className="pro-compare-social mx-auto mt-10 max-w-2xl rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4 text-center">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
+          One Pro workflow
+        </p>
+        <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
+          Read the call and target, add the stock to Radar, then let alerts bring you back when the setup changes.
         </p>
       </div>
     </div>

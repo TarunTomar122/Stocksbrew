@@ -239,7 +239,11 @@ export async function POST(req: NextRequest) {
   });
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
-  return NextResponse.json({ ok: true, refresh_queued: true });
+  return NextResponse.json({
+    ok: true,
+    refresh_queued: true,
+    first_stock: !wasAlreadyTrackedInTxn && current.length === 0,
+  });
 }
 
 export async function DELETE(req: NextRequest) {

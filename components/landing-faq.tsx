@@ -3,11 +3,11 @@ type QA = { q: string; a: string };
 const FAQS: QA[] = [
   {
     q: "What do I get for free?",
-    a: "Track up to 3 stocks and see stocksbrew think about the market: live anomalies, Reddit buzz, and fresh earnings reads. The per-stock calls and your portfolio diagnosis are Pro.",
+    a: "Search stocks, follow the market, and track up to 3 names on Radar. Detailed calls and zones, the Stocksbrew target price, and alerts are Pro.",
   },
   {
     q: "What does Pro actually add?",
-    a: "Unlimited stocks on your Radar, a clear call on each one with the reasoning, pre-earnings setups before the print, portfolio diagnosis, anomalies and Reddit at full depth, and email alerts when something moves.",
+    a: "Detailed calls with buy and trim zones, drivers, and risks; the Stocksbrew target price; and unlimited Radar tracking with automatic earnings and zone alerts plus manual price alerts.",
   },
   {
     q: "Is this investment advice?",

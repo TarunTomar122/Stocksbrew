@@ -7,19 +7,19 @@ type FaqItem = { q: string; a: string };
 const FAQS: FaqItem[] = [
   {
     q: "What do I get for free?",
-    a: "Track up to 3 stocks and see StocksBrew think about the market: live anomalies, Reddit buzz, and fresh earnings reads. The per-stock calls and your portfolio diagnosis are Pro.",
+    a: "Search stocks, follow the market, and track up to 3 names on Radar. Free users can preview the product. Detailed calls and zones, the Stocksbrew target price, and alerts are Pro.",
   },
   {
-    q: "Free or Pro — which should I pick?",
-    a: "Start free if you are testing a few names. Go Pro when you want unlimited Radar, email alerts, pre-earnings setups, and the full buy · hold · trim call on every stock you track.",
+    q: "Free or Pro: which should I pick?",
+    a: "Start free if you are exploring a few names. Go Pro when you want a repeatable workflow: read the detailed call and target, track the stock on Radar, and get automatic or manual alerts.",
   },
   {
     q: "What does Pro actually add?",
-    a: "Unlimited stocks on your Radar, a clear call on each one with the reasoning, pre-earnings setups before the print, portfolio diagnosis, anomalies and Reddit at full depth, and email alerts when something moves.",
+    a: "Three things: detailed add, hold, or trim calls with zones, drivers, and risks; the Stocksbrew target price; and unlimited Radar tracking with automatic earnings and zone alerts plus manual price alerts.",
   },
   {
     q: "Is there a free trial?",
-    a: "Yes on yearly — 3 days of full Pro access. Monthly starts right away. Either way, cancel in one click.",
+    a: "Yes on yearly. You get 3 days of full Pro access. Monthly starts right away. Either way, cancel in one click.",
   },
   {
     q: "Is this investment advice?",

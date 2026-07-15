@@ -4,6 +4,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from backend.email import send_email
 from backend.email_runtime import log_email_send
 from backend.emails.price_alert import build_price_alert_email
@@ -20,9 +22,9 @@ def load_active_price_alerts(store: TraceMoneyStore) -> list[dict[str, Any]]:
 
     price_alerts = (
         store.db.collection("tm_alerts")
-        .where("active", "==", True)
-        .where("triggered", "==", False)
-        .where("kind", "==", "price_threshold")
+        .where(filter=FieldFilter("active", "==", True))
+        .where(filter=FieldFilter("triggered", "==", False))
+        .where(filter=FieldFilter("kind", "==", "price_threshold"))
         .stream()
     )
     for doc in price_alerts:
@@ -35,8 +37,8 @@ def load_active_price_alerts(store: TraceMoneyStore) -> list[dict[str, Any]]:
 
     legacy_alerts = (
         store.db.collection("tm_alerts")
-        .where("active", "==", True)
-        .where("triggered", "==", False)
+        .where(filter=FieldFilter("active", "==", True))
+        .where(filter=FieldFilter("triggered", "==", False))
         .stream()
     )
     for doc in legacy_alerts:
@@ -155,9 +157,9 @@ def user_alerts_enabled(store: TraceMoneyStore, uid: str) -> bool:
         return True
     doc = store.db.collection("users").document(uid).get()
     if not doc.exists:
-        return True
+        return False
     data = doc.to_dict() or {}
-    return bool(data.get("email_alerts_enabled", True))
+    return bool(data.get("is_subscribed")) and bool(data.get("email_alerts_enabled", True))
 
 
 def is_price_alert_triggered(*, condition: str, current: float, target: float) -> bool:
@@ -185,7 +187,7 @@ def send_price_alert_notification(
     alert_id = str(alert.get("id") or "")
 
     if not email:
-        logger.info("price alert %s: no email — skipped", alert_id or ticker)
+        logger.info("price alert %s: no email, skipped", alert_id or ticker)
         return False
 
     if uid and not user_alerts_enabled(store, uid):
@@ -260,12 +262,12 @@ def process_price_alerts(
 
         if current is None:
             stats["skipped_no_price"] += 1
-            logger.info("[%s] no price data — skipping", ticker)
+            logger.info("[%s] no price data, skipping", ticker)
             continue
 
         if not is_price_alert_triggered(condition=condition, current=current, target=target):
             stats["skipped_not_triggered"] += 1
-            logger.info("[%s] not triggered — $%.2f (target $%.2f %s)", ticker, current, target, condition)
+            logger.info("[%s] not triggered: $%.2f (target $%.2f %s)", ticker, current, target, condition)
             continue
 
         stats["triggered"] += 1
@@ -284,9 +286,6 @@ def process_price_alerts(
                 )
             row = row_cache[cache_key]
 
-        if not dry_run and alert_id:
-            mark_alert_triggered(store, alert_id)
-
         sent = send_price_alert_notification(
             store,
             alert=alert,
@@ -295,6 +294,8 @@ def process_price_alerts(
             dry_run=dry_run,
         )
         if sent:
+            if not dry_run and alert_id:
+                mark_alert_triggered(store, alert_id)
             stats["sent"] += 1
 
     return stats

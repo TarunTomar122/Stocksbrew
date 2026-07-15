@@ -4,6 +4,7 @@ import { Webhook } from "standardwebhooks";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { trialConsumedPatch } from "@/lib/trial-eligibility";
+import { captureServerEvent } from "@/lib/posthog-server-capture";
 
 type WebhookLogLevel = "info" | "warn" | "error";
 
@@ -158,10 +159,17 @@ async function handleEvent(
         },
         { merge: true },
       );
+      const conversionEvent = type === "subscription.active" ? "subscription_converted" : "subscription_renewed";
       await recordLifecycleEvent({
         uid,
-        type: "subscription_converted",
+        type: conversionEvent,
         payload: { source_event: type, plan },
+      }).catch(() => undefined);
+      await captureServerEvent(uid, conversionEvent, {
+        source_event: type,
+        plan,
+        subscription_id: subId ?? null,
+        $insert_id: `dodo:${deliveryId}:${type}`,
       }).catch(() => undefined);
       dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: subId });
       break;
@@ -189,8 +197,14 @@ async function handleEvent(
       );
       await recordLifecycleEvent({
         uid,
-        type: "subscription_converted",
+        type: "subscription_payment_succeeded",
         payload: { source_event: type, plan },
+      }).catch(() => undefined);
+      await captureServerEvent(uid, "subscription_payment_succeeded", {
+        source_event: type,
+        plan,
+        subscription_id: paymentSubId,
+        $insert_id: `dodo:${deliveryId}:${type}`,
       }).catch(() => undefined);
       dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: paymentSubId });
       break;

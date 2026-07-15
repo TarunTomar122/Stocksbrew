@@ -4,6 +4,8 @@ export type LifecycleEventType =
   | "track_blocked_subscription_required"
   | "checkout_started"
   | "subscription_converted"
+  | "subscription_renewed"
+  | "subscription_payment_succeeded"
   | "subscription_cancel_scheduled"
   | "first_radar_item_email_sent";
 

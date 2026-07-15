@@ -9,16 +9,16 @@ import { SubscriptionActivator } from "@/components/subscription-activator";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
-  description: "Unlock Pro for unlimited Radar stocks, personalized buy/hold/sell calls, full scorecards, and email alerts when stocks hit buy or sell zones. Free for 3 stocks.",
+  description: "Unlock detailed calls and zones, the Stocksbrew target price, unlimited Radar, and automatic or manual stock alerts.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
     title: "stocksbrew Pro - Pricing & Plans",
-    description: "Unlimited Radar, research-backed calls, price triggers, and email alerts when setups change.",
+    description: "Detailed calls and zones, the Stocksbrew target price, unlimited Radar, and stock alerts.",
     url: "https://www.stocksbrew.online/subscribe",
   },
   twitter: {
     title: "stocksbrew Pro - Pricing & Plans",
-    description: "Unlimited Radar, research-backed calls, price triggers, and email alerts when setups change.",
+    description: "Detailed calls and zones, the Stocksbrew target price, unlimited Radar, and stock alerts.",
   },
 };
 

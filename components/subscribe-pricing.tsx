@@ -231,7 +231,7 @@ export function SubscribePricing({
           Choose your plan
         </h1>
         <p className="max-w-md text-[13px] leading-relaxed text-on-surface-variant">
-          Unlimited Radar, daily calls on your book, and alerts built for a quick morning check-in.
+          Detailed calls and zones, the Stocksbrew target price, and Radar alerts that tell you when to look again.
         </p>
       </header>
 

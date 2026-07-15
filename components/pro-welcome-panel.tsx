@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AnimatedIcon } from "@/components/animated-icon";
+import { PRO_VALUE_PILLARS, PRO_WELCOME_STEPS } from "@/lib/subscribe-benefits";
 
 type Props = {
   variant?: "page" | "modal";
@@ -21,20 +22,15 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
             You&apos;re on Pro.
           </h2>
           <p className="max-w-md text-[14px] leading-relaxed text-[#6b7280]">
-            Your Radar now has full calls, move reads, Reddit/news signals, and portfolio diagnosis.
+            Your detailed calls, Stocksbrew targets, unlimited Radar, and alerts are active.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {[
-            "Full calls on your stocks",
-            "Why big moves happened",
-            "Reddit and news reads",
-            "Portfolio diagnosis",
-          ].map((item) => (
-            <div key={item} className="flex items-center gap-2 rounded-2xl bg-[#fafafa] px-3.5 py-3 text-[13px] font-semibold text-[#374151]">
-              <AnimatedIcon name="check_circle" size={18} className="text-[#10b981]" aria-hidden />
-              {item}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {PRO_VALUE_PILLARS.map((item) => (
+            <div key={item.id} className="flex flex-col gap-2 rounded-2xl bg-[#fafafa] px-3.5 py-3">
+              <AnimatedIcon name={item.icon} size={18} className="text-[#10b981]" aria-hidden />
+              <span className="text-[12px] font-semibold leading-snug text-[#374151]">{item.shortTitle}</span>
             </div>
           ))}
         </div>
@@ -53,7 +49,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
             href="/watchlist"
             className="inline-flex h-[42px] items-center justify-center rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white"
           >
-            Open Radar →
+            Build my Radar →
           </Link>
         </div>
       </div>
@@ -71,8 +67,26 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
           You&apos;re in.
         </h2>
         <p className="text-[15px] leading-relaxed text-[#6b7280]">
-          Pro is active on your account. Open Radar to see the full read on your stocks.
+          Start with one stock. Then read its call and target, and choose the alerts that should bring you back.
         </p>
+      </div>
+
+      <div className="grid w-full grid-cols-1 gap-2 text-left">
+        {PRO_WELCOME_STEPS.map((step, index) => (
+          <Link
+            key={step.title}
+            href={step.href}
+            className="flex items-start gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3 no-underline transition-colors hover:bg-[#fafafa]"
+          >
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#111111] font-mono text-[11px] font-bold text-white">
+              {index + 1}
+            </span>
+            <span>
+              <span className="block text-[13px] font-semibold text-[#111111]">{step.title}</span>
+              <span className="mt-0.5 block text-[12px] leading-relaxed text-[#6b7280]">{step.body}</span>
+            </span>
+          </Link>
+        ))}
       </div>
 
       <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
@@ -80,7 +94,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
           href="/watchlist"
           className="inline-flex h-[50px] items-center justify-center rounded-full bg-[#111111] px-6 text-[14px] font-semibold text-white"
         >
-          Open Radar →
+          Build my Radar →
         </Link>
         <Link
           href="/"

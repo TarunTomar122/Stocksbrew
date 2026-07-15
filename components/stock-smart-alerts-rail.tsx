@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatedIcon } from "@/components/animated-icon";
+import Link from "next/link";
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -92,11 +93,13 @@ export function StockSmartAlertsRail({
   instrumentId,
   alerts,
   earningsAlert,
+  isSubscribed,
 }: {
   ticker: string;
   instrumentId: string;
   alerts: DirectiveSmartAlert[];
   earningsAlert: EarningsAlert | null;
+  isSubscribed: boolean;
 }) {
   const { user, loading: authLoading, initialAuthed } = useUser();
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
@@ -332,6 +335,26 @@ export function StockSmartAlertsRail({
   }
 
   if (alerts.length === 0 && !earningsAlert) return null;
+
+  if (!isSubscribed) {
+    return (
+      <section className="rounded-2xl border border-outline-variant bg-surface p-4 sm:p-5">
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">
+          Pro alerts
+        </p>
+        <h3 className="mt-2 text-[14px] font-bold text-on-surface">Let the setup bring you back</h3>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-on-surface-variant">
+          Pro watches earnings, buy zones, and trim zones automatically. You can also set a manual price alert.
+        </p>
+        <Link
+          href="/subscribe"
+          className="mt-3 inline-flex h-9 items-center justify-center rounded-full bg-on-surface px-4 text-[12px] font-semibold text-surface no-underline"
+        >
+          Unlock Pro alerts
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <>

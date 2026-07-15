@@ -1,0 +1,12 @@
+[Unit]
+Description=Tikrr Pro Radar alerts
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+MemoryMax=6G
+MemorySwapMax=2G
+ExecStart=/opt/tikrr/backend/vps/run-dispatch.sh radar_alerts

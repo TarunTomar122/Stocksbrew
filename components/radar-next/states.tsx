@@ -94,9 +94,9 @@ export function RadarNextSignedOut() {
 }
 
 const EMPTY_ZONES: Array<{ tag: string; title: string; body: string }> = [
-  { tag: "book", title: "Holdings & watching", body: "Your whole book, live prices. Names that need a call today are highlighted." },
-  { tag: "health", title: "Book health grade", body: "An A to F read on valuation, growth, quality, momentum." },
-  { tag: "ideas", title: "Ideas to buy", body: "Fresh names that fit your book, top-rated, or moving unusually." },
+  { tag: "call", title: "Detailed calls and zones", body: "Pro shows the stance, buy and trim zones, drivers, and risks for each stock." },
+  { tag: "target", title: "Stocksbrew target", body: "Pro puts our target price and the room from today next to the call." },
+  { tag: "alerts", title: "Automatic and manual alerts", body: "Pro watches earnings and zones automatically. You can set your own price alerts too." },
 ];
 
 type RadarNextEmptyProps = {
@@ -115,10 +115,10 @@ export function RadarNextEmpty({ header, picks, trackedIds }: RadarNextEmptyProp
         <div className="px-4 py-8 sm:px-8 sm:py-10">
           <span className="rn-kick">// start here</span>
           <h2 className="mt-3 text-[22px] font-extrabold tracking-tight text-[var(--rn-ink)] sm:text-[28px]">
-            Add your first stocks
+            Add your first stock
           </h2>
           <p className="mt-2 max-w-lg text-[13.5px] leading-relaxed text-[var(--rn-muted)]">
-            Popular picks to get going. Radar starts tracking as soon as you add them.
+            This is the fastest way to make Radar useful. Pick a stock you own or watch, then Radar will keep its price and setup in one place.
           </p>
           <StarterPicks
             picks={picks}

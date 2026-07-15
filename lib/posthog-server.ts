@@ -1,6 +1,6 @@
 /**
  * Server-only PostHog HogQL queries for internal analytics.
- * Requires POSTHOG_PERSONAL_API_KEY (Project query read) + POSTHOG_PROJECT_ID.
+ * Requires a PostHog personal API key and POSTHOG_PROJECT_ID.
  */
 
 const DOMAIN_HOSTS = [
@@ -28,16 +28,16 @@ function apiHost(): string {
 }
 
 export function isPostHogQueryConfigured(): boolean {
-  return Boolean(process.env.POSTHOG_PERSONAL_API_KEY && process.env.POSTHOG_PROJECT_ID);
+  return Boolean((process.env.POSTHOG_PERSONAL_API_KEY || process.env.POSTHOG_TOKEN) && process.env.POSTHOG_PROJECT_ID);
 }
 
 export async function runHogQL<T extends Record<string, unknown>>(
   query: string,
 ): Promise<{ rows: T[]; error?: string }> {
-  const apiKey = process.env.POSTHOG_PERSONAL_API_KEY;
+  const apiKey = process.env.POSTHOG_PERSONAL_API_KEY || process.env.POSTHOG_TOKEN;
   const projectId = process.env.POSTHOG_PROJECT_ID;
   if (!apiKey || !projectId) {
-    return { rows: [], error: "POSTHOG_PERSONAL_API_KEY not configured" };
+    return { rows: [], error: "PostHog query token not configured" };
   }
 
   try {

@@ -18,6 +18,7 @@ export async function GET() {
     return NextResponse.json({
       exists: false,
       attribution_submitted: false,
+      tracked_count: 0,
     });
   }
 
@@ -25,6 +26,7 @@ export async function GET() {
   return NextResponse.json({
     exists: true,
     attribution_submitted: attributionSubmitted(data),
+    tracked_count: Array.isArray(data.tracked_stocks) ? data.tracked_stocks.length : 0,
     heard_about_us: typeof data.heard_about_us === "string" ? data.heard_about_us : null,
   });
 }

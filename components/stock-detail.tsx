@@ -113,7 +113,7 @@ type Props = {
   cards?: VisualCards | null;
   sentiment?: SentimentBreakdown | null;
   preEarnings?: PreEarningsIntelDoc | null;
-  /** Pre-earnings doc without the 7-day window filter — used for upcoming rail date only. */
+  /** Pre-earnings doc without the 7-day window filter, used for upcoming rail date only. */
   preEarningsDoc?: PreEarningsIntelDoc | null;
   calendarEarnings?: EarningsEvent | null;
   overviewConfidence?: string;
@@ -445,9 +445,9 @@ export function StockDetail(props: Props) {
   const currentPeerRow = {
     ticker: stock.ticker,
     name: stock.name,
-    marketCap: cap(fundamentals?.market_cap) ?? "—",
-    pe: hasPe ? pe!.toFixed(1) : "—",
-    revGrowth: n(rev) ? sign(rev!) : "—",
+    marketCap: cap(fundamentals?.market_cap) ?? "-",
+    pe: hasPe ? pe!.toFixed(1) : "-",
+    revGrowth: n(rev) ? sign(rev!) : "-",
     score: intelPro?.overall?.score != null ? Math.round(intelPro.overall.score) : null,
     isCurrent: true,
     href: `/stock/${stock.ticker}`,
@@ -468,9 +468,9 @@ export function StockDetail(props: Props) {
       peerRows.push({
         ticker: p.ticker.toUpperCase(),
         name: p.name,
-        marketCap: cap(p.market_cap) ?? "—",
-        pe: n(p.pe_ttm) ? p.pe_ttm!.toFixed(1) : "—",
-        revGrowth: n(p.revenue_growth_yoy_pct) ? sign(p.revenue_growth_yoy_pct!) : "—",
+        marketCap: cap(p.market_cap) ?? "-",
+        pe: n(p.pe_ttm) ? p.pe_ttm!.toFixed(1) : "-",
+        revGrowth: n(p.revenue_growth_yoy_pct) ? sign(p.revenue_growth_yoy_pct!) : "-",
         score: n(p.score) ? Math.round(p.score) : null,
         isCurrent: false,
         href: `/stock/${encodeURIComponent(p.ticker)}`,
@@ -482,9 +482,9 @@ export function StockDetail(props: Props) {
       peerRows.push({
         ticker: p.ticker,
         name: p.name,
-        marketCap: "—",
-        pe: "—",
-        revGrowth: "—",
+        marketCap: "-",
+        pe: "-",
+        revGrowth: "-",
         score: peerScoreMap.get(p.ticker) ?? null,
         isCurrent: false,
         href: `/stock/${p.ticker}`,
@@ -495,9 +495,9 @@ export function StockDetail(props: Props) {
       peerRows.push({
         ticker: bp.ticker,
         name: bp.verdict,
-        marketCap: "—",
-        pe: "—",
-        revGrowth: "—",
+        marketCap: "-",
+        pe: "-",
+        revGrowth: "-",
         score: Math.round(bp.score),
         isCurrent: false,
         href: `/stock/${bp.ticker}`,
@@ -514,7 +514,7 @@ export function StockDetail(props: Props) {
     tier,
     isSubscribed: subscribed,
     isTracked,
-    variant: "icon" as const,
+    variant: "compact" as const,
     trackedAsBadge: true,
   };
 
@@ -614,7 +614,7 @@ export function StockDetail(props: Props) {
         </div>
       </header>
 
-      {/* TIER 1 — VERDICT */}
+      {/* TIER 1: VERDICT */}
       {showVerdict && (
         <section className={`${V3_CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card)" }}>
           {directive?.text ? (
@@ -712,7 +712,7 @@ export function StockDetail(props: Props) {
         </section>
       )}
 
-      {/* TIER 2 — BODY */}
+      {/* TIER 2: BODY */}
       <div className="mt-6 grid w-full min-w-0 grid-cols-1 items-start gap-4 sm:mt-8 lg:grid-cols-[minmax(0,238px)_minmax(0,1fr)_minmax(0,290px)]">
         {/* LEFT RAIL */}
         <aside className="order-2 min-w-0 w-full space-y-4 lg:order-1 lg:sticky lg:top-20">
@@ -906,7 +906,7 @@ export function StockDetail(props: Props) {
                                 {p.score}
                               </span>
                             ) : (
-                              <span className="text-on-surface-variant">—</span>
+                              <span className="text-on-surface-variant">-</span>
                             )}
                           </td>
                         </tr>
@@ -1021,6 +1021,7 @@ export function StockDetail(props: Props) {
               instrumentId={stock.instrument_id}
               alerts={directiveSmartAlerts}
               earningsAlert={earningsSmartAlertRail}
+              isSubscribed={subscribed}
             />
           )}
 

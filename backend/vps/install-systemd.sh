@@ -82,6 +82,7 @@ write_pair radar-materialize-open "Mon..Fri *-*-* 13:43:00" radar_materialize "-
 write_pair radar-official-close "Mon..Fri *-*-* 21:10:00" radar_official_sources "--recent-days 3 --include-ir"
 write_pair radar-materialize-close "Mon..Fri *-*-* 21:45:00" radar_materialize "--activate --with-llm"
 write_pair radar-outcomes "Mon..Fri *-*-* 23:00:00" radar_outcomes "--limit 0"
+write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"

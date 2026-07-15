@@ -4,9 +4,9 @@ import { TickerSearchField } from "@/components/ticker-search-field";
 import type { Market } from "@/lib/types";
 
 const FEATURES = [
-  { label: "Actionable insights", icon: "insights" },
-  { label: "Data you can trust", icon: "verified" },
-  { label: "Fast & free to start", icon: "bolt" },
+  { label: "Detailed calls and zones", icon: "verified" },
+  { label: "Stocksbrew target price", icon: "flag" },
+  { label: "Radar alerts", icon: "notifications_active" },
 ] as const;
 
 export function TerminalLandingHeroCopy({
@@ -26,8 +26,8 @@ export function TerminalLandingHeroCopy({
       </h1>
 
       <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-on-surface-variant sm:mt-5 sm:text-[17px]">
-        Add a ticker to Radar and get a clear{" "}
-        <b className="font-semibold text-on-surface">buy, hold, sell, or watch</b> call with the reasons behind every move.
+        Search a ticker for the market read. Go Pro for the detailed call, buy and trim zones,
+        Stocksbrew target price, and alerts when the setup changes.
       </p>
 
       <div className="mt-6 w-full sm:mt-8">

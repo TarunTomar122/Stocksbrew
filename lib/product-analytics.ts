@@ -123,3 +123,30 @@ export function trackSubscriptionConverted(props: {
   if (!dedupeSession(key)) return;
   captureEvent("subscription_converted", props);
 }
+
+export function trackRadarAddIntent(props: {
+  ticker: string;
+  instrument_id: string;
+  signed_in: boolean;
+  surface?: string;
+}) {
+  captureEvent("radar_add_intent", props);
+}
+
+export function trackRadarPickerOpened(props: {
+  ticker: string;
+  instrument_id: string;
+  resumed_after_signin: boolean;
+}) {
+  captureEvent("radar_add_picker_opened", props);
+}
+
+export function trackRadarStockAdded(props: {
+  ticker: string;
+  instrument_id: string;
+  position_type: "watchlist" | "holding";
+  first_stock: boolean;
+}) {
+  captureEvent("radar_stock_added", props);
+  if (props.first_stock) captureEvent("radar_first_stock_added", props);
+}

@@ -14,8 +14,13 @@ import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { RadarFreeLimitModal } from "@/components/radar-free-limit-modal";
 import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
+import {
+  trackRadarAddIntent,
+  trackRadarPickerOpened,
+  trackRadarStockAdded,
+} from "@/lib/product-analytics";
 
-type Variant = "pill" | "icon";
+type Variant = "pill" | "compact" | "icon";
 type PositionType = "watchlist" | "holding";
 
 function RadarTrackIcon({ tracked, size = 18 }: { tracked: boolean; size?: number }) {
@@ -79,6 +84,7 @@ export function TrackButton({
   const { user, loading } = useUser();
   const [pending, startTransition] = useTransition();
   const [pendingOp, setPendingOp] = useState<"add" | "remove" | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
   const [localTracked, setLocalTracked] = useState(isTracked);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -117,30 +123,50 @@ export function TrackButton({
     setLocalTracked(isTracked);
   }, [isTracked]);
 
-  function onPrimaryClick() {
+  async function onPrimaryClick() {
     setError(null);
 
-    // Not signed in → open Google sign-in popup.
+    if (!localTracked) {
+      trackRadarAddIntent({
+        ticker,
+        instrument_id: instrumentId,
+        signed_in: Boolean(user),
+        surface: variant === "icon" ? "icon" : "button",
+      });
+    }
+
+    // Sign in, sync the server session, then resume the exact add flow.
     if (!user) {
-      signInWithGoogle({ surface: "radar_track" })
-        .then(() => {
-          captureEvent("radar_signin_succeeded", {
-            ticker,
-            instrument_id: instrumentId,
-            tier: tier ?? null,
-            subscribed: Boolean(isSubscribed),
-          });
-        })
-        .catch((err) => {
-          console.error(err);
-          captureEvent("radar_signin_failed", {
-            ticker,
-            instrument_id: instrumentId,
-            tier: tier ?? null,
-            subscribed: Boolean(isSubscribed),
-            error: err instanceof Error ? err.message : "unknown",
-          });
+      if (signingIn) return;
+      setSigningIn(true);
+      try {
+        await signInWithGoogle({ surface: "radar_track" });
+        captureEvent("radar_signin_succeeded", {
+          ticker,
+          instrument_id: instrumentId,
+          tier: tier ?? null,
+          subscribed: Boolean(isSubscribed),
         });
+        setPositionType("watchlist");
+        setOpen(true);
+        trackRadarPickerOpened({
+          ticker,
+          instrument_id: instrumentId,
+          resumed_after_signin: true,
+        });
+      } catch (err) {
+        console.error(err);
+        setError("Could not sign in. Please try again.");
+        captureEvent("radar_signin_failed", {
+          ticker,
+          instrument_id: instrumentId,
+          tier: tier ?? null,
+          subscribed: Boolean(isSubscribed),
+          error: err instanceof Error ? err.message : "unknown",
+        });
+      } finally {
+        setSigningIn(false);
+      }
       return;
     }
 
@@ -183,6 +209,11 @@ export function TrackButton({
     // Otherwise open the picker modal (Watching by default).
     setPositionType("watchlist");
     setOpen(true);
+    trackRadarPickerOpened({
+      ticker,
+      instrument_id: instrumentId,
+      resumed_after_signin: false,
+    });
   }
 
   const handleModalCancel = useCallback(() => {
@@ -226,12 +257,19 @@ export function TrackButton({
           setTimeout(() => setModalOpen(false), 1200);
           return;
         }
+        const data = (await res.json().catch(() => ({}))) as { first_stock?: boolean };
         setLocalTracked(true);
         setModalStatus("success");
         captureEvent("radar_add_clicked", {
           instrument_id: instrumentId,
           ticker,
           position_type: positionType,
+        });
+        trackRadarStockAdded({
+          instrument_id: instrumentId,
+          ticker,
+          position_type: positionType,
+          first_stock: Boolean(data.first_stock),
         });
         setOpen(false);
         triggerBackgroundRefresh("add");
@@ -250,7 +288,9 @@ export function TrackButton({
   }
 
   const trackedPillClass =
-    "inline-flex h-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-on-surface bg-surface px-4 text-[13px] font-semibold tracking-tight text-on-surface";
+    variant === "compact"
+      ? "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-on-surface bg-surface px-3 text-[11px] font-semibold tracking-tight text-on-surface"
+      : "inline-flex h-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-on-surface bg-surface px-4 text-[13px] font-semibold tracking-tight text-on-surface";
 
   if (trackedAsBadge && localTracked && user) {
     if (variant === "icon") {
@@ -272,14 +312,16 @@ export function TrackButton({
   }
 
   const label = !user
-    ? "Sign in to add"
+    ? signingIn
+      ? "Signing in..."
+      : variant === "compact" ? "Add to Radar" : "Sign in to add to Radar"
     : pendingOp === "remove"
         ? "Removing…"
         : pendingOp === "add"
           ? "Adding…"
           : localTracked
             ? "In Radar ✓"
-            : `Add ${ticker} to Radar`;
+            : variant === "compact" ? "Add to Radar" : `Add ${ticker} to Radar`;
 
   return (
     <>
@@ -297,7 +339,7 @@ export function TrackButton({
             e.stopPropagation();
           }}
           onClick={onPrimaryClick}
-          disabled={pending}
+          disabled={pending || signingIn}
           aria-label={localTracked ? `Remove ${ticker} from Radar` : `Add ${ticker} to Radar`}
           className={`shrink-0 transition-colors disabled:opacity-50 ${
             localTracked
@@ -313,8 +355,10 @@ export function TrackButton({
           <button
             type="button"
             onClick={onPrimaryClick}
-            disabled={pending}
-            className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap h-[40px] px-4 rounded-full text-[13px] font-semibold tracking-tight transition-transform disabled:opacity-60 ${
+            disabled={pending || signingIn}
+            className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full font-semibold tracking-tight transition-transform disabled:opacity-60 ${
+              variant === "compact" ? "h-8 px-3 text-[11px]" : "h-[40px] px-4 text-[13px]"
+            } ${
               localTracked
                 ? "bg-surface text-on-surface border border-on-surface hover:-translate-y-[1px] active:translate-y-0"
                 : "bg-on-surface text-surface hover:-translate-y-[1px] active:translate-y-0"

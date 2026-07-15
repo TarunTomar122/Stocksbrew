@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore, adminAuth } from "@/lib/firebase-admin";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 const COLLECTION = "tm_alerts";
 const ALERT_KINDS = new Set([
@@ -30,6 +31,14 @@ export async function POST(req: NextRequest) {
   const uid = decoded.uid;
   const email = decoded.email ?? null;
   if (!email) return NextResponse.json({ error: "No email on account - add one in your profile" }, { status: 400 });
+
+  const userDoc = await getUserDoc(uid).catch(() => null);
+  if (!resolveIsSubscribed(userDoc)) {
+    return NextResponse.json(
+      { error: "pro_required", message: "Pro is required to create stock alerts." },
+      { status: 403 },
+    );
+  }
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch {

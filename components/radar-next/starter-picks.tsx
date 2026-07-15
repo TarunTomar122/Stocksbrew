@@ -60,7 +60,7 @@ export function StarterPicks({
                 isTracked={tracked}
                 isSubscribed={isSubscribed}
                 trackedCount={trackedCount}
-                variant="icon"
+                variant="compact"
               />
             </li>
           );
@@ -68,7 +68,7 @@ export function StarterPicks({
       </ul>
 
       <p className="mt-4 text-center font-mono text-[10.5px] leading-relaxed text-[var(--rn-muted)]">
-        Tap + to add as holding or watching
+        Choose Watching or Holding when you add a stock
       </p>
 
       <div className="mt-4 flex justify-center">
