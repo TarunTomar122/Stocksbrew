@@ -87,11 +87,29 @@ export default function CompareIndexPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href="/watchlist" className="inline-flex h-[44px] items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
+            <Link href="/radar" className="inline-flex h-[44px] items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
               Open Radar →
             </Link>
             <Link href="/should-i-buy" className="inline-flex h-[44px] items-center px-6 rounded-full border border-[#374151] text-white text-[13px] font-medium hover:border-white transition-colors">
               Try Should I Buy
+            </Link>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-[20px] font-semibold text-[#111111]">Related guides</h2>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/blog/buy-hold-sell-signals-explained" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+              Buy/hold/sell signals
+            </Link>
+            <Link href="/blog/watchlist-vs-portfolio-tracker" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+              Watchlist vs portfolio
+            </Link>
+            <Link href="/blog/ai-stock-analysis-comparison" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+              AI tools compared
+            </Link>
+            <Link href="/guides" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+              Research guide hub
             </Link>
           </div>
         </section>

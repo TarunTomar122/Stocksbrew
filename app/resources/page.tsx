@@ -3,6 +3,7 @@ import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 
 import { MarketingSchema } from "@/components/seo/marketing-schema";
+import { ResourcesCiteSection } from "@/components/marketing/resources-cite-section";
 import { ALL_RESOURCES, RESOURCE_GROUPS } from "@/lib/resources-hub-data";
 
 export const metadata: Metadata = {
@@ -92,6 +93,8 @@ export default function ResourcesPage() {
             </div>
           </section>
         ))}
+
+        <ResourcesCiteSection />
 
         <section className="rounded-2xl border border-outline-variant bg-surface-container-low p-6 md:p-8">
           <h2 className="text-lg font-bold text-on-surface">All resources</h2>

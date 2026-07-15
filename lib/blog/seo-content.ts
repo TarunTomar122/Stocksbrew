@@ -986,4 +986,341 @@ export const seoBlogContent: Record<string, string> = {
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 `,
+  "buy-hold-sell-signals-explained": `
+<div class="blog-meta">July 2026 · 11 min read</div>
+
+<p>Every investor has stared at a ticker wondering: should I buy more, hold, or sell? Price alone does not answer that. <strong>Buy, hold, and sell signals</strong> are structured stances that combine fundamentals, news, sentiment, and technical context into one readable call — with a reason you can audit.</p>
+
+<p>This guide explains what those signals are, how they differ from dumb price alerts, and how to use them without turning your portfolio into a trading bot.</p>
+
+<h2 id="what-are">What Buy Hold Sell Signals Actually Are</h2>
+
+<p>A buy/hold/sell signal is not a guarantee. It is a <em>working hypothesis</em> about what a reasonable investor should do given current evidence. Good signals answer three questions:</p>
+
+<ul>
+  <li><strong>Stance</strong> — Buy (add or initiate), hold (no change), or sell (trim or exit)</li>
+  <li><strong>Confidence</strong> — How strong is the evidence? Mixed signals should read as hold, not loud buy/sell.</li>
+  <li><strong>Rationale</strong> — What changed? Earnings, guidance, sentiment, valuation, or technical structure</li>
+</ul>
+
+<p>Platforms like <a href="https://www.stocksbrew.online">stocksbrew</a> generate these stances on Radar by scoring news, Reddit buzz, fundamentals, and earnings context per ticker — so you get a call tied to <em>your</em> watchlist, not a generic hot-stock list.</p>
+
+<h2 id="vs-alerts">Signals vs Price Alerts: The Critical Difference</h2>
+
+<table>
+  <tr><th></th><th>Price alert</th><th>Buy/hold/sell signal</th></tr>
+  <tr><td>Triggers on</td><td>A number (e.g. NVDA &gt; $140)</td><td>Evidence change (earnings miss, sentiment flip)</td></tr>
+  <tr><td>Best for</td><td>Entry/exit levels you already decided</td><td>Deciding whether the thesis still holds</td></tr>
+  <tr><td>Risk</td><td>No context — price can gap for wrong reasons</td><td>Can lag fast markets if data is stale</td></tr>
+</table>
+
+<p>Use both: alerts for levels, signals for conviction. If your signal says hold but price hits your stop, the stop wins. If your signal flips to sell on a fundamental break, do not wait for a arbitrary price target.</p>
+
+<h2 id="pillars">What Goes Into a Good Signal</h2>
+
+<h3>1. Fundamentals</h3>
+<p>Revenue growth, margin trend, free cash flow, and balance-sheet risk. A hold can become a sell when growth decelerates for three quarters even if the chart still looks fine.</p>
+
+<h3>2. News and filings</h3>
+<p>Guidance cuts, SEC investigations, major customer loss, or product delays. Signals should cite the headline or filing, not vague “negative news.”</p>
+
+<h3>3. Sentiment</h3>
+<p>Reddit, analyst revisions, and social volume often move before price. Sentiment extremes (euphoria or panic) are useful contrarian inputs — not standalone reasons to trade.</p>
+
+<h3>4. Technical structure</h3>
+<p>Trend, support, and relative strength vs the sector. Technicals rarely justify a full thesis alone but they tell you <em>when</em> to act on fundamental conclusions.</p>
+
+<h2 id="how-to-use">How to Use Signals Without Overtrading</h2>
+
+<ol>
+  <li><strong>Write your thesis first</strong> — One sentence per stock: why you own or watch it.</li>
+  <li><strong>Check stance weekly, not hourly</strong> — Daily noise creates false flips. Review on a schedule.</li>
+  <li><strong>Act on thesis breaks, not single headlines</strong> — One bad article is not a sell. Corroborated deterioration is.</li>
+  <li><strong>Size positions before the signal</strong> — Signals inform; position sizing (2–5% per name for most retail) protects you when wrong.</li>
+</ol>
+
+<h2 id="mistakes">Common Mistakes</h2>
+
+<ul>
+  <li><strong>Treating signals as orders</strong> — They are input to your process, not a broker API.</li>
+  <li><strong>Ignoring hold</strong> — Hold is often the right answer. Constant buying and selling is expensive.</li>
+  <li><strong>Chasing buy signals on extended names</strong> — A buy on a stock up 80% in three months needs extra valuation scrutiny.</li>
+  <li><strong>No watchlist discipline</strong> — Signals on 200 tickers you do not follow are useless. Curate 10–30 names.</li>
+</ul>
+
+<h2 id="workflow">A Simple Weekly Workflow</h2>
+
+<p>Monday: scan Radar or your brief for stance changes on holdings. Wednesday: check earnings dates for the next two weeks. Friday: note any sell trims needed for oversized winners. Total time: under 15 minutes if tools filter to your list.</p>
+
+<p>For a deeper comparison of tools that generate these calls, see our <a href="/compare/stocksbrew-vs-tipranks">stocksbrew vs TipRanks</a> page and the <a href="/blog/best-free-stock-alert-tools-2026">free stock alert tools roundup</a>.</p>
+
+<div class="cta-section">
+  <h3>Get Buy, Hold, Sell Calls on Your Watchlist</h3>
+  <p>stocksbrew Radar scores your tickers daily and explains each stance. Free for 3 stocks — no credit card.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "watchlist-vs-portfolio-tracker": `
+<div class="blog-meta">July 2026 · 10 min read</div>
+
+<p>Most investors use one list for everything: stocks they own, stocks they might buy, stocks a podcast mentioned once, and stocks they forgot why they saved. That single messy list is why portfolio tracking feels chaotic.</p>
+
+<p>The fix is simple: <strong>separate your watchlist from your portfolio tracker</strong>. They solve different problems and should live in different mental (and software) buckets.</p>
+
+<h2 id="definitions">Watchlist vs Portfolio: Definitions</h2>
+
+<table>
+  <tr><th>Watchlist</th><th>Portfolio</th></tr>
+  <tr><td>Stocks you do <em>not</em> own yet (or are researching)</td><td>Stocks you <em>own</em> with real money</td></tr>
+  <tr><td>Thesis + target entry + invalidation level</td><td>Shares, cost basis, allocation %, P&amp;L</td></tr>
+  <tr><td>Review: weekly</td><td>Review: daily brief + quarterly rebalance</td></tr>
+  <tr><td>Typical size: 10–30 names</td><td>Typical size: 8–20 positions</td></tr>
+</table>
+
+<p>Your watchlist is a <em>bench</em> of candidates. Your portfolio is the <em>team on the field</em>. Great investors often watch more names than they own — that ratio is healthy.</p>
+
+<h2 id="why-separate">Why Mixing Them Hurts</h2>
+
+<ul>
+  <li><strong>False urgency</strong> — A watchlist name down 8% feels like a portfolio loss even when you have zero shares.</li>
+  <li><strong>Allocation blind spots</strong> — Trackers that lump “maybe” stocks with holdings skew sector charts.</li>
+  <li><strong>Alert fatigue</strong> — News on 40 watchlist names drowns out earnings on your 12 holdings.</li>
+  <li><strong>No clear action</strong> — Without a thesis note, you cannot tell if a dip is “buy the watchlist” or “ignore noise.”</li>
+</ul>
+
+<h2 id="build-watchlist">How to Build a Watchlist That Works</h2>
+
+<ol>
+  <li><strong>Start from a screen, not a headline</strong> — Use <a href="/screens">thematic screens</a> or Finviz filters; add only names that pass your criteria.</li>
+  <li><strong>One-line thesis per ticker</strong> — “Cloud infra, 25% growth, buy below 28x earnings.”</li>
+  <li><strong>Tier your list</strong> — Tier 1: ready to buy at price. Tier 2: needs more research. Tier 3: radar only.</li>
+  <li><strong>Set alerts at your levels</strong> — Entry zone, not every 1% wiggle.</li>
+  <li><strong>Cull monthly</strong> — Remove names you would not buy today even at yesterday’s price.</li>
+</ol>
+
+<p>Our <a href="/blog/how-to-build-stock-watchlist">watchlist building guide</a> walks through this in more detail.</p>
+
+<h2 id="build-portfolio">How to Track the Portfolio You Own</h2>
+
+<p>Portfolio trackers should answer: What do I own? What is it worth? Am I concentrated? What changed today that affects my holdings?</p>
+
+<p>Yahoo Finance and broker apps handle dollars and cents well. They are weaker at <em>stance</em> — whether today’s news changes your hold/sell decision. That is where <a href="https://www.stocksbrew.online">stocksbrew Radar</a> fits: holdings and watchlist in one place, but with different treatment — directives and health on what you own, research pipeline for what you do not.</p>
+
+<h2 id="tools">Tool Stack by Job</h2>
+
+<table>
+  <tr><th>Job</th><th>Tool type</th><th>Example</th></tr>
+  <tr><td>Find candidates</td><td>Screener</td><td>Finviz, stocksbrew Screens</td></tr>
+  <tr><td>Monitor candidates</td><td>Watchlist + alerts</td><td>stocksbrew Radar (watching tab)</td></tr>
+  <tr><td>Track cost basis</td><td>Broker or tracker</td><td>Fidelity, Schwab, Yahoo Finance</td></tr>
+  <tr><td>Daily stance on holdings</td><td>AI brief / Radar</td><td>stocksbrew</td></tr>
+</table>
+
+<h2 id="workflow">Weekly Workflow (15 Minutes)</h2>
+
+<p><strong>Sunday:</strong> Review watchlist — promote one name to Tier 1 or delete two stale tickers.<br>
+<strong>Weekdays:</strong> 5-minute brief on portfolio holdings only.<br>
+<strong>Quarterly:</strong> Rebalance portfolio weights; refresh watchlist themes.</p>
+
+<div class="cta-section">
+  <h3>Holdings and Watching, Clearly Separated</h3>
+  <p>Radar splits your book into holdings vs watching — with buy/hold/sell calls on what you own. Free for 3 stocks.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "earnings-season-watchlist-playbook": `
+<div class="blog-meta">July 2026 · 12 min read</div>
+
+<p>Earnings season is when watchlists earn their keep — and when portfolios get punished for lack of prep. Four times a year, companies report results, guide forward, and move 5–20% in a day. If you only react after the print, you are already late.</p>
+
+<p>This playbook shows how to prep your <strong>earnings season watchlist</strong> two weeks out, what to do the day of, and how to update stances after the call.</p>
+
+<h2 id="timeline">The Earnings Timeline</h2>
+
+<ul>
+  <li><strong>T-14 days:</strong> Map report dates for holdings and top watchlist names. Flag conflicts (five reports same week).</li>
+  <li><strong>T-7 days:</strong> Note consensus EPS/revenue. Write one “surprise” scenario (beat + raise, beat + guide down, miss).</li>
+  <li><strong>T-1 day:</strong> Check options-implied move if available. Decide position size — trim before binary events if uncomfortable.</li>
+  <li><strong>Report day:</strong> Read release + guidance first; ignore hot takes for 30 minutes.</li>
+  <li><strong>T+1:</strong> Update thesis. Move watchlist names to buy tier or remove.</li>
+</ul>
+
+<h2 id="holdings">For Stocks You Own</h2>
+
+<p>Ask before every report:</p>
+
+<ol>
+  <li>What must they prove for me to keep holding?</li>
+  <li>What would make me sell the next morning?</li>
+  <li>Is my position size appropriate for overnight gap risk?</li>
+</ol>
+
+<p>If you cannot answer #1 and #2 in writing, you are gambling, not investing. Trim oversized positions before the print if a miss would force an emotional decision.</p>
+
+<h2 id="watchlist">For Stocks You Are Watching</h2>
+
+<p>Earnings on watchlist names are research accelerators, not mandatory buy signals.</p>
+
+<ul>
+  <li><strong>Beat + strong guide:</strong> Does price still offer entry vs your target? If up 15% after hours, wait for digestion.</li>
+  <li><strong>Miss but thesis intact:</strong> Often the best entry for quality names — if the miss is temporary (inventory, FX).</li>
+  <li><strong>Miss + thesis break:</strong> Remove from watchlist. Do not “catch the falling knife” without a new thesis.</li>
+</ul>
+
+<h2 id="calendar">Stop Using Generic Earnings Calendars</h2>
+
+<p>Market-wide calendars list 500 reports per week. You need <em>your</em> calendar — filtered to Radar holdings and watchlist. stocksbrew surfaces upcoming earnings on tracked tickers so you are not scrolling irrelevant names.</p>
+
+<p>Pair with our <a href="/blog/earnings-calendar-for-my-watchlist">earnings calendar for your watchlist</a> guide and the free <a href="/earnings-intel">earnings intel</a> pages for deeper prep on individual names.</p>
+
+<h2 id="sectors">Sector Rotation During Earnings</h2>
+
+<p>Banks kick off season; tech dominates mindshare; retailers matter for consumer health. Watch sector ETFs during the cluster that matters to your book — financials (XLF), tech (XLK), consumer (XLY) — using the <a href="/heat">market heatmap</a> for quick context.</p>
+
+<h2 id="mistakes">Earnings Season Mistakes</h2>
+
+<ul>
+  <li>Buying the day before “because momentum”</li>
+  <li>Selling the first red candle after a beat (weak hands)</li>
+  <li>Ignoring guidance for headline EPS</li>
+  <li>Tracking too many report dates without prioritization</li>
+</ul>
+
+<div class="cta-section">
+  <h3>Never Miss a Report on Your List</h3>
+  <p>Add holdings and watchlist names to Radar. Earnings dates, directives, and post-print stance updates — free for 3 stocks.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "stock-market-information-overload": `
+<div class="blog-meta">July 2026 · 10 min read</div>
+
+<p>The average active investor consumes more financial information in a morning than a professional did in a week twenty years ago. Heatmaps, Twitter threads, YouTube breakdowns, three newsletters, Reddit, and your broker’s “market pulse” — all before lunch. No wonder <strong>stock market information overload</strong> is the default state, not the exception.</p>
+
+<p>More data does not mean better decisions. Usually it means more anxiety and more trades you regret. Here is a system that cuts the noise without going blind.</p>
+
+<h2 id="problem">Why Overload Happens</h2>
+
+<ul>
+  <li><strong>Unfiltered feeds</strong> — CNBC and Finviz heatmaps show the whole market, not your book.</li>
+  <li><strong>Recency bias</strong> — The loudest headline feels urgent even when irrelevant to your holdings.</li>
+  <li><strong>Social proof</strong> — Reddit and X amplify momentum stories you do not own.</li>
+  <li><strong>Tool sprawl</strong> — Six apps, zero integrated view of “what changed for me.”</li>
+</ul>
+
+<h2 id="principles">Four Principles</h2>
+
+<h3>1. Filter to your tickers</h3>
+<p>If a story does not mention a stock you own or watch, skip it. Radical but effective. Tools like stocksbrew filter news and signals to your Radar list automatically.</p>
+
+<h3>2. One daily input, not six</h3>
+<p>Replace scrolling with one 5-minute brief. Our <a href="/blog/daily-stock-market-analysis-routine">10-minute daily routine</a> shows the shape.</p>
+
+<h3>3. Alerts over browsing</h3>
+<p>Set price and stance alerts; stop refreshing. See <a href="/blog/best-free-stock-alert-tools-2026">best free alert tools</a> for options.</p>
+
+<h3>4. Scheduled deep work</h3>
+<p>Weekend = research. Weekday mornings = scan only. Mixing them guarantees overload.</p>
+
+<h2 id="diet">The Information Diet (Concrete)</h2>
+
+<table>
+  <tr><th>Keep</th><th>Cut or limit</th></tr>
+  <tr><td>Watchlist-filtered brief</td><td>General market Twitter lists</td></tr>
+  <tr><td>Weekly screener session</td><td>Hourly heatmap checks</td></tr>
+  <tr><td>Earnings dates for your names</td><td>“Top 10 stocks to buy now” videos</td></tr>
+  <tr><td>One screener + one charting tool</td><td>Duplicate portfolio apps</td></tr>
+</table>
+
+<h2 id="anxiety">Overload and Investing Anxiety</h2>
+
+<p>Checking prices ten times a day increases cortisol, not returns. Studies on retail investor behavior consistently show overtrading hurts performance. The fix is not “care less” — it is <em>structured ignorance</em> of everything outside your process.</p>
+
+<blockquote>
+  Professional investors have teams to filter information. You need software to do the same job — or you will drown.
+</blockquote>
+
+<h2 id="stack">A Low-Noise Stack</h2>
+
+<ol>
+  <li><strong>stocksbrew Radar</strong> — Morning stance + news on your list (5 min)</li>
+  <li><strong>Broker app</strong> — Execution only; notifications off except your alerts</li>
+  <li><strong>Finviz or Screens</strong> — Weekly idea generation (15 min Sunday)</li>
+  <li><strong>SEC EDGAR</strong> — Only when you are sizing up a new position</li>
+</ol>
+
+<p>Compare full stacks in <a href="/blog/free-stock-market-analysis-tools">free stock analysis tools</a> and <a href="/compare">stocksbrew comparisons</a>.</p>
+
+<div class="cta-section">
+  <h3>Less Noise, Clearer Calls</h3>
+  <p>stocksbrew turns 50+ sources into a personalized daily brief for your watchlist. Stop scrolling — start knowing.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
+  "portfolio-health-check-guide": `
+<div class="blog-meta">July 2026 · 11 min read</div>
+
+<p>Most investors check portfolio <em>performance</em> daily and portfolio <em>health</em> never. Total return is one number; health is whether your book could survive the next sector drawdown, earnings miss, or rate shock without forcing bad decisions.</p>
+
+<p>A quarterly <strong>portfolio health check</strong> takes 20 minutes and catches concentration risk before it becomes a crisis.</p>
+
+<h2 id="what">What Portfolio Health Means</h2>
+
+<p>Health is not “am I up this year?” It is:</p>
+
+<ul>
+  <li><strong>Concentration</strong> — Any single stock over 10%? Any sector over 35%?</li>
+  <li><strong>Correlation</strong> — Are ten “different” names all really tech/growth?</li>
+  <li><strong>Valuation</strong> — Is the portfolio priced for perfection?</li>
+  <li><strong>Fundamental trend</strong> — How many holdings have deteriorating revenue or margins?</li>
+  <li><strong>Liquidity fit</strong> — Could you exit a position in a bad week without panic?</li>
+</ul>
+
+<h2 id="checklist">20-Minute Health Checklist</h2>
+
+<h3>Step 1: Position weights (5 min)</h3>
+<p>List holdings by % of portfolio. Flag anything above 10%. Plan a trim on winners, not losers, to rebalance.</p>
+
+<h3>Step 2: Sector map (5 min)</h3>
+<p>Group by sector. If technology + communication services exceed 40%, you are making one macro bet. Use the <a href="/heat">sector heatmap</a> to see if that bet is crowded.</p>
+
+<h3>Step 3: Stance review (5 min)</h3>
+<p>For each holding, note current buy/hold/sell stance. Three sells in a row? Your basket may be worse than the index — consider simplifying.</p>
+
+<h3>Step 4: Earnings and catalyst calendar (5 min)</h3>
+<p>Next 30 days: who reports? Any position sized too large for binary risk? See our <a href="/blog/earnings-season-watchlist-playbook">earnings season playbook</a>.</p>
+
+<h2 id="grades">Simple Grading Rubric</h2>
+
+<table>
+  <tr><th>Grade</th><th>Meaning</th></tr>
+  <tr><td>A</td><td>Diversified sectors, no position &gt;8%, fundamentals stable</td></tr>
+  <tr><td>B</td><td>Slight concentration or one weak name; manageable</td></tr>
+  <tr><td>C</td><td>Sector tilt &gt;40% or 2+ deteriorating fundamentals</td></tr>
+  <tr><td>D</td><td>Single stock &gt;15% or portfolio moves as one factor bet</td></tr>
+</table>
+
+<p>stocksbrew Radar shows a portfolio health grade with pillar breakdown (growth, value, momentum, risk) on your holdings — useful as a starting point, not a final verdict.</p>
+
+<h2 id="fixes">Common Fixes</h2>
+
+<ul>
+  <li><strong>Winner too large</strong> — Trim to target weight; redeploy to underweight sector.</li>
+  <li><strong>Too many similar names</strong> — Five chip stocks is not diversification. Keep the best one or two.</li>
+  <li><strong>Dead weight</strong> — Holdings with broken thesis and small weight often linger from sunk-cost fallacy. Sell and simplify.</li>
+  <li><strong>No cash buffer</strong> — 5–10% cash lets you buy dips without selling winners at the wrong time.</li>
+</ul>
+
+<h2 id="frequency">How Often</h2>
+
+<p>Light check: monthly (weights + calendar). Deep check: quarterly (sectors, fundamentals, stance). Extra check: after any 10%+ portfolio drawdown or when adding a new core position.</p>
+
+<p>For rebalancing mechanics, read <a href="/blog/portfolio-rebalancing-guide-retail-investors">portfolio rebalancing for retail investors</a> and try the <a href="/watchlist/portfolio">portfolio rebalance view</a>.</p>
+
+<div class="cta-section">
+  <h3>See Your Portfolio Health Score</h3>
+  <p>Radar grades your holdings across growth, value, momentum, and risk — with fixes to consider. Free for 3 stocks.</p>
+  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+</div>
+`,
 };

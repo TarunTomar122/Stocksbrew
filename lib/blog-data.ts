@@ -10,6 +10,86 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "ai-stock-analysis-comparison",
+    title: "AI Stock Analysis Tools Compared (2026)",
+    description:
+      "Prospero, Danelfin, TrendSpider, stocksbrew, and more — ranked on AI maturity, data sources, personalization, and real-world utility.",
+    category: "comparison",
+    tags: ["ai", "comparison", "tools", "analysis"],
+    date: "2026-07-15",
+    readTime: "11 min read",
+  },
+  {
+    slug: "stock-market-heatmap-tools",
+    title: "Best Free Stock Market Heatmap Tools in 2026",
+    description:
+      "We tested 8 free heatmap tools — Finviz, TradingView, stocksbrew, and more — for speed, sector views, and watchlist personalization.",
+    category: "tools",
+    tags: ["heatmap", "tools", "free", "comparison"],
+    date: "2026-07-15",
+    readTime: "10 min read",
+  },
+  {
+    slug: "how-to-use-stock-alerts-effectively",
+    title: "How to Use Stock Alerts Without Alert Fatigue",
+    description:
+      "Price, news, earnings, and technical alerts — plus a system to beat notification overload and only act when it matters.",
+    category: "guides",
+    tags: ["alerts", "productivity", "watchlist", "guide"],
+    date: "2026-07-15",
+    readTime: "9 min read",
+  },
+  {
+    slug: "buy-hold-sell-signals-explained",
+    title: "Buy, Hold, Sell Signals Explained: What They Are and How to Use Them",
+    description:
+      "Buy/hold/sell signals are more than price alerts. Learn what they mean, how AI generates them, and a weekly workflow that avoids overtrading.",
+    category: "guides",
+    tags: ["signals", "buy-hold-sell", "strategy", "ai", "guide"],
+    date: "2026-07-15",
+    readTime: "11 min read",
+  },
+  {
+    slug: "watchlist-vs-portfolio-tracker",
+    title: "Watchlist vs Portfolio Tracker: Why You Need Both",
+    description:
+      "Mixing stocks you own with stocks you might buy creates chaos. Here's how to separate watchlists from portfolios and which tools handle each job.",
+    category: "guides",
+    tags: ["watchlist", "portfolio", "tracking", "workflow", "guide"],
+    date: "2026-07-15",
+    readTime: "10 min read",
+  },
+  {
+    slug: "earnings-season-watchlist-playbook",
+    title: "Earnings Season Playbook: How to Prep Your Watchlist",
+    description:
+      "A step-by-step earnings prep timeline for holdings and watchlist names — from T-14 planning to post-report thesis updates.",
+    category: "guides",
+    tags: ["earnings", "watchlist", "season", "strategy", "guide"],
+    date: "2026-07-15",
+    readTime: "12 min read",
+  },
+  {
+    slug: "stock-market-information-overload",
+    title: "Stock Market Information Overload: A System That Actually Works",
+    description:
+      "Too much news, too little clarity. Cut the noise with a four-principle information diet and a low-tool stack for busy investors.",
+    category: "guides",
+    tags: ["productivity", "news", "workflow", "anxiety", "guide"],
+    date: "2026-07-15",
+    readTime: "10 min read",
+  },
+  {
+    slug: "portfolio-health-check-guide",
+    title: "Portfolio Health Check: A 20-Minute Quarterly Review",
+    description:
+      "Performance is not health. Use this checklist for concentration, sector tilt, fundamentals, and catalyst risk — with a simple A–D grading rubric.",
+    category: "intelligence",
+    tags: ["portfolio", "health", "risk", "diversification", "guide"],
+    date: "2026-07-15",
+    readTime: "11 min read",
+  },
+  {
     slug: "ai-stock-watchlist-vs-traditional",
     title: "AI Stock Watchlists vs Traditional Watchlists: What's Better?",
     description: "Traditional watchlists are just lists. AI watchlists add intelligence, scoring, and alerts. Here's how they compare.",

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FaqSection } from "@/components/marketing/faq-section";
+import { CompareRelatedReading } from "@/components/marketing/compare-related-reading";
+import { ShareLinkBar } from "@/components/marketing/share-link-bar";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { COMPARISON_PAGES, getComparisonPage } from "@/lib/compare-data";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
@@ -54,7 +56,7 @@ export default async function ComparePage({ params }: Props) {
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.6]">{page.verdict}</p>
           <div className="flex flex-wrap gap-3 pt-1">
-            <Link href="/watchlist" className="inline-flex h-[40px] items-center px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold">
+            <Link href="/radar" className="inline-flex h-[40px] items-center px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold">
               Start free Radar →
             </Link>
             <a
@@ -159,20 +161,9 @@ export default async function ComparePage({ params }: Props) {
           </p>
         </section>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="text-[18px] font-semibold text-[#111111]">Related reading</h2>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/blog/stocksbrew-vs-finviz" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111]">
-              vs Finviz
-            </Link>
-            <Link href="/should-i-buy" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111]">
-              Should I Buy
-            </Link>
-            <Link href="/guides" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111]">
-              Research guide
-            </Link>
-          </div>
-        </section>
+        <CompareRelatedReading slug={slug} />
+
+        <ShareLinkBar url={`/compare/${slug}`} title={page.title} />
 
         <FaqSection faqs={page.faqs} />
 
@@ -181,7 +172,7 @@ export default async function ComparePage({ params }: Props) {
           <p className="text-[14px] text-[#d1d5db] leading-relaxed max-w-[520px]">
             Add 3 stocks free. Get AI calls and optional email alerts when setups change.
           </p>
-          <Link href="/watchlist" className="inline-flex h-[44px] w-fit items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
+          <Link href="/radar" className="inline-flex h-[44px] w-fit items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
             Open Radar →
           </Link>
         </section>

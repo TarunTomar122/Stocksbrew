@@ -20,6 +20,7 @@ export async function GET() {
   // Core pages (always included)
   for (const [path, prio, freq] of [
     ["/", "1.0", "hourly"],
+    ["/radar", "0.95", "weekly"],
     ["/heat", "0.9", "hourly"],
     ["/anomalies", "0.9", "hourly"],
     ["/reddit-buzz", "0.85", "hourly"],
@@ -27,6 +28,8 @@ export async function GET() {
     ["/events", "0.9", "hourly"],
     ["/news", "0.9", "hourly"],
     ["/screens", "0.9", "daily"],
+    ["/resources", "0.8", "weekly"],
+    ["/free-tools", "0.85", "weekly"],
     ["/blog", "0.7", "weekly"],
     ["/subscribe", "0.7", "weekly"],
     ["/about", "0.5", "monthly"],

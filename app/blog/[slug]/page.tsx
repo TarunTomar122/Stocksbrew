@@ -4,6 +4,8 @@ import Link from "next/link";
 import { allBlogPosts, type BlogPost } from "@/lib/blog-data";
 import { getBlogContent } from "@/lib/blog";
 import { getSeoMeta } from "@/lib/blog/seo-meta";
+import { BlogCompareStrip } from "@/components/marketing/compare-related-reading";
+import { ShareLinkBar } from "@/components/marketing/share-link-bar";
 import { ArticleSchema } from "@/components/seo/article-schema";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -124,6 +126,9 @@ export default async function BlogPostPage({ params }: Props) {
         />
 
         <footer className="mt-16 pt-8 border-t border-[#e5e7eb] flex flex-col gap-6">
+          <BlogCompareStrip slug={slug} />
+          <ShareLinkBar url={`/blog/${slug}`} title={post.title} />
+
           <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
             <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
               Know what to do with your stocks
@@ -132,7 +137,7 @@ export default async function BlogPostPage({ params }: Props) {
               Personalized buy, hold, and sell calls from fundamentals, news, Reddit, and earnings. Set triggers and get emailed in buy or sell zones. Free for 3 stocks.
             </p>
             <a
-              href="https://www.stocksbrew.online"
+              href="https://www.stocksbrew.online/radar"
               className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
             >
               Try stocksbrew Free →

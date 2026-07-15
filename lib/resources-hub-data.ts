@@ -55,10 +55,22 @@ export const RESOURCE_GROUPS: ResourceGroup[] = [
     description: "See how stocksbrew fits next to other research stacks.",
     items: [
       {
+        href: "/radar",
+        title: "Radar product page",
+        description: "Indexable overview of buy/hold/sell calls and portfolio health.",
+        icon: "radar",
+      },
+      {
         href: "/compare",
         title: "Compare stocksbrew",
-        description: "Side-by-side with Tickertape, Finviz, and other tools.",
+        description: "Side-by-side with Finviz, TradingView, Yahoo Finance, and more.",
         icon: "balance",
+      },
+      {
+        href: "/resources",
+        title: "Link & share",
+        description: "Copy URLs and outreach blurbs for blog posts and community answers.",
+        icon: "link",
       },
     ],
   },

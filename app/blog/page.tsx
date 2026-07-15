@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { allBlogPosts } from "@/lib/blog-data";
+import { ALL_COMPARE_LINKS } from "@/lib/seo/compare-links";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -54,6 +55,28 @@ export default function BlogPage() {
           </div>
           <span className="text-[13px] font-semibold text-[#111111] shrink-0">Open guide →</span>
         </Link>
+
+        <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">Compare</span>
+            <span className="text-[16px] font-semibold text-[#111111]">How stocksbrew compares</span>
+            <span className="text-[13px] text-[#6b7280]">Honest side-by-sides with Finviz, TradingView, Yahoo Finance, and more.</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ALL_COMPARE_LINKS.slice(0, 8).map((c) => (
+              <Link
+                key={c.href}
+                href={c.href}
+                className="inline-flex h-[34px] items-center px-3 rounded-full border border-[#e5e7eb] bg-white text-[12px] font-medium text-[#374151] hover:border-[#111111]"
+              >
+                {c.label}
+              </Link>
+            ))}
+            <Link href="/compare" className="inline-flex h-[34px] items-center px-3 text-[12px] font-semibold text-[#0052ff] hover:underline">
+              All comparisons →
+            </Link>
+          </div>
+        </section>
 
         <section className="flex flex-col gap-5">
           {allBlogPosts.map((post) => (

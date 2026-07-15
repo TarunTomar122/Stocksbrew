@@ -37,19 +37,34 @@ export const FREE_TOOLS: HubLink[] = ALL_FREE_TOOLS.map(({ href, title, descript
 
 export const COMPARISONS: HubLink[] = [
   {
+    href: "/compare/stocksbrew-vs-finviz",
+    title: "stocksbrew vs Finviz",
+    description: "Static screener tables vs AI briefs and Radar alerts on your names.",
+  },
+  {
+    href: "/compare/stocksbrew-vs-tradingview",
+    title: "stocksbrew vs TradingView",
+    description: "Charting platform vs daily buy/hold/sell calls on your watchlist.",
+  },
+  {
+    href: "/compare/stocksbrew-vs-yahoo-finance",
+    title: "stocksbrew vs Yahoo Finance",
+    description: "Portfolio tracking vs stance-based Radar intelligence.",
+  },
+  {
     href: "/compare/stocksbrew-vs-tickertape",
     title: "stocksbrew vs Tickertape",
     description: "US watchlist briefs vs Indian screeners. Which fits your market and workflow.",
   },
   {
     href: "/blog/stocksbrew-vs-finviz",
-    title: "stocksbrew vs Finviz",
-    description: "Static screener tables vs AI briefs and Radar alerts on your names.",
+    title: "Blog: stocksbrew vs Finviz",
+    description: "Long-form comparison for screener vs Radar workflows.",
   },
   {
-    href: "/blog/best-market-intelligence-tools-2026",
-    title: "Best market brief tools (2026)",
-    description: "Roundup of research stacks for investors who want a daily read, not another dashboard.",
+    href: "/compare",
+    title: "All comparisons",
+    description: "Every stocksbrew side-by-side in one place.",
   },
 ];
 
@@ -68,6 +83,26 @@ export const WORKFLOW_GUIDES: HubLink[] = [
     href: "/blog/stay-updated-on-stocks-without-checking-daily",
     title: "Stay updated without checking daily",
     description: "Digest-first workflow: Radar briefs and alerts instead of refreshing quotes.",
+  },
+  {
+    href: "/blog/buy-hold-sell-signals-explained",
+    title: "Buy, hold, sell signals",
+    description: "What stance-based calls mean and how they differ from price alerts on Radar.",
+  },
+  {
+    href: "/blog/watchlist-vs-portfolio-tracker",
+    title: "Watchlist vs portfolio",
+    description: "Keep research names separate from holdings so tracking stays clear.",
+  },
+  {
+    href: "/blog/portfolio-health-check-guide",
+    title: "Portfolio health check",
+    description: "Quarterly concentration and sector review in 20 minutes.",
+  },
+  {
+    href: "/blog/earnings-season-watchlist-playbook",
+    title: "Earnings season playbook",
+    description: "Prep your watchlist two weeks before reports — timeline and mistakes to avoid.",
   },
   {
     href: "/use-cases",

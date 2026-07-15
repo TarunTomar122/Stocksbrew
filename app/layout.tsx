@@ -57,6 +57,14 @@ const jsonLd = {
     },
   ],
 };
+const siteVerification: Metadata["verification"] = {
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : {}),
+  ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+    ? { other: { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }
+    : {}),
+};
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.stocksbrew.online"),
   title: {
@@ -118,6 +126,9 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  ...(siteVerification && (siteVerification.google || siteVerification.other)
+    ? { verification: siteVerification }
+    : {}),
 };
 
 const getLayoutUserData = cache(async () => {

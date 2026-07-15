@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ShouldIBuyInteractive } from "@/components/should-i-buy-interactive";
 import { ShouldIBuyLandingSections } from "@/components/should-i-buy-landing-sections";
 import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
+import { ShareLinkBar } from "@/components/marketing/share-link-bar";
 import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
 import { getSessionUser } from "@/lib/auth-server";
@@ -41,7 +42,8 @@ export default async function ShouldIBuyPage() {
       </div>
       <ShouldIBuyInteractive searchIndex={searchIndex} isSubscribed={isSubscribed} />
       <ShouldIBuyLandingSections />
-      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16 flex flex-col gap-10">
+        <ShareLinkBar url="/should-i-buy" title="Free Should I Buy stock checker — stocksbrew" />
         <FreeToolRelated currentHref="/should-i-buy" />
       </div>
     </main>
