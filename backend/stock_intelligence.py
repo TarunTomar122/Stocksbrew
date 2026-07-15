@@ -697,6 +697,85 @@ STOCK_BRIEF_SCHEMA = {
 }
 
 
+def _json_schema_errors(value: Any, schema: dict[str, Any], *, path: str = "$") -> list[str]:
+    """Validate the JSON-schema subset used by stock briefs without extra deps."""
+    errors: list[str] = []
+    expected = schema.get("type")
+
+    type_matches = True
+    if expected == "object":
+        type_matches = isinstance(value, dict)
+    elif expected == "array":
+        type_matches = isinstance(value, list)
+    elif expected == "string":
+        type_matches = isinstance(value, str)
+    elif expected == "integer":
+        type_matches = isinstance(value, int) and not isinstance(value, bool)
+    elif expected == "number":
+        type_matches = isinstance(value, (int, float)) and not isinstance(value, bool)
+
+    if not type_matches:
+        errors.append(f"{path} must be {expected}")
+        return errors
+
+    allowed = schema.get("enum")
+    if isinstance(allowed, list) and value not in allowed:
+        errors.append(f"{path} must be one of {allowed}")
+
+    if expected == "object":
+        properties = schema.get("properties") or {}
+        required = schema.get("required") or []
+        for key in required:
+            if key not in value:
+                errors.append(f"{path}.{key} is required")
+        if schema.get("additionalProperties") is False:
+            for key in value:
+                if key not in properties:
+                    errors.append(f"{path}.{key} is not allowed")
+        for key, child_schema in properties.items():
+            if key in value and isinstance(child_schema, dict):
+                errors.extend(_json_schema_errors(value[key], child_schema, path=f"{path}.{key}"))
+    elif expected == "array":
+        item_schema = schema.get("items")
+        if isinstance(item_schema, dict):
+            for index, item in enumerate(value):
+                errors.extend(_json_schema_errors(item, item_schema, path=f"{path}[{index}]"))
+    elif expected in {"integer", "number"}:
+        minimum = schema.get("minimum")
+        maximum = schema.get("maximum")
+        if minimum is not None and value < minimum:
+            errors.append(f"{path} must be >= {minimum}")
+        if maximum is not None and value > maximum:
+            errors.append(f"{path} must be <= {maximum}")
+
+    return errors
+
+
+def _validate_stock_brief_payload(payload: Any) -> dict[str, Any]:
+    """Reject schema echoes and incomplete stock briefs before use or caching."""
+    if not isinstance(payload, dict):
+        raise ValueError("stock brief must be a JSON object")
+    if "schema" in payload and "name" in payload:
+        raise ValueError("stock brief response echoed the schema envelope")
+
+    errors = _json_schema_errors(payload, STOCK_BRIEF_SCHEMA["schema"])
+    for field in ("headline", "body", "thesis"):
+        if isinstance(payload.get(field), str) and not payload[field].strip():
+            errors.append(f"$.{field} must not be empty")
+    directive = payload.get("directive")
+    if isinstance(directive, dict):
+        for field in ("text", "action_now", "rationale"):
+            if isinstance(directive.get(field), str) and not directive[field].strip():
+                errors.append(f"$.directive.{field} must not be empty")
+
+    if errors:
+        preview = "; ".join(errors[:8])
+        if len(errors) > 8:
+            preview += f"; and {len(errors) - 8} more"
+        raise ValueError(preview)
+    return payload
+
+
 def _llm_synthesize_brief(
     ticker: str,
     name: str,
@@ -720,7 +799,7 @@ def _llm_synthesize_brief(
     previous_directive: dict[str, Any] | None = None,
     previous_brief_summary: dict[str, Any] | None = None,
     store: Any | None = None,
-) -> dict[str, str] | None:
+) -> dict[str, Any] | None:
     """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
     api_key = llm_api_key()
     if not api_key:
@@ -771,24 +850,57 @@ def _llm_synthesize_brief(
         try:
             cached = store.get_llm_enrichment(cache_key)
             if cached and isinstance(cached.get("payload"), dict):
-                return cached["payload"]
+                try:
+                    return _validate_stock_brief_payload(cached["payload"])
+                except ValueError as exc:
+                    logger.warning(
+                        "Ignoring invalid cached LLM brief for %s cache_key=%s: %s",
+                        ticker,
+                        cache_key,
+                        exc,
+                    )
         except Exception:
             pass
 
     try:
-        body = post_chat_completion(
-            messages=[
-                {"role": "system", "content": schema_system_prompt(STOCK_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-            ],
-            model=model,
-            temperature=0.2,
-            response_format=json_response_format(),
-            timeout=30,
-            stage="stock_brief",
-        )
-        content = body["choices"][0]["message"]["content"]
-        result = parse_json_content(content)
+        messages = [
+            {"role": "system", "content": schema_system_prompt(STOCK_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+        ]
+        result: dict[str, Any] | None = None
+        for semantic_attempt in range(1, 3):
+            body = post_chat_completion(
+                messages=messages,
+                model=model,
+                temperature=0.2,
+                response_format=json_response_format(),
+                timeout=30,
+                stage="stock_brief",
+            )
+            content = body["choices"][0]["message"]["content"]
+            try:
+                result = _validate_stock_brief_payload(parse_json_content(content))
+                break
+            except (KeyError, TypeError, ValueError) as exc:
+                if semantic_attempt >= 2:
+                    raise ValueError(f"invalid stock brief after {semantic_attempt} attempts: {exc}") from exc
+                logger.warning(
+                    "Invalid LLM brief for %s; retrying semantic_attempt=%s/2: %s",
+                    ticker,
+                    semantic_attempt,
+                    exc,
+                )
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "The prior response was invalid. Return the completed stock brief data object, "
+                        "not the schema or response-format envelope. Include every required field and "
+                        f"match all field types. Validation error: {str(exc)[:500]}"
+                    ),
+                })
+
+        if result is None:
+            raise ValueError("LLM returned no valid stock brief")
 
         # Cache the result
         if store is not None and cache_key:
@@ -2422,7 +2534,10 @@ LOW_SIGNAL_TITLE_TERMS = (
 
 def _clean_sentence(value: str) -> str:
     cleaned = " ".join(str(value).split()).strip()
-    cleaned = re.sub(r"\s*-\s*[A-Za-z0-9 .,&'/:-]+$", "", cleaned)
+    # Strip title-style source attributions ("Headline - Reuters") without
+    # treating hyphenated words such as "re-rating" or "risk-off" as a
+    # separator and deleting the rest of the sentence.
+    cleaned = re.sub(r"\s+-\s+[A-Za-z0-9 .,&'/:-]+$", "", cleaned)
     for prefix in GENERIC_STARTS:
         if cleaned.lower().startswith(prefix):
             cleaned = cleaned[len(prefix):].lstrip(" :,-")

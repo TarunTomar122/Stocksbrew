@@ -203,6 +203,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <script
+          defer
+          data-site="39i601nr"
+          data-domain="stocksbrew.online"
+          src="https://piqo.app/piqo.js"
+        />
         {process.env.NODE_ENV === "production" && GA_MEASUREMENT_ID ? (
           <>
             <Script
