@@ -261,9 +261,9 @@ export function PremarketPageView({
         </div>
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#111111] md:text-[40px]">
+          <h2 className="text-[32px] font-semibold tracking-[-0.03em] text-[#111111] md:text-[40px]">
             Pre-market movers
-          </h1>
+          </h2>
           <p className="max-w-2xl text-[14px] leading-relaxed text-[#6b7280]">
             {total > 0
               ? `${total} stocks gapping before the open · ${gappersUp.length} up, ${gappersDown.length} down`

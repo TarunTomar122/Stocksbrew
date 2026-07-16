@@ -124,7 +124,8 @@ async function syncServerSession(): Promise<void> {
 // Main export
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function DemoRadar() {
+export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" } = {}) {
+  const Heading = headingLevel;
   const router = useRouter();
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
@@ -190,9 +191,9 @@ export function DemoRadar() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <h1 className="text-[40px] md:text-[56px] font-semibold tracking-[-0.035em] text-on-surface leading-[1.0]">
+              <Heading className="text-[40px] md:text-[56px] font-semibold tracking-[-0.035em] text-on-surface leading-[1.0]">
                 Your Radar
-              </h1>
+              </Heading>
               <p className="text-[15px] text-on-surface-variant leading-[1.65] mt-3">
                 Every morning we read the buzz, the moves, the earnings, and the sector regime on
                 the stocks you own, then tell you what it all adds up to and what to do about it.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { allBlogPosts } from "@/lib/blog-data";
+import { indexableBlogPosts } from "@/lib/blog-data";
 import { ALL_COMPARE_LINKS } from "@/lib/seo/compare-links";
 
 export const metadata: Metadata = {
@@ -79,7 +79,7 @@ export default function BlogPage() {
         </section>
 
         <section className="flex flex-col gap-5">
-          {allBlogPosts.map((post) => (
+          {indexableBlogPosts.map((post) => (
             <Link
               key={post.slug}
               href={`/blog/${post.slug}`}

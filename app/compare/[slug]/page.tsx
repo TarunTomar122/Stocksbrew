@@ -11,6 +11,12 @@ import { US_PRO_MONTHLY } from "@/lib/pricing";
 
 type Props = { params: Promise<{ slug: string }> };
 
+const VERIFIED_COMPARISONS: Record<string, string> = {
+  "stocksbrew-vs-finviz": "July 16, 2026",
+  "stocksbrew-vs-tradingview": "July 16, 2026",
+  "stocksbrew-vs-seeking-alpha": "July 16, 2026",
+};
+
 export async function generateStaticParams() {
   return COMPARISON_PAGES.map((p) => ({ slug: p.slug }));
 }
@@ -35,6 +41,7 @@ export default async function ComparePage({ params }: Props) {
   const { slug } = await params;
   const page = getComparisonPage(slug);
   if (!page) notFound();
+  const verifiedOn = VERIFIED_COMPARISONS[slug];
 
   return (
     <main className="flex-grow">
@@ -55,6 +62,13 @@ export default async function ComparePage({ params }: Props) {
             {page.title}
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.6]">{page.verdict}</p>
+          <p className="text-[12px] leading-relaxed text-[#6b7280]">
+            {verifiedOn ? `Official product details rechecked ${verifiedOn}. ` : "Product details can change. "}
+            This is a stocksbrew-authored comparison based on public product documentation, not an affiliate placement. See our{" "}
+            <Link href="/editorial-policy" className="underline underline-offset-2 hover:text-[#111111]">
+              comparison methodology
+            </Link>.
+          </p>
           <div className="flex flex-wrap gap-3 pt-1">
             <Link href="/radar" className="inline-flex h-[40px] items-center px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold">
               Start free Radar →
@@ -69,6 +83,23 @@ export default async function ComparePage({ params }: Props) {
             </a>
           </div>
         </header>
+
+        <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6">
+          <h2 className="text-[17px] font-semibold text-[#111111]">Research notes</h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-[#6b7280]">
+            We compare the job each tool is designed to do, show meaningful drawbacks, and link to the competitor&apos;s official pages so you can verify the final decision. Pricing and plan limits should always be confirmed before purchase.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3 text-[13px] font-medium">
+            <a href={page.competitorUrl} target="_blank" rel="noopener noreferrer" className="text-[#111111] underline underline-offset-2">
+              Official {page.competitorName} site ↗
+            </a>
+            {page.competitorPricingUrl ? (
+              <a href={page.competitorPricingUrl} target="_blank" rel="noopener noreferrer" className="text-[#111111] underline underline-offset-2">
+                Official pricing ↗
+              </a>
+            ) : null}
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-[#e5e7eb] overflow-hidden">
           <div className="overflow-x-auto">

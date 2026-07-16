@@ -112,32 +112,32 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     competitorUrl: "https://seekingalpha.com",
     competitorPricingUrl: "https://seekingalpha.com/premium",
     stocksbrewBestFor:
-      "You want daily intelligence on your watchlist without reading 10 articles per stock. AI scores signals from 50+ sources and delivers a 5-minute personalized brief.",
+      "You want a concise monitoring view for a focused watchlist, with current calls, news, earnings context, and alerts in one workflow.",
     competitorBestFor:
-      "You want deep human-written analysis on specific stocks. Seeking Alpha's 10,000+ monthly contributor articles give you perspectives AI summaries can't match.",
+      "You want deep human-written analysis, earnings-call transcripts, factor grades, and Quant, author, and sell-side ratings on specific stocks.",
     bothScenario:
       "Use stocksbrew for daily monitoring — the 5-minute brief that keeps you informed. Use Seeking Alpha when stocksbrew flags something interesting and you want to deep-dive on a specific stock.",
     rows: [
-      { dimension: "Research approach", stocksbrew: "AI aggregates 50+ sources into personalized brief", competitor: "Crowdsourced articles from 10,000+ contributors" },
+      { dimension: "Research approach", stocksbrew: "AI-assisted watchlist monitoring with calls and context", competitor: "Contributor analysis plus Quant and sell-side ratings" },
       { dimension: "Daily output", stocksbrew: "5-minute personalized AI brief with buy/hold/sell calls", competitor: "News feed + new community articles to read manually" },
       { dimension: "Personalization", stocksbrew: "Full watchlist personalization with AI scoring", competitor: "Portfolio alerts, article recommendations" },
       { dimension: "Time to value", stocksbrew: "5 min/day — read AI brief", competitor: "15-30 min/day — read and filter articles" },
-      { dimension: "AI features", stocksbrew: "Core — signal scoring, sentiment, earnings intel", competitor: "Quant ratings, AI summaries (limited)" },
+      { dimension: "AI features", stocksbrew: "Core — signal scoring, sentiment, earnings intel", competitor: "Quant ratings, Virtual Analyst reports, earnings-call insights" },
       { dimension: "Dividend analysis", stocksbrew: "Dividend tracking in daily briefs", competitor: "Excellent — dividend grades, safety scores, history" },
-      { dimension: "Free tier", stocksbrew: "Daily brief, watchlist radar, sector overview", competitor: "3 articles/mo, limited screeners" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Radar", competitor: "Premium $19.99/mo or $239/yr" },
+      { dimension: "Free tier", stocksbrew: "Radar for 3 stocks plus free tools", competitor: "Limited article and portfolio access" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Radar", competitor: "Premium $299/yr as listed by Seeking Alpha" },
     ],
     stocksbrewStrengths: [
       "AI personalized brief — ready in 5 minutes, no manual filtering",
-      "Scans 50+ sources including filings, social media, and transcripts",
+      "Combines configured news, filing, earnings, price, and sentiment inputs",
       "Sentiment tracking across news and social for each watchlist stock",
       "AI alerts triggered by breakouts, RSI, earnings, and sentiment shifts",
-      "Price — $9/mo vs $20/mo, no annual lock-in",
+      "Monthly and annual options at $9/mo or $99/yr",
     ],
     competitorStrengths: [
       "Deep human-written analysis with diverse perspectives",
       "Dividend grades, safety scores, and payout history",
-      "Large archive of historical analysis on 4,000+ stocks",
+      "Analysis and data tools covering more than 4,000 stocks and ETFs",
       "Quant rating system popular with value investors",
       "Earnings call transcripts and ratings changes in one place",
     ],
@@ -159,7 +159,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "What is the difference between stocksbrew and Seeking Alpha?",
         answer:
-          "Seeking Alpha is crowdsourced stock analysis — articles written by thousands of contributors. stocksbrew is AI-powered intelligence — the AI scans 50+ sources daily and delivers a personalized brief. Seeking Alpha gives you human perspectives. stocksbrew gives you synthesized intelligence.",
+          "Seeking Alpha combines contributor analysis, transcripts, Quant ratings, factor grades, screeners, and portfolio tools. stocksbrew focuses on an AI-assisted monitoring view with calls and context for a smaller watchlist.",
       },
       {
         question: "Is stocksbrew better than Seeking Alpha?",
@@ -174,7 +174,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is more affordable?",
         answer:
-          "stocksbrew Pro costs $9/mo or $99/yr. Seeking Alpha Premium costs $19.99/mo or $239/yr. stocksbrew is roughly 40% cheaper and doesn't require an annual commitment.",
+          "stocksbrew Pro costs $9/month or $99/year. Seeking Alpha's official help center listed Premium at $299/year when this page was reviewed; confirm current offers on its pricing page.",
       },
       {
         question: "Which has better dividend analysis?",
@@ -190,7 +190,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "TradingView is the king of charts. stocksbrew is built for daily intelligence. Both are essential, but for completely different workflows.",
     verdict:
-      "TradingView is the best charting platform — period. stocksbrew doesn't chart. It delivers AI-powered daily intelligence for your watchlist. They're not competitors; they're complementary tools. The smartest workflow uses TradingView for technical analysis and stocksbrew for daily monitoring.",
+      "TradingView is a charting, screening, alerting, and trading workspace across asset classes. stocksbrew does not try to replace that workspace; it provides written calls and context for a focused US stock watchlist. They fit different stages of the workflow.",
     competitorUrl: "https://www.tradingview.com",
     competitorPricingUrl: "https://www.tradingview.com/pricing",
     stocksbrewBestFor:
@@ -202,20 +202,20 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     rows: [
       { dimension: "Core function", stocksbrew: "AI-powered daily market intelligence", competitor: "Professional-grade charting platform" },
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief with buy/hold/sell calls", competitor: "No AI brief — community ideas and news feed" },
-      { dimension: "Charting", stocksbrew: "Not a charting tool", competitor: "Best-in-class — 100+ indicators, multi-timeframe" },
-      { dimension: "Watchlist", stocksbrew: "AI radar with scoring, alerts, and context", competitor: "Basic watchlist tabs with price alerts" },
+      { dimension: "Charting", stocksbrew: "Not a charting tool", competitor: "Advanced multi-timeframe charts, drawings, indicators, and Pine" },
+      { dimension: "Watchlist", stocksbrew: "AI radar with scoring, alerts, and context", competitor: "Watchlists with price, technical, drawing, and Pine-based alerts" },
       { dimension: "Stock screening", stocksbrew: "Curated screens (growth, momentum, value)", competitor: "Built-in screener with technical + fundamental filters" },
-      { dimension: "Portfolio analysis", stocksbrew: "Portfolio analyzer with health scoring", competitor: "No portfolio tracking" },
+      { dimension: "Portfolio analysis", stocksbrew: "Portfolio analyzer with health scoring", competitor: "Chart trading and broker connections; not tax accounting" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings previews and post-earnings analysis", competitor: "Earnings calendar + basic data" },
-      { dimension: "Free tier", stocksbrew: "Daily brief, watchlist radar, sector overview", competitor: "1 chart layout, basic indicators, delayed data" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Essential $12.95/mo up to Premium $49.95/mo" },
+      { dimension: "Free tier", stocksbrew: "Radar for 3 stocks plus free tools", competitor: "Free charting and screening with plan limits" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Several plans; exchange data and limits vary" },
     ],
     stocksbrewStrengths: [
       "Personalized AI daily brief — 5 minutes covers your entire watchlist",
-      "Scans 50+ sources for news, sentiment, filings, and earnings",
+      "Combines configured news, filing, earnings, price, and sentiment inputs",
       "AI alerts for breakouts, RSI levels, and sentiment shifts",
       "Portfolio health scoring and earning intel",
-      "Lower price — $9/mo vs TradingView's $13-50/mo",
+      "A lower-cost monitoring product when advanced charting is not the job",
     ],
     competitorStrengths: [
       "Best-in-class charting with 100+ indicators",
@@ -268,7 +268,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "Yahoo Finance has been the default free portfolio tracker for decades. stocksbrew is an AI-native intelligence platform. Here's the breakdown.",
     verdict:
-      "Yahoo Finance is a free financial portal you navigate manually. stocksbrew is an AI intelligence feed that comes to you. One requires you to do the work — scanning news, filtering noise, tracking your portfolio. The other does the work for you — AI scans 50+ sources and delivers a personalized brief. For the 5-minute daily habit, stocksbrew is in a different league.",
+      "Yahoo Finance is a free financial portal you navigate manually. stocksbrew is an AI intelligence feed that comes to you. One requires you to do the work — scanning news, filtering noise, tracking your portfolio. The other does the work for you — AI scans multiple configured inputs and delivers a personalized brief. For the 5-minute daily habit, stocksbrew is in a different league.",
     competitorUrl: "https://finance.yahoo.com",
     stocksbrewBestFor:
       "You want daily intelligence delivered to you, not searched for. AI briefs replace 20 minutes of manual news scanning with a 5-minute read.",
@@ -290,7 +290,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     ],
     stocksbrewStrengths: [
       "AI-generated personalized brief — no manual news filtering needed",
-      "Scans 50+ sources including SEC filings and earnings transcripts",
+      "Scans multiple configured inputs including SEC filings and earnings transcripts",
       "Multi-source sentiment tracking with trend detection",
       "AI alerts that understand context, not just price levels",
       "No ads — clean, focused experience",
@@ -320,7 +320,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Is stocksbrew better than Yahoo Finance?",
         answer:
-          "For daily market intelligence, yes. stocksbrew's AI generates a personalized brief from 50+ sources. Yahoo Finance requires you to manually navigate and filter. For financial statement data and quick quotes, Yahoo Finance is still valuable.",
+          "For daily market intelligence, yes. stocksbrew's AI generates a personalized brief from multiple configured inputs. Yahoo Finance requires you to manually navigate and filter. For financial statement data and quick quotes, Yahoo Finance is still valuable.",
       },
       {
         question: "Can stocksbrew replace Yahoo Finance?",
@@ -358,7 +358,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     rows: [
       { dimension: "AI philosophy", stocksbrew: "Intelligence — aggregates what matters for your watchlist", competitor: "Predictive — forecasts which stocks will outperform" },
       { dimension: "Daily output", stocksbrew: "Personalized watchlist brief with buy/hold/sell calls", competitor: "AI-generated stock picks with performance tracking" },
-      { dimension: "Data sources", stocksbrew: "50+ sources: news, filings, social, earnings, analysts", competitor: "Market data, technical patterns, alternative data" },
+      { dimension: "Data sources", stocksbrew: "multiple configured inputs: news, filings, social, earnings, analysts", competitor: "Market data, technical patterns, alternative data" },
       { dimension: "Personalization", stocksbrew: "Full personalization to your watchlist", competitor: "Same picks for all users" },
       { dimension: "Track record", stocksbrew: "N/A — not a prediction tool", competitor: "Published performance against S&P 500" },
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source tracking with trend detection", competitor: "Basic sentiment in analysis" },
@@ -433,7 +433,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     bothScenario:
       "Use stocksbrew for daily monitoring — the AI brief covers all your holdings in 5 minutes. Use Morningstar for deep fundamental analysis when evaluating new positions or reviewing existing ones.",
     rows: [
-      { dimension: "Research type", stocksbrew: "AI-powered daily intelligence from 50+ sources", competitor: "Institutional-grade human analyst research" },
+      { dimension: "Research type", stocksbrew: "AI-powered daily intelligence from multiple configured inputs", competitor: "Institutional-grade human analyst research" },
       { dimension: "Coverage", stocksbrew: "Unlimited — any US stock you want to track", competitor: "~1,500 stocks (analyst coverage universe)" },
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief with buy/hold/sell calls", competitor: "News articles, market commentary" },
       { dimension: "Fair value estimates", stocksbrew: "AI-driven valuation context in briefs", competitor: "Excellent — analyst-driven methodology" },
@@ -507,9 +507,9 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "Finviz is the go-to stock screener. stocksbrew is an AI intelligence platform. Different tools for different jobs. Here is how to pick.",
     verdict:
-      "Finviz is the best free stock screener — period. Its heatmaps, filters, and visual market maps are unmatched for finding stocks that match your criteria. stocksbrew doesn't screen. It monitors. Once you own or watch stocks, stocksbrew's AI tells you daily what moved, why, and whether to act. Finviz finds opportunities. stocksbrew monitors the ones you chose.",
+      "Finviz is designed for screening US stocks and scanning dense market maps. stocksbrew is designed to monitor a focused watchlist with written calls, earnings, news, and alerts. Use Finviz to narrow the market; use stocksbrew after a name becomes a serious candidate or holding.",
     competitorUrl: "https://finviz.com",
-    competitorPricingUrl: "https://finviz.com/register.ashx",
+    competitorPricingUrl: "https://finviz.com/elite",
     stocksbrewBestFor:
       "You already know what you own and want AI to monitor it daily. Buy/hold/sell calls, sentiment tracking, and earnings intel in a 5-minute brief.",
     competitorBestFor:
@@ -518,20 +518,20 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       "Screen on Finviz to find candidates. Add winners to your stocksbrew Radar. Let stocksbrew handle daily monitoring so you never miss a signal on stocks you care about.",
     rows: [
       { dimension: "Core function", stocksbrew: "AI daily intelligence for your watchlist", competitor: "Stock screener and market visualization" },
-      { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Best-in-class — 60+ filters, real-time data" },
+      { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Broad fundamental and technical filters; advanced custom filters on Elite" },
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief with buy/hold/sell calls", competitor: "No brief — manual scanning required" },
       { dimension: "Heatmaps", stocksbrew: "Sector and market attention maps", competitor: "Industry-leading S&P 500 and market heatmaps" },
-      { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Premium-only — screener-based email alerts" },
-      { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "None" },
+      { dimension: "Alerts", stocksbrew: "Price zones and setup-change emails", competitor: "Elite price, news, ratings, insider, filing, portfolio, and screener alerts" },
+      { dimension: "Written watchlist context", stocksbrew: "Calls with earnings, news, price, and sentiment context", competitor: "Market data and alerts rather than an equivalent written call" },
       { dimension: "Free tier", stocksbrew: "Daily brief, Radar for 3 stocks, Should I Buy", competitor: "Full screener with delayed data, heatmaps" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Elite $39.50/mo" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Elite $39.50/mo or $299.50/yr when reviewed" },
     ],
     stocksbrewStrengths: [
       "AI daily brief replaces manual scanning — 5 minutes covers your watchlist",
-      "Buy/hold/sell calls with rationale from 50+ sources",
+      "Add/hold/trim calls with evidence and risk context",
       "Multi-source sentiment tracking with trend detection",
       "Earnings intel: AI analysis before and after every report",
-      "Lower price — $9/mo vs $39.50/mo",
+      "Lower monthly price for the narrower monitoring job",
     ],
     competitorStrengths: [
       "Best free stock screener with 60+ filters",
@@ -551,7 +551,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       },
       {
         title: "Daily: let stocksbrew monitor",
-        body: "stocksbrew scans 50+ sources every day. Email fires when something changes for your Radar stocks. No need to re-run Finviz screens daily.",
+        body: "Radar keeps the monitored names together and can email when configured price zones or setup conditions change. Re-run a Finviz screen when you are looking for new candidates.",
       },
     ],
     faqs: [
@@ -573,7 +573,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Which is cheaper?",
         answer:
-          "Finviz basic is free. Finviz Elite costs $39.50/mo. stocksbrew has a free tier and Pro costs $9/mo. For the monitoring job, stocksbrew is 3x cheaper than Finviz Elite.",
+          "Finviz basic is free. When reviewed, Finviz listed Elite at $39.50/month or $299.50/year. stocksbrew has a free tier and Pro costs $9/month or $99/year. They charge for different core jobs, so compare the plan that matches your workflow.",
       },
       {
         question: "Should I use both?",
@@ -589,7 +589,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "Zacks is known for its earnings-based ranking system. stocksbrew delivers AI-powered daily intelligence. Compare the approaches.",
     verdict:
-      "Zacks built its reputation on the earnings estimate revision — the idea that rising estimates predict rising stock prices. Its 1-5 ranking system is simple and backtested. stocksbrew takes a wider lens: AI scans 50+ sources for signals across sentiment, filings, earnings, and technicals. Zacks gives you a single number per stock. stocksbrew gives you a daily narrative with context.",
+      "Zacks built its reputation on the earnings estimate revision — the idea that rising estimates predict rising stock prices. Its 1-5 ranking system is simple and backtested. stocksbrew takes a wider lens: AI scans multiple configured inputs for signals across sentiment, filings, earnings, and technicals. Zacks gives you a single number per stock. stocksbrew gives you a daily narrative with context.",
     competitorUrl: "https://www.zacks.com",
     competitorPricingUrl: "https://www.zacks.com/premium",
     stocksbrewBestFor:
@@ -599,7 +599,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     bothScenario:
       "Use Zacks rankings as a screening filter. Cross-reference with stocksbrew AI briefs for full context before making a trade.",
     rows: [
-      { dimension: "Signal source", stocksbrew: "50+ sources: news, filings, sentiment, technicals", competitor: "Earnings estimate revisions as primary signal" },
+      { dimension: "Signal source", stocksbrew: "multiple configured inputs: news, filings, sentiment, technicals", competitor: "Earnings estimate revisions as primary signal" },
       { dimension: "Output format", stocksbrew: "Narrative brief with buy/hold/sell calls", competitor: "1-5 ranking system (Strong Buy to Strong Sell)" },
       { dimension: "Daily intelligence", stocksbrew: "Personalized AI brief for your watchlist", competitor: "Daily market commentary and stock picks" },
       { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Ranking-based screener — filter by Zacks Rank" },
@@ -625,7 +625,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     workflow: [
       {
         title: "Daily: stocksbrew brief (5 min)",
-        body: "Read your AI brief. See which holdings have new signals, sentiment shifts, or earnings events. Each stock gets a call with context from 50+ sources.",
+        body: "Read your AI brief. See which holdings have new signals, sentiment shifts, or earnings events. Each stock gets a call with context from multiple configured inputs.",
       },
       {
         title: "Filter: Zacks rankings",
@@ -640,7 +640,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "What is the difference between stocksbrew and Zacks?",
         answer:
-          "Zacks uses earnings estimate revisions as its primary signal and gives each stock a 1-5 ranking. stocksbrew uses AI to scan 50+ sources and delivers a personalized daily brief with narrative context. Zacks is a single-factor ranking system. stocksbrew is multi-source intelligence.",
+          "Zacks uses earnings estimate revisions as its primary signal and gives each stock a 1-5 ranking. stocksbrew uses AI to scan multiple configured inputs and delivers a personalized daily brief with narrative context. Zacks is a single-factor ranking system. stocksbrew is multi-source intelligence.",
       },
       {
         question: "Which is better for earnings analysis?",
@@ -666,7 +666,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "Motley Fool is the most recognized stock picking service. stocksbrew is an AI intelligence platform. Here is how they compare for portfolio research.",
     verdict:
-      "Motley Fool tells you what to buy. stocksbrew helps you understand what you own. Fool's Stock Advisor and Rule Breakers services have delivered market-beating returns over 20+ years by picking companies for the long term. stocksbrew does not pick stocks — it monitors them daily with AI intelligence from 50+ sources. Different philosophies: one gives you picks, the other gives you understanding.",
+      "Motley Fool tells you what to buy. stocksbrew helps you understand what you own. Fool's Stock Advisor and Rule Breakers services have delivered market-beating returns over 20+ years by picking companies for the long term. stocksbrew does not pick stocks — it monitors them daily with AI intelligence from multiple configured inputs. Different philosophies: one gives you picks, the other gives you understanding.",
     competitorUrl: "https://www.fool.com",
     competitorPricingUrl: "https://www.fool.com/premium",
     stocksbrewBestFor:
@@ -748,7 +748,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "TipRanks aggregates analyst ratings and insider trading data. stocksbrew delivers AI-powered daily intelligence. Compare the data-driven approaches.",
     verdict:
-      "TipRanks tracks what Wall Street analysts and corporate insiders are doing — analyst ratings, price targets, insider transactions, and hedge fund holdings. stocksbrew tracks what the market is saying across 50+ sources — news, filings, social sentiment, earnings, and technicals. TipRanks gives you the institutional view. stocksbrew gives you the full market view.",
+      "TipRanks tracks what Wall Street analysts and corporate insiders are doing — analyst ratings, price targets, insider transactions, and hedge fund holdings. stocksbrew tracks what the market is saying across multiple configured inputs — news, filings, social sentiment, earnings, and technicals. TipRanks gives you the institutional view. stocksbrew gives you the full market view.",
     competitorUrl: "https://www.tipranks.com",
     competitorPricingUrl: "https://www.tipranks.com/pricing",
     stocksbrewBestFor:
@@ -758,7 +758,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     bothScenario:
       "Use TipRanks to see what analysts and insiders are doing. Use stocksbrew for the broader picture — sentiment, news, earnings intel, and technical signals.",
     rows: [
-      { dimension: "Data focus", stocksbrew: "50+ sources: news, sentiment, filings, technicals", competitor: "Analyst ratings, insider trades, hedge funds" },
+      { dimension: "Data focus", stocksbrew: "multiple configured inputs: news, sentiment, filings, technicals", competitor: "Analyst ratings, insider trades, hedge funds" },
       { dimension: "Daily output", stocksbrew: "Personalized AI brief for your watchlist", competitor: "Analyst rating changes, insider transaction feeds" },
       { dimension: "Analyst tracking", stocksbrew: "Analyst signals included in AI brief", competitor: "Core strength — ranked analysts with success rates" },
       { dimension: "Insider trading", stocksbrew: "Insider activity flagged in briefs", competitor: "Excellent — detailed insider transaction tracking" },
@@ -768,7 +768,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free tier / Premium $30/mo or $360/yr" },
     ],
     stocksbrewStrengths: [
-      "Broader intelligence — 50+ sources vs analyst/insider focus",
+      "Broader intelligence — multiple configured inputs vs analyst/insider focus",
       "Personalized AI brief for your specific watchlist",
       "Multi-source sentiment tracking with trend detection",
       "AI alerts triggered by breakouts, earnings, and sentiment",
@@ -825,7 +825,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     description:
       "StockAnalysis provides clean financial data and stock screening. stocksbrew delivers AI-powered daily intelligence. Compare the platforms.",
     verdict:
-      "StockAnalysis is one of the cleanest free financial data sites — stock pages with financials, analyst estimates, screening, and news in a fast, ad-light interface. stocksbrew does not compete on raw data. It competes on intelligence. AI scans 50+ sources daily and tells you what matters for your specific watchlist. StockAnalysis gives you data to analyze yourself. stocksbrew gives you analysis done for you.",
+      "StockAnalysis is one of the cleanest free financial data sites — stock pages with financials, analyst estimates, screening, and news in a fast, ad-light interface. stocksbrew does not compete on raw data. It competes on intelligence. AI scans multiple configured inputs daily and tells you what matters for your specific watchlist. StockAnalysis gives you data to analyze yourself. stocksbrew gives you analysis done for you.",
     competitorUrl: "https://stockanalysis.com",
     competitorPricingUrl: "https://stockanalysis.com/premium",
     stocksbrewBestFor:
@@ -861,7 +861,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     workflow: [
       {
         title: "Morning: stocksbrew brief (5 min)",
-        body: "Read your AI brief. See what moved and why across your watchlist. AI synthesizes 50+ sources into actionable intelligence with buy/hold/sell calls.",
+        body: "Read your AI brief. See what moved and why across your watchlist. AI synthesizes multiple configured inputs into actionable intelligence with buy/hold/sell calls.",
       },
       {
         title: "Research: StockAnalysis (as needed)",
@@ -914,7 +914,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     rows: [
       { dimension: "AI output", stocksbrew: "Narrative brief with buy/hold/sell calls", competitor: "1-10 AI score per stock" },
       { dimension: "Signal evolution", stocksbrew: "Tracks how signals change daily", competitor: "Point-in-time score with historical chart" },
-      { dimension: "Data sources", stocksbrew: "50+ sources: news, filings, social, technicals", competitor: "Technical, fundamental, and sentiment indicators" },
+      { dimension: "Data sources", stocksbrew: "multiple configured inputs: news, filings, social, technicals", competitor: "Technical, fundamental, and sentiment indicators" },
       { dimension: "Personalization", stocksbrew: "Full — personalized to your watchlist", competitor: "Same score for all users" },
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief covering your stocks", competitor: "No brief — manual score lookup" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis with scenarios", competitor: "Earnings considered in score model" },

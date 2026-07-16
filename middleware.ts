@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
+  const hostname = request.nextUrl.hostname.toLowerCase();
+  if (hostname === "tikrr.online" || hostname === "www.tikrr.online") {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.protocol = "https";
+    canonicalUrl.hostname = "www.stocksbrew.online";
+    canonicalUrl.port = "";
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   const waitlist = process.env.NEXT_PUBLIC_WAITLIST_MODE === "true";
   if (!waitlist) return NextResponse.next();
 

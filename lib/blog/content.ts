@@ -13,7 +13,7 @@ export const blogContent: Record<string, string> = {
     <p>Unlike a simple news digest or email newsletter, an AI market brief does three things traditional briefs can't:</p>
 
     <ul>
-      <li><strong>Aggregates at scale</strong> - pulls from 50+ sources including news outlets, social media, SEC filings, earnings calls, and analyst reports simultaneously</li>
+      <li><strong>Aggregates at scale</strong> - pulls from multiple configured inputs including news outlets, social media, SEC filings, earnings calls, and analyst reports simultaneously</li>
       <li><strong>Scores relevance</strong> - uses AI to rank what actually matters to your portfolio or watchlist, not just what's trending</li>
       <li><strong>Synthesizes context</strong> - connects the dots between related events, showing you the bigger picture instead of isolated headlines</li>
     </ul>
@@ -96,7 +96,7 @@ export const blogContent: Record<string, string> = {
     <p>Here's how stocksbrew's daily market brief works:</p>
 
     <ul>
-      <li><strong>50+ sources aggregated daily</strong> - news, social media, Wall Street research, SEC filings, earnings transcripts</li>
+      <li><strong>multiple configured inputs aggregated daily</strong> - news, social media, Wall Street research, SEC filings, earnings transcripts</li>
       <li><strong>AI-powered scoring</strong> - every signal gets a relevance and confidence score based on your watchlist and market context</li>
       <li><strong>Delivered daily</strong> - you get your brief every trading day, consistently</li>
       <li><strong>Free tier available</strong> - start with a daily market intelligence brief at no cost</li>
@@ -339,7 +339,7 @@ export const blogContent: Record<string, string> = {
     <p>AI can analyze the tone and content of thousands of social media posts, news articles, and forum discussions to gauge market sentiment. This is genuinely useful as a data input, not as a standalone signal, but as one factor among many.</p>
 
     <h3>Information Aggregation</h3>
-    <p>The best AI stock analysis tools don't try to replace your judgment. They give you better information to judge with. They aggregate 50+ sources, filter out noise, and surface the signals that matter. This is curation, not prediction, and it's where AI provides the most value.</p>
+    <p>The best AI stock analysis tools don't try to replace your judgment. They give you better information to judge with. They aggregate multiple configured inputs, filter out noise, and surface the signals that matter. This is curation, not prediction, and it's where AI provides the most value.</p>
 
     <h2 id="what-doesnt">What AI Can't Do (Yet)</h2>
 
@@ -393,7 +393,7 @@ export const blogContent: Record<string, string> = {
     <p><a href="https://www.stocksbrew.online">stocksbrew</a> takes a deliberately different approach to AI stock analysis. Instead of trying to predict stock prices, stocksbrew uses AI for two things:</p>
 
     <h3>1. Intelligence Aggregation</h3>
-    <p>stocksbrew scans 50+ sources daily: news outlets, social media platforms, SEC filings, analyst reports, and earnings transcripts. AI processes all of this and extracts the signals relevant to your watchlist.</p>
+    <p>stocksbrew scans multiple configured inputs daily: news outlets, social media platforms, SEC filings, analyst reports, and earnings transcripts. AI processes all of this and extracts the signals relevant to your watchlist.</p>
 
     <h3>2. Signal Scoring</h3>
     <p>Every signal gets scored for relevance, credibility, and timeliness. You don't just get a list of news. You get a prioritized, scored list of intelligence that tells you what to pay attention to and why.</p>
@@ -599,7 +599,7 @@ export const blogContent: Record<string, string> = {
 
     <h2 id="getting-started">Getting Started with AI Watchlists</h2>
 
-    <p>The best way to experience the difference is to try it. <a href="https://www.stocksbrew.online">stocksbrew</a> offers AI-powered watchlist intelligence as part of its daily market brief. You set your watchlist, and stocksbrew scans 50+ sources every day to surface the signals that matter for your stocks.</p>
+    <p>The best way to experience the difference is to try it. <a href="https://www.stocksbrew.online">stocksbrew</a> offers AI-powered watchlist intelligence as part of its daily market brief. You set your watchlist, and stocksbrew scans multiple configured inputs every day to surface the signals that matter for your stocks.</p>
 
     <p>Start with your existing watchlist. Add the 10-15 stocks you care about most. Then let the AI do the watching for a week. You'll quickly see the difference between a list of prices and a list of intelligence.</p>
 `,
@@ -712,7 +712,7 @@ export const blogContent: Record<string, string> = {
     <p>Building your own daily research routine using free tools (Google News, Twitter, SEC EDGAR, Yahoo Finance) gives you maximum control but costs significant time. Most people who try this approach start strong and fade within weeks because it's unsustainable alongside a full-time job.</p>
 
     <h3>The AI Tool Approach</h3>
-    <p>AI-powered market intelligence tools like <a href="https://www.stocksbrew.online">stocksbrew</a> offer the best balance for most people. They aggregate 50+ sources, score and filter for relevance, personalize to your watchlist, and deliver consistently every day. The cost is a fraction of a Bloomberg terminal, and the time investment is near zero.</p>
+    <p>AI-powered market intelligence tools like <a href="https://www.stocksbrew.online">stocksbrew</a> offer the best balance for most people. They aggregate multiple configured inputs, score and filter for relevance, personalize to your watchlist, and deliver consistently every day. The cost is a fraction of a Bloomberg terminal, and the time investment is near zero.</p>
 
     <h3>The Terminal Approach</h3>
     <p>Bloomberg, Reuters Eikon, and FactSet remain the gold standard for institutional investors. They offer unparalleled depth and real-time data. But at $20,000+ per year, they're overkill for individual investors, analysts at smaller firms, or anyone who doesn't need tick-by-tick data.</p>
@@ -748,7 +748,7 @@ export const blogContent: Record<string, string> = {
     <p>Here are the tools worth considering, ranked by value for individual investors and analysts:</p>
 
     <ul>
-      <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> - AI-powered daily market intelligence. Aggregates 50+ sources, scores signals, personalizes to your watchlist. Free tier available. Best value for daily intelligence.</li>
+      <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> - AI-powered daily market intelligence. Aggregates multiple configured inputs, scores signals, personalizes to your watchlist. Free tier available. Best value for daily intelligence.</li>
       <li><strong>Seeking Alpha</strong> - Strong community-driven analysis with daily digests. Good for fundamental research. Premium starts at $240/year.</li>
       <li><strong>Finviz</strong> - Excellent for screening and visualization. Limited intelligence features. Free with ads, $40/month for premium.</li>
       <li><strong>Yahoo Finance</strong> - Free, decent for basic news and quotes. No AI scoring or personalization.</li>
@@ -881,7 +881,7 @@ export const blogContent: Record<string, string> = {
     <div class="tool-entry">
       <h3>stocksbrew</h3>
       <span class="rating rating-great">Great Free Tier</span>
-      <p>stocksbrew offers a free tier of its AI-powered daily market intelligence platform. You get a daily market brief that aggregates 50+ sources, scores signals for relevance, and personalizes to your watchlist. This is the only free tool we found that offers AI-powered daily intelligence.</p>
+      <p>stocksbrew offers a free tier of its AI-powered daily market intelligence platform. You get a daily market brief that aggregates multiple configured inputs, scores signals for relevance, and personalizes to your watchlist. This is the only free tool we found that offers AI-powered daily intelligence.</p>
       <p><strong>What it does well:</strong> AI-powered daily intelligence, 50+ source aggregation, signal scoring, watchlist personalization, free to start.</p>
       <p><strong>What it misses:</strong> Not a charting or screening tool, focused on intelligence not execution.</p>
     </div>
@@ -935,7 +935,7 @@ export const blogContent: Record<string, string> = {
 
     <p>The market intelligence tool space is crowded. Bloomberg terminals, free screeners, AI-powered platforms, social networks, research aggregators, there are dozens of options, each claiming to give you an edge. Most comparisons you'll find online are either sponsored or superficial.</p>
 
-    <p>This one is different. We tested 10 tools across real use cases: daily intelligence gathering, watchlist monitoring, research depth, and value for money. Here's what we found.</p>
+    <p>This one is different. We reviewed 10 tools across real use cases: daily intelligence gathering, watchlist monitoring, research depth, and value for money. Here's what we found.</p>
 
     <h2 id="what-to-look-for">What to Look for in a Market Intelligence Tool</h2>
 
@@ -1043,7 +1043,7 @@ export const blogContent: Record<string, string> = {
         <div class="pros">
           <h4>Strengths</h4>
           <ul>
-            <li>AI-powered daily intelligence from 50+ sources</li>
+            <li>AI-powered daily intelligence from multiple configured inputs</li>
             <li>Watchlist personalization</li>
             <li>Signal scoring and prioritization</li>
             <li>No terminal or expensive subscription needed</li>
@@ -1059,7 +1059,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
       </div>
-      <p>stocksbrew fills a gap that the other tools miss: daily, AI-powered market intelligence that's accessible to individual investors. It aggregates 50+ sources (news, social media, filings, analyst reports), scores signals for relevance, and personalizes everything to your watchlist. It's not trying to replace Bloomberg or Finviz. It's the intelligence layer that sits on top of everything else. For daily market awareness, it's the best value we found.</p>
+      <p>stocksbrew fills a gap that the other tools miss: daily, AI-powered market intelligence that's accessible to individual investors. It aggregates multiple configured inputs (news, social media, filings, analyst reports), scores signals for relevance, and personalizes everything to your watchlist. It's not trying to replace Bloomberg or Finviz. It's the intelligence layer that sits on top of everything else. For daily market awareness, it's the best value we found.</p>
     </div>
 
     <div class="tool-card" id="finviz">
@@ -1587,7 +1587,7 @@ export const blogContent: Record<string, string> = {
 <p><strong>Verdict:</strong> Best for control freaks who want to see everything on their terms.</p>
 
 <h3>5. AI-Powered Market Intelligence (stocksbrew, 5 min/day)</h3>
-<p>This is the category that changes the equation. Tools like <a href="https://www.stocksbrew.online">stocksbrew</a> aggregate 50+ sources, score signals by relevance, and deliver a personalized daily brief for your watchlist. Instead of reading 50 headlines, you read 5 that matter.</p>
+<p>This is the category that changes the equation. Tools like <a href="https://www.stocksbrew.online">stocksbrew</a> aggregate multiple configured inputs, score signals by relevance, and deliver a personalized daily brief for your watchlist. Instead of reading 50 headlines, you read 5 that matter.</p>
 <p><strong>Pros:</strong> AI scoring, watchlist personalization, multi-source aggregation, 5-minute daily brief.</p>
 <p><strong>Cons:</strong> Not a charting or execution tool. Focused purely on intelligence.</p>
 <p><strong>Verdict:</strong> Best for busy investors who want the signal without the noise. <a href="https://www.stocksbrew.online">Try it free</a>.</p>
@@ -1627,7 +1627,7 @@ export const blogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Stop Drowning in Stock News</h3>
-  <p>stocksbrew aggregates 50+ sources and scores what matters for your watchlist. Free tier available.</p>
+  <p>stocksbrew aggregates multiple configured inputs and scores what matters for your watchlist. Free tier available.</p>
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 
@@ -1812,9 +1812,9 @@ export const blogContent: Record<string, string> = {
   "best-free-stock-alert-tools-2026": `
 <div class="blog-meta">May 2026 · 14 min read</div>
 
-<p>"What stock alert tools do you recommend?" This question hits r/StockMarket, r/stocks, and r/investing every few weeks. The answers are always a mix of TradingView, brokerage alerts, and some app nobody has heard of. Most of the recommendations are based on what people have used, not what's actually best. So we tested them.</p>
+<p>"What stock alert tools do you recommend?" This question hits r/StockMarket, r/stocks, and r/investing every few weeks. The answers are always a mix of TradingView, brokerage alerts, and some app nobody has heard of. Most of the recommendations are based on what people have used, not what's actually best. So we reviewed them.</p>
 
-<p>Here are 8 free stock alert tools, tested and ranked for what actually works in 2026.</p>
+<p>Here are 8 free stock alert tools reviewed by use case, based on their published features and practical fit in 2026.</p>
 
 <h2 id="what-makes-good-alert">What Makes a Good Stock Alert?</h2>
 
@@ -2130,7 +2130,7 @@ export const blogContent: Record<string, string> = {
 <p>Check three numbers: S&P 500 direction, your portfolio's largest holding, and one sector you're watching. That's it. If the S&P is up or down more than 1%, dig deeper. Otherwise, move on.</p>
 
 <h3>Minute 3-4: Key News for Your Holdings</h3>
-<p>Scan for news specifically about stocks you own. Ignore everything else. Most market news is noise for your specific portfolio. An AI stock watchlist tool like stocksbrew can do this automatically by scanning 50+ sources for mentions of your holdings.</p>
+<p>Scan for news specifically about stocks you own. Ignore everything else. Most market news is noise for your specific portfolio. An AI stock watchlist tool like stocksbrew can do this automatically by scanning multiple configured inputs for mentions of your holdings.</p>
 
 <h3>Minute 5-6: Check Your Alerts</h3>
 <p>Review any price movement alerts, earnings dates, or unusual volume in your watchlist. If nothing triggered, you're fine. Don't go looking for problems.</p>

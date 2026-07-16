@@ -5,10 +5,31 @@ export type BlogPost = {
   category: string;
   tags: string[];
   date: string;
+  updated?: string;
   readTime: string;
 };
 
 export const allBlogPosts: BlogPost[] = [
+  {
+    slug: "stock-research-checklist-evidence-first",
+    title: "How to Research a Stock: An Evidence-First Checklist",
+    description:
+      "A repeatable stock research workflow built around filings, earnings, valuation, risks, and a written decision log—not hot takes or price predictions.",
+    category: "guides",
+    tags: ["stock-research", "checklist", "filings", "risk", "guide"],
+    date: "2026-07-16",
+    readTime: "14 min read",
+  },
+  {
+    slug: "finviz-vs-tradingview-vs-stocksbrew",
+    title: "Finviz vs TradingView vs stocksbrew: Which Research Workflow Fits?",
+    description:
+      "A source-backed comparison of screening, charting, watchlist monitoring, alerts, and cost—plus the workflow where using all three makes sense.",
+    category: "comparison",
+    tags: ["finviz", "tradingview", "stocksbrew", "comparison", "methodology"],
+    date: "2026-07-16",
+    readTime: "15 min read",
+  },
   {
     slug: "ai-stock-analysis-comparison",
     title: "AI Stock Analysis Tools Compared (2026)",
@@ -23,7 +44,7 @@ export const allBlogPosts: BlogPost[] = [
     slug: "stock-market-heatmap-tools",
     title: "Best Free Stock Market Heatmap Tools in 2026",
     description:
-      "We tested 8 free heatmap tools — Finviz, TradingView, stocksbrew, and more — for speed, sector views, and watchlist personalization.",
+      "We reviewed 8 free heatmap tools — Finviz, TradingView, stocksbrew, and more — for speed, sector views, and watchlist personalization.",
     category: "tools",
     tags: ["heatmap", "tools", "free", "comparison"],
     date: "2026-07-15",
@@ -147,8 +168,8 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-free-stock-alert-tools-2026",
-    title: "Best Free Stock Alert Tools in 2026 (Tested and Ranked)",
-    description: "We tested 8 free stock alert tools so you don't have to. Here's what actually works at $0.",
+    title: "Best Free Stock Alert Tools in 2026 (Reviewed by Use Case)",
+    description: "We reviewed 8 free stock alert tools so you don't have to. Here's what actually works at $0.",
     category: "tools",
     tags: ["free", "alerts", "tools", "comparison"],
     date: "2026-05-17",
@@ -158,7 +179,7 @@ export const allBlogPosts: BlogPost[] = [
     slug: "free-stock-market-analysis-tools",
     title: "Free Stock Market Analysis Tools That Actually Work (2026)",
     description:
-      "We tested 15 free stock analysis platforms. Here are the ones that actually deliver real value at zero cost.",
+      "We reviewed 15 free stock analysis platforms. Here are the ones that actually deliver real value at zero cost.",
     category: "tools",
     tags: ["free", "tools", "screening", "comparison"],
     date: "2026-05-28",
@@ -239,7 +260,7 @@ export const allBlogPosts: BlogPost[] = [
     slug: "stock-market-daily-newsletter-free",
     title: "5 Best Free Stock Market Daily Newsletters in 2026",
     description:
-      "Get daily stock market intelligence delivered to your inbox without spending a dime. We tested 15 free newsletters and ranked the top 5 for actionable insights.",
+      "Get daily stock market intelligence delivered to your inbox without spending a dime. We reviewed 15 free newsletters and ranked the top 5 for actionable insights.",
     category: "comparison",
     tags: ["newsletter", "daily-brief", "free", "curation"],
     date: "2026-06-02",
@@ -312,9 +333,9 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-stock-portfolio-tracker-free-2026",
-    title: "Best Free Stock Portfolio Trackers in 2026 (Tested and Ranked)",
+    title: "Best Free Stock Portfolio Trackers in 2026 (Reviewed by Use Case)",
     description:
-      "We tested 10 free portfolio trackers so you don't have to. From AI-powered briefs to brokerage tools, here are the ones worth using.",
+      "We reviewed 10 free portfolio trackers so you don't have to. From AI-powered briefs to brokerage tools, here are the ones worth using.",
     category: "tools",
     tags: ["portfolio", "tracker", "free", "tools", "comparison"],
     date: "2026-06-10",
@@ -361,3 +382,39 @@ export const allBlogPosts: BlogPost[] = [
     readTime: "11 min read",
   },
 ];
+
+// These legacy posts remain reachable for existing links, but they are broad,
+// overlapping, or comparison-heavy pages that have not yet met the current
+// source and review standard. Keep them out of discovery surfaces until edited.
+const LEGACY_NOINDEX_BLOG_SLUGS = new Set([
+  "ai-stock-analysis-comparison",
+  "stock-market-heatmap-tools",
+  "ai-stock-watchlist-vs-traditional",
+  "best-market-intelligence-tools-2026",
+  "stocksbrew-vs-finviz",
+  "best-free-stock-alert-tools-2026",
+  "free-stock-market-analysis-tools",
+  "daily-stock-market-analysis-routine",
+  "sector-rotation-tracking-tools",
+  "earnings-predictions-ai-vs-analyst",
+  "ai-stock-sentiment-analysis-tools",
+  "track-insider-trading-free",
+  "stock-market-daily-newsletter-free",
+  "market-breadth-analysis-guide",
+  "how-to-read-stock-heat-map",
+  "stock-analysis-beginners-technical-vs-fundamental",
+  "free-stock-screeners-indian-investors",
+  "portfolio-rebalancing-guide-retail-investors",
+  "how-to-analyze-a-stock-before-buying",
+  "best-stock-portfolio-tracker-free-2026",
+  "how-to-read-stock-charts-beginners",
+  "stock-market-for-beginners-2026",
+  "how-to-build-a-stock-portfolio-from-scratch",
+  "when-to-sell-a-stock",
+]);
+
+export function isIndexableBlogPost(slug: string): boolean {
+  return !LEGACY_NOINDEX_BLOG_SLUGS.has(slug);
+}
+
+export const indexableBlogPosts = allBlogPosts.filter((post) => isIndexableBlogPost(post.slug));

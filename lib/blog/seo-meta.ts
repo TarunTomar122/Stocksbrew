@@ -18,7 +18,7 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
     author: "Tarat",
     faqs: [
       { question: "What is the best free stock market analysis tool?", answer: "The best free tool depends on your needs. stocksbrew offers the best free daily market intelligence with AI-powered briefs. Finviz has the best free stock screener. TradingView offers the best free charting." },
-      { question: "Are free stock analysis tools any good?", answer: "Yes. Free tools like stocksbrew, Finviz, and Yahoo Finance provide institution-grade data at zero cost. The tradeoff is usually delayed data or limited features, but for most individual investors, free tools cover 80% of what you need." },
+      { question: "Are free stock analysis tools any good?", answer: "Yes. Free tools like stocksbrew, Finviz, and Yahoo Finance provide useful market data at zero cost. The tradeoff is usually delayed data or limited features, but for most individual investors, free tools cover 80% of what you need." },
       { question: "What is the best free AI stock analysis tool?", answer: "stocksbrew offers the best free AI-powered stock analysis with personalized daily briefs, watchlist radar, and signal scoring. The free tier is generous and doesn't require a credit card." },
       { question: "Can you do stock analysis for free?", answer: "Yes. You can combine stocksbrew for daily intelligence, Finviz for screening, TradingView for charting, and Yahoo Finance for portfolio tracking. This stack covers daily monitoring, research, and analysis at zero cost." },
     ],
@@ -266,5 +266,6 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
 };
 
 export function getSeoMeta(slug: string): SeoPostMeta | null {
-  return seoPostMeta[slug] ?? null;
+  const meta = seoPostMeta[slug];
+  return meta ? { ...meta, author: "Tarun Tomar" } : null;
 }

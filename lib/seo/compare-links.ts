@@ -1,3 +1,5 @@
+import { isIndexableBlogPost } from "@/lib/blog-data";
+
 export type SeoLink = { href: string; label: string };
 
 /** Related blog posts and compare pages per comparison slug — for internal linking. */
@@ -47,7 +49,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-prospero": {
     blogs: [
-      { href: "/blog/ai-stock-analysis-comparison", label: "AI tools compared" },
+      { href: "/blog/finviz-vs-tradingview-vs-stocksbrew", label: "AI tools compared" },
       { href: "/blog/buy-hold-sell-signals-explained", label: "Buy/hold/sell signals" },
     ],
     compares: [
@@ -57,7 +59,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-morningstar": {
     blogs: [
-      { href: "/blog/how-to-analyze-a-stock-before-buying", label: "Analyze before buying" },
+      { href: "/blog/stock-research-checklist-evidence-first", label: "Analyze before buying" },
       { href: "/blog/portfolio-health-check-guide", label: "Portfolio health check" },
     ],
     compares: [
@@ -67,7 +69,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-finviz": {
     blogs: [
-      { href: "/blog/stocksbrew-vs-finviz", label: "Blog: vs Finviz" },
+      { href: "/compare/stocksbrew-vs-finviz", label: "Blog: vs Finviz" },
       { href: "/blog/stock-picks-vs-stock-screeners", label: "Picks vs screeners" },
       { href: "/blog/free-stock-market-analysis-tools", label: "Free analysis tools" },
     ],
@@ -99,7 +101,7 @@ export const COMPARE_RELATED: Record<
   "stocksbrew-vs-tipranks": {
     blogs: [
       { href: "/blog/buy-hold-sell-signals-explained", label: "Buy/hold/sell signals" },
-      { href: "/blog/ai-stock-analysis-comparison", label: "AI tools compared" },
+      { href: "/blog/finviz-vs-tradingview-vs-stocksbrew", label: "AI tools compared" },
     ],
     compares: [
       { href: "/compare/stocksbrew-vs-prospero", label: "vs Prospero" },
@@ -108,7 +110,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-stockanalysis": {
     blogs: [
-      { href: "/blog/how-to-analyze-a-stock-before-buying", label: "Analyze before buying" },
+      { href: "/blog/stock-research-checklist-evidence-first", label: "Analyze before buying" },
       { href: "/blog/how-to-build-a-stock-portfolio-from-scratch", label: "Build a portfolio" },
     ],
     compares: [
@@ -118,7 +120,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-danelfin": {
     blogs: [
-      { href: "/blog/ai-stock-analysis-comparison", label: "AI tools compared" },
+      { href: "/blog/finviz-vs-tradingview-vs-stocksbrew", label: "AI tools compared" },
       { href: "/blog/ai-stock-sentiment-analysis-tools", label: "Sentiment analysis" },
     ],
     compares: [
@@ -131,7 +133,7 @@ export const COMPARE_RELATED: Record<
 const DEFAULT_BLOGS: SeoLink[] = [
   { href: "/blog/buy-hold-sell-signals-explained", label: "Buy/hold/sell signals" },
   { href: "/blog/how-to-build-stock-watchlist", label: "Build a watchlist" },
-  { href: "/blog/best-market-intelligence-tools-2026", label: "Market brief tools" },
+  { href: "/blog/finviz-vs-tradingview-vs-stocksbrew", label: "Market brief tools" },
 ];
 
 const DEFAULT_COMPARES: SeoLink[] = [
@@ -142,8 +144,13 @@ const DEFAULT_COMPARES: SeoLink[] = [
 
 export function getCompareRelated(slug: string): { blogs: SeoLink[]; compares: SeoLink[] } {
   const entry = COMPARE_RELATED[slug];
+  const candidateBlogs = entry?.blogs ?? DEFAULT_BLOGS;
+  const blogs = candidateBlogs.filter((link) => {
+    const blogSlug = link.href.match(/^\/blog\/([^/?#]+)/)?.[1];
+    return !blogSlug || isIndexableBlogPost(blogSlug);
+  });
   return {
-    blogs: entry?.blogs ?? DEFAULT_BLOGS,
+    blogs: blogs.length > 0 ? blogs : DEFAULT_BLOGS,
     compares: (entry?.compares ?? DEFAULT_COMPARES).filter((c) => !c.href.includes(slug)),
   };
 }

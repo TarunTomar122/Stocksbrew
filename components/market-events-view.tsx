@@ -118,9 +118,9 @@ export function MarketEventsView({
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-[32px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[40px]">
+          <h2 className="text-[32px] font-semibold tracking-[-0.02em] text-[#111111] md:text-[40px]">
             Earnings
-          </h1>
+          </h2>
           {hasReported && relativeTime(generatedAt) && (
             <span className="text-[12px] font-medium text-[#9ca3af]">
               Updated {relativeTime(generatedAt)}

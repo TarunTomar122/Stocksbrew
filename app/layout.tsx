@@ -91,6 +91,9 @@ export const metadata: Metadata = {
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
     canonical: "/",
+    types: {
+      "application/rss+xml": "/feed.xml",
+    },
   },
   openGraph: {
     type: "website",

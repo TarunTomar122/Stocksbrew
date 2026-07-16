@@ -42,6 +42,8 @@ const COLUMNS: Column[] = [
     title: "Company",
     links: [
       { label: "About", href: "/about" },
+      { label: "Editorial policy", href: "/editorial-policy" },
+      { label: "Author", href: "/authors/tarun-tomar" },
       { label: "Pricing", href: "/subscribe" },
       { label: "Contact", href: "mailto:tomartarun2001@gmail.com", external: true },
       { label: "Terms of service", href: "/legal/terms" },

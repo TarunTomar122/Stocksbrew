@@ -10,9 +10,9 @@ export type HubLink = {
 
 export const START_PATHS: HubLink[] = [
   {
-    href: "/learn",
-    title: "New to research",
-    description: "Start with beginner guides, then add 3 tickers to Radar and turn on your email digest.",
+    href: "/blog/stock-research-checklist-evidence-first",
+    title: "Start with evidence",
+    description: "Use a filings-first checklist, write the thesis and invalidation case, then add serious candidates to Radar.",
     badge: "Path A",
   },
   {
@@ -57,9 +57,9 @@ export const COMPARISONS: HubLink[] = [
     description: "US watchlist briefs vs Indian screeners. Which fits your market and workflow.",
   },
   {
-    href: "/blog/stocksbrew-vs-finviz",
-    title: "Blog: stocksbrew vs Finviz",
-    description: "Long-form comparison for screener vs Radar workflows.",
+    href: "/blog/finviz-vs-tradingview-vs-stocksbrew",
+    title: "Finviz vs TradingView vs stocksbrew",
+    description: "A source-backed workflow comparison covering screening, charting, monitoring, alerts, and cost.",
   },
   {
     href: "/compare",
@@ -70,7 +70,7 @@ export const COMPARISONS: HubLink[] = [
 
 export const WORKFLOW_GUIDES: HubLink[] = [
   {
-    href: "/blog/best-market-intelligence-tools-2026",
+    href: "/blog/finviz-vs-tradingview-vs-stocksbrew",
     title: "Daily market intelligence guide",
     description: "How to build a 10-minute morning read without opening six tabs.",
   },
@@ -115,9 +115,9 @@ export const WORKFLOW_GUIDES: HubLink[] = [
     description: "Free AI scorecard on any US ticker. Add to Radar if you like the call.",
   },
   {
-    href: "/learn",
-    title: "Learn library (50 guides)",
-    description: "Fundamentals, portfolio building, and strategy from beginner to advanced.",
+    href: "/editorial-policy",
+    title: "Editorial & comparison policy",
+    description: "How sources, AI assistance, reviews, updates, conflicts, and corrections are handled.",
   },
 ];
 
@@ -143,7 +143,7 @@ export const GUIDES_FAQS = [
   {
     question: "Where should I start researching stocks?",
     answer:
-      "Add up to three tickers to Radar for free, read each daily brief, and use the Learn guides for fundamentals. If you are comparing tools first, start with the comparison section on this page.",
+      "Start with the evidence-first stock research checklist, then add up to three serious candidates or holdings to Radar for free. If you are comparing tools first, use the workflow comparison section on this page.",
   },
   {
     question: "What free tools does stocksbrew include?",

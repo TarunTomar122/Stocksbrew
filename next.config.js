@@ -13,6 +13,16 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/blog/stocksbrew-vs-finviz",
+        destination: "/compare/stocksbrew-vs-finviz",
+        permanent: true,
+      },
+      {
+        source: "/blog/how-to-analyze-a-stock-before-buying",
+        destination: "/blog/stock-research-checklist-evidence-first",
+        permanent: true,
+      },
+      {
         source: "/blog/stock-research-use-cases",
         destination: "/use-cases",
         permanent: true,

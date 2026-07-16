@@ -101,7 +101,7 @@ export default function RadarLandingPage() {
           </div>
         </header>
 
-        <DemoRadar />
+        <DemoRadar headingLevel="h2" />
 
         <section className="grid gap-4 md:grid-cols-2">
           {FEATURES.map((f) => (

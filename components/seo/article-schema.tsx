@@ -1,12 +1,10 @@
-type FaqItem = { question: string; answer: string };
-
 type Props = {
   slug: string;
   title: string;
   description: string;
   datePublished: string;
-  author?: string;
-  faqs?: FaqItem[];
+  dateModified?: string;
+  image?: string;
 };
 
 const BASE = "https://www.stocksbrew.online";
@@ -16,24 +14,29 @@ export function ArticleSchema({
   title,
   description,
   datePublished,
-  author = "Tarun Tomar",
-  faqs = [],
+  dateModified,
+  image = `${BASE}/api/og`,
 }: Props) {
   const url = `${BASE}/blog/${slug}`;
 
   const article = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "BlogPosting",
     headline: title,
     description,
-    author: { "@type": "Person", name: author },
+    image: [image],
+    author: {
+      "@type": "Person",
+      name: "Tarun Tomar",
+      url: `${BASE}/authors/tarun-tomar`,
+    },
     publisher: {
       "@type": "Organization",
       name: "stocksbrew",
       url: BASE,
     },
     datePublished,
-    dateModified: datePublished,
+    dateModified: dateModified ?? datePublished,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     url,
   };
@@ -48,26 +51,10 @@ export function ArticleSchema({
     ],
   };
 
-  const faqPage =
-    faqs.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: faqs.map((item) => ({
-            "@type": "Question",
-            name: item.question,
-            acceptedAnswer: { "@type": "Answer", text: item.answer },
-          })),
-        }
-      : null;
-
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(article) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
-      {faqPage && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPage) }} />
-      )}
     </>
   );
 }

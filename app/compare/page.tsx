@@ -19,14 +19,9 @@ export const metadata: Metadata = {
 
 const OTHER_COMPARISONS = [
   {
-    href: "/blog/stocksbrew-vs-finviz",
-    title: "stocksbrew vs Finviz",
-    description: "Static screener tables vs AI briefs and Radar alerts on your watchlist.",
-  },
-  {
-    href: "/blog/best-market-intelligence-tools-2026",
-    title: "Best market brief tools (2026)",
-    description: "Roundup of research stacks for investors who want a daily read.",
+    href: "/blog/finviz-vs-tradingview-vs-stocksbrew",
+    title: "Finviz vs TradingView vs stocksbrew",
+    description: "A source-backed workflow comparison across screening, charting, monitoring, alerts, and cost.",
   },
 ];
 
@@ -105,7 +100,7 @@ export default function CompareIndexPage() {
             <Link href="/blog/watchlist-vs-portfolio-tracker" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
               Watchlist vs portfolio
             </Link>
-            <Link href="/blog/ai-stock-analysis-comparison" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+            <Link href="/blog/finviz-vs-tradingview-vs-stocksbrew" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
               AI tools compared
             </Link>
             <Link href="/guides" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">

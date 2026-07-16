@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { allBlogPosts, type BlogPost } from "@/lib/blog-data";
+import { allBlogPosts, isIndexableBlogPost, type BlogPost } from "@/lib/blog-data";
 import { getBlogContent } from "@/lib/blog";
-import { getSeoMeta } from "@/lib/blog/seo-meta";
 import { BlogCompareStrip } from "@/components/marketing/compare-related-reading";
 import { ShareLinkBar } from "@/components/marketing/share-link-bar";
 import { ArticleSchema } from "@/components/seo/article-schema";
@@ -30,17 +29,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: post.title,
     description: post.description,
+    authors: [{ name: "Tarun Tomar", url: "/authors/tarun-tomar" }],
     alternates: { canonical: `/blog/${slug}` },
+    robots: isIndexableBlogPost(slug)
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     openGraph: {
       title: `${post.title} · stocksbrew Blog`,
       description: post.description,
       url: `https://www.stocksbrew.online/blog/${slug}`,
       type: "article",
       publishedTime: post.date,
+      modifiedTime: post.updated ?? post.date,
+      authors: ["Tarun Tomar"],
+      images: [{ url: "/api/og", width: 1200, height: 630, alt: post.title }],
     },
     twitter: {
       title: `${post.title} · stocksbrew Blog`,
       description: post.description,
+      images: ["/api/og"],
     },
   };
 }
@@ -51,20 +58,15 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   const content = getBlogContent(slug);
-  const seo = getSeoMeta(slug);
-
   return (
     <main className="flex-grow">
-      {seo && (
-        <ArticleSchema
-          slug={slug}
-          title={post.title}
-          description={post.description}
-          datePublished={post.date}
-          author={seo.author}
-          faqs={seo.faqs}
-        />
-      )}
+      <ArticleSchema
+        slug={slug}
+        title={post.title}
+        description={post.description}
+        datePublished={post.date}
+        dateModified={post.updated}
+      />
       <article className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-12 md:py-16">
         <Link
           href="/blog"
@@ -78,7 +80,9 @@ export default async function BlogPostPage({ params }: Props) {
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase ${CATEGORY_COLORS[post.category]?.bg || "bg-[#f3f4f6]"} ${CATEGORY_COLORS[post.category]?.text || "text-[#6b7280]"}`}>
               {post.category}
             </span>
-            <span className="text-[13px] text-[#6b7280]">{post.date}</span>
+            <span className="text-[13px] text-[#6b7280]">
+              Published {post.date}{post.updated ? ` · Updated ${post.updated}` : ""}
+            </span>
             <span className="text-[13px] text-[#6b7280]">·</span>
             <span className="text-[13px] text-[#6b7280]">{post.readTime}</span>
           </div>
@@ -87,6 +91,16 @@ export default async function BlogPostPage({ params }: Props) {
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
             {post.description}
+          </p>
+          <p className="text-[13px] text-[#6b7280] leading-relaxed">
+            By{" "}
+            <Link href="/authors/tarun-tomar" rel="author" className="font-medium text-[#111111] underline underline-offset-2">
+              Tarun Tomar
+            </Link>
+            {" · "}
+            <Link href="/editorial-policy" className="underline underline-offset-2 hover:text-[#111111]">
+              Editorial standards
+            </Link>
           </p>
           <div className="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
@@ -126,6 +140,10 @@ export default async function BlogPostPage({ params }: Props) {
         />
 
         <footer className="mt-16 pt-8 border-t border-[#e5e7eb] flex flex-col gap-6">
+          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 text-[13px] leading-relaxed text-[#6b7280]">
+            <strong className="text-[#111111]">How this was made:</strong> Tarun reviewed the article for product accuracy and investor usefulness. AI may assist with structure or editing; material factual claims should be verified against linked primary sources. See the{" "}
+            <Link href="/editorial-policy" className="font-medium text-[#111111] underline underline-offset-2">editorial policy</Link>.
+          </div>
           <BlogCompareStrip slug={slug} />
           <ShareLinkBar url={`/blog/${slug}`} title={post.title} />
 

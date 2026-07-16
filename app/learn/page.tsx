@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Learn to Invest",
   description: "50 free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
   alternates: { canonical: "/learn" },
+  robots: { index: false, follow: true },
   openGraph: {
     title: "Learn to Invest - Free Guides & Tutorials · stocksbrew",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
@@ -136,7 +137,7 @@ export default function LearnPage() {
             <Link href="/blog/stay-updated-on-stocks-without-checking-daily" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
               Stay Updated Daily
             </Link>
-            <Link href="/blog/best-free-stock-alert-tools-2026" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
+            <Link href="/blog/how-to-use-stock-alerts-effectively" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
               Alert Tools
             </Link>
             <Link href="/guides" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">

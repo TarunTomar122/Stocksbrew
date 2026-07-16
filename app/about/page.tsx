@@ -71,6 +71,18 @@ export default function AboutPage() {
 
         <section className="flex items-center gap-4 flex-wrap">
           <Link
+            href="/authors/tarun-tomar"
+            className="inline-flex h-[40px] items-center justify-center rounded-full border border-[#e5e7eb] px-5 text-[13px] font-semibold text-[#111111] hover:border-[#111111]"
+          >
+            About the author
+          </Link>
+          <Link
+            href="/editorial-policy"
+            className="inline-flex h-[40px] items-center justify-center rounded-full border border-[#e5e7eb] px-5 text-[13px] font-semibold text-[#111111] hover:border-[#111111]"
+          >
+            Editorial standards
+          </Link>
+          <Link
             href="/"
             className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
           >
