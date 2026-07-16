@@ -12,12 +12,12 @@ def backend_dir() -> Path:
 
 def load_backend_env() -> None:
     root = backend_dir().parent
-    for env_path in (backend_dir() / ".env", root / ".env"):
+    # Load the most specific file first while preserving values supplied by the
+    # process (systemd, Cloud Run, CI).  Using override=True for .env.local used
+    # to let an empty local placeholder erase production secrets.
+    for env_path in (root / ".env.local", backend_dir() / ".env", root / ".env"):
         if env_path.exists():
             load_dotenv(env_path, override=False)
-    local_env = root / ".env.local"
-    if local_env.exists():
-        load_dotenv(local_env, override=True)
 
 
 def resolve_backend_path(value: str) -> str:
