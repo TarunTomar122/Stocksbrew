@@ -131,6 +131,14 @@ export function Footer() {
               loading="lazy"
             />
           </a>
+          <a href="https://fazier.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light"
+              alt="Launched on Fazier"
+              width={120}
+              loading="lazy"
+            />
+          </a>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
