@@ -152,6 +152,15 @@ export function Footer() {
               loading="lazy"
             />
           </a>
+          <a href="https://www.toolpilot.ai" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://www.toolpilot.ai/cdn/shop/files/f-w_690x151_crop_center.png"
+              alt="Featured on ToolPilot.ai"
+              width={164}
+              height={36}
+              loading="lazy"
+            />
+          </a>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
