@@ -108,7 +108,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="my-8">
+        <div className="my-8 flex flex-wrap items-center gap-4">
           <a
             href="https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch"
             target="_blank"
@@ -117,6 +117,15 @@ export function Footer() {
             <img
               src="https://www.scrolllaunch.com/api/badge/tikrr"
               alt="Featured on ScrollLaunch"
+              width={220}
+              height={48}
+              loading="lazy"
+            />
+          </a>
+          <a href="https://daniellaunches.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://daniellaunches.com/badge-light.svg"
+              alt="Featured on DanielLaunches"
               width={220}
               height={48}
               loading="lazy"
