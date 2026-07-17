@@ -139,6 +139,19 @@ export function Footer() {
               loading="lazy"
             />
           </a>
+          <a
+            href="https://startupfa.me/s/stocksbrew?utm_source=www.stocksbrew.online"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://startupfa.me/badges/featured-badge-small.webp"
+              alt="StocksBrew - Featured on Startup Fame"
+              width={224}
+              height={36}
+              loading="lazy"
+            />
+          </a>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
