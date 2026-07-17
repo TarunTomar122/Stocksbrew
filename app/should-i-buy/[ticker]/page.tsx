@@ -9,6 +9,7 @@ import {
   normalizeStockSymbolParam,
 } from "@/lib/stock";
 import { getLatestTechnicals } from "@/lib/technicals";
+import { hasSufficientOverallData, hasSufficientPillarData } from "@/lib/fundamentals-coverage";
 import type { StockIntelPro } from "@/lib/types";
 
 export const revalidate = 120;
@@ -50,7 +51,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
   const lines: Array<{ text: string; priority: number }> = [];
 
   // Momentum
-  if (momentum.score >= 65 && (momentum.verdict === "solid" || momentum.verdict === "strong")) {
+  if (!hasSufficientPillarData(momentum)) {
+    lines.push({ text: "Not enough momentum data for a reliable score", priority: 2 });
+  } else if (momentum.score >= 65 && (momentum.verdict === "solid" || momentum.verdict === "strong")) {
     lines.push({ text: "Price trend is strong and momentum is building", priority: 1 });
   } else if (momentum.score < 45) {
     lines.push({ text: "Price trend is weak - momentum has stalled", priority: 1 });
@@ -59,7 +62,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
   }
 
   // Valuation
-  if (valuation.score >= 60) {
+  if (!hasSufficientPillarData(valuation)) {
+    lines.push({ text: "Not enough valuation data to call the stock cheap or expensive", priority: 2 });
+  } else if (valuation.score >= 60) {
     lines.push({ text: "Stock appears reasonably priced relative to its fundamentals", priority: 2 });
   } else if (valuation.score < 30) {
     lines.push({ text: "Stock is priced for perfection - leaves little room for error", priority: 1 });
@@ -68,7 +73,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
   }
 
   // Growth
-  if (growth.score >= 60) {
+  if (!hasSufficientPillarData(growth)) {
+    lines.push({ text: "Not enough growth data for a reliable score", priority: 2 });
+  } else if (growth.score >= 60) {
     lines.push({ text: "Revenue and earnings trajectory looks solid", priority: 2 });
   } else if (growth.score < 35) {
     lines.push({ text: "Growth outlook is under pressure", priority: 1 });
@@ -77,7 +84,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
   }
 
   // Quality
-  if (quality.score >= 60) {
+  if (!hasSufficientPillarData(quality)) {
+    lines.push({ text: "Not enough balance-sheet data for a reliable quality score", priority: 2 });
+  } else if (quality.score >= 60) {
     lines.push({ text: "Balance sheet is healthy with strong financial quality", priority: 2 });
   } else if (quality.score < 40) {
     lines.push({ text: "Some concerns around balance sheet and financial quality", priority: 1 });
@@ -106,7 +115,9 @@ function computeVerdict(intel: StockIntelPro, rsi?: number | null): Verdict {
 
   let level: VerdictLevel;
 
-  if (
+  if (!hasSufficientOverallData(intel)) {
+    level = "Hold / watch";
+  } else if (
     score >= 72 &&
     (momentumVerdict === "solid" || momentumVerdict === "strong") &&
     !isOverbought

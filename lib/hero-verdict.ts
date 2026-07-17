@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import { getStockIntelPro, getStockSummary } from "@/lib/stock";
 import { getLatestTechnicals } from "@/lib/technicals";
+import { hasSufficientOverallData, hasSufficientPillarData } from "@/lib/fundamentals-coverage";
 import type { StockIntelPro } from "@/lib/types";
 
 export type HeroVerdict = {
@@ -30,6 +31,7 @@ function computeLevel(intel: StockIntelPro, rsi: number | null): HeroVerdict["le
   const weakCount = countWeakPillars(intel);
   const isOverbought = typeof rsi === "number" && rsi >= 72;
 
+  if (!hasSufficientOverallData(intel)) return "Hold / watch";
   if (score >= 72 && (momentumVerdict === "solid" || momentumVerdict === "strong") && !isOverbought) {
     return "Strong buy signal";
   }
@@ -76,14 +78,15 @@ function buildOneLiner(
     bits.push(`${sign} ${Math.abs(changePct).toFixed(1)}% today`);
   }
 
-  if (momentum.score >= 65) bits.push("momentum strong");
-  else if (momentum.score < 45) bits.push("momentum stalled");
+  if (hasSufficientPillarData(momentum) && momentum.score >= 65) bits.push("momentum strong");
+  else if (hasSufficientPillarData(momentum) && momentum.score < 45) bits.push("momentum stalled");
 
   if (typeof rsi === "number" && rsi >= 72) bits.push("RSI overbought");
   else if (typeof rsi === "number" && rsi <= 30) bits.push("RSI oversold");
-  else if (valuation.score >= 60) bits.push("valuation reasonable");
-  else if (valuation.score < 30) bits.push("priced for perfection");
-  else if (growth.score >= 60) bits.push("growth solid");
+  else if (hasSufficientPillarData(valuation) && valuation.score >= 60) bits.push("valuation reasonable");
+  else if (hasSufficientPillarData(valuation) && valuation.score < 30) bits.push("priced for perfection");
+  else if (hasSufficientPillarData(growth) && growth.score >= 60) bits.push("growth solid");
+  else if (!hasSufficientOverallData(intel)) bits.push("fundamental coverage incomplete");
 
   if (bits.length === 0) return "Mixed signals across the four pillars.";
   return bits.join(" · ") + ".";

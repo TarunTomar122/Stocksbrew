@@ -3,8 +3,9 @@
 Weights are growth-tilted (Growth 35 / Momentum 25 / Valuation 20 / Quality 20).
 Each metric is mapped to a 0-100 signal via a piecewise-linear `score_curve`
 whose endpoints encode the thresholds we've agreed on. Pillar score is the
-weighted average of its metric scores (skipping any None/missing fields,
-renormalizing to the remaining weight).
+coverage-adjusted toward a neutral 50 when inputs are missing. Pillars with
+less than half their configured evidence are explicitly marked insufficient
+instead of turning one strong input into a deceptively strong pillar score.
 """
 from __future__ import annotations
 
@@ -21,6 +22,9 @@ PILLAR_WEIGHTS = {
     "valuation": 0.20,
     "quality": 0.20,
 }
+
+NEUTRAL_SCORE = 50.0
+MIN_PILLAR_COVERAGE = 0.50
 
 # Each curve: list of (input_value, score_0_100) anchor points. Interpolate
 # linearly between anchors; clamp outside the endpoints.
@@ -99,6 +103,7 @@ class MetricScore:
             "signal": self.signal,
             "summary": self.summary,
             "score": round(self._score, 1) if isinstance(self._score, (int, float)) else None,
+            "weight": self.weight,
         }
 
 
@@ -112,7 +117,9 @@ def _signal_from_score(score: float | None) -> str:
     return "red"
 
 
-def _verdict_from_score(score: float) -> str:
+def _verdict_from_score(score: float, coverage: float = 1.0) -> str:
+    if coverage < MIN_PILLAR_COVERAGE:
+        return "insufficient data"
     if score >= 75:
         return "strong"
     if score >= 55:
@@ -122,15 +129,34 @@ def _verdict_from_score(score: float) -> str:
     return "weak"
 
 
-def _weighted(metrics: list[MetricScore]) -> float:
-    total_w = 0.0
-    total_s = 0.0
+def _coverage_adjusted_score(metrics: list[MetricScore]) -> dict[str, float | int | None | str]:
+    total_w = sum(max(0.0, float(metric.weight)) for metric in metrics)
+    available_w = 0.0
+    available_s = 0.0
+    available_metrics = 0
     for m in metrics:
         if m._score is None:
             continue
-        total_w += m.weight
-        total_s += m.weight * m._score
-    return round(total_s / total_w, 1) if total_w > 0 else 0.0
+        available_w += m.weight
+        available_s += m.weight * m._score
+        available_metrics += 1
+
+    coverage = available_w / total_w if total_w > 0 else 0.0
+    raw_score = available_s / available_w if available_w > 0 else None
+    if raw_score is None or coverage < MIN_PILLAR_COVERAGE:
+        adjusted_score = NEUTRAL_SCORE
+    else:
+        adjusted_score = (raw_score * coverage) + (NEUTRAL_SCORE * (1.0 - coverage))
+
+    confidence = "insufficient" if coverage < MIN_PILLAR_COVERAGE else "high" if coverage >= 0.80 else "partial"
+    return {
+        "score": round(adjusted_score, 1),
+        "raw_score": round(raw_score, 1) if raw_score is not None else None,
+        "coverage": round(coverage, 2),
+        "confidence": confidence,
+        "available_metrics": available_metrics,
+        "total_metrics": len(metrics),
+    }
 
 
 # ────────────────────────────── pillar builders ────────────────────────────
@@ -512,21 +538,24 @@ def score_stock(
 
     pillars_out: dict[str, Any] = {}
     overall_weighted = 0.0
-    overall_weight_used = 0.0
+    overall_coverage = 0.0
     for key, metric_list in pillar_builders.items():
-        pillar_score = _weighted(metric_list)
+        pillar_result = _coverage_adjusted_score(metric_list)
+        pillar_score = float(pillar_result["score"])
+        pillar_coverage = float(pillar_result["coverage"])
         pillar_weight = PILLAR_WEIGHTS[key]
-        if metric_list and any(m._score is not None for m in metric_list):
-            overall_weighted += pillar_weight * pillar_score
-            overall_weight_used += pillar_weight
+        overall_weighted += pillar_weight * pillar_score
+        overall_coverage += pillar_weight * pillar_coverage
         pillars_out[key] = {
+            **pillar_result,
             "score": pillar_score,
-            "verdict": _verdict_from_score(pillar_score),
+            "verdict": _verdict_from_score(pillar_score, pillar_coverage),
             "weight": pillar_weight,
             "metrics": [m.to_dict() for m in metric_list],
         }
 
-    overall_score = round(overall_weighted / overall_weight_used, 1) if overall_weight_used else 0.0
+    overall_score = round(overall_weighted / sum(PILLAR_WEIGHTS.values()), 1)
+    overall_coverage = round(overall_coverage / sum(PILLAR_WEIGHTS.values()), 2)
 
     previous_metrics = (previous_snapshot or {}).get("metrics", {})
     catalysts = build_catalysts(
@@ -542,7 +571,9 @@ def score_stock(
         "pillars": pillars_out,
         "overall": {
             "score": overall_score,
-            "verdict": _verdict_from_score(overall_score),
+            "coverage": overall_coverage,
+            "confidence": "insufficient" if overall_coverage < MIN_PILLAR_COVERAGE else "high" if overall_coverage >= 0.80 else "partial",
+            "verdict": _verdict_from_score(overall_score, overall_coverage),
             "stance": "growth",
         },
         "catalysts": catalysts,

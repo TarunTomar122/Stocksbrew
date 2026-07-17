@@ -1,4 +1,5 @@
 import type { StockIntelPro, StockIntelPillar } from "@/lib/types";
+import { hasSufficientOverallData, hasSufficientPillarData, overallCoverage } from "@/lib/fundamentals-coverage";
 import { PillarBreakdown } from "@/components/pillar-breakdown";
 import { StockProPaywall } from "@/components/stock-pro-paywall";
 
@@ -28,6 +29,7 @@ const VERDICT_COPY: Record<string, string> = {
   solid: "Solid",
   mixed: "Mixed",
   weak: "Weak",
+  "insufficient data": "Insufficient data",
 };
 
 function scoreTone(v?: number | null): string {
@@ -79,6 +81,7 @@ function PillarCard({
   showVerdict?: boolean;
 }) {
   const icon = PILLAR_ICON[name];
+  const sufficient = hasSufficientPillarData(pillar);
   return (
     <div className="flex h-full min-w-[148px] flex-col gap-3 rounded-2xl bg-surface p-4 md:p-4.5">
       <div className="flex items-center justify-between gap-2">
@@ -89,15 +92,15 @@ function PillarCard({
         >
           {icon.emoji}
         </span>
-        <span className={`text-[24px] font-semibold tabular-nums leading-none ${scoreTone(pillar.score)}`}>
-          {Math.round(pillar.score)}
+        <span className={`text-[24px] font-semibold tabular-nums leading-none ${scoreTone(sufficient ? pillar.score : null)}`}>
+          {sufficient ? Math.round(pillar.score) : "N/A"}
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-[12px] font-semibold tracking-[0.06em] uppercase text-on-surface">
           {PILLAR_LABEL[name]}
         </span>
-        <ScoreBar score={pillar.score} />
+        {sufficient ? <ScoreBar score={pillar.score} /> : <div className="h-1.5 rounded-full bg-surface-container-high" />}
         {showVerdict ? (
           <span className="text-[11px] text-on-surface-variant">
             {VERDICT_COPY[pillar.verdict] ?? pillar.verdict}
@@ -118,6 +121,8 @@ export function StockScorecard({
   isSubscribed?: boolean;
 }) {
   if (!intel) return null;
+  const overallSufficient = hasSufficientOverallData(intel);
+  const coverage = overallCoverage(intel);
 
   return (
     <div className="flex flex-col gap-10">
@@ -127,10 +132,10 @@ export function StockScorecard({
             Fundamentals score
           </span>
           <div className="flex items-baseline gap-2">
-            <span className={`text-[52px] md:text-[64px] font-semibold leading-none tabular-nums ${scoreTone(intel.overall.score)}`}>
-              {Math.round(intel.overall.score)}
+            <span className={`text-[52px] md:text-[64px] font-semibold leading-none tabular-nums ${scoreTone(overallSufficient ? intel.overall.score : null)}`}>
+              {overallSufficient ? Math.round(intel.overall.score) : "N/A"}
             </span>
-            <span className="text-[20px] font-medium text-on-surface-variant">/ 100</span>
+            {overallSufficient ? <span className="text-[20px] font-medium text-on-surface-variant">/ 100</span> : null}
           </div>
           <span className="text-[12px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             {isSubscribed
@@ -138,7 +143,8 @@ export function StockScorecard({
               : "Scores are free · Pro unlocks the call"}
           </span>
           <p className="text-[13px] text-on-surface-variant leading-relaxed mt-1 max-w-[260px]">
-            Composite of valuation, growth, quality &amp; momentum versus sector peers.
+            Composite of valuation, growth, quality &amp; momentum versus sector peers
+            {coverage != null ? ` · ${Math.round(coverage * 100)}% data coverage` : ""}.
           </p>
           {intel.sector_label && (
             <span className="text-[12px] text-on-surface-variant mt-1">

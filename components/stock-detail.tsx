@@ -247,6 +247,11 @@ export function StockDetail(props: Props) {
 
   // ---- scores -------------------------------------------------------------
   const pillars = intelPro?.pillars;
+  const overallCoverage =
+    typeof intelPro?.overall?.coverage === "number" && Number.isFinite(intelPro.overall.coverage)
+      ? Math.max(0, Math.min(1, intelPro.overall.coverage))
+      : null;
+  const hasReliableOverall = overallCoverage == null || overallCoverage >= 0.5;
 
   // ---- the call (subscribed) ---------------------------------------------
   const stance = (directive?.stance ?? "watch").toLowerCase();
@@ -448,7 +453,7 @@ export function StockDetail(props: Props) {
     marketCap: cap(fundamentals?.market_cap) ?? "-",
     pe: hasPe ? pe!.toFixed(1) : "-",
     revGrowth: n(rev) ? sign(rev!) : "-",
-    score: intelPro?.overall?.score != null ? Math.round(intelPro.overall.score) : null,
+    score: hasReliableOverall && intelPro?.overall?.score != null ? Math.round(intelPro.overall.score) : null,
     isCurrent: true,
     href: `/stock/${stock.ticker}`,
   };
@@ -702,7 +707,7 @@ export function StockDetail(props: Props) {
                 currency={currency}
                 currentPrice={stock.price}
                 overviewHeadline={overviewHeadline}
-                fundamentalsScore={intelPro?.overall?.score ?? null}
+                fundamentalsScore={hasReliableOverall ? (intelPro?.overall?.score ?? null) : null}
                 preEarningsDays={earningsDays}
               />
             </div>
@@ -775,8 +780,11 @@ export function StockDetail(props: Props) {
               <div className="mb-4 flex items-baseline justify-between gap-3">
                 <span className={TIER}>fundamentals</span>
                 <span className="font-mono text-[13px] font-bold tabular-nums text-on-surface">
-                  {intelPro!.overall?.score ?? "–"}{" "}
-                  <span className="font-normal text-on-surface-variant">/100 vs peers</span>
+                  {hasReliableOverall ? (intelPro!.overall?.score ?? "–") : "N/A"}{" "}
+                  <span className="font-normal text-on-surface-variant">
+                    {hasReliableOverall ? "/100 vs peers" : "insufficient data"}
+                    {overallCoverage != null ? ` · ${Math.round(overallCoverage * 100)}% coverage` : ""}
+                  </span>
                 </span>
               </div>
               <FundamentalsBreakdown pillars={pillars} />

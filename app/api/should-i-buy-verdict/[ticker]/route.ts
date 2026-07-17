@@ -5,6 +5,7 @@ import {
   normalizeStockSymbolParam,
 } from "@/lib/stock";
 import { getLatestTechnicals } from "@/lib/technicals";
+import { hasSufficientOverallData, hasSufficientPillarData } from "@/lib/fundamentals-coverage";
 import type { StockIntelPro } from "@/lib/types";
 import type { VerdictApiResponse } from "@/lib/should-i-buy-types";
 
@@ -32,7 +33,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
   const { valuation, growth, quality, momentum } = intel.pillars;
   const lines: Array<{ text: string; priority: number }> = [];
 
-  if (momentum.score >= 65 && (momentum.verdict === "solid" || momentum.verdict === "strong")) {
+  if (!hasSufficientPillarData(momentum)) {
+    lines.push({ text: "Not enough momentum data for a reliable score", priority: 2 });
+  } else if (momentum.score >= 65 && (momentum.verdict === "solid" || momentum.verdict === "strong")) {
     lines.push({ text: "Price trend is strong and momentum is building", priority: 1 });
   } else if (momentum.score < 45) {
     lines.push({ text: "Price trend is weak - momentum has stalled", priority: 1 });
@@ -40,7 +43,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
     lines.push({ text: "Momentum is mixed with no clear directional trend", priority: 3 });
   }
 
-  if (valuation.score >= 60) {
+  if (!hasSufficientPillarData(valuation)) {
+    lines.push({ text: "Not enough valuation data to call the stock cheap or expensive", priority: 2 });
+  } else if (valuation.score >= 60) {
     lines.push({ text: "Stock appears reasonably priced relative to its fundamentals", priority: 2 });
   } else if (valuation.score < 30) {
     lines.push({ text: "Stock is priced for perfection - leaves little room for error", priority: 1 });
@@ -48,7 +53,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
     lines.push({ text: "Valuation is in the middle - neither cheap nor expensive", priority: 3 });
   }
 
-  if (growth.score >= 60) {
+  if (!hasSufficientPillarData(growth)) {
+    lines.push({ text: "Not enough growth data for a reliable score", priority: 2 });
+  } else if (growth.score >= 60) {
     lines.push({ text: "Revenue and earnings trajectory looks solid", priority: 2 });
   } else if (growth.score < 35) {
     lines.push({ text: "Growth outlook is under pressure", priority: 1 });
@@ -56,7 +63,9 @@ function buildReasons(intel: StockIntelPro, rsi?: number | null): string[] {
     lines.push({ text: "Growth is modest but not alarming", priority: 3 });
   }
 
-  if (quality.score >= 60) {
+  if (!hasSufficientPillarData(quality)) {
+    lines.push({ text: "Not enough balance-sheet data for a reliable quality score", priority: 2 });
+  } else if (quality.score >= 60) {
     lines.push({ text: "Balance sheet is healthy with strong financial quality", priority: 2 });
   } else if (quality.score < 40) {
     lines.push({ text: "Some concerns around balance sheet and financial quality", priority: 1 });
@@ -80,7 +89,9 @@ function computeVerdict(intel: StockIntelPro, rsi?: number | null) {
   const isOverbought = typeof rsi === "number" && rsi >= 72;
 
   let level: VerdictLevel;
-  if (score >= 72 && (momentumVerdict === "solid" || momentumVerdict === "strong") && !isOverbought) {
+  if (!hasSufficientOverallData(intel)) {
+    level = "Hold / watch";
+  } else if (score >= 72 && (momentumVerdict === "solid" || momentumVerdict === "strong") && !isOverbought) {
     level = "Strong buy signal";
   } else if (score >= 60 && weakCount <= 1) {
     level = "Buy signal";

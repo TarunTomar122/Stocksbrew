@@ -1,6 +1,7 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 import { batchGetRefs, getLatestPrices } from "@/lib/firestore";
 import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
+import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
 import { resolveSectorSlug, sectorSlugForIntel } from "@/lib/sector-slugs";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
@@ -595,16 +596,26 @@ export async function getStockIntelPro(
 function stockIntelQualityScore(row: StockIntelPro): number {
   const overall = Number(row.overall?.score ?? 0);
   const pillars = Object.values(row.pillars ?? {});
+  const coverageAwarePillars = pillars.filter(
+    (pillar) => typeof pillar?.coverage === "number" && Number.isFinite(pillar.coverage),
+  ).length;
   const scoredPillars = pillars.filter((pillar) => Number(pillar?.score ?? 0) > 0).length;
   const scoredMetrics = pillars.reduce((count, pillar) => {
     const metrics = Array.isArray(pillar?.metrics) ? pillar.metrics : [];
     return count + metrics.filter((metric) => typeof metric.score === "number").length;
   }, 0);
-  return scoredPillars * 1000 + scoredMetrics * 10 + overall;
+  // Prefer documents produced by the coverage-aware scorer when a ticker
+  // exists in multiple universe namespaces. This prevents a more populated
+  // legacy document from silently restoring the old missing-data behavior.
+  return coverageAwarePillars * 100_000 + scoredPillars * 1000 + scoredMetrics * 10 + overall;
 }
 
 function intelHasCompositeScore(intel: StockIntelPro): boolean {
-  return typeof intel.overall?.score === "number" && Object.keys(intel.pillars ?? {}).length > 0;
+  return (
+    typeof intel.overall?.score === "number" &&
+    Object.keys(intel.pillars ?? {}).length > 0 &&
+    hasSufficientOverallData(intel)
+  );
 }
 
 function intelSectorSlug(intel: StockIntelPro): string {
@@ -636,7 +647,7 @@ async function querySectorIntelDocs(
     const snap = await collection.where("sector_slug", "==", sectorSlug).limit(Math.max(limit * 4, 24)).get();
     return snap.docs
       .map((d) => d.data() as StockIntelPro)
-      .filter((row) => typeof row.overall?.score === "number")
+      .filter(intelHasCompositeScore)
       .sort((a, b) => (b.overall?.score ?? 0) - (a.overall?.score ?? 0))
       .slice(0, limit);
   }
@@ -657,7 +668,7 @@ async function scanUniverseSectorPeers(
     .get();
   const candidates = snap.docs
     .map((d) => d.data() as StockIntelPro)
-    .filter((row) => row.instrument_id !== excludeInstrumentId && typeof row.overall?.score === "number");
+    .filter((row) => row.instrument_id !== excludeInstrumentId && intelHasCompositeScore(row));
 
   const needsInstrument = candidates.filter((row) => !intelSectorSlug(row));
   const instrumentById =

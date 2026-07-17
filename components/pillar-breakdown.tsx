@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { PercentileRail } from "@/components/percentile-rail";
 import { ProBadge } from "@/components/pro-badge";
+import { hasSufficientPillarData, pillarCoverage } from "@/lib/fundamentals-coverage";
 import type { StockIntelPro, StockIntelPillar } from "@/lib/types";
 
 type PillarKey = keyof StockIntelPro["pillars"];
@@ -36,6 +37,7 @@ const VERDICT_COPY: Record<string, string> = {
   solid: "Solid",
   mixed: "Mixed",
   weak: "Weak",
+  "insufficient data": "Insufficient data",
 };
 
 const VERDICT_TONE: Record<string, { bg: string; fg: string }> = {
@@ -43,6 +45,7 @@ const VERDICT_TONE: Record<string, { bg: string; fg: string }> = {
   solid: { bg: "color-mix(in srgb, #2563eb 14%, var(--surface))", fg: "#3b82f6" },
   mixed: { bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b" },
   weak: { bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444" },
+  "insufficient data": { bg: "var(--surface-container)", fg: "var(--on-surface-variant)" },
 };
 
 function scoreTone(v?: number | null): string {
@@ -70,6 +73,7 @@ export function PillarBreakdown({
     (m) => m.value !== null && m.value !== undefined,
   );
   const verdictTone = VERDICT_TONE[pillar.verdict] ?? VERDICT_TONE.mixed;
+  const pillarSufficient = hasSufficientPillarData(pillar);
 
   return (
     <section className="flex flex-col gap-6 pt-8">
@@ -81,6 +85,7 @@ export function PillarBreakdown({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
             {PILLAR_ORDER.map((key) => {
               const p = pillars[key];
+              const sufficient = hasSufficientPillarData(p);
               const isActive = active === key;
               const tabIcon = PILLAR_ICON[key];
               return (
@@ -110,8 +115,8 @@ export function PillarBreakdown({
                     >
                       {PILLAR_LABEL[key]}
                     </span>
-                    <span className={`text-[14px] font-semibold tabular-nums leading-none ${scoreTone(p.score)}`}>
-                      {Math.round(p.score)}
+                    <span className={`text-[14px] font-semibold tabular-nums leading-none ${scoreTone(sufficient ? p.score : null)}`}>
+                      {sufficient ? Math.round(p.score) : "N/A"}
                     </span>
                   </span>
                 </button>
@@ -136,8 +141,8 @@ export function PillarBreakdown({
               <span className="text-[12px] font-medium tracking-[0.06em] uppercase text-on-surface-variant">
                 {Math.round(pillar.weight * 100)}% wt
               </span>
-              <span className={`text-[28px] font-semibold tabular-nums leading-none ${scoreTone(pillar.score)}`}>
-                {Math.round(pillar.score)}
+              <span className={`text-[28px] font-semibold tabular-nums leading-none ${scoreTone(pillarSufficient ? pillar.score : null)}`}>
+                {pillarSufficient ? Math.round(pillar.score) : "N/A"}
               </span>
             </div>
           </div>
@@ -155,8 +160,8 @@ export function PillarBreakdown({
           )}
 
       <p className="text-[11px] text-on-surface-variant">
-        {metricCount(pillar)} metric{metricCount(pillar) === 1 ? "" : "s"} compared against sector
-        peers.
+        {metricCount(pillar)} metric{metricCount(pillar) === 1 ? "" : "s"} available ·{" "}
+        {Math.round(pillarCoverage(pillar) * 100)}% weighted coverage.
       </p>
     </section>
   );

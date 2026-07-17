@@ -42,6 +42,8 @@ def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
     block: dict[str, Any] = {
         "overall_score": overall.get("score"),
         "overall_verdict": overall.get("verdict"),
+        "overall_coverage": overall.get("coverage"),
+        "overall_confidence": overall.get("confidence"),
         "pillars": {},
         "standout_metrics": [],
         "weak_metrics": [],
@@ -58,6 +60,8 @@ def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
         block["pillars"][pillar_name] = {
             "score": pillar.get("score"),
             "verdict": pillar.get("verdict"),
+            "coverage": pillar.get("coverage"),
+            "confidence": pillar.get("confidence"),
         }
         for metric in pillar.get("metrics") or []:
             score = metric.get("score")
@@ -428,7 +432,7 @@ STYLE:
 - If overlap exists, keep it in thesis and remove duplicates from other fields.
 
 FUNDAMENTALS - USE THEM:
-- The user payload includes a `fundamentals` block with four pillar scores (valuation, growth, quality, momentum - each 0-100), plus `standout_metrics` (score ≥ 75) and `weak_metrics` (score ≤ 25) and quant-driven `catalysts` (earnings dates, rank upgrades, short spikes). These are ground truth, not news.
+- The user payload includes a `fundamentals` block with four coverage-adjusted pillar scores (valuation, growth, quality, momentum - each 0-100), coverage/confidence fields, `standout_metrics` (score ≥ 75), `weak_metrics` (score ≤ 25), and quant-driven `catalysts`. Never describe an `insufficient data` pillar as strong or weak; treat its score as neutral uncertainty.
 - Let fundamentals shape the directive, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
 - A beaten-down name with strong growth and a Buy-tilted quant rank can be "accumulate on dips". A high-multiple winner with strong evidence can still be "accumulate" or "watch for breakout" if the setup remains constructive.
 - Use fundamentals to pick concrete trigger prices. If price is already above analyst target AND still showing strength, a conditional trim on further extension above $X can work. If price is below target or selling off, prefer watch/accumulate at support instead.

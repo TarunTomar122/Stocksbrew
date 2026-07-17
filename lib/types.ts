@@ -28,11 +28,17 @@ export type StockIntelMetric = {
   signal: StockIntelSignal;
   summary: string;
   score: number | null;
+  weight?: number;
 };
 
 export type StockIntelPillar = {
   score: number;
-  verdict: "strong" | "solid" | "mixed" | "weak";
+  raw_score?: number | null;
+  coverage?: number;
+  confidence?: "insufficient" | "partial" | "high";
+  available_metrics?: number;
+  total_metrics?: number;
+  verdict: "strong" | "solid" | "mixed" | "weak" | "insufficient data";
   weight: number;
   metrics: StockIntelMetric[];
 };
@@ -56,7 +62,13 @@ export type StockIntelPro = {
     quality: StockIntelPillar;
     momentum: StockIntelPillar;
   };
-  overall: { score: number; verdict: string; stance: string };
+  overall: {
+    score: number;
+    coverage?: number;
+    confidence?: "insufficient" | "partial" | "high";
+    verdict: string;
+    stance: string;
+  };
   catalysts: StockIntelCatalyst[];
   snapshot_date: string;
   generated_at: string;

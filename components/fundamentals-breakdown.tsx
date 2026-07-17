@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { metricContextLine } from "@/components/percentile-rail";
+import { pillarCoverage } from "@/lib/fundamentals-coverage";
 import type { StockIntelMetric, StockIntelPro } from "@/lib/types";
 
 const KEYS = ["growth", "momentum", "valuation", "quality"] as const;
@@ -14,7 +15,8 @@ const LABEL: Record<Key, string> = {
   quality: "Quality",
 };
 
-function scoreColor(v: number) {
+function scoreColor(v: number, sufficient = true) {
+  if (!sufficient) return "var(--outline)";
   return v >= 85 ? "var(--signal-bullish)" : v >= 60 ? "var(--signal-neutral)" : "var(--signal-bearish)";
 }
 
@@ -109,12 +111,14 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
 
 function PillarRing({
   score,
+  coverage,
   color,
   label,
   active,
   onClick,
 }: {
   score: number;
+  coverage: number;
   color: string;
   label: string;
   active: boolean;
@@ -124,7 +128,8 @@ function PillarRing({
   const center = size / 2;
   const r = 27;
   const circ = 2 * Math.PI * r;
-  const off = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
+  const sufficient = coverage >= 0.5;
+  const off = sufficient ? circ * (1 - Math.max(0, Math.min(100, score)) / 100) : circ;
 
   return (
     <button
@@ -155,7 +160,9 @@ function PillarRing({
             strokeDashoffset={off}
           />
         </svg>
-        <span className="absolute text-[12px] font-extrabold tabular-nums leading-none text-on-surface">{score}</span>
+        <span className="absolute text-[12px] font-extrabold tabular-nums leading-none text-on-surface">
+          {sufficient ? score : "N/A"}
+        </span>
       </div>
       <div className={`mt-1 text-[10.5px] ${active ? "font-semibold text-on-surface" : "text-on-surface-variant"}`}>{label}</div>
     </button>
@@ -172,11 +179,13 @@ export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pil
       <div className="grid grid-cols-4 gap-2">
         {KEYS.map((key) => {
           const pl = pillars[key];
+          const coverage = pillarCoverage(pl);
           return (
             <PillarRing
               key={key}
               score={pl.score}
-              color={scoreColor(pl.score)}
+              coverage={coverage}
+              color={scoreColor(pl.score, coverage >= 0.5)}
               label={LABEL[key]}
               active={key === active}
               onClick={() => setActive(key)}
@@ -187,15 +196,23 @@ export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pil
 
       {metrics.length > 0 && (
         <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--outline-variant)" }}>
-          {p.verdict && (
-            <p className="mb-3 text-[13px] capitalize text-on-surface-variant">{p.verdict}</p>
-          )}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[12px] text-on-surface-variant">
+            <p className="text-[13px] capitalize">{p.verdict}</p>
+            <p className="font-mono tabular-nums">
+              {p.available_metrics ?? p.metrics.filter((metric) => metric.score != null).length} of{" "}
+              {p.total_metrics ?? p.metrics.length} metrics · {Math.round(pillarCoverage(p) * 100)}% coverage
+            </p>
+          </div>
           <div className="divide-y divide-outline-variant">
             {metrics.map((m, i) => (
               <MetricRow key={`${m.label}-${i}`} metric={m} />
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-on-surface-variant">Compared against sector peers where available.</p>
+          <p className="mt-3 text-[11px] text-on-surface-variant">
+            {pillarCoverage(p) < 0.5
+              ? "Score withheld until at least half of this pillar's weighted inputs are available."
+              : "Missing inputs are treated as neutral uncertainty; compared with sector peers where available."}
+          </p>
         </div>
       )}
     </div>
