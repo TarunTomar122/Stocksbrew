@@ -117,6 +117,20 @@ const BADGES = [
     label: "AI Toolz Dir",
     alt: "Listed on AI Toolz Dir",
   },
+  {
+    href: "https://dofollow.tools",
+    src: "https://dofollow.tools/badge/badge_light.svg",
+    alt: "Featured on Dofollow.Tools",
+    width: 180,
+    height: 44,
+  },
+  {
+    href: "https://hicyou.com",
+    src: "https://hicyou.com/badge/featured-light.svg",
+    alt: "Featured on Hi Cyou",
+    width: 180,
+    height: 44,
+  },
 ] as const;
 
 export function Footer() {
