@@ -112,6 +112,11 @@ const BADGES = [
     width: 150,
     height: 44,
   },
+  {
+    href: "https://www.aitoolzdir.com",
+    label: "AI Toolz Dir",
+    alt: "Listed on AI Toolz Dir",
+  },
 ] as const;
 
 export function Footer() {
@@ -181,14 +186,21 @@ export function Footer() {
                     className="shrink-0 opacity-85 transition-opacity hover:opacity-100"
                     key={`${duplicate ? "duplicate" : "primary"}-${badge.alt}`}
                   >
-                    <img
-                      src={badge.src}
-                      alt={duplicate ? "" : badge.alt}
-                      width={badge.width}
-                      height={badge.height}
-                      className="h-11 w-auto max-w-none object-contain"
-                      loading="lazy"
-                    />
+                    {"src" in badge ? (
+                      <img
+                        src={badge.src}
+                        alt={duplicate ? "" : badge.alt}
+                        width={badge.width}
+                        height={badge.height}
+                        className="h-11 w-auto max-w-none object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className={styles.textBadge} aria-label={duplicate ? undefined : badge.alt}>
+                        <span className={styles.textBadgeEyebrow}>Listed on</span>
+                        {badge.label}
+                      </span>
+                    )}
                   </a>
                 ))}
               </div>
