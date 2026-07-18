@@ -161,6 +161,33 @@ export function Footer() {
               loading="lazy"
             />
           </a>
+          <a href="https://wired.business" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://wired.business/badge0-white.svg"
+              alt="Featured on Wired Business"
+              width={200}
+              height={54}
+              loading="lazy"
+            />
+          </a>
+          <a href="https://twelve.tools" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://twelve.tools/badge0-white.svg"
+              alt="Featured on Twelve Tools"
+              width={200}
+              height={54}
+              loading="lazy"
+            />
+          </a>
+          <a href="https://auraplusplus.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://auraplusplus.com/images/badges/featured-on-light.svg"
+              alt="Featured on Aura++"
+              width={150}
+              height={44}
+              loading="lazy"
+            />
+          </a>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
