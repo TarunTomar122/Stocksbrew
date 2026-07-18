@@ -61,9 +61,12 @@ const siteVerification: Metadata["verification"] = {
   ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
     ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
     : {}),
-  ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
-    ? { other: { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }
-    : {}),
+  other: {
+    ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION }
+      : {}),
+    "directree-verify": "directree-verify=95b766d1987089b3ef6fb7718d74e6d4",
+  },
 };
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.stocksbrew.online"),
