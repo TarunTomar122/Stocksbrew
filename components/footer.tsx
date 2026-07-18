@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
+import styles from "./footer.module.css";
 
 type Column = {
   title: string;
@@ -53,6 +54,65 @@ const COLUMNS: Column[] = [
     ],
   },
 ];
+
+const BADGES = [
+  {
+    href: "https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch",
+    src: "https://www.scrolllaunch.com/api/badge/tikrr",
+    alt: "Featured on ScrollLaunch",
+    width: 220,
+    height: 48,
+  },
+  {
+    href: "https://daniellaunches.com",
+    src: "https://daniellaunches.com/badge-light.svg",
+    alt: "Featured on DanielLaunches",
+    width: 220,
+    height: 48,
+  },
+  {
+    href: "https://fazier.com",
+    src: "https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light",
+    alt: "Launched on Fazier",
+    width: 120,
+    height: 48,
+  },
+  {
+    href: "https://startupfa.me/s/stocksbrew?utm_source=www.stocksbrew.online",
+    src: "https://startupfa.me/badges/featured-badge-small.webp",
+    alt: "StocksBrew - Featured on Startup Fame",
+    width: 224,
+    height: 36,
+  },
+  {
+    href: "https://www.toolpilot.ai",
+    src: "https://www.toolpilot.ai/cdn/shop/files/f-w_690x151_crop_center.png",
+    alt: "Featured on ToolPilot.ai",
+    width: 164,
+    height: 36,
+  },
+  {
+    href: "https://wired.business",
+    src: "https://wired.business/badge0-white.svg",
+    alt: "Featured on Wired Business",
+    width: 200,
+    height: 54,
+  },
+  {
+    href: "https://twelve.tools",
+    src: "https://twelve.tools/badge0-white.svg",
+    alt: "Featured on Twelve Tools",
+    width: 200,
+    height: 54,
+  },
+  {
+    href: "https://auraplusplus.com",
+    src: "https://auraplusplus.com/images/badges/featured-on-light.svg",
+    alt: "Featured on Aura++",
+    width: 150,
+    height: 44,
+  },
+] as const;
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -108,86 +168,32 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="my-8 flex flex-wrap items-center gap-4">
-          <a
-            href="https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img
-              src="https://www.scrolllaunch.com/api/badge/tikrr"
-              alt="Featured on ScrollLaunch"
-              width={220}
-              height={48}
-              loading="lazy"
-            />
-          </a>
-          <a href="https://daniellaunches.com" target="_blank" rel="noopener noreferrer">
-            <img
-              src="https://daniellaunches.com/badge-light.svg"
-              alt="Featured on DanielLaunches"
-              width={220}
-              height={48}
-              loading="lazy"
-            />
-          </a>
-          <a href="https://fazier.com" target="_blank" rel="noopener noreferrer">
-            <img
-              src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light"
-              alt="Launched on Fazier"
-              width={120}
-              loading="lazy"
-            />
-          </a>
-          <a
-            href="https://startupfa.me/s/stocksbrew?utm_source=www.stocksbrew.online"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img
-              src="https://startupfa.me/badges/featured-badge-small.webp"
-              alt="StocksBrew - Featured on Startup Fame"
-              width={224}
-              height={36}
-              loading="lazy"
-            />
-          </a>
-          <a href="https://www.toolpilot.ai" target="_blank" rel="noopener noreferrer">
-            <img
-              src="https://www.toolpilot.ai/cdn/shop/files/f-w_690x151_crop_center.png"
-              alt="Featured on ToolPilot.ai"
-              width={164}
-              height={36}
-              loading="lazy"
-            />
-          </a>
-          <a href="https://wired.business" target="_blank" rel="noopener noreferrer">
-            <img
-              src="https://wired.business/badge0-white.svg"
-              alt="Featured on Wired Business"
-              width={200}
-              height={54}
-              loading="lazy"
-            />
-          </a>
-          <a href="https://twelve.tools" target="_blank" rel="noopener noreferrer">
-            <img
-              src="https://twelve.tools/badge0-white.svg"
-              alt="Featured on Twelve Tools"
-              width={200}
-              height={54}
-              loading="lazy"
-            />
-          </a>
-          <a href="https://auraplusplus.com" target="_blank" rel="noopener noreferrer">
-            <img
-              src="https://auraplusplus.com/images/badges/featured-on-light.svg"
-              alt="Featured on Aura++"
-              width={150}
-              height={44}
-              loading="lazy"
-            />
-          </a>
+        <div className={`${styles.viewport} my-8 py-2`} aria-label="StocksBrew directory features">
+          <div className={styles.track}>
+            {[false, true].map((duplicate) => (
+              <div className={styles.group} key={duplicate ? "duplicate" : "primary"} aria-hidden={duplicate}>
+                {BADGES.map((badge) => (
+                  <a
+                    href={badge.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={duplicate ? -1 : undefined}
+                    className="shrink-0 opacity-85 transition-opacity hover:opacity-100"
+                    key={`${duplicate ? "duplicate" : "primary"}-${badge.alt}`}
+                  >
+                    <img
+                      src={badge.src}
+                      alt={duplicate ? "" : badge.alt}
+                      width={badge.width}
+                      height={badge.height}
+                      className="h-11 w-auto max-w-none object-contain"
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
