@@ -139,6 +139,13 @@ const BADGES = [
     width: 180,
     height: 44,
   },
+  {
+    href: "https://www.directree.io",
+    src: "https://www.directree.io/badge/directree-badge-lightmode.svg",
+    alt: "Verified on directree",
+    width: 200,
+    height: 37,
+  },
 ] as const;
 
 export function Footer() {
