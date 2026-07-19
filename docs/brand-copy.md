@@ -136,14 +136,14 @@ Old IDs kept for diff only. All used **twice a day / brief cadence** framing.
 | Field | Approved | Status |
 | --- | --- | --- |
 | **Site title template** | `%s · stocksbrew` | live |
-| **Default site title** | `stocksbrew · Stock Calls & Radar` (DT1) | live |
+| **Default site title** | `stocksbrew · Stock guidance & alerts` (DT1) | live |
 | **Separator** | Middle dot `·` only | approved |
 
 ### Default title (candidates)
 
 | ID | Copy |
 | --- | --- |
-| **DT1** | stocksbrew · Stock Calls & Radar |
+| **DT1** | stocksbrew · Stock guidance & alerts |
 | **DT2** | stocksbrew · Personalized Stock Guidance |
 | **DT3** | stocksbrew · Know what to do with your stocks |
 

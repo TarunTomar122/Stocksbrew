@@ -6,13 +6,13 @@ export const BRAND_NAME = "stocksbrew";
 
 export const TAGLINE = "Know what to do with your stocks.";
 
-export const SITE_TITLE_DEFAULT = "stocksbrew · Stock Calls & Radar";
+export const SITE_TITLE_DEFAULT = "stocksbrew · Stock guidance & alerts";
 
 export const SHORT_DESCRIPTION =
-  "Detailed stock calls and zones, Stocksbrew target prices, Radar tracking, and automatic or manual alerts. US markets.";
+  "Clear guidance for the stocks you follow, with alerts when something changes. US stocks.";
 
 export const MEDIUM_DESCRIPTION =
-  "stocksbrew turns your watchlist into detailed calls, target prices, and alerts for earnings, buy zones, trim zones, and the price levels you set. Free for 3 stocks.";
+  "Clear buy, hold, and sell guidance for the stocks you follow, with email alerts when something changes. Free for 3 stocks.";
 
 export const LONG_DESCRIPTION =
   "stocksbrew combines fundamentals, news, Reddit, earnings, and price action into a detailed add, hold, or trim call with buy and trim zones, drivers, and risks. Pro adds the Stocksbrew target price, unlimited Radar tracking, automatic earnings and zone alerts, and manual price alerts. Built for US markets today. Not investment advice. Not a broker.";

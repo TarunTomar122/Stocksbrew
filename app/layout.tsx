@@ -107,7 +107,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/api/og",
+        url: "/api/og?v=20260719",
         width: 1200,
         height: 630,
         alt: "stocksbrew — clear buy, hold, and sell calls on US stocks",
@@ -118,7 +118,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_TITLE_DEFAULT,
     description: MEDIUM_DESCRIPTION,
-    images: ["/api/og"],
+    images: ["/api/og?v=20260719"],
     creator: "@stocksbrew",
   },
   robots: {
