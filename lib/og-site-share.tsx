@@ -11,6 +11,11 @@ export const OG_SIZE = { width: 1200, height: 630 } as const;
 let fontCache: Array<{ name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" }> | null =
   null;
 
+function readFont(filePath: string): ArrayBuffer {
+  const data = readFileSync(filePath);
+  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+}
+
 function loadOgFonts() {
   if (fontCache) return fontCache;
   const regularPath = path.join(process.cwd(), "assets/og/inter-400.woff");
@@ -18,13 +23,13 @@ function loadOgFonts() {
   fontCache = [
     {
       name: "Inter",
-      data: readFileSync(regularPath).buffer,
+      data: readFont(regularPath),
       weight: 400,
       style: "normal",
     },
     {
       name: "Inter",
-      data: readFileSync(boldPath).buffer,
+      data: readFont(boldPath),
       weight: 700,
       style: "normal",
     },
