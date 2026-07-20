@@ -128,7 +128,7 @@ export async function renderPremarketShareImage() {
                   <div
                     key={tile.label}
                     style={{
-                      width: 173,
+                      width: 160,
                       height: 125,
                       display: "flex",
                       flexDirection: "column",
