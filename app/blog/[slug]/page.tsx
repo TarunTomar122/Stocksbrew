@@ -148,17 +148,15 @@ export default async function BlogPostPage({ params }: Props) {
 
           <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
             <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
-              Know what to do with your stocks
+              Research here or take Stocksbrew into your agent
             </h3>
             <p className="text-[14px] text-[#6b7280] mb-5">
-              Personalized buy, hold, and sell calls from fundamentals, news, Reddit, and earnings. Set triggers and get emailed in buy or sell zones. Free for 3 stocks.
+              Get calls, targets, and Radar alerts in Stocksbrew. Pro can also connect the same research to Claude Code, Cursor, Codex, or another compatible client.
             </p>
-            <a
-              href="https://www.stocksbrew.online/radar"
-              className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
-            >
-              Try stocksbrew Free →
-            </a>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Link href="/radar" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform">Try stocksbrew Free →</Link>
+              <Link href="/agents" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full border border-[#d1d5db] bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:border-[#111111] transition-colors">Explore agent access</Link>
+            </div>
           </div>
 
           <Link

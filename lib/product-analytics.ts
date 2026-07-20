@@ -18,6 +18,7 @@ export type AuthSurface =
   | "stock_smart_alert"
   | "demo_radar"
   | "home_content"
+  | "agent_oauth"
   | "unknown";
 
 export type PaywallSurface =
@@ -149,4 +150,10 @@ export function trackRadarStockAdded(props: {
 }) {
   captureEvent("radar_stock_added", props);
   if (props.first_stock) captureEvent("radar_first_stock_added", props);
+}
+
+export function trackAgentAccessAction(props: {
+  action: "server_url_copied" | "token_created" | "token_revoked" | "config_copied";
+}) {
+  captureEvent("agent_access_action", props);
 }

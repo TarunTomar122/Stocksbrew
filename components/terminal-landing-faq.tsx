@@ -15,7 +15,11 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What does Pro actually add?",
-    a: "Three things: detailed add, hold, or trim calls with zones, drivers, and risks; the Stocksbrew target price; and unlimited Radar tracking with automatic earnings and zone alerts plus manual price alerts.",
+    a: "Detailed add, hold, or trim calls with zones, drivers, and risks; the Stocksbrew target price; unlimited Radar tracking and alerts; plus read-only MCP and developer API access for your AI agent.",
+  },
+  {
+    q: "Can I use Stocksbrew in Claude Code, Cursor, or Codex?",
+    a: "Yes. Pro includes a hosted, read-only MCP server for compatible clients plus personal tokens for the REST API. Your agent can read stock intelligence, comparisons, the market brief, and your private Radar, but it cannot trade or change your data.",
   },
   {
     q: "Is there a free trial?",

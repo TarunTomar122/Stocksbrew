@@ -15,6 +15,7 @@ import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { TrackButton } from "@/components/track-button";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
 import { ProLockCard } from "@/components/pro-lock-overlay";
+import { StockAgentAccessCta } from "@/components/agent-access-marketing";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
@@ -589,6 +590,7 @@ export async function StockPageStream({ params }: Props) {
           ) : null
         }
       />
+      <StockAgentAccessCta ticker={displayStock.ticker} isSubscribed={subscribed} />
     </main>
   );
 }

@@ -80,6 +80,15 @@ export async function deleteUserAccount(uid: string): Promise<void> {
   await deleteQueryBatch(
     adminFirestore.collection("tm_user_alert_flags").where("user_id", "==", uid),
   );
+  await deleteQueryBatch(
+    adminFirestore.collection("tm_agent_tokens").where("uid", "==", uid),
+  );
+  await deleteQueryBatch(
+    adminFirestore.collection("tm_agent_usage").where("uid", "==", uid),
+  );
+  await deleteQueryBatch(
+    adminFirestore.collection("tm_agent_oauth_codes").where("uid", "==", uid),
+  );
 
   const docDeletes = [
     userRef,

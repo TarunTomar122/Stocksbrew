@@ -16,6 +16,7 @@ const COLUMNS: Column[] = [
       { label: "Radar", href: "/radar" },
       { label: "Pre-market movers", href: "/premarket" },
       { label: "Earnings", href: "/earnings" },
+      { label: "AI agent access", href: "/agents" },
     ],
   },
   {
@@ -37,6 +38,7 @@ const COLUMNS: Column[] = [
       { label: "Blog", href: "/blog" },
       { label: "Use cases", href: "/use-cases" },
       { label: "Compare stocksbrew", href: "/compare" },
+      { label: "Developer API", href: "/developers" },
     ],
   },
   {
