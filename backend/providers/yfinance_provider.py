@@ -761,3 +761,38 @@ def fetch_weekly_quotes(
             "captured_at": now_iso,
         }
     return rows
+
+
+def fetch_recent_sessions(
+    instrument: dict[str, Any],
+    *,
+    sessions: int = 5,
+) -> list[dict[str, Any]]:
+    """Return the latest completed daily sessions for one instrument.
+
+    This deliberately uses the same Yahoo/yfinance transport as the price
+    pipeline. It is used by the opening report so its five-session tape is a
+    real market series instead of a synthetic chart or a browser-side fetch.
+    """
+    symbol = yahoo_symbol_for(instrument)
+    history = _batch_download_frames([symbol], period="1mo", interval="1d").get(symbol)
+    if history is None or getattr(history, "empty", True):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    previous_close = 0.0
+    for index in range(len(history)):
+        row = history.iloc[index]
+        close = _finite_positive(row.get("Close"))
+        if close is None:
+            continue
+        captured = _row_datetime(row)
+        change_pct = ((close - previous_close) / previous_close * 100.0) if previous_close > 0 else 0.0
+        rows.append({
+            "date": captured.date().isoformat(),
+            "close": round(close, 4),
+            "change_pct": round(change_pct, 2),
+        })
+        previous_close = close
+
+    return rows[-max(1, sessions) :]

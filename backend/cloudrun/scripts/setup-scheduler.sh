@@ -54,9 +54,9 @@ CRON_STOCK_REQUESTS="${CRON_STOCK_REQUESTS:-*/30 * * * *}" # every 30m; API also
 STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
 CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow fundamentals/facts refresh
 CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth Social market digest
-CRON_PREMARKET_INTEL="${CRON_PREMARKET_INTEL:-0 11 * * 1-5}" # 11:00 UTC = 7:00 ET; news → movers → context before email
-CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-30 11 * * 1-5}" # legacy/manual fallback; scheduler uses premarket_intel
-CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-0 12 * * 1-5}" # 12:00 UTC = 8:00 ET; ~1h after intel starts
+CRON_PREMARKET_INTEL="${CRON_PREMARKET_INTEL:-30 4,10 * * 1-5}" # 10:00 IST global read + 15:30 IST pre-market movers/context refresh
+CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-0 10 * * 1-5}" # legacy/manual fallback; primary scheduler uses premarket_intel
+CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-15 10 * * 1-5}" # 15:45 IST, after the live pre-market refresh
 CRON_NEWSLETTER_EMAIL="${CRON_NEWSLETTER_EMAIL:-12 12 * * 1-5}" # 12:12 UTC = 8:12 ET; after close anomalies + premarket pipeline
 CRON_OPEN_EMAIL="${CRON_OPEN_EMAIL:-50 13 * * 1-5}" # 13:50 UTC = 7:20 PM IST; after open_anomalies
 CRON_WEEKLY_EMAIL="${CRON_WEEKLY_EMAIL:-30 4 * * 6}" # 04:30 UTC = 10:00 AM IST Saturday

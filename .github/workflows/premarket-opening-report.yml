@@ -1,0 +1,45 @@
+name: US pre-market opening report
+
+on:
+  schedule:
+    # 10:00 IST: global/overnight setup. 15:30 IST: live US pre-market refresh.
+    - cron: "30 4,10 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: us-premarket-opening-report
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENROUTER_MODEL: "deepseek/deepseek-v4-flash"
+      OPENAI_MODEL: "deepseek/deepseek-v4-flash"
+      LLM_PROVIDER: "openrouter"
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Validate Firestore access
+        run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON secret" && exit 1)
+
+      - name: Build the opening report
+        run: python -m backend.scripts.run_premarket_intel --market US

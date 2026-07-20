@@ -879,6 +879,14 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_premarket_context").document(f"{market.upper()}__latest").get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    def save_premarket_opening_report(self, market: str, payload: dict[str, Any]) -> None:
+        """Write the public opening-sentiment read model for the frontend."""
+        self.db.collection("tm_premarket_opening").document(f"{market.upper()}__latest").set(payload)
+
+    def get_premarket_opening_report(self, market: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_premarket_opening").document(f"{market.upper()}__latest").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
     def get_sector_regimes(self, market: str) -> dict[str, dict[str, Any]]:
         """Return all live sector regime docs for a market, keyed by sector_slug.
         Includes the macro doc under key 'macro'."""

@@ -7,19 +7,21 @@ import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
 export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Pre-Market Movers - Before the Open Gaps",
+  title: "US Market Open Sentiment: Futures, Asia & Pre-Market",
   description:
-    "See which stocks are gapping up or down before the market opens. Live pre-market prices, gaps vs prior close, and sector context.",
+    "See the US market opening setup before the bell: index futures, Japan, Korea and India, overnight news, social buzz, five sessions of context, and live pre-market movers.",
   alternates: { canonical: "/premarket" },
   openGraph: {
-    title: "Pre-Market Movers · stocksbrew",
-    description: "Stocks gapping before the open — live pre-market movers with gap % and prices.",
+    title: "US Market Opening Sentiment · stocksbrew",
+    description: "Futures, global markets, social buzz, overnight catalysts, and live pre-market breadth before the bell.",
     url: "https://www.stocksbrew.online/premarket",
+    images: [{ url: "/api/premarket-share", width: 1200, height: 630, alt: "stocksbrew US market opening report" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pre-Market Movers · stocksbrew",
-    description: "Stocks gapping before the open — live pre-market movers with gap % and prices.",
+    title: "US Market Opening Sentiment · stocksbrew",
+    description: "Futures, global markets, social buzz, overnight catalysts, and live pre-market breadth before the bell.",
+    images: ["/api/premarket-share"],
   },
 };
 
@@ -29,10 +31,10 @@ export default function PremarketPage() {
       <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <header className="flex flex-col gap-2">
           <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#111111] md:text-[40px]">
-            Pre-market movers
+            US market opening setup
           </h1>
           <p className="max-w-2xl text-[15px] leading-relaxed text-[#6b7280]">
-            Stocks gapping before the open — live pre-market prices, gap % vs prior close, and sector context.
+            A quick read on how Wall Street may open: global markets, overnight catalysts, social conversation, five recent sessions, and live pre-market breadth.
           </p>
         </header>
 
