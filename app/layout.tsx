@@ -52,8 +52,8 @@ const jsonLd = {
       featureList: [
         "Stock calls and target context",
         "Radar tracking and alerts",
-        "Read-only MCP server for AI agents",
-        "Stock intelligence developer API",
+        "Current structured stock context for AI agents",
+        "Read-only stock intelligence API",
       ],
       offers: {
         "@type": "Offer",
@@ -94,8 +94,8 @@ export const metadata: Metadata = {
     "investing",
     "US equities",
     "stock market MCP server",
-    "AI stock research agent",
-    "stock intelligence API",
+    "AI agent for stock analysis",
+    "structured stock intelligence API",
   ],
   authors: [{ name: "stocksbrew" }],
   creator: "stocksbrew",

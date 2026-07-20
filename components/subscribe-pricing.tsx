@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatedIcon } from "@/components/animated-icon";
-import { AgentClientLogos } from "@/components/agent-client-logos";
 import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
@@ -304,12 +303,6 @@ export function SubscribePricing({
               </li>
             ))}
           </ul>
-        </div>
-
-        <div className="rounded-xl border border-landing-brand/25 bg-landing-brand/[0.04] p-3.5">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-landing-brand">New in Pro · Agent access</p>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-on-surface-variant">Bring the same calls, targets, market read, and private Radar into Claude Code, Cursor, Codex, or your own MCP client.</p>
-          <AgentClientLogos compact className="mt-3" />
         </div>
 
         <div className="flex flex-col gap-2">

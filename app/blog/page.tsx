@@ -62,9 +62,9 @@ export default function BlogPage() {
           className="rounded-2xl border border-[#bbf7d0] bg-[#f0fdf4] p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#16a34a] transition-colors"
         >
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#16a34a]">New · Stocksbrew for Agents</span>
-            <span className="text-[16px] font-semibold text-[#111111]">Give your AI agent current stock research</span>
-            <span className="text-[13px] text-[#6b7280]">Connect Claude Code, Cursor, Codex, or your own workflow through MCP or the developer API.</span>
+            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#16a34a]">Stocksbrew for AI agents</span>
+            <span className="text-[16px] font-semibold text-[#111111]">Give your AI current, structured stock data</span>
+            <span className="text-[13px] text-[#6b7280]">Connect with MCP or use the read-only stock API.</span>
           </div>
           <span className="text-[13px] font-semibold text-[#166534] shrink-0">See how it works →</span>
         </Link>

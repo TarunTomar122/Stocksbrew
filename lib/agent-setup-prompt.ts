@@ -1,7 +1,7 @@
-export const AGENT_SETUP_PROMPT = `Connect yourself to Stocksbrew using its remote MCP server:
+export const AGENT_SETUP_PROMPT = `Connect to Stocksbrew's remote MCP server:
 
 https://www.stocksbrew.online/api/mcp
 
-Use OAuth and open the Stocksbrew sign-in and approval flow for me. Request read-only access to stocks, market context, and my Radar. After connecting, verify the setup by searching for NVDA and reading its current Stocksbrew intelligence.
+Use OAuth and ask me to approve read-only stock access. After connecting, verify the setup by retrieving the current Stocksbrew analysis for NVDA.
 
-If you cannot add a remote MCP server automatically, give me the exact configuration steps for this client. Do not ask me to paste a personal access token into chat.`;
+If you cannot add the server automatically, give me the exact setup steps for this client. Never ask me to paste an access token into chat.`;

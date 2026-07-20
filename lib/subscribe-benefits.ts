@@ -71,8 +71,8 @@ export const SUBSCRIBE_BENEFITS: SubscribeBenefit[] = [
   },
   {
     icon: "smart_toy",
-    title: "Stocksbrew inside your agent",
-    body: "Connect Claude, Cursor, or another MCP client to the same calls, targets, market read, and Radar.",
+    title: "Current stock context for your AI",
+    body: "Connect a compatible agent to Stocksbrew calls, targets, drivers, risks, and freshness.",
     href: "/agents",
     linkLabel: "See agent access",
   },
@@ -154,7 +154,7 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
       { icon: "flag", text: "Stocksbrew target prices with room from today." },
       { icon: "radar", text: "Add the rest of your book without the 3-stock cap." },
       { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
-      { icon: "smart_toy", text: "Connect the same intelligence to your AI agent." },
+      { icon: "smart_toy", text: "Give your AI current Stocksbrew stock context." },
     ];
   }
 
@@ -164,7 +164,7 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
       { icon: "flag", text: "Stocksbrew target prices with upside or downside context." },
       { icon: "radar", text: "Track more names without hitting the free limit." },
       { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
-      { icon: "smart_toy", text: "Connect the same intelligence to your AI agent." },
+      { icon: "smart_toy", text: "Give your AI current Stocksbrew stock context." },
     ];
   }
 
@@ -173,7 +173,7 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
     { icon: "flag", text: "Stocksbrew target prices with room from today." },
     { icon: "radar", text: "Track every stock you own or watch on Radar." },
     { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
-    { icon: "smart_toy", text: "Connect the same intelligence to your AI agent." },
+    { icon: "smart_toy", text: "Give your AI current Stocksbrew stock context." },
   ];
 }
 

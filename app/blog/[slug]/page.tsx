@@ -148,10 +148,10 @@ export default async function BlogPostPage({ params }: Props) {
 
           <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
             <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
-              Research here or take Stocksbrew into your agent
+              Give your AI current stock context
             </h3>
             <p className="text-[14px] text-[#6b7280] mb-5">
-              Get calls, targets, and Radar alerts in Stocksbrew. Pro can also connect the same research to Claude Code, Cursor, Codex, or another compatible client.
+              Connect a compatible agent to current calls, targets, drivers, risks, and freshness.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               <Link href="/radar" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform">Try stocksbrew Free →</Link>

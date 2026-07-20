@@ -102,18 +102,13 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
   if (!isSubscribed) {
     return (
       <div>
-        <h3 className="text-[18px] font-extrabold tracking-tight text-on-surface">Ask your agent about the stocks you already track.</h3>
+        <h3 className="text-[18px] font-extrabold tracking-tight text-on-surface">Give your AI current stock context.</h3>
         <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-on-surface-variant">
-          Pro lets your agent combine current calls, targets, drivers, risks, market context, and Radar changes into one decision brief.
+          Instead of a generic stock answer, it can retrieve Stocksbrew&apos;s current call, target, drivers, risks, and freshness.
         </p>
-        <dl className="mt-5 divide-y divide-outline-variant border-y border-outline-variant text-[11px]">
-          <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><dt className="font-semibold text-on-surface">Before a new position</dt><dd className="text-on-surface-variant">Compare candidates and make the trade-offs explicit.</dd></div>
-          <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><dt className="font-semibold text-on-surface">During a portfolio review</dt><dd className="text-on-surface-variant">Rank the Radar changes that deserve attention.</dd></div>
-          <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><dt className="font-semibold text-on-surface">When a setup moves</dt><dd className="text-on-surface-variant">Check the evidence and invalidation risks before reacting.</dd></div>
-        </dl>
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <ProCtaLink href="/subscribe" size="sm" showStar>Get Pro for agent access</ProCtaLink>
-          <Link href="/agents" className="text-[11px] font-bold text-landing-brand">See a real workflow →</Link>
+          <ProCtaLink href="/subscribe" size="sm" showStar>Get Pro</ProCtaLink>
+          <Link href="/agents" className="text-[11px] font-bold text-landing-brand">How agent access works →</Link>
         </div>
       </div>
     );
@@ -123,9 +118,9 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
   return (
     <div>
       <section>
-        <p className="text-[14px] font-semibold text-on-surface">Connect with one prompt</p>
+        <p className="text-[14px] font-semibold text-on-surface">Connect Stocksbrew</p>
         <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-          Paste this into the agent you want to use. It will add Stocksbrew through OAuth or return the exact manual steps for that client.
+          Copy the setup prompt into your agent and approve read-only stock access.
         </p>
         <AgentSetupPrompt compact className="mt-4" />
       </section>
@@ -222,7 +217,7 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
 
       {error ? <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
       <p className="mt-6 border-t border-outline-variant pt-4 text-[11px] leading-relaxed text-on-surface-variant">
-        Personal use only. No bulk extraction, resale, or redistribution. <Link href="/agents" className="font-semibold text-landing-brand">See agent examples</Link> or <Link href="/developers" className="font-semibold text-landing-brand">read the developer guide</Link>.
+        Personal use only. No bulk extraction, resale, or redistribution. <Link href="/agents" className="font-semibold text-landing-brand">See how it works</Link> or <Link href="/developers" className="font-semibold text-landing-brand">read the API docs</Link>.
       </p>
     </div>
   );

@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatedIcon } from "@/components/animated-icon";
-import { AgentClientLogos } from "@/components/agent-client-logos";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -27,7 +26,7 @@ const COMPARE_ROWS = [
   { label: "Stocksbrew target price", free: false, pro: true },
   { label: "Automatic earnings and zone alerts", free: false, pro: true },
   { label: "Manual price alerts", free: false, pro: true },
-  { label: "AI agent access with MCP and API", free: false, pro: true },
+  { label: "Current stock context for your AI", free: false, pro: true },
 ] as const;
 
 function CheckIcon() {
@@ -190,11 +189,6 @@ export function ProPlanPicker() {
               <FeatureRow key={row.label} label={row.label} value={row.pro} />
             ))}
           </ul>
-
-          <div className="mb-4 rounded-xl border border-outline-variant bg-surface-container-low p-3">
-            <p className="mb-2 font-mono text-[8px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Use Pro inside your agent</p>
-            <AgentClientLogos compact />
-          </div>
 
           <Link href={`/subscribe?plan=${plan}`} className="pro-plan-cta">
             {plan === "yearly" ? "Start 3-day free trial" : "Activate Pro"}
