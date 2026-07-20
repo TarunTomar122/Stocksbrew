@@ -67,6 +67,11 @@ describe("agent access frontend launch surfaces", () => {
     expect(agents).toContain("Structured stock data API");
     expect(agents).toContain("ChatGPT stock analysis with a data layer");
     expect(agents).toContain("Claude, Cursor, and Codex stock research");
+    const indexNow = source("lib/seo/indexnow.ts");
+    expect(indexNow).toContain('"/agents"');
+    expect(indexNow).toContain('"/developers"');
+    expect(indexNow).toContain('"/blog/how-to-connect-ai-agent-stock-market-data-mcp"');
+    expect(indexNow).toContain('"/blog/stock-research-prompts-for-ai-agents"');
   });
 
   it("ships two complete, indexable SEO articles", () => {

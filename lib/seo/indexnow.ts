@@ -42,6 +42,10 @@ export async function submitIndexNow(urls: string[]): Promise<IndexNowResult> {
 
 /** High-priority URLs to ping after SEO deploys. */
 export const SEO_PRIORITY_URLS = [
+  "/agents",
+  "/developers",
+  "/blog/how-to-connect-ai-agent-stock-market-data-mcp",
+  "/blog/stock-research-prompts-for-ai-agents",
   "/radar",
   "/resources",
   "/compare",
