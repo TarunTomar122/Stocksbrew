@@ -5,24 +5,24 @@ import { AgentSetupPrompt } from "@/components/agent-setup-prompt";
 import { AGENT_MONTHLY_CALL_LIMIT, AGENT_PER_MINUTE_CALL_LIMIT, publicAppUrl } from "@/lib/agent-access-config";
 
 export const metadata: Metadata = {
-  title: "Stocksbrew MCP & API Documentation",
-  description: "Connect Stocksbrew Pro intelligence to MCP agents or the read-only developer API.",
-  keywords: ["stock market API", "stock MCP server", "AI agent tools", "stock intelligence API", "MCP finance"],
+  title: "Stock Market MCP Server & Structured Stock API",
+  description: "Connect an AI agent to current, structured Stocksbrew stock intelligence with remote MCP or a read-only REST API.",
+  keywords: ["stock market MCP server", "structured stock API", "stock data API for AI", "AI agent stock tools", "MCP finance"],
   alternates: { canonical: "/developers" },
   openGraph: {
-    title: "Stocksbrew MCP & Developer API",
-    description: "A read-only interface for stock intelligence, market context, comparisons, and private Radar data.",
+    title: "Stocksbrew stock market MCP server and API",
+    description: "Current, structured stock intelligence for compatible AI agents and developer workflows.",
     url: "https://www.stocksbrew.online/developers",
   },
 };
 
 const TOOLS = [
-  ["search_stocks", "stocks:read", "Resolve a ticker or company name before research starts."],
-  ["get_stock_intelligence", "stocks:read", "Read calls, zones, target context, drivers, risks, fundamentals, scores, and freshness."],
-  ["compare_stocks", "stocks:read", "Compare two to five stocks through one consistent research contract."],
-  ["get_market_brief", "market:read", "Read market sentiment, macro context, sectors, and movers."],
-  ["get_my_radar", "radar:read", "Read the authorized member's tracked stocks and position context."],
-  ["get_radar_changes", "radar:read", "Read fresh changes and upcoming events across the member's Radar."],
+  ["search_stocks", "stocks:read", "Find a ticker or company."],
+  ["get_stock_intelligence", "stocks:read", "Get the current call, zones, target, drivers, risks, scores, and freshness."],
+  ["compare_stocks", "stocks:read", "Compare two to five stocks through one contract."],
+  ["get_market_brief", "market:read", "Get the current market, sector, and mover context."],
+  ["get_my_radar", "radar:read", "Get the authorized member's tracked stocks."],
+  ["get_radar_changes", "radar:read", "Get recent changes across the member's Radar."],
 ] as const;
 
 function SectionLabel({ children }: { children: string }) {
@@ -64,6 +64,19 @@ export default function DevelopersPage() {
 
   return (
     <main className="min-w-0 flex-grow bg-surface-container-low/30">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebAPI",
+            name: "Stocksbrew stock intelligence API",
+            url: "https://www.stocksbrew.online/developers",
+            documentation: "https://www.stocksbrew.online/developers",
+            description: metadata.description,
+          }),
+        }}
+      />
       <div className="mx-auto grid w-full max-w-[1360px] lg:grid-cols-[220px_minmax(0,800px)_220px]">
         <aside className="hidden px-6 py-10 lg:block" aria-label="Documentation navigation">
           <div className="sticky top-24">
@@ -97,9 +110,9 @@ export default function DevelopersPage() {
             <div className="flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.1em] text-on-surface-variant">
               <span className="font-semibold text-landing-brand">Docs</span><span>/</span><span>Agents</span><span>/</span><span>Overview</span>
             </div>
-            <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-on-surface sm:text-[2.75rem]">Connect an agent to Stocksbrew</h1>
+            <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-on-surface sm:text-[2.75rem]">Stock market MCP server and API</h1>
             <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-on-surface-variant">
-              Stocksbrew exposes a remote Streamable HTTP MCP server and a small REST API. Both are read-only, require an active Pro account, and return the same stock, market, comparison, and private Radar intelligence.
+              Give an AI agent current, structured Stocksbrew stock intelligence. Use remote MCP with OAuth or REST with a personal token.
             </p>
             <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-outline-variant py-4 text-[11px] sm:grid-cols-4">
               <div><span className="block font-semibold text-on-surface">Protocol</span><span className="text-on-surface-variant">MCP + REST</span></div>
@@ -111,16 +124,16 @@ export default function DevelopersPage() {
 
           <section id="quickstart" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
             <SectionLabel>Quickstart</SectionLabel>
-            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">The one-prompt setup</h2>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Connect with one prompt</h2>
             <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">
-              The quickest path is to let the agent configure its own MCP connection. Paste this prompt into the client you want to use. It tells the agent where the server lives, asks for OAuth, and verifies the connection without exposing a personal token in chat.
+              Paste this into the client you want to use. It includes the server URL, OAuth, and a verification step.
             </p>
             <AgentSetupPrompt className="mt-7" />
             <ol className="mt-7 divide-y divide-outline-variant border-y border-outline-variant">
               {[
-                ["01", "Paste the prompt", "The agent adds the remote server or returns client-specific manual instructions."],
-                ["02", "Approve access", "Stocksbrew opens a sign-in and consent screen for stocks, market, and Radar read scopes."],
-                ["03", "Verify", "The agent searches NVDA and calls get_stock_intelligence so you can see the connection working."],
+                ["01", "Paste", "The agent adds the server or returns manual instructions."],
+                ["02", "Approve", "Sign in to Stocksbrew and approve read-only access."],
+                ["03", "Verify", "The agent retrieves the current NVDA record."],
               ].map(([number, title, detail]) => (
                 <li key={number} className="grid gap-2 py-4 sm:grid-cols-[36px_150px_1fr] sm:gap-4">
                   <span className="font-mono text-[9px] font-bold text-landing-brand">{number}</span>
@@ -135,17 +148,17 @@ export default function DevelopersPage() {
             <SectionLabel>Manual MCP setup</SectionLabel>
             <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">One remote server URL</h2>
             <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">
-              Add <code className="font-semibold text-on-surface">{mcpUrl}</code> as a remote MCP server. OAuth-capable clients discover the authorization server automatically and open the approval flow.
+              Add <code className="font-semibold text-on-surface">{mcpUrl}</code> as a remote MCP server. OAuth-capable clients will open the approval flow.
             </p>
             <CodeBlock label="Generic MCP configuration">{config}</CodeBlock>
             <div className="mt-6 border-l-2 border-landing-brand pl-4 text-[12px] leading-relaxed text-on-surface-variant">
-              Use OAuth whenever the client supports it. Personal access tokens are intended for scripts or clients that only accept an <code>Authorization: Bearer</code> header.
+              Use OAuth for interactive clients. Use a personal token for scripts or clients that require an <code>Authorization: Bearer</code> header.
             </div>
           </section>
 
           <section id="tools" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
             <SectionLabel>MCP tools</SectionLabel>
-            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Available research tools</h2>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Available tools</h2>
             <div className="mt-6 overflow-x-auto border-y border-outline-variant">
               <table className="w-full min-w-[620px] border-collapse text-left">
                 <thead className="bg-surface-container-low/60 font-mono text-[8px] uppercase tracking-[0.1em] text-on-surface-variant">
@@ -167,18 +180,18 @@ export default function DevelopersPage() {
           <section id="rest" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
             <SectionLabel>REST API</SectionLabel>
             <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Use the same contract without MCP</h2>
-            <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">Create a personal access token in Profile, send it as a Bearer token, and call the equivalent endpoint under <code>{base}/api/v1</code>.</p>
+            <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">Create a personal token in Profile and send it as a Bearer token to <code>{base}/api/v1</code>.</p>
             <CodeBlock label="GET one stock">{curl}</CodeBlock>
             <div className="mt-6 overflow-x-auto border-y border-outline-variant">
               <table className="w-full min-w-[520px] text-left text-[11px]">
                 <tbody className="divide-y divide-outline-variant">
                   {[
-                    ["GET", "/stocks/search?q=...", "Search the stock catalog"],
-                    ["GET", "/stocks/{symbol}", "One-stock intelligence"],
-                    ["POST", "/compare", "Compare two to five tickers"],
-                    ["GET", "/market", "Current market brief"],
-                    ["GET", "/radar", "Private Radar"],
-                    ["GET", "/radar/changes", "Current Radar changes"],
+                    ["GET", "/stocks/search?q=...", "Search stocks"],
+                    ["GET", "/stocks/{symbol}", "Get one stock"],
+                    ["POST", "/compare", "Compare stocks"],
+                    ["GET", "/market", "Get market context"],
+                    ["GET", "/radar", "Get tracked stocks"],
+                    ["GET", "/radar/changes", "Get tracked-stock changes"],
                   ].map(([method, path, detail]) => (
                     <tr key={path}><td className="w-16 py-3 font-mono text-[9px] font-bold text-landing-brand">{method}</td><td className="py-3 font-mono text-[10px] text-on-surface">{path}</td><td className="py-3 text-on-surface-variant">{detail}</td></tr>
                   ))}
@@ -189,8 +202,8 @@ export default function DevelopersPage() {
 
           <section id="response" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
             <SectionLabel>Response contract</SectionLabel>
-            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Agents can tell when the data was true</h2>
-            <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">Successful responses carry a schema version, as-of timestamp, freshness object, informational-use notice, tool-specific data, and current quota usage.</p>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Freshness is part of the response</h2>
+            <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">Responses include the schema version, as-of time, freshness, returned data, and usage.</p>
             <CodeBlock label="Example shape · values shortened">{response}</CodeBlock>
           </section>
 
@@ -198,15 +211,15 @@ export default function DevelopersPage() {
             <SectionLabel>Authentication & scopes</SectionLabel>
             <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">OAuth for people. Personal tokens for code.</h2>
             <dl className="mt-6 divide-y divide-outline-variant border-y border-outline-variant text-[12px]">
-              <div className="grid gap-2 py-4 sm:grid-cols-[170px_1fr]"><dt className="font-bold text-on-surface">OAuth + PKCE</dt><dd className="leading-relaxed text-on-surface-variant">Best for interactive agents. Stocksbrew handles sign-in, consent, short-lived access tokens, and rotating refresh tokens.</dd></div>
-              <div className="grid gap-2 py-4 sm:grid-cols-[170px_1fr]"><dt className="font-bold text-on-surface">Personal token</dt><dd className="leading-relaxed text-on-surface-variant">Best for scripts and local tools. The secret is shown once and can be revoked from Profile.</dd></div>
+              <div className="grid gap-2 py-4 sm:grid-cols-[170px_1fr]"><dt className="font-bold text-on-surface">OAuth + PKCE</dt><dd className="leading-relaxed text-on-surface-variant">For interactive clients. Stocksbrew handles sign-in, consent, and token refresh.</dd></div>
+              <div className="grid gap-2 py-4 sm:grid-cols-[170px_1fr]"><dt className="font-bold text-on-surface">Personal token</dt><dd className="leading-relaxed text-on-surface-variant">For scripts and local tools. Shown once and revocable in Profile.</dd></div>
               <div className="grid gap-2 py-4 sm:grid-cols-[170px_1fr]"><dt className="font-bold text-on-surface">Scopes</dt><dd className="font-mono text-[10px] leading-relaxed text-on-surface-variant">stocks:read · market:read · radar:read</dd></div>
             </dl>
           </section>
 
           <section id="limits" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
             <SectionLabel>Limits & use</SectionLabel>
-            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Personal research, with predictable boundaries</h2>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Usage and limits</h2>
             <ul className="mt-6 divide-y divide-outline-variant border-y border-outline-variant text-[12px] text-on-surface-variant">
               <li className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><strong className="text-on-surface">Monthly allowance</strong><span>{AGENT_MONTHLY_CALL_LIMIT} combined MCP tool calls or REST requests.</span></li>
               <li className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><strong className="text-on-surface">Burst limit</strong><span>{AGENT_PER_MINUTE_CALL_LIMIT} calls per minute. HTTP 429 includes Retry-After.</span></li>
@@ -243,7 +256,7 @@ export default function DevelopersPage() {
               <code className="mt-2 block break-all text-[9px] text-landing-brand">{mcpUrl}</code>
             </div>
             <Link href="/profile#agent-access" className="mt-5 inline-flex text-[11px] font-bold text-landing-brand">Manage access →</Link>
-            <Link href="/agents" className="mt-2 block text-[10px] font-semibold text-on-surface-variant hover:text-on-surface">See investor use cases</Link>
+            <Link href="/agents" className="mt-2 block text-[10px] font-semibold text-on-surface-variant hover:text-on-surface">Why connect Stocksbrew</Link>
           </div>
         </aside>
       </div>

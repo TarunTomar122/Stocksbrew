@@ -30,9 +30,9 @@ export function AgentSetupPrompt({
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
-            Fastest setup
+            Connect Stocksbrew
           </p>
-          <p className="mt-1 text-[14px] font-bold text-on-surface">Paste one prompt into your agent</p>
+          <p className="mt-1 text-[14px] font-bold text-on-surface">Copy this into your agent</p>
         </div>
         <button
           type="button"
@@ -42,15 +42,17 @@ export function AgentSetupPrompt({
           {copied ? "Copied ✓" : "Copy prompt"}
         </button>
       </div>
-      <pre
-        className={`mt-4 whitespace-pre-wrap font-mono text-[11px] leading-[1.75] text-on-surface-variant ${
-          compact ? "max-h-[7.8rem] overflow-hidden" : ""
-        }`}
-      >
-        {AGENT_SETUP_PROMPT}
-      </pre>
+      {compact ? (
+        <p className="mt-3 font-mono text-[10px] leading-relaxed text-on-surface-variant">
+          Connect to stocksbrew.online/api/mcp with OAuth, then verify with NVDA.
+        </p>
+      ) : (
+        <pre className="mt-4 whitespace-pre-wrap font-mono text-[11px] leading-[1.75] text-on-surface-variant">
+          {AGENT_SETUP_PROMPT}
+        </pre>
+      )}
       <p className="mt-3 text-[10px] leading-relaxed text-on-surface-variant">
-        OAuth keeps credentials out of the conversation. If the client cannot configure itself, it will return the exact manual steps.
+        Uses OAuth. Your access token stays out of the conversation.
       </p>
     </div>
   );

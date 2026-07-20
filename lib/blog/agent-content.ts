@@ -1,6 +1,6 @@
 export const agentBlogContent: Record<string, string> = {
   "how-to-connect-ai-agent-stock-market-data-mcp": `
-<p>AI agents are much more useful when they can retrieve current, structured information instead of relying on whatever happened to be in their training data. For stock research, that means giving the agent a controlled way to ask for a ticker, a market brief, a comparison, or changes across a watchlist.</p>
+<p>Ask an AI about a stock without giving it a data source and the answer often starts with a broad company summary. The model may reason well, but the freshness and structure of its stock context can be unclear. A useful stock agent needs current, timestamped fields before it writes the answer.</p>
 
 <p>The <a href="https://modelcontextprotocol.io/docs/getting-started/intro" rel="noopener noreferrer">Model Context Protocol</a>, usually shortened to MCP, is an open standard for connecting AI applications to external systems. An MCP server can expose a small set of tools with clear inputs and outputs. A compatible client can discover those tools, choose the right one for the question, and use the result in its answer.</p>
 
@@ -18,11 +18,9 @@ export const agentBlogContent: Record<string, string> = {
   <li>A stock lookup tool for resolving company names and tickers.</li>
   <li>A single-stock tool for current intelligence and evidence.</li>
   <li>A comparison tool for evaluating a short list of candidates.</li>
-  <li>A market tool for current sentiment, macro context, sectors, and movers.</li>
-  <li>Private Radar tools for a signed-in member's tracked names and changes.</li>
 </ul>
 
-<p>That is enough for useful agent workflows while avoiding a bulk data-export surface.</p>
+<p>Those three tools cover the core job while avoiding a bulk data-export surface. Optional market and account-scoped endpoints are documented separately in the developer reference.</p>
 
 <h2 id="connection-flow">The connection flow in plain English</h2>
 
@@ -39,7 +37,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <h3>2. Approve narrow read scopes</h3>
 
-<p>The connection asks only for the scopes needed to read stock intelligence, market context, or the member's private Radar. Stocksbrew does not expose trading, portfolio-editing, or alert-creation tools through this interface.</p>
+<p>The setup prompt asks for read-only stock access. Stocksbrew does not expose trading or account-write tools through this interface.</p>
 
 <p>This separation matters. Reading a research workspace is a much smaller risk than allowing an agent to take financial actions. Even with read-only access, you should approve only clients you trust and revoke credentials that are exposed.</p>
 
@@ -81,17 +79,17 @@ export const agentBlogContent: Record<string, string> = {
 
 <p>An agent is useful when it applies the same dimensions across every candidate. Ask it to compare two to five stocks on valuation, growth, quality, momentum, returns, targets, and technical context. Then ask it to identify missing data instead of filling gaps with confident prose.</p>
 
-<h3>Prepare a Radar review</h3>
+<h3>Audit freshness and missing fields</h3>
 
-<p>A Pro member can ask what changed across private Radar, which names need attention, and which events are approaching. The result is a starting point for review—not an instruction to trade.</p>
+<p>Ask the agent to show the as-of time, identify any aging fields, and separate missing data from negative data. This makes the limits of the answer visible before you rely on its conclusion.</p>
 
 <h3>Build an internal research automation</h3>
 
-<p>Developers can use the matching REST API when MCP is not the right fit. For example, an internal script might fetch the market brief before generating a private morning note, or retrieve a small comparison before a scheduled research meeting. The <a href="/developers">developer guide and OpenAPI description</a> document the endpoints.</p>
+<p>Developers can use the matching REST API when MCP is not the right fit. For example, an internal script can retrieve one current stock record or a small comparison before a research meeting. The <a href="/developers">developer guide and OpenAPI description</a> document the endpoints.</p>
 
 <h2 id="safety">What the agent should not be allowed to do</h2>
 
-<p>Research tools and action tools deserve different risk models. Stocksbrew's agent interface is deliberately read-only. It cannot place a trade, move money, edit holdings, change Radar, or create an alert.</p>
+<p>Research tools and action tools deserve different risk models. Stocksbrew's agent interface is deliberately read-only. It cannot place a trade, move money, or change an account.</p>
 
 <p>You should also keep a human review step between an agent answer and any financial decision. An external agent can combine Stocksbrew data with its own memory, prompts, and other tools. Stocksbrew does not control the resulting answer. Verify timestamps, assumptions, and primary sources before acting.</p>
 
@@ -102,8 +100,8 @@ export const agentBlogContent: Record<string, string> = {
 <p>Both interfaces use the same bounded research layer and the same Pro allowance. That keeps the answer consistent whether it came through a conversation or a small piece of code.</p>
 
 <div class="cta-section">
-  <h3>Give your agent a real research layer</h3>
-  <p>Stocksbrew Pro includes the hosted MCP server, personal developer tokens, six read-only tools, and the matching REST API.</p>
+  <h3>Give your AI current stock context</h3>
+  <p>Connect through the hosted MCP server or use the same structured stock contract through REST.</p>
   <a class="cta-button" href="/agents">See Stocksbrew for Agents →</a>
 </div>
 `,
@@ -113,7 +111,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <p>Better stock-research prompts specify the job, the evidence to retrieve, and the shape of the answer. When the agent can use a read-only stock-market MCP server, it can retrieve current structured context instead of answering only from memory.</p>
 
-<p>Below are seven reusable prompts for Claude Code, Cursor, Codex, or another tool-connected agent. They are designed around the six tools available through <a href="/agents">Stocksbrew for Agents</a>, but the prompt patterns work with any trustworthy research data source.</p>
+<p>Below are five reusable prompts for Claude Code, Cursor, Codex, or another tool-connected agent. They are designed around <a href="/agents">Stocksbrew for Agents</a>, but the prompt patterns work with any trustworthy research data source.</p>
 
 <h2 id="before-you-prompt">Before you prompt: set three boundaries</h2>
 
@@ -143,29 +141,23 @@ export const agentBlogContent: Record<string, string> = {
 
 <p>This prompt is useful when a stock attracts strong narratives. Asking for the strongest version of both sides reduces the chance that the agent simply mirrors the tone of your question.</p>
 
-<h2 id="radar-review">4. The private Radar attention review</h2>
+<h2 id="freshness-audit">4. The freshness and evidence audit</h2>
 
-<blockquote>Read my Radar and the latest Radar changes. Group tracked stocks into: needs attention now, upcoming event, healthy but worth monitoring, and quiet. For every name in the first two groups, explain what changed, why it matters, and the next piece of evidence I should verify.</blockquote>
+<blockquote>Review the current Stocksbrew record for META. Show the as-of time and freshness for the response. List any missing, aging, or weak fields. Then tell me which parts of the conclusion depend on those fields and what primary source I should verify next.</blockquote>
 
-<p>This turns a list of tickers into a review queue. It is particularly useful before earnings season or after a volatile market session. Keep the output informational: the agent should surface attention, not make trades.</p>
+<p>This prompt checks the quality of the context before debating the conclusion. Missing evidence should stay missing; the agent should not smooth over it with confident prose.</p>
 
-<h2 id="market-to-stock">5. The market-to-stock context prompt</h2>
+<h2 id="evidence-gap">5. The evidence-gap follow-up</h2>
 
-<blockquote>Get today's US market brief. Summarize sentiment, macro context, sector leadership, and the biggest movers. Then explain how that backdrop changes the interpretation of AAPL's current setup. Separate market-wide pressure from company-specific evidence.</blockquote>
+<blockquote>Review AAPL using current Stocksbrew stock intelligence. After the first answer, identify the three claims supported by the strongest evidence and the three claims supported by the weakest evidence. Do not fill any gap from memory without labeling it as outside the Stocksbrew response.</blockquote>
 
-<p>A stock rarely moves in isolation. This prompt makes the agent retrieve the market context first and then connect it to one company. The separation between broad and company-specific evidence helps avoid inventing a catalyst for a move driven by the whole sector.</p>
+<p>This keeps tool output separate from model interpretation. It is especially useful when a polished summary makes every claim sound equally certain.</p>
 
-<h2 id="earnings">6. The pre-earnings risk checklist</h2>
+<h2 id="earnings">Bonus: the pre-earnings risk checklist</h2>
 
-<blockquote>Review AMZN ahead of its next earnings event. Using current stock intelligence and my Radar context, list what the market appears to expect, the key operating drivers, valuation sensitivity, major risks, and the evidence to check immediately after the report. Do not predict the exact price move.</blockquote>
+<blockquote>Review AMZN ahead of its next earnings event. Using current stock intelligence, list the key operating drivers, valuation sensitivity, major risks, and the evidence to check immediately after the report. Do not predict the exact price move.</blockquote>
 
 <p>The goal is preparation, not a point forecast. A checklist lets you compare the reported result with the assumptions that mattered before the event. For a broader manual workflow, use the <a href="/blog/how-to-analyze-earnings-report">earnings report analysis guide</a>.</p>
-
-<h2 id="thesis-change">7. The thesis-change monitor</h2>
-
-<blockquote>For every holding on my Radar, write one sentence describing the current thesis and one sentence describing the most important invalidation risk. Compare that with the latest Radar changes. Return only names where new evidence touches the thesis or invalidation risk.</blockquote>
-
-<p>This is a disciplined way to reduce notification noise. Price movement alone does not always change a thesis. The prompt asks the agent to connect new evidence to the reason you care about the stock.</p>
 
 <h2 id="follow-ups">Follow-up prompts that improve the answer</h2>
 
@@ -190,13 +182,13 @@ export const agentBlogContent: Record<string, string> = {
 
 <h2 id="connection">How to give the prompts current context</h2>
 
-<p>A prompt alone does not make an answer current. The agent needs a live tool connection. Stocksbrew Pro members can add the hosted MCP URL to a compatible client or create a personal token for the REST API. The connection provides six read-only tools for stock search, intelligence, comparisons, the market brief, private Radar, and Radar changes.</p>
+<p>A prompt alone does not make an answer current. The agent needs a data connection. Stocksbrew Pro members can add the hosted MCP URL to a compatible client or create a personal token for the REST API. The core stock tools cover search, one-stock intelligence, and comparisons.</p>
 
-<p>Every successful response includes a schema version, as-of time, freshness information, an informational-use notice, and current usage. The agent cannot trade or edit Radar through these tools.</p>
+<p>Every successful response includes a schema version, as-of time, freshness information, an informational-use notice, and current usage. The agent cannot trade or change your account through these tools.</p>
 
 <div class="cta-section">
-  <h3>Use these prompts with your own Stocksbrew context</h3>
-  <p>Connect Claude Code, Cursor, Codex, or another compatible client to current calls, targets, market context, and private Radar.</p>
+  <h3>Use these prompts with current Stocksbrew data</h3>
+  <p>Connect Claude Code, Cursor, Codex, or another compatible client to current calls, targets, drivers, risks, and freshness.</p>
   <a class="cta-button" href="/agents">Connect your AI agent →</a>
 </div>
 `,

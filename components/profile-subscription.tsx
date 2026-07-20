@@ -47,7 +47,7 @@ const PRO_FEATURES = [
   "Pre-earnings setups before the print",
   "Portfolio crowding & gap read",
   "Reddit buzz + news on your book",
-  "Connect Stocksbrew to your AI agent",
+  "Current Stocksbrew context for your AI",
 ] as const;
 
 function PlanFeatureList({ subscribed }: { subscribed: boolean }) {
