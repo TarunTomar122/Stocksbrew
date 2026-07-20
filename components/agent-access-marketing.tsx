@@ -1,72 +1,37 @@
 import Link from "next/link";
 
 import { AgentClientLogos } from "@/components/agent-client-logos";
-
-const PROMPTS = [
-  "Compare NVDA, AMD, and AVGO on valuation, growth, momentum, and target room.",
-  "What changed across my Radar, and which positions need attention first?",
-  "Give me the market brief, then explain the biggest risk to today's setup.",
-] as const;
+import { AgentResearchWalkthrough } from "@/components/agent-research-walkthrough";
+import { AgentSetupPrompt } from "@/components/agent-setup-prompt";
 
 export function AgentAccessLandingSection() {
   return (
-    <section id="agent-access" className="scroll-mt-20 border-t border-outline-variant bg-surface-container-low/35">
-      <div className="landing-inner py-16 lg:py-20">
-        <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
+    <section id="agent-access" className="scroll-mt-20 border-y border-outline-variant bg-surface-container-low/30">
+      <div className="landing-inner py-14 lg:py-20">
+        <div className="grid items-start gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-12">
           <div>
             <p className="landing-section-kicker text-landing-brand">Stocksbrew for Agents</p>
             <h2 className="mt-2 max-w-xl text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl lg:text-[2rem] lg:leading-tight">
-              Let your AI agent research the market with your Stocksbrew context.
+              Ask one question. Get the stock call, the evidence, and what could change it.
             </h2>
             <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-on-surface-variant">
-              Connect Claude Code, Cursor, Codex, or your own workflow to the same calls, targets, market read, and private Radar you use on Stocksbrew.
+              Stocksbrew gives your agent the research context it cannot invent: current calls, targets, drivers, risks, market regime, and the changes on your private Radar.
             </p>
-            <AgentClientLogos className="mt-6" />
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/agents" className="inline-flex items-center justify-center rounded-full bg-on-surface px-5 py-2.5 text-[13px] font-bold text-surface">
-                See how agent access works <span className="ml-1.5" aria-hidden>→</span>
-              </Link>
-              <Link href="/developers" className="inline-flex items-center justify-center rounded-full border border-outline-variant bg-surface px-5 py-2.5 text-[13px] font-semibold text-on-surface">
-                Developer guide
-              </Link>
+            <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-3 border-y border-outline-variant py-4 text-[11px] leading-relaxed text-on-surface-variant">
+              <p><strong className="block text-on-surface">Compare decisions</strong>Know what differs and why.</p>
+              <p><strong className="block text-on-surface">Review your Radar</strong>See what needs attention.</p>
+              <p><strong className="block text-on-surface">Prepare for earnings</strong>Surface the key triggers.</p>
+              <p><strong className="block text-on-surface">Stress-test a call</strong>Separate evidence from risk.</p>
             </div>
+            <AgentSetupPrompt compact className="mt-6" />
+            <AgentClientLogos compact className="mt-5" />
+            <p className="mt-5 text-[12px] text-on-surface-variant">
+              <Link href="/agents" className="font-bold text-on-surface hover:text-landing-brand">See the full workflow →</Link>
+              <span className="mx-2 text-outline">/</span>
+              <Link href="/developers" className="font-semibold hover:text-landing-brand">Read the docs</Link>
+            </p>
           </div>
-
-          <div className="overflow-hidden rounded-2xl border border-outline-variant bg-[#07110c] shadow-[0_22px_60px_rgba(7,17,12,0.16)]">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">Agent workspace</span>
-              <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#86efac]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" /> read-only
-              </span>
-            </div>
-            <div className="space-y-3 p-4 sm:p-5">
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                <p className="text-[12px] leading-relaxed text-white/85">{PROMPTS[0]}</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {[
-                  ["Tool", "compare_stocks"],
-                  ["Coverage", "3 stocks · current"],
-                  ["Source", "Stocksbrew Pro"],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5">
-                    <p className="font-mono text-[8px] uppercase tracking-[0.1em] text-white/40">{label}</p>
-                    <p className="mt-1 truncate font-mono text-[10px] text-[#9ff7bd]">{value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl border border-[#4ade80]/20 bg-[#4ade80]/[0.06] p-4">
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#86efac]">What the agent gets</p>
-                <ul className="mt-3 grid gap-2 text-[11px] leading-relaxed text-white/70 sm:grid-cols-2">
-                  <li>✓ Calls, zones, drivers, and risks</li>
-                  <li>✓ Targets and fundamental scores</li>
-                  <li>✓ Market brief and sector context</li>
-                  <li>✓ Your private Radar and changes</li>
-                </ul>
-              </div>
-              <p className="px-1 font-mono text-[9px] leading-relaxed text-white/40">Freshness and usage travel with every response. No trading or write access.</p>
-            </div>
-          </div>
+          <AgentResearchWalkthrough compact />
         </div>
       </div>
     </section>

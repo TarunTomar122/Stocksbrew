@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AgentClientLogos } from "@/components/agent-client-logos";
-import { AGENT_MONTHLY_CALL_LIMIT, AGENT_PER_MINUTE_CALL_LIMIT, publicAppUrl } from "@/lib/agent-access-config";
+import { AgentResearchWalkthrough } from "@/components/agent-research-walkthrough";
+import { AgentSetupPrompt } from "@/components/agent-setup-prompt";
+import { AGENT_MONTHLY_CALL_LIMIT, AGENT_PER_MINUTE_CALL_LIMIT } from "@/lib/agent-access-config";
 
 export const metadata: Metadata = {
   title: "AI Stock Research Agents with MCP",
@@ -30,13 +32,18 @@ export const metadata: Metadata = {
   },
 };
 
-const TOOLS = [
-  ["search_stocks", "Find the right ticker before the agent starts its research."],
-  ["get_stock_intelligence", "Read the current call, target, drivers, risks, scores, fundamentals, and freshness."],
-  ["compare_stocks", "Compare two to five stocks across valuation, growth, quality, momentum, and returns."],
-  ["get_market_brief", "Pull the current market read, macro context, sector flows, and movers."],
-  ["get_my_radar", "Read the authorized Pro member's tracked stocks and position context."],
-  ["get_radar_changes", "Find fresh changes and upcoming events across the member's Radar."],
+const CAPABILITIES = [
+  ["Understand one stock", "Current call, target, buy and trim zones, drivers, risks, fundamentals, scores, and freshness.", "get_stock_intelligence"],
+  ["Compare a decision", "Two to five stocks evaluated on the same valuation, growth, quality, momentum, and return dimensions.", "compare_stocks"],
+  ["Read the market around it", "Market regime, macro context, sectors, and movers so a stock call is not interpreted in isolation.", "get_market_brief"],
+  ["Review your own Radar", "Tracked positions, position context, recent changes, and upcoming events for the authorized member.", "get_my_radar · get_radar_changes"],
+] as const;
+
+const QUESTIONS = [
+  "Which stocks on my Radar need attention today, and what actually changed?",
+  "Compare NVDA and AMD. Where is the valuation premium justified, and what could invalidate the current calls?",
+  "Prepare me for AAPL earnings: current call, key expectations, target room, and the two risks that matter most.",
+  "Give me the market setup first, then tell me which of my positions are fighting the tape.",
 ] as const;
 
 const FAQS = [
@@ -88,159 +95,163 @@ function JsonLd() {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }} />;
 }
 
+function SectionLabel({ children }: { children: string }) {
+  return <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.13em] text-landing-brand">{children}</p>;
+}
+
 export default function AgentsPage() {
-  const base = publicAppUrl();
-  const serverUrl = `${base}/api/mcp`;
-  const config = `{
-  "mcpServers": {
-    "stocksbrew": {
-      "url": "${serverUrl}"
-    }
-  }
-}`;
-  const rest = `curl -H "Authorization: Bearer $STOCKSBREW_TOKEN" \\
-  "${base}/api/v1/stocks/NVDA"`;
-
   return (
-    <main className="min-w-0 flex-grow bg-background">
+    <main className="min-w-0 flex-grow bg-surface-container-low/30">
       <JsonLd />
-      <section className="relative overflow-hidden border-b border-outline-variant bg-surface">
-        <div className="absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_50%_0%,rgba(34,197,94,0.13),transparent_68%)]" aria-hidden />
-        <div className="relative mx-auto flex w-full max-w-[1120px] flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24">
-          <span className="inline-flex items-center gap-2 rounded-full border border-landing-brand/25 bg-landing-brand/[0.06] px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
-            <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" /> Included with Pro
-          </span>
-          <h1 className="mt-6 max-w-4xl font-display text-[2.35rem] font-extrabold leading-[1.05] tracking-tight text-on-surface sm:text-5xl lg:text-[4rem]">
-            Your AI agent, now fluent in <span className="text-landing-brand">your stocks.</span>
-          </h1>
-          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-on-surface-variant sm:text-[18px]">
-            Give Claude Code, Cursor, Codex, or your own agent the Stocksbrew research layer: current calls, targets, drivers, risks, market context, and your private Radar.
-          </p>
-          <AgentClientLogos className="mt-8 justify-center" />
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/subscribe" className="inline-flex rounded-full bg-on-surface px-6 py-3 text-[14px] font-bold text-surface">Get Pro for $9/month</Link>
-            <Link href="/profile#agent-access" className="inline-flex rounded-full border border-outline-variant bg-surface px-6 py-3 text-[14px] font-semibold text-on-surface">Connect an agent</Link>
+      <div className="mx-auto grid w-full max-w-[1320px] lg:grid-cols-[180px_minmax(0,780px)_190px]">
+        <aside className="hidden px-5 py-12 lg:block" aria-label="Agent guide navigation">
+          <div className="sticky top-24">
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface">Agent guide</p>
+            <nav className="mt-5 space-y-1 text-[11px] text-on-surface-variant">
+              <a href="#why" className="block border-l-2 border-landing-brand py-1.5 pl-3 font-semibold text-on-surface">What it does</a>
+              <a href="#example" className="block border-l-2 border-transparent py-1.5 pl-3 hover:text-on-surface">Example run</a>
+              <a href="#connect" className="block border-l-2 border-transparent py-1.5 pl-3 hover:text-on-surface">Connect</a>
+              <a href="#capabilities" className="block border-l-2 border-transparent py-1.5 pl-3 hover:text-on-surface">Capabilities</a>
+              <a href="#questions" className="block border-l-2 border-transparent py-1.5 pl-3 hover:text-on-surface">Questions to ask</a>
+              <a href="#safety" className="block border-l-2 border-transparent py-1.5 pl-3 hover:text-on-surface">Safety & limits</a>
+              <a href="#faq" className="block border-l-2 border-transparent py-1.5 pl-3 hover:text-on-surface">FAQ</a>
+            </nav>
+            <Link href="/developers" className="mt-7 inline-flex text-[11px] font-bold text-landing-brand">Developer reference →</Link>
           </div>
-          <div className="mt-9 flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-            <span>6 research tools</span><span>Read-only</span><span>OAuth + personal tokens</span><span>Freshness included</span>
-          </div>
-        </div>
-      </section>
+        </aside>
 
-      <section className="border-b border-outline-variant bg-surface-container-low/30">
-        <div className="mx-auto w-full max-w-[1120px] px-4 py-16 sm:px-6 lg:py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">How it works</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-on-surface">Connect once. Ask in plain English.</h2>
-          </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {[
-              ["01", "Add Stocksbrew", "Paste the remote MCP URL into a compatible client, or create a personal token for scripts and REST."],
-              ["02", "Approve read access", "Sign in to Stocksbrew and choose the scopes the client can read. Pro status is checked on every request."],
-              ["03", "Give the agent a job", "Ask for one stock, a comparison, the market brief, or changes across your private Radar."],
-            ].map(([number, title, body]) => (
-              <div key={number} className="rounded-2xl border border-outline-variant bg-surface p-5 sm:p-6">
-                <span className="font-mono text-[11px] font-bold text-landing-brand">{number}</span>
-                <h3 className="mt-4 text-lg font-bold text-on-surface">{title}</h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">{body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        <article className="min-w-0 border-x border-outline-variant bg-surface">
+          <header className="px-5 py-12 sm:px-10 sm:py-16 lg:px-12">
+            <div className="flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.1em] text-on-surface-variant">
+              <span className="font-semibold text-landing-brand">Stocksbrew</span><span>/</span><span>Agent access</span><span>/</span><span>Overview</span>
+            </div>
+            <h1 className="mt-6 max-w-2xl font-display text-[2.45rem] font-extrabold leading-[1.04] tracking-tight text-on-surface sm:text-[3.5rem]">
+              Give your agent the context behind your stock decisions.
+            </h1>
+            <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-on-surface-variant">
+              Ask a portfolio question in plain English. Your agent can pull Stocksbrew&apos;s current calls, targets, drivers, risks, market context, and private Radar—then combine them into one decision brief.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link href="/profile#agent-access" className="rounded-full bg-on-surface px-5 py-2.5 text-[12px] font-bold text-surface">Connect with one prompt</Link>
+              <Link href="/subscribe" className="rounded-full border border-outline-variant px-5 py-2.5 text-[12px] font-semibold text-on-surface">Included with Pro · $9/month</Link>
+            </div>
+          </header>
 
-      <section className="border-b border-outline-variant bg-background">
-        <div className="mx-auto grid w-full max-w-[1120px] gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:py-20">
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">What your agent can ask</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-on-surface">Real research jobs, not another chat wrapper.</h2>
-            <p className="mt-4 text-[14px] leading-relaxed text-on-surface-variant">The agent chooses a bounded tool, Stocksbrew returns structured context with an as-of time, and the agent explains or combines it for the task you gave it.</p>
-            <div className="mt-6 rounded-2xl border border-outline-variant bg-[#07110c] p-4">
-              <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-white/40">Try asking</p>
-              <div className="mt-3 space-y-3">
-                {[
-                  "Compare NVDA and AMD. Where does the valuation premium look justified?",
-                  "What changed on my Radar since the last market close?",
-                  "Summarize today's market setup and the sectors leading it.",
-                  "For AAPL, separate the bull case, bear case, target room, and invalidation risks.",
-                ].map((prompt) => <p key={prompt} className="rounded-lg border border-white/10 bg-white/[0.04] p-3 text-[11px] leading-relaxed text-white/75">“{prompt}”</p>)}
-              </div>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {TOOLS.map(([name, description]) => (
-              <div key={name} className="rounded-2xl border border-outline-variant bg-surface p-5">
-                <code className="text-[11px] font-bold text-landing-brand">{name}</code>
-                <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">{description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+          <section id="why" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <SectionLabel>Why it is useful</SectionLabel>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">The agent does the joining. Stocksbrew supplies the evidence.</h2>
+            <p className="mt-4 text-[14px] leading-relaxed text-on-surface-variant">
+              Without the connection, an agent can discuss a company in general. With Stocksbrew, it can answer the questions that depend on your product context: what the current call is, why the target moved, whether the stock is in a buy or trim zone, what changed on your Radar, and which assumptions would invalidate the setup.
+            </p>
+            <dl className="mt-7 divide-y divide-outline-variant border-y border-outline-variant">
+              {[
+                ["Before a new position", "Compare candidates on one contract and make the trade-offs explicit."],
+                ["When a holding moves", "Check the call, drivers, risks, and market regime before reacting to price alone."],
+                ["During a portfolio review", "Rank Radar changes and upcoming events so attention goes to the right names first."],
+              ].map(([term, detail]) => (
+                <div key={term} className="grid gap-1 py-3.5 sm:grid-cols-[170px_1fr] sm:gap-5">
+                  <dt className="text-[12px] font-bold text-on-surface">{term}</dt>
+                  <dd className="text-[12px] leading-relaxed text-on-surface-variant">{detail}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
 
-      <section id="connect" className="border-b border-outline-variant bg-surface">
-        <div className="mx-auto w-full max-w-[1120px] px-4 py-16 sm:px-6 lg:py-20">
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl border border-outline-variant bg-[#07110c]">
-              <div className="border-b border-white/10 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.1em] text-white/45">MCP · OAuth recommended</div>
-              <pre className="overflow-x-auto p-5 text-[11px] leading-relaxed text-[#9ff7bd]">{config}</pre>
+          <section id="example" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-8 lg:px-10">
+            <div className="px-0 sm:px-2">
+              <SectionLabel>See the workflow</SectionLabel>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">From one question to a decision brief.</h2>
+              <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-on-surface-variant">The tool trace stays visible, so the result is inspectable instead of feeling like unexplained AI prose.</p>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-outline-variant bg-[#07110c]">
-              <div className="border-b border-white/10 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.1em] text-white/45">REST · personal token</div>
-              <pre className="overflow-x-auto p-5 text-[11px] leading-relaxed text-[#9ff7bd]">{rest}</pre>
-            </div>
-          </div>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-outline-variant bg-surface-container-low p-5">
-            <div>
-              <p className="text-[14px] font-bold text-on-surface">Building your own agent or workflow?</p>
-              <p className="mt-1 text-[12px] text-on-surface-variant">See endpoint details, OAuth discovery, scopes, OpenAPI, and response contracts.</p>
-            </div>
-            <Link href="/developers" className="inline-flex rounded-full bg-on-surface px-5 py-2.5 text-[12px] font-bold text-surface">Open developer docs →</Link>
-          </div>
-          <p className="mt-4 text-center text-[10px] text-on-surface-variant">New to the protocol? Read the <a href="https://modelcontextprotocol.io/docs/getting-started/intro" rel="noopener noreferrer" className="font-semibold text-landing-brand">official MCP introduction</a>.</p>
-        </div>
-      </section>
+            <div className="mt-7"><AgentResearchWalkthrough /></div>
+          </section>
 
-      <section className="border-b border-outline-variant bg-background">
-        <div className="mx-auto w-full max-w-[1120px] px-4 py-16 sm:px-6 lg:py-20">
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="rounded-2xl border border-outline-variant bg-surface p-6">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">For individual investors</p>
-              <h2 className="mt-3 text-2xl font-extrabold text-on-surface">Turn your Radar into a research conversation.</h2>
-              <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant">Ask what changed, compare candidates before adding one, or have your agent prepare a review around earnings and risk. The agent sees only the Stocksbrew context you authorize.</p>
-            </div>
-            <div className="rounded-2xl border border-outline-variant bg-surface p-6">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">For developers</p>
-              <h2 className="mt-3 text-2xl font-extrabold text-on-surface">Prototype with a stable, bounded contract.</h2>
-              <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant">Use MCP for tool discovery or REST for scripts and internal automations. Every successful response includes a schema version, freshness, and usage. Pro is personal and internal use—not a data-resale license.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+          <section id="connect" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <SectionLabel>Connect</SectionLabel>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Let your agent handle its own setup.</h2>
+            <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">Copy the prompt below into Claude Code, Cursor, Codex, or another capable agent. It includes the server URL, safe OAuth instructions, and a verification task.</p>
+            <AgentSetupPrompt className="mt-7" />
+            <p className="mt-5 text-[12px] text-on-surface-variant">
+              Prefer to configure it manually? Read the <Link href="/developers#quickstart" className="font-bold text-landing-brand">five-minute quickstart</Link>.
+            </p>
+          </section>
 
-      <section className="border-b border-outline-variant bg-surface-container-low/30">
-        <div className="mx-auto w-full max-w-[860px] px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="text-3xl font-extrabold tracking-tight text-on-surface">Questions about agent access</h2>
-          <div className="mt-8 divide-y divide-outline-variant rounded-2xl border border-outline-variant bg-surface">
-            {FAQS.map((item) => (
-              <div key={item.question} className="p-5 sm:p-6">
-                <h3 className="text-[15px] font-bold text-on-surface">{item.question}</h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">{item.answer}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-5 text-center text-[10px] leading-relaxed text-on-surface-variant">Claude Code, Cursor, and Codex are examples of compatible agent clients and are not affiliated with Stocksbrew. Client support varies by product version.</p>
-        </div>
-      </section>
+          <section id="capabilities" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <SectionLabel>What it can research</SectionLabel>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Four jobs, backed by six bounded tools.</h2>
+            <div className="mt-7 divide-y divide-outline-variant border-y border-outline-variant">
+              {CAPABILITIES.map(([title, detail, tools]) => (
+                <div key={title} className="py-5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="text-[14px] font-bold text-on-surface">{title}</h3>
+                    <code className="text-[9px] text-landing-brand">{tools}</code>
+                  </div>
+                  <p className="mt-2 text-[12px] leading-relaxed text-on-surface-variant">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </section>
 
-      <section className="bg-[#07110c]">
-        <div className="mx-auto flex w-full max-w-[900px] flex-col items-center px-4 py-16 text-center sm:px-6 lg:py-20">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#86efac]">Included with Stocksbrew Pro</p>
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Put your research where your agent works.</h2>
-          <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-white/60">$9/month for the detailed calls, targets, Radar alerts, and agent access. Read-only, cancel anytime.</p>
-          <Link href="/subscribe" className="mt-7 inline-flex rounded-full bg-[#4ade80] px-6 py-3 text-[14px] font-bold text-[#07110c]">Get Stocksbrew Pro</Link>
-        </div>
-      </section>
+          <section id="questions" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <SectionLabel>Questions worth asking</SectionLabel>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Start with a decision, not a ticker lookup.</h2>
+            <ol className="mt-7 divide-y divide-outline-variant border-y border-outline-variant">
+              {QUESTIONS.map((question, index) => (
+                <li key={question} className="grid grid-cols-[28px_1fr] gap-3 py-4 text-[12px] leading-relaxed text-on-surface-variant">
+                  <span className="font-mono text-[9px] font-bold text-landing-brand">0{index + 1}</span>
+                  <span>“{question}”</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section id="safety" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <SectionLabel>Safety & limits</SectionLabel>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-on-surface">Research access—not brokerage access.</h2>
+            <div className="mt-6 grid gap-x-8 gap-y-4 text-[12px] leading-relaxed text-on-surface-variant sm:grid-cols-2">
+              <p><strong className="block text-on-surface">Read-only by design</strong>No trades, money movement, Radar edits, alerts, or account changes.</p>
+              <p><strong className="block text-on-surface">Freshness is explicit</strong>Responses include as-of timestamps and freshness status.</p>
+              <p><strong className="block text-on-surface">Personal Pro access</strong>{AGENT_MONTHLY_CALL_LIMIT} calls each month with a {AGENT_PER_MINUTE_CALL_LIMIT}-call burst limit.</p>
+              <p><strong className="block text-on-surface">Bounded data</strong>No bulk feeds, raw article bodies, provider credentials, resale, or redistribution.</p>
+            </div>
+          </section>
+
+          <section id="faq" className="scroll-mt-24 border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <SectionLabel>FAQ</SectionLabel>
+            <div className="mt-5 divide-y divide-outline-variant border-y border-outline-variant">
+              {FAQS.map((item) => (
+                <div key={item.question} className="py-5">
+                  <h2 className="text-[14px] font-bold text-on-surface">{item.question}</h2>
+                  <p className="mt-2 text-[12px] leading-relaxed text-on-surface-variant">{item.answer}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-[10px] leading-relaxed text-on-surface-variant">Claude Code, Cursor, and Codex are examples of compatible clients and are not affiliated with Stocksbrew. Client support varies by product version.</p>
+          </section>
+
+          <footer className="border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
+            <h2 className="text-2xl font-extrabold tracking-tight text-on-surface">Use your Stocksbrew context where you already think.</h2>
+            <p className="mt-3 text-[13px] text-on-surface-variant">Agent access is included with the detailed calls, targets, and Radar alerts in Pro.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/subscribe" className="rounded-full bg-on-surface px-5 py-2.5 text-[12px] font-bold text-surface">Get Pro for $9/month</Link>
+              <Link href="/profile#agent-access" className="rounded-full border border-outline-variant px-5 py-2.5 text-[12px] font-semibold text-on-surface">Connect an agent</Link>
+            </div>
+          </footer>
+        </article>
+
+        <aside className="hidden px-5 py-12 lg:block">
+          <div className="sticky top-24">
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface">Works with</p>
+            <AgentClientLogos compact className="mt-4 flex-col items-stretch" />
+            <div className="mt-7 border-y border-outline-variant py-4 text-[10px] leading-relaxed text-on-surface-variant">
+              <p className="font-semibold text-on-surface">Included with Pro</p>
+              <p className="mt-1">$9/month · read-only · cancel anytime</p>
+            </div>
+            <p className="mt-5 text-[10px] leading-relaxed text-on-surface-variant">Need endpoints, scopes, or response fields?</p>
+            <Link href="/developers" className="mt-2 inline-flex text-[11px] font-bold text-landing-brand">Open the docs →</Link>
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }

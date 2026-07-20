@@ -32,6 +32,24 @@ describe("agent access frontend launch surfaces", () => {
     expect(source("components/terminal-landing-hero-copy.tsx")).not.toContain("AI agent access");
   });
 
+  it("uses a documentation-led agent experience instead of nested terminal cards", () => {
+    expect(source("components/agent-access-marketing.tsx")).toContain("AgentResearchWalkthrough");
+    expect(source("components/agent-access-marketing.tsx")).toContain("AgentSetupPrompt");
+    expect(source("components/agent-access-marketing.tsx")).not.toContain('bg-[#07110c]');
+    expect(source("app/agents/page.tsx")).toContain("Agent guide");
+    expect(source("app/agents/page.tsx")).toContain("From one question to a decision brief");
+    expect(source("app/developers/page.tsx")).toContain("Stocksbrew docs");
+    expect(source("app/developers/page.tsx")).toContain("The one-prompt setup");
+    expect(source("components/agent-access-card.tsx")).toContain("Connect with one prompt");
+  });
+
+  it("ships a safe, copyable setup prompt that agents can act on", () => {
+    const prompt = source("lib/agent-setup-prompt.ts");
+    expect(prompt).toContain("https://www.stocksbrew.online/api/mcp");
+    expect(prompt).toContain("Use OAuth");
+    expect(prompt).toContain("Do not ask me to paste a personal access token into chat");
+  });
+
   it("ships two complete, indexable SEO articles", () => {
     for (const slug of AGENT_BLOGS) {
       expect(allBlogPosts.some((post) => post.slug === slug)).toBe(true);

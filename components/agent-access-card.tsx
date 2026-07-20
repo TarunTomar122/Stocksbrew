@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { AnimatedIcon } from "@/components/animated-icon";
-import { AgentClientLogos } from "@/components/agent-client-logos";
+import { AgentSetupPrompt } from "@/components/agent-setup-prompt";
 import { ProCtaLink } from "@/components/pro-cta";
 import { trackAgentAccessAction } from "@/lib/product-analytics";
 
@@ -102,45 +101,49 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
 
   if (!isSubscribed) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3 rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-4">
-          <AnimatedIcon name="smart_toy" size={20} className="mt-0.5 shrink-0 text-landing-brand" />
-          <div>
-            <p className="text-[14px] font-semibold text-on-surface">Put Stocksbrew inside your agent</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-              Pro lets Claude, Cursor, and other MCP clients read your calls, targets, market brief, and Radar.
-            </p>
-          </div>
+      <div>
+        <h3 className="text-[18px] font-extrabold tracking-tight text-on-surface">Ask your agent about the stocks you already track.</h3>
+        <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-on-surface-variant">
+          Pro lets your agent combine current calls, targets, drivers, risks, market context, and Radar changes into one decision brief.
+        </p>
+        <dl className="mt-5 divide-y divide-outline-variant border-y border-outline-variant text-[11px]">
+          <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><dt className="font-semibold text-on-surface">Before a new position</dt><dd className="text-on-surface-variant">Compare candidates and make the trade-offs explicit.</dd></div>
+          <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><dt className="font-semibold text-on-surface">During a portfolio review</dt><dd className="text-on-surface-variant">Rank the Radar changes that deserve attention.</dd></div>
+          <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]"><dt className="font-semibold text-on-surface">When a setup moves</dt><dd className="text-on-surface-variant">Check the evidence and invalidation risks before reacting.</dd></div>
+        </dl>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <ProCtaLink href="/subscribe" size="sm" showStar>Get Pro for agent access</ProCtaLink>
+          <Link href="/agents" className="text-[11px] font-bold text-landing-brand">See a real workflow →</Link>
         </div>
-        <AgentClientLogos compact />
-        <ProCtaLink href="/subscribe" size="sm" showStar>Get Pro for agent access</ProCtaLink>
       </div>
     );
   }
 
   const activeTokens = tokens.filter((token) => !token.revoked_at);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-4">
-        <p className="text-[14px] font-semibold text-on-surface">Connect with OAuth</p>
+    <div>
+      <section>
+        <p className="text-[14px] font-semibold text-on-surface">Connect with one prompt</p>
         <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-          In an MCP client that supports sign-in, add this server URL. Stocksbrew will ask you to approve access.
+          Paste this into the agent you want to use. It will add Stocksbrew through OAuth or return the exact manual steps for that client.
         </p>
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2">
-          <code className="min-w-0 flex-1 truncate text-[11px] text-on-surface">{serverUrl}</code>
-          <button type="button" onClick={() => copy(serverUrl, "url")} className="shrink-0 text-[11px] font-semibold text-landing-brand">
-            {copied === "url" ? "Copied" : "Copy"}
+        <AgentSetupPrompt compact className="mt-4" />
+      </section>
+
+      <section className="mt-7 border-t border-outline-variant pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[14px] font-semibold text-on-surface">Manual OAuth setup</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">Add the remote server URL directly if your client has an MCP settings screen.</p>
+          </div>
+          <button type="button" onClick={() => copy(serverUrl, "url")} className="text-[11px] font-semibold text-landing-brand">
+            {copied === "url" ? "URL copied ✓" : "Copy server URL"}
           </button>
         </div>
-        <AgentClientLogos compact className="mt-3" />
-        <ol className="mt-4 grid gap-2 text-[11px] leading-relaxed text-on-surface-variant sm:grid-cols-3">
-          <li><span className="font-semibold text-on-surface">1.</span> Add the server URL in your client.</li>
-          <li><span className="font-semibold text-on-surface">2.</span> Sign in and approve read access.</li>
-          <li><span className="font-semibold text-on-surface">3.</span> Ask about stocks, markets, or Radar.</li>
-        </ol>
-      </div>
+        <code className="mt-3 block break-all border-y border-outline-variant bg-surface-container-low/45 px-3 py-3 text-[11px] text-on-surface">{serverUrl}</code>
+      </section>
 
-      <div className="rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-4">
+      <section className="mt-7 border-t border-outline-variant pt-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[14px] font-semibold text-on-surface">Personal access token</p>
@@ -148,7 +151,7 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
               Use a token when your developer tool asks for a Bearer header instead of OAuth.
             </p>
           </div>
-          <span className="rounded-md border border-outline-variant px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+          <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
             {usage.used}/{usage.limit} calls
           </span>
         </div>
@@ -172,10 +175,10 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
         {activeTokens.length >= 5 ? (
           <p className="mt-2 text-[11px] text-on-surface-variant">Revoke a token before creating another.</p>
         ) : null}
-      </div>
+      </section>
 
       {newToken ? (
-        <div className="rounded-xl border border-landing-brand/40 bg-landing-brand/5 p-4" role="status">
+        <section className="mt-6 border-l-2 border-landing-brand bg-landing-brand/5 px-4 py-3" role="status">
           <p className="text-[13px] font-bold text-on-surface">Copy this token now</p>
           <p className="mt-1 text-[11px] text-on-surface-variant">It will not be shown again.</p>
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2">
@@ -184,15 +187,17 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
               {copied === "token" ? "Copied" : "Copy"}
             </button>
           </div>
-          <pre className="mt-3 overflow-x-auto rounded-lg border border-outline-variant bg-surface p-3 text-[10px] leading-relaxed text-on-surface">{config}</pre>
+          <pre className="mt-3 overflow-x-auto border-y border-outline-variant bg-surface p-3 text-[10px] leading-relaxed text-on-surface">{config}</pre>
           <button type="button" onClick={() => copy(config, "config")} className="mt-2 text-[11px] font-semibold text-landing-brand">
             {copied === "config" ? "Configuration copied" : "Copy configuration"}
           </button>
-        </div>
+        </section>
       ) : null}
 
       {tokens.length ? (
-        <div className="divide-y divide-outline-variant/50 rounded-xl border border-outline-variant/70">
+        <section className="mt-7 border-t border-outline-variant pt-5">
+          <p className="mb-2 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Issued tokens</p>
+          <div className="divide-y divide-outline-variant border-y border-outline-variant">
           {tokens.map((token) => (
             <div key={token.id} className="flex flex-wrap items-center justify-between gap-3 p-3.5">
               <div className="min-w-0">
@@ -211,11 +216,12 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
               ) : null}
             </div>
           ))}
-        </div>
+          </div>
+        </section>
       ) : null}
 
       {error ? <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
-      <p className="text-[11px] leading-relaxed text-on-surface-variant">
+      <p className="mt-6 border-t border-outline-variant pt-4 text-[11px] leading-relaxed text-on-surface-variant">
         Personal use only. No bulk extraction, resale, or redistribution. <Link href="/agents" className="font-semibold text-landing-brand">See agent examples</Link> or <Link href="/developers" className="font-semibold text-landing-brand">read the developer guide</Link>.
       </p>
     </div>

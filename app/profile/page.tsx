@@ -168,7 +168,7 @@ export default async function ProfilePage() {
           </ProfileCard>
 
           <div id="agent-access" className="scroll-mt-24 lg:col-span-2">
-          <ProfileCard title="Agents & developer access">
+          <ProfileCard title="Agent access">
             <AgentAccessCard
               isSubscribed={subscribed}
               serverUrl={`${publicAppUrl()}/api/mcp`}
