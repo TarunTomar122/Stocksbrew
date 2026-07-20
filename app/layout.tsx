@@ -105,20 +105,11 @@ export const metadata: Metadata = {
     description: MEDIUM_DESCRIPTION,
     url: "https://www.stocksbrew.online",
     locale: "en_US",
-    images: [
-      {
-        url: "/api/og?v=20260719",
-        width: 1200,
-        height: 630,
-        alt: "stocksbrew — clear buy, hold, and sell calls on US stocks",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE_DEFAULT,
     description: MEDIUM_DESCRIPTION,
-    images: ["/api/og?v=20260719"],
     creator: "@stocksbrew",
   },
   robots: {
@@ -190,6 +181,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
+        <meta property="og:image" content="https://www.stocksbrew.online/api/og" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="stocksbrew — clear buy, hold, and sell calls on US stocks" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://www.stocksbrew.online/api/og" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
         <link

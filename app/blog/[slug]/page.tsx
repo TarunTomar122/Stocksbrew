@@ -42,12 +42,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       publishedTime: post.date,
       modifiedTime: post.updated ?? post.date,
       authors: ["Tarun Tomar"],
-      images: [{ url: "/api/og", width: 1200, height: 630, alt: post.title }],
     },
     twitter: {
       title: `${post.title} · stocksbrew Blog`,
       description: post.description,
-      images: ["/api/og"],
     },
   };
 }
