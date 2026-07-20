@@ -21,7 +21,7 @@ Firestore project `trace-money-72276`.
 | `tikrr-open-price` | `price_core_open` | `30 13 * * 1-5` | Open price refresh for runtime core plus extended overrides. |
 | `tikrr-open-briefs` | `tracked_open_briefs` | `35 13 * * 1-5` | Tracked stock open briefs. |
 | `tikrr-open-anomalies` | `open_anomalies` | `38 13 * * 1-5` | Open anomaly views. |
-| `tikrr-open-emails` | `market_open_email` | `42 13 * * 1-5` | Market-open email send. |
+| `tikrr-open-email` | `open_email` | `5 14 * * 1-5` | After-open email send, delayed until the fresh anomaly snapshot is published. |
 | `tikrr-reddit-buzz` | `reddit_buzz` | `20 13 * * 1-5` | Reddit signal refresh. |
 | `tikrr-zone-briefs` | `zone_briefs` | `0 14 * * 1-5` | Zone brief generation. |
 | `tikrr-market-events-open` | `market_events` | `10 14 * * 1-5` | Open market events. |

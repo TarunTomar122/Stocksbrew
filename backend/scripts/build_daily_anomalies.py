@@ -14,6 +14,7 @@ import requests
 from backend.context_search import context_search_enabled, search_context_articles_for_ticker
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.llm_client import json_response_format, llm_api_key, llm_api_url, llm_headers, llm_model, parse_json_content, schema_system_prompt
+from backend.open_email_intel import fresh_sector_summary_from_prices
 from backend.instrument_universe import list_instruments
 from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
@@ -1000,6 +1001,7 @@ def _pick_row(
         "day_change_pct": day_change_pct,
         "day_change_abs": day_change_abs,
         "volume": volume,
+        "price_as_of": str(quote_doc.get("captured_at") or quote_doc.get("updated_at") or ""),
         "direction": direction,
         "headline": headline,
         "thesis": thesis,
@@ -1157,6 +1159,7 @@ def main() -> None:
 
     up_count = sum(1 for row in rows if str(row.get("direction")) == "up")
     down_count = sum(1 for row in rows if str(row.get("direction")) == "down")
+    sector_summary, sector_price_as_of, sector_quoted_count = fresh_sector_summary_from_prices(instruments, prices)
 
     payload = {
         "market": args.market,
@@ -1168,6 +1171,9 @@ def main() -> None:
         "up_count": up_count,
         "down_count": down_count,
         "anomalies": rows,
+        "sector_summary": sector_summary,
+        "sector_price_as_of": sector_price_as_of,
+        "sector_quoted_count": sector_quoted_count,
         "universe_id": universe_id,
     }
     store.db.collection("tm_daily_anomalies").document(f"{args.market}__latest").set(payload)
