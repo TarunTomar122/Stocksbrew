@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Privacy policy · stocksbrew",
+  title: "Privacy Policy",
   description:
     "How stocksbrew collects, uses, and protects your personal data. Learn about cookies, third parties, and your controls.",
   alternates: { canonical: "/legal/privacy" },

@@ -22,23 +22,28 @@ const SCREEN_META_INFO: Record<string, { title: string; subtitle: string }> = {
   smart_money: { title: "Where the Pros Are", subtitle: "Heavy institutional ownership, solid overall scores." },
 };
 
+function screenMetaDescription(subtitle: string): string {
+  return `${subtitle} Browse US matches and compare the metrics behind each pick.`;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const id = params.id;
   const market = (new URLSearchParams(params as unknown as Record<string, string>).get("market") as "US" | "IN") ?? "US";
   const info = SCREEN_META_INFO[id];
   if (info) {
+    const description = screenMetaDescription(info.subtitle);
     return {
       title: info.title,
-      description: info.subtitle,
+      description,
       alternates: { canonical: `/screens/${id}` },
       openGraph: {
         title: `${info.title} · stocksbrew`,
-        description: info.subtitle,
+        description,
         url: `https://www.stocksbrew.online/screens/${id}`,
       },
       twitter: {
         title: `${info.title} · stocksbrew`,
-        description: info.subtitle,
+        description,
       },
     };
   }

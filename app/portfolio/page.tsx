@@ -6,7 +6,7 @@ import { getCurrentMarket } from "@/lib/market";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Portfolio Analyzer | stocksbrew",
+  title: "Portfolio Analyzer",
   description:
     "Analyze your stock portfolio for free. Paste tickers, search, or upload a screenshot to get sector allocation, factor tilt, risk flags, and opportunities.",
   alternates: { canonical: "/portfolio" },

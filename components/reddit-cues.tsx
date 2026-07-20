@@ -117,7 +117,7 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2.5">
             <Link
-              href="/reddit-buzz"
+              href="/pulse"
               className="group/title inline-flex items-center gap-1.5 text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] text-[#111111] hover:text-[#0052ff] transition-colors"
             >
               Reddit Buzz

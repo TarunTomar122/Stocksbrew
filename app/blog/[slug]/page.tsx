@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = allBlogPosts.find((p) => p.slug === slug);
   if (!post) return { title: "Not Found" };
   return {
-    title: post.title,
+    title: post.seoTitle ?? post.title,
     description: post.description,
     authors: [{ name: "Tarun Tomar", url: "/authors/tarun-tomar" }],
     alternates: { canonical: `/blog/${slug}` },

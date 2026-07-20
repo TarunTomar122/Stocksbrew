@@ -4,7 +4,7 @@ import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
 import { PositionSizeCalculator } from "@/components/position-size-calculator";
 
 export const metadata: Metadata = {
-  title: "Position Size Calculator | stocksbrew",
+  title: "Position Size Calculator",
   description:
     "Free position size calculator for stocks. Compute shares, dollar risk, portfolio allocation, and risk/reward ratio based on your account size and stop-loss.",
   alternates: { canonical: "/position-size-calculator" },

@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { EarningsCalendarStream } from "@/components/earnings-calendar-stream";
 
 export const metadata: Metadata = {
-  title: "Earnings Calendar | stocksbrew",
+  title: "Earnings Calendar",
   description:
     "Upcoming earnings reports for US stocks. See report dates, estimated EPS, and market expectations.",
   alternates: { canonical: "/earnings" },
@@ -49,11 +49,14 @@ export default function EarningsPage() {
         <div className="w-full max-w-[960px] rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-6 text-center">
           <p className="mb-3 text-[14px] text-[#6b7280]">
             New to earnings tracking? Read our guide on{" "}
-            <Link href="/blog/earnings-season-playbook" className="font-semibold text-[#111111] underline">
+            <Link href="/blog/earnings-season-watchlist-playbook" className="font-semibold text-[#111111] underline">
               navigating earnings season
             </Link>
             .
           </p>
+          <Link href="/events" className="text-[13px] font-semibold text-[#111111] underline">
+            See what changed in recent earnings reports →
+          </Link>
         </div>
       </div>
     </main>

@@ -23,7 +23,7 @@ export function RadarNextSignedOut() {
           sample book · refreshed this morning
         </span>
         <Link
-          href="/login"
+          href="/watchlist"
           className="inline-flex items-center rounded-full px-3.5 py-1.5 text-[12px] font-bold no-underline sm:px-4 sm:py-2 sm:text-[13px]"
           style={{ color: "var(--landing-on-brand, #fff)", background: "var(--rn-accent)" }}
         >
@@ -72,7 +72,7 @@ export function RadarNextSignedOut() {
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
           <Link
-            href="/login"
+            href="/watchlist"
             className="inline-flex items-center rounded-full px-5 py-2.5 text-[13px] font-bold no-underline"
             style={{ color: "var(--landing-on-brand, #fff)", background: "var(--rn-accent)" }}
           >

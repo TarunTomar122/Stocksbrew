@@ -1,4 +1,5 @@
 import type { StockSummary } from "@/lib/stock";
+import { StockLogo } from "@/components/stock-logo";
 
 function formatPrice(value: number) {
   return value.toLocaleString(undefined, {
@@ -21,15 +22,13 @@ export function StockHeader({ stock }: { stock: StockSummary }) {
     <section className="px-0 py-2">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="flex items-start gap-4 min-w-0">
-          {stock.logo_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={stock.logo_url}
-              alt=""
-              className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-surface-container-low object-contain flex-shrink-0 border border-outline-variant/30 shadow-sm"
-              loading="lazy"
-            />
-          )}
+          <StockLogo
+            ticker={stock.ticker}
+            logoUrl={stock.logo_url}
+            size={56}
+            eager
+            className="rounded-xl border border-outline-variant/30 bg-surface-container-low shadow-sm"
+          />
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-3xl md:text-[42px] font-black tracking-tighter text-on-surface leading-none">

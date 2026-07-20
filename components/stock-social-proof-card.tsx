@@ -174,7 +174,7 @@ export function StockRedditBuzzRailCard({
         )}
 
         <Link
-          href="/reddit-buzz"
+          href="/pulse"
           className="group mt-4 inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold transition-colors"
           style={{ color: "#FF4500" }}
         >
@@ -247,7 +247,7 @@ export function SocialConversationCard({
         )}
         <div className="mt-auto flex justify-end pt-4">
           <Link
-            href="/reddit-buzz"
+            href="/pulse"
             className="font-mono text-[11px] text-on-surface-variant transition-colors hover:text-accent-terminal"
           >
             See all Reddit buzz →

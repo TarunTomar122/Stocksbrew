@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Terms of service · stocksbrew",
+  title: "Terms of Service",
   description:
     "The rules for using stocksbrew. Account eligibility, acceptable use, subscriptions, liability, and more.",
   alternates: { canonical: "/legal/terms" },

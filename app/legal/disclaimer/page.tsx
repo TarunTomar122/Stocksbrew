@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Disclaimer · stocksbrew",
+  title: "Disclaimer",
   description:
     "Important disclaimers about stocksbrew content. Not investment advice, AI-generated commentary, and do your own research.",
   alternates: { canonical: "/legal/disclaimer" },

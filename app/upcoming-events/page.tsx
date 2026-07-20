@@ -11,7 +11,7 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Upcoming Earnings Setups | stocksbrew",
+  title: "Upcoming Earnings Setups",
   description:
     "AI pre-earnings setups for stocks reporting in the next 7 days. Expected EPS, likely stock move, and what to do.",
   alternates: { canonical: "/upcoming-events" },

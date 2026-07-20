@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
@@ -7,6 +8,16 @@ import { getCurrentMarket } from "@/lib/market";
 import { getThematicScreens } from "@/lib/screens";
 
 export const dynamic = "force-dynamic";
+
+const SCREEN_LINKS = [
+  ["tikrr_top", "Top Stocksbrew Score"],
+  ["quality_compounders", "Quality Compounders"],
+  ["cheap_growth", "Growth at a Fair Price"],
+  ["momentum_leaders", "Momentum Leaders"],
+  ["oversold_quality", "Quality on Sale"],
+  ["near_52w_high", "Near 52-Week Highs"],
+  ["smart_money", "Where the Pros Are"],
+] as const;
 
 export const metadata: Metadata = {
   title: "Thematic Screens",
@@ -71,6 +82,22 @@ export default function ScreensIndexPage() {
         <Suspense fallback={<ScreensFallback />}>
           <ScreensContentStream />
         </Suspense>
+        <nav className="rounded-2xl border border-outline-variant bg-surface px-5 py-4" aria-label="Browse stock screens">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            Browse stock screens
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+            {SCREEN_LINKS.map(([id, label]) => (
+              <Link
+                key={id}
+                href={`/screens/${id}`}
+                className="text-[13px] font-medium text-landing-brand hover:underline"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </nav>
       </FreeToolPageFrame>
     </main>
   );

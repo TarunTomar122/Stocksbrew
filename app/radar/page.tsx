@@ -6,22 +6,24 @@ import { FaqSection } from "@/components/marketing/faq-section";
 import { ShareLinkBar } from "@/components/marketing/share-link-bar";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { ALL_COMPARE_LINKS } from "@/lib/seo/compare-links";
-import { MEDIUM_DESCRIPTION, TAGLINE } from "@/lib/brand-copy";
+import { TAGLINE } from "@/lib/brand-copy";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
 
 export const metadata: Metadata = {
-  title: "Radar — AI Watchlist Buy, Hold & Sell Calls",
+  title: "Stock Watchlist Alerts & Buy, Hold, Sell Calls",
   description:
-    "Radar turns your US stock watchlist into daily buy, hold, and sell calls. Portfolio health, earnings flags, and email alerts. Free for 3 stocks.",
+    "Turn the US stocks you follow into clear buy, hold, and sell calls, with earnings and price-zone alerts. Free for 3 stocks.",
   alternates: { canonical: "/radar" },
   openGraph: {
-    title: "Radar — AI watchlist calls · stocksbrew",
-    description: MEDIUM_DESCRIPTION,
+    title: "Stock watchlist alerts and calls · stocksbrew",
+    description:
+      "Clear buy, hold, and sell calls for the US stocks you follow, with earnings and price-zone alerts.",
     url: "https://www.stocksbrew.online/radar",
   },
   twitter: {
-    title: "Radar — AI watchlist calls · stocksbrew",
-    description: MEDIUM_DESCRIPTION,
+    title: "Stock watchlist alerts and calls · stocksbrew",
+    description:
+      "Clear buy, hold, and sell calls for the US stocks you follow, with earnings and price-zone alerts.",
   },
 };
 
@@ -32,7 +34,7 @@ const FEATURES = [
   },
   {
     title: "Buy / hold / sell on every ticker",
-    body: "Stance updates from fundamentals, news, Reddit, and earnings — not just price pings.",
+    body: "Calls update when fundamentals, news, Reddit, earnings, or price action materially change — not for every price ping.",
   },
   {
     title: "Portfolio health grade",
@@ -48,7 +50,7 @@ const FAQS = [
   {
     question: "What is stocksbrew Radar?",
     answer:
-      "Radar is your daily command center for US stocks you track. Each name gets a buy, hold, or sell stance with rationale, plus portfolio health and earnings flags. Free for 3 stocks.",
+      "Radar is your command center for US stocks you track. Each name gets a buy, hold, or sell stance with rationale, plus portfolio health, earnings flags, and alerts when a setup changes. Free for 3 stocks.",
   },
   {
     question: "Is Radar the same as a portfolio tracker?",
@@ -58,11 +60,11 @@ const FAQS = [
   {
     question: "How is Radar different from Finviz or TradingView?",
     answer:
-      "Finviz and TradingView excel at screening and charting. Radar excels at personalized daily calls on the names you already care about. Many investors use all three.",
+      "Finviz and TradingView excel at screening and charting. Radar excels at personalized calls and alerts on the names you already care about. Many investors use all three.",
   },
   {
     question: "How much does Radar cost?",
-    answer: `Free for 3 tracked stocks. Pro is $${US_PRO_MONTHLY}/month for unlimited Radar names and email alerts when setups change.`,
+    answer: `Free for 3 tracked stocks. Pro is $${US_PRO_MONTHLY}/month for unlimited watchlist names and email alerts when setups change.`,
   },
 ];
 
@@ -72,7 +74,7 @@ export default function RadarLandingPage() {
       <MarketingSchema
         path="/radar"
         name="stocksbrew Radar"
-        description="AI-powered buy, hold, and sell calls on your US stock watchlist."
+        description="Buy, hold, and sell calls on your US stock watchlist, with alerts when a setup changes."
         faqs={FAQS}
         breadcrumbLabel="Radar"
       />
@@ -83,14 +85,14 @@ export default function RadarLandingPage() {
             {TAGLINE}
           </h1>
           <p className="text-[17px] text-[#374151] leading-[1.6]">
-            Radar reads fundamentals, news, Reddit, and earnings for your watchlist — then tells you what to do in plain English. Not another dashboard to refresh.
+            Radar reads fundamentals, news, Reddit, earnings, and price action for your watchlist — then tells you what changed and what to do in plain English. Get alerted when a setup matters, not for every tick.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
             <Link
               href="/watchlist"
               className="inline-flex h-[44px] items-center px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold"
             >
-              Open Radar free →
+              Open your free watchlist →
             </Link>
             <Link
               href="/should-i-buy"

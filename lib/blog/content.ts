@@ -1086,7 +1086,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
       </div>
-      <p>Finviz is the best free stock screener available. The heat maps are addictive and genuinely useful for spotting sector trends. But it's a screening and visualization tool, not an intelligence tool. It shows you data but doesn't analyze it for you. For a detailed comparison, see our <a href="/blog/stocksbrew-vs-finviz">stocksbrew vs Finviz breakdown</a>.</p>
+      <p>Finviz is the best free stock screener available. The heat maps are addictive and genuinely useful for spotting sector trends. But it's a screening and visualization tool, not an intelligence tool. It shows you data but doesn't analyze it for you. For a detailed comparison, see our <a href="/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz breakdown</a>.</p>
     </div>
 
     <div class="tool-card" id="stocktwits">
@@ -1720,27 +1720,27 @@ export const blogContent: Record<string, string> = {
   "stay-updated-on-stocks-without-checking-daily": `
 <div class="blog-meta">May 2026 · 10 min read</div>
 
-<p>r/Bogleheads has a recurring thread: "How do I stop checking my portfolio every day?" r/investing has another: "Do you guys check your portfolio every day or try to ignore it?" The advice is usually "just don't look" or "delete the app." That's not helpful. You <em>want</em> to stay informed. You just don't want it to take over your life.</p>
+<p>Checking a portfolio every few minutes does not make an investor better informed. Ignoring it entirely is not useful either. The practical middle ground is a watchlist that surfaces the handful of changes worth a decision.</p>
 
-<p>Here's how to stay updated on your stocks without turning market-watching into a full-time job.</p>
+<p>Here is how to follow your stocks without turning market-watching into a full-time job.</p>
 
 <h2 id="the-dilemma">The Informed vs. Obsessed Dilemma</h2>
 
-<p>There's a spectrum. On one end: people who check their portfolio 47 times a day and can't eat lunch without knowing what the S&P is doing. On the other: people who don't know their stock dropped 30% until they file their taxes.</p>
+<p>There is a spectrum. On one end, every small move gets attention. On the other, an earnings miss or a broken thesis goes unnoticed. Neither creates a useful decision process.</p>
 
-<p>Neither is good. The sweet spot is being informed enough to make timely decisions, without being so engaged that you make emotional ones. That sweet spot is about 5-10 minutes per day.</p>
+<p>The useful middle ground is to define what would change a decision, set alerts around those events, and review the rest on a regular schedule that fits your investing style.</p>
 
-<h2 id="morning-routine">The 5-Minute Morning Routine</h2>
+<h2 id="morning-routine">A Check-In Routine That Does Not Own Your Day</h2>
 
-<p>This is the core of staying informed without constant checking. Do this once per day, ideally in the morning:</p>
+<p>Use alerts for time-sensitive events, then do a short review when you choose:</p>
 
 <ol>
-  <li><strong>Read a daily market brief (2 min)</strong> - A good AI market brief, like the one <a href="https://www.stocksbrew.online">stocksbrew</a> delivers, gives you the overnight summary, what moved, and what to watch. No scrolling, no clicking, just one structured read.</li>
-  <li><strong>Check your portfolio once (1 min)</strong> - Open your brokerage app. Look at total portfolio change. If it's within normal range (say, +/- 1%), close it. Don't drill into individual positions unless something moved more than 3%.</li>
-  <li><strong>Scan alerts (2 min)</strong> - If you have alerts set up (see below), scan them. Price alerts, earnings alerts, news alerts. Deal with anything urgent. Ignore everything else.</li>
+  <li><strong>Review changes that need context</strong> - Read the call, drivers, and risks behind a move that crosses one of your decision levels. Ignore the rest of the ticker tape.</li>
+  <li><strong>Check the next earnings window</strong> - Know which holdings report soon, what the market expects, and what would challenge the thesis.</li>
+  <li><strong>Scan only meaningful alerts</strong> - Price-zone, earnings, and thesis-change alerts should prompt a quick review. Small moves and every headline should not.</li>
 </ol>
 
-<p>Done. 5 minutes. You're more informed than 95% of retail investors.</p>
+<p>That is enough to stay prepared without letting a market screen dictate the day.</p>
 
 <h2 id="alert-setup">Set Up the Right Alerts</h2>
 
@@ -1748,8 +1748,8 @@ export const blogContent: Record<string, string> = {
 
 <h3>Essential Alerts</h3>
 <ul>
-  <li><strong>Price alerts (5% moves)</strong> - Set alerts at +/- 5% from current price for each holding. This catches meaningful moves without triggering on daily noise.</li>
-  <li><strong>Earnings alerts</strong> - Get notified 1 day before and 1 day after each earnings report. <a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> does this automatically for your watchlist.</li>
+  <li><strong>Price-zone alerts</strong> - Set alerts at a price where you would genuinely add, trim, or revisit the thesis. A fixed percentage is less useful than a decision level.</li>
+  <li><strong>Earnings alerts</strong> - Know when each tracked company reports and reserve time to read the result. <a href="https://www.stocksbrew.online/earnings">An earnings calendar</a> makes the schedule visible across the watchlist.</li>
   <li><strong>52-week high/low alerts</strong> - When a stock hits a new 52-week high or low, it's worth knowing. These are structural events.</li>
 </ul>
 
@@ -1774,16 +1774,16 @@ export const blogContent: Record<string, string> = {
 <ol>
   <li><strong>Review the week's moves</strong> - Any position up or down more than 5%? Read the headlines for context.</li>
   <li><strong>Check upcoming earnings</strong> - Any of your stocks reporting this week? <a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> shows this at a glance.</li>
-  <li><strong>Read your weekly market summary</strong> - Many services offer weekly digests. stocksbrew's <a href="https://www.stocksbrew.online">daily briefs</a> are daily, but you can also review the week's accumulated signals.</li>
+  <li><strong>Review the week's accumulated signals</strong> - Revisit meaningful news, fundamental updates, and changes to the case for your holdings or candidates.</li>
   <li><strong>Review sector performance</strong> - Are the sectors you're exposed to trending up or down? <a href="https://www.stocksbrew.online/heat">stocksbrew's market heat map</a> shows this visually.</li>
 </ol>
 
-<p>This weekly check is where you catch the things your daily 5-minute scan might miss.</p>
+<p>This periodic check is where you catch the things a single alert does not explain.</p>
 
 <h2 id="tools">Tools That Help You Check Less</h2>
 
 <ul>
-  <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> - AI daily brief, watchlist radar, earnings calendar. The whole point is staying informed in 5 min/day. Free tier.</li>
+  <li><strong><a href="https://www.stocksbrew.online/radar">stocksbrew</a></strong> - Watchlist calls, earnings context, and alerts when a setup changes. Free for 3 stocks.</li>
   <li><strong>TradingView alerts</strong> - Best for price and technical alerts. Free tier gives you a limited number of alerts.</li>
   <li><strong>Google Finance</strong> - Simple portfolio tracking with news aggregation. Free.</li>
   <li><strong>Brokerage app alerts</strong> - Most brokerages (Fidelity, Schwab, Robinhood) let you set price and news alerts. Use them.</li>
@@ -1797,17 +1797,17 @@ export const blogContent: Record<string, string> = {
   "The market doesn't care if you're watching. Your stocks will go up or down whether you check or not. The only question is: will you make better decisions by checking more? Almost always, the answer is no."
 </blockquote>
 
-<p>Checking your portfolio more doesn't make you a better investor. It makes you a more anxious one. The best investors set up systems (alerts, briefs, weekly reviews) and then <em>trust the system</em>.</p>
+<p>Checking your portfolio more does not automatically make you a better investor. The useful approach is a system of decision levels, alerts, and a periodic review.</p>
 
-<p>Set it up once. Check it once a day. Live your life.</p>
+<p>Set it up once. Let meaningful changes interrupt you. Live your life.</p>
 
 <div class="cta-section">
-  <h3>Stay Informed in 5 Minutes a Day</h3>
-  <p>stocksbrew delivers a personalized daily brief for your watchlist. No scrolling, no noise. Free tier available.</p>
-  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+  <h3>Follow Your Watchlist Without the Noise</h3>
+  <p>stocksbrew turns the stocks you follow into clear calls and alerts when a setup changes. Free for 3 stocks.</p>
+  <a href="https://www.stocksbrew.online/radar" class="cta-button">Build Your Free Watchlist →</a>
 </div>
 
-<p>Related: <a href="/blog/how-to-track-stock-news">How to Track Stock News for Your Portfolio</a> and <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
+<p>Related: <a href="/blog/track-stock-news-for-your-portfolio">How to Track Stock News for Your Portfolio</a> and <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
 `,
   "best-free-stock-alert-tools-2026": `
 <div class="blog-meta">May 2026 · 14 min read</div>
@@ -2193,47 +2193,76 @@ export const blogContent: Record<string, string> = {
 <p>Related: <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
 `,
   "how-to-use-stock-alerts-effectively": `
-<div class="blog-meta">Updated June 2026 &middot; 9 min read</div>
+<div class="blog-meta">Updated July 2026 &middot; 9 min read</div>
 
-<p>Stock alerts are supposed to make your life easier. Instead, most investors get buried in notifications: price movements, news alerts, earnings reminders, technical signals. Before long, you start ignoring them all.</p>
+<p>A stock alert is useful only when it changes what you do next. An alert that merely says a ticker moved is usually another reason to open a chart, read headlines, and make a rushed decision. The better approach is to set alerts around decisions you have already considered.</p>
 
-<p>This is alert fatigue. And it's the reason most investors miss the alerts that actually matter. Here's how to set up stock alerts that work.</p>
+<p>This guide covers the three alert types that matter most to a long-term investor or active watchlist owner: price levels, earnings dates, and evidence that changes the thesis.</p>
 
-<h2 id="the-problem">The Problem With Most Stock Alerts</h2>
-<p>Most alert systems are dumb. They trigger on price movements alone. But a 5% drop during a market-wide selloff means something different from a 5% drop on bad company news. Context matters, and most alerts don't provide it.</p>
+<h2 id="before-setting-alerts">Before You Set an Alert, Name the Decision</h2>
 
-<h2 id="types-of-alerts">4 Types of Stock Alerts and When to Use Each</h2>
+<p>Write one sentence before choosing a trigger. Examples: “I will research adding if the stock returns to this valuation range,” “I will trim if this position becomes too large,” or “I will re-evaluate if guidance falls below this range.”</p>
 
-<h3>1. Price Alerts</h3>
-<p>Use for: Entry and exit points. Set alerts at your buy target and sell target for each stock. Ignore everything in between.</p>
+<p>If the alert does not have a possible next action, it is probably noise. A useful alert creates a short review task; it is not an instruction to trade.</p>
 
-<h3>2. News Alerts</h3>
-<p>Use for: Breaking developments on your holdings. But only for the stocks you own. Don't set news alerts for stocks you're just watching.</p>
+<h2 id="price-alerts">1. Set Stock Price Alerts at Decision Levels</h2>
 
-<h3>3. Earnings Alerts</h3>
-<p>Use for: Knowing when your holdings report. Set reminders 1 week before, 1 day before, and right after earnings are released.</p>
+<p>Price alerts are best for levels that matter to your own plan, not arbitrary moves such as every 1% change. A buy zone, a trim zone, a support level you rely on, or a position-size limit can all be valid triggers.</p>
 
-<h3>4. Technical Alerts</h3>
-<p>Use for: RSI overbought/oversold, volume spikes, moving average crosses. Only useful if you trade based on technicals.</p>
+<table>
+  <thead><tr><th>Alert</th><th>What triggers it</th><th>What to review</th></tr></thead>
+  <tbody>
+    <tr><td>Entry-zone alert</td><td>Price reaches the range where the valuation or risk/reward becomes interesting</td><td>Has the original thesis survived? Is the move company-specific or market-wide?</td></tr>
+    <tr><td>Trim-zone alert</td><td>Price reaches a level where the position is larger or more optimistic than planned</td><td>Current valuation, portfolio concentration, and the case for holding versus trimming</td></tr>
+    <tr><td>Risk alert</td><td>Price breaks a level that would challenge the setup or change portfolio risk</td><td>New facts, the invalidation condition, and whether the risk was already understood</td></tr>
+  </tbody>
+</table>
 
-<h2 id="alert-fatigue">How to Beat Alert Fatigue</h2>
+<p>A percentage-move alert can still be useful for a volatile name, but attach a reason to it. “Review if it falls 10%” is stronger than “tell me when it falls 10%.”</p>
+
+<h2 id="earnings-alerts">2. Use Earnings Alerts to Prepare, Not React</h2>
+
+<p>An earnings alert should create time to prepare before the report and a prompt to compare the result after it. Keep the date, your key expectations, and the evidence that would change your view in the same watchlist note.</p>
+
+<ol>
+  <li><strong>One to two weeks before:</strong> write down the two operating metrics or guidance points that matter most.</li>
+  <li><strong>The day before:</strong> decide whether the position size fits the risk of an overnight move.</li>
+  <li><strong>After the release:</strong> compare revenue, margins, cash flow, guidance, risks, and management language with the prior quarter.</li>
+  <li><strong>The following day:</strong> update the thesis only after reading the source material and separating the stock reaction from the business result.</li>
+</ol>
+
+<p>Our <a href="/blog/earnings-season-watchlist-playbook">earnings watchlist workflow</a> covers the preparation step. For the post-report review, use the <a href="/blog/how-to-analyze-earnings-report">earnings-report analysis checklist</a>.</p>
+
+<h2 id="thesis-alerts">3. Track Thesis Changes, Not Every Headline</h2>
+
+<p>News alerts become overwhelming when they are not tied to a thesis. For each holding or serious candidate, identify the developments that would genuinely change the case: a major customer loss, a product delay, a regulatory decision, a debt refinancing, a change in capital allocation, or a guidance revision.</p>
+
+<p>That list is allowed to be short. A focused watchlist gives every alert enough context to be useful.</p>
+
+<h2 id="technical-alerts">4. Use Technical Alerts Only If They Belong in Your Process</h2>
+
+<p>Moving-average, volume, and momentum alerts can be useful when they are part of a written entry or risk process. They are not a replacement for understanding the business, the valuation, or the event risk around a position. If you cannot explain what a technical alert changes, leave it off.</p>
+
+<h2 id="reduce-noise">How to Reduce Alert Fatigue</h2>
+
 <ul>
-  <li><strong>Limit your watchlist:</strong> Don't monitor more than 10-15 stocks at a time. Fewer alerts, more attention per alert</li>
-  <li><strong>Use smart alerts:</strong> AI-powered alerts that consider context (sector performance, market conditions, news sentiment) are more useful than dumb price alerts</li>
-  <li><strong>Batch your alerts:</strong> Get a daily summary instead of real-time notifications. You don't need to know at 2 PM that a stock moved 2%</li>
-  <li><strong>Review weekly:</strong> Every week, review which alerts fired and whether they were useful. Disable the ones that weren't</li>
+  <li><strong>Keep the list intentional:</strong> track the names you own or would realistically buy, not every interesting ticker.</li>
+  <li><strong>One trigger, one job:</strong> price levels answer a price question; earnings alerts create a research task; thesis alerts flag new evidence.</li>
+  <li><strong>Review alert quality:</strong> once a month, remove notifications that did not lead to a useful review.</li>
+  <li><strong>Do not confuse urgency with importance:</strong> a prompt notification can wait when the underlying decision does not.</li>
 </ul>
 
-<h2 id="stocksbrew-approach">The stocksbrew Approach</h2>
-<p>stocksbrew delivers a single daily brief covering all your stocks. It includes price movements, key news mentions, earnings calendar events, and buy/hold/sell calls in one place. One notification, not 50. No alert fatigue.</p>
+<h2 id="stocksbrew-approach">Use Alerts With Context</h2>
+
+<p>stocksbrew Radar keeps a focused list of holdings and watchlist names, then surfaces calls, earnings context, and alerts when a setup changes. It is designed to help start a review—not to replace your judgment or your primary-source research.</p>
 
 <div class="cta-section">
-  <h3>Get Smarter Stock Alerts</h3>
-  <p>Daily brief with context-aware alerts for your watchlist. Free to start.</p>
-  <a href="https://stocksbrew.online" class="cta-button">Try stocksbrew Free &rarr;</a>
+  <h3>Build a Watchlist Around Real Decisions</h3>
+  <p>Track three US stocks free, then use calls, earnings context, and alerts to keep the research current.</p>
+  <a href="/radar" class="cta-button">Open Radar →</a>
 </div>
 
-<p>Related: <a href="/blog/best-free-stock-alert-tools-2026">Best Free Stock Alert Tools</a>.</p>
+<p>Related: <a href="/blog/earnings-season-watchlist-playbook">Earnings Watchlist Workflow</a> and <a href="/blog/stock-research-checklist-evidence-first">How to Research a Stock</a>.</p>
 `,
   "sector-rotation-tracking-tools": `
 <div class="blog-meta">Updated June 2026 &middot; 11 min read</div>

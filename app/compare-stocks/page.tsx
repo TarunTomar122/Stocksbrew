@@ -9,7 +9,7 @@ import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
 export const metadata: Metadata = {
   title: "Compare Stocks Side by Side",
   description:
-    "Free stock comparison tool. Line up 2 to 5 US tickers and see price, fundamentals, scores, and returns in one table with the winner of each row highlighted. No sign-in required.",
+    "Compare 2 to 5 US stocks side by side across price, fundamentals, scores, and returns, with the winner in each row highlighted.",
   alternates: { canonical: "/compare-stocks" },
   openGraph: {
     title: "Free Stock Comparison Tool · stocksbrew",

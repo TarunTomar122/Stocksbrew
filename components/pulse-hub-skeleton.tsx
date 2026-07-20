@@ -1,5 +1,3 @@
-import { PulseHubHero } from "@/components/pulse-hub-header";
-
 function Bone({ className = "" }: { className?: string }) {
   return <div className={`landing-bone rounded-md ${className}`} aria-hidden />;
 }
@@ -61,7 +59,13 @@ export function PulseHubContentSkeleton() {
 export function PulsePageSkeleton() {
   return (
     <>
-      <PulseHubHero />
+      <section className="pulse-hero" aria-hidden>
+        <div className="space-y-3">
+          <Bone className="h-3 w-28" />
+          <Bone className="h-10 w-[min(28rem,85%)]" />
+          <Bone className="h-5 w-[min(42rem,100%)]" />
+        </div>
+      </section>
       <PulseHubContentSkeleton />
     </>
   );

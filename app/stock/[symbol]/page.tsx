@@ -20,17 +20,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
   return {
-    title: `${upper} - Stock Analysis & AI Brief`,
+    title: `${upper} Stock Analysis & Research`,
     description: stockMetaDescription(upper),
     alternates: { canonical: `/stock/${upper}` },
     robots: { index: false, follow: true },
     openGraph: {
-      title: `${upper} - Stock Analysis & AI Brief · stocksbrew`,
+      title: `${upper} Stock Analysis & Research · stocksbrew`,
       description: stockMetaDescription(upper),
       url: `https://www.stocksbrew.online/stock/${upper}`,
     },
     twitter: {
-      title: `${upper} - Stock Analysis & AI Brief · stocksbrew`,
+      title: `${upper} Stock Analysis & Research · stocksbrew`,
       description: stockMetaDescription(upper),
     },
   };

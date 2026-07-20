@@ -120,7 +120,7 @@ export function LandingScannerReddit({
                   />
                 ) : (
                   <Link
-                    href="/reddit-buzz"
+                    href="/pulse"
                     className="landing-reddit-card text-[13px] text-on-surface-variant"
                   >
                     See what retail is debating on r/stocks →

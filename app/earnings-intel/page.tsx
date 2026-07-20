@@ -9,20 +9,20 @@ import { getStockSummary } from "@/lib/stock";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Earnings Intel",
+  title: "Earnings Reports: What Changed & What to Do Next",
   description:
-    "Browse free post-earnings reports. What happened, so what, and what to do next for every stock we cover.",
+    "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
   alternates: { canonical: "/earnings-intel" },
   openGraph: {
-    title: "Earnings Intel · stocksbrew",
+    title: "Earnings Reports: What Changed & What to Do Next · stocksbrew",
     description:
-      "Browse free post-earnings reports. What happened, so what, and what to do next for every stock we cover.",
+      "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
     url: "https://www.stocksbrew.online/earnings-intel",
   },
   twitter: {
-    title: "Earnings Intel · stocksbrew",
+    title: "Earnings Reports: What Changed & What to Do Next · stocksbrew",
     description:
-      "Browse free post-earnings reports. What happened, so what, and what to do next for every stock we cover.",
+      "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
   },
 };
 

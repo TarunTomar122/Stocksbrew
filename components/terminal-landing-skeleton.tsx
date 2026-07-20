@@ -1,6 +1,3 @@
-import { TerminalLandingHeroCopy } from "@/components/terminal-landing-hero-copy";
-import { getCurrentMarket } from "@/lib/market";
-
 function Bone({ className = "" }: { className?: string }) {
   return <div className={`landing-bone rounded-md ${className}`} aria-hidden />;
 }
@@ -56,10 +53,15 @@ export function LandingHeroCommandSkeleton() {
 }
 
 export function LandingHeroSkeleton() {
-  const market = getCurrentMarket();
   return (
     <div className="flex w-full flex-col items-center">
-      <TerminalLandingHeroCopy market={market} trackedIds={[]} isSubscribed={false} />
+      <div className="flex w-full max-w-3xl flex-col items-center" aria-hidden>
+        <Bone className="h-10 w-[min(32rem,90%)]" />
+        <Bone className="mt-5 h-5 w-[min(38rem,95%)]" />
+        <Bone className="mt-2 h-5 w-[min(30rem,82%)]" />
+        <Bone className="mt-8 h-14 w-full rounded-2xl" />
+        <Bone className="mt-7 h-4 w-[min(28rem,80%)]" />
+      </div>
       <div className="mt-10 w-full max-w-4xl sm:mt-12">
         <LandingHeroCommandSkeleton />
       </div>

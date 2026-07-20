@@ -211,7 +211,7 @@ export function RadarSignalsOnBook({
         )}
         {anomalies.length > 0 && (
           <div className="flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface p-4">
-            <LensHeader label="Moving today" count={anomalies.length} href="/anomalies" />
+            <LensHeader label="Moving today" count={anomalies.length} href="/pulse" />
             {anomalies.some((a) => a.onBook) && anomalies.some((a) => a.onBook === false) ? (
               <p className="font-mono text-[10px] text-on-surface-variant">
                 {anomalies.filter((a) => a.onBook).length} on your book ·{" "}
@@ -266,7 +266,7 @@ export function RadarSignalsOnBook({
 
         {buzz.length > 0 && (
           <div className="flex min-h-[220px] flex-col gap-3 rounded-xl border border-outline-variant bg-surface p-4">
-            <LensHeader label="Buzzing on Reddit" count={buzz.length} href="/reddit-buzz" />
+            <LensHeader label="Buzzing on Reddit" count={buzz.length} href="/pulse" />
             {buzz.some((b) => b.onBook) && buzz.some((b) => !b.onBook) ? (
               <p className="font-mono text-[10px] text-on-surface-variant">
                 {buzz.filter((b) => b.onBook).length} on your book ·{" "}

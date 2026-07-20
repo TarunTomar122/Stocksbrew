@@ -1,7 +1,7 @@
 import { LegalLayout } from "@/components/legal-layout";
 
 export const metadata = {
-  title: "Cookie policy · stocksbrew",
+  title: "Cookie Policy",
   description:
     "What cookies stocksbrew uses, why we use them, and how to manage them. No tracking ads.",
   alternates: { canonical: "/legal/cookies" },

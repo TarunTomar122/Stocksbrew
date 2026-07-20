@@ -14,6 +14,12 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+function sectorMetaDescription(label: string, source?: string): string {
+  const brief = source?.replace(/\s+/g, " ").trim() ?? "";
+  if (brief.length >= 80) return brief.slice(0, 155).trim();
+  return `${brief ? `${brief} ` : ""}Follow ${label} stocks, sector momentum, and the drivers worth watching.`.slice(0, 155);
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const market = getCurrentMarket();
@@ -22,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     try { doc = await getSectorContextDoc(id, market === "US" ? "IN" : "US").catch(() => null); } catch {}
   }
   const label = doc?.sector_label ?? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  const brief = doc?.today_brief?.slice(0, 150) ?? `Sector analysis and constituent stock performance for ${label}.`;
+  const brief = sectorMetaDescription(label, doc?.today_brief);
   return {
     title: `${label} - Sector Brief`,
     description: brief,

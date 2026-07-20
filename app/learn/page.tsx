@@ -128,7 +128,7 @@ export default function LearnPage() {
             Deeper dives into stock calls, smarter tracking, and investing strategy.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link href="/blog/how-to-track-stock-news" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
+            <Link href="/blog/track-stock-news-for-your-portfolio" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">
               Tracking Stock News
             </Link>
             <Link href="/blog/earnings-calendar-for-my-watchlist" className="inline-flex items-center h-[36px] px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors">

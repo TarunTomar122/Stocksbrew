@@ -53,6 +53,7 @@ export function StockLogo({
   }, [upper, market]);
 
   const initials = upper.replace(/[^A-Z0-9]/g, "").slice(0, 2) || "?";
+  const alt = `${upper} stock logo`;
   const dim = `${size}px`;
   const bg = fallbackBg === "#1c1c1e" ? fallbackColor(upper) : fallbackBg;
 
@@ -75,7 +76,8 @@ export function StockLogo({
       <div
         className={`relative shrink-0 overflow-hidden rounded-md ${className}`}
         style={{ width: dim, height: dim }}
-        aria-hidden
+        role="img"
+        aria-label={alt}
       >
         {fallback}
       </div>
@@ -86,13 +88,12 @@ export function StockLogo({
     <div
       className={`relative shrink-0 overflow-hidden rounded-md ring-1 ring-[#e5e7eb] ${className}`}
       style={{ width: dim, height: dim }}
-      aria-hidden
     >
       {fallback}
       <img
         key={sourceIndex}
         src={sources[sourceIndex]}
-        alt=""
+        alt={alt}
         width={size}
         height={size}
         loading={eager ? "eager" : "lazy"}

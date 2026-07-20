@@ -42,6 +42,7 @@ export async function GET() {
     "/legal/disclaimer",
     "/should-i-buy",
     "/earnings",
+    "/upcoming-events",
     "/earnings-intel",
     "/ipos",
     "/portfolio",

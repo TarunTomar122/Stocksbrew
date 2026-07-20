@@ -4,7 +4,7 @@ import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
 import { IpoCalendar } from "@/components/ipo-calendar";
 
 export const metadata: Metadata = {
-  title: "IPO Calendar | stocksbrew",
+  title: "IPO Calendar",
   description:
     "Upcoming IPOs for US markets. See pricing dates, price ranges, and exchanges for newly listed companies.",
   alternates: { canonical: "/ipos" },

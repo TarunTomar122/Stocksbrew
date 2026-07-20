@@ -355,7 +355,7 @@ export function AnomalyMovesBoard({
         <SideToggle active={activeSide} onSelect={setActiveSide} className="max-w-xs sm:max-w-none" />
         {showSeeAll && activeItems.length > 0 ? (
           <Link
-            href="/anomalies"
+            href="/pulse"
             className="shrink-0 text-[12px] font-semibold text-[#6b7280] hover:text-[#0052ff] transition-colors"
           >
             Full read →

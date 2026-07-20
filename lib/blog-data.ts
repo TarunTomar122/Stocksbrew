@@ -1,6 +1,7 @@
 export type BlogPost = {
   slug: string;
   title: string;
+  seoTitle?: string;
   description: string;
   category: string;
   tags: string[];
@@ -11,8 +12,20 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "how-to-analyze-earnings-report",
+    title: "How to Analyze an Earnings Report: What Changed vs. Last Quarter",
+    seoTitle: "Analyze an Earnings Report",
+    description:
+      "A practical earnings-analysis checklist for revenue, margins, cash, guidance, risks, and management language—using primary filings instead of hot takes.",
+    category: "guides",
+    tags: ["earnings", "earnings-report", "guidance", "filings", "stock-research"],
+    date: "2026-07-20",
+    readTime: "13 min read",
+  },
+  {
     slug: "stock-research-checklist-evidence-first",
     title: "How to Research a Stock: An Evidence-First Checklist",
+    seoTitle: "How to Research a Stock",
     description:
       "A repeatable stock research workflow built around filings, earnings, valuation, risks, and a written decision log—not hot takes or price predictions.",
     category: "guides",
@@ -23,6 +36,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "finviz-vs-tradingview-vs-stocksbrew",
     title: "Finviz vs TradingView vs stocksbrew: Which Research Workflow Fits?",
+    seoTitle: "Finviz vs TradingView vs stocksbrew",
     description:
       "A source-backed comparison of screening, charting, watchlist monitoring, alerts, and cost—plus the workflow where using all three makes sense.",
     category: "comparison",
@@ -52,17 +66,20 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "how-to-use-stock-alerts-effectively",
-    title: "How to Use Stock Alerts Without Alert Fatigue",
+    title: "Stock Price Alerts: How to Set Alerts That Lead to Better Decisions",
+    seoTitle: "Set Better Stock Price Alerts",
     description:
-      "Price, news, earnings, and technical alerts — plus a system to beat notification overload and only act when it matters.",
+      "Set price, earnings, and thesis alerts for your watchlist without letting notifications run your investing decisions.",
     category: "guides",
-    tags: ["alerts", "productivity", "watchlist", "guide"],
+    tags: ["stock-alerts", "price-alerts", "earnings", "watchlist", "guide"],
     date: "2026-07-15",
+    updated: "2026-07-20",
     readTime: "9 min read",
   },
   {
     slug: "buy-hold-sell-signals-explained",
     title: "Buy, Hold, Sell Signals Explained: What They Are and How to Use Them",
+    seoTitle: "Buy, Hold, Sell Signals Explained",
     description:
       "Buy/hold/sell signals are more than price alerts. Learn what they mean, how AI generates them, and a weekly workflow that avoids overtrading.",
     category: "guides",
@@ -73,6 +90,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "watchlist-vs-portfolio-tracker",
     title: "Watchlist vs Portfolio Tracker: Why You Need Both",
+    seoTitle: "Watchlist vs Portfolio Tracker",
     description:
       "Mixing stocks you own with stocks you might buy creates chaos. Here's how to separate watchlists from portfolios and which tools handle each job.",
     category: "guides",
@@ -82,17 +100,20 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "earnings-season-watchlist-playbook",
-    title: "Earnings Season Playbook: How to Prep Your Watchlist",
+    title: "Earnings Watchlist: How to Prepare for Reports and Review What Changed",
+    seoTitle: "Earnings Watchlist Checklist",
     description:
-      "A step-by-step earnings prep timeline for holdings and watchlist names — from T-14 planning to post-report thesis updates.",
+      "A step-by-step earnings-watchlist workflow for holdings and candidates—from pre-report preparation to a disciplined post-results review.",
     category: "guides",
     tags: ["earnings", "watchlist", "season", "strategy", "guide"],
     date: "2026-07-15",
+    updated: "2026-07-20",
     readTime: "12 min read",
   },
   {
     slug: "stock-market-information-overload",
     title: "Stock Market Information Overload: A System That Actually Works",
+    seoTitle: "Stock Market Information Overload",
     description:
       "Too much news, too little clarity. Cut the noise with a four-principle information diet and a low-tool stack for busy investors.",
     category: "guides",
@@ -103,6 +124,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "portfolio-health-check-guide",
     title: "Portfolio Health Check: A 20-Minute Quarterly Review",
+    seoTitle: "Portfolio Health Check Guide",
     description:
       "Performance is not health. Use this checklist for concentration, sector tilt, fundamentals, and catalyst risk — with a simple A–D grading rubric.",
     category: "intelligence",
@@ -142,6 +164,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "track-stock-news-for-your-portfolio",
     title: "How to Track Stock News for Your Portfolio (Without Drowning in Noise)",
+    seoTitle: "Track Stock News Without the Noise",
     description: "Most investors either ignore portfolio news or get buried in it. Here's a system to track only the news that matters for your holdings.",
     category: "guides",
     tags: ["portfolio", "news", "tracking", "guide"],
@@ -151,6 +174,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "earnings-calendar-for-my-watchlist",
     title: "Earnings Calendar for Your Watchlist: How to Never Miss a Report",
+    seoTitle: "Earnings Calendar for Your Watchlist",
     description: "Stop checking generic earnings calendars. Here's how to track earnings dates for only the stocks you care about.",
     category: "guides",
     tags: ["earnings", "calendar", "watchlist", "guide"],
@@ -159,11 +183,14 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "stay-updated-on-stocks-without-checking-daily",
-    title: "How to Stay Updated on Stocks Without Checking Every Day",
-    description: "Busy investors don't have time to stare at tickers. Here's how to stay informed without the daily grind.",
+    title: "How to Follow Stocks Without Checking Every Day",
+    seoTitle: "Follow Stocks Without Checking Daily",
+    description:
+      "A practical watchlist-alert routine for following earnings, price zones, and thesis changes without staring at tickers.",
     category: "guides",
     tags: ["productivity", "alerts", "automation", "guide"],
     date: "2026-05-17",
+    updated: "2026-07-20",
     readTime: "10 min read",
   },
   {
@@ -188,6 +215,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "stock-research-busy-professionals",
     title: "Stock Research for Busy Professionals: A 5-Minute Daily Routine",
+    seoTitle: "Stock Research for Busy Professionals",
     description:
       "A practical stock research system for people with full-time jobs. 10 minutes per day, no screen time during work hours.",
     category: "guides",
@@ -208,6 +236,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "stock-picks-vs-stock-screeners",
     title: "Stock Picks vs Stock Screeners: What Busy Investors Actually Need",
+    seoTitle: "Stock Picks vs Stock Screeners",
     description:
       "Stock screeners give you lists. Stock picks give you decisions. Here's when to use each and the hybrid approach that works best.",
     category: "guides",
@@ -306,6 +335,7 @@ export const allBlogPosts: BlogPost[] = [
   {
     slug: "how-to-build-stock-watchlist",
     title: "How to Build a Stock Watchlist That Actually Works",
+    seoTitle: "How to Build a Stock Watchlist",
     description: "A watchlist isn't a wishlist. Learn how to build, maintain, and use a stock watchlist that helps you spot opportunities without the noise.",
     category: "guides",
     tags: ["watchlist", "beginners", "strategy", "guide"],

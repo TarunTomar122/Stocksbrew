@@ -1129,9 +1129,9 @@ export const seoBlogContent: Record<string, string> = {
 </div>
 `,
   "earnings-season-watchlist-playbook": `
-<div class="blog-meta">July 2026 · 12 min read</div>
+<div class="blog-meta">Updated July 2026 · 12 min read</div>
 
-<p>Earnings season is when watchlists earn their keep — and when portfolios get punished for lack of prep. Four times a year, companies report results, guide forward, and move 5–20% in a day. If you only react after the print, you are already late.</p>
+<p>Earnings season is when watchlists earn their keep. Four times a year, companies report results, guide forward, and give investors new evidence about the business. If preparation starts only after the release, it is harder to separate the facts from the market noise.</p>
 
 <p>This playbook shows how to prep your <strong>earnings season watchlist</strong> two weeks out, what to do the day of, and how to update stances after the call.</p>
 
@@ -1142,7 +1142,7 @@ export const seoBlogContent: Record<string, string> = {
   <li><strong>T-7 days:</strong> Note consensus EPS/revenue. Write one “surprise” scenario (beat + raise, beat + guide down, miss).</li>
   <li><strong>T-1 day:</strong> Check options-implied move if available. Decide position size — trim before binary events if uncomfortable.</li>
   <li><strong>Report day:</strong> Read release + guidance first; ignore hot takes for 30 minutes.</li>
-  <li><strong>T+1:</strong> Update thesis. Move watchlist names to buy tier or remove.</li>
+  <li><strong>T+1:</strong> Compare the release with the prior quarter, update the thesis, and move watchlist names to a buy tier or remove them.</li>
 </ul>
 
 <h2 id="holdings">For Stocks You Own</h2>
@@ -1171,7 +1171,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <p>Market-wide calendars list 500 reports per week. You need <em>your</em> calendar — filtered to Radar holdings and watchlist. stocksbrew surfaces upcoming earnings on tracked tickers so you are not scrolling irrelevant names.</p>
 
-<p>Pair with our <a href="/blog/earnings-calendar-for-my-watchlist">earnings calendar for your watchlist</a> guide and the free <a href="/earnings-intel">earnings intel</a> pages for deeper prep on individual names.</p>
+<p>Pair this with our <a href="/blog/earnings-calendar-for-my-watchlist">earnings calendar for your watchlist</a> guide, the <a href="/blog/how-to-analyze-earnings-report">post-earnings analysis checklist</a>, and the free <a href="/earnings-intel">Earnings Intel</a> pages for individual names.</p>
 
 <h2 id="sectors">Sector Rotation During Earnings</h2>
 
@@ -1189,7 +1189,7 @@ export const seoBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Never Miss a Report on Your List</h3>
   <p>Add holdings and watchlist names to Radar. Earnings dates, directives, and post-print stance updates — free for 3 stocks.</p>
-  <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
+  <a href="/radar" class="cta-button">Open Radar →</a>
 </div>
 `,
   "stock-market-information-overload": `

@@ -1,5 +1,88 @@
 /** Source-backed, editor-reviewed articles that are closest to stocksbrew's product expertise. */
 export const researchBlogContent: Record<string, string> = {
+  "how-to-analyze-earnings-report": `
+<p><strong>Reviewed July 20, 2026.</strong> An earnings release is not a buy or sell signal. It is a new set of facts to compare with the prior quarter, your original thesis, and the expectations already embedded in the share price.</p>
+
+<div class="sample-brief">
+  <h4>Short answer</h4>
+  <p>Start with the company’s earnings release and filing. Then compare revenue, margins, cash flow, guidance, risks, and management language with the previous quarter. Write down what improved, what weakened, and what would make the next quarter prove you wrong.</p>
+</div>
+
+<h2 id="source-first">Start With the Primary Record</h2>
+
+<p>For US issuers, begin with the company’s latest release and filing through the <a href="https://www.sec.gov/search-filings" rel="noopener noreferrer">SEC company filing search</a>. The release is often furnished with a Form 8-K; the 10-Q provides the fuller quarterly financial statements and management discussion when it is filed. Use the <a href="https://www.sec.gov/edgar/sec-api-documentation" rel="noopener noreferrer">SEC company facts data</a> as a cross-check for reported financial line items.</p>
+
+<p>Headlines, social posts, and even analyst summaries can help frame questions, but they should not be the source of a material number or claim. Save the release and filing before reading commentary.</p>
+
+<h2 id="comparison-card">Build a Quarter-Over-Quarter Comparison Card</h2>
+
+<p>Use the same fields every quarter. Consistency makes it easier to see whether the business is getting stronger, weaker, or merely different.</p>
+
+<table>
+  <thead><tr><th>Area</th><th>What changed?</th><th>Question to ask</th></tr></thead>
+  <tbody>
+    <tr><td>Revenue</td><td>Total revenue, segments, units, customers, or volume</td><td>Did the core driver improve, or did a one-off item make the comparison look better?</td></tr>
+    <tr><td>Margins</td><td>Gross margin, operating margin, and the reason management gave</td><td>Is profitability improving because of durable operating leverage or a temporary benefit?</td></tr>
+    <tr><td>Cash and balance sheet</td><td>Operating cash flow, capex, free cash flow, debt, and diluted shares</td><td>Did reported profit turn into cash, and can the company fund its plan?</td></tr>
+    <tr><td>Guidance</td><td>Revenue, margin, expense, capital spending, or operating-metric outlook</td><td>What did management now say must happen next quarter?</td></tr>
+    <tr><td>Risks and language</td><td>New risk factors, cautious phrasing, customer, supply, or regulatory detail</td><td>Did the explanation of the business change even when the headline numbers did not?</td></tr>
+  </tbody>
+</table>
+
+<h2 id="revenue">1. Read Revenue for Demand, Not Just the Headline</h2>
+
+<p>Start with the source of growth. Compare company-wide revenue with segment revenue, volume, units, subscribers, backlog, or customer additions when those measures are relevant. A company can beat a headline revenue estimate while the segment that supports the long-term thesis slows down.</p>
+
+<p>Look for the explanation: price, volume, mix, acquisitions, currency, or timing. A good post-earnings note distinguishes those drivers instead of treating every percentage increase as equivalent.</p>
+
+<h2 id="margins">2. Ask Why Margins Moved</h2>
+
+<p>Gross margin shows the economics of what the company sells. Operating margin adds the cost of running the business. Compare both with the prior quarter and the same quarter a year earlier, then read management’s explanation for the change.</p>
+
+<p>Margin expansion can be durable, but it can also come from a favorable product mix, delayed spending, a reserve release, or a cost that returns next quarter. The question is not whether the margin moved; it is whether the reason supports the longer-term case.</p>
+
+<h2 id="cash">3. Reconcile Earnings With Cash and the Balance Sheet</h2>
+
+<p>Net income is not the whole result. Review operating cash flow, capital expenditure, working-capital movements, debt maturities, interest expense, and diluted share count. This catches a common gap between an attractive adjusted-profit headline and the cash owners can actually claim.</p>
+
+<p>There is no universal “good” ratio. Compare the company with its own history, its business model, and the demands of its industry.</p>
+
+<h2 id="guidance">4. Treat Guidance as the Next Test</h2>
+
+<p>Guidance tells you what management expects after the reported period. Record both the range and the assumptions behind it: demand, pricing, input costs, capacity, currency, capital spending, or a key product launch. A reported beat can matter less than lower forward guidance, and a reported miss can matter less than evidence that the next period is improving.</p>
+
+<p>When management does not provide formal guidance, note the operating metrics and commentary it does provide. Do not fill the gap with a confident prediction.</p>
+
+<h2 id="language">5. Compare Management Language and Risks</h2>
+
+<p>Read the risk factors, management discussion, and prepared remarks with the prior quarter beside them. New language about demand, pricing pressure, customer concentration, regulation, competition, inventories, or cash needs is often more useful than a dramatic adjective in a conference-call headline.</p>
+
+<p>Keep facts separate from interpretation. “Management reduced its revenue outlook” is a fact. “The company has permanently lost pricing power” is an interpretation that needs more evidence.</p>
+
+<h2 id="price-reaction">6. Separate the Stock Reaction From the Business Result</h2>
+
+<p>A stock can fall after good reported numbers or rise after weak ones because the market responds to expectations, guidance, valuation, positioning, and the outlook. Record the price reaction, but do not use it as proof of what the quarter means.</p>
+
+<p>Ask two different questions: “What changed in the business?” and “What may the market have expected that was different?” The first belongs in the research record; the second is a hypothesis to test.</p>
+
+<h2 id="watchlist-workflow">Turn the Report Into a Watchlist Decision</h2>
+
+<ol>
+  <li>Write three bullets: what improved, what weakened, and what remains uncertain.</li>
+  <li>Update the thesis and explicit invalidation condition.</li>
+  <li>Set the next event that will test the thesis: a guidance milestone, a filing, a product date, or the next report.</li>
+  <li>Only then decide whether the stock remains a holding, a watchlist candidate, or a name to remove.</li>
+</ol>
+
+<p>For a pre-report workflow, use the <a href="/blog/earnings-season-watchlist-playbook">earnings watchlist playbook</a>. For broader primary-source research, use our <a href="/blog/stock-research-checklist-evidence-first">evidence-first stock research checklist</a>.</p>
+
+<div class="cta-section">
+  <h3>See What Changed After Earnings</h3>
+  <p>Browse free Earnings Intel reports for a plain-English post-results read, then add the names you follow to Radar for ongoing context.</p>
+  <a href="/earnings-intel" class="cta-button">Browse Earnings Intel →</a>
+</div>
+`,
+
   "stock-research-checklist-evidence-first": `
 <p><strong>Reviewed July 16, 2026.</strong> This is the checklist we use when turning a ticker into a research brief. It is designed to produce a decision you can explain later—not a price prediction.</p>
 

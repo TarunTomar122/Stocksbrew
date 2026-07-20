@@ -6,13 +6,14 @@ export const BRAND_NAME = "stocksbrew";
 
 export const TAGLINE = "Know what to do with your stocks.";
 
-export const SITE_TITLE_DEFAULT = "stocksbrew · Stock guidance & alerts";
+export const SITE_TITLE_DEFAULT =
+  "Stock Watchlist Alerts & Buy, Hold, Sell Guidance | stocksbrew";
 
 export const SHORT_DESCRIPTION =
-  "Clear guidance for the stocks you follow, with alerts when something changes. US stocks.";
+  "Stock watchlist guidance and alerts for the US stocks you follow.";
 
 export const MEDIUM_DESCRIPTION =
-  "Clear buy, hold, and sell guidance for the stocks you follow, with email alerts when something changes. Free for 3 stocks.";
+  "Clear buy, hold, and sell guidance for the US stocks you follow, with email alerts for earnings, price zones, and thesis changes. Free for 3 stocks.";
 
 export const LONG_DESCRIPTION =
   "stocksbrew combines fundamentals, news, Reddit, earnings, and price action into a detailed add, hold, or trim call with buy and trim zones, drivers, and risks. Pro adds the Stocksbrew target price, unlimited Radar tracking, automatic earnings and zone alerts, and manual price alerts. Built for US markets today. Not investment advice. Not a broker.";
@@ -51,5 +52,5 @@ export const ABOUT_PILLARS = [
 
 export function stockMetaDescription(ticker: string): string {
   const upper = ticker.toUpperCase();
-  return `${upper} price, fundamentals, technicals, and a research-backed brief. Catalysts and analyst context. Add to Radar for personalized calls and alerts.`;
+  return `${upper} price, fundamentals, catalysts, and research-backed guidance in one place. Track it on your watchlist for earnings and price-zone alerts.`;
 }
