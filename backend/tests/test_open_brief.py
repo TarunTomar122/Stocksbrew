@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timezone
 
 from backend.emails.open_brief import build_open_brief_email
 from backend.open_email_intel import anomaly_tape_line
@@ -8,13 +9,22 @@ from backend.open_email_intel import anomaly_tape_line
 
 class OpenBriefTemplateTests(unittest.TestCase):
     def test_open_layout_includes_book_moves_movers_and_sectors(self) -> None:
+        now = datetime.now(timezone.utc).isoformat()
         anomalies_doc = {
+            "market": "US",
+            "generated_at": now,
+            "sector_price_as_of": now,
+            "sector_quoted_count": 3,
+            "sector_summary": [
+                {"sector": "Semiconductors", "avg_move_pct": 1.7, "count": 3},
+            ],
             "anomalies": [
                 {
                     "ticker": "NVDA",
                     "sector": "Semiconductors",
                     "price": 142.5,
                     "day_change_pct": 4.2,
+                    "price_as_of": now,
                     "move_explanation": {
                         "headline": "Micron earnings lift chip complex",
                         "why_it_matters": "Chip stocks are rallying after Micron posted strong earnings.",
@@ -26,6 +36,7 @@ class OpenBriefTemplateTests(unittest.TestCase):
                     "sector": "Semiconductors",
                     "price": 21.0,
                     "day_change_pct": -3.1,
+                    "price_as_of": now,
                     "headline": "INTC is a top down mover in Semiconductors.",
                 },
             ]
@@ -42,10 +53,22 @@ class OpenBriefTemplateTests(unittest.TestCase):
         self.assertIn("Biggest open movers", html)
         self.assertIn("Top gainers", html)
         self.assertIn("Top losers", html)
-        self.assertIn("Sectors after the open", html)
+        self.assertIn("Sector moves now", html)
+        self.assertIn("Fresh prices across 3 stocks", html)
+        self.assertIn("Coverage", html)
         self.assertIn("Chip stocks are rallying after Micron posted strong earnings.", html)
         self.assertNotIn("action_now", html.lower())
         self.assertNotIn("trim", html.lower())
+
+    def test_open_layout_keeps_sector_section_without_stale_rows(self) -> None:
+        subject, html = build_open_brief_email(
+            first_name="Arun",
+            anomalies_doc={"market": "US", "anomalies": []},
+        )
+        self.assertEqual(subject, "Big movers after the open")
+        self.assertIn("Sector moves now", html)
+        self.assertIn("Fresh sector prices are still updating", html)
+        self.assertNotIn("Avg move", html)
 
     def test_anomaly_tape_line_prefers_move_explanation(self) -> None:
         line = anomaly_tape_line(

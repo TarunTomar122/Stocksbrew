@@ -58,7 +58,7 @@ CRON_PREMARKET_INTEL="${CRON_PREMARKET_INTEL:-30 4,10 * * 1-5}" # 10:00 IST glob
 CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-0 10 * * 1-5}" # legacy/manual fallback; primary scheduler uses premarket_intel
 CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-15 10 * * 1-5}" # 15:45 IST, after the live pre-market refresh
 CRON_NEWSLETTER_EMAIL="${CRON_NEWSLETTER_EMAIL:-12 12 * * 1-5}" # 12:12 UTC = 8:12 ET; after close anomalies + premarket pipeline
-CRON_OPEN_EMAIL="${CRON_OPEN_EMAIL:-50 13 * * 1-5}" # 13:50 UTC = 7:20 PM IST; after open_anomalies
+CRON_OPEN_EMAIL="${CRON_OPEN_EMAIL:-5 14 * * 1-5}" # 14:05 UTC; leaves time for open_anomalies to publish fresh prices
 CRON_WEEKLY_EMAIL="${CRON_WEEKLY_EMAIL:-30 4 * * 6}" # 04:30 UTC = 10:00 AM IST Saturday
 CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14 * * 1-5}" # 14:00 UTC = 30m after open; refresh hero contrarian wall with fresh open prices
 CRON_CONTRARIAN_CLOSE="${CRON_CONTRARIAN_CLOSE:-30 20 * * 1-5}" # 20:30 UTC = 30m after close; refresh hero contrarian wall for post-close session

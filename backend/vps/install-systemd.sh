@@ -73,7 +73,9 @@ write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--limit 0 --max-workers
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
 write_pair premarket-email "Mon..Fri *-*-* 12:00:00" premarket_pipeline
 write_pair newsletter-email "Mon..Fri *-*-* 12:12:00" newsletter_pipeline "--newsletter-mode morning"
-write_pair open-email "Mon..Fri *-*-* 13:50:00" open_email
+# The anomaly snapshot is written near the end of the 13:38 lane and can take
+# 15+ minutes when a mover needs fresh intelligence. Keep the email after it.
+write_pair open-email "Mon..Fri *-*-* 14:05:00" open_email
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from backend.email import APP_URL, first_name_from_profile
 from backend.emails._shell import email_shell
@@ -9,7 +10,8 @@ from backend.emails.price_alert import _fmt_price
 from backend.open_email_intel import (
     OPEN_BOOK_MOVE_THRESHOLD,
     anomaly_tape_line,
-    sector_summary_from_anomalies,
+    fresh_anomaly_rows,
+    parse_iso_datetime,
 )
 
 DIGEST_WIDTH = 640
@@ -107,14 +109,27 @@ def _sector_rows(sector_summary: list[dict[str, Any]]) -> str:
         sector = str(item.get("sector") or "Other")
         avg = float(item.get("avg_move_pct") or 0)
         count = int(item.get("count") or 0)
+        coverage = f"{count} stock" if count == 1 else f"{count} stocks"
         rows.append(
             "<tr>"
             f"<td style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151'>{html.escape(sector)}</td>"
             f"<td align='right' style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:13px;font-weight:700;color:{_move_color(avg)}'>{_move_arrow(avg)} {abs(avg):.1f}%</td>"
-            f"<td align='right' style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:12px;color:#9ca3af'>{count} names</td>"
+            f"<td align='right' style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:12px;color:#9ca3af'>{coverage}</td>"
             "</tr>"
         )
     return "".join(rows)
+
+
+def _sector_as_of(value: Any, market: str) -> str:
+    parsed = parse_iso_datetime(value)
+    if parsed is None:
+        return ""
+    market_key = str(market or "US").upper()
+    tz_name = "Asia/Kolkata" if market_key == "IN" else "America/New_York"
+    suffix = "IST" if market_key == "IN" else "ET"
+    local = parsed.astimezone(ZoneInfo(tz_name))
+    time_label = local.strftime("%I:%M %p").lstrip("0")
+    return f"As of {time_label} {suffix}"
 
 
 def build_open_brief_email(
@@ -126,9 +141,10 @@ def build_open_brief_email(
 ) -> tuple[str, str]:
     anomalies_doc = anomalies_doc or {}
     rows = rows or []
+    all_anomalies = fresh_anomaly_rows(anomalies_doc)
     by_ticker = {
         str(row.get("ticker") or "").strip().upper(): row
-        for row in list(anomalies_doc.get("anomalies") or [])
+        for row in all_anomalies
         if str(row.get("ticker") or "").strip()
     }
 
@@ -144,7 +160,6 @@ def build_open_brief_email(
         book_hits.append((row, anomaly, move))
     book_hits.sort(key=lambda item: abs(item[2]), reverse=True)
 
-    all_anomalies = list(anomalies_doc.get("anomalies") or [])
     gainers = sorted(
         [row for row in all_anomalies if float(row.get("day_change_pct") or 0) >= 0],
         key=lambda row: float(row.get("day_change_pct") or 0),
@@ -154,7 +169,14 @@ def build_open_brief_email(
         [row for row in all_anomalies if float(row.get("day_change_pct") or 0) < 0],
         key=lambda row: float(row.get("day_change_pct") or 0),
     )[:5]
-    sector_summary = sector_summary_from_anomalies(all_anomalies)
+    sector_summary = [
+        item for item in list(anomalies_doc.get("sector_summary") or []) if isinstance(item, dict)
+    ]
+    sector_quoted_count = int(anomalies_doc.get("sector_quoted_count") or 0)
+    sector_as_of = _sector_as_of(
+        anomalies_doc.get("sector_price_as_of") or anomalies_doc.get("generated_at"),
+        str(anomalies_doc.get("market") or "US"),
+    )
 
     news_rows = _news_section_rows(book_hits)
 
@@ -194,17 +216,38 @@ def build_open_brief_email(
     if movers_block:
         sections.append(movers_block)
 
-    if sector_summary:
-        sections.append(
-            "<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid #f3f4f6'>"
-            "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
-            "Sectors after the open</div></td></tr>"
-            "<tr><td style='padding:0 20px 12px 20px'>"
-            "<table width='100%' cellpadding='0' cellspacing='0'>"
-            + _table_header([("Sector", "left"), ("Avg move", "right"), ("", "right")])
-            + _sector_rows(sector_summary)
-            + "</table></td></tr>"
+    sector_meta = " · ".join(
+        part
+        for part in (
+            f"Fresh prices across {sector_quoted_count} stocks" if sector_quoted_count else "",
+            sector_as_of,
         )
+        if part
+    )
+    sector_body = (
+        "<tr><td style='padding:0 20px 12px 20px'>"
+        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        + _table_header([("Sector", "left"), ("Avg move", "right"), ("Coverage", "right")])
+        + _sector_rows(sector_summary)
+        + "</table></td></tr>"
+        if sector_summary
+        else (
+            "<tr><td style='padding:2px 20px 16px 20px;font-size:13px;line-height:1.5;color:#6b7280'>"
+            "Fresh sector prices are still updating. Open Radar for the live view.</td></tr>"
+        )
+    )
+    sections.append(
+        "<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid #f3f4f6'>"
+        "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
+        "Sector moves now</div>"
+        + (
+            f"<div style='margin-top:4px;font-size:11px;color:#9ca3af'>{html.escape(sector_meta)}</div>"
+            if sector_meta
+            else ""
+        )
+        + "</td></tr>"
+        + sector_body
+    )
 
     body = f"""
       <tr><td style="padding:24px 20px 8px 20px">

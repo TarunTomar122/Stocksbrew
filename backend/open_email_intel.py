@@ -2,15 +2,88 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from backend.storage import TraceMoneyStore
 
 OPEN_BOOK_MOVE_THRESHOLD = 2.0
+OPEN_SNAPSHOT_MAX_AGE_MINUTES = 90
+OPEN_QUOTE_MAX_AGE_MINUTES = 45
+MARKET_TZ = {"US": "America/New_York", "IN": "Asia/Kolkata"}
 WEAK_MOVE_HEADLINE_PREFIXES = (
     "no clear company-specific",
     "no clear driver",
 )
+
+
+def parse_iso_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        parsed = datetime.fromisoformat(text)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def timestamp_is_fresh(
+    value: Any,
+    *,
+    now: datetime | None = None,
+    max_age_minutes: int,
+) -> bool:
+    parsed = parse_iso_datetime(value)
+    if parsed is None:
+        return False
+    reference = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    age_seconds = (reference - parsed).total_seconds()
+    return -300 <= age_seconds <= max(1, max_age_minutes) * 60
+
+
+def fresh_anomaly_rows(
+    anomalies_doc: dict[str, Any] | None,
+    *,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in list((anomalies_doc or {}).get("anomalies") or [])
+        if isinstance(row, dict)
+        and timestamp_is_fresh(
+            row.get("price_as_of"),
+            now=now,
+            max_age_minutes=OPEN_QUOTE_MAX_AGE_MINUTES,
+        )
+    ]
+
+
+def has_fresh_open_snapshot(
+    anomalies_doc: dict[str, Any] | None,
+    *,
+    market: str = "US",
+    now: datetime | None = None,
+) -> bool:
+    if not anomalies_doc:
+        return False
+    reference = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    market_key = str(market or "US").upper()
+    market_date = reference.astimezone(ZoneInfo(MARKET_TZ.get(market_key, MARKET_TZ["US"]))).date().isoformat()
+    if str(anomalies_doc.get("date") or "") != market_date:
+        return False
+    if not timestamp_is_fresh(
+        anomalies_doc.get("generated_at"),
+        now=reference,
+        max_age_minutes=OPEN_SNAPSHOT_MAX_AGE_MINUTES,
+    ):
+        return False
+    return bool(fresh_anomaly_rows(anomalies_doc, now=reference))
 
 
 def sector_summary_from_anomalies(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -35,6 +108,46 @@ def sector_summary_from_anomalies(rows: list[dict[str, Any]]) -> list[dict[str, 
         })
     summary.sort(key=lambda item: abs(float(item["avg_move_pct"])), reverse=True)
     return summary[:8]
+
+
+def fresh_sector_summary_from_prices(
+    instruments: list[dict[str, Any]],
+    prices: dict[str, dict[str, Any]],
+    *,
+    now: datetime | None = None,
+) -> tuple[list[dict[str, Any]], str | None, int]:
+    """Build real sector breadth from fresh quotes, not just anomaly picks."""
+    rows: list[dict[str, Any]] = []
+    captured: list[datetime] = []
+    for instrument in instruments:
+        instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+        if not instrument_id or "_MAC_" in instrument_id or "_IDX_" in instrument_id:
+            continue
+        sector = str(instrument.get("sector") or "").strip()
+        if not sector:
+            continue
+        price_doc = prices.get(instrument_id) or {}
+        price_as_of = price_doc.get("captured_at") or price_doc.get("updated_at")
+        if not timestamp_is_fresh(
+            price_as_of,
+            now=now,
+            max_age_minutes=OPEN_QUOTE_MAX_AGE_MINUTES,
+        ):
+            continue
+        quote = price_doc.get("quote") if isinstance(price_doc.get("quote"), dict) else {}
+        try:
+            move = float(quote.get("day_change_pct"))
+        except (TypeError, ValueError):
+            continue
+        parsed = parse_iso_datetime(price_as_of)
+        if parsed is not None:
+            captured.append(parsed)
+        rows.append({"sector": sector, "day_change_pct": move})
+
+    summary = sector_summary_from_anomalies(rows)
+    # The oldest included quote is the honest freshness bound for the table.
+    oldest_price_as_of = min(captured).isoformat() if captured else None
+    return summary, oldest_price_as_of, len(rows)
 
 
 def is_weak_move_explanation(row: dict[str, Any]) -> bool:

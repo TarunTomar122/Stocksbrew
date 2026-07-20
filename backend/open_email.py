@@ -7,7 +7,7 @@ from typing import Any
 from backend.email import send_email
 from backend.email_runtime import load_recent_send_index, log_email_send
 from backend.emails.open_brief import build_open_brief_for_user
-from backend.open_email_intel import load_daily_anomalies
+from backend.open_email_intel import has_fresh_open_snapshot, load_daily_anomalies
 from backend.premarket_email import macro_phase_line, user_digest_enabled, is_pro_subscriber
 from backend.storage import TraceMoneyStore
 
@@ -24,11 +24,12 @@ def dedupe_key_for_date(date_key: str) -> str:
     return f"open_brief_{date_key}"
 
 
-def has_sendable_open_snapshot(anomalies_doc: dict[str, Any] | None) -> bool:
-    if not anomalies_doc:
-        return False
-    anomalies = list(anomalies_doc.get("anomalies") or [])
-    return len(anomalies) > 0
+def has_sendable_open_snapshot(
+    anomalies_doc: dict[str, Any] | None,
+    *,
+    market: str = "US",
+) -> bool:
+    return has_fresh_open_snapshot(anomalies_doc, market=market)
 
 
 def process_open_briefs(
@@ -49,8 +50,8 @@ def process_open_briefs(
     anomalies_doc = load_daily_anomalies(store, market)
     phase_line = macro_phase_line(store, market)
 
-    if not skip_snapshot_gate and not has_sendable_open_snapshot(anomalies_doc):
-        logger.info("No sendable open anomaly snapshot for %s — skipping batch", market)
+    if not skip_snapshot_gate and not has_sendable_open_snapshot(anomalies_doc, market=market):
+        logger.info("No fresh open anomaly snapshot for %s — skipping batch", market)
         return {
             "checked": 0,
             "sent": 0,
