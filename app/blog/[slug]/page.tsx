@@ -44,6 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       authors: ["Tarun Tomar"],
     },
     twitter: {
+      card: "summary_large_image",
       title: `${post.title} · stocksbrew Blog`,
       description: post.description,
     },

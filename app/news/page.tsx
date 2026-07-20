@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/news",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Market News · stocksbrew",
     description: "Daily market headlines with tone filters - scan fast and open the stories that matter.",
   },

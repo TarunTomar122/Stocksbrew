@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/radar",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Stock watchlist alerts and calls · stocksbrew",
     description:
       "Clear buy, hold, and sell calls for the US stocks you follow, with earnings and price-zone alerts.",

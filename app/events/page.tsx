@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/events",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Earnings Reports · stocksbrew",
     description: "Fresh post-earnings analysis from recently reporting stocks.",
   },

@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/anomalies",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Today's big moves · stocksbrew",
     description: "Top gainers, top losers, and what's behind today's biggest stock moves.",
   },

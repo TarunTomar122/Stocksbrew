@@ -217,6 +217,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `https://www.stocksbrew.online/should-i-buy/${upper}`,
     },
     twitter: {
+      card: "summary_large_image",
       title: `Should I Buy ${upper}? | stocksbrew`,
       description,
     },

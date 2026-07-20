@@ -31,6 +31,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/screens",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Thematic Screens · stocksbrew",
     description:
       "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",

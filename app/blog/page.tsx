@@ -15,6 +15,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/blog",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Blog · Stock calls & investing · stocksbrew",
     description:
       "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",

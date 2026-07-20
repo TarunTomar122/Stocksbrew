@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/subscribe",
   },
   twitter: {
+    card: "summary_large_image",
     title: "stocksbrew Pro - Pricing & Plans",
     description: "Detailed calls and zones, the Stocksbrew target price, unlimited Radar, and stock alerts.",
   },

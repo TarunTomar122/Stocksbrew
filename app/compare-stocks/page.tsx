@@ -18,6 +18,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/compare-stocks",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Free Stock Comparison Tool · stocksbrew",
     description:
       "Compare up to 5 US stocks side by side. See price, scores, fundamentals, and returns in one table with the winner of each row highlighted.",

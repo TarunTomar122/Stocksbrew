@@ -42,6 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         url: `https://www.stocksbrew.online/screens/${id}`,
       },
       twitter: {
+        card: "summary_large_image",
         title: `${info.title} · stocksbrew`,
         description,
       },

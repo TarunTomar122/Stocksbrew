@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/learn",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Learn to Invest - Free Guides & Tutorials · stocksbrew",
     description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
   },

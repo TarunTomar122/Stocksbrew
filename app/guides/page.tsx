@@ -24,6 +24,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/guides",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Stock Research Guide · stocksbrew",
     description:
       "Free tools, comparisons, and tutorials for US stock research. Start with Radar, Should I Buy, or the Learn library.",

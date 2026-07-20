@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/heat",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Market Heat - Daily Ranked Stock Setups · stocksbrew",
     description:
       "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",

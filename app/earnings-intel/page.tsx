@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/earnings-intel",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Earnings Reports: What Changed & What to Do Next · stocksbrew",
     description:
       "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",

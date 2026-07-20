@@ -30,6 +30,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/pulse",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Market today — movers, Reddit buzz, sector heat · stocksbrew",
     description:
       "The market right now: today's biggest movers and why, what the crowd is debating on Reddit, and how the sectors are leaning.",

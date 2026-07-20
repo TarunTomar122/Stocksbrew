@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     url: "https://www.stocksbrew.online/should-i-buy",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Free Should I Buy Stock Checker · stocksbrew",
     description:
       "Enter any US ticker and get a data-driven buy/hold/avoid signal. Free tool tied to Radar alerts.",
