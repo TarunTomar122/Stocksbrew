@@ -27,27 +27,10 @@ export const metadata: Metadata = {
 
 export default function PremarketPage() {
   return (
-    <main className="flex-grow">
-      <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
-        <header className="flex flex-col gap-2">
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#111111] md:text-[40px]">
-            US market opening setup
-          </h1>
-          <p className="max-w-2xl text-[15px] leading-relaxed text-[#6b7280]">
-            A quick read on how Wall Street may open: global markets, overnight catalysts, social conversation, five recent sessions, and live pre-market breadth.
-          </p>
-        </header>
-
-        <Suspense fallback={<MarketFeedStreamSkeleton />}>
-          <div className="landing-stream-in">
-            <PremarketPageStream />
-          </div>
-        </Suspense>
-
-        <footer className="text-[11px] text-[#9ca3af]">
-          Pre-market quotes can be thin and volatile · not investment advice.
-        </footer>
-      </div>
+    <main className="min-w-0 flex-grow bg-background">
+      <Suspense fallback={<div className="mx-auto w-full max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7"><MarketFeedStreamSkeleton /></div>}>
+        <PremarketPageStream />
+      </Suspense>
     </main>
   );
 }
