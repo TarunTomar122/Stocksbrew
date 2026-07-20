@@ -53,6 +53,10 @@ function averageGroup(cues: OpeningCue[], group: string): number | null {
   return rows.reduce((total, row) => total + row.change_pct, 0) / rows.length;
 }
 
+function cueIsPositive(cue: OpeningCue): boolean {
+  return cue.ticker === "VIX" ? cue.change_pct <= 0 : cue.change_pct >= 0;
+}
+
 function fallbackReport(movers: PremarketMovers | null): OpeningReport {
   const gainers = movers?.gappers_up ?? [];
   const losers = movers?.gappers_down ?? [];
@@ -130,8 +134,29 @@ function CueTable({ cues }: { cues: OpeningCue[] }) {
     return <p className="px-5 py-8 text-[13px] text-on-surface-variant">Global pricing updates at the next scheduled run.</p>;
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] border-collapse text-[13px]">
+    <>
+      <div className="divide-y divide-outline-variant/45 sm:hidden">
+        {cues.map((cue) => {
+          const positive = cueIsPositive(cue);
+          return (
+            <div key={cue.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: positive ? "var(--signal-bullish)" : "var(--signal-bearish)" }} />
+                <div className="min-w-0">
+                  <p className="truncate text-[12.5px] font-semibold text-on-surface">{cue.label}</p>
+                  <p className="mt-0.5 font-mono text-[9.5px] text-on-surface-variant">{cue.ticker} · {cue.region}</p>
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-mono text-[12px] font-bold tabular-nums" style={{ color: positive ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>{signed(cue.change_pct)}</p>
+                <p className="mt-0.5 font-mono text-[9.5px] tabular-nums text-on-surface-variant">{fmtPrice(cue.price)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full min-w-[560px] border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-outline-variant/70 text-left font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
             <th className="px-5 py-3 font-normal">Market</th>
@@ -142,7 +167,7 @@ function CueTable({ cues }: { cues: OpeningCue[] }) {
         </thead>
         <tbody>
           {cues.map((cue) => {
-            const positive = cue.change_pct >= 0;
+            const positive = cueIsPositive(cue);
             return (
               <tr key={cue.id} className="border-b border-outline-variant/45 last:border-b-0 hover:bg-surface-container-low">
                 <td className="px-5 py-3">
@@ -163,8 +188,9 @@ function CueTable({ cues }: { cues: OpeningCue[] }) {
             );
           })}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+    </>
   );
 }
 
