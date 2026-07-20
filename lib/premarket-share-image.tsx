@@ -4,41 +4,63 @@ import { getPremarketOpeningReport, type OpeningReport } from "@/lib/premarket-o
 
 export const PREMARKET_SHARE_SIZE = { width: 1200, height: 630 } as const;
 
-function toneFor(report: OpeningReport | null): { accent: string; soft: string; label: string } {
-  if (!report) return { accent: "#64748b", soft: "#e2e8f0", label: "Building" };
-  if (report.score >= 56) return { accent: "#10b981", soft: "#d1fae5", label: "Constructive" };
-  if (report.score <= 44) return { accent: "#f43f5e", soft: "#ffe4e6", label: "Cautious" };
-  return { accent: "#f59e0b", soft: "#fef3c7", label: "Mixed" };
+type Tile = {
+  label: string;
+  value: number | null;
+  inverse?: boolean;
+};
+
+function toneFor(report: OpeningReport | null): { accent: string; label: string } {
+  if (!report) return { accent: "#64748b", label: "Warming up" };
+  if (report.score >= 56) return { accent: "#059669", label: "Constructive" };
+  if (report.score <= 44) return { accent: "#e11d48", label: "Cautious" };
+  return { accent: "#d97706", label: "Mixed" };
 }
 
-function signed(value: number, digits = 1): string {
+function signed(value: number, digits = 2): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
 }
 
-function cue(report: OpeningReport, group: string): number | null {
-  const rows = report.global_cues.filter((item) => item.group === group);
-  if (!rows.length) return null;
-  return rows.reduce((total, item) => total + item.change_pct, 0) / rows.length;
+function changeFor(report: OpeningReport | null, ticker: string): number | null {
+  const value = report?.global_cues.find((cue) => cue.ticker === ticker)?.change_pct;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function tileColors(value: number | null, inverse = false): { background: string; color: string; dot: string } {
+  if (value === null) return { background: "#f0f4f2", color: "#91a19a", dot: "#cbd5d1" };
+  const isUp = inverse ? value <= 0 : value >= 0;
+  if (isUp) return { background: "#d9f7e8", color: "#067647", dot: "#10b981" };
+  return { background: "#ffe3e6", color: "#c21e45", dot: "#fb7185" };
 }
 
 function freshLabel(value: string | undefined): string {
-  if (!value) return "Fresh this morning";
+  if (!value) return "UPDATING";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Fresh this morning";
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "America/New_York",
-  }) + " ET";
+  if (Number.isNaN(date.getTime())) return "UPDATING";
+  return date
+    .toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/New_York",
+    })
+    .toUpperCase() + " ET";
 }
 
 export async function renderPremarketShareImage() {
   const report = await getPremarketOpeningReport().catch(() => null);
   const tone = toneFor(report);
-  const futures = report ? cue(report, "futures") : null;
-  const asia = report ? cue(report, "asia") : null;
-  const topDrivers = report?.drivers.slice(0, 3) ?? [];
+  const score = report?.score ?? 50;
+  const tiles: Tile[] = [
+    { label: "S&P FUT", value: changeFor(report, "ES=F") },
+    { label: "NASDAQ", value: changeFor(report, "NQ=F") },
+    { label: "NIKKEI", value: changeFor(report, "NIKKEI") },
+    { label: "KOSPI", value: changeFor(report, "KOSPI") },
+    { label: "NIFTY", value: changeFor(report, "NIFTY") },
+    { label: "EUROPE", value: changeFor(report, "STOXX") },
+    { label: "VIX", value: changeFor(report, "VIX"), inverse: true },
+    { label: "PRE-MKT", value: report?.premarket.available ? report.premarket.average_gap_pct : null },
+  ];
 
   return new ImageResponse(
     (
@@ -48,107 +70,91 @@ export async function renderPremarketShareImage() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          padding: "42px 46px",
-          background: "linear-gradient(135deg, #071a17 0%, #0c2d27 54%, #0c201d 100%)",
-          color: "#f8fafc",
+          padding: "40px 46px 34px",
+          background: "#f8fbf9",
+          color: "#12241f",
           fontFamily: "Arial, sans-serif",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 15, height: 15, borderRadius: 999, display: "flex", background: "#10b981" }} />
-            <span style={{ fontSize: 25, fontWeight: 700, letterSpacing: "-0.04em" }}>stocksbrew</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 99, display: "flex", background: "#10b981" }} />
+            <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.055em" }}>stocksbrew</span>
           </div>
-          <span
-            style={{
-              display: "flex",
-              borderRadius: 999,
-              padding: "9px 14px",
-              color: tone.accent,
-              background: tone.soft,
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            US opening report
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, color: "#60756d", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em" }}>
+            <div style={{ width: 8, height: 8, borderRadius: 99, display: "flex", background: tone.accent }} />
+            {freshLabel(report?.generated_at)}
+          </div>
         </div>
 
-        <div style={{ display: "flex", flex: 1, gap: 40, alignItems: "center" }}>
-          <div style={{ width: 448, display: "flex", flexDirection: "column", gap: 18 }}>
-            <span style={{ color: "#9eb8b2", fontSize: 15, letterSpacing: "0.1em", fontWeight: 700, textTransform: "uppercase" }}>
-              Expected opening setup
-            </span>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
-              <span style={{ fontSize: 72, lineHeight: 0.9, fontWeight: 800, letterSpacing: "-0.07em" }}>
-                {report?.score ?? "—"}
-              </span>
-              <span style={{ paddingBottom: 8, color: "#9eb8b2", fontSize: 17, fontWeight: 600 }}> / 100</span>
+        <div style={{ display: "flex", flex: 1, gap: 42, alignItems: "center" }}>
+          <div style={{ width: 364, display: "flex", flexDirection: "column" }}>
+            <span style={{ color: "#61776e", fontSize: 14, fontWeight: 800, letterSpacing: "0.13em" }}>US OPENING MOOD</span>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 11, marginTop: 12 }}>
+              <span style={{ fontSize: 144, lineHeight: 0.8, letterSpacing: "-0.1em", fontWeight: 800 }}>{score}</span>
+              <span style={{ paddingBottom: 12, color: "#72857e", fontSize: 18, fontWeight: 700 }}>/100</span>
             </div>
-            <span style={{ color: tone.accent, fontSize: 32, fontWeight: 800, letterSpacing: "-0.04em" }}>
-              {report?.label ?? "Opening read warming up"}
-            </span>
-            <span style={{ maxWidth: 425, color: "#c3d5d0", fontSize: 17, lineHeight: 1.4 }}>
-              {report?.summary ?? "Global markets, social signals and live pre-market pricing will populate before the bell."}
-            </span>
+            <span style={{ marginTop: 24, color: tone.accent, fontSize: 33, fontWeight: 800, letterSpacing: "-0.055em" }}>{tone.label}</span>
+            <div style={{ display: "flex", gap: 6, marginTop: 24 }}>
+              {Array.from({ length: 10 }, (_, index) => {
+                const active = index < Math.ceil(score / 10);
+                const segmentColor = index < 4 ? "#fb7185" : index < 6 ? "#fbbf24" : "#34d399";
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      width: 29,
+                      height: 14,
+                      borderRadius: 5,
+                      display: "flex",
+                      background: active ? segmentColor : "#dfe9e4",
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <span style={{ marginTop: 13, color: "#71857d", fontSize: 13, fontWeight: 700, letterSpacing: "0.08em" }}>GLOBAL + FUTURES + BREADTH</span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flex: 1,
-              minHeight: 394,
-              flexDirection: "column",
-              gap: 16,
-              padding: "24px",
-              borderRadius: 24,
-              background: "#f8faf9",
-              color: "#10231f",
-            }}
-          >
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                { label: "US futures", value: futures },
-                { label: "Asia", value: asia },
-                {
-                  label: "Pre-market",
-                  value: report?.premarket.available ? report.premarket.average_gap_pct : null,
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{ display: "flex", flex: 1, flexDirection: "column", gap: 6, padding: "13px 14px", borderRadius: 14, background: "#edf4f1" }}
-                >
-                  <span style={{ fontSize: 12, color: "#637a73", fontWeight: 700 }}>{item.label}</span>
-                  <span style={{ color: item.value === null ? "#64748b" : item.value >= 0 ? "#047857" : "#e11d48", fontSize: 20, fontWeight: 800 }}>
-                    {item.value === null ? "Waiting" : signed(item.value)}
-                  </span>
-                </div>
-              ))}
+          <div style={{ display: "flex", flex: 1, flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 15 }}>
+              <span style={{ fontSize: 14, color: "#61776e", fontWeight: 800, letterSpacing: "0.13em" }}>MARKET HEATMAP</span>
+              <span style={{ fontSize: 12, color: "#91a19a", fontWeight: 700 }}>TODAY&apos;S CHANGE</span>
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 2 }}>
-              {(topDrivers.length ? topDrivers : [{ title: "Live inputs", detail: "The next scheduled opening read is collecting market inputs.", tone: "neutral" as const }]).map((driver, index) => (
-                <div key={`${driver.title}-${index}`} style={{ display: "flex", gap: 12, alignItems: "center", padding: "11px 0", borderTop: index ? "1px solid #dce8e3" : "0" }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 999, display: "flex", background: driver.tone === "negative" ? "#f43f5e" : driver.tone === "positive" ? "#10b981" : "#f59e0b" }} />
-                  <span style={{ width: 132, fontSize: 14, fontWeight: 800 }}>{driver.title}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: "#536761" }}>{driver.detail}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: "flex", marginTop: "auto", justifyContent: "space-between", color: "#71867f", fontSize: 12 }}>
-              <span>{freshLabel(report?.generated_at)}</span>
-              <span>stocksbrew.online/premarket</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              {tiles.map((tile) => {
+                const colors = tileColors(tile.value, tile.inverse);
+                return (
+                  <div
+                    key={tile.label}
+                    style={{
+                      width: 173,
+                      height: 125,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      padding: "17px 18px",
+                      borderRadius: 19,
+                      background: colors.background,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ color: "#556b63", fontSize: 12, fontWeight: 800, letterSpacing: "0.08em" }}>{tile.label}</span>
+                      <div style={{ width: 8, height: 8, borderRadius: 99, display: "flex", background: colors.dot }} />
+                    </div>
+                    <span style={{ color: colors.color, fontSize: tile.value === null ? 26 : 30, fontWeight: 800, letterSpacing: "-0.06em" }}>
+                      {tile.value === null ? "—" : signed(tile.value)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "#9eb8b2", fontSize: 13 }}>
-          <span>Global markets · news · monitored social conversation · pre-market movers</span>
-          <span>Not investment advice</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "#81938c", fontSize: 13, fontWeight: 700, letterSpacing: "0.055em" }}>
+          <span>stocksbrew.online/premarket</span>
+          <span>NOT INVESTMENT ADVICE</span>
         </div>
       </div>
     ),
