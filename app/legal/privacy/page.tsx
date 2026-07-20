@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       eyebrow="Legal"
       title="Privacy policy"
       subtitle="What we collect, why we collect it, and the controls you have over your data."
-      updated="May 2026"
+      updated="July 2026"
     >
       <section>
         <h2>What we collect</h2>
@@ -36,6 +36,11 @@ export default function PrivacyPage() {
           <li>
             <strong>Usage signals</strong> - anonymized pageviews, navigation
             paths, and feature interactions to help us improve the product.
+          </li>
+          <li>
+            <strong>Agent access</strong> - token identifiers, granted scopes,
+            client names, call counts, and last-used times. Token secrets are
+            stored as one-way hashes and are not shown again after creation.
           </li>
         </ul>
       </section>
@@ -73,7 +78,8 @@ export default function PrivacyPage() {
       <section>
         <h2>Your controls</h2>
         <p>
-          You can update your Radar any time in the app. To delete your account
+          You can update your Radar and revoke personal agent tokens any time in
+          your profile. To delete your account
           or request a copy of your data, email{" "}
           <a href="mailto:tomartarun2001@gmail.com">tomartarun2001@gmail.com</a>{" "}
           and we'll action the request within 30 days.

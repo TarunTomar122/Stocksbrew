@@ -12,6 +12,26 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "how-to-connect-ai-agent-stock-market-data-mcp",
+    title: "How to Connect an AI Agent to Stock Market Data with MCP",
+    seoTitle: "Connect an AI Agent to Stock Market Data with MCP",
+    description: "A practical guide to giving Claude Code, Cursor, Codex, or your own agent current, read-only stock intelligence through an MCP server or API.",
+    category: "guides",
+    tags: ["MCP", "AI-agents", "stock-data", "API", "stock-research"],
+    date: "2026-07-20",
+    readTime: "11 min read",
+  },
+  {
+    slug: "stock-research-prompts-for-ai-agents",
+    title: "7 Stock Research Prompts for Claude, Cursor, Codex, and AI Agents",
+    seoTitle: "7 Stock Research Prompts for AI Agents",
+    description: "Reusable prompts for single-stock reviews, comparisons, market context, earnings preparation, and private watchlist monitoring with current tool data.",
+    category: "guides",
+    tags: ["AI-agents", "prompts", "Claude", "Cursor", "Codex", "stock-research"],
+    date: "2026-07-20",
+    readTime: "10 min read",
+  },
+  {
     slug: "how-to-analyze-earnings-report",
     title: "How to Analyze an Earnings Report: What Changed vs. Last Quarter",
     seoTitle: "Analyze an Earnings Report",

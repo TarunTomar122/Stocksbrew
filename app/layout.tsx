@@ -49,6 +49,12 @@ const jsonLd = {
       description: MEDIUM_DESCRIPTION,
       applicationCategory: "FinanceApplication",
       operatingSystem: "All",
+      featureList: [
+        "Stock calls and target context",
+        "Radar tracking and alerts",
+        "Read-only MCP server for AI agents",
+        "Stock intelligence developer API",
+      ],
       offers: {
         "@type": "Offer",
         price: "0",
@@ -87,6 +93,9 @@ export const metadata: Metadata = {
     "stock screener",
     "investing",
     "US equities",
+    "stock market MCP server",
+    "AI stock research agent",
+    "stock intelligence API",
   ],
   authors: [{ name: "stocksbrew" }],
   creator: "stocksbrew",

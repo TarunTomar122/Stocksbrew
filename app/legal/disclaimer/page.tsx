@@ -19,7 +19,7 @@ export default function DisclaimerPage() {
       eyebrow="Legal"
       title="Investment disclaimer"
       subtitle="A plain-English statement of what stocksbrew is and isn't, so there's no ambiguity when money is on the line."
-      updated="May 2026"
+      updated="July 2026"
     >
       <section>
         <h2>Not investment advice</h2>
@@ -48,6 +48,17 @@ export default function DisclaimerPage() {
           using underlying news and price data. The output may be incomplete,
           out-of-date, or wrong. Always verify against primary sources before
           acting on anything you read here.
+        </p>
+      </section>
+
+      <section>
+        <h2>Use through agents and APIs</h2>
+        <p>
+          An external agent may combine Stocksbrew output with its own prompts,
+          memory, tools, or third-party data. We do not control or endorse the
+          resulting answer. Verify timestamps and primary sources, and do not
+          allow an agent to make or execute financial decisions without your
+          independent review.
         </p>
       </section>
 

@@ -48,6 +48,8 @@ export async function GET() {
     "/portfolio",
     "/position-size-calculator",
     "/compare-stocks",
+    "/developers",
+    "/agents",
     "/trump-logic",
   ] as const) {
     entries.push(url(path));

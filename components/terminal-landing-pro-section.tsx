@@ -10,7 +10,7 @@ export function TerminalLandingProSection() {
             From a stock idea to a monitored decision
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-on-surface-variant">
-            Start free with three names on Radar. Pro gives you the full call and target, then watches the stock for earnings, buy zones, and trim zones.
+            Start free with three names on Radar. Pro gives you the full call and target, watches the stock for earnings and price zones, and lets your AI agent use the same research.
           </p>
         </div>
 

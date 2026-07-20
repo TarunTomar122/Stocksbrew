@@ -19,7 +19,7 @@ export default function TermsPage() {
       eyebrow="Legal"
       title="Terms of service"
       subtitle="The rules of the road for using stocksbrew. By signing in or using the site, you agree to these terms."
-      updated="May 2026"
+      updated="July 2026"
     >
       <section>
         <h2>Who we are</h2>
@@ -77,12 +77,28 @@ export default function TermsPage() {
       </section>
 
       <section>
+        <h2>Agent and developer access</h2>
+        <p>
+          An active Pro subscription may include read-only access through our
+          MCP server and developer API. This access is for your personal agents,
+          scripts, and internal workflows. It does not include the right to
+          bulk-download, mirror, redistribute, sublicense, resell, or use
+          stocksbrew data or derived results to serve another product&apos;s users.
+          We may enforce call limits, revoke exposed credentials, and suspend
+          access that circumvents safeguards or creates unreasonable load.
+        </p>
+        <p>
+          Keep access tokens secret and revoke them if they are exposed. You are
+          responsible for activity performed with tokens issued to your account.
+        </p>
+      </section>
+
+      <section>
         <h2>Subscriptions</h2>
         <p>
-          Pro features may require a paid subscription. Pricing, billing cycles,
-          and refund eligibility are described on the pricing page. While
-          stocksbrew is in beta, the Radar tier is free of charge - we'll notify
-          you well before that changes.
+          Pro features require a paid subscription. Pricing, billing cycles,
+          trials, and refund eligibility are described on the pricing page.
+          Agent access ends when Pro access ends.
         </p>
       </section>
 

@@ -9,17 +9,17 @@ import { SubscriptionActivator } from "@/components/subscription-activator";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
-  description: "Unlock detailed calls and zones, the Stocksbrew target price, unlimited Radar, and automatic or manual stock alerts.",
+  description: "Get detailed calls and zones, Stocksbrew targets, unlimited Radar and alerts, plus read-only MCP and API access for your AI agent.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
     title: "stocksbrew Pro - Pricing & Plans",
-    description: "Detailed calls and zones, the Stocksbrew target price, unlimited Radar, and stock alerts.",
+    description: "Detailed calls, Stocksbrew targets, Radar alerts, and read-only AI agent access for $9 per month.",
     url: "https://www.stocksbrew.online/subscribe",
   },
   twitter: {
     card: "summary_large_image",
     title: "stocksbrew Pro - Pricing & Plans",
-    description: "Detailed calls and zones, the Stocksbrew target price, unlimited Radar, and stock alerts.",
+    description: "Detailed calls, Stocksbrew targets, Radar alerts, and read-only AI agent access for $9 per month.",
   },
 };
 

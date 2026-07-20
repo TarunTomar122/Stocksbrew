@@ -10,6 +10,10 @@ import { DeleteAccountButton } from "@/components/delete-account-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceToggle } from "@/components/preference-toggle";
 import { ProfileRadarHighlight } from "@/components/profile-radar-highlight";
+import { AgentAccessCard } from "@/components/agent-access-card";
+import { listPersonalAgentTokens } from "@/lib/agent-auth";
+import { getAgentUsage } from "@/lib/agent-quota";
+import { publicAppUrl } from "@/lib/agent-access-config";
 
 export const revalidate = 0;
 
@@ -63,6 +67,12 @@ export default async function ProfilePage() {
   const trackedCount = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks!.length : 0;
   const alertsOn = userDoc?.email_alerts_enabled ?? true;
   const digestOn = userDoc?.email_digest_enabled ?? true;
+  const [agentTokens, agentUsage] = subscribed
+    ? await Promise.all([
+        listPersonalAgentTokens(session.uid).catch(() => []),
+        getAgentUsage(session.uid).catch(() => ({ used: 0, remaining: 500, limit: 500 })),
+      ])
+    : [[], { used: 0, remaining: 500, limit: 500 }];
 
   return (
     <main className="flex-grow bg-background">
@@ -156,6 +166,17 @@ export default async function ProfilePage() {
               embedded
             />
           </ProfileCard>
+
+          <div id="agent-access" className="scroll-mt-24 lg:col-span-2">
+          <ProfileCard title="Agents & developer access">
+            <AgentAccessCard
+              isSubscribed={subscribed}
+              serverUrl={`${publicAppUrl()}/api/mcp`}
+              initialTokens={agentTokens}
+              initialUsage={agentUsage}
+            />
+          </ProfileCard>
+          </div>
 
           <ProfileCard title="Preferences" className="lg:col-span-2">
             <div className="flex flex-col gap-3">
