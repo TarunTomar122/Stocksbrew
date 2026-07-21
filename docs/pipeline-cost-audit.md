@@ -17,6 +17,7 @@ Firestore project `trace-money-72276`.
 
 | Scheduler job | Lane | Cadence UTC | Current role |
 | --- | --- | --- | --- |
+| `tikrr-premarket` | `premarket_pipeline` | `30 8 * * 1-5` | Single VPS pipeline for premarket news, movers, opening report, and subscriber email. |
 | `tikrr-preopen-news` | `tracked_news_prep` | `45 12 * * 1-5` | Pre-open tracked news prep. |
 | `tikrr-open-price` | `price_core_open` | `30 13 * * 1-5` | Open price refresh for runtime core plus extended overrides. |
 | `tikrr-open-briefs` | `tracked_open_briefs` | `35 13 * * 1-5` | Tracked stock open briefs. |

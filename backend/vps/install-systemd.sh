@@ -71,7 +71,9 @@ write_pair on-demand-news "Mon..Fri *-*-* 00,04,08,12,16,20:00:00" on_demand_new
 write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
 write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--limit 0 --max-workers 4"
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
-write_pair premarket-email "Mon..Fri *-*-* 12:00:00" premarket_pipeline
+# One pre-market pipeline for the opening report and subscriber email.
+# 08:30 UTC is 2:00 PM IST year-round.
+write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline
 write_pair newsletter-email "Mon..Fri *-*-* 12:12:00" newsletter_pipeline "--newsletter-mode morning"
 # The anomaly snapshot is written near the end of the 13:38 lane and can take
 # 15+ minutes when a mover needs fresh intelligence. Keep the email after it.
@@ -90,6 +92,8 @@ systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || 
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"
 systemctl disable --now tikrr-premarket-intel.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-premarket-intel.service" "${UNIT_DIR}/tikrr-premarket-intel.timer"
+systemctl disable --now tikrr-premarket-email.timer >/dev/null 2>&1 || true
+rm -f "${UNIT_DIR}/tikrr-premarket-email.service" "${UNIT_DIR}/tikrr-premarket-email.timer"
 
 systemctl daemon-reload
 if [[ "${ENABLE_TIMERS:-1}" == "1" ]]; then

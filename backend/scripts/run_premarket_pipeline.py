@@ -39,6 +39,12 @@ def main() -> None:
         _run_step("premarket_movers", [py, "-m", "backend.scripts.build_premarket_movers", "--market", market], dry_run=args.dry_run)
     if not args.skip_context:
         _run_step("premarket_context", [py, "-m", "backend.scripts.build_premarket_context", "--market", market], dry_run=args.dry_run)
+    if market == "US":
+        _run_step(
+            "premarket_opening_sentiment",
+            [py, "-m", "backend.scripts.build_premarket_sentiment", "--market", market, "--phase", "premarket"],
+            dry_run=args.dry_run,
+        )
     if not args.skip_email:
         email_cmd = [py, "-m", "backend.scripts.send_premarket_briefs", "--market", market]
         if args.limit > 0:

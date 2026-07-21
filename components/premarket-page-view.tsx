@@ -335,7 +335,7 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: premarketLive ? "var(--signal-bullish)" : "var(--signal-neutral)" }} />
               {premarketLive ? "Premarket live" : data.phase === "early" ? "Overnight read" : "Latest read"}
             </span>
-            <span className="font-mono text-[10px] text-on-surface-variant">10:00 · 15:30 IST</span>
+            <span className="font-mono text-[10px] text-on-surface-variant">Weekdays · 2:00 PM IST</span>
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-on-surface sm:text-[30px]">US market opening</h1>
           <p className="mt-1 font-mono text-[11px] text-on-surface-variant">Futures · global markets · pre-market breadth</p>
