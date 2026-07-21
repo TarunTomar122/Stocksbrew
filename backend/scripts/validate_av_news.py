@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from backend.env import load_backend_env
 
@@ -81,8 +81,14 @@ def main() -> None:
         print("\n[DRY RUN] No API call made.")
         return
 
-    print("\nFetching from Alpha Vantage... (1 call, random key from pool)")
-    feed = fetch_av_news_batch(tickers, api_key=api_key or None, limit=50)
+    print("\nFetching market-wide news from Alpha Vantage... (1 call, filtered locally)")
+    time_from = (datetime.now(timezone.utc) - timedelta(hours=72)).strftime("%Y%m%dT%H%M")
+    feed = fetch_av_news_batch(
+        [],
+        api_key=api_key or None,
+        limit=1000,
+        time_from=time_from,
+    )
 
     if not feed:
         print("\nERROR: No articles returned.")
@@ -91,7 +97,7 @@ def main() -> None:
         print("  2. Per-minute rate limit hit (5 calls/min — wait 60s and retry)")
         print("  3. API key invalid")
         print("\n  Debug: run this to see the raw response:")
-        print(f"  curl 'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={','.join(tickers[:3])}&apikey={api_key[:8]}...&limit=1'")
+        print("  Check the NEWS_SENTIMENT market-wide response and account quota.")
         return
 
     print(f"\nRaw articles returned: {len(feed)}")

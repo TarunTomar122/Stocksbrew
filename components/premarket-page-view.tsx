@@ -8,6 +8,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import type { OpeningCue, OpeningReport, OpeningTone } from "@/lib/premarket-opening";
 import type { PremarketMovers, PremarketRow } from "@/lib/premarket";
+import { currentOpeningReport } from "@/lib/premarket-view";
 import { relativeTime } from "@/lib/freshness";
 
 type Tab = "up" | "down";
@@ -313,7 +314,7 @@ function PremarketMoversTables({ movers, trackedIds }: { movers: PremarketMovers
 }
 
 export function PremarketPageView({ movers, report, premarketLive, marketPhase, marketRisk, trackedIds = [] }: { movers: PremarketMovers | null; report: OpeningReport | null; premarketLive: boolean; marketPhase?: string | null; marketRisk?: string | null; trackedIds?: string[] }) {
-  const data = report ?? fallbackReport(movers);
+  const data = currentOpeningReport(report, movers) ?? fallbackReport(movers);
   const score = scoreStyle(data.score);
   const tracked = new Set(trackedIds);
   const futures = averageGroup(data.global_cues, "futures");

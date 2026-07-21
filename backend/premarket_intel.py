@@ -12,6 +12,8 @@ from backend.storage import TraceMoneyStore
 PREMARKET_GAP_THRESHOLD = 0.15
 MOVER_GAP_THRESHOLD = 2.0
 CONTEXT_MOVER_LIMIT = 15
+EMAIL_CONTEXT_PER_USER_LIMIT = 8
+EMAIL_CONTEXT_TICKER_LIMIT = 40
 
 
 def parse_iso(value: Any) -> datetime | None:
@@ -84,6 +86,50 @@ def mover_tickers_from_snapshot(
 
     ordered.sort(key=lambda item: item[1], reverse=True)
     return [ticker for ticker, _gap in ordered[:limit]]
+
+
+def subscriber_book_mover_tickers(
+    store: TraceMoneyStore,
+    premarket: dict[str, Any] | None,
+    *,
+    min_gap: float = PREMARKET_GAP_THRESHOLD,
+    per_user_limit: int = EMAIL_CONTEXT_PER_USER_LIMIT,
+    limit: int = EMAIL_CONTEXT_TICKER_LIMIT,
+) -> list[str]:
+    """Return live movers that can appear in subscriber email news rows.
+
+    The email renders at most ``per_user_limit`` book movers per subscriber.
+    Building context for that exact union keeps the time-critical pre-market
+    path bounded without dropping personalized catalyst lines.
+    """
+    by_ticker = (premarket or {}).get("by_ticker") or {}
+    if not isinstance(by_ticker, dict) or not by_ticker:
+        return []
+
+    ranked: dict[str, float] = {}
+    for user in store.list_subscribed_users():
+        if not bool(user.get("is_subscribed")) or user.get("email_digest_enabled") is False:
+            continue
+        uid = str(user.get("uid") or "").strip()
+        if not uid:
+            continue
+        rows = list((store.get_watchlist_view(uid) or {}).get("rows") or [])
+        user_hits: list[tuple[str, float]] = []
+        for row in rows:
+            ticker = str((row or {}).get("ticker") or "").strip().upper()
+            hit = by_ticker.get(ticker)
+            if not ticker or not isinstance(hit, dict):
+                continue
+            gap = abs(float(hit.get("pre_market_change_pct") or 0))
+            if gap < min_gap:
+                continue
+            user_hits.append((ticker, gap))
+        user_hits.sort(key=lambda item: item[1], reverse=True)
+        for ticker, gap in user_hits[: max(0, per_user_limit)]:
+            ranked[ticker] = max(ranked.get(ticker, 0.0), gap)
+
+    ordered = sorted(ranked.items(), key=lambda item: (-item[1], item[0]))
+    return [ticker for ticker, _gap in ordered[: max(0, limit)]]
 
 
 def _article_mentions_ticker(article: Article, ticker: str) -> bool:

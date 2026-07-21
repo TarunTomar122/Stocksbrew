@@ -20,18 +20,17 @@ class PremarketPipelineTests(unittest.TestCase):
         self.assertEqual(
             modules,
             [
-                "backend.scripts.build_premarket_news",
                 "backend.scripts.build_premarket_movers",
                 "backend.scripts.build_premarket_context",
                 "backend.scripts.build_premarket_sentiment",
                 "backend.scripts.send_premarket_briefs",
             ],
         )
-        sentiment = commands[3]
+        sentiment = commands[2]
         self.assertIn("--phase", sentiment)
         self.assertEqual(sentiment[sentiment.index("--phase") + 1], "premarket")
         self.assertIn("--dry-run", sentiment)
-        self.assertIn("--dry-run", commands[4])
+        self.assertIn("--dry-run", commands[3])
 
 
 if __name__ == "__main__":

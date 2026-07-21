@@ -1,4 +1,4 @@
-"""Run the pre-market pipeline in order."""
+"""Run the time-critical pre-market quote, context, report, and email path."""
 from __future__ import annotations
 
 import argparse
@@ -24,7 +24,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Full pre-market pipeline")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--limit", type=int, default=0, help="Max email recipients (0 = all)")
-    parser.add_argument("--skip-news", action="store_true")
+    # Kept as a no-op for compatibility with older manual invocations. Broad
+    # article enrichment is intentionally outside this time-critical path.
+    parser.add_argument("--skip-news", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--skip-movers", action="store_true")
     parser.add_argument("--skip-context", action="store_true")
     parser.add_argument("--skip-email", action="store_true")
@@ -33,8 +35,6 @@ def main() -> None:
 
     py = sys.executable
     market = args.market
-    if not args.skip_news:
-        _run_step("premarket_news", [py, "-m", "backend.scripts.build_premarket_news", "--market", market], dry_run=args.dry_run)
     if not args.skip_movers:
         _run_step("premarket_movers", [py, "-m", "backend.scripts.build_premarket_movers", "--market", market], dry_run=args.dry_run)
     if not args.skip_context:

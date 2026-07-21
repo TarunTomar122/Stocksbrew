@@ -23,7 +23,7 @@ from backend.storage import TraceMoneyStore
 logger = logging.getLogger(__name__)
 
 CACHE_VERSION = "premarket-tape-v1"
-BATCH_SIZE = 10
+BATCH_SIZE = 40
 MAX_TAPE_WORDS = 28
 
 TAPE_PROMPT = (
