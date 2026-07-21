@@ -35,9 +35,8 @@ def main() -> None:
     py = sys.executable
     market = args.market
 
-    # The 10:00 IST pass is intentionally a light global/overnight read. It
-    # avoids doing a second full tracked-news enrichment before US pre-market
-    # pricing exists. The 15:30 IST pass enters the normal mover/context chain.
+    # Manual calls outside the live US pre-market window only build the lighter
+    # global/overnight read. The scheduled VPS pipeline runs the full chain.
     if market == "US" and not _is_us_premarket_window():
         sentiment_cmd = [py, "-m", "backend.scripts.build_premarket_sentiment", "--market", market, "--phase", "early"]
         if args.dry_run:

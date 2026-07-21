@@ -54,9 +54,7 @@ CRON_STOCK_REQUESTS="${CRON_STOCK_REQUESTS:-*/30 * * * *}" # every 30m; API also
 STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
 CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow fundamentals/facts refresh
 CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth Social market digest
-CRON_PREMARKET_INTEL="${CRON_PREMARKET_INTEL:-30 4,10 * * 1-5}" # 10:00 IST global read + 15:30 IST pre-market movers/context refresh
-CRON_PREMARKET_MOVERS="${CRON_PREMARKET_MOVERS:-0 10 * * 1-5}" # legacy/manual fallback; primary scheduler uses premarket_intel
-CRON_PREMARKET_EMAIL="${CRON_PREMARKET_EMAIL:-15 10 * * 1-5}" # 15:45 IST, after the live pre-market refresh
+# Premarket scheduling lives only on the VPS as one `premarket_pipeline` timer.
 CRON_NEWSLETTER_EMAIL="${CRON_NEWSLETTER_EMAIL:-12 12 * * 1-5}" # 12:12 UTC = 8:12 ET; after close anomalies + premarket pipeline
 CRON_OPEN_EMAIL="${CRON_OPEN_EMAIL:-5 14 * * 1-5}" # 14:05 UTC; leaves time for open_anomalies to publish fresh prices
 CRON_WEEKLY_EMAIL="${CRON_WEEKLY_EMAIL:-30 4 * * 6}" # 04:30 UTC = 10:00 AM IST Saturday
@@ -159,9 +157,6 @@ printf '%s\n' "$(mk_body pre_earnings_intel ",\"--upcoming-days\",\"7\",\"--max-
 printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
 printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}/trump_logic.json"
-printf '%s\n' "$(mk_minimal_body premarket_intel "${extra_universe}")" > "${tmp_dir}/premarket_intel.json"
-printf '%s\n' "$(mk_minimal_body premarket_movers "${extra_universe}")" > "${tmp_dir}/premarket_movers.json"
-printf '%s\n' "$(mk_minimal_body premarket_email "${extra_universe}")" > "${tmp_dir}/premarket_email.json"
 printf '%s\n' "$(mk_minimal_body newsletter_pipeline "${extra_universe},\"--newsletter-mode\",\"morning\"")" > "${tmp_dir}/newsletter_pipeline.json"
 printf '%s\n' "$(mk_minimal_body open_email "${extra_universe}")" > "${tmp_dir}/open_email.json"
 printf '%s\n' "$(mk_minimal_body weekly_email "${extra_universe}")" > "${tmp_dir}/weekly_email.json"
@@ -194,8 +189,6 @@ upsert_job "tikrr-pre-earnings-intel" "${CRON_PRE_EARNINGS_INTEL}" "${tmp_dir}/p
 upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
 upsert_job "tikrr-stock-facts" "${CRON_STOCK_FACTS}" "${tmp_dir}/stock_facts.json"
 upsert_job "tikrr-trump-logic" "${CRON_TRUMP_LOGIC}" "${tmp_dir}/trump_logic.json"
-upsert_job "tikrr-premarket-intel" "${CRON_PREMARKET_INTEL}" "${tmp_dir}/premarket_intel.json"
-upsert_job "tikrr-premarket-email" "${CRON_PREMARKET_EMAIL}" "${tmp_dir}/premarket_email.json"
 upsert_job "tikrr-newsletter-pipeline" "${CRON_NEWSLETTER_EMAIL}" "${tmp_dir}/newsletter_pipeline.json"
 upsert_job "tikrr-open-email" "${CRON_OPEN_EMAIL}" "${tmp_dir}/open_email.json"
 upsert_job "tikrr-weekly-email" "${CRON_WEEKLY_EMAIL}" "${tmp_dir}/weekly_email.json"
