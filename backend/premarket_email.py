@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from backend.email import send_email
 from backend.email_runtime import load_recent_send_index, log_email_send
 from backend.emails.premarket_brief import build_premarket_brief_for_user
-from backend.premarket_intel import overnight_headlines_by_ticker
+from backend.premarket_intel import PREMARKET_GAP_THRESHOLD, overnight_headlines_by_ticker
 from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
@@ -98,18 +98,6 @@ def is_pro_subscriber(user: dict[str, Any]) -> bool:
     return bool(user.get("is_subscribed"))
 
 
-def _book_tickers(rows: list[dict[str, Any]]) -> list[str]:
-    out: list[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        ticker = str(row.get("ticker") or "").strip().upper()
-        if not ticker or ticker in seen:
-            continue
-        seen.add(ticker)
-        out.append(ticker)
-    return out
-
-
 def _company_by_ticker(rows: list[dict[str, Any]]) -> dict[str, str]:
     out: dict[str, str] = {}
     for row in rows:
@@ -130,6 +118,33 @@ def _gap_by_ticker(premarket: dict[str, Any] | None) -> dict[str, float]:
     return out
 
 
+def _missing_book_news_tickers(
+    rows: list[dict[str, Any]],
+    premarket: dict[str, Any] | None,
+    premarket_context: dict[str, Any] | None,
+    *,
+    limit: int = 8,
+) -> list[str]:
+    by_ticker = (premarket or {}).get("by_ticker") or {}
+    context_by_ticker = (premarket_context or {}).get("by_ticker") or {}
+    hits: list[tuple[float, str]] = []
+    for row in rows:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        hit = by_ticker.get(ticker) if isinstance(by_ticker, dict) else None
+        if not ticker or not isinstance(hit, dict):
+            continue
+        gap = abs(float(hit.get("pre_market_change_pct") or 0))
+        if gap < PREMARKET_GAP_THRESHOLD:
+            continue
+        hits.append((gap, ticker))
+    hits.sort(key=lambda item: item[0], reverse=True)
+    return [
+        ticker
+        for _gap, ticker in hits[: max(0, limit)]
+        if ticker not in context_by_ticker
+    ]
+
+
 def load_premarket_intel_for_book(
     store: TraceMoneyStore,
     *,
@@ -140,7 +155,7 @@ def load_premarket_intel_for_book(
     """Load mover context and overnight headlines for a user's watchlist."""
     market = market.upper()
     premarket_context = store.get_premarket_context(market)
-    tickers = _book_tickers(rows)
+    tickers = _missing_book_news_tickers(rows, premarket, premarket_context)
     universe_id = str(store.get_active_ai_universe(market) or "").strip()
     company_by_ticker = _company_by_ticker(rows)
     gap_by_ticker = _gap_by_ticker(premarket)

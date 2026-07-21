@@ -39,6 +39,20 @@ class PremarketTapeLlmTests(unittest.TestCase):
         self.assertEqual(by_ticker["AAPL"]["tape_line"], "Cached tape line.")
         llm_batch.assert_not_called()
 
+    def test_enrich_context_batches_a_full_mover_set_in_one_call(self) -> None:
+        by_ticker = {
+            f"T{idx}": {"headline": f"Headline {idx}", "why": f"Detail {idx}"}
+            for idx in range(35)
+        }
+        with patch("backend.premarket_tape_llm._llm_batch_lines") as llm_batch:
+            llm_batch.side_effect = lambda items: {
+                item["ticker"]: f"Tape line for {item['ticker']}." for item in items
+            }
+            enrich_context_with_tape_lines(None, market="US", by_ticker=by_ticker)
+
+        llm_batch.assert_called_once()
+        self.assertEqual(len(llm_batch.call_args.args[0]), 35)
+
 
 if __name__ == "__main__":
     unittest.main()

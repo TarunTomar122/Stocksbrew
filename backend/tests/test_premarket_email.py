@@ -65,6 +65,12 @@ class PremarketEmailIntelTests(unittest.TestCase):
                 store,
                 market="US",
                 rows=rows,
+                premarket={
+                    "by_ticker": {
+                        "AAPL": {"pre_market_change_pct": 1.5},
+                        "NVDA": {"pre_market_change_pct": 3.0},
+                    }
+                },
             )
 
         self.assertEqual(context["by_ticker"]["NVDA"]["headline"], "Nvidia gaps on earnings")
@@ -73,11 +79,36 @@ class PremarketEmailIntelTests(unittest.TestCase):
             store,
             market="US",
             universe_id="us_ai_launch",
-            tickers=["AAPL", "NVDA"],
+            tickers=["AAPL"],
             lookback_hours=14,
             company_by_ticker={"AAPL": "AAPL", "NVDA": "NVDA"},
-            gap_by_ticker={},
+            gap_by_ticker={"AAPL": 1.5, "NVDA": 3.0},
         )
+
+    def test_load_premarket_intel_avoids_overnight_reads_when_context_covers_email_rows(self) -> None:
+        store = MagicMock()
+        store.get_premarket_context.return_value = {
+            "by_ticker": {"NVDA": {"headline": "Nvidia gaps on earnings"}},
+        }
+        store.get_active_ai_universe.return_value = "us_ai_launch"
+
+        with patch("backend.premarket_email.overnight_headlines_by_ticker") as overnight, patch(
+            "backend.premarket_tape_llm.enrich_context_with_tape_lines"
+        ):
+            _context, headlines = load_premarket_intel_for_book(
+                store,
+                market="US",
+                rows=[{"ticker": "NVDA"}, {"ticker": "AAPL"}],
+                premarket={
+                    "by_ticker": {
+                        "NVDA": {"pre_market_change_pct": 3.0},
+                        "AAPL": {"pre_market_change_pct": 0.05},
+                    }
+                },
+            )
+
+        self.assertEqual(headlines, {})
+        overnight.assert_not_called()
 
     def test_load_premarket_intel_skips_overnight_without_universe(self) -> None:
         store = MagicMock()

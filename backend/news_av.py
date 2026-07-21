@@ -4,12 +4,13 @@ Converts AV articles to our Article dataclass so they slot into the existing
 pipeline alongside RSS-sourced articles.  Does NOT run LLM enrichment — AV
 provides sentiment scores pre-computed, which is the whole point.
 
-Usage (single batch, returns Article list):
+Usage (single market-wide request, filtered locally to the requested tickers):
     articles = fetch_av_news_for_tickers(["AAPL", "NVDA", "MSFT"])
 
-Batching is handled automatically at batch_size tickers per API call.
-Keys are picked randomly per batch call to spread quota across all keys.
-5 keys × 25 calls/day = 125 effective calls/day.
+Alpha Vantage treats comma-separated ``tickers`` as an AND filter: returned
+articles must mention every requested symbol. That makes provider-side ticker
+batching unsuitable for a mover list. We instead fetch the latest market-wide
+feed once and filter its entity tags locally.
 """
 from __future__ import annotations
 
@@ -17,8 +18,7 @@ import hashlib
 import logging
 import os
 import random
-import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -92,21 +92,27 @@ def fetch_av_news_batch(
     *,
     api_key: str | None = None,
     limit: int = 50,
+    time_from: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Make ONE Alpha Vantage NEWS_SENTIMENT call for a batch of tickers.
+    """Make one Alpha Vantage NEWS_SENTIMENT call.
 
+    When ``tickers`` is empty the request returns the market-wide feed. This is
+    the correct mode for fetching news for any of several symbols because a
+    comma-separated ticker filter requires articles to mention every symbol.
     Returns the raw feed list (articles). Empty list on error.
     api_key is optional — if omitted a random key from the pool is used.
     """
-    if not tickers:
-        return []
     key = _pick_key(api_key)
     params = {
         "function": "NEWS_SENTIMENT",
-        "tickers": ",".join(t.upper() for t in tickers),
         "apikey": key,
         "limit": str(min(limit, 1000)),
+        "sort": "LATEST",
     }
+    if tickers:
+        params["tickers"] = ",".join(t.upper() for t in tickers)
+    if time_from:
+        params["time_from"] = time_from
     try:
         resp = requests.get(AV_NEWS_URL, params=params, timeout=20)
         resp.raise_for_status()
@@ -244,44 +250,43 @@ def fetch_av_news_for_tickers(
     all_tickers: list[str],
     *,
     api_key: str | None = None,
-    batch_size: int = DEFAULT_BATCH_SIZE,
     min_relevance: float = 0.3,
     market: str = "US",
-    sleep_between_batches: float = 13.0,
+    lookback_hours: int = 72,
+    limit: int = 1000,
 ) -> list[Article]:
-    """Fetch AV news for all tickers, batched at batch_size per API call.
+    """Fetch one market-wide AV feed and filter locally to ``all_tickers``.
 
-    A random key from the pool is chosen per batch call — no explicit api_key needed.
-    Returns deduplicated Article list across all batches.
+    Provider-side ticker lists are deliberately not used because Alpha Vantage
+    applies them as an AND filter. This function consumes exactly one request,
+    regardless of ticker count, and returns deduplicated matching articles.
     """
     deduped_tickers = list(dict.fromkeys(t.upper() for t in all_tickers if t))
-    batches = [
-        deduped_tickers[i : i + batch_size]
-        for i in range(0, len(deduped_tickers), batch_size)
-    ]
-    logger.info(
-        "av_news_plan tickers=%d batches=%d",
-        len(deduped_tickers), len(batches),
-    )
+    if not deduped_tickers:
+        return []
 
+    time_from = (
+        datetime.now(timezone.utc) - timedelta(hours=max(1, lookback_hours))
+    ).strftime("%Y%m%dT%H%M")
+    logger.info("av_news_plan tickers=%d calls=1 mode=market_wide", len(deduped_tickers))
+    feed = fetch_av_news_batch(
+        [],
+        api_key=api_key,
+        limit=limit,
+        time_from=time_from,
+    )
+    converted = av_feed_to_articles(
+        feed,
+        target_tickers=set(deduped_tickers),
+        market=market,
+        min_relevance=min_relevance,
+    )
     seen_urls: set[str] = set()
     articles: list[Article] = []
-
-    for idx, batch in enumerate(batches):
-        if idx > 0 and sleep_between_batches > 0:
-            time.sleep(sleep_between_batches)
-        # Each batch picks a fresh random key so quota spreads across the pool.
-        feed = fetch_av_news_batch(batch, api_key=api_key)
-        batch_articles = av_feed_to_articles(
-            feed,
-            target_tickers=set(batch),
-            market=market,
-            min_relevance=min_relevance,
-        )
-        for article in batch_articles:
-            if article.url not in seen_urls:
-                seen_urls.add(article.url)
-                articles.append(article)
+    for article in converted:
+        if article.url not in seen_urls:
+            seen_urls.add(article.url)
+            articles.append(article)
 
     logger.info("av_news_total_articles articles=%d", len(articles))
     return articles
