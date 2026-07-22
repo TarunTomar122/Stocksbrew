@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from backend.premarket_sentiment import score_opening, summarize_social
+from backend.premarket_sentiment import context_matches_movers, score_opening, summarize_social
 from backend.scripts.run_premarket_intel import _is_us_premarket_window
 
 
@@ -59,3 +59,17 @@ class PremarketSentimentTests(unittest.TestCase):
     def test_two_pass_runner_only_runs_full_chain_during_us_premarket(self) -> None:
         self.assertFalse(_is_us_premarket_window(datetime(2026, 7, 20, 0, 30, tzinfo=ZoneInfo("America/New_York"))))
         self.assertTrue(_is_us_premarket_window(datetime(2026, 7, 20, 6, 0, tzinfo=ZoneInfo("America/New_York"))))
+
+    def test_context_must_come_from_the_exact_mover_snapshot(self) -> None:
+        movers = {
+            "date": "2026-07-22",
+            "generated_at": "2026-07-22T08:30:00+00:00",
+        }
+        matched = {
+            "source_movers_date": "2026-07-22",
+            "source_movers_generated_at": "2026-07-22T08:30:00+00:00",
+        }
+
+        self.assertTrue(context_matches_movers(matched, movers))
+        self.assertFalse(context_matches_movers({**matched, "source_movers_generated_at": "2026-07-21T08:30:00+00:00"}, movers))
+        self.assertFalse(context_matches_movers({}, movers))

@@ -11,6 +11,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build US market opening-sentiment report")
     parser.add_argument("--market", choices=["US"], default="US")
     parser.add_argument("--phase", choices=["early", "premarket"], default="premarket")
+    parser.add_argument("--require-web-revalidate", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -20,7 +21,12 @@ def main() -> None:
 
     from backend.storage import TraceMoneyStore
 
-    report = build_opening_report(TraceMoneyStore(), market=args.market, phase=args.phase)
+    report = build_opening_report(
+        TraceMoneyStore(),
+        market=args.market,
+        phase=args.phase,
+        require_web_revalidate=args.require_web_revalidate,
+    )
     print(json.dumps({
         "status": "success",
         "market": report["market"],

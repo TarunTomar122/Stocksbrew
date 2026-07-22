@@ -16,6 +16,18 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
+# Web materialization jobs use a file-backed secret so credentials never live
+# in the repository or systemd unit. The production Vercel project holds the
+# matching REVALIDATE_TOKEN.
+WEB_REVALIDATE_TOKEN_FILE="${WEB_REVALIDATE_TOKEN_FILE:-/etc/tikrr/web-revalidate-token}"
+if [[ -z "${WEB_REVALIDATE_TOKEN:-}" && -r "${WEB_REVALIDATE_TOKEN_FILE}" ]]; then
+  WEB_REVALIDATE_TOKEN="$(tr -d '\r\n' < "${WEB_REVALIDATE_TOKEN_FILE}")"
+  export WEB_REVALIDATE_TOKEN
+fi
+if [[ -n "${WEB_REVALIDATE_TOKEN:-}" ]]; then
+  export WEB_REVALIDATE_BASE_URL="${WEB_REVALIDATE_BASE_URL:-https://www.stocksbrew.online}"
+fi
+
 if [[ -z "${FIREBASE_SERVICE_ACCOUNT_PATH:-}" && -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
   export FIREBASE_SERVICE_ACCOUNT_PATH="${GOOGLE_APPLICATION_CREDENTIALS}"
 fi

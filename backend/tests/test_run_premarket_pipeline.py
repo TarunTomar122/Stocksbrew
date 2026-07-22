@@ -29,6 +29,7 @@ class PremarketPipelineTests(unittest.TestCase):
         sentiment = commands[2]
         self.assertIn("--phase", sentiment)
         self.assertEqual(sentiment[sentiment.index("--phase") + 1], "premarket")
+        self.assertIn("--require-web-revalidate", sentiment)
         self.assertIn("--dry-run", sentiment)
         self.assertIn("--dry-run", commands[3])
 

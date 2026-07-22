@@ -42,7 +42,16 @@ def main() -> None:
     if market == "US":
         _run_step(
             "premarket_opening_sentiment",
-            [py, "-m", "backend.scripts.build_premarket_sentiment", "--market", market, "--phase", "premarket"],
+            [
+                py,
+                "-m",
+                "backend.scripts.build_premarket_sentiment",
+                "--market",
+                market,
+                "--phase",
+                "premarket",
+                "--require-web-revalidate",
+            ],
             dry_run=args.dry_run,
         )
     if not args.skip_email:

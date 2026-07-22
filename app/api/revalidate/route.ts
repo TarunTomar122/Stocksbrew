@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const paths = parsePaths((body as { paths?: unknown }).paths);
+  const payload = body as { paths?: unknown; force?: unknown };
+  const paths = parsePaths(payload.paths);
+  const force = payload.force === true;
   const now = Date.now();
   const lastByPath = revalidateState.__tikrrRevalidateLast ?? new Map<string, number>();
   revalidateState.__tikrrRevalidateLast = lastByPath;
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
   const skipped: string[] = [];
   for (const path of paths) {
     const last = lastByPath.get(path) || 0;
-    if (now - last < DEDUPE_MS) {
+    if (!force && now - last < DEDUPE_MS) {
       skipped.push(path);
       continue;
     }

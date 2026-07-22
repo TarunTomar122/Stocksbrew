@@ -12,7 +12,7 @@ def _paths() -> list[str]:
     return paths or ["/"]
 
 
-def trigger_web_revalidate(paths: list[str] | None = None) -> bool:
+def trigger_web_revalidate(paths: list[str] | None = None, *, force: bool = False) -> bool:
     base = os.getenv("WEB_REVALIDATE_BASE_URL", "").strip().rstrip("/")
     token = os.getenv("WEB_REVALIDATE_TOKEN", "").strip()
     if not base or not token:
@@ -23,7 +23,7 @@ def trigger_web_revalidate(paths: list[str] | None = None) -> bool:
     resp = requests.post(
         url,
         headers={"x-revalidate-token": token},
-        json={"paths": resolved},
+        json={"paths": resolved, "force": force},
         timeout=20,
     )
     if resp.status_code >= 300:

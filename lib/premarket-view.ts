@@ -6,7 +6,7 @@ function timestamp(value?: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** Ignore a cached opening report when a newer live mover snapshot exists. */
+/** Use a report only when it was materialized from the exact mover snapshot shown. */
 export function currentOpeningReport(
   report: OpeningReport | null,
   movers: PremarketMovers | null,
@@ -14,5 +14,9 @@ export function currentOpeningReport(
   if (!report || !movers) return report;
   const moverTime = timestamp(movers.generated_at);
   if (!moverTime) return report;
+  const reportMoverTime = timestamp(
+    report.source_movers_generated_at || report.premarket?.generated_at,
+  );
+  if (!reportMoverTime || reportMoverTime !== moverTime) return null;
   return timestamp(report.generated_at) >= moverTime ? report : null;
 }

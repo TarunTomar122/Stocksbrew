@@ -47,6 +47,9 @@ export type OpeningNewsItem = {
 export type OpeningReport = {
   market: "US";
   generated_at: string;
+  source_movers_generated_at?: string;
+  source_context_generated_at?: string;
+  source_context_status?: "matched" | "missing_or_stale" | string;
   phase: "early" | "premarket";
   score: number;
   label: string;
@@ -102,6 +105,15 @@ function normalizeReport(raw: Record<string, unknown>): OpeningReport | null {
   return {
     market: "US",
     generated_at: String(raw.generated_at || ""),
+    source_movers_generated_at: raw.source_movers_generated_at
+      ? String(raw.source_movers_generated_at)
+      : undefined,
+    source_context_generated_at: raw.source_context_generated_at
+      ? String(raw.source_context_generated_at)
+      : undefined,
+    source_context_status: raw.source_context_status
+      ? String(raw.source_context_status)
+      : undefined,
     phase: raw.phase === "early" ? "early" : "premarket",
     score: numberOr(raw.score, 50),
     label: String(raw.label || "Mixed open setup"),

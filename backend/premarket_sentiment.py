@@ -278,6 +278,22 @@ def summarize_premarket(snapshot: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def context_matches_movers(
+    context: dict[str, Any] | None,
+    movers: dict[str, Any] | None,
+) -> bool:
+    """True only when catalyst context was built from this exact mover snapshot."""
+    if not context or not movers:
+        return False
+    mover_generated_at = str(movers.get("generated_at") or "").strip()
+    mover_date = str(movers.get("date") or "").strip()
+    return bool(
+        mover_generated_at
+        and str(context.get("source_movers_generated_at") or "").strip() == mover_generated_at
+        and str(context.get("source_movers_date") or "").strip() == mover_date
+    )
+
+
 def summarize_news(
     context: dict[str, Any] | None,
     premarket: dict[str, Any],
@@ -497,6 +513,7 @@ def build_opening_report(
     *,
     market: str = "US",
     phase: str = "premarket",
+    require_web_revalidate: bool = False,
 ) -> dict[str, Any]:
     # Keep pure scoring helpers importable in lightweight test environments
     # without yfinance installed; Cloud Run installs it from requirements.txt.
@@ -537,7 +554,8 @@ def build_opening_report(
     premarket = summarize_premarket(mover_snapshot)
     social_doc = store.db.collection("reddit_snapshots").document(f"{market}__latest").get()
     social = summarize_social(social_doc.to_dict() if social_doc.exists else None)
-    context = store.get_premarket_context(market)
+    raw_context = store.get_premarket_context(market)
+    context = raw_context if context_matches_movers(raw_context, mover_snapshot) else None
     news = summarize_news(context, premarket)
     scorecard = score_opening(global_cues, premarket, social, sessions)
 
@@ -572,6 +590,9 @@ def build_opening_report(
     report = {
         "market": market,
         "generated_at": _now_iso(),
+        "source_movers_generated_at": str((mover_snapshot or {}).get("generated_at") or ""),
+        "source_context_generated_at": str((context or {}).get("generated_at") or ""),
+        "source_context_status": "matched" if context is not None else "missing_or_stale",
         "phase": phase,
         "score": scorecard["score"],
         "label": scorecard["label"],
@@ -592,5 +613,7 @@ def build_opening_report(
 
     from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
 
-    trigger_web_revalidate(["/premarket", "/pulse"])
+    revalidated = trigger_web_revalidate(["/premarket", "/pulse"], force=True)
+    if require_web_revalidate and not revalidated:
+        raise RuntimeError("opening report was saved, but the web refresh failed")
     return report

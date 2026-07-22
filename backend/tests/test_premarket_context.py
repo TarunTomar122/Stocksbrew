@@ -94,6 +94,8 @@ class PremarketContextTests(unittest.TestCase):
         finnhub.return_value = [_article("MSFT")]
         store = MagicMock()
         store.get_premarket_movers.return_value = {
+            "date": "2026-07-22",
+            "generated_at": "2026-07-22T08:30:00+00:00",
             "by_ticker": {
                 "AAPL": {"pre_market_change_pct": 3.0},
                 "MSFT": {"pre_market_change_pct": 1.0},
@@ -106,6 +108,8 @@ class PremarketContextTests(unittest.TestCase):
         payload = build_context_for_movers(store, market="US")
 
         self.assertEqual(payload["candidate_tickers"], ["AAPL", "MSFT", "GAP"])
+        self.assertEqual(payload["source_movers_generated_at"], "2026-07-22T08:30:00+00:00")
+        self.assertEqual(payload["source_movers_date"], "2026-07-22")
         self.assertEqual(payload["ticker_count"], 2)
         self.assertNotIn("GAP", payload["by_ticker"])
         self.assertEqual(payload["build_stats"]["no_catalyst_tickers"], 1)

@@ -69,6 +69,8 @@ def build_context_for_movers(
         payload = {
             "market": market,
             "generated_at": _now_iso(),
+            "source_movers_generated_at": str(premarket.get("generated_at") or ""),
+            "source_movers_date": str(premarket.get("date") or ""),
             "ticker_count": 0,
             "by_ticker": {},
         }
@@ -145,6 +147,8 @@ def build_context_for_movers(
     payload = {
         "market": market,
         "generated_at": _now_iso(),
+        "source_movers_generated_at": str(premarket.get("generated_at") or ""),
+        "source_movers_date": str(premarket.get("date") or ""),
         "lookback_hours": lookback_hours,
         "ticker_count": len(by_ticker),
         "candidate_tickers": tickers,
