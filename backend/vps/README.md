@@ -66,6 +66,24 @@ PAUSE_DIRECTIVE_CHANGE_EMAILS=1
 
 Put the Firebase service account at `/etc/tikrr/firebase-service-account.json`, readable by `tikrr`.
 
+The pre-market materialization lane also requires a shared web revalidation
+secret. Keep it outside the repository at `/etc/tikrr/web-revalidate-token`
+(`0600`) and install the same value as the Vercel Production environment
+variable `REVALIDATE_TOKEN`. `run-dispatch.sh` loads the file as
+`WEB_REVALIDATE_TOKEN` and targets `https://www.stocksbrew.online` by default.
+The scheduled lane treats a failed final page refresh as a job failure and does
+not proceed to email delivery.
+
+Provision a new shared value without printing it:
+
+```bash
+umask 077
+openssl rand -out /etc/tikrr/web-revalidate-token -hex 32
+vercel env add REVALIDATE_TOKEN production --force < /etc/tikrr/web-revalidate-token
+```
+
+Redeploy Vercel after changing `REVALIDATE_TOKEN`.
+
 For this VPS user, use `ubuntu` instead of `tikrr`.
 
 Manual secret install:
