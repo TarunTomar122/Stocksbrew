@@ -21,13 +21,19 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=15)
     parser.add_argument("--per-stock-cap", type=int, default=3)
     parser.add_argument("--chunk-workers", type=int, default=4)
+    parser.add_argument(
+        "--price-session-phase",
+        choices=["pre_open", "open_check", "mid_check", "close_check", "post_close", "manual"],
+        default=None,
+        help="Require selected mover prices to be fresh for this session phase.",
+    )
     args = parser.parse_args()
 
     # `build_daily_anomalies` accepts `--universe`; the others below take only
     # `--market` + `--ai-universe` / `--price-universe`. Passing `--universe`
     # to them fails argparse and silently kills the heat/divergence/sentiment
     # refresh — see the open-anomalies job logs prior to this fix.
-    _run([
+    anomaly_cmd = [
         sys.executable,
         "-m",
         "backend.scripts.build_daily_anomalies",
@@ -45,7 +51,10 @@ def main() -> None:
         "--chunk-workers",
         str(args.chunk_workers),
         "--explain-hard-moves",
-    ])
+    ]
+    if args.price_session_phase:
+        anomaly_cmd.extend(["--require-price-session-phase", args.price_session_phase])
+    _run(anomaly_cmd)
     market_only = ["--market", args.market]
     universe_pair = ["--ai-universe", args.universe, "--price-universe", args.universe]
     _run([sys.executable, "-m", "backend.scripts.build_heat_list", *market_only, *universe_pair])

@@ -22,6 +22,11 @@ Current VPS:
 
 No job rewrite. The dispatcher still owns lane selection, sharding, Firestore run state, and materialization.
 
+The weekday post-close service starts `tikrr-close-anomalies.service` through
+systemd `OnSuccess=`. There is intentionally no independent close-anomalies
+timer: anomaly materialization must wait for both the runtime-core and dynamic
+override price cohorts to finish their post-close refresh.
+
 ## One-time VPS setup
 
 ```bash

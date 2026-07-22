@@ -27,7 +27,11 @@ def main() -> None:
 
     common = ["--market", args.market, "--universe", args.universe]
 
-    # Core daily freshness chain.
+    # Refresh every price-bearing cohort before building any downstream read
+    # model. The override cohort contains tracked, promoted, and recently viewed
+    # stocks outside the static runtime core. Materializing search, home,
+    # watchlist, or anomaly inputs before this cohort is refreshed publishes a
+    # mixture of closing and intraday prices.
     _run([
         sys.executable,
         "-m",
@@ -38,6 +42,41 @@ def main() -> None:
         "--max-workers",
         str(args.max_workers),
     ])
+
+    # Keep the override set bounded and active before its closing-price sync.
+    _run([
+        sys.executable,
+        "-m",
+        "backend.scripts.prune_price_core_overrides",
+        "--market",
+        args.market,
+        "--recent-days",
+        "21",
+        "--target-cap",
+        "500" if args.market == "US" else "250",
+        "--floor",
+        "200" if args.market == "US" else "80",
+    ])
+
+    store = TraceMoneyStore()
+    override_ids = store.get_price_core_overrides(args.market)
+    override_args: list[str] = []
+    if override_ids:
+        override_args = [*common, "--instrument-ids", ",".join(override_ids)]
+        _run([
+            sys.executable,
+            "-m",
+            "backend.scripts.sync_price_snapshots",
+            *override_args,
+            "--session-phase",
+            args.session_phase,
+            "--max-workers",
+            str(args.max_workers),
+            "--merge-market-snapshot",
+        ])
+
+    # Core daily freshness chain. Every consumer below now sees both the static
+    # core and the current override cohort at the same closing-price phase.
     _run([sys.executable, "-m", "backend.scripts.sync_sector_benchmarks", *common])
     _run([sys.executable, "-m", "backend.scripts.sync_stock_metrics", *common])
 
@@ -48,17 +87,6 @@ def main() -> None:
 
     _run([sys.executable, "-m", "backend.scripts.build_thematic_screens", *common])
     _run([sys.executable, "-m", "backend.scripts.build_user_alert_flags", *common])
-    _run([
-        sys.executable,
-        "-m",
-        "backend.scripts.materialize_views",
-        *common,
-        "--activate",
-        "--allow-missing-context",
-    ])
-    _run([sys.executable, "-m", "backend.scripts.materialize_search_index", "--market", args.market, "--active-only"])
-    _run([sys.executable, "-m", "backend.scripts.build_watchlist_views", "--no-llm"])
-    _run([sys.executable, "-m", "backend.scripts.build_snapshot", "--market", args.market])
 
     coverage_universe = get_coverage_universe_id(args.market)
     if coverage_universe and coverage_universe != args.universe:
@@ -93,51 +121,36 @@ def main() -> None:
             ])
             _run([sys.executable, "-m", "backend.scripts.build_stock_intel_pro", *coverage_args])
 
-    # Keep override set bounded and active before running extended-core thick refresh.
-    _run([
-        sys.executable,
-        "-m",
-        "backend.scripts.prune_price_core_overrides",
-        "--market",
-        args.market,
-        "--recent-days",
-        "21",
-        "--target-cap",
-        "500" if args.market == "US" else "250",
-        "--floor",
-        "200" if args.market == "US" else "80",
-    ])
-
     # Extended core refresh: keep dynamic overrides fully thick (price + fundamentals + score + technicals)
     # even when they are outside the static base universe file.
-    store = TraceMoneyStore()
-    override_ids = store.get_price_core_overrides(args.market)
-    if override_ids:
-        ids_csv = ",".join(override_ids)
-        extra = [*common, "--instrument-ids", ids_csv]
-        _run([
-            sys.executable,
-            "-m",
-            "backend.scripts.sync_price_snapshots",
-            *extra,
-            "--session-phase",
-            args.session_phase,
-            "--max-workers",
-            str(args.max_workers),
-            "--merge-market-snapshot",
-        ])
-        _run([sys.executable, "-m", "backend.scripts.sync_stock_metrics", *extra, "--max-workers", "1", "--pause", "0.4"])
-        _run([sys.executable, "-m", "backend.scripts.build_stock_intel_pro", *extra])
-        _run([sys.executable, "-m", "backend.scripts.build_stock_technicals", *extra, "--finviz-workers", "1"])
+    if override_args:
+        _run([sys.executable, "-m", "backend.scripts.sync_stock_metrics", *override_args, "--max-workers", "1", "--pause", "0.4"])
+        _run([sys.executable, "-m", "backend.scripts.build_stock_intel_pro", *override_args])
+        _run([sys.executable, "-m", "backend.scripts.build_stock_technicals", *override_args, "--finviz-workers", "1"])
         _run([
             sys.executable,
             "-m",
             "backend.scripts.materialize_views",
-            *extra,
+            *override_args,
             "--allow-missing-context",
             "--skip-sector-scrape",
             "--skip-dashboard",
         ])
+
+    # Shared read models are deliberately last. Search and per-user views span
+    # instruments outside the static core, so building them any earlier can
+    # freeze a stale intraday quote into the post-close product.
+    _run([
+        sys.executable,
+        "-m",
+        "backend.scripts.materialize_views",
+        *common,
+        "--activate",
+        "--allow-missing-context",
+    ])
+    _run([sys.executable, "-m", "backend.scripts.materialize_search_index", "--market", args.market, "--active-only"])
+    _run([sys.executable, "-m", "backend.scripts.build_watchlist_views", "--no-llm"])
+    _run([sys.executable, "-m", "backend.scripts.build_snapshot", "--market", args.market])
 
     if args.include_heavy:
         _run([

@@ -29,7 +29,7 @@ Firestore project `trace-money-72276`.
 | `tikrr-data-health-open` | `data_health` | staged: `20 14 * * 1-5` | Lightweight frontend source freshness snapshot after open derived feeds. |
 | `tikrr-intraday-price` | `price_core_intraday` | `*/30 13-19 * * 1-5` | Intraday price refresh for runtime core plus extended overrides. |
 | `tikrr-postclose` | `daily_postclose` | `10 20 * * 1-5` | Heavy post-close data/view rebuild. |
-| `tikrr-close-anomalies` | `open_anomalies` | live: `20 20 * * 1-5`; staged: `40 20 * * 1-5` | Close anomaly views. Staged later to avoid overlapping post-close. |
+| `tikrr-close-anomalies` | `open_anomalies` | chained from `tikrr-postclose.service` with `OnSuccess=` | Close anomaly views start only after every post-close price cohort and read model succeeds. |
 | `tikrr-close-reddit-buzz` | `reddit_buzz` | live: `25 20 * * 1-5`; staged: `45 20 * * 1-5` | Close Reddit signal refresh. Staged later to avoid overlapping post-close. |
 | `tikrr-earnings-intel` | `earnings_intel` | live: `50 20 * * 1-5`; staged: `0 21 * * 1-5` | Earnings intelligence after post-close. |
 | `tikrr-market-events-close` | `market_events` | live: `0 21 * * 1-5`; staged: `20 21 * * 1-5` | Close market events after earnings intel. |
@@ -110,11 +110,9 @@ The correct first target is overlap removal while preserving coverage:
   `market_events` is earnings-only today; close still rebuilds after
   `earnings_intel`, while the next open no-ops if that close-built feed is still
   fresh.
-- Stage close-only derivative lanes later so `close_anomalies`, close
-  `reddit_buzz`, `earnings_intel`, and close `market_events` do not overlap the
-  long `daily_postclose` chain. Live post-close runtime was about 21 minutes in
-  the audit sample, while the old close anomaly schedule started only 10
-  minutes after post-close.
+- Close anomalies are now chained from a successful `daily_postclose` service
+  instead of guessing how long the post-close chain will take. The other close
+  derivative lanes remain time-based and should be reviewed separately.
 
 Live state note: as of this audit, `tikrr-on-demand-news` is still enabled at
 `*/10 * * * 1-5` in Cloud Scheduler. Do not change it to hourly until the
@@ -132,8 +130,8 @@ body for this lane before the live cutover is applied.
    `backend/cloudrun/scripts/setup-scheduler.sh`.
 2. Deploy the `market_events` open freshness gate, then verify the next open run
    reports `skipped_fresh` when the close-built earnings feed is still fresh.
-3. Apply staged close-lane schedule offsets after deploy and verify close
-   anomaly/reddit/earnings/events runs start after `daily_postclose` completes.
+3. Verify the chained close-anomaly service and review whether the remaining
+   close reddit/earnings/events lanes also need dependency-based starts.
 4. Split post-close into strict daily writes versus slower weekly fundamentals,
    but only after confirming which frontend surfaces depend on same-day metrics.
 4. Add run summaries with selected instrument count, queue count, Firestore

@@ -357,6 +357,11 @@ def main() -> None:
     parser.add_argument("--shard-size", type=int, default=20)
     parser.add_argument("--max-parallel", type=int, default=5)
     parser.add_argument("--session-phase", default="manual")
+    parser.add_argument(
+        "--price-session-phase",
+        choices=["pre_open", "open_check", "mid_check", "close_check", "post_close", "manual"],
+        default=None,
+    )
     parser.add_argument("--max-workers", type=int, default=6)
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
@@ -638,6 +643,9 @@ def main() -> None:
                 str(args.chunk_workers),
                 "--no-llm",
             ]
+        elif args.lane == "open_anomalies":
+            if args.price_session_phase:
+                single_extra_args = ["--price-session-phase", args.price_session_phase]
         elif args.lane == "market_events":
             single_extra_args = ["--limit", str(max(1, args.limit))]
             if args.skip_if_fresh_hours > 0:

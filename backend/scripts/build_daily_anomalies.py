@@ -1047,6 +1047,47 @@ def _select_mover_ids(
     )
 
 
+def _assert_price_session_fresh(
+    prices: dict[str, Any],
+    instrument_ids: list[str],
+    *,
+    required_phase: str,
+    max_age_hours: float,
+    now: datetime | None = None,
+) -> None:
+    """Fail closed when a close feed would publish an older price phase.
+
+    A successful upstream job is not enough: quote providers can fail for an
+    individual symbol and leave yesterday's `post_close` document in place.
+    Validate both the requested phase and the document write time for every
+    mover that is about to be published.
+    """
+    current = now or datetime.now(timezone.utc)
+    stale: list[str] = []
+    for instrument_id in instrument_ids:
+        doc = prices.get(instrument_id) or {}
+        phase = str(doc.get("session_phase") or "").strip()
+        updated_raw = str(doc.get("updated_at") or "").strip()
+        age_hours: float | None = None
+        if updated_raw:
+            try:
+                parsed = datetime.fromisoformat(updated_raw.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                age_hours = (current - parsed.astimezone(timezone.utc)).total_seconds() / 3600.0
+            except ValueError:
+                age_hours = None
+        if phase != required_phase or age_hours is None or age_hours < -0.25 or age_hours > max_age_hours:
+            stale.append(
+                f"{instrument_id}(phase={phase or 'missing'},updated_at={updated_raw or 'missing'})"
+            )
+    if stale:
+        preview = ", ".join(stale[:12])
+        raise RuntimeError(
+            f"Refusing to publish {required_phase} anomalies from stale price inputs: {preview}"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build tm_daily_anomalies for a market")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -1059,6 +1100,18 @@ def main() -> None:
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--explain-hard-moves", action="store_true")
     parser.add_argument("--exclude-tracked", action="store_true")
+    parser.add_argument(
+        "--require-price-session-phase",
+        choices=["pre_open", "open_check", "mid_check", "close_check", "post_close", "manual"],
+        default=None,
+        help="Fail instead of publishing when selected mover quotes are from another session phase.",
+    )
+    parser.add_argument(
+        "--max-price-age-hours",
+        type=float,
+        default=8.0,
+        help="Maximum tm_latest_prices age when --require-price-session-phase is set.",
+    )
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -1085,6 +1138,13 @@ def main() -> None:
         threshold_pct=args.threshold_pct,
         limit_per_side=args.limit,
     )
+    if args.require_price_session_phase:
+        _assert_price_session_fresh(
+            prices,
+            selected_ids,
+            required_phase=args.require_price_session_phase,
+            max_age_hours=max(0.25, float(args.max_price_age_hours)),
+        )
 
     intelligence = store.get_stock_intelligence_docs_batch(args.market, universe_id, selected_ids)
     intel_pro_docs = store.get_stock_intel_pro_batch(args.market, universe_id, selected_ids) if selected_ids else {}
@@ -1115,6 +1175,17 @@ def main() -> None:
 
     if selected_ids:
         latest_prices = store.get_latest_prices(selected_ids)
+        if args.require_price_session_phase:
+            _assert_price_session_fresh(
+                latest_prices,
+                selected_ids,
+                required_phase=args.require_price_session_phase,
+                max_age_hours=max(0.25, float(args.max_price_age_hours)),
+            )
+        # Intelligence enrichment can take minutes. Always build the final
+        # output rows from a second quote read rather than the pre-enrichment
+        # snapshot held in memory.
+        prices.update(latest_prices)
         fallback_docs: dict[str, dict[str, Any]] = {}
         for instrument_id in selected_ids:
             existing = intelligence.get(instrument_id) or {}
@@ -1191,6 +1262,7 @@ def main() -> None:
             "enrich_missing": bool(args.enrich_missing),
             "include_tracked": not bool(args.exclude_tracked),
             "scan_count": len(instrument_ids),
+            "required_price_session_phase": args.require_price_session_phase,
         },
     )
     print({"market": args.market, "scanned": len(instrument_ids), "selected": len(selected_ids), "written": len(rows)})

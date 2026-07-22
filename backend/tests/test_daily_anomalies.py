@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from backend.scripts import build_daily_anomalies
@@ -42,6 +43,50 @@ class DailyAnomaliesTest(unittest.TestCase):
         )
 
         self.assertEqual(selected, ["US_A", "US_C"])
+
+    def test_price_session_guard_accepts_fresh_post_close_quotes(self) -> None:
+        build_daily_anomalies._assert_price_session_fresh(
+            {
+                "US_SNDK": {
+                    "session_phase": "post_close",
+                    "updated_at": "2026-07-21T20:43:43+00:00",
+                }
+            },
+            ["US_SNDK"],
+            required_phase="post_close",
+            max_age_hours=8,
+            now=datetime(2026, 7, 21, 21, 0, tzinfo=timezone.utc),
+        )
+
+    def test_price_session_guard_rejects_intraday_quote_at_close(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "US_SNDK.*mid_check"):
+            build_daily_anomalies._assert_price_session_fresh(
+                {
+                    "US_SNDK": {
+                        "session_phase": "mid_check",
+                        "updated_at": "2026-07-21T19:02:15+00:00",
+                    }
+                },
+                ["US_SNDK"],
+                required_phase="post_close",
+                max_age_hours=8,
+                now=datetime(2026, 7, 21, 21, 0, tzinfo=timezone.utc),
+            )
+
+    def test_price_session_guard_rejects_yesterdays_close_quote(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "US_SNDK"):
+            build_daily_anomalies._assert_price_session_fresh(
+                {
+                    "US_SNDK": {
+                        "session_phase": "post_close",
+                        "updated_at": "2026-07-20T20:43:43+00:00",
+                    }
+                },
+                ["US_SNDK"],
+                required_phase="post_close",
+                max_age_hours=8,
+                now=datetime(2026, 7, 21, 21, 0, tzinfo=timezone.utc),
+            )
 
     def test_internal_move_payload_filters_generic_earnings_and_keeps_context(self) -> None:
         payload = build_daily_anomalies._internal_move_payload(
