@@ -56,7 +56,7 @@ export default function EditorialPolicyPage() {
     "@type": "WebPage",
     name: "stocksbrew editorial and comparison policy",
     url: `${BASE}/editorial-policy`,
-    dateModified: "2026-07-16",
+    dateModified: "2026-07-22",
     isPartOf: { "@type": "WebSite", name: "stocksbrew", url: BASE },
   };
 
@@ -70,7 +70,7 @@ export default function EditorialPolicyPage() {
             Editorial & comparison policy
           </h1>
           <p className="text-[16px] leading-[1.65] text-[#374151]">
-            The standard behind stocksbrew&apos;s indexable articles and software comparisons. Last materially reviewed July 16, 2026.
+            The standard behind stocksbrew&apos;s indexable articles and software comparisons. Last materially reviewed July 22, 2026.
           </p>
         </header>
 

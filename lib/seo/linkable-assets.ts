@@ -11,6 +11,24 @@ const BASE = "https://www.stocksbrew.online";
 
 export const LINKABLE_ASSETS: LinkableAsset[] = [
   {
+    href: "/blog/best-stock-analysis-apps-2026",
+    title: "Best stock analysis apps in 2026",
+    description: "Source-reviewed workflow comparison with current pricing, limitations, and a same-ticker test.",
+    suggestedAnchor: "best stock analysis apps in 2026",
+    outreachBlurb:
+      "A workflow-first comparison of stock analysis apps, with current pricing, official sources, honest limits, and a test readers can repeat: " +
+      `${BASE}/blog/best-stock-analysis-apps-2026`,
+  },
+  {
+    href: "/blog/stock-analysis-app-checklist",
+    title: "Stock analysis app checklist",
+    description: "A 12-point scorecard for freshness, evidence, risks, monitoring, price, and safety.",
+    suggestedAnchor: "stock analysis app checklist",
+    outreachBlurb:
+      "This 12-point checklist is useful before a stock research app trial ends—especially the stale-data and missing-data tests: " +
+      `${BASE}/blog/stock-analysis-app-checklist`,
+  },
+  {
     href: "/should-i-buy",
     title: "Free Should I Buy checker",
     description: "AI scorecard for any US ticker — valuation, growth, quality, momentum.",

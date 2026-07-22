@@ -36,6 +36,7 @@ const COLUMNS: Column[] = [
     links: [
       { label: "Learn & guides", href: "/resources" },
       { label: "Blog", href: "/blog" },
+      { label: "Stock analysis apps", href: "/blog/best-stock-analysis-apps-2026" },
       { label: "Use cases", href: "/use-cases" },
       { label: "Compare stocksbrew", href: "/compare" },
       { label: "Developer API", href: "/developers" },

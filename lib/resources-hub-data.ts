@@ -30,6 +30,13 @@ export const RESOURCE_GROUPS: ResourceGroup[] = [
         description: "Product updates, workflows, and market reads from the desk.",
         icon: "article",
       },
+      {
+        href: "/blog/best-stock-analysis-apps-2026",
+        title: "Stock analysis app guide",
+        description: "Compare 2026 research apps by workflow, freshness, evidence, price, and limitations.",
+        icon: "fact_check",
+        badge: "New",
+      },
     ],
   },
   {

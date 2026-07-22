@@ -5,6 +5,8 @@ type Props = {
   datePublished: string;
   dateModified?: string;
   image?: string;
+  keywords?: string[];
+  faqs?: { question: string; answer: string }[];
 };
 
 const BASE = "https://www.stocksbrew.online";
@@ -16,6 +18,8 @@ export function ArticleSchema({
   datePublished,
   dateModified,
   image = `${BASE}/api/og`,
+  keywords = [],
+  faqs = [],
 }: Props) {
   const url = `${BASE}/blog/${slug}`;
 
@@ -37,9 +41,23 @@ export function ArticleSchema({
     },
     datePublished,
     dateModified: dateModified ?? datePublished,
+    isAccessibleForFree: true,
+    keywords,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     url,
   };
+
+  const faq = faqs.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: { "@type": "Answer", text: item.answer },
+        })),
+      }
+    : null;
 
   const breadcrumb = {
     "@context": "https://schema.org",
@@ -55,6 +73,7 @@ export function ArticleSchema({
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(article) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+      {faq ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faq) }} /> : null}
     </>
   );
 }

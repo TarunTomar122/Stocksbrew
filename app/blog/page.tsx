@@ -29,6 +29,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   guides: "bg-[#eff6ff] text-[#3b82f6]",
 };
 
+const STOCK_ANALYSIS_GUIDE_SLUGS = new Set([
+  "best-stock-analysis-apps-2026",
+  "us-stock-market-analysis-daily-workflow-2026",
+  "ai-stock-analysis-comparison",
+  "free-stock-market-analysis-tools",
+  "stock-analysis-app-checklist",
+]);
+
+const stockAnalysisGuides = indexableBlogPosts.filter((post) => STOCK_ANALYSIS_GUIDE_SLUGS.has(post.slug));
+
 export default function BlogPage() {
   return (
     <main className="flex-grow">
@@ -44,6 +54,25 @@ export default function BlogPage() {
             Notes on personalized stock calls, cutting through noise, and investing with clearer risk and opportunity framing. No jargon, no hype.
           </p>
         </header>
+
+        <section className="border-y border-[#d1fae5] bg-[#f0fdf4] px-1 py-6" aria-labelledby="stock-analysis-guides">
+          <div className="mb-4 flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#15803d]">2026 buyer guides</span>
+            <h2 id="stock-analysis-guides" className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">Stock analysis apps, evaluated by workflow</h2>
+            <p className="text-[13px] leading-relaxed text-[#4b5563]">Current pricing, visible methodology, primary sources, honest limits, and a test you can run yourself.</p>
+          </div>
+          <ol className="divide-y divide-[#d1fae5]">
+            {stockAnalysisGuides.map((post, index) => (
+              <li key={post.slug}>
+                <Link href={`/blog/${post.slug}`} className="group flex items-start gap-3 py-3">
+                  <span className="font-mono text-[11px] text-[#15803d]">0{index + 1}</span>
+                  <span className="text-[14px] font-semibold leading-snug text-[#111111] group-hover:text-[#15803d]">{post.title}</span>
+                  <span className="ml-auto shrink-0 text-[#15803d]" aria-hidden>→</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
 
         <Link
           href="/guides"

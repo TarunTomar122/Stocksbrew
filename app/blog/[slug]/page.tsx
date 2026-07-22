@@ -29,6 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: post.seoTitle ?? post.title,
     description: post.description,
+    keywords: post.tags,
     authors: [{ name: "Tarun Tomar", url: "/authors/tarun-tomar" }],
     alternates: { canonical: `/blog/${slug}` },
     robots: isIndexableBlogPost(slug)
@@ -65,6 +66,8 @@ export default async function BlogPostPage({ params }: Props) {
         description={post.description}
         datePublished={post.date}
         dateModified={post.updated}
+        keywords={post.tags}
+        faqs={post.faqs}
       />
       <article className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-12 md:py-16">
         <Link
@@ -131,6 +134,13 @@ export default async function BlogPostPage({ params }: Props) {
             prose-img:rounded-xl
             [&_.sample-brief]:bg-[#f8f9fa] [&_.sample-brief]:border [&_.sample-brief]:border-[#e5e7eb] [&_.sample-brief]:rounded-xl [&_.sample-brief]:p-5 [&_.sample-brief]:my-5
             [&_.sample-brief_h4]:text-[#6b38d4] [&_.sample-brief_h4]:font-semibold [&_.sample-brief_h4]:mb-3
+            [&_.article-summary]:rounded-2xl [&_.article-summary]:border [&_.article-summary]:border-[#bbf7d0] [&_.article-summary]:bg-[#f0fdf4] [&_.article-summary]:p-6 [&_.article-summary]:my-8
+            [&_.article-summary_h2]:mt-0 [&_.article-summary_h2]:border-0 [&_.article-summary_h2]:p-0 [&_.article-summary_h2]:text-[20px]
+            [&_.source-note]:rounded-xl [&_.source-note]:border [&_.source-note]:border-[#e5e7eb] [&_.source-note]:bg-[#fafaf7] [&_.source-note]:p-5 [&_.source-note]:my-6 [&_.source-note]:text-[14px]
+            [&_.table-scroll]:my-8 [&_.table-scroll]:overflow-x-auto [&_.table-scroll]:rounded-xl [&_.table-scroll]:border [&_.table-scroll]:border-[#e5e7eb]
+            [&_.table-scroll_table]:my-0 [&_.table-scroll_table]:min-w-[720px] [&_.table-scroll_table]:border-collapse
+            [&_.table-scroll_th]:bg-[#f8f9fa] [&_.table-scroll_th]:px-4 [&_.table-scroll_th]:py-3 [&_.table-scroll_th]:text-left [&_.table-scroll_th]:text-[12px] [&_.table-scroll_th]:uppercase [&_.table-scroll_th]:tracking-wide
+            [&_.table-scroll_td]:border-t [&_.table-scroll_td]:border-[#e5e7eb] [&_.table-scroll_td]:px-4 [&_.table-scroll_td]:py-3 [&_.table-scroll_td]:align-top [&_.table-scroll_td]:text-[14px]
             [&_.cta-section]:mt-12 [&_.cta-section]:p-6 [&_.cta-section]:bg-[#f8f9fa] [&_.cta-section]:border [&_.cta-section]:border-[#e5e7eb] [&_.cta-section]:rounded-2xl [&_.cta-section]:text-center
             [&_.cta-section_h3]:text-[20px] [&_.cta-section_h3]:font-semibold [&_.cta-section_h3]:text-[#111111] [&_.cta-section_h3]:mb-2 [&_.cta-section_h3]:mt-0
             [&_.cta-section_p]:text-[14px] [&_.cta-section_p]:text-[#6b7280] [&_.cta-section_p]:mb-5

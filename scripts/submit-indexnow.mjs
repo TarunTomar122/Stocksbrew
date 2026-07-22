@@ -11,6 +11,11 @@ const SITE_HOST = "www.stocksbrew.online";
 const SITE_ORIGIN = `https://${SITE_HOST}`;
 
 const PRIORITY_PATHS = [
+  "/blog/best-stock-analysis-apps-2026",
+  "/blog/us-stock-market-analysis-daily-workflow-2026",
+  "/blog/ai-stock-analysis-comparison",
+  "/blog/free-stock-market-analysis-tools",
+  "/blog/stock-analysis-app-checklist",
   "/radar",
   "/resources",
   "/compare",
