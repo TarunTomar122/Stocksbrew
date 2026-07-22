@@ -5,6 +5,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from backend.email import APP_URL, first_name_from_profile
+from backend.email_content import clean_optional_email_text
 from backend.emails._shell import email_shell
 from backend.emails.price_alert import _fmt_price
 from backend.open_email_intel import (
@@ -195,11 +196,12 @@ def build_open_brief_email(
     else:
         intro = f"{hi}here are the biggest movers in the first hour of trading."
 
+    phase_line = clean_optional_email_text(market_phase_line)
     phase_block = ""
-    if market_phase_line:
+    if phase_line:
         phase_block = (
             f"<div style='margin-top:10px;font-size:13px;color:#065f46;font-weight:600'>"
-            f"{html.escape(market_phase_line)}</div>"
+            f"{html.escape(phase_line)}</div>"
         )
 
     sections: list[str] = []
@@ -224,30 +226,26 @@ def build_open_brief_email(
         )
         if part
     )
-    sector_body = (
-        "<tr><td style='padding:0 20px 12px 20px'>"
-        "<table width='100%' cellpadding='0' cellspacing='0'>"
-        + _table_header([("Sector", "left"), ("Avg move", "right"), ("Coverage", "right")])
-        + _sector_rows(sector_summary)
-        + "</table></td></tr>"
-        if sector_summary
-        else (
-            "<tr><td style='padding:2px 20px 16px 20px;font-size:13px;line-height:1.5;color:#6b7280'>"
-            "Fresh sector prices are still updating. Open Radar for the live view.</td></tr>"
+    if sector_summary:
+        sector_body = (
+            "<tr><td style='padding:0 20px 12px 20px'>"
+            "<table width='100%' cellpadding='0' cellspacing='0'>"
+            + _table_header([("Sector", "left"), ("Avg move", "right"), ("Coverage", "right")])
+            + _sector_rows(sector_summary)
+            + "</table></td></tr>"
         )
-    )
-    sections.append(
-        "<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid #f3f4f6'>"
-        "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
-        "Sector moves now</div>"
-        + (
-            f"<div style='margin-top:4px;font-size:11px;color:#9ca3af'>{html.escape(sector_meta)}</div>"
-            if sector_meta
-            else ""
+        sections.append(
+            "<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid #f3f4f6'>"
+            "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
+            "Sector moves now</div>"
+            + (
+                f"<div style='margin-top:4px;font-size:11px;color:#9ca3af'>{html.escape(sector_meta)}</div>"
+                if sector_meta
+                else ""
+            )
+            + "</td></tr>"
+            + sector_body
         )
-        + "</td></tr>"
-        + sector_body
-    )
 
     body = f"""
       <tr><td style="padding:24px 20px 8px 20px">

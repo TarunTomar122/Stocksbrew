@@ -112,16 +112,9 @@ def build_context_for_movers(
         if enrichment:
             by_ticker[ticker] = enrichment
 
+    # Missing context is represented by absence.  Email renderers can then try
+    # another source or omit the item instead of shipping a no-data placeholder.
     no_catalyst_tickers = [ticker for ticker in tickers if ticker not in by_ticker]
-    for ticker in no_catalyst_tickers:
-        by_ticker[ticker] = {
-            "headline": "",
-            "why": "No clear overnight catalyst surfaced.",
-            "source": "",
-            "published_at": _now_iso(),
-            "url": "",
-            "tape_line": "No clear overnight catalyst surfaced.",
-        }
 
     company_by_ticker = {
         str(inst.get("ticker") or "").strip().upper(): str(inst.get("name") or inst.get("ticker") or "").strip()

@@ -60,14 +60,14 @@ class OpenBriefTemplateTests(unittest.TestCase):
         self.assertNotIn("action_now", html.lower())
         self.assertNotIn("trim", html.lower())
 
-    def test_open_layout_keeps_sector_section_without_stale_rows(self) -> None:
+    def test_open_layout_omits_sector_section_without_fresh_rows(self) -> None:
         subject, html = build_open_brief_email(
             first_name="Arun",
             anomalies_doc={"market": "US", "anomalies": []},
         )
         self.assertEqual(subject, "Big movers after the open")
-        self.assertIn("Sector moves now", html)
-        self.assertIn("Fresh sector prices are still updating", html)
+        self.assertNotIn("Sector moves now", html)
+        self.assertNotIn("Fresh sector prices are still updating", html)
         self.assertNotIn("Avg move", html)
 
     def test_anomaly_tape_line_prefers_move_explanation(self) -> None:

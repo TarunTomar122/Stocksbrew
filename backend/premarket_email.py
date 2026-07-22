@@ -6,6 +6,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from backend.email import send_email
+from backend.email_content import clean_optional_email_text
 from backend.email_runtime import load_recent_send_index, log_email_send
 from backend.emails.premarket_brief import build_premarket_brief_for_user
 from backend.premarket_intel import PREMARKET_GAP_THRESHOLD, overnight_headlines_by_ticker
@@ -138,10 +139,20 @@ def _missing_book_news_tickers(
             continue
         hits.append((gap, ticker))
     hits.sort(key=lambda item: item[0], reverse=True)
+
+    def has_sendable_context(ticker: str) -> bool:
+        row = context_by_ticker.get(ticker)
+        if not isinstance(row, dict):
+            return False
+        return any(
+            clean_optional_email_text(row.get(key))
+            for key in ("tape_line", "why", "headline")
+        )
+
     return [
         ticker
         for _gap, ticker in hits[: max(0, limit)]
-        if ticker not in context_by_ticker
+        if not has_sendable_context(ticker)
     ]
 
 

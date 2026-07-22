@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from backend.email_content import clean_optional_email_text
 from backend.instrument_universe import get_default_universe_id
 from backend.open_email_intel import anomaly_tape_line, load_daily_anomalies, sector_summary_from_anomalies
 from backend.premarket_email import macro_phase_line
@@ -90,23 +91,22 @@ def _fallback_brief(
     gainers: list[dict[str, Any]],
     losers: list[dict[str, Any]],
 ) -> dict[str, str]:
-    today_brief = str((market_context or {}).get("today_brief") or "").strip()
-    week_brief = str((market_context or {}).get("week_brief") or "").strip()
+    today_brief = clean_optional_email_text((market_context or {}).get("today_brief"))
+    week_brief = clean_optional_email_text((market_context or {}).get("week_brief"))
     top = gainers[0] if gainers else (losers[0] if losers else None)
     top_line = ""
     if top:
         ticker = str(top.get("ticker") or "").strip().upper()
         move = float(top.get("day_change_pct") or 0)
         story = anomaly_tape_line(top).strip()
-        top_line = f"{ticker} led the tape ({move:+.1f}%). {story}".strip()
+        top_line = f"{ticker} led the tape ({move:+.1f}%)."
+        if story:
+            top_line += f" {story}"
 
     overview_parts = [part for part in (today_brief, top_line) if part]
-    overview = "\n\n".join(overview_parts) or "Markets finished with a mixed session as leadership rotated across sectors."
-    global_forces = market_phase_line or week_brief or "Macro cross-currents are still setting the tone for risk appetite."
-    outlook = (
-        str((market_context or {}).get("what_to_watch") or "").strip()
-        or "Watch whether today's biggest movers get follow-through or fade in the next session."
-    )
+    overview = "\n\n".join(overview_parts)
+    global_forces = clean_optional_email_text(market_phase_line) or week_brief
+    outlook = clean_optional_email_text((market_context or {}).get("what_to_watch"))
     return {
         "overview": overview,
         "global_forces": global_forces,

@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 
+from backend.email_content import clean_optional_email_text
 from backend.llm_client import (
     json_response_format,
     llm_api_key,
@@ -24,7 +25,7 @@ from backend.weekly_intel import intel_tape_line, resolve_weekly_book_tape
 
 logger = logging.getLogger(__name__)
 
-CACHE_VERSION = "weekly-stories-v1"
+CACHE_VERSION = "weekly-stories-v2"
 MAX_STORIES = 5
 MIN_STORIES = 3
 
@@ -35,6 +36,7 @@ STORIES_PROMPT = (
     "Pick 3 to 5 names that tell the clearest, most informative story of the week.\n"
     "Rules:\n"
     "- Prefer names with concrete catalysts over vague momentum.\n"
+    "- Return fewer than 3 stories, or none, when fewer names have a concrete supported explanation.\n"
     "- Prefer variety (mix gainers and losers) when both have strong stories.\n"
     "- Give mild priority to on_book=true names when their catalyst is strong.\n"
     "- headline: max 8 words, specific, no clickbait.\n"
@@ -231,14 +233,13 @@ def _fallback_stories(candidates: list[dict[str, Any]], *, max_stories: int = MA
     out: list[dict[str, Any]] = []
     for item in candidates[:max_stories]:
         ticker = str(item.get("ticker") or "").upper()
-        detail = str(item.get("raw_detail") or item.get("raw_headline") or "").strip()
+        detail = clean_optional_email_text(item.get("raw_detail") or item.get("raw_headline"), max_chars=320)
         if not detail:
-            move = float(item.get("week_change_pct") or 0)
-            direction = "rallied" if move >= 0 else "sold off"
-            detail = f"{ticker} {direction} {abs(move):.1f}% on the week with no clear single catalyst in our feed."
+            continue
+        headline = clean_optional_email_text(item.get("raw_headline"), max_chars=90)
         out.append({
             "ticker": ticker,
-            "headline": _clip_headline(str(item.get("raw_headline") or f"{ticker} had a big week")),
+            "headline": _clip_headline(headline) or ticker,
             "story": _clip_story(detail),
             "week_change_pct": float(item.get("week_change_pct") or 0),
             "on_book": bool(item.get("on_book")),
@@ -264,10 +265,26 @@ def generate_weekly_stories(
     if store is not None and not force:
         hit = store.get_llm_enrichment(cache_key)
         if hit and isinstance(hit.get("stories"), list):
+            cached_stories: list[dict[str, Any]] = []
+            for row in hit.get("stories") or []:
+                if not isinstance(row, dict):
+                    continue
+                ticker = str(row.get("ticker") or "").strip().upper()
+                story = clean_optional_email_text(row.get("story"), max_chars=320)
+                if ticker and story:
+                    cached_stories.append({**row, "ticker": ticker, "story": story})
             return {
-                "week_lede": str(hit.get("week_lede") or ""),
-                "stories": hit.get("stories") or [],
+                "week_lede": clean_optional_email_text(hit.get("week_lede"), max_chars=180),
+                "stories": cached_stories[:MAX_STORIES],
             }
+
+    candidates = [
+        item
+        for item in candidates
+        if clean_optional_email_text(item.get("raw_detail") or item.get("raw_headline"))
+    ]
+    if not candidates:
+        return {"week_lede": "", "stories": []}
 
     parsed = _llm_weekly_stories(candidates)
     move_by_ticker = {
@@ -284,13 +301,13 @@ def generate_weekly_stories(
         if not isinstance(row, dict):
             continue
         ticker = str(row.get("ticker") or "").strip().upper()
-        headline = _clip_headline(str(row.get("headline") or ""))
-        story = _clip_story(str(row.get("story") or ""))
+        headline = _clip_headline(clean_optional_email_text(row.get("headline"), max_chars=90))
+        story = _clip_story(clean_optional_email_text(row.get("story"), max_chars=320))
         if not ticker or not story:
             continue
         stories.append({
             "ticker": ticker,
-            "headline": headline or f"{ticker} moved sharply",
+            "headline": headline or ticker,
             "story": story,
             "week_change_pct": move_by_ticker.get(ticker, 0.0),
             "on_book": on_book_by_ticker.get(ticker, False),
@@ -308,7 +325,7 @@ def generate_weekly_stories(
             if len(stories) >= MIN_STORIES:
                 break
 
-    week_lede = _clip_story(str(parsed.get("week_lede") or ""), max_len=180)
+    week_lede = _clip_story(clean_optional_email_text(parsed.get("week_lede")), max_len=180)
     result = {"week_lede": week_lede, "stories": stories[:MAX_STORIES]}
 
     if store is not None and stories:

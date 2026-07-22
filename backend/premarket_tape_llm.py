@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 
+from backend.email_content import clean_optional_email_text
 from backend.llm_client import (
     json_response_format,
     llm_api_key,
@@ -22,7 +23,7 @@ from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
 
-CACHE_VERSION = "premarket-tape-v1"
+CACHE_VERSION = "premarket-tape-v2"
 BATCH_SIZE = 40
 MAX_TAPE_WORDS = 28
 
@@ -34,7 +35,7 @@ TAPE_PROMPT = (
     "- Say what happened and why it may matter for the stock pre-market.\n"
     "- No clickbait, no SEO phrasing, no 'here's why', no emojis.\n"
     "- Do not mention the publisher/source name.\n"
-    "- If the input is vague or unrelated, say: 'No clear overnight catalyst surfaced.'\n"
+    "- If the input is vague, unrelated, or has no concrete event, return an empty tape_line for that ticker.\n"
     "- Use the gap direction only when it helps explain the move.\n"
 )
 
@@ -78,10 +79,10 @@ def _clip_tape_line(value: str) -> str:
 
 def _fallback_tape_line(raw_headline: str, raw_detail: str) -> str:
     for candidate in (raw_detail, raw_headline):
-        text = " ".join(str(candidate or "").split()).strip()
+        text = clean_optional_email_text(candidate)
         if text and len(text) > 24:
             return _clip_tape_line(text)
-    return _clip_tape_line(raw_headline or raw_detail or "No clear overnight catalyst surfaced.")
+    return clean_optional_email_text(raw_headline or raw_detail, max_chars=220)
 
 
 def _llm_batch_lines(items: list[dict[str, Any]]) -> dict[str, str]:
@@ -127,8 +128,8 @@ def _llm_batch_lines(items: list[dict[str, Any]]) -> dict[str, str]:
         if not isinstance(row, dict):
             continue
         ticker = str(row.get("ticker") or "").strip().upper()
-        line = _clip_tape_line(str(row.get("tape_line") or ""))
-        if ticker and line:
+        line = clean_optional_email_text(row.get("tape_line"), max_chars=220)
+        if ticker:
             out[ticker] = line
     return out
 
@@ -167,8 +168,10 @@ def enrich_context_with_tape_lines(
         if store is not None:
             hit = store.get_llm_enrichment(cache_key)
             if hit and hit.get("tape_line") and not force:
-                row["tape_line"] = str(hit["tape_line"])
-                continue
+                cached_line = clean_optional_email_text(hit["tape_line"], max_chars=220)
+                if cached_line:
+                    row["tape_line"] = cached_line
+                    continue
 
         pending.append({
             "ticker": sym,
@@ -184,7 +187,14 @@ def enrich_context_with_tape_lines(
         lines = _llm_batch_lines(batch)
         for item in batch:
             sym = item["ticker"]
-            line = lines.get(sym) or _fallback_tape_line(item["raw_headline"], item["raw_detail"])
+            line = (
+                lines[sym]
+                if sym in lines
+                else _fallback_tape_line(item["raw_headline"], item["raw_detail"])
+            )
+            if not line:
+                by_ticker[sym].pop("tape_line", None)
+                continue
             by_ticker[sym]["tape_line"] = line
             if store is not None:
                 store.save_llm_enrichment(
@@ -205,4 +215,6 @@ def enrich_context_with_tape_lines(
         raw_headline = str(row.get("headline") or "").strip()
         raw_detail = str(row.get("why") or "").strip()
         if raw_headline or raw_detail:
-            row["tape_line"] = _fallback_tape_line(raw_headline, raw_detail)
+            line = _fallback_tape_line(raw_headline, raw_detail)
+            if line:
+                row["tape_line"] = line

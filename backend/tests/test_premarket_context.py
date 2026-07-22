@@ -106,11 +106,9 @@ class PremarketContextTests(unittest.TestCase):
         payload = build_context_for_movers(store, market="US")
 
         self.assertEqual(payload["candidate_tickers"], ["AAPL", "MSFT", "GAP"])
-        self.assertEqual(payload["ticker_count"], 3)
-        self.assertEqual(
-            payload["by_ticker"]["GAP"]["tape_line"],
-            "No clear overnight catalyst surfaced.",
-        )
+        self.assertEqual(payload["ticker_count"], 2)
+        self.assertNotIn("GAP", payload["by_ticker"])
+        self.assertEqual(payload["build_stats"]["no_catalyst_tickers"], 1)
         av_news.assert_called_once_with(
             ["AAPL", "MSFT", "GAP"],
             market="US",

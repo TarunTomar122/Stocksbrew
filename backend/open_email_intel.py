@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from backend.email_content import clean_optional_email_text
 from backend.storage import TraceMoneyStore
 
 OPEN_BOOK_MOVE_THRESHOLD = 2.0
@@ -166,34 +167,32 @@ def is_weak_move_explanation(row: dict[str, Any]) -> bool:
 def anomaly_tape_line(row: dict[str, Any]) -> str:
     move = row.get("move_explanation")
     if isinstance(move, dict) and not is_weak_move_explanation(row):
-        why = str(move.get("why_it_matters") or "").strip()
-        headline = str(move.get("headline") or "").strip()
+        why = clean_optional_email_text(move.get("why_it_matters"), max_chars=220)
+        headline = clean_optional_email_text(move.get("headline"), max_chars=220)
         if why and why != headline:
             return why[:220]
         if headline:
             return headline[:220]
 
     for key in ("today_brief", "thesis"):
-        text = str(row.get(key) or "").strip()
+        text = clean_optional_email_text(row.get(key), max_chars=220)
         if text:
             return text[:220]
 
     visual = row.get("visual_summary")
     if isinstance(visual, dict):
-        text = str(visual.get("why_it_matters") or visual.get("what_changed") or "").strip()
-        if text:
-            return text[:220]
+        for key in ("why_it_matters", "what_changed"):
+            text = clean_optional_email_text(visual.get(key), max_chars=220)
+            if text:
+                return text
 
-    headline = str(row.get("headline") or "").strip()
+    headline = clean_optional_email_text(row.get("headline"), max_chars=220)
     if headline and not headline.lower().startswith("top "):
-        return headline[:220]
+        return headline
 
-    ticker = str(row.get("ticker") or "").strip().upper()
-    direction = "up" if float(row.get("day_change_pct") or 0) >= 0 else "down"
-    sector = str(row.get("sector") or "").strip()
-    if sector:
-        return f"{ticker} is a top {direction} mover in {sector}."
-    return f"{ticker} is moving sharply after the open."
+    # The price/move already appears in the table.  Without an evidence-backed
+    # explanation there is no additional narrative to send.
+    return ""
 
 
 def anomalies_by_ticker(anomalies_doc: dict[str, Any] | None) -> dict[str, dict[str, Any]]:

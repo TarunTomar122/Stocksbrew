@@ -4,6 +4,7 @@ import html
 from typing import Any
 
 from backend.email import APP_URL, first_name_from_profile
+from backend.email_content import clean_optional_email_text
 from backend.emails._assets import logo_img
 from backend.emails._shell import email_shell
 from backend.emails.price_alert import _fmt_price, quote_ticker
@@ -27,8 +28,11 @@ def _gap_arrow(gap: float) -> str:
 
 
 def _context_tape_line(ctx: dict[str, Any]) -> str:
-    text = str(ctx.get("tape_line") or ctx.get("why") or ctx.get("headline") or "").strip()
-    return html.escape(text[:220])
+    for key in ("tape_line", "why", "headline"):
+        text = clean_optional_email_text(ctx.get(key), max_chars=220)
+        if text:
+            return text
+    return ""
 
 
 def _table_header(cells: list[tuple[str, str]]) -> str:
@@ -96,14 +100,19 @@ def _news_section_rows(
         sym = ticker.upper()
         if sym in seen:
             continue
-        ctx = context_by_ticker.get(sym) or overnight_by_ticker.get(sym)
-        if not ctx or not (ctx.get("tape_line") or ctx.get("why") or ctx.get("headline")):
+        tape_line = ""
+        for ctx in (context_by_ticker.get(sym), overnight_by_ticker.get(sym)):
+            if isinstance(ctx, dict):
+                tape_line = _context_tape_line(ctx)
+            if tape_line:
+                break
+        if not tape_line:
             continue
         seen.add(sym)
         items.append(
             "<tr><td style='padding:8px 0;border-top:1px solid #f3f4f6'>"
             f"<span style='font-size:14px;font-weight:800;color:#111827'>{html.escape(sym)}</span>"
-            f"<span style='font-size:13px;color:#4b5563'> — {_context_tape_line(ctx)}</span>"
+            f"<span style='font-size:13px;color:#4b5563'> — {html.escape(tape_line)}</span>"
             "</td></tr>"
         )
         if len(items) >= 6:
@@ -187,11 +196,12 @@ def build_premarket_brief_email(
     else:
         intro = f"{hi}here are the biggest pre-market movers before the open."
 
+    phase_line = clean_optional_email_text(market_phase_line)
     phase_block = ""
-    if market_phase_line:
+    if phase_line:
         phase_block = (
             f"<div style='margin-top:10px;font-size:13px;color:#065f46;font-weight:600'>"
-            f"{html.escape(market_phase_line)}</div>"
+            f"{html.escape(phase_line)}</div>"
         )
 
     sections: list[str] = []

@@ -4,6 +4,7 @@ import html
 from typing import Any
 
 from backend.email import APP_URL, first_name_from_profile
+from backend.email_content import clean_optional_email_text
 from backend.emails._shell import email_shell
 from backend.emails.price_alert import _fmt_price
 from backend.weekly_intel import (
@@ -114,8 +115,8 @@ def _weekly_stories_section(stories: list[dict[str, Any]]) -> str:
     cards: list[str] = []
     for item in stories[:5]:
         ticker = str(item.get("ticker") or "").strip().upper()
-        headline = str(item.get("headline") or "").strip()
-        story = str(item.get("story") or "").strip()
+        headline = clean_optional_email_text(item.get("headline"), max_chars=90)
+        story = clean_optional_email_text(item.get("story"), max_chars=320)
         if not ticker or not story:
             continue
         move = float(item.get("week_change_pct") or 0)
@@ -217,12 +218,15 @@ def _earnings_rows(events: list[dict[str, Any]]) -> str:
     for event in events[:5]:
         ticker = str(event.get("ticker") or "").strip().upper()
         date = str(event.get("event_date") or "").strip()
+        if not ticker or not date:
+            continue
         when = str(event.get("time") or "").strip().lower()
-        when_label = {"bmo": "before open", "amc": "after close"}.get(when, when or "this week")
+        when_label = {"bmo": "before open", "amc": "after close"}.get(when, when)
+        timing = f" · {html.escape(when_label)}" if when_label else ""
         rows.append(
             "<tr><td style='padding:8px 0;border-top:1px solid #f3f4f6;font-size:13px;color:#374151'>"
             f"<span style='font-weight:800;color:#111827'>{html.escape(ticker)}</span>"
-            f" — {html.escape(date)} · {html.escape(when_label)}"
+            f" — {html.escape(date)}{timing}"
             "</td></tr>"
         )
     return "".join(rows)
@@ -267,8 +271,12 @@ def build_weekly_brief_email(
     indices = weekly.get("indices") or {}
     earnings = list(upcoming_earnings or [])
     stories_payload = weekly_stories or {}
-    stories = list(stories_payload.get("stories") or [])
-    week_lede = str(stories_payload.get("week_lede") or "").strip()
+    stories = [
+        item
+        for item in list(stories_payload.get("stories") or [])
+        if isinstance(item, dict) and clean_optional_email_text(item.get("story"))
+    ]
+    week_lede = clean_optional_email_text(stories_payload.get("week_lede"), max_chars=180)
 
     if stories:
         top = stories[0]
@@ -292,11 +300,12 @@ def build_weekly_brief_email(
     else:
         intro = f"{hi}here's how the week wrapped up."
 
+    phase_line = clean_optional_email_text(market_phase_line)
     phase_block = ""
-    if market_phase_line:
+    if phase_line:
         phase_block = (
             f"<div style='margin-top:10px;font-size:13px;color:#065f46;font-weight:600'>"
-            f"{html.escape(market_phase_line)}</div>"
+            f"{html.escape(phase_line)}</div>"
         )
 
     sections: list[str] = []

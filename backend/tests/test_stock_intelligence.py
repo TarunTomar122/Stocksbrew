@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from backend.models import Article
@@ -498,6 +499,8 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(result["sector"]["leadership_stocks"], ["CRWD", "MSFT"])
 
     def test_normalize_catalyst_cards_uses_upcoming_earnings_date(self) -> None:
+        event_date = (datetime.now(timezone.utc).date() + timedelta(days=5)).isoformat()
+        event_label = datetime.fromisoformat(event_date).strftime("%b %d")
         cards = [
             {
                 "event": "Earnings Apr 22 AMC",
@@ -509,11 +512,11 @@ class StockIntelligenceTest(unittest.TestCase):
         ]
         out = _normalize_catalyst_cards(
             cards,
-            earnings={"status": "upcoming", "event_date": "2026-07-20"},
+            earnings={"status": "upcoming", "event_date": event_date},
         )
         self.assertEqual(len(out), 1)
-        self.assertEqual(out[0]["window"], "2026-07-20")
-        self.assertEqual(out[0]["event"], "Earnings Jul 20")
+        self.assertEqual(out[0]["window"], event_date)
+        self.assertEqual(out[0]["event"], f"Earnings {event_label}")
 
     def test_normalize_catalyst_cards_strips_reported_earnings_date(self) -> None:
         cards = [

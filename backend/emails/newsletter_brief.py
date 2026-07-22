@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from backend.email import APP_URL, first_name_from_profile
+from backend.email_content import clean_optional_email_text
 from backend.emails._shell import email_shell
 from backend.emails.price_alert import _fmt_price
 
@@ -135,7 +136,7 @@ def _story_cards(movers: list[dict[str, Any]], *, limit: int = 4) -> str:
 
 
 def _section_block(title: str, body: str) -> str:
-    text = str(body or "").strip()
+    text = clean_optional_email_text(body)
     if not text:
         return ""
     paragraphs = [html.escape(part.strip()) for part in text.split("\n\n") if part.strip()]
@@ -171,7 +172,7 @@ def build_newsletter_brief_email(
     gainers = list(snapshot.get("gainers") or [])
     losers = list(snapshot.get("losers") or [])
     indices = list(snapshot.get("indices") or [])
-    phase_line = str(snapshot.get("phase_line") or "").strip()
+    phase_line = clean_optional_email_text(snapshot.get("phase_line"))
 
     lead_ticker = ""
     lead_move = 0.0
