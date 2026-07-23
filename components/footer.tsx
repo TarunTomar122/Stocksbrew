@@ -146,6 +146,13 @@ const BADGES = [
     width: 200,
     height: 37,
   },
+  {
+    href: "https://huzzler.so/products/egBl2GhqxW/stocksbrew?utm_source=huzzler_product_website&utm_medium=badge&utm_campaign=free_listing",
+    src: "https://huzzler.so/assets/images/embeddable-badges/featured.png",
+    alt: "Listed on Huzzler",
+    width: 159,
+    height: 55,
+  },
 ] as const;
 
 export function Footer() {
