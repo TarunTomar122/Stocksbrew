@@ -45,14 +45,18 @@ def main() -> None:
         str(args.threshold_pct),
         "--limit",
         str(args.limit),
-        "--enrich-missing",
         "--per-stock-cap",
         str(args.per_stock_cap),
         "--chunk-workers",
         str(args.chunk_workers),
-        "--explain-hard-moves",
         "--require-web-revalidate",
     ]
+    # Closing-price materialization must not wait on missing intelligence or
+    # external catalyst searches. Those are useful for the open-session feed,
+    # but they can take minutes per ticker and previously left the homepage on
+    # yesterday's mover snapshot even after canonical prices were current.
+    if args.price_session_phase != "post_close":
+        anomaly_cmd.extend(["--enrich-missing", "--explain-hard-moves"])
     if args.price_session_phase:
         anomaly_cmd.extend(["--require-price-session-phase", args.price_session_phase])
     _run(anomaly_cmd)
