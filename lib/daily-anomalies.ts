@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import type { LatestPrice } from "@/lib/types";
 
 export type AnomalyItem = {
   instrument_id: string;
@@ -69,6 +70,66 @@ type DailyAnomalyTickerDoc = {
   anomaly?: AnomalyItem;
 };
 
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Keep materialized research/explanations, but source volatile quote fields
+ * from the same canonical collection used by stock pages. This prevents a
+ * failed or slow anomaly rebuild from showing an old close on the homepage.
+ */
+export function mergeAnomaliesWithLatestPrices(
+  feed: DailyAnomaliesDoc,
+  latestPrices: ReadonlyMap<string, Pick<LatestPrice, "quote">>,
+): DailyAnomaliesDoc {
+  let changed = false;
+  const anomalies = feed.anomalies.map((anomaly) => {
+    const quote = latestPrices.get(anomaly.instrument_id)?.quote;
+    const price = finiteNumber(quote?.current);
+    if (!quote || price === null) return anomaly;
+
+    const previousClose = finiteNumber(quote.previous_close) ?? anomaly.previous_close;
+    const dayChangeAbs =
+      finiteNumber(quote.day_change_abs) ??
+      (previousClose !== null ? price - previousClose : anomaly.day_change_abs);
+    const dayChangePct =
+      finiteNumber(quote.day_change_pct) ??
+      (previousClose !== null && previousClose !== 0
+        ? ((price - previousClose) / previousClose) * 100
+        : anomaly.day_change_pct);
+    const volume = finiteNumber(quote.volume) ?? anomaly.volume;
+    const direction: AnomalyItem["direction"] = dayChangePct >= 0 ? "up" : "down";
+
+    if (
+      price === anomaly.price &&
+      previousClose === anomaly.previous_close &&
+      dayChangeAbs === anomaly.day_change_abs &&
+      dayChangePct === anomaly.day_change_pct &&
+      volume === anomaly.volume &&
+      direction === anomaly.direction
+    ) {
+      return anomaly;
+    }
+
+    changed = true;
+    return {
+      ...anomaly,
+      price,
+      previous_close: previousClose,
+      day_change_abs: dayChangeAbs,
+      day_change_pct: dayChangePct,
+      volume,
+      direction,
+      comparative_context: anomaly.comparative_context
+        ? { ...anomaly.comparative_context, day_change_pct: dayChangePct }
+        : anomaly.comparative_context,
+    };
+  });
+
+  return changed ? { ...feed, anomalies } : feed;
+}
+
 async function getDailyAnomaliesUncached(
   market: "US" | "IN" = "US",
 ): Promise<DailyAnomaliesDoc | null> {
@@ -77,7 +138,27 @@ async function getDailyAnomaliesUncached(
     .doc(`${market}__latest`)
     .get();
   if (!doc.exists) return null;
-  return doc.data() as DailyAnomaliesDoc;
+  const feed = doc.data() as DailyAnomaliesDoc;
+  const instrumentIds = Array.from(
+    new Set(feed.anomalies.map((row) => row.instrument_id).filter(Boolean)),
+  );
+  if (instrumentIds.length === 0) return feed;
+
+  const latestPrices = await adminFirestore
+    .getAll(
+      ...instrumentIds.map((instrumentId) =>
+        adminFirestore.collection("tm_latest_prices").doc(instrumentId),
+      ),
+    )
+    .then((docs) => {
+      const prices = new Map<string, LatestPrice>();
+      for (const priceDoc of docs) {
+        if (priceDoc.exists) prices.set(priceDoc.id, priceDoc.data() as LatestPrice);
+      }
+      return prices;
+    })
+    .catch(() => new Map<string, LatestPrice>());
+  return mergeAnomaliesWithLatestPrices(feed, latestPrices);
 }
 
 export const getDailyAnomalies = unstable_cache(
