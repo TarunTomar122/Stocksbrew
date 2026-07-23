@@ -1088,6 +1088,33 @@ def _assert_price_session_fresh(
         )
 
 
+def _fresh_price_partition(
+    prices: dict[str, Any],
+    instrument_ids: list[str],
+    *,
+    required_phase: str,
+    max_age_hours: float,
+    now: datetime | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Separate the current session snapshot from isolated provider misses."""
+    fresh: dict[str, Any] = {}
+    stale: list[str] = []
+    for instrument_id in instrument_ids:
+        try:
+            _assert_price_session_fresh(
+                prices,
+                [instrument_id],
+                required_phase=required_phase,
+                max_age_hours=max_age_hours,
+                now=now,
+            )
+        except RuntimeError:
+            stale.append(instrument_id)
+        else:
+            fresh[instrument_id] = prices[instrument_id]
+    return fresh, stale
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build tm_daily_anomalies for a market")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -1112,6 +1139,7 @@ def main() -> None:
         default=8.0,
         help="Maximum tm_latest_prices age when --require-price-session-phase is set.",
     )
+    parser.add_argument("--require-web-revalidate", action="store_true")
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -1132,19 +1160,26 @@ def main() -> None:
     }
     instrument_ids = list(by_id.keys())
     prices = store.get_latest_prices(instrument_ids)
+    stale_price_ids: list[str] = []
+    if args.require_price_session_phase:
+        prices, stale_price_ids = _fresh_price_partition(
+            prices,
+            instrument_ids,
+            required_phase=args.require_price_session_phase,
+            max_age_hours=max(0.25, float(args.max_price_age_hours)),
+        )
+        minimum_fresh = max(1, int(len(instrument_ids) * 0.8))
+        if len(prices) < minimum_fresh:
+            raise RuntimeError(
+                f"Refusing to replace anomaly feed: only {len(prices)}/{len(instrument_ids)} "
+                f"price inputs match {args.require_price_session_phase}"
+            )
     selected_ids = _select_mover_ids(
         prices=prices,
         instrument_ids=instrument_ids,
         threshold_pct=args.threshold_pct,
         limit_per_side=args.limit,
     )
-    if args.require_price_session_phase:
-        _assert_price_session_fresh(
-            prices,
-            selected_ids,
-            required_phase=args.require_price_session_phase,
-            max_age_hours=max(0.25, float(args.max_price_age_hours)),
-        )
 
     intelligence = store.get_stock_intelligence_docs_batch(args.market, universe_id, selected_ids)
     intel_pro_docs = store.get_stock_intel_pro_batch(args.market, universe_id, selected_ids) if selected_ids else {}
@@ -1263,8 +1298,15 @@ def main() -> None:
             "include_tracked": not bool(args.exclude_tracked),
             "scan_count": len(instrument_ids),
             "required_price_session_phase": args.require_price_session_phase,
+            "stale_price_count": len(stale_price_ids),
+            "stale_price_ids": stale_price_ids[:50],
         },
     )
+    from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
+
+    revalidated = trigger_web_revalidate(["/", "/anomalies", "/radar"], force=True)
+    if args.require_web_revalidate and not revalidated:
+        raise RuntimeError("anomaly feed was saved, but the web refresh failed")
     print({"market": args.market, "scanned": len(instrument_ids), "selected": len(selected_ids), "written": len(rows)})
 
 

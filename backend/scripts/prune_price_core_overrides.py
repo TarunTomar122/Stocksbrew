@@ -1,8 +1,8 @@
 """Prune stale instruments from price_core_overrides.
 
 Retention:
-- Keep any instrument currently tracked by at least one user.
-- Keep any instrument viewed recently in tm_stock_views (N days window).
+- Add and keep any instrument currently tracked by at least one user.
+- Add and keep any instrument viewed recently in tm_stock_views (N days window).
 - Keep newest tail floor (never prune below floor count).
 """
 from __future__ import annotations
@@ -52,6 +52,50 @@ def _recent_view_ids(store: TraceMoneyStore, market: str, days: int) -> set[str]
     return out
 
 
+def retained_override_ids(
+    current: list[str],
+    *,
+    tracked: set[str],
+    recent: set[str],
+    target_cap: int,
+    floor: int,
+) -> list[str]:
+    """Build the price cohort, seeding every protected ID before pruning.
+
+    The previous implementation could only retain protected IDs already in the
+    override list. Newly tracked stocks were therefore scanned by downstream
+    jobs without receiving the matching post-close price refresh.
+    """
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for raw in current:
+        instrument_id = str(raw or "").strip().upper()
+        if instrument_id and instrument_id not in seen:
+            seen.add(instrument_id)
+            ordered.append(instrument_id)
+
+    protected = {
+        str(raw or "").strip().upper()
+        for raw in tracked | recent
+        if str(raw or "").strip()
+    }
+    for instrument_id in sorted(protected):
+        if instrument_id not in seen:
+            seen.add(instrument_id)
+            ordered.append(instrument_id)
+
+    if not ordered:
+        return []
+
+    desired = max(max(0, floor), min(max(0, target_cap), len(ordered)))
+    kept = set(protected)
+    for instrument_id in reversed(ordered):
+        if len(kept) >= desired:
+            break
+        kept.add(instrument_id)
+    return [instrument_id for instrument_id in ordered if instrument_id in kept]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prune stale price_core_overrides")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -64,37 +108,19 @@ def main() -> None:
     market = args.market.upper()
     store = TraceMoneyStore()
     current = store.get_price_core_overrides(market)
-    if not current:
-        print({"market": market, "current": 0, "removed": 0, "kept": 0, "reason": "no_overrides"})
-        return
-
     keep_tracked = _tracked_ids(store, market)
     keep_recent = _recent_view_ids(store, market, args.recent_days)
-    protected = keep_tracked | keep_recent
-
-    max_keep = max(args.floor, min(args.target_cap, len(current)))
-    # Preserve recency order: list tail is newest.
-    ordered = list(current)
-    kept: list[str] = []
-    removed: list[str] = []
-
-    # First pass: retain protected + newest tail floor.
-    tail_floor = set(ordered[-args.floor :]) if len(ordered) > args.floor else set(ordered)
-    for iid in ordered:
-        if iid in protected or iid in tail_floor:
-            kept.append(iid)
-        else:
-            removed.append(iid)
-
-    # If still above cap, drop oldest non-protected entries from kept.
-    if len(kept) > max_keep:
-        final: list[str] = []
-        for iid in kept:
-            if len(final) >= max_keep and iid not in protected:
-                removed.append(iid)
-                continue
-            final.append(iid)
-        kept = final[-max_keep:]
+    kept = retained_override_ids(
+        current,
+        tracked=keep_tracked,
+        recent=keep_recent,
+        target_cap=args.target_cap,
+        floor=args.floor,
+    )
+    current_set = {str(item or "").strip().upper() for item in current if str(item or "").strip()}
+    kept_set = set(kept)
+    removed_count = len(current_set - kept_set)
+    added_count = len(kept_set - current_set)
 
     if args.dry_run:
         print(
@@ -102,7 +128,8 @@ def main() -> None:
                 "market": market,
                 "current": len(current),
                 "kept": len(kept),
-                "removed": len(current) - len(kept),
+                "removed": removed_count,
+                "added": added_count,
                 "protected_tracked": len(keep_tracked),
                 "protected_recent_views": len(keep_recent),
             }
@@ -118,7 +145,8 @@ def main() -> None:
             "market": market,
             "current": len(current),
             "kept": len(kept),
-            "removed": len(current) - len(kept),
+            "removed": removed_count,
+            "added": added_count,
             "protected_tracked": len(keep_tracked),
             "protected_recent_views": len(keep_recent),
         }

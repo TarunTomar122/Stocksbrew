@@ -51,6 +51,7 @@ def main() -> None:
         "--chunk-workers",
         str(args.chunk_workers),
         "--explain-hard-moves",
+        "--require-web-revalidate",
     ]
     if args.price_session_phase:
         anomaly_cmd.extend(["--require-price-session-phase", args.price_session_phase])

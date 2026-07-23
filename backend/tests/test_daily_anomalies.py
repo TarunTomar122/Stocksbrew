@@ -88,6 +88,29 @@ class DailyAnomaliesTest(unittest.TestCase):
                 now=datetime(2026, 7, 21, 21, 0, tzinfo=timezone.utc),
             )
 
+    def test_fresh_price_partition_quarantines_one_stale_symbol(self) -> None:
+        prices = {
+            "US_FRESH": {
+                "session_phase": "post_close",
+                "updated_at": "2026-07-21T20:50:00+00:00",
+            },
+            "US_STALE": {
+                "session_phase": "open_check",
+                "updated_at": "2026-07-21T13:35:00+00:00",
+            },
+        }
+
+        fresh, stale = build_daily_anomalies._fresh_price_partition(
+            prices,
+            ["US_FRESH", "US_STALE"],
+            required_phase="post_close",
+            max_age_hours=8,
+            now=datetime(2026, 7, 21, 21, 0, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(list(fresh), ["US_FRESH"])
+        self.assertEqual(stale, ["US_STALE"])
+
     def test_internal_move_payload_filters_generic_earnings_and_keeps_context(self) -> None:
         payload = build_daily_anomalies._internal_move_payload(
             instrument={"ticker": "ABC", "name": "ABC Corp", "sector": "Technology"},

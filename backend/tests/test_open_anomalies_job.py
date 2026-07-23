@@ -30,3 +30,4 @@ def test_close_anomalies_requires_post_close_price_phase() -> None:
     assert "backend.scripts.build_daily_anomalies" in anomaly
     phase_index = anomaly.index("--require-price-session-phase")
     assert anomaly[phase_index + 1] == "post_close"
+    assert "--require-web-revalidate" in anomaly
