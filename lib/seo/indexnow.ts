@@ -42,6 +42,22 @@ export async function submitIndexNow(urls: string[]): Promise<IndexNowResult> {
 
 /** High-priority URLs to ping after SEO deploys. */
 export const SEO_PRIORITY_URLS = [
+  "/stocks",
+  "/sectors",
+  "/pulse",
+  "/news",
+  "/earnings",
+  "/stock/NVDA",
+  "/stock/MSFT",
+  "/stock/GOOGL",
+  "/stock/AAPL",
+  "/stock/AMZN",
+  "/sector/semiconductors",
+  "/blog/semiconductor-stocks-analysis-guide",
+  "/blog/earnings-report-analysis-template",
+  "/blog/fundamental-stock-analysis-framework",
+  "/blog/analyst-ratings-price-targets-explained",
+  "/blog/stock-news-catalyst-analysis",
   "/blog/best-stock-analysis-apps-2026",
   "/blog/us-stock-market-analysis-daily-workflow-2026",
   "/blog/ai-stock-analysis-comparison",

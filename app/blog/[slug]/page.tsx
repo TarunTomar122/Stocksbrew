@@ -147,6 +147,21 @@ export default async function BlogPostPage({ params }: Props) {
             [&_.cta-button]:inline-flex [&_.cta-button]:items-center [&_.cta-button]:justify-center [&_.cta-button]:h-[44px] [&_.cta-button]:px-6 [&_.cta-button]:rounded-full [&_.cta-button]:bg-[#111111] [&_.cta-button]:text-white [&_.cta-button]:text-[14px] [&_.cta-button]:font-semibold [&_.cta-button]:tracking-tight [&_.cta-button]:no-underline [&_.cta-button]:hover:-translate-y-[1px]"
           dangerouslySetInnerHTML={{ __html: content }}
         />
+        {post.faqs?.length && !content.includes('id="faq"') ? (
+          <section id="faq" className="mt-12 border-t border-[#e5e7eb] pt-8" aria-labelledby="faq-heading">
+            <h2 id="faq-heading" className="text-[26px] font-semibold tracking-[-0.02em] text-[#111111]">
+              Frequently asked questions
+            </h2>
+            <dl className="mt-6 flex flex-col gap-6">
+              {post.faqs.map((faq) => (
+                <div key={faq.question}>
+                  <dt className="text-[17px] font-semibold text-[#111111]">{faq.question}</dt>
+                  <dd className="mt-2 text-[15px] leading-7 text-[#4b5563]">{faq.answer}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
 
         <footer className="mt-16 pt-8 border-t border-[#e5e7eb] flex flex-col gap-6">
           <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 text-[13px] leading-relaxed text-[#6b7280]">

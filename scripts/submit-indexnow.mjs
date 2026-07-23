@@ -11,6 +11,22 @@ const SITE_HOST = "www.stocksbrew.online";
 const SITE_ORIGIN = `https://${SITE_HOST}`;
 
 const PRIORITY_PATHS = [
+  "/stocks",
+  "/sectors",
+  "/pulse",
+  "/news",
+  "/earnings",
+  "/stock/NVDA",
+  "/stock/MSFT",
+  "/stock/GOOGL",
+  "/stock/AAPL",
+  "/stock/AMZN",
+  "/sector/semiconductors",
+  "/blog/semiconductor-stocks-analysis-guide",
+  "/blog/earnings-report-analysis-template",
+  "/blog/fundamental-stock-analysis-framework",
+  "/blog/analyst-ratings-price-targets-explained",
+  "/blog/stock-news-catalyst-analysis",
   "/blog/best-stock-analysis-apps-2026",
   "/blog/us-stock-market-analysis-daily-workflow-2026",
   "/blog/ai-stock-analysis-comparison",

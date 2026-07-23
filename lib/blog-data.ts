@@ -13,6 +13,146 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "semiconductor-stocks-analysis-guide",
+    title: "Semiconductor Stocks: How to Analyze the AI Chip Value Chain",
+    seoTitle: "How to Analyze Semiconductor Stocks",
+    description:
+      "Analyze semiconductor stocks across chip design, foundries, memory, networking, and equipment using demand, margins, capacity, valuation, and cycle risk.",
+    category: "guides",
+    tags: ["semiconductor-stocks", "AI-stocks", "sector-analysis", "chip-stocks", "stock-analysis"],
+    date: "2026-07-23",
+    readTime: "16 min read",
+    faqs: [
+      {
+        question: "What metrics matter most for semiconductor stocks?",
+        answer:
+          "The most useful metrics depend on the business model. Compare demand and product mix, gross margin, inventory, customer concentration, capital intensity, capacity commitments, free cash flow, and valuation with the closest part of the chip value chain.",
+      },
+      {
+        question: "Why should chip designers and foundries be analyzed differently?",
+        answer:
+          "Designers monetize intellectual property and product roadmaps, while foundries manufacture chips and carry much heavier capital spending and utilization risk. Their margins, bottlenecks, competitive advantages, and cycle exposure are not interchangeable.",
+      },
+      {
+        question: "How can investors compare NVIDIA, AMD, Broadcom, Micron, and TSMC?",
+        answer:
+          "Start by identifying each company's role in compute, networking, memory, or manufacturing. Then compare growth, margins, customer concentration, product cadence, capital needs, valuation, and the specific assumptions required for each investment case.",
+      },
+    ],
+  },
+  {
+    slug: "earnings-report-analysis-template",
+    title: "Earnings Report Analysis Template: What Changed This Quarter?",
+    seoTitle: "Earnings Report Analysis Template",
+    description:
+      "Copy this earnings report analysis template to compare revenue, margins, EPS, cash flow, guidance, risks, and management language without chasing the headline.",
+    category: "guides",
+    tags: ["earnings-report", "earnings-template", "quarterly-results", "10-Q", "stock-research"],
+    date: "2026-07-23",
+    readTime: "14 min read",
+    faqs: [
+      {
+        question: "What should an earnings report analysis include?",
+        answer:
+          "Record the period and source, compare revenue and margins with prior periods and expectations, reconcile EPS with cash flow, evaluate guidance, identify changed risks, and write what would strengthen or invalidate the thesis.",
+      },
+      {
+        question: "Should investors focus on EPS or revenue?",
+        answer:
+          "Neither number is sufficient alone. Revenue shows demand, margins show economics, EPS includes share count and accounting effects, and cash flow tests the quality of earnings. Guidance and the reasons for change often matter more than one headline beat.",
+      },
+      {
+        question: "Where should investors verify earnings data?",
+        answer:
+          "Use the company's investor-relations release and SEC filings. For US issuers, the earnings release is often attached to an 8-K and the quarterly financial statements appear in a 10-Q.",
+      },
+    ],
+  },
+  {
+    slug: "fundamental-stock-analysis-framework",
+    title: "Fundamental Stock Analysis: A 15-Metric Research Framework",
+    seoTitle: "Fundamental Stock Analysis Framework",
+    description:
+      "A practical fundamental stock analysis framework for business quality, growth, margins, cash flow, balance sheet, valuation, management, catalysts, and risks.",
+    category: "guides",
+    tags: ["fundamental-analysis", "stock-analysis", "valuation", "financial-statements", "stock-research"],
+    date: "2026-07-23",
+    readTime: "18 min read",
+    faqs: [
+      {
+        question: "What is fundamental stock analysis?",
+        answer:
+          "Fundamental analysis evaluates the business behind a stock using its economics, financial statements, competitive position, management decisions, valuation, catalysts, and risks rather than relying only on price patterns.",
+      },
+      {
+        question: "Which financial statement should an investor read first?",
+        answer:
+          "Start with the income statement to understand growth and margins, then use the cash-flow statement to test earnings quality and the balance sheet to judge financial resilience. Read the notes and management discussion to understand what the numbers omit.",
+      },
+      {
+        question: "How many years of financial data should stock analysis use?",
+        answer:
+          "Use enough history to cover more than one operating environment. Five years is a useful starting point for established companies, but a shorter period may be more relevant after a major business-model change or for a young public company.",
+      },
+    ],
+  },
+  {
+    slug: "analyst-ratings-price-targets-explained",
+    title: "Analyst Ratings and Price Targets: How to Read Them Correctly",
+    seoTitle: "Analyst Ratings & Price Targets Explained",
+    description:
+      "Understand buy, hold, and sell ratings, consensus price targets, estimate revisions, conflicts, time horizons, and the questions to ask before using analyst research.",
+    category: "guides",
+    tags: ["analyst-ratings", "price-targets", "stock-forecast", "analyst-recommendations", "stock-analysis"],
+    date: "2026-07-23",
+    readTime: "14 min read",
+    faqs: [
+      {
+        question: "What does a consensus price target mean?",
+        answer:
+          "It is an aggregate of published analyst targets, usually tied to a forward time horizon. It is not a guaranteed fair value and can mix estimates created on different dates with different assumptions.",
+      },
+      {
+        question: "Is a Buy rating the same at every brokerage?",
+        answer:
+          "No. Rating definitions, benchmark assumptions, time horizons, and distribution policies vary by firm. Read the firm's definition and the report's assumptions before comparing labels.",
+      },
+      {
+        question: "Are analyst price target changes useful?",
+        answer:
+          "They can be useful when the change reveals a meaningful revision to revenue, margins, earnings, risk, or valuation assumptions. A target increase that merely follows the stock price is less informative than a transparent model change.",
+      },
+    ],
+  },
+  {
+    slug: "stock-news-catalyst-analysis",
+    title: "Stock News Analysis: Is It a Real Catalyst or Just Noise?",
+    seoTitle: "How to Analyze Stock News & Catalysts",
+    description:
+      "A six-step stock news analysis method for verifying the source, measuring financial impact, checking expectations, timing the effect, and avoiding headline chasing.",
+    category: "guides",
+    tags: ["stock-news", "catalysts", "market-news", "8-K", "stock-analysis"],
+    date: "2026-07-23",
+    readTime: "13 min read",
+    faqs: [
+      {
+        question: "What is a stock catalyst?",
+        answer:
+          "A catalyst is an event or new piece of information that can change expected cash flows, risk, valuation, or investor positioning. The effect can be positive or negative and may be temporary or lasting.",
+      },
+      {
+        question: "How can investors verify breaking stock news?",
+        answer:
+          "Open the company investor-relations release or relevant SEC filing, confirm the date and exact terms, and distinguish the primary source from commentary. For major US company events, an 8-K is often the best verification point.",
+      },
+      {
+        question: "Why does good news sometimes make a stock fall?",
+        answer:
+          "A stock trades on the difference between the news and expectations, not on whether a headline sounds positive. Valuation, positioning, guidance quality, financing, timing, and already-priced-in optimism can outweigh the headline.",
+      },
+    ],
+  },
+  {
     slug: "best-stock-analysis-apps-2026",
     title: "Best Stock Analysis Apps in 2026: An Honest Workflow Comparison",
     seoTitle: "Best Stock Analysis Apps in 2026",

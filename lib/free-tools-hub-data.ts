@@ -84,8 +84,8 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
       },
       {
         href: "/news",
-        title: "News",
-        description: "Filterable timeline tied to tickers you care about.",
+        title: "US Stock Market News",
+        description: "Current US stock headlines with ticker and sentiment filters.",
         icon: "newspaper",
         accent: "#64748b",
       },

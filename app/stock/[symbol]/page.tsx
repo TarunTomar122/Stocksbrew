@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockPageSkeleton } from "@/components/page-stream-skeletons";
 import { normalizeStockSymbolParam } from "@/lib/stock";
-import { stockMetaDescription } from "@/lib/brand-copy";
+import { getSeoStockPage, stockSeoDescription } from "@/lib/seo/stock-pages";
 
 export const revalidate = 60;
 
@@ -19,20 +19,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const label =
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
+  const profile = getSeoStockPage(upper);
+  const title = profile
+    ? `${profile.name} (${upper}) Stock Analysis`
+    : `${upper} Stock Analysis & Research`;
+  const description = profile
+    ? stockSeoDescription(profile)
+    : `${upper} stock price, fundamentals, earnings, analyst context, risks, and recent news in one research view.`;
   return {
-    title: `${upper} Stock Analysis & Research`,
-    description: stockMetaDescription(upper),
+    title,
+    description,
+    keywords: profile
+      ? [
+          `${upper} stock analysis`,
+          `${profile.name} stock`,
+          `${upper} earnings`,
+          `${upper} stock price`,
+          profile.industry,
+          profile.sector,
+        ].filter(Boolean)
+      : undefined,
     alternates: { canonical: `/stock/${upper}` },
-    robots: { index: false, follow: true },
+    robots: { index: Boolean(profile), follow: true },
     openGraph: {
-      title: `${upper} Stock Analysis & Research · stocksbrew`,
-      description: stockMetaDescription(upper),
+      title: `${title} · stocksbrew`,
+      description,
       url: `https://www.stocksbrew.online/stock/${upper}`,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${upper} Stock Analysis & Research · stocksbrew`,
-      description: stockMetaDescription(upper),
+      title: `${title} · stocksbrew`,
+      description,
     },
   };
 }

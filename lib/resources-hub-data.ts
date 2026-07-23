@@ -37,6 +37,13 @@ export const RESOURCE_GROUPS: ResourceGroup[] = [
         icon: "fact_check",
         badge: "New",
       },
+      {
+        href: "/blog/fundamental-stock-analysis-framework",
+        title: "Fundamental analysis framework",
+        description: "A 15-metric method for business quality, growth, cash flow, valuation, catalysts, and risk.",
+        icon: "account_tree",
+        badge: "New",
+      },
     ],
   },
   {
@@ -54,6 +61,18 @@ export const RESOURCE_GROUPS: ResourceGroup[] = [
         title: "Use cases",
         description: "Dividend, swing, and earnings workflows mapped to tools.",
         icon: "route",
+      },
+      {
+        href: "/stocks",
+        title: "US stock directory",
+        description: "Company-specific research pages for 100 widely followed US stocks.",
+        icon: "list_alt",
+      },
+      {
+        href: "/sectors",
+        title: "US sector analysis",
+        description: "Current briefs and research frameworks across eight major market groups.",
+        icon: "category",
       },
     ],
   },

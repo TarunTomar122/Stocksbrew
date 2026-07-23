@@ -43,7 +43,7 @@ export function PulseHubHero({ topline }: { topline?: PulseTopline | null }) {
         <p className="landing-section-kicker text-landing-brand">// Market Today</p>
         <div className="mt-2 flex items-start justify-between gap-4">
           <h1 className="text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">
-            The market, right now.
+            US stock market analysis, right now.
           </h1>
           <span className="pulse-live-badge shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-landing-mint" />

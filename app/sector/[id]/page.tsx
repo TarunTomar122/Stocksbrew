@@ -5,8 +5,10 @@ import { Suspense } from "react";
 
 import { SectorConstituentsStream } from "@/components/sector-constituents-stream";
 import { SectorConstituentsSkeleton } from "@/components/page-stream-skeletons";
+import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSectorContextDoc, getTrackedSectorMembers } from "@/lib/sector";
 import { getCurrentMarket } from "@/lib/market";
+import { getSeoSectorPage } from "@/lib/seo/sector-pages";
 
 export const revalidate = 60;
 
@@ -27,20 +29,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!doc) {
     try { doc = await getSectorContextDoc(id, market === "US" ? "IN" : "US").catch(() => null); } catch {}
   }
-  const label = doc?.sector_label ?? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  const brief = sectorMetaDescription(label, doc?.today_brief);
+  const seoSector = getSeoSectorPage(id);
+  const label = seoSector?.name ?? doc?.sector_label ?? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const brief = sectorMetaDescription(label, doc?.today_brief ?? seoSector?.description);
   return {
-    title: `${label} - Sector Brief`,
+    title: `${label}: Sector Analysis`,
     description: brief,
+    keywords: seoSector
+      ? [
+          seoSector.name.toLowerCase(),
+          `${seoSector.name.toLowerCase()} analysis`,
+          "US stock sectors",
+          "sector analysis",
+          "stocks by sector",
+        ]
+      : undefined,
     alternates: { canonical: `/sector/${id}` },
     openGraph: {
-      title: `${label} - Sector Brief · stocksbrew`,
+      title: `${label}: Sector Analysis · stocksbrew`,
       description: brief,
       url: `https://www.stocksbrew.online/sector/${id}`,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${label} - Sector Brief · stocksbrew`,
+      title: `${label}: Sector Analysis · stocksbrew`,
       description: brief,
     },
   };
@@ -111,6 +123,7 @@ export default async function SectorPage({ params }: Props) {
   const { id } = await params;
   const market = getCurrentMarket();
   const sectorId = decodeURIComponent(id).toLowerCase();
+  const seoSector = getSeoSectorPage(sectorId);
   const trackedMembers = getTrackedSectorMembers(sectorId, market);
   const doc = await getSectorContextDoc(sectorId, market);
   if (!doc && trackedMembers.length === 0) notFound();
@@ -135,6 +148,15 @@ export default async function SectorPage({ params }: Props) {
 
   return (
     <main className="flex-grow">
+      {seoSector ? (
+        <MarketingSchema
+          path={`/sector/${sectorId}`}
+          name={`${seoSector.name}: Sector Analysis`}
+          description={seoSector.description}
+          breadcrumbLabel={seoSector.name}
+          parent={{ name: "US Stock Market Sectors", path: "/sectors" }}
+        />
+      ) : null}
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-12 flex flex-col gap-8">
         <nav className="text-[11px] text-on-surface-variant">
           <Link href="/" className="hover:text-on-surface">
@@ -266,6 +288,47 @@ export default async function SectorPage({ params }: Props) {
               <SectorConstituentsStream market={market} tickers={tickers} />
             </div>
           </Suspense>
+        ) : null}
+
+        {seoSector ? (
+          <section className="grid gap-8 border-y border-outline-variant py-10 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
+                Research framework
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-on-surface">
+                How to analyze {seoSector.name.toLowerCase()}
+              </h2>
+              <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">
+                {seoSector.description}
+              </p>
+            </div>
+            <div className="flex flex-col gap-5">
+              <p className="text-[15px] leading-7 text-on-surface-variant">
+                <strong className="text-on-surface">Start with the shared drivers:</strong>{" "}
+                {seoSector.focus} Then compare each company on its own growth, margins, balance sheet,
+                valuation, earnings revisions, and company-specific risks.
+              </p>
+              {sectorId === "semiconductors" ? (
+                <p className="text-[14px] leading-6 text-on-surface-variant">
+                  Chip companies do different jobs. Designers such as GPU and CPU vendors, foundries,
+                  memory suppliers, networking companies, and fabrication-equipment makers can sit at
+                  different points of the same demand cycle. Compare each company with the closest peers
+                  before drawing a conclusion from a sector-wide move.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-semibold text-landing-brand">
+                <Link href="/sectors" className="hover:underline">All US sectors</Link>
+                <Link href="/stocks" className="hover:underline">US stock directory</Link>
+                <Link href="/compare-stocks" className="hover:underline">Compare sector peers</Link>
+                {sectorId === "semiconductors" ? (
+                  <Link href="/blog/semiconductor-stocks-analysis-guide" className="hover:underline">
+                    Semiconductor analysis guide
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </section>
         ) : null}
       </div>
     </main>

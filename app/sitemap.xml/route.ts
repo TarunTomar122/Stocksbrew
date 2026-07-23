@@ -2,7 +2,8 @@ import { indexableBlogPosts } from "@/lib/blog-data";
 import { COMPARISON_PAGES } from "@/lib/compare-data";
 import { getThematicScreens } from "@/lib/screens";
 import { USE_CASES } from "@/lib/use-cases-data";
-import stockUniverse from "@/backend/config/stock_universe.json";
+import { SEO_STOCK_PAGES } from "@/lib/seo/stock-pages";
+import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -25,6 +26,8 @@ export async function GET() {
     "/premarket",
     "/events",
     "/news",
+    "/stocks",
+    "/sectors",
     "/screens",
     "/resources",
     "/free-tools",
@@ -68,18 +71,21 @@ export async function GET() {
     entries.push(url(`/blog/${p.slug}`, p.updated ?? p.date));
   }
 
-  // Stock pages are noindexed (thin content) — removed from sitemap
+  // Only the curated US core universe is indexable. Unknown and long-tail
+  // ticker routes remain crawlable for shared links but retain noindex.
+  for (const stock of SEO_STOCK_PAGES) {
+    entries.push(
+      url(
+        `/stock/${encodeURIComponent(stock.ticker)}`,
+        stock.updatedAt?.slice(0, 10),
+      ),
+    );
+  }
 
-  // Only deterministic US sector slugs. Firestore-generated sector IDs can be
-  // stale or market-specific and previously produced soft-404 sitemap entries.
-  const usRows = (
-    stockUniverse as {
-      markets?: Record<string, Array<{ sector_tags?: string[] }>>;
-    }
-  ).markets?.US ?? [];
-  const sectorSlugs = new Set(usRows.flatMap((row) => row.sector_tags ?? []));
-  for (const slug of [...sectorSlugs].filter(Boolean).sort()) {
-    entries.push(url(`/sector/${encodeURIComponent(slug)}`));
+  // Deterministic editorial sector slugs. Firestore-generated IDs can be stale
+  // or market-specific and previously produced soft-404 sitemap entries.
+  for (const sector of SEO_SECTOR_PAGES) {
+    entries.push(url(`/sector/${encodeURIComponent(sector.slug)}`));
   }
 
   // Screen pages

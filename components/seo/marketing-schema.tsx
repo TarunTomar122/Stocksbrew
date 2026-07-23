@@ -11,7 +11,7 @@ type Props = {
 
 const BASE = "https://www.stocksbrew.online";
 
-export function MarketingSchema({ path, name, description, breadcrumbLabel, parent }: Props) {
+export function MarketingSchema({ path, name, description, faqs = [], breadcrumbLabel, parent }: Props) {
   const url = `${BASE}${path}`;
 
   const webPage = {
@@ -43,11 +43,25 @@ export function MarketingSchema({ path, name, description, breadcrumbLabel, pare
     "@type": "BreadcrumbList",
     itemListElement: breadcrumbItems,
   };
+  const faqPage = faqs.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: { "@type": "Answer", text: item.answer },
+        })),
+      }
+    : null;
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPage) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+      {faqPage ? (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPage) }} />
+      ) : null}
     </>
   );
 }

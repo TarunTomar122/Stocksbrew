@@ -39,6 +39,36 @@ const STOCK_ANALYSIS_GUIDE_SLUGS = new Set([
 
 const stockAnalysisGuides = indexableBlogPosts.filter((post) => STOCK_ANALYSIS_GUIDE_SLUGS.has(post.slug));
 
+const RESEARCH_CLUSTERS = [
+  {
+    label: "Company analysis",
+    description: "Fundamentals, analyst context, and a repeatable decision framework.",
+    links: [
+      ["Fundamental stock analysis", "/blog/fundamental-stock-analysis-framework"],
+      ["Analyst ratings & targets", "/blog/analyst-ratings-price-targets-explained"],
+      ["Browse US stocks", "/stocks"],
+    ],
+  },
+  {
+    label: "Earnings",
+    description: "Prepare for the report, verify the filing, and record what changed.",
+    links: [
+      ["Earnings analysis template", "/blog/earnings-report-analysis-template"],
+      ["How to analyze earnings", "/blog/how-to-analyze-earnings-report"],
+      ["US earnings calendar", "/earnings"],
+    ],
+  },
+  {
+    label: "Markets & sectors",
+    description: "Separate company events from the market and sector forces around them.",
+    links: [
+      ["Semiconductor stocks", "/blog/semiconductor-stocks-analysis-guide"],
+      ["Stock news catalysts", "/blog/stock-news-catalyst-analysis"],
+      ["US sector briefs", "/sectors"],
+    ],
+  },
+] as const;
+
 export default function BlogPage() {
   return (
     <main className="flex-grow">
@@ -72,6 +102,32 @@ export default function BlogPage() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section className="border-y border-[#e5e7eb] py-7" aria-labelledby="research-library">
+          <div className="mb-5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Research library</span>
+            <h2 id="research-library" className="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">
+              Follow a topic, not a pile of posts
+            </h2>
+          </div>
+          <div className="grid gap-7 md:grid-cols-3">
+            {RESEARCH_CLUSTERS.map((cluster) => (
+              <div key={cluster.label}>
+                <h3 className="text-[14px] font-semibold text-[#111111]">{cluster.label}</h3>
+                <p className="mt-1 text-[12px] leading-relaxed text-[#6b7280]">{cluster.description}</p>
+                <ul className="mt-3 divide-y divide-[#e5e7eb]">
+                  {cluster.links.map(([label, href]) => (
+                    <li key={href}>
+                      <Link href={href} className="flex items-center justify-between gap-3 py-2 text-[12px] font-semibold text-[#166534] hover:underline">
+                        {label}<span aria-hidden>→</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </section>
 
         <Link
