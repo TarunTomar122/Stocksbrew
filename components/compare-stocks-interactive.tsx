@@ -501,7 +501,7 @@ function CompareBuilder({
             <span className="h-1.5 w-1.5 rounded-full bg-[#16a174]" />
             Free · no sign-in
           </span>
-          <h1 className="max-w-[590px] text-[42px] font-semibold leading-[0.98] tracking-[-0.055em] text-[#101512] sm:text-[54px] lg:text-[64px]">
+          <h1 className="max-w-[590px] text-[42px] font-semibold leading-[0.98] tracking-[-0.055em] text-[#101512] sm:text-[54px] lg:text-[58px]">
             Pick two.
             <br />
             See the trade-off.
