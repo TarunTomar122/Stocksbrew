@@ -233,6 +233,7 @@ export async function LandingScannerRedditStream() {
       redditPicks={redditPicks}
       dataAsOf={anomaliesDoc?.date ?? anomaliesDoc?.generated_at}
       fullItemLimit={user.fullItemLimit}
+      signedIn={user.signedIn}
       isSubscribed={user.isSubscribed}
       trackedIds={user.trackedIds}
     />

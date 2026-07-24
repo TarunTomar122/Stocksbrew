@@ -39,6 +39,7 @@ function gridClassFor(cols: "1" | "2" | "3", variant: "home" | "pulse" | "landin
 export function RedditBuzzFeed({
   items,
   isSubscribed,
+  signedIn = false,
   limit,
   variant = "home",
   gridCols = "3",
@@ -51,6 +52,7 @@ export function RedditBuzzFeed({
 }: {
   items: RedditTicker[];
   isSubscribed: boolean;
+  signedIn?: boolean;
   limit?: number;
   variant?: "home" | "pulse" | "landing";
   gridCols?: "1" | "2" | "3";
@@ -62,11 +64,14 @@ export function RedditBuzzFeed({
   unlockSignedInLabel?: string;
 }) {
   const sourceItems = limit ? items.slice(0, limit) : items;
-  const hasLocked = !isSubscribed && sourceItems.length > FREE_REDDIT_BUZZ_VISIBLE_LIMIT;
+  const freeVisibleLimit = signedIn
+    ? FREE_REDDIT_BUZZ_VISIBLE_LIMIT + 1
+    : FREE_REDDIT_BUZZ_VISIBLE_LIMIT;
+  const hasLocked = !isSubscribed && sourceItems.length > freeVisibleLimit;
   const visibleItems =
     isSubscribed || !hideLockedRows
       ? sourceItems
-      : sourceItems.slice(0, FREE_REDDIT_BUZZ_VISIBLE_LIMIT);
+      : sourceItems.slice(0, freeVisibleLimit);
   const unlockClass =
     unlockBarClassName ??
     (variant === "pulse" ? "border-outline-variant bg-surface" : "border-[#e5e7eb] bg-white");
@@ -82,7 +87,7 @@ export function RedditBuzzFeed({
           <RedditBuzzCard
             key={item.ticker}
             item={item}
-            locked={!isSubscribed && !hideLockedRows && index >= FREE_REDDIT_BUZZ_VISIBLE_LIMIT}
+            locked={!isSubscribed && !hideLockedRows && index >= freeVisibleLimit}
             variant={variant}
             showTalkingPoints={showTalkingPoints}
           />

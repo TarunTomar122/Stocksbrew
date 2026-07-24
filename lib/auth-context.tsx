@@ -13,7 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
-import { initPostHog, posthog } from "@/lib/posthog";
+import { identifyUser, initPostHog, posthog } from "@/lib/posthog";
 
 type AuthState = {
   user: User | null;
@@ -46,7 +46,7 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
       setUser(nextUser);
       if (loading) setLoading(false);
       if (nextUser) {
-        posthog.identify(nextUser.uid, {
+        identifyUser(nextUser.uid, {
           email: nextUser.email ?? undefined,
           name: nextUser.displayName ?? undefined,
         });

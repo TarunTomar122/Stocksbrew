@@ -92,4 +92,13 @@ export function captureEvent(name: string, properties?: Record<string, unknown>)
   }
 }
 
+export function identifyUser(
+  distinctId: string,
+  properties?: Record<string, string | number | boolean | null | undefined>,
+) {
+  if (typeof window === "undefined" || !distinctId) return;
+  const client = initPostHog();
+  if (inited) client.identify(distinctId, properties);
+}
+
 export { posthog };

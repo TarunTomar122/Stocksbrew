@@ -3,6 +3,7 @@ import { CommandHeader, type CommandHeaderProps } from "@/components/radar-next/
 import { Book } from "@/components/radar-next/book";
 import { Health } from "@/components/radar-next/health";
 import { StarterPicks } from "@/components/radar-next/starter-picks";
+import { StartRadarButton } from "@/components/start-radar-button";
 import {
   DEMO_HEALTH,
   DEMO_HOLDINGS,
@@ -20,22 +21,21 @@ export function RadarNextSignedOut() {
           style={{ color: "var(--rn-muted)", background: "var(--rn-card-2)" }}
         >
           <span className="rn-pulse shrink-0" aria-hidden />
-          sample book · refreshed this morning
+          sample Radar · illustrative data
         </span>
-        <Link
-          href="/watchlist"
-          className="inline-flex items-center rounded-full px-3.5 py-1.5 text-[12px] font-bold no-underline sm:px-4 sm:py-2 sm:text-[13px]"
-          style={{ color: "var(--landing-on-brand, #fff)", background: "var(--rn-accent)" }}
-        >
-          Sign in free →
-        </Link>
+        <StartRadarButton
+          surface="radar_page"
+          signedOutLabel="Sign in free"
+          signedInLabel="Open Radar"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-accent)] px-3.5 py-1.5 text-[12px] font-bold text-white no-underline disabled:opacity-60 sm:px-4 sm:py-2 sm:text-[13px]"
+        />
       </div>
 
       <div className="relative">
         <div className="pointer-events-none select-none" aria-hidden>
           <CommandHeader
-            greeting="Good morning"
-            dateLabel="TUE, JUL 14"
+            greeting="Your stock brief"
+            dateLabel="SAMPLE"
             statusLine="6 tracked · 4 up / 2 down"
             trackedCount={6}
             isSubscribed={false}
@@ -64,20 +64,19 @@ export function RadarNextSignedOut() {
 
       <section className="relative z-10 -mt-6 mx-auto max-w-lg text-center sm:-mt-10">
         <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-[var(--rn-ink)] sm:text-[28px]">
-          This is what your Radar looks like every morning.
+          Keep the stocks you follow in one place.
         </h1>
         <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[var(--rn-muted)] sm:text-[14px]">
-          Add the stocks you own or watch. We score the tape overnight and surface what needs a
-          call, highlighted right in your book, plus a health grade on your portfolio.
+          Add up to three stocks free. Radar keeps their latest price, call, and setup together so
+          you can return when something changes.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
-          <Link
-            href="/watchlist"
-            className="inline-flex items-center rounded-full px-5 py-2.5 text-[13px] font-bold no-underline"
-            style={{ color: "var(--landing-on-brand, #fff)", background: "var(--rn-accent)" }}
-          >
-            Sign in to open your Radar →
-          </Link>
+          <StartRadarButton
+            surface="radar_page"
+            signedOutLabel="Sign in and add your first stock"
+            signedInLabel="Add your first stock"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-accent)] px-5 py-2.5 text-[13px] font-bold text-white no-underline disabled:opacity-60"
+          />
           <Link
             href="/subscribe"
             className="inline-flex items-center rounded-full px-4 py-2.5 text-[13px] font-semibold text-[var(--rn-ink)] no-underline shadow-[inset_0_0_0_1px_var(--rn-line)]"
@@ -92,12 +91,6 @@ export function RadarNextSignedOut() {
     </div>
   );
 }
-
-const EMPTY_ZONES: Array<{ tag: string; title: string; body: string }> = [
-  { tag: "call", title: "Detailed calls and zones", body: "Pro shows the stance, buy and trim zones, drivers, and risks for each stock." },
-  { tag: "target", title: "Stocksbrew target", body: "Pro puts our target price and the room from today next to the call." },
-  { tag: "alerts", title: "Automatic and manual alerts", body: "Pro watches earnings and zones automatically. You can set your own price alerts too." },
-];
 
 type RadarNextEmptyProps = {
   header: CommandHeaderProps;
@@ -128,16 +121,6 @@ export function RadarNextEmpty({ header, picks, trackedIds }: RadarNextEmptyProp
           />
         </div>
       </section>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        {EMPTY_ZONES.map((z) => (
-          <div key={z.tag} className="rn-card p-4">
-            <span className="rn-kick">// {z.tag}</span>
-            <p className="mt-2 text-[13px] font-bold text-[var(--rn-ink)]">{z.title}</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-[var(--rn-muted)]">{z.body}</p>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

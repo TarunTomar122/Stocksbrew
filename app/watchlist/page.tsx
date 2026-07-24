@@ -32,6 +32,7 @@ import { Health } from "@/components/radar-next/health";
 import { Ideas } from "@/components/radar-next/ideas";
 import { RadarNextSkeleton } from "@/components/radar-next/skeleton";
 import { RadarNextSignedOut, RadarNextEmpty } from "@/components/radar-next/states";
+import { RadarPageAnalytics } from "@/components/radar-page-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,12 @@ export default function WatchlistPage() {
 async function RadarNextStream() {
   const session = await getSessionUser();
   if (!session) {
-    return <RadarNextSignedOut />;
+    return (
+      <>
+        <RadarPageAnalytics state="signed_out" trackedCount={0} isSubscribed={false} />
+        <RadarNextSignedOut />
+      </>
+    );
   }
 
   const userDoc = await getUserDoc(session.uid);
@@ -76,17 +82,20 @@ async function RadarNextStream() {
     const picks = buildRadarStarterPicks(interestingDoc?.rows, labelsById);
 
     return (
-      <RadarNextEmpty
-        header={{
-          greeting: greetingFor(now),
-          dateLabel: dateLabelFor(now),
-          statusLine: "0 tracked. Add stocks to start your Radar",
-          trackedCount: 0,
-          isSubscribed,
-        }}
-        picks={picks}
-        trackedIds={[]}
-      />
+      <>
+        <RadarPageAnalytics state="empty" trackedCount={0} isSubscribed={isSubscribed} />
+        <RadarNextEmpty
+          header={{
+            greeting: greetingFor(now),
+            dateLabel: dateLabelFor(now),
+            statusLine: "0 tracked. Add stocks to start your Radar",
+            trackedCount: 0,
+            isSubscribed,
+          }}
+          picks={picks}
+          trackedIds={[]}
+        />
+      </>
     );
   }
 
@@ -147,28 +156,31 @@ async function RadarNextStream() {
     }`;
 
   return (
-    <div className="radar-next radar-next-glow flex w-full max-w-full flex-col gap-3 px-2 pb-3 pt-2 sm:gap-7 sm:px-1 sm:pb-4 sm:pt-8">
-      <CommandHeader
-        greeting={greetingFor(now)}
-        dateLabel={dateLabelFor(now)}
-        statusLine={statusLine}
-        trackedCount={rows.length}
-        isSubscribed={isSubscribed}
-      />
-
-      <div className="grid gap-3 sm:gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <Book holdings={book.holdings} watching={book.watching} />
-        <Health
-          grade={health.grade}
-          gradePct={health.gradePct}
-          headline={health.headline}
-          body={health.body}
-          fixes={health.fixes}
-          pillars={health.pillars}
+    <>
+      <RadarPageAnalytics state="active" trackedCount={rows.length} isSubscribed={isSubscribed} />
+      <div className="radar-next radar-next-glow flex w-full max-w-full flex-col gap-3 px-2 pb-3 pt-2 sm:gap-7 sm:px-1 sm:pb-4 sm:pt-8">
+        <CommandHeader
+          greeting={greetingFor(now)}
+          dateLabel={dateLabelFor(now)}
+          statusLine={statusLine}
+          trackedCount={rows.length}
+          isSubscribed={isSubscribed}
         />
-      </div>
 
-      <Ideas fits={ideas.fits} top={ideas.top} unusual={ideas.unusual} />
-    </div>
+        <div className="grid gap-3 sm:gap-6 lg:grid-cols-[1.35fr_1fr]">
+          <Book holdings={book.holdings} watching={book.watching} />
+          <Health
+            grade={health.grade}
+            gradePct={health.gradePct}
+            headline={health.headline}
+            body={health.body}
+            fixes={health.fixes}
+            pillars={health.pillars}
+          />
+        </div>
+
+        <Ideas fits={ideas.fits} top={ideas.top} unusual={ideas.unusual} />
+      </div>
+    </>
   );
 }

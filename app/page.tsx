@@ -3,7 +3,7 @@ import { FeedbackWidget } from "@/components/feedback-widget";
 import { NewsletterModal } from "@/components/newsletter-modal";
 import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
 import { TerminalLandingFaq } from "@/components/terminal-landing-faq";
-import { AgentAccessLandingSection } from "@/components/agent-access-marketing";
+import { AgentAccessLandingStrip } from "@/components/agent-access-marketing";
 import {
   LandingHeroSkeleton,
   LandingScannerRedditSkeleton,
@@ -42,13 +42,12 @@ export default function HomePage() {
           <LandingSectorHeatStream />
         </Suspense>
 
-        <AgentAccessLandingSection />
-
         <Suspense fallback={null}>
           <LandingProSectionStream />
         </Suspense>
         <TerminalLandingTestimonials />
         <TerminalLandingFaq />
+        <AgentAccessLandingStrip />
       </div>
 
       <FeedbackWidget />

@@ -63,6 +63,7 @@ export function LandingScannerReddit({
   redditPicks,
   dataAsOf,
   fullItemLimit,
+  signedIn = false,
   isSubscribed = false,
   trackedIds = [],
 }: {
@@ -70,6 +71,7 @@ export function LandingScannerReddit({
   redditPicks: RedditPick[];
   dataAsOf?: string;
   fullItemLimit?: number;
+  signedIn?: boolean;
   isSubscribed?: boolean;
   trackedIds?: string[];
 }) {
@@ -112,6 +114,7 @@ export function LandingScannerReddit({
                   <RedditBuzzFeed
                     items={redditPicks.map(redditPickToTicker)}
                     isSubscribed={isSubscribed}
+                    signedIn={signedIn}
                     variant="landing"
                     gridCols="1"
                     showTalkingPoints={false}

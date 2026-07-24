@@ -6,15 +6,15 @@
 const DOMAIN_HOSTS = [
   "www.stocksbrew.online",
   "stocksbrew.online",
-  "www.tikrr.online",
-  "tikrr.online",
 ] as const;
 
 export const POSTHOG_DOMAIN_SQL = `(
   properties.$host IN (${DOMAIN_HOSTS.map((h) => `'${h}'`).join(", ")})
   OR properties.$current_url LIKE '%stocksbrew.online%'
-  OR properties.$current_url LIKE '%tikrr.online%'
 )`;
+
+export const POSTHOG_HUMAN_PAGEVIEW_SQL =
+  "toString(properties.$virt_traffic_type) = 'Regular'";
 
 type HogQLResponse = {
   columns?: string[];
@@ -101,12 +101,16 @@ export type PostHogAnalyticsSnapshot = {
     visitors: number;
     returningVisitors: number;
     newVisitors: number;
+    activatedCohort: number;
+    activatedReturned: number;
   };
   trafficSeries: TrafficDay[];
   visitorLocations: VisitorLocation[];
   topPaths: Array<{ path: string; views: number }>;
   trafficSources: Array<{ source: string; views: number }>;
   funnel: FunnelStep[];
+  signupRate: number | null;
+  radarActivationRate: number | null;
   checkoutConversionRate: number | null;
 };
 
@@ -124,12 +128,16 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       visitors: 0,
       returningVisitors: 0,
       newVisitors: 0,
+      activatedCohort: 0,
+      activatedReturned: 0,
     },
     trafficSeries: [],
     visitorLocations: [],
     topPaths: [],
     trafficSources: [],
     funnel: [],
+    signupRate: null,
+    radarActivationRate: null,
     checkoutConversionRate: null,
   };
 
@@ -137,19 +145,21 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
 
   const domain = POSTHOG_DOMAIN_SQL;
   const interval = `interval ${periodDays} day`;
-  const pageviewFilter = `event = '$pageview' AND ${domain}`;
+  const pageviewFilter = `event = '$pageview' AND ${domain} AND ${POSTHOG_HUMAN_PAGEVIEW_SQL}`;
 
   const [
     seriesRes,
     signupsSeriesRes,
     summaryRes,
     returningRes,
+    activatedCohortRes,
+    activatedReturnedRes,
     locationsRes,
     pathsRes,
     sourcesRes,
     visitorsRes,
     signUpRes,
-    checkoutClickRes,
+    radarFirstStockRes,
     checkoutStartRes,
     convertedRes,
   ] = await Promise.all([
@@ -194,6 +204,30 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
           WHERE timestamp > now() - interval ${periodDays * 2} day
             AND timestamp <= now() - ${interval}
             AND ${pageviewFilter}
+        )
+      LIMIT 1
+    `),
+    runHogQL<{ c: number }>(`
+      SELECT count(DISTINCT person_id) AS c
+      FROM events
+      WHERE timestamp > now() - interval ${periodDays * 2} day
+        AND timestamp <= now() - ${interval}
+        AND event = 'radar_first_stock_added'
+        AND ${domain}
+      LIMIT 1
+    `),
+    runHogQL<{ c: number }>(`
+      SELECT count(DISTINCT person_id) AS c
+      FROM events
+      WHERE timestamp > now() - ${interval}
+        AND ${pageviewFilter}
+        AND person_id IN (
+          SELECT person_id
+          FROM events
+          WHERE timestamp > now() - interval ${periodDays * 2} day
+            AND timestamp <= now() - ${interval}
+            AND event = 'radar_first_stock_added'
+            AND ${domain}
         )
       LIMIT 1
     `),
@@ -257,7 +291,7 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       SELECT count(DISTINCT person_id) AS c
       FROM events
       WHERE timestamp > now() - ${interval}
-        AND event = 'checkout_clicked'
+        AND event = 'radar_first_stock_added'
         AND ${domain}
       LIMIT 1
     `),
@@ -284,29 +318,33 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
     signupsSeriesRes.error ??
     summaryRes.error ??
     returningRes.error ??
+    activatedCohortRes.error ??
+    activatedReturnedRes.error ??
     locationsRes.error ??
     pathsRes.error ??
     sourcesRes.error ??
     visitorsRes.error ??
     signUpRes.error ??
-    checkoutClickRes.error ??
+    radarFirstStockRes.error ??
     checkoutStartRes.error ??
     convertedRes.error;
 
   const visitors = Number(summaryRes.rows[0]?.visitors ?? 0);
   const returningVisitors = Number(returningRes.rows[0]?.c ?? 0);
   const newVisitors = Math.max(0, visitors - returningVisitors);
+  const activatedCohort = Number(activatedCohortRes.rows[0]?.c ?? 0);
+  const activatedReturned = Number(activatedReturnedRes.rows[0]?.c ?? 0);
 
   const funnelVisitors = Number(visitorsRes.rows[0]?.c ?? 0);
   const signUps = Number(signUpRes.rows[0]?.c ?? 0);
-  const checkoutClicked = Number(checkoutClickRes.rows[0]?.c ?? 0);
+  const firstRadarStock = Number(radarFirstStockRes.rows[0]?.c ?? 0);
   const checkoutStarted = Number(checkoutStartRes.rows[0]?.c ?? 0);
   const converted = Number(convertedRes.rows[0]?.c ?? 0);
 
   const funnel: FunnelStep[] = [
     { key: "visitors", label: "Unique visitors", count: funnelVisitors },
     { key: "sign_ups", label: "Sign-ups", count: signUps },
-    { key: "checkout_clicked", label: "Checkout clicked", count: checkoutClicked },
+    { key: "first_radar_stock", label: "First Radar stock", count: firstRadarStock },
     { key: "checkout_started", label: "Checkout started", count: checkoutStarted },
     { key: "converted", label: "Subscribed", count: converted },
   ];
@@ -327,6 +365,8 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       visitors,
       returningVisitors,
       newVisitors,
+      activatedCohort,
+      activatedReturned,
     },
     trafficSeries: allDays.map((day) => ({
       day,
@@ -346,6 +386,8 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       views: Number(r.views ?? 0),
     })),
     funnel,
+    signupRate: pct(signUps, funnelVisitors),
+    radarActivationRate: pct(firstRadarStock, signUps),
     checkoutConversionRate: pct(converted, checkoutStarted),
   };
 }

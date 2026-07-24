@@ -170,7 +170,7 @@ export function LandingHeroCommand({
                         tier={tier}
                         isSubscribed={isSubscribed}
                         isTracked={isTracked}
-                        variant="icon"
+                        variant="compact"
                       />
                     )}
                     <span className="font-display text-[1rem] font-bold tabular-nums tracking-tight text-on-surface sm:text-[1.05rem]">

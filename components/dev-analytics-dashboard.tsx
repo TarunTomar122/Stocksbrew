@@ -55,6 +55,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
   const visitorToSignup =
     funnel.find((s) => s.key === "visitors")?.count ?? 0;
   const signUps = funnel.find((s) => s.key === "sign_ups")?.count ?? 0;
+  const firstRadarStock = funnel.find((s) => s.key === "first_radar_stock")?.count ?? 0;
   const converted = funnel.find((s) => s.key === "converted")?.count ?? 0;
 
   const retentionData = [
@@ -81,14 +82,23 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
   return (
     <div className="space-y-8">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Kpi label={`Visitors · ${periodLabel}`} value={summary.visitors} />
         <Kpi
           label={`Returning · ${periodLabel}`}
           value={summary.returningVisitors}
           hint={pct(summary.returningVisitors, summary.visitors)}
         />
-        <Kpi label={`Sign-ups · ${periodLabel}`} value={signUps} hint="PostHog" />
+        <Kpi
+          label={`Sign-ups · ${periodLabel}`}
+          value={signUps}
+          hint={posthog.signupRate != null ? `${posthog.signupRate}% of visitors` : "PostHog"}
+        />
+        <Kpi
+          label="First Radar stock"
+          value={firstRadarStock}
+          hint={posthog.radarActivationRate != null ? `${posthog.radarActivationRate}% of sign-ups` : periodLabel}
+        />
         <Kpi label="Paid Pro" value={business.paidProActive} hint="Firestore" tone="good" />
         <Kpi
           label="Checkout → paid"
@@ -185,7 +195,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Retention */}
             <Panel
-              title={`Retention · ${periodDays} days`}
+              title={`Visitor return · ${periodDays} days`}
               subtitle={`${pct(summary.returningVisitors, summary.visitors)} came back from prior ${periodDays} days`}
             >
               <div className="h-[220px] w-full">
@@ -213,18 +223,29 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              <p className="mt-2 text-[11px] text-[#6b7280]">
+                Activated cohort return: {summary.activatedReturned} / {summary.activatedCohort} users who added their first Radar stock in the prior {periodDays} days.
+              </p>
             </Panel>
 
             {/* Conversion funnel */}
             <Panel
-              title={`Conversion funnel · ${periodDays} days`}
-              subtitle={`Visitor → signup ${pct(signUps, visitorToSignup)} · signup → paid ${pct(converted, signUps)}`}
+              title={`Activation and conversion · ${periodDays} days`}
+              subtitle={`Visitor → signup ${pct(signUps, visitorToSignup)} · signup → first Radar ${pct(firstRadarStock, signUps)}`}
             >
               <div className="space-y-3 pt-1">
                 {funnel.map((step, index) => {
                   const widthPct = Math.max(8, (step.count / maxFunnel) * 100);
-                  const prev = index > 0 ? funnel[index - 1]?.count ?? 0 : 0;
-                  const stepRate = index > 0 ? pct(step.count, prev) : null;
+                  const stepRate =
+                    index === 1
+                      ? pct(step.count, visitorToSignup)
+                      : index === 2
+                        ? pct(step.count, signUps)
+                        : index === 4
+                          ? posthog.checkoutConversionRate == null
+                            ? null
+                            : `${posthog.checkoutConversionRate}%`
+                          : null;
                   return (
                     <div key={step.key}>
                       <div className="mb-1 flex items-baseline justify-between gap-2 text-[12px]">
@@ -247,7 +268,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                 })}
               </div>
               <p className="mt-4 text-[11px] text-[#9ca3af]">
-                Paid Pro in Firestore: {business.paidProActive} · new accounts (7d): {business.newUsers7d}
+                Unique people per stage in this period · Paid Pro in Firestore: {business.paidProActive} · new accounts (7d): {business.newUsers7d}
               </p>
             </Panel>
           </div>

@@ -10,6 +10,7 @@ import {
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
+import { captureEvent } from "@/lib/posthog";
 import { signInWithGoogle } from "@/lib/sign-in";
 
 const MOVER_LINES = [
@@ -130,7 +131,11 @@ function useFeedUnlockCta(surface: PaywallSurface) {
       setBusy(true);
       try {
         await signInWithGoogle({ surface: "paywall" });
-        router.push("/subscribe");
+        // "Sign in for more" must deliver the free signed-in view instead of
+        // dumping a new account straight into checkout. Refreshing preserves
+        // the page and lets the server reveal the additional free rows.
+        captureEvent("free_feed_unlocked", { surface });
+        router.refresh();
       } catch {
         /* cancelled */
       } finally {

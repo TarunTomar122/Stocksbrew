@@ -2,6 +2,7 @@
 
 import { AnimatedIcon } from "@/components/animated-icon";
 
+import { getAdditionalUserInfo } from "firebase/auth";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -17,8 +18,14 @@ export function AuthButton() {
     captureEvent("auth_sign_in_clicked", { surface: "header" });
     setBusy(true);
     try {
-      await signInWithGoogle({ surface: "header" });
+      const credential = await signInWithGoogle({ surface: "header" });
       captureEvent("auth_sign_in_succeeded", { surface: "header" });
+      // A generic header signup otherwise leaves a brand-new account on the
+      // same page with no next step. Radar is the product's activation loop.
+      if (getAdditionalUserInfo(credential)?.isNewUser) {
+        window.location.assign("/watchlist");
+        return;
+      }
     } catch (err) {
       console.error("sign-in failed", err);
       captureEvent("auth_sign_in_failed", {

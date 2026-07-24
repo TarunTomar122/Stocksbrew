@@ -14,16 +14,20 @@ export function scheduleWatchlistRebuild(debounceMs = 400): void {
 }
 
 /** Run rebuild immediately — use after batch track calls finish. */
-export function flushWatchlistRebuild(router?: AppRouterInstance, refreshDelayMs = 300): void {
+export function flushWatchlistRebuild(
+  router?: AppRouterInstance,
+  refreshDelayMs = 300,
+): Promise<void> {
   if (rebuildTimer) {
     clearTimeout(rebuildTimer);
     rebuildTimer = null;
   }
-  void fetch("/api/watchlist/refresh", { method: "POST" })
+  return fetch("/api/watchlist/refresh", { method: "POST" })
     .catch(() => undefined)
     .finally(() => {
       if (router) setTimeout(() => router.refresh(), refreshDelayMs);
-    });
+    })
+    .then(() => undefined);
 }
 
 /** Kick off rebuild + re-fetch the current RSC page after a track mutation. */

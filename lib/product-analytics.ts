@@ -13,6 +13,7 @@ export type AuthSurface =
   | "locked_room_to_target"
   | "subscribe_pricing"
   | "radar_track"
+  | "radar_page"
   | "radar_bulk"
   | "stock_alert"
   | "stock_smart_alert"

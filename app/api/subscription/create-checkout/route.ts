@@ -3,6 +3,7 @@ import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { getUserDoc } from "@/lib/watchlist";
 import { isDodoConfigured, DODO_BASE, dodoHeaders, productIdFor } from "@/lib/dodo";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+import { captureServerEvent } from "@/lib/posthog-server-capture";
 import { isTrialEligible } from "@/lib/trial-eligibility";
 
 export async function POST(req: NextRequest) {
@@ -140,6 +141,18 @@ export async function POST(req: NextRequest) {
       checkout_session_id: session.id ?? null,
       trial_eligible: trialEligible,
     },
+  }).catch(() => undefined);
+
+  // Capture on the server before the browser leaves for Dodo. Client-side
+  // checkout events can be dropped during the immediate cross-origin redirect.
+  await captureServerEvent(uid, "checkout_started", {
+    period: effectivePeriod,
+    market,
+    trial_eligible: trialEligible,
+    checkout_session_id: session.id ?? null,
+    $insert_id: session.id
+      ? `checkout:${session.id}`
+      : `checkout:${uid}:${effectivePeriod}:${market}:${Date.now()}`,
   }).catch(() => undefined);
 
   return NextResponse.json({ checkoutUrl });

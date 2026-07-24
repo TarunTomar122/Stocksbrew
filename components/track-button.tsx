@@ -112,11 +112,11 @@ export function TrackButton({
     });
   }
 
-  function triggerBackgroundRefresh(action: "add" | "remove", count = 1) {
+  async function triggerBackgroundRefresh(action: "add" | "remove", count = 1) {
     if (action === "add") {
       dispatchRadarTrackChanged({ action: "add", count });
     }
-    flushWatchlistRebuild(router, 0);
+    await flushWatchlistRebuild(router, 0);
   }
 
   useEffect(() => {
@@ -192,7 +192,7 @@ export function TrackButton({
           setLocalTracked(false);
           setModalStatus("success");
           captureEvent("radar_remove_clicked", { instrument_id: instrumentId, ticker });
-          triggerBackgroundRefresh("remove");
+          await triggerBackgroundRefresh("remove");
         } finally {
           setPendingOp(null);
           setTimeout(() => setModalOpen(false), 900);
@@ -272,7 +272,12 @@ export function TrackButton({
           first_stock: Boolean(data.first_stock),
         });
         setOpen(false);
-        triggerBackgroundRefresh("add");
+        await triggerBackgroundRefresh("add");
+        if (data.first_stock) {
+          // The first add is the activation moment. Show the user the Radar
+          // they just created instead of leaving them on the acquisition page.
+          window.location.assign("/watchlist");
+        }
       } finally {
         setPendingOp(null);
         setTimeout(() => setModalOpen(false), 900);
@@ -511,7 +516,7 @@ function TrackModal({
             disabled={pending}
             className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-on-surface text-surface text-[13px] font-semibold disabled:opacity-60 transition-transform hover:-translate-y-[1px] active:translate-y-0"
           >
-            {pending ? "Adding…" : "OK"}
+            {pending ? "Adding…" : "Add to Radar"}
           </button>
         </div>
       </div>

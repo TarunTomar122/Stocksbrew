@@ -32,6 +32,28 @@ export function AgentAccessLandingSection() {
   );
 }
 
+export function AgentAccessLandingStrip() {
+  return (
+    <section id="agent-access" className="scroll-mt-20 border-t border-outline-variant bg-surface-container-low/30">
+      <div className="landing-inner flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="landing-section-kicker text-landing-brand">For developers and AI users</p>
+          <p className="mt-1 text-[14px] leading-relaxed text-on-surface-variant">
+            Give Claude, Cursor, Codex, or your own agent the same current Stocksbrew stock context.
+          </p>
+        </div>
+        <Link
+          href="/agents"
+          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-outline-variant bg-surface px-4 py-2 text-[12px] font-bold text-on-surface no-underline transition-colors hover:border-on-surface sm:self-auto"
+        >
+          Agent access
+          <span aria-hidden>→</span>
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export function StockAgentAccessCta({ ticker, isSubscribed }: { ticker: string; isSubscribed: boolean }) {
   return (
     <section className="mx-auto my-10 w-full max-w-[1180px] px-3 sm:px-5">
