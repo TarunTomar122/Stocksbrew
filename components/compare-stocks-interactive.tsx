@@ -490,7 +490,7 @@ function CompareBuilder({
         className="pointer-events-none absolute -bottom-44 left-[28%] h-[340px] w-[340px] rounded-full bg-[#e7efcb]/50 blur-3xl"
       />
 
-      <div className="relative grid gap-8 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(480px,1.18fr)] lg:items-center lg:gap-14 lg:px-12 lg:py-14">
+      <div className="relative grid gap-8 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(480px,1.1fr)] lg:items-center lg:gap-14 lg:px-12 lg:py-14">
         <motion.div
           initial={reducedMotion ? false : { x: -16 }}
           animate={{ x: 0 }}
