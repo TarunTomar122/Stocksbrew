@@ -40,6 +40,16 @@ function normalizeTicker(raw: unknown, fallbackTicker = ""): RedditTicker | null
     catalysts: Array.isArray(item.catalysts)
       ? (item.catalysts as unknown[]).filter((c): c is string => typeof c === "string")
       : [],
+    company_name: typeof item.company_name === "string" ? item.company_name : undefined,
+    confidence: typeof item.confidence === "number" ? item.confidence : undefined,
+    latest_post_at: typeof item.latest_post_at === "string" ? item.latest_post_at : undefined,
+    source_subreddits: Array.isArray(item.source_subreddits)
+      ? item.source_subreddits.filter((value): value is string => typeof value === "string")
+      : [],
+    supporting_post_ids: Array.isArray(item.supporting_post_ids)
+      ? item.supporting_post_ids.filter((value): value is string => typeof value === "string")
+      : [],
+    window_hours: typeof item.window_hours === "number" ? item.window_hours : undefined,
   };
 }
 
@@ -82,6 +92,11 @@ function normalizeTopPost(raw: unknown): RedditTopPost | null {
     url,
     permalink,
     body,
+    published: typeof item.published === "string" ? item.published : undefined,
+    source_subreddits: Array.isArray(item.source_subreddits)
+      ? item.source_subreddits.filter((value): value is string => typeof value === "string")
+      : [],
+    duplicate_count: typeof item.duplicate_count === "number" ? item.duplicate_count : 0,
   };
 }
 
@@ -113,6 +128,34 @@ function normalizeSnapshot(raw: Record<string, unknown>, market: "US" | "IN"): R
         : typeof raw.posts_scanned === "number"
         ? raw.posts_scanned
         : 0,
+    raw_post_count: typeof raw.raw_post_count === "number" ? raw.raw_post_count : 0,
+    deduplicated_post_count:
+      typeof raw.deduplicated_post_count === "number"
+        ? raw.deduplicated_post_count
+        : typeof raw.post_count === "number"
+        ? raw.post_count
+        : 0,
+    duplicate_post_count:
+      typeof raw.duplicate_post_count === "number" ? raw.duplicate_post_count : 0,
+    window_hours:
+      typeof raw.window_hours === "number"
+        ? raw.window_hours
+        : typeof raw.cache_hours === "number"
+        ? raw.cache_hours
+        : 120,
+    window_start: typeof raw.window_start === "string" ? raw.window_start : undefined,
+    window_end: typeof raw.window_end === "string" ? raw.window_end : undefined,
+    coverage_status:
+      typeof raw.coverage_status === "string" ? raw.coverage_status : "partial",
+    fetch_failures: Array.isArray(raw.fetch_failures)
+      ? raw.fetch_failures
+          .filter((value): value is Record<string, unknown> => Boolean(value && typeof value === "object"))
+          .map((value) => ({
+            subreddit: String(value.subreddit || ""),
+            error: value.error ? String(value.error) : undefined,
+          }))
+          .filter((value) => value.subreddit)
+      : [],
     subreddits: Array.isArray(raw.subreddits)
       ? raw.subreddits.filter((v): v is string => typeof v === "string")
       : Array.isArray(raw.subreddits_scanned)

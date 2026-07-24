@@ -22,6 +22,7 @@ export async function GET() {
     "/",
     "/radar",
     "/pulse",
+    "/social",
     "/heat",
     "/premarket",
     "/events",

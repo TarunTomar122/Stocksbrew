@@ -237,7 +237,23 @@ function MobileTabBar({ active, onSelect, upCount, downCount }: { active: Tab; o
   );
 }
 
-function MoverTable({ label, rows, trackedIds, tone, showLabel = true }: { label: string; rows: PremarketRow[]; trackedIds: Set<string>; tone: "up" | "down"; showLabel?: boolean }) {
+function MoverTable({
+  label,
+  rows,
+  trackedIds,
+  tone,
+  catalysts,
+  reportGeneratedAt,
+  showLabel = true,
+}: {
+  label: string;
+  rows: PremarketRow[];
+  trackedIds: Set<string>;
+  tone: "up" | "down";
+  catalysts: Map<string, OpeningReport["news"][number]>;
+  reportGeneratedAt?: string;
+  showLabel?: boolean;
+}) {
   if (!rows.length) return null;
   const color = tone === "up" ? "var(--signal-bullish)" : "var(--signal-bearish)";
   return (
@@ -249,18 +265,20 @@ function MoverTable({ label, rows, trackedIds, tone, showLabel = true }: { label
         </div>
       ) : null}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[330px] border-collapse text-[13px]">
+        <table className="w-full min-w-[610px] border-collapse text-[13px]">
           <thead>
             <tr className="border-b border-outline-variant/50 text-left font-mono text-[9.5px] uppercase tracking-[0.07em] text-on-surface-variant">
               <th className="px-4 py-2.5 font-normal">Ticker</th>
               <th className="px-3 py-2.5 text-right font-normal">Gap</th>
               <th className="px-3 py-2.5 text-right font-normal">Price</th>
+              <th className="px-3 py-2.5 font-normal">Why it is moving</th>
               <th className="w-10 px-3 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
               const up = row.pre_market_change_pct >= 0;
+              const catalyst = catalysts.get(row.ticker.toUpperCase());
               return (
                 <tr key={row.instrument_id} className="border-b border-outline-variant/40 last:border-b-0 hover:bg-surface-container-low">
                   <td className="px-4 py-3">
@@ -274,6 +292,16 @@ function MoverTable({ label, rows, trackedIds, tone, showLabel = true }: { label
                   </td>
                   <td className="px-3 py-3 text-right font-mono font-bold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>{signed(row.pre_market_change_pct)}</td>
                   <td className="px-3 py-3 text-right font-mono tabular-nums text-on-surface">${fmtPrice(row.pre_market_price)}</td>
+                  <td className="max-w-[250px] px-3 py-3">
+                    <p className="line-clamp-2 text-[11.5px] leading-[1.4] text-on-surface">
+                      {catalyst?.headline || catalyst?.detail || "No confirmed catalyst yet."}
+                    </p>
+                    <p className="mt-1 truncate font-mono text-[8.5px] uppercase tracking-[0.04em] text-on-surface-variant">
+                      {catalyst
+                        ? `${catalyst.source || "Verified news"} · ${relativeTime(reportGeneratedAt || "")}`
+                        : "No verified source"}
+                    </p>
+                  </td>
                   <td className="px-3 py-3"><TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.has(row.instrument_id)} variant="icon" /></td>
                 </tr>
               );
@@ -285,7 +313,17 @@ function MoverTable({ label, rows, trackedIds, tone, showLabel = true }: { label
   );
 }
 
-function PremarketMoversTables({ movers, trackedIds }: { movers: PremarketMovers | null; trackedIds: Set<string> }) {
+function PremarketMoversTables({
+  movers,
+  trackedIds,
+  catalysts,
+  reportGeneratedAt,
+}: {
+  movers: PremarketMovers | null;
+  trackedIds: Set<string>;
+  catalysts: Map<string, OpeningReport["news"][number]>;
+  reportGeneratedAt?: string;
+}) {
   const gappersUp = [...(movers?.gappers_up ?? [])].sort((a, b) => b.pre_market_change_pct - a.pre_market_change_pct);
   const gappersDown = [...(movers?.gappers_down ?? [])].sort((a, b) => a.pre_market_change_pct - b.pre_market_change_pct);
   const [tab, setTab] = useState<Tab>(gappersUp.length ? "up" : "down");
@@ -304,16 +342,32 @@ function PremarketMoversTables({ movers, trackedIds }: { movers: PremarketMovers
   return (
     <>
       <MobileTabBar active={tab} onSelect={setTab} upCount={gappersUp.length} downCount={gappersDown.length} />
-      <div className="lg:hidden"><MoverTable label={tab === "up" ? "Gapping up" : "Gapping down"} rows={tab === "up" ? gappersUp : gappersDown} trackedIds={trackedIds} tone={tab === "up" ? "up" : "down"} showLabel={false} /></div>
+      <div className="lg:hidden"><MoverTable label={tab === "up" ? "Gapping up" : "Gapping down"} rows={tab === "up" ? gappersUp : gappersDown} trackedIds={trackedIds} tone={tab === "up" ? "up" : "down"} catalysts={catalysts} reportGeneratedAt={reportGeneratedAt} showLabel={false} /></div>
       <div className="hidden lg:grid lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/70">
-        <MoverTable label="Gapping up" rows={gappersUp} trackedIds={trackedIds} tone="up" />
-        <MoverTable label="Gapping down" rows={gappersDown} trackedIds={trackedIds} tone="down" />
+        <MoverTable label="Gapping up" rows={gappersUp} trackedIds={trackedIds} tone="up" catalysts={catalysts} reportGeneratedAt={reportGeneratedAt} />
+        <MoverTable label="Gapping down" rows={gappersDown} trackedIds={trackedIds} tone="down" catalysts={catalysts} reportGeneratedAt={reportGeneratedAt} />
       </div>
     </>
   );
 }
 
-export function PremarketPageView({ movers, report, premarketLive, marketPhase, marketRisk, trackedIds = [] }: { movers: PremarketMovers | null; report: OpeningReport | null; premarketLive: boolean; marketPhase?: string | null; marketRisk?: string | null; trackedIds?: string[] }) {
+export function PremarketPageView({
+  movers,
+  report,
+  premarketLive,
+  marketPhase,
+  marketRisk,
+  trackedIds = [],
+  embedded = false,
+}: {
+  movers: PremarketMovers | null;
+  report: OpeningReport | null;
+  premarketLive: boolean;
+  marketPhase?: string | null;
+  marketRisk?: string | null;
+  trackedIds?: string[];
+  embedded?: boolean;
+}) {
   const data = currentOpeningReport(report, movers) ?? fallbackReport(movers);
   const score = scoreStyle(data.score);
   const tracked = new Set(trackedIds);
@@ -326,10 +380,15 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
   const phase = marketPhase ? PHASE_LABEL[marketPhase] : null;
   const risk = marketRisk ? RISK_LABEL[marketRisk] : null;
   const socialTone: OpeningTone = data.social.sentiment_score > 10 ? "positive" : data.social.sentiment_score < -10 ? "negative" : "neutral";
+  const catalysts = new Map(
+    data.news
+      .filter((item) => item.ticker)
+      .map((item) => [item.ticker.toUpperCase(), item] as const),
+  );
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7">
-      <header className="mb-4 flex items-start justify-between gap-4 sm:mb-5">
+    <div className={embedded ? "w-full min-w-0" : "mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7"}>
+      {!embedded ? <header className="mb-4 flex items-start justify-between gap-4 sm:mb-5">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-md border border-outline-variant bg-surface px-2 py-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
@@ -342,14 +401,14 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
           <p className="mt-1 font-mono text-[11px] text-on-surface-variant">Futures · global markets · pre-market breadth</p>
         </div>
         <PremarketShareCard />
-      </header>
+      </header> : null}
 
       <section className={`${CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card)" }}>
-        <div className="grid gap-6 px-4 py-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-10 lg:p-7">
+        <div className={`grid px-4 py-4 ${embedded ? "gap-4 lg:grid-cols-[minmax(0,1fr)_230px] lg:gap-6" : "gap-6 sm:p-6 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-10 lg:p-7"}`}>
           <div className="min-w-0">
             <p className={KICK}>Expected opening</p>
             <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
-              <h2 className="text-[2rem] font-extrabold leading-none tracking-tight sm:text-[2.65rem]" style={{ color: score.accent }}>{score.label} setup</h2>
+              <h2 className={`${embedded ? "text-[1.55rem] sm:text-[1.8rem]" : "text-[2rem] sm:text-[2.65rem]"} font-extrabold leading-none tracking-tight`} style={{ color: score.accent }}>{score.label} setup</h2>
               <span className="pb-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">{data.confidence} confidence</span>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -363,7 +422,7 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className={KICK}>Opening score</p>
-                <p className="mt-1 text-[46px] font-black leading-none tracking-[-0.06em] tabular-nums text-on-surface">{data.score}<span className="ml-1 text-[16px] font-semibold tracking-normal text-on-surface-variant">/100</span></p>
+                <p className={`${embedded ? "text-[34px]" : "text-[46px]"} mt-1 font-black leading-none tracking-[-0.06em] tabular-nums text-on-surface`}>{data.score}<span className="ml-1 text-[14px] font-semibold tracking-normal text-on-surface-variant">/100</span></p>
               </div>
               <span className="pb-1 font-mono text-[11px] font-bold uppercase" style={{ color: score.accent }}>{score.label}</span>
             </div>
@@ -374,7 +433,7 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
         <div className="grid grid-cols-2 gap-x-5 gap-y-4 border-t border-outline-variant/60 px-4 py-4 sm:grid-cols-4 sm:px-6 lg:px-7">
           <Metric label="US futures" value={futures === null ? "—" : signed(futures)} tone={futures === null ? "neutral" : futures >= 0 ? "positive" : "negative"} />
           <Metric label="Asia" value={asia === null ? "—" : signed(asia)} tone={asia === null ? "neutral" : asia >= 0 ? "positive" : "negative"} />
-          <Metric label="Pre-market" value={data.premarket.available ? `${data.premarket.up_count}↑ ${data.premarket.down_count}↓` : "Not live"} tone={data.premarket.available ? (data.premarket.breadth_score >= 0 ? "positive" : "negative") : "neutral"} />
+          <Metric label="Pre-market" value={data.premarket.available ? `${data.premarket.up_count} up · ${data.premarket.down_count} down` : "Not live"} tone={data.premarket.available ? (data.premarket.breadth_score >= 0 ? "positive" : "negative") : "neutral"} />
           <Metric label="Social" value={data.social.available ? `${data.social.sentiment_score >= 0 ? "+" : ""}${data.social.sentiment_score.toFixed(0)}` : "—"} tone={data.social.available ? socialTone : "neutral"} />
         </div>
       </section>
@@ -387,12 +446,25 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
                 <p className={KICK}>Global handoff</p>
                 <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Market tape</h2>
               </div>
-              <span className="font-mono text-[10px] text-on-surface-variant">{sortedCues.length} markets</span>
+              <span className="font-mono text-[10px] text-on-surface-variant">
+                {embedded ? `${Math.min(5, sortedCues.length)} of ${sortedCues.length}` : sortedCues.length} markets
+              </span>
             </div>
-            <CueTable cues={sortedCues} />
+            <CueTable cues={embedded ? sortedCues.slice(0, 5) : sortedCues} />
           </section>
 
-          {data.news.length ? (
+          <section className={`${CARD} overflow-hidden`}>
+            <div className="flex items-end justify-between gap-3 border-b border-outline-variant/70 px-5 py-4">
+              <div>
+                <p className={KICK}>US pre-market</p>
+                <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Movers</h2>
+              </div>
+              <span className="font-mono text-[10px] text-on-surface-variant">{movers?.generated_at ? relativeTime(movers.generated_at) : "4:00 AM ET"}</span>
+            </div>
+            <PremarketMoversTables movers={movers} trackedIds={tracked} catalysts={catalysts} reportGeneratedAt={data.generated_at} />
+          </section>
+
+          {!embedded && data.news.length ? (
             <section className={`${CARD} overflow-hidden`}>
               <div className="border-b border-outline-variant/70 px-5 py-4">
                 <p className={KICK}>Overnight catalysts</p>
@@ -412,17 +484,6 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
               </div>
             </section>
           ) : null}
-
-          <section className={`${CARD} overflow-hidden`}>
-            <div className="flex items-end justify-between gap-3 border-b border-outline-variant/70 px-5 py-4">
-              <div>
-                <p className={KICK}>US pre-market</p>
-                <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Movers</h2>
-              </div>
-              <span className="font-mono text-[10px] text-on-surface-variant">{movers?.generated_at ? relativeTime(movers.generated_at) : "4:00 AM ET"}</span>
-            </div>
-            <PremarketMoversTables movers={movers} trackedIds={tracked} />
-          </section>
         </div>
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-20">
@@ -458,9 +519,9 @@ export function PremarketPageView({ movers, report, premarketLive, marketPhase, 
         </aside>
       </div>
 
-      <footer className="mt-6 border-t border-outline-variant/60 pt-4 font-mono text-[9.5px] uppercase tracking-[0.04em] text-on-surface-variant">
+      {!embedded ? <footer className="mt-6 border-t border-outline-variant/60 pt-4 font-mono text-[9.5px] uppercase tracking-[0.04em] text-on-surface-variant">
         Global pricing · monitored social feeds · pre-market quotes · not investment advice
-      </footer>
+      </footer> : null}
     </div>
   );
 }

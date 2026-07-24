@@ -27,23 +27,31 @@ function epsTagFromReported(reported?: string): string | undefined {
 
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
   return anomalies.map((a) => {
-    const headline = anomalyHeadline(a);
+    const confidence = a.move_explanation?.confidence?.toLowerCase();
+    const hasVerifiedCause =
+      (a.move_explanation?.evidence?.length ?? 0) > 0 ||
+      (a.news_count > 0 && a.source_count > 0 && confidence !== "low");
+    const headline = hasVerifiedCause
+      ? anomalyHeadline(a)
+      : `${a.ticker} ${a.day_change_pct >= 0 ? "rises" : "falls"} ${Math.abs(a.day_change_pct).toFixed(2)}%`;
     const tag = (a.catalyst || a.visual_summary?.what_changed || "").trim() || headline;
-    const whyItMatters =
-      a.move_explanation?.why_it_matters?.trim() ||
-      anomalyDetail(a) ||
-      (a.today_brief || a.visual_summary?.why_it_matters || a.thesis || "").trim() ||
-      undefined;
+    const whyItMatters = hasVerifiedCause
+      ? a.move_explanation?.why_it_matters?.trim() ||
+        anomalyDetail(a) ||
+        (a.today_brief || a.visual_summary?.why_it_matters || a.thesis || "").trim() ||
+        "Verified source coverage is available on the stock page."
+      : "No confirmed catalyst yet.";
 
     return {
       ticker: a.ticker,
+      company: a.name,
       price: a.price,
       changePct: a.day_change_pct,
       tag,
       buzz: buzzBy.get(a.ticker.toUpperCase()),
       headline,
       whyItMatters,
-      confidence: a.move_explanation?.confidence,
+      confidence: hasVerifiedCause ? a.move_explanation?.confidence : "low",
     };
   });
 }
@@ -159,7 +167,8 @@ export function buildPulsePageData(input: {
       seenRecent.add(k);
       return Boolean(doc.report?.headline?.trim() || doc.report?.summary?.trim());
     })
-    .slice(0, 16)
+    .sort((a, b) => Date.parse(b.event_date || "") - Date.parse(a.event_date || ""))
+    .slice(0, 7)
     .map((doc) => ({
       ticker: doc.ticker,
       company: snapshotBy.get(doc.ticker.toUpperCase())?.company ?? doc.ticker,
@@ -169,7 +178,9 @@ export function buildPulsePageData(input: {
     }));
 
   const recentTickers = new Set(recentEarnings.map((r) => r.ticker.toUpperCase()));
-  const earnings = allEarnings.filter((e) => !recentTickers.has(e.ticker.toUpperCase()));
+  const earnings = allEarnings
+    .filter((e) => !recentTickers.has(e.ticker.toUpperCase()))
+    .sort((a, b) => Date.parse(a.eventDate) - Date.parse(b.eventDate));
 
   const reddit: RedditPick[] = redditTickers
     .filter((r) => r.summary?.trim())

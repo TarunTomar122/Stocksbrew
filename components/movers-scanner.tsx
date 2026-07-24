@@ -11,6 +11,7 @@ import { resolveStockTier } from "@/lib/ai-launch-tier";
 
 export type ScannerItem = {
   ticker: string;
+  company?: string;
   instrument_id?: string;
   price: number;
   changePct: number;
@@ -48,7 +49,6 @@ export function MoversScanner({
   trackedCount?: number;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
-  const [expanded, setExpanded] = useState(false);
   const gainers = items.filter((i) => i.changePct >= 0);
   const losers = items.filter((i) => i.changePct < 0);
   const all = tab === "gainers" ? gainers : losers;
@@ -66,7 +66,6 @@ export function MoversScanner({
           type="button"
           onClick={() => {
             setTab(key);
-            setExpanded(false);
           }}
           className={`landing-scanner-tab ${on ? "landing-scanner-tab-active" : "text-on-surface-variant"}`}
         >
@@ -120,7 +119,14 @@ export function MoversScanner({
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
                         <StockLogo ticker={a.ticker} market="US" size={28} />
-                        <span className="text-[15px] font-bold text-on-surface">{a.ticker}</span>
+                        <span className="min-w-0">
+                          <span className="block text-[15px] font-bold text-on-surface">{a.ticker}</span>
+                          {a.company ? (
+                            <span className="block max-w-[220px] truncate text-[10.5px] text-on-surface-variant">
+                              {a.company}
+                            </span>
+                          ) : null}
+                        </span>
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-[15px] font-bold tabular-nums text-on-surface">${money(a.price)}</p>
@@ -169,17 +175,21 @@ export function MoversScanner({
                 <p className="mb-2 mt-8 text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
                   Everything else moving
                 </p>
-                <div className="pulse-list-panel">
-                  {(expanded ? rows.slice(4) : rows.slice(4, 10)).map((a, offset) => {
+                <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {rows.slice(4).map((a, offset) => {
                     const index = offset + 4;
                     const up = a.changePct >= 0;
                     const locked = isLocked(index);
-                    const subline = a.headline || a.tag;
-                    const rowBody = (
+                    const cardBody = (
                       <>
-                        <div className="flex items-center gap-3">
-                          <StockLogo ticker={a.ticker} market="US" size={22} />
-                          <span className="min-w-0 flex-1 font-semibold text-on-surface">{a.ticker}</span>
+                        <div className="flex items-start gap-2.5">
+                          <StockLogo ticker={a.ticker} market="US" size={24} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-semibold text-on-surface">{a.ticker}</span>
+                            {a.company ? (
+                              <span className="block truncate text-[10px] text-on-surface-variant">{a.company}</span>
+                            ) : null}
+                          </span>
                           <div className="shrink-0 text-right leading-tight">
                             <p className="tabular-nums text-[13px] font-medium text-on-surface">${money(a.price)}</p>
                             <p
@@ -192,28 +202,36 @@ export function MoversScanner({
                           </div>
                         </div>
                         {locked ? (
-                          <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" />
-                        ) : subline ? (
-                          <p className="text-[13px] leading-snug text-on-surface-variant">{subline}</p>
-                        ) : null}
+                          <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="block" className="mt-3" />
+                        ) : (
+                          <>
+                            <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-[1.35] text-on-surface">
+                              {a.headline || `${a.ticker} is moving ${up ? "higher" : "lower"}`}
+                            </p>
+                            <p className="mt-2 line-clamp-3 min-h-[3.4rem] text-[11.5px] leading-[1.45] text-on-surface-variant">
+                              {a.whyItMatters || "No confirmed catalyst yet."}
+                            </p>
+                            {a.tag ? (
+                              <span className="mt-auto inline-flex w-fit rounded bg-surface-container px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-on-surface-variant">
+                                {a.tag}
+                              </span>
+                            ) : null}
+                          </>
+                        )}
                       </>
                     );
+                    const className =
+                      "flex min-h-[190px] flex-col rounded-xl border border-outline-variant bg-surface p-3.5 shadow-[var(--shadow-card)] transition-colors hover:border-landing-brand/25 hover:bg-surface-container-low";
                     return locked ? (
-                      <div key={a.ticker} className="pulse-list-row pulse-list-row-stacked">
-                        {rowBody}
+                      <div key={a.ticker} className={className}>
+                        {cardBody}
                       </div>
                     ) : (
-                      <Link key={a.ticker} href={`/stock/${a.ticker}`} className="pulse-list-row pulse-list-row-stacked">
-                        {rowBody}
+                      <Link key={a.ticker} href={`/stock/${a.ticker}`} className={className}>
+                        {cardBody}
                       </Link>
                     );
                   })}
-                  {!expanded && rows.length > 10 ? (
-                    <button type="button" onClick={() => setExpanded(true)} className="pulse-view-more">
-                      View more movers
-                      <AnimatedIcon name="expand_more" size={18} className="text-[18px]" />
-                    </button>
-                  ) : null}
                 </div>
               </>
             ) : null}

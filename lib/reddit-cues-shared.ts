@@ -4,6 +4,12 @@ export type RedditTicker = {
   summary: string;
   mention_count: number;
   catalysts: string[];
+  company_name?: string;
+  confidence?: number;
+  latest_post_at?: string;
+  source_subreddits?: string[];
+  supporting_post_ids?: string[];
+  window_hours?: number;
   company?: string;
   price?: number;
   changePct?: number;
@@ -19,12 +25,23 @@ export type RedditTopPost = {
   url?: string;
   permalink?: string;
   body?: string;
+  published?: string;
+  source_subreddits?: string[];
+  duplicate_count?: number;
 };
 
 export type RedditSnapshot = {
   market: string;
   generated_at: string;
   post_count: number;
+  raw_post_count: number;
+  deduplicated_post_count: number;
+  duplicate_post_count: number;
+  window_hours: number;
+  window_start?: string;
+  window_end?: string;
+  coverage_status: "complete" | "partial" | "stale" | string;
+  fetch_failures: Array<{ subreddit: string; error?: string }>;
   subreddits: string[];
   market_mood: string;
   tickers: RedditTicker[];

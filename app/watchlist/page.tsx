@@ -23,11 +23,11 @@ import {
   buildHealthProps,
   buildIdeas,
   collectIdeaInstrumentIds,
-  countAttentionRows,
   enrichIdeas,
 } from "@/lib/radar-next-data";
 import { CommandHeader } from "@/components/radar-next/command-header";
 import { Book } from "@/components/radar-next/book";
+import { AttentionQueue } from "@/components/radar-next/attention-queue";
 import { Health } from "@/components/radar-next/health";
 import { Ideas } from "@/components/radar-next/ideas";
 import { RadarNextSkeleton } from "@/components/radar-next/skeleton";
@@ -138,7 +138,6 @@ async function RadarNextStream() {
 
   const book = buildBookRows(rows, { states: radarStockStates, newsInstrumentIds });
   const health = buildHealthProps(diagnosis, holdings.length);
-  const attentionCount = countAttentionRows(rows);
   const ideasBase = buildIdeas(watchlistView?.suggestions);
   const ideaMarket = await getIdeaMarketData(collectIdeaInstrumentIds(ideasBase)).catch(
     () => new Map(),
@@ -147,13 +146,7 @@ async function RadarNextStream() {
 
   const moversUp = rows.filter((r) => (r.day_change_pct ?? 0) > 0).length;
   const moversDown = rows.filter((r) => (r.day_change_pct ?? 0) < 0).length;
-  const statusLine =
-    activeRadarUserView?.narrative?.headline?.trim() ||
-    `${rows.length} tracked · ${moversUp} up / ${moversDown} down${
-      attentionCount > 0
-        ? ` · ${attentionCount} in zone`
-        : ""
-    }`;
+  const statusLine = `${rows.length} tracked · ${moversUp} up / ${moversDown} down`;
 
   return (
     <>
@@ -166,6 +159,8 @@ async function RadarNextStream() {
           trackedCount={rows.length}
           isSubscribed={isSubscribed}
         />
+
+        <AttentionQueue items={activeRadarUserView?.attention_items ?? []} />
 
         <div className="grid gap-3 sm:gap-6 lg:grid-cols-[1.35fr_1fr]">
           <Book holdings={book.holdings} watching={book.watching} />

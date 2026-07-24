@@ -33,7 +33,7 @@ const nextConfig = {
         permanent: true,
       },
       { source: "/anomalies", destination: "/pulse", permanent: true },
-      { source: "/reddit-buzz", destination: "/pulse", permanent: true },
+      { source: "/reddit-buzz", destination: "/social", permanent: true },
       // Blog consolidation — alerts cluster
       {
         source: "/blog/ai-stock-alerts-vs-price-alerts",

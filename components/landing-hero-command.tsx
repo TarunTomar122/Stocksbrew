@@ -64,6 +64,97 @@ export type LandingHeroFeatured = {
   price_history: { date: string; close: number }[];
 };
 
+const RADAR_SAMPLE_ROWS = [
+  { tag: "Earnings today", ticker: "NVDA", reason: "A scheduled report can reset the current setup.", fact: "Calendar event · source verified" },
+  { tag: "Newly oversold", ticker: "TSLA", reason: "Momentum crossed into a new weak-state threshold.", fact: "RSI below 30 · technical reading" },
+  { tag: "Abnormal move", ticker: "MSFT", reason: "A material move has an attributable company update.", fact: "Company filing · verified source" },
+] as const;
+
+function LandingRadarBrew() {
+  return (
+    <div className="min-h-[520px] space-y-4 p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 font-mono text-[10.5px] uppercase tracking-[0.08em] text-on-surface-variant">
+        <span>$ brew radar --sample</span>
+        <span>Illustrative · not user data</span>
+      </div>
+
+      <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface">
+        <div className="flex items-center justify-between border-b border-outline-variant/60 px-4 py-3">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
+            // needs attention
+          </p>
+          <span className="font-mono text-[9px] uppercase text-on-surface-variant">3 material changes</span>
+        </div>
+        <div className="divide-y divide-outline-variant/50">
+          {RADAR_SAMPLE_ROWS.map((row) => (
+            <div
+              key={row.ticker}
+              className="grid gap-1.5 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)_180px] sm:items-center sm:gap-3"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[12px] font-bold text-on-surface">{row.ticker}</span>
+                <span className="rounded bg-surface-container px-1.5 py-0.5 font-mono text-[8px] font-semibold uppercase text-landing-brand">
+                  {row.tag}
+                </span>
+              </div>
+              <p className="text-[11.5px] font-medium leading-snug text-on-surface">{row.reason}</p>
+              <p className="font-mono text-[8.5px] uppercase tracking-[0.03em] text-on-surface-variant sm:text-right">
+                {row.fact}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
+        <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface">
+          <div className="grid grid-cols-[1fr_80px_80px] border-b border-outline-variant/60 bg-surface-container-low px-4 py-2 font-mono text-[8.5px] uppercase text-on-surface-variant">
+            <span>Tracked stock</span>
+            <span className="text-right">Last</span>
+            <span className="text-right">Today</span>
+          </div>
+          {[
+            ["NVDA", "$208.76", "−1.56%"],
+            ["MSFT", "$512.44", "+1.12%"],
+            ["TSLA", "$319.28", "−3.08%"],
+            ["AMZN", "$231.09", "+0.74%"],
+          ].map(([ticker, price, move]) => (
+            <div key={ticker} className="grid grid-cols-[1fr_80px_80px] border-b border-outline-variant/40 px-4 py-2.5 font-mono text-[10.5px] last:border-b-0">
+              <span className="font-bold text-on-surface">{ticker}</span>
+              <span className="text-right text-on-surface">{price}</span>
+              <span className="text-right text-on-surface-variant">{move}</span>
+            </div>
+          ))}
+        </section>
+
+        <section className="rounded-xl border border-outline-variant/60 bg-surface p-4">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+            Book health
+          </p>
+          <p className="mt-2 text-[20px] font-extrabold tracking-tight text-[var(--signal-neutral)]">
+            Concentration elevated
+          </p>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-on-surface-variant">
+            Two names account for 46% of this sample book. That is a material risk-state change.
+          </p>
+        </section>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant/50 pt-4">
+        <p className="text-[11px] text-on-surface-variant">
+          Return when a tracked stock changes state—not for another generic feed.
+        </p>
+        <Link
+          href="/watchlist"
+          className="rounded-full bg-landing-brand px-4 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
+        >
+          Build your Radar →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export function LandingHeroCommand({
   featured,
   call,
@@ -80,6 +171,7 @@ export function LandingHeroCommand({
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [brewMode, setBrewMode] = useState<"stock" | "radar">("stock");
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setRevealed(true));
@@ -134,7 +226,27 @@ export function LandingHeroCommand({
           </span>
         </div>
 
-        <div className="space-y-4 p-4 sm:p-5">
+        <div className="flex items-center gap-1 border-b border-outline-variant/60 bg-surface-container-low/50 px-4 py-2">
+          {([
+            ["stock", "Stock Brew"],
+            ["radar", "Radar Brew"],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setBrewMode(id)}
+              className={`rounded-md px-3 py-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+                brewMode === id
+                  ? "bg-surface text-on-surface shadow-[inset_0_0_0_1px_var(--outline-variant)]"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {brewMode === "radar" ? <LandingRadarBrew /> : <div className="space-y-4 p-4 sm:p-5">
           <div className="landing-hero-command-prompt font-mono text-[12px] text-on-surface-variant">
             $ <span className="text-on-surface">brew verdict {featured.ticker}</span>
             <span
@@ -298,7 +410,7 @@ export function LandingHeroCommand({
               ) : null}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

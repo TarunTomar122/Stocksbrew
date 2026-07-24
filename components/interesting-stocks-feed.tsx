@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { FeedRowLockedBlur, FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
+import { FeedRowLockedBlur, FeedStickyUnlock, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import type { InterestingStockRow } from "@/lib/interesting-stocks";
 import { FREE_INTERESTING_STOCKS_VISIBLE_LIMIT } from "@/lib/pro-features";
@@ -15,89 +15,86 @@ const SETUP_LABEL: Record<string, string> = {
   overheated: "Stretched",
 };
 
-function pctEl(v: number | null | undefined) {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  const up = v >= 0;
-  return (
-    <span style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-      {up ? "▲" : "▼"} {Math.abs(v).toFixed(2)}%
-    </span>
-  );
+function moveText(value?: number | null): { text: string; color: string } {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return { text: "—", color: "var(--on-surface-variant)" };
+  }
+  return {
+    text: `${value >= 0 ? "▲" : "▼"} ${Math.abs(value).toFixed(2)}%`,
+    color: value >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)",
+  };
 }
 
-function InterestingCard({
-  row,
-  locked,
-}: {
-  row: InterestingStockRow;
-  locked: boolean;
-}) {
-  const setupKey = row.setup_type || "momentum_setup";
-  const setupLabel = SETUP_LABEL[setupKey] ?? setupKey.replaceAll("_", " ");
+function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boolean }) {
+  const setupLabel = SETUP_LABEL[row.setup_type] ?? row.setup_type.replaceAll("_", " ");
+  const move = moveText(row.day_change_pct);
+  const todayFact =
+    typeof row.risk_reward_ratio === "number"
+      ? `${row.risk_reward_ratio.toFixed(1)}× risk/reward`
+      : typeof row.session_max_move_pct === "number"
+      ? `${Math.abs(row.session_max_move_pct).toFixed(1)}% session range`
+      : typeof row.rsi_14 === "number"
+      ? `RSI ${row.rsi_14.toFixed(0)}`
+      : null;
 
   const body = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <StockLogo ticker={row.ticker} market="US" size={28} className="shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[14px] font-bold leading-none text-on-surface">{row.ticker}</p>
-            <p className="mt-1 truncate text-[11px] text-on-surface-variant">{row.name ?? row.ticker}</p>
-          </div>
-        </div>
-        <div className="shrink-0 text-right">
-          {pctEl(row.day_change_pct)}
-          {!locked && typeof row.interesting_score === "number" ? (
-            <p className="mt-1 font-mono text-[10px] tabular-nums text-on-surface-variant">
-              score {row.interesting_score.toFixed(0)}
-            </p>
-          ) : null}
+      <div className="flex min-w-0 items-center gap-2.5">
+        <StockLogo ticker={row.ticker} market="US" size={30} className="shrink-0" />
+        <div className="min-w-0">
+          <p className="font-mono text-[13px] font-bold text-on-surface">{row.ticker}</p>
+          <p className="truncate text-[10.5px] text-on-surface-variant">{row.name ?? row.ticker}</p>
         </div>
       </div>
 
-      {!locked ? (
-        <span className="mt-3 inline-flex w-fit rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant">
+      <div className="flex items-center justify-between gap-2 md:block">
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-landing-brand">
           {setupLabel}
         </span>
-      ) : null}
+        {!locked ? (
+          <p className="mt-1 font-mono text-[10.5px] tabular-nums text-on-surface-variant">
+            score <span className="font-semibold text-on-surface">{row.interesting_score.toFixed(0)}</span>
+          </p>
+        ) : null}
+      </div>
 
-      {locked ? (
-        <div className="mt-3">
-          <FeedRowLockedBlur variant="mover" ticker={row.ticker} size="block" dense />
-        </div>
-      ) : (
-        <>
-          <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-on-surface">{row.headline}</p>
-          {row.reasons?.length ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {row.reasons.slice(0, 3).map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-outline-variant bg-surface-container-low px-2 py-0.5 text-[10px] font-medium text-on-surface-variant"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </>
-      )}
+      <div className="min-w-0">
+        {locked ? (
+          <FeedRowLockedBlur variant="mover" ticker={row.ticker} size="inline" dense />
+        ) : (
+          <>
+            <p className="line-clamp-2 text-[12.5px] font-medium leading-[1.45] text-on-surface">
+              {row.headline}
+            </p>
+            {row.reasons?.length ? (
+              <p className="mt-1 line-clamp-1 text-[10.5px] text-on-surface-variant">
+                {row.reasons.slice(0, 2).join(" · ")}
+              </p>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <div className="text-left md:text-right">
+        <p className="font-mono text-[11.5px] font-semibold tabular-nums" style={{ color: move.color }}>
+          {move.text}
+        </p>
+        {todayFact ? (
+          <p className="mt-1 font-mono text-[9.5px] text-on-surface-variant">{todayFact}</p>
+        ) : null}
+      </div>
     </>
   );
 
-  const shellClass =
-    "group flex min-h-[148px] flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-[var(--shadow-card)] transition-colors hover:border-landing-brand/25 hover:bg-surface-container-low";
+  const className =
+    "group grid min-w-0 gap-2.5 px-4 py-3.5 transition-colors hover:bg-surface-container-low md:grid-cols-[minmax(170px,0.85fr)_145px_minmax(300px,1.8fr)_135px] md:items-center md:gap-4";
 
-  if (locked) {
-    return (
-      <div className={shellClass} aria-label={`${row.ticker} — Pro setup`}>
-        {body}
-      </div>
-    );
-  }
-
-  return (
-    <Link href={`/stock/${row.ticker}`} className={shellClass}>
+  return locked ? (
+    <div className={className} aria-label={`${row.ticker} — Pro setup`}>
+      {body}
+    </div>
+  ) : (
+    <Link href={`/stock/${row.ticker}`} className={className}>
       {body}
     </Link>
   );
@@ -115,32 +112,33 @@ export function InterestingStocksFeed({
     return <p className="text-[13px] text-on-surface-variant">No tradeable setups ranked yet.</p>;
   }
 
-  const visible =
-    isSubscribed ? source : source.slice(0, FREE_INTERESTING_STOCKS_VISIBLE_LIMIT);
   const hasLocked = !isSubscribed && source.length > FREE_INTERESTING_STOCKS_VISIBLE_LIMIT;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="mb-1">
+      <div>
         <p className="text-[14px] font-semibold text-on-surface">Today&apos;s setups</p>
         <p className="mt-1 text-[13px] text-on-surface-variant">
-          Top names with favorable risk/reward, clean entry context, and a real reason to watch — not just movers.
+          Ranked setups with entry context and risk/reward—not a generic movers list.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visible.map((row, index) => (
-          <InterestingCard
-            key={row.instrument_id || row.ticker}
-            row={row}
-            locked={!isSubscribed && index >= FREE_INTERESTING_STOCKS_VISIBLE_LIMIT}
-          />
-        ))}
-        {hasLocked
-          ? source.slice(FREE_INTERESTING_STOCKS_VISIBLE_LIMIT).map((row) => (
-              <InterestingCard key={`locked-${row.ticker}`} row={row} locked />
-            ))
-          : null}
-      </div>
+      <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface">
+        <div className="hidden grid-cols-[minmax(170px,0.85fr)_145px_minmax(300px,1.8fr)_135px] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant md:grid">
+          <span>Stock</span>
+          <span>Setup</span>
+          <span>Why it is interesting</span>
+          <span className="text-right">Today</span>
+        </div>
+        <div className="divide-y divide-outline-variant/60">
+          {source.map((row, index) => (
+            <InterestingRow
+              key={row.instrument_id || row.ticker}
+              row={row}
+              locked={!isSubscribed && index >= FREE_INTERESTING_STOCKS_VISIBLE_LIMIT}
+            />
+          ))}
+        </div>
+      </section>
       {hasLocked ? (
         <>
           <FeedUnlockBar

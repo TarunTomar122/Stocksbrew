@@ -7,6 +7,7 @@ import os
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 from typing import Any
 
 import requests
@@ -179,6 +180,76 @@ def _prune_cached_posts(posts: list[dict[str, Any]], cache_hours: int) -> list[d
         kept.append(post)
     kept.sort(key=lambda row: str(row.get("published") or ""), reverse=True)
     return kept
+
+
+def _normalized_post_title(post: dict[str, Any]) -> str:
+    title = html.unescape(str(post.get("title") or "")).lower()
+    title = re.sub(r"\b(cross[\s-]?post|repost|x-post)\b", " ", title)
+    title = re.sub(r"\[[^\]]{0,32}\]", " ", title)
+    title = re.sub(r"[^a-z0-9\s]", " ", title)
+    return re.sub(r"\s+", " ", title).strip()
+
+
+def _near_duplicate_title(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+    left_tokens = set(left.split())
+    right_tokens = set(right.split())
+    if min(len(left_tokens), len(right_tokens)) < 5:
+        return False
+    overlap = len(left_tokens & right_tokens) / max(1, len(left_tokens | right_tokens))
+    return overlap >= 0.82 or SequenceMatcher(None, left, right).ratio() >= 0.9
+
+
+def _deduplicate_posts(posts: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    """Collapse cross-posts and near-identical reposts while retaining audit metadata."""
+    unique: list[dict[str, Any]] = []
+    normalized_titles: list[str] = []
+    duplicate_count = 0
+    for source in sorted(posts, key=lambda row: str(row.get("published") or ""), reverse=True):
+        post = dict(source)
+        title = _normalized_post_title(post)
+        match_index = next(
+            (
+                index
+                for index, existing_title in enumerate(normalized_titles)
+                if _near_duplicate_title(title, existing_title)
+            ),
+            None,
+        )
+        if match_index is None:
+            subreddit = str(post.get("subreddit") or "").strip()
+            post["source_subreddits"] = [subreddit] if subreddit else []
+            post["duplicate_ids"] = []
+            post["duplicate_count"] = 0
+            unique.append(post)
+            normalized_titles.append(title)
+            continue
+
+        duplicate_count += 1
+        kept = unique[match_index]
+        subreddit = str(post.get("subreddit") or "").strip()
+        source_subreddits = {
+            str(value).strip()
+            for value in (kept.get("source_subreddits") or [])
+            if str(value).strip()
+        }
+        if subreddit:
+            source_subreddits.add(subreddit)
+        kept["source_subreddits"] = sorted(source_subreddits)
+        duplicate_ids = [
+            str(value)
+            for value in (kept.get("duplicate_ids") or [])
+            if str(value).strip()
+        ]
+        duplicate_id = str(post.get("id") or "").strip()
+        if duplicate_id:
+            duplicate_ids.append(duplicate_id)
+        kept["duplicate_ids"] = duplicate_ids[:20]
+        kept["duplicate_count"] = int(kept.get("duplicate_count") or 0) + 1
+    return unique, duplicate_count
 
 
 def _load_cached_posts(store: TraceMoneyStore, market: str, cache_hours: int) -> list[dict[str, Any]]:
@@ -461,6 +532,59 @@ def _supplement_with_heuristics(
     return merged[:max_tickers]
 
 
+def _enrich_ticker_audit(
+    tickers: list[dict[str, Any]],
+    posts: list[dict[str, Any]],
+    supported_tickers: set[str],
+    *,
+    window_hours: int,
+) -> list[dict[str, Any]]:
+    posts_by_ticker: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for post in posts:
+        for ticker in _post_supported_tickers(post, supported_tickers):
+            posts_by_ticker[ticker].append(post)
+
+    enriched: list[dict[str, Any]] = []
+    for source in tickers:
+        row = dict(source)
+        ticker = str(row.get("ticker") or "").strip().upper()
+        supporting = posts_by_ticker.get(ticker, [])
+        if supporting:
+            supporting.sort(key=lambda post: str(post.get("published") or ""), reverse=True)
+            latest = supporting[0]
+            subreddits = sorted(
+                {
+                    str(value).strip()
+                    for post in supporting
+                    for value in (
+                        post.get("source_subreddits")
+                        if isinstance(post.get("source_subreddits"), list)
+                        else [post.get("subreddit")]
+                    )
+                    if str(value or "").strip()
+                }
+            )
+            row["mention_count"] = len(supporting)
+            row["latest_post_at"] = str(latest.get("published") or "")
+            row["source_subreddits"] = subreddits
+            row["supporting_post_ids"] = [
+                str(post.get("id") or "")
+                for post in supporting[:12]
+                if str(post.get("id") or "").strip()
+            ]
+            if row.get("source") == "heuristic":
+                latest_title = _brief_text(latest.get("title"), 180)
+                row["summary"] = (
+                    f"Latest discussion: {latest_title}"
+                    if latest_title
+                    else f"{ticker} appeared in the rolling Reddit scan."
+                )
+        row["window_hours"] = max(1, window_hours)
+        enriched.append(row)
+    enriched.sort(key=lambda item: int(item.get("mention_count") or 0), reverse=True)
+    return enriched
+
+
 def _normalize_name(value: str) -> str:
     text = str(value or "").strip().lower()
     text = re.sub(r"\b(inc|inc\.|corp|corporation|ltd|limited|holdings?|company|co|plc|class a|class b)\b", " ", text)
@@ -605,9 +729,10 @@ def main() -> None:
             fetch_failures.append({"subreddit": subreddit, "error": error})
             print({"stage": "reddit_scan_failed", "subreddit": subreddit, "error": error})
 
-    posts = _load_cached_posts(store, args.market, args.cache_hours)
-    if not posts:
-        posts = fetched_posts
+    raw_posts = _load_cached_posts(store, args.market, args.cache_hours)
+    if not raw_posts:
+        raw_posts = _prune_cached_posts(fetched_posts, args.cache_hours)
+    posts, duplicate_post_count = _deduplicate_posts(raw_posts)
 
     supported_tickers = _load_supported_tickers(store, args.market)
 
@@ -630,8 +755,13 @@ def main() -> None:
             "url": post.get("url"),
             "permalink": post.get("permalink"),
             "body": _brief_text(post.get("selftext"), 800),
+            "published": post.get("published"),
+            "source_subreddits": post.get("source_subreddits") or [post.get("subreddit")],
+            "duplicate_count": int(post.get("duplicate_count") or 0),
         }
-        for post in posts[: max(0, args.max_top_posts)]
+        for post in [row for row in posts if _post_supported_tickers(row, supported_tickers)][
+            : max(0, args.max_top_posts)
+        ]
     ]
 
     llm_ticker_count = 0
@@ -676,6 +806,13 @@ def main() -> None:
         tickers_payload.sort(key=lambda row: int(row.get("mention_count") or 0), reverse=True)
         tickers_payload = tickers_payload[: max(0, args.max_tickers)]
         llm_ticker_count = len(tickers_payload)
+        tickers_payload = _supplement_with_heuristics(
+            posts=posts,
+            existing=tickers_payload,
+            max_tickers=max(0, args.max_tickers),
+            supported_tickers=supported_tickers,
+        )
+        heuristic_supplement_count = max(0, len(tickers_payload) - llm_ticker_count)
         mood = str(llm_data.get("market_mood") or "neutral")
         notable = []
         for row in (llm_data.get("notable_posts") or [])[:12]:
@@ -694,16 +831,35 @@ def main() -> None:
         heuristic_only = True
         tickers_payload, mood, notable = _heuristic_fallback(posts, args.max_tickers, supported_tickers)
 
+    tickers_payload = _enrich_ticker_audit(
+        tickers_payload,
+        posts,
+        supported_tickers,
+        window_hours=args.cache_hours,
+    )
+    parsed_post_times = [
+        parsed
+        for parsed in (_parse_datetime(post.get("published")) for post in posts)
+        if parsed is not None
+    ]
+    coverage_status = "partial" if fetch_failures else "complete"
     payload = {
         "market": args.market,
         "generated_at": _utc_now(),
         "post_count": len(posts),
+        "raw_post_count": len(raw_posts),
+        "deduplicated_post_count": len(posts),
+        "duplicate_post_count": duplicate_post_count,
         "posts_fetched_this_run": len(fetched_posts),
         "new_cached_posts_this_run": new_cache_posts,
         "subreddit_count": len(subreddits),
         "subreddits_scanned_this_run": selected_subreddits,
         "fetch_failures": fetch_failures,
         "cache_hours": max(1, args.cache_hours),
+        "window_hours": max(1, args.cache_hours),
+        "window_start": min(parsed_post_times).isoformat() if parsed_post_times else None,
+        "window_end": max(parsed_post_times).isoformat() if parsed_post_times else None,
+        "coverage_status": coverage_status,
         "subreddits": subreddits,
         "market_mood": mood,
         "ticker_count": len(tickers_payload),

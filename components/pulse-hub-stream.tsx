@@ -10,14 +10,16 @@ import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-acce
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getCurrentMarket } from "@/lib/market";
 import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
+import { getPremarketOpeningReport } from "@/lib/premarket-opening";
 import { getRedditCues } from "@/lib/reddit-cues";
+import { getSectorRegimes } from "@/lib/sector-regimes";
 import { getUpcomingPreEarnings } from "@/lib/pre-earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export async function PulseHubStream() {
   const market = getCurrentMarket();
   const weekOut = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  const [anomaliesData, redditData, interestingData, snapshotRows, earningsEvents, preEarnings, premarketDoc, recentIntelDocs, session] = await Promise.all([
+  const [anomaliesData, redditData, interestingData, snapshotRows, earningsEvents, preEarnings, premarketDoc, premarketReport, regimes, recentIntelDocs, session] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
     getInterestingStocks(market).catch(() => null),
@@ -25,6 +27,8 @@ export async function PulseHubStream() {
     getEarnings(market, undefined, weekOut).catch(() => []),
     getUpcomingPreEarnings(market).catch(() => []),
     getPremarketMovers(market).catch(() => null),
+    getPremarketOpeningReport().catch(() => null),
+    getSectorRegimes(market).catch(() => ({ sectors: {}, macro: null })),
     listAllEarningsIntelDocs().catch(() => []),
     getSessionUser().catch(() => null),
   ]);
@@ -60,11 +64,15 @@ export async function PulseHubStream() {
       <PulseHubHero topline={data.topline} />
       <PulseHub
         items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit)}
-        reddit={data.reddit}
         sectors={data.sectors}
         earnings={data.earnings}
         recentEarnings={data.recentEarnings}
-        premarketItems={redactScannerItemsAfterLimit(data.premarketItems, feedAccess.fullItemLimit)}
+        premarketMovers={premarketDoc}
+        premarketReport={premarketReport}
+        premarketLive={isPremarketLive(premarketDoc, market)}
+        marketPhase={regimes.macro?.market_phase}
+        marketRisk={regimes.macro?.risk_appetite}
+        trackedIds={Array.isArray(userDoc?.tracked_stocks) ? userDoc.tracked_stocks : []}
         interestingStocks={interestingData?.rows ?? []}
         fullItemLimit={feedAccess.fullItemLimit}
         isSubscribed={feedAccess.isSubscribed}
