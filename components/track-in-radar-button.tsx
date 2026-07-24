@@ -88,14 +88,14 @@ async function trackAll(ids: string[], positionType: "holding" | "watchlist"): P
 }
 
 export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", label, className = "" }: Props) {
-  const { user, initialAuthed } = useUser();
+  const { user, loading, initialAuthed } = useUser();
   const router = useRouter();
   const [state, setState] = useState<"idle" | "busy" | "done" | "partial">("idle");
   const [result, setResult] = useState<Result | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
 
-  const isLoading = !initialAuthed; // still checking auth
+  const isLoading = loading && !initialAuthed;
 
   async function handleClick() {
     if (state === "done") {

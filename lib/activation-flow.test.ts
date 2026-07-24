@@ -35,4 +35,11 @@ describe("first Radar activation flow", () => {
       checkout.indexOf("return NextResponse.json({ checkoutUrl })"),
     );
   });
+
+  it("shows the bulk Radar action after signed-out auth resolution", () => {
+    const bulkTrack = source("components/track-in-radar-button.tsx");
+    expect(bulkTrack).toContain("const { user, loading, initialAuthed } = useUser()");
+    expect(bulkTrack).toContain("const isLoading = loading && !initialAuthed");
+    expect(bulkTrack).not.toContain("const isLoading = !initialAuthed");
+  });
 });
