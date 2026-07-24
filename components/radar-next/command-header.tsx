@@ -6,6 +6,7 @@ export type CommandHeaderProps = {
   statusLine: string;
   trackedCount: number;
   isSubscribed: boolean;
+  mode?: "live" | "sample";
 };
 
 export function CommandHeader({
@@ -14,6 +15,7 @@ export function CommandHeader({
   statusLine,
   trackedCount,
   isSubscribed,
+  mode = "live",
 }: CommandHeaderProps) {
   return (
     <section className="rn-window rn-scan">
@@ -26,9 +28,13 @@ export function CommandHeader({
           </span>
           <span className="ml-1 truncate text-[var(--rn-muted)] sm:ml-3">sb://radar</span>
         </span>
-        <span className="flex shrink-0 items-center gap-1.5 text-[var(--rn-bull)]">
+        <span
+          className={`flex shrink-0 items-center gap-1.5 ${
+            mode === "live" ? "text-[var(--rn-bull)]" : "text-[var(--rn-muted)]"
+          }`}
+        >
           <span className="rn-pulse" aria-hidden />
-          LIVE
+          {mode === "live" ? "LIVE" : "SAMPLE"}
         </span>
       </div>
 

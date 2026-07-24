@@ -39,6 +39,7 @@ export function RadarNextSignedOut() {
             statusLine="6 tracked · 4 up / 2 down"
             trackedCount={6}
             isSubscribed={false}
+            mode="sample"
           />
 
           <div className="mt-3 space-y-3 sm:mt-6 sm:space-y-6">
