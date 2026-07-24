@@ -1,502 +1,304 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
-
-import { useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { StockLogo } from "@/components/stock-logo";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+
 import { PortfolioSearch } from "@/components/portfolio-search";
+import { StockLogo } from "@/components/stock-logo";
 import { TrackInRadarButton } from "@/components/track-in-radar-button";
+import type { CompareStock, CompareStocksResult } from "@/lib/compare-stocks";
 import { captureEvent } from "@/lib/posthog";
 import type { SearchEntry } from "@/lib/search";
-import type { CompareStock, CompareStocksResult } from "@/lib/compare-stocks";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const MAX_TICKERS = 5;
-const POPULAR_TICKERS = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "AMD", "NFLX", "JPM"];
-const POPULAR_BUCKETS: { label: string; tickers: string[] }[] = [
-  { label: "Mega-cap tech", tickers: ["NVDA", "AAPL", "MSFT", "GOOGL", "META"] },
-  { label: "AI & semis", tickers: ["NVDA", "AMD", "AVGO", "MU", "TSM"] },
-  { label: "EVs & energy", tickers: ["TSLA", "F", "RIVN", "XOM", "CVX"] },
-  { label: "Banks", tickers: ["JPM", "BAC", "GS", "MS", "WFC"] },
-];
 
-const VERDICT_META: Record<string, { bg: string; text: string; label: string }> = {
-  strong: { bg: "#ecfdf5", text: "#065f46", label: "Strong" },
-  solid:  { bg: "#d1fae5", text: "#065f46", label: "Solid" },
-  mixed:  { bg: "#fef3c7", text: "#92400e", label: "Mixed" },
-  weak:   { bg: "#fef2f2", text: "#991b1b", label: "Weak" },
-};
-
-// ---------------------------------------------------------------------------
-// Formatters
-// ---------------------------------------------------------------------------
-
-function fmtPrice(p: number | null): string {
-  if (p === null) return "—";
-  return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function fmtPct(p: number | null, opts: { signed?: boolean } = {}): string {
-  if (p === null) return "—";
-  const { signed = true } = opts;
-  return `${signed && p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
-}
-
-function fmtLarge(n: number | null): string {
-  if (n === null) return "—";
-  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
-  return `$${n.toLocaleString()}`;
-}
-
-function fmtScore(n: number | null): string {
-  return n === null ? "—" : `${Math.round(n)}`;
-}
-
-function scoreColor(s: number | null): string {
-  if (s === null) return "#9ca3af";
-  if (s >= 75) return "#10b981";
-  if (s >= 60) return "#111111";
-  if (s >= 40) return "#6b7280";
-  return "#ef4444";
-}
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+const PRESETS = [
+  { label: "AI chips", tickers: ["NVDA", "AMD"] },
+  { label: "Mega-cap", tickers: ["AAPL", "MSFT"] },
+  { label: "EVs", tickers: ["TSLA", "RIVN"] },
+  { label: "Banks", tickers: ["JPM", "BAC"] },
+] as const;
 
 type Phase = "build" | "loading" | "results" | "error";
+type MetricCategory = "snapshot" | "fundamentals" | "momentum";
+type WinnerMode = "higher" | "lower" | null;
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function VerdictBadge({ verdict }: { verdict: string | null }) {
-  if (!verdict) {
-    return <span className="text-[12px] text-[#9ca3af]">—</span>;
-  }
-  const m = VERDICT_META[verdict] ?? { bg: "#f3f4f6", text: "#6b7280", label: verdict };
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-      style={{ background: m.bg, color: m.text }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.text }} />
-      {m.label}
-    </span>
-  );
-}
-
-function MetricCell({
-  value,
-  highlight = false,
-  align = "center",
-  sub,
-}: {
-  value: React.ReactNode;
-  highlight?: boolean;
-  align?: "left" | "center" | "right";
-  sub?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`flex flex-col ${align === "right" ? "items-end" : align === "left" ? "items-start" : "items-center"} justify-center gap-0.5 ${
-        highlight ? "rounded-lg bg-[#ecfdf5] py-1.5 px-2" : ""
-      }`}
-    >
-      <span
-        className={`text-[14px] font-semibold tabular-nums ${
-          highlight ? "text-[#065f46]" : "text-[#111111]"
-        }`}
-      >
-        {value}
-      </span>
-      {sub && <span className="text-[10px] text-[#6b7280]">{sub}</span>}
-    </div>
-  );
-}
-
-function BestBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#10b981] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-white">
-      <AnimatedIcon name="star" size={10} />
-      Best
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Comparison table
-// ---------------------------------------------------------------------------
-
-type Row = {
-  key: string;
-  label: string;
-  /** Optional grouping label rendered as a section divider row. */
-  section?: string;
-  /** A small sublabel shown under the metric label. */
-  hint?: string;
-  /** Lower is better. Default false. */
-  lowerIsBetter?: boolean;
-  render: (stock: CompareStock) => { display: React.ReactNode; numeric: number | null; sub?: React.ReactNode };
+type MetricValue = {
+  display: ReactNode;
+  numeric: number | null;
 };
 
-const ROWS: Row[] = [
-  { key: "ticker", label: "Ticker", render: (s) => ({ display: s.ticker, numeric: null }) },
+type Metric = {
+  key: string;
+  label: string;
+  note?: string;
+  category: MetricCategory;
+  winner: WinnerMode;
+  read: (stock: CompareStock) => MetricValue;
+};
+
+const CATEGORY_LABELS: Record<MetricCategory, string> = {
+  snapshot: "Quick read",
+  fundamentals: "Fundamentals",
+  momentum: "Momentum",
+};
+
+function formatPrice(value: number | null): string {
+  if (value === null) return "—";
+  return `$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatPercent(value: number | null, digits = 1): string {
+  if (value === null) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
+}
+
+function formatLarge(value: number | null): string {
+  if (value === null) return "—";
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
+  return `$${value.toLocaleString()}`;
+}
+
+function formatScore(value: number | null): string {
+  return value === null ? "—" : `${Math.round(value)}`;
+}
+
+function targetUpside(stock: CompareStock): number | null {
+  if (stock.analyst_target_price === null || stock.price === null || stock.price === 0) {
+    return null;
+  }
+  return ((stock.analyst_target_price - stock.price) / stock.price) * 100;
+}
+
+function toneForNumber(value: number | null): string {
+  if (value === null || value === 0) return "text-[#6b7280]";
+  return value > 0 ? "text-[#087a5b]" : "text-[#c43c3c]";
+}
+
+function scoreTone(score: number | null): string {
+  if (score === null) return "text-[#9ca3af]";
+  if (score >= 75) return "text-[#087a5b]";
+  if (score >= 55) return "text-[#111111]";
+  return "text-[#c43c3c]";
+}
+
+const METRICS: Metric[] = [
   {
-    key: "sector",
-    label: "Sector",
-    render: (s) => ({ display: s.sector || "—", numeric: null }),
-  },
-  {
-    key: "price",
-    label: "Price",
-    hint: "Today's last price",
-    render: (s) => ({ display: fmtPrice(s.price), numeric: s.price }),
-  },
-  {
-    key: "day_change",
-    label: "Day change",
-    render: (s) => ({
-      display: (
-        <span style={{ color: (s.day_change_pct ?? 0) >= 0 ? "#059669" : "#dc2626" }}>
-          {fmtPct(s.day_change_pct)}
-        </span>
-      ),
-      numeric: s.day_change_pct,
+    key: "overall",
+    label: "Stocksbrew score",
+    note: "Overall, out of 100",
+    category: "snapshot",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={scoreTone(stock.scores.overall)}>{formatScore(stock.scores.overall)}</span>,
+      numeric: stock.scores.overall,
     }),
-  },
-  {
-    key: "market_cap",
-    label: "Market cap",
-    render: (s) => ({ display: fmtLarge(s.market_cap), numeric: s.market_cap }),
-  },
-  {
-    key: "pe",
-    label: "P/E (TTM)",
-    lowerIsBetter: true,
-    render: (s) => ({
-      display: s.pe_ttm === null ? "—" : s.pe_ttm.toFixed(1),
-      numeric: s.pe_ttm,
-      sub: s.pe_ttm !== null && s.pe_ttm < 0 ? "Loss" : undefined,
-    }),
-  },
-  {
-    key: "div_yield",
-    label: "Dividend yield",
-    render: (s) => ({
-      display: s.dividend_yield === null ? "—" : `${s.dividend_yield.toFixed(2)}%`,
-      numeric: s.dividend_yield,
-    }),
-  },
-  {
-    key: "high52",
-    label: "52w high",
-    render: (s) => ({ display: fmtPrice(s.week_52_high), numeric: s.week_52_high }),
-  },
-  {
-    key: "low52",
-    label: "52w low",
-    lowerIsBetter: true,
-    render: (s) => ({ display: fmtPrice(s.week_52_low), numeric: s.week_52_low }),
-  },
-  {
-    key: "beta",
-    label: "Beta",
-    lowerIsBetter: true,
-    hint: "vs S&P 500",
-    render: (s) => ({
-      display: s.beta === null ? "—" : s.beta.toFixed(2),
-      numeric: s.beta,
-    }),
-  },
-  {
-    key: "rsi",
-    label: "RSI (14)",
-    hint: "30=oversold · 70=overbought",
-    render: (s) => {
-      const rsi = s.rsi;
-      const color = rsi === null ? "#9ca3af" : rsi >= 70 ? "#dc2626" : rsi <= 30 ? "#059669" : "#111111";
-      return {
-        display: <span style={{ color }}>{rsi === null ? "—" : rsi.toFixed(1)}</span>,
-        numeric: rsi,
-        sub: rsi !== null && rsi >= 70 ? "Overbought" : rsi !== null && rsi <= 30 ? "Oversold" : undefined,
-      };
-    },
   },
   {
     key: "target",
-    label: "Analyst target",
-    render: (s) => {
-      if (s.analyst_target_price === null || s.price === null) {
-        return { display: "—", numeric: null };
-      }
-      const upside = ((s.analyst_target_price - s.price) / s.price) * 100;
+    label: "Target room",
+    note: "Analyst target vs. price",
+    category: "snapshot",
+    winner: "higher",
+    read: (stock) => {
+      const upside = targetUpside(stock);
       return {
-        display: (
-          <span className="flex flex-col items-center gap-0.5">
-            <span>{fmtPrice(s.analyst_target_price)}</span>
-            <span
-              className="text-[10px] font-semibold tabular-nums"
-              style={{ color: upside >= 0 ? "#059669" : "#dc2626" }}
-            >
-              {fmtPct(upside)} upside
-            </span>
-          </span>
-        ),
+        display: <span className={toneForNumber(upside)}>{formatPercent(upside)}</span>,
         numeric: upside,
       };
     },
   },
   {
-    key: "overall",
-    label: "Overall score",
-    hint: "0–100 stocksbrew score",
-    render: (s) => ({
-      display: (
-        <span className="flex items-center gap-1.5" style={{ color: scoreColor(s.scores.overall) }}>
-          <span className="text-[18px] font-bold tabular-nums">{fmtScore(s.scores.overall)}</span>
-          <span className="text-[10px] text-[#9ca3af]">/100</span>
-        </span>
-      ),
-      numeric: s.scores.overall,
-      sub: s.verdict ? <VerdictBadge verdict={s.verdict} /> : undefined,
+    key: "day",
+    label: "Today",
+    category: "snapshot",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={toneForNumber(stock.day_change_pct)}>{formatPercent(stock.day_change_pct)}</span>,
+      numeric: stock.day_change_pct,
     }),
+  },
+  {
+    key: "price",
+    label: "Price",
+    category: "snapshot",
+    winner: null,
+    read: (stock) => ({ display: formatPrice(stock.price), numeric: stock.price }),
+  },
+  {
+    key: "market_cap",
+    label: "Market cap",
+    category: "snapshot",
+    winner: null,
+    read: (stock) => ({ display: formatLarge(stock.market_cap), numeric: stock.market_cap }),
   },
   {
     key: "valuation",
     label: "Valuation",
-    hint: "Pillar score",
-    render: (s) => ({
-      display: <span style={{ color: scoreColor(s.scores.valuation) }}>{fmtScore(s.scores.valuation)}</span>,
-      numeric: s.scores.valuation,
+    note: "Pillar score",
+    category: "fundamentals",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={scoreTone(stock.scores.valuation)}>{formatScore(stock.scores.valuation)}</span>,
+      numeric: stock.scores.valuation,
     }),
   },
   {
     key: "growth",
     label: "Growth",
-    hint: "Pillar score",
-    render: (s) => ({
-      display: <span style={{ color: scoreColor(s.scores.growth) }}>{fmtScore(s.scores.growth)}</span>,
-      numeric: s.scores.growth,
+    note: "Pillar score",
+    category: "fundamentals",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={scoreTone(stock.scores.growth)}>{formatScore(stock.scores.growth)}</span>,
+      numeric: stock.scores.growth,
     }),
   },
   {
     key: "quality",
     label: "Quality",
-    hint: "Pillar score",
-    render: (s) => ({
-      display: <span style={{ color: scoreColor(s.scores.quality) }}>{fmtScore(s.scores.quality)}</span>,
-      numeric: s.scores.quality,
+    note: "Pillar score",
+    category: "fundamentals",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={scoreTone(stock.scores.quality)}>{formatScore(stock.scores.quality)}</span>,
+      numeric: stock.scores.quality,
+    }),
+  },
+  {
+    key: "pe",
+    label: "P/E",
+    note: "Trailing 12 months",
+    category: "fundamentals",
+    winner: null,
+    read: (stock) => ({
+      display: stock.pe_ttm === null ? "—" : stock.pe_ttm.toFixed(1),
+      numeric: stock.pe_ttm,
+    }),
+  },
+  {
+    key: "dividend",
+    label: "Dividend yield",
+    category: "fundamentals",
+    winner: "higher",
+    read: (stock) => ({
+      display: stock.dividend_yield === null ? "—" : `${stock.dividend_yield.toFixed(2)}%`,
+      numeric: stock.dividend_yield,
     }),
   },
   {
     key: "momentum",
     label: "Momentum",
-    hint: "Pillar score",
-    render: (s) => ({
-      display: <span style={{ color: scoreColor(s.scores.momentum) }}>{fmtScore(s.scores.momentum)}</span>,
-      numeric: s.scores.momentum,
+    note: "Pillar score",
+    category: "momentum",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={scoreTone(stock.scores.momentum)}>{formatScore(stock.scores.momentum)}</span>,
+      numeric: stock.scores.momentum,
     }),
   },
   {
     key: "1m",
-    label: "1m return",
-    render: (s) => ({
-      display: (
-        <span style={{ color: (s.one_month_return ?? 0) >= 0 ? "#059669" : "#dc2626" }}>
-          {fmtPct(s.one_month_return)}
-        </span>
-      ),
-      numeric: s.one_month_return,
+    label: "1 month",
+    category: "momentum",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={toneForNumber(stock.one_month_return)}>{formatPercent(stock.one_month_return)}</span>,
+      numeric: stock.one_month_return,
     }),
   },
   {
     key: "3m",
-    label: "3m return",
-    render: (s) => ({
-      display: (
-        <span style={{ color: (s.three_month_return ?? 0) >= 0 ? "#059669" : "#dc2626" }}>
-          {fmtPct(s.three_month_return)}
-        </span>
-      ),
-      numeric: s.three_month_return,
+    label: "3 months",
+    category: "momentum",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={toneForNumber(stock.three_month_return)}>{formatPercent(stock.three_month_return)}</span>,
+      numeric: stock.three_month_return,
     }),
   },
   {
     key: "6m",
-    label: "6m return",
-    render: (s) => ({
-      display: (
-        <span style={{ color: (s.six_month_return ?? 0) >= 0 ? "#059669" : "#dc2626" }}>
-          {fmtPct(s.six_month_return)}
-        </span>
-      ),
-      numeric: s.six_month_return,
+    label: "6 months",
+    category: "momentum",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={toneForNumber(stock.six_month_return)}>{formatPercent(stock.six_month_return)}</span>,
+      numeric: stock.six_month_return,
     }),
   },
   {
     key: "1y",
-    label: "1y return",
-    render: (s) => ({
-      display: (
-        <span style={{ color: (s.one_year_return ?? 0) >= 0 ? "#059669" : "#dc2626" }}>
-          {fmtPct(s.one_year_return)}
-        </span>
-      ),
-      numeric: s.one_year_return,
+    label: "1 year",
+    category: "momentum",
+    winner: "higher",
+    read: (stock) => ({
+      display: <span className={toneForNumber(stock.one_year_return)}>{formatPercent(stock.one_year_return)}</span>,
+      numeric: stock.one_year_return,
+    }),
+  },
+  {
+    key: "rsi",
+    label: "RSI",
+    note: "14-day",
+    category: "momentum",
+    winner: null,
+    read: (stock) => ({
+      display: stock.rsi === null ? "—" : stock.rsi.toFixed(1),
+      numeric: stock.rsi,
+    }),
+  },
+  {
+    key: "beta",
+    label: "Beta",
+    note: "Volatility vs. S&P 500",
+    category: "momentum",
+    winner: null,
+    read: (stock) => ({
+      display: stock.beta === null ? "—" : stock.beta.toFixed(2),
+      numeric: stock.beta,
     }),
   },
 ];
 
-function bestIndex(numerics: (number | null)[], lowerIsBetter: boolean): number | null {
-  let bestIdx: number | null = null;
-  let bestVal = lowerIsBetter ? Infinity : -Infinity;
-  for (let i = 0; i < numerics.length; i += 1) {
-    const v = numerics[i];
-    if (v === null || !Number.isFinite(v)) continue;
-    if (lowerIsBetter ? v < bestVal : v > bestVal) {
-      bestVal = v;
-      bestIdx = i;
+function bestIndex(values: (number | null)[], mode: WinnerMode): number | null {
+  if (!mode) return null;
+  let best: number | null = null;
+  let bestValue = mode === "higher" ? -Infinity : Infinity;
+  let usable = 0;
+
+  values.forEach((value, index) => {
+    if (value === null || !Number.isFinite(value)) return;
+    usable += 1;
+    const beats = mode === "higher" ? value > bestValue : value < bestValue;
+    if (beats) {
+      best = index;
+      bestValue = value;
     }
-  }
-  if (bestIdx === null) return null;
-  // Highlight only if there are 2+ non-null values and the best is clearly distinct.
-  const nonNull = numerics.filter((n) => n !== null && Number.isFinite(n));
-  if (nonNull.length < 2) return null;
-  return bestIdx;
+  });
+
+  return usable >= 2 ? best : null;
 }
 
-// ---------------------------------------------------------------------------
-// Stock column header (sticky, on top of the table)
-// ---------------------------------------------------------------------------
-
-function StockHeader({ stock, onRemove }: { stock: CompareStock; onRemove?: () => void }) {
+function scoreLeader(
+  stocks: CompareStock[],
+  key: keyof CompareStock["scores"],
+): CompareStock | null {
   return (
-    <div className="flex flex-col items-center gap-3 p-4">
-      <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} size={48} market={stock.market} />
-      <div className="flex flex-col items-center gap-0.5 min-w-0 w-full">
-        <Link
-          href={`/stock/${encodeURIComponent(stock.ticker)}`}
-          className="text-[16px] font-bold text-[#111111] tracking-[-0.02em] hover:text-[#0052ff] transition-colors"
-        >
-          {stock.ticker}
-        </Link>
-        <span className="text-[11px] text-[#6b7280] truncate w-full text-center">{stock.name}</span>
-      </div>
-      <div className="flex flex-col items-center gap-0.5">
-        <span className="text-[15px] font-semibold text-[#111111] tabular-nums">{fmtPrice(stock.price)}</span>
-        {stock.day_change_pct !== null && (
-          <span
-            className="text-[11px] font-semibold tabular-nums"
-            style={{ color: stock.day_change_pct >= 0 ? "#059669" : "#dc2626" }}
-          >
-            {fmtPct(stock.day_change_pct)}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col items-center gap-0.5">
-        <span
-          className="text-[22px] font-bold tracking-[-0.03em] tabular-nums"
-          style={{ color: scoreColor(stock.scores.overall) }}
-        >
-          {fmtScore(stock.scores.overall)}
-        </span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#9ca3af]">stocksbrew</span>
-      </div>
-      <VerdictBadge verdict={stock.verdict} />
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${stock.ticker}`}
-          className="mt-1 inline-flex h-7 w-7 items-center justify-center rounded-full text-[#9ca3af] hover:bg-[#fef2f2] hover:text-[#ef4444] transition-colors"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        </button>
-      )}
-    </div>
+    stocks.reduce<CompareStock | null>((leader, stock) => {
+      const score = stock.scores[key];
+      if (score === null) return leader;
+      if (!leader || (leader.scores[key] ?? -Infinity) < score) return stock;
+      return leader;
+    }, null)
   );
 }
-
-function MissingStockHeader({
-  ticker,
-  onRemove,
-}: {
-  ticker: string;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3 p-4">
-      <div className="w-12 h-12 rounded-xl bg-[#fef2f2] flex items-center justify-center text-[#ef4444]">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M10 6v4M10 13.5h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      </div>
-      <div className="flex flex-col items-center gap-0.5">
-        <span className="text-[15px] font-bold text-[#111111] tracking-[-0.02em]">{ticker}</span>
-        <span className="text-[11px] text-[#ef4444]">No data</span>
-      </div>
-      <p className="text-[11px] text-[#6b7280] text-center leading-snug max-w-[180px]">
-        Delisted, renamed, or not in our coverage.
-      </p>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="mt-1 inline-flex h-8 items-center gap-1 rounded-full border border-[#fecaca] bg-white px-3 text-[11px] font-semibold text-[#991b1b] hover:bg-[#fef2f2] transition-colors"
-      >
-        Remove
-      </button>
-    </div>
-  );
-}
-
-function EmptyStockSlot({ idx, onAdd }: { idx: number; onAdd: (t: string) => void }) {
-  const [query, setQuery] = useState("");
-  return (
-    <div className="flex flex-col items-center gap-3 p-4">
-      <div className="w-12 h-12 rounded-xl border-2 border-dashed border-[#e5e7eb] flex items-center justify-center text-[#9ca3af]">
-        <AnimatedIcon name="add" size={22} />
-      </div>
-      <div className="flex flex-col items-center gap-0.5">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">Slot {idx + 1}</span>
-        <span className="text-[11px] text-[#6b7280]">Add a stock to compare</span>
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const t = query.trim().toUpperCase();
-          if (t) {
-            onAdd(t);
-            setQuery("");
-          }
-        }}
-        className="w-full max-w-[200px]"
-      >
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value.toUpperCase())}
-          placeholder="Ticker"
-          maxLength={8}
-          className="w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-1.5 text-center text-[12px] font-semibold text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#0052ff] transition-colors uppercase"
-        />
-      </form>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
 
 export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchEntry[] }) {
   const [tickers, setTickers] = useState<string[]>([]);
@@ -507,44 +309,49 @@ export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchE
 
   const canCompare = tickers.length >= 2;
 
-  function addTicker(t: string) {
-    const upper = t.trim().toUpperCase();
+  function addTicker(ticker: string) {
+    const upper = ticker.trim().toUpperCase();
     if (!upper) return;
-    let added = false;
-    let totalSelected = 0;
-    setTickers((prev) => {
-      if (prev.includes(upper)) return prev;
-      if (prev.length >= MAX_TICKERS) return prev;
-      added = true;
-      totalSelected = prev.length + 1;
-      return [...prev, upper];
-    });
-    if (added) {
+    setTickers((current) => {
+      if (current.includes(upper) || current.length >= MAX_TICKERS) return current;
+      const next = [...current, upper];
       captureEvent("compare_ticker_added", {
         ticker: upper,
-        total_selected: totalSelected,
+        total_selected: next.length,
       });
-    }
-  }
-
-  function removeTicker(t: string) {
-    let removed = false;
-    let totalSelected = 0;
-    setTickers((prev) => {
-      const next = prev.filter((x) => x !== t);
-      removed = next.length !== prev.length;
-      totalSelected = next.length;
       return next;
     });
-    if (removed) {
-      captureEvent("compare_ticker_removed", {
-        ticker: t,
-        total_selected: totalSelected,
-      });
-    }
   }
 
-  function reset() {
+  function removeTicker(ticker: string) {
+    setTickers((current) => {
+      const next = current.filter((item) => item !== ticker);
+      if (next.length !== current.length) {
+        captureEvent("compare_ticker_removed", {
+          ticker,
+          total_selected: next.length,
+        });
+      }
+      return next;
+    });
+  }
+
+  function applyPreset(preset: (typeof PRESETS)[number]) {
+    const next = [...preset.tickers];
+    setTickers(next);
+    captureEvent("compare_preset_selected", {
+      preset: preset.label,
+      tickers: next.join(","),
+    });
+  }
+
+  function editComparison() {
+    setResult(null);
+    setError(null);
+    setPhase("build");
+  }
+
+  function startOver() {
     setTickers([]);
     setResult(null);
     setError(null);
@@ -559,26 +366,31 @@ export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchE
       count: tickers.length,
       tickers: tickers.join(","),
     });
+
     try {
-      const res = await fetch("/api/compare-stocks", {
+      const response = await fetch("/api/compare-stocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tickers }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Request failed" }));
-        throw new Error(err.error || "Request failed");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ error: "Request failed" }));
+        throw new Error(payload.error || "Request failed");
       }
-      const data: CompareStocksResult = await res.json();
+
+      const data: CompareStocksResult = await response.json();
       setResult(data);
       setPhase("results");
       captureEvent("compare_succeeded", {
         count: tickers.length,
         tickers: tickers.join(","),
       });
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setTimeout(
+        () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        80,
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong");
       setPhase("error");
       captureEvent("compare_failed", {
         count: tickers.length,
@@ -587,514 +399,657 @@ export function CompareStocksInteractive({ searchIndex }: { searchIndex: SearchE
     }
   }
 
-  // Build mode: empty state with hero call to add stocks.
-  if (phase === "build" && tickers.length === 0) {
-    return (
-      <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-14 md:py-20 flex flex-col gap-10">
-        <Hero
-          searchIndex={searchIndex}
-          selected={tickers}
-          onAdd={addTicker}
-          onRemove={removeTicker}
-          onCompare={handleCompare}
-          canCompare={canCompare}
-          phase={phase}
-        />
-        <PopularStarters onPick={addTicker} />
-        <HowItWorksPreview />
-      </div>
-    );
-  }
-
-  // Build mode with at least 1 ticker, or loading/error/results.
   return (
-    <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-14 md:py-20 flex flex-col gap-10">
-      <Hero
-        searchIndex={searchIndex}
-        selected={tickers}
-        onAdd={addTicker}
-        onRemove={removeTicker}
-        onCompare={handleCompare}
-        canCompare={canCompare}
-        phase={phase}
-      />
+    <div className="mx-auto w-full max-w-[1320px] px-4 py-8 sm:px-6 md:py-12 lg:px-10">
+      <AnimatePresence mode="wait">
+        {(phase === "build" || phase === "error") && (
+          <motion.div
+            key="builder"
+            initial={false}
+            animate={{ y: 0 }}
+            exit={{ y: -8 }}
+            transition={{ duration: 0.28 }}
+          >
+            <CompareBuilder
+              searchIndex={searchIndex}
+              selected={tickers}
+              error={error}
+              onAdd={addTicker}
+              onRemove={removeTicker}
+              onClear={() => setTickers([])}
+              onPreset={applyPreset}
+              onCompare={handleCompare}
+            />
+          </motion.div>
+        )}
 
-      {phase === "error" && error && (
-        <div className="rounded-2xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 flex items-start gap-2.5">
-          <span className="text-[14px] mt-0.5">⚠️</span>
-          <div>
-            <p className="text-[13px] font-semibold text-[#991b1b]">{error}</p>
-            <button
-              onClick={() => setPhase("build")}
-              className="mt-1 text-[12px] text-[#6b7280] hover:text-[#111111] transition-colors"
-            >
-              ← Back to builder
-            </button>
-          </div>
-        </div>
-      )}
+        {phase === "loading" && (
+          <motion.div
+            key="loading"
+            initial={false}
+          >
+            <LoadingArena tickers={tickers} />
+          </motion.div>
+        )}
 
-      {phase === "loading" && <LoadingSkeleton count={tickers.length} />}
-
-      {phase === "results" && result && (
-        <div ref={resultsRef}>
-          <ResultsSection
-            result={result}
-            onRemoveTicker={removeTicker}
-            onAddTicker={addTicker}
-            onEdit={reset}
-          />
-        </div>
-      )}
+        {phase === "results" && result && (
+          <motion.div
+            key="results"
+            ref={resultsRef}
+            initial={false}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <ResultsExperience
+              result={result}
+              onEdit={editComparison}
+              onStartOver={startOver}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hero / input section
-// ---------------------------------------------------------------------------
-
-function Hero({
+function CompareBuilder({
   searchIndex,
   selected,
+  error,
   onAdd,
   onRemove,
+  onClear,
+  onPreset,
   onCompare,
-  canCompare,
-  phase,
 }: {
   searchIndex: SearchEntry[];
   selected: string[];
-  onAdd: (t: string) => void;
-  onRemove: (t: string) => void;
+  error: string | null;
+  onAdd: (ticker: string) => void;
+  onRemove: (ticker: string) => void;
+  onClear: () => void;
+  onPreset: (preset: (typeof PRESETS)[number]) => void;
   onCompare: () => void;
-  canCompare: boolean;
-  phase: Phase;
 }) {
-  const remaining = MAX_TICKERS - selected.length;
-  const isFull = remaining === 0;
-  return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 max-w-[760px]">
-        <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-          Free tool
-        </span>
-        <h1 className="text-[40px] md:text-[54px] font-bold tracking-[-0.035em] text-[#111111] leading-[1.04]">
-          Compare stocks<br className="hidden md:block" /> side by side
-        </h1>
-        <p className="text-[16px] text-[#6b7280] max-w-[560px] leading-[1.6]">
-          Add up to {MAX_TICKERS} US tickers and we&apos;ll line up price, score, fundamentals, and returns in one table — so you can see which name actually wins, not just which one is louder on Twitter.
-        </p>
-      </div>
+  const reducedMotion = useReducedMotion();
+  const canCompare = selected.length >= 2;
+  const isFull = selected.length >= MAX_TICKERS;
+  const searchByTicker = useMemo(
+    () => new Map(searchIndex.map((entry) => [entry.ticker.toUpperCase(), entry])),
+    [searchIndex],
+  );
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-[#e5e7eb] bg-white p-5 md:p-6">
-        {/* Selected chips */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[12px] font-semibold text-[#374151]">
-              {selected.length === 0
-                ? `Add 2 to ${MAX_TICKERS} tickers to compare`
-                : selected.length === 1
-                  ? "1 ticker selected — add at least one more"
-                  : `${selected.length} of ${MAX_TICKERS} tickers selected`}
+  return (
+    <section className="relative overflow-hidden rounded-[32px] border border-[#dde3df] bg-[#f7faf8]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 -top-36 h-[420px] w-[420px] rounded-full bg-[#baf3d8]/45 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-44 left-[28%] h-[340px] w-[340px] rounded-full bg-[#e7efcb]/50 blur-3xl"
+      />
+
+      <div className="relative grid gap-8 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(480px,1.18fr)] lg:items-center lg:gap-14 lg:px-12 lg:py-14">
+        <motion.div
+          initial={reducedMotion ? false : { x: -16 }}
+          animate={{ x: 0 }}
+          transition={{ duration: 0.45 }}
+          className="flex flex-col items-start"
+        >
+          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#cddbd2] bg-white/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#087a5b]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#16a174]" />
+            Free · no sign-in
+          </span>
+          <h1 className="max-w-[590px] text-[42px] font-semibold leading-[0.98] tracking-[-0.055em] text-[#101512] sm:text-[54px] lg:text-[64px]">
+            Pick two.
+            <br />
+            See the trade-off.
+          </h1>
+          <p className="mt-5 max-w-[470px] text-[15px] leading-7 text-[#59655e] sm:text-[17px]">
+            One clean read across quality, valuation, momentum and returns.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#7b8780]">
+            <span>Live price</span>
+            <span>17 useful metrics</span>
+            <span>Up to 5 stocks</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={reducedMotion ? false : { y: 18, scale: 0.98 }}
+          animate={{ y: 0, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="relative rounded-[26px] border border-[#d8dfda] bg-white p-4 shadow-[0_24px_70px_rgba(16,48,31,0.10)] sm:p-6"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#667169]">
+              Your matchup
             </span>
-            {selected.length > 0 && (
-              <span className="text-[11px] text-[#9ca3af] tabular-nums">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold tabular-nums text-[#7b847e]">
                 {selected.length}/{MAX_TICKERS}
               </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-1.5 min-h-[34px]">
-            {selected.length === 0 ? (
-              <span className="text-[12px] text-[#9ca3af] italic">Your tickers will appear here as chips</span>
-            ) : (
-              selected.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1 rounded-full bg-[#111111] pl-3 pr-1.5 py-1 text-[12px] font-semibold text-white"
+              {selected.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="text-[11px] font-semibold text-[#7b847e] underline decoration-[#cdd5d0] underline-offset-4 hover:text-[#111111]"
                 >
-                  {t}
-                  <button
-                    type="button"
-                    onClick={() => onRemove(t)}
-                    aria-label={`Remove ${t}`}
-                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/15 transition-colors"
-                  >
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                      <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </span>
-              ))
-            )}
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Search input */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[12px] font-semibold text-[#374151]">Add a ticker</label>
-          <PortfolioSearch
-            searchIndex={searchIndex}
-            onSelect={(t) => onAdd(t)}
-          />
-          <p className="text-[11px] text-[#9ca3af]">
-            Search by ticker or company name. Press Enter or click to add.
-          </p>
-        </div>
+          <div className="mb-4 grid min-h-[82px] grid-cols-2 gap-2 sm:grid-cols-3">
+            <AnimatePresence mode="popLayout">
+              {selected.map((ticker, index) => {
+                const entry = searchByTicker.get(ticker);
+                return (
+                  <motion.div
+                    layout
+                    key={ticker}
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.88, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.88 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                    className={`group relative flex min-w-0 items-center gap-2.5 rounded-2xl border p-3 ${
+                      index === 0
+                        ? "border-[#17241c] bg-[#17241c] text-white"
+                        : "border-[#dfe5e1] bg-[#f8faf9] text-[#17241c]"
+                    }`}
+                  >
+                    <StockLogo ticker={ticker} size={30} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-bold">{ticker}</p>
+                      <p className={`truncate text-[9px] ${index === 0 ? "text-white/55" : "text-[#7c8780]"}`}>
+                        {entry?.name || "Selected"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${ticker}`}
+                      onClick={() => onRemove(ticker)}
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[15px] transition-colors ${
+                        index === 0
+                          ? "text-white/55 hover:bg-white/10 hover:text-white"
+                          : "text-[#9ba39e] hover:bg-[#e9eeeb] hover:text-[#111111]"
+                      }`}
+                    >
+                      ×
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
 
-        {/* Quick add chips */}
-        <div className="flex flex-col gap-2">
-          <span className="text-[12px] font-semibold text-[#374151]">Or jump in with</span>
-          <div className="flex flex-wrap gap-1.5">
-            {POPULAR_TICKERS.map((t) => {
-              const added = selected.includes(t);
+            {Array.from({ length: Math.max(0, Math.min(2, MAX_TICKERS - selected.length)) }).map((_, index) => (
+              <div
+                key={`empty-${index}`}
+                className="flex items-center gap-2 rounded-2xl border border-dashed border-[#d8dfda] bg-[#fbfcfb] p-3 text-[#a1aaa4]"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef2ef] text-[18px]">+</span>
+                <span className="text-[11px] font-medium">Add stock</span>
+              </div>
+            ))}
+          </div>
+
+          <div className={isFull ? "pointer-events-none opacity-45" : ""}>
+            <PortfolioSearch searchIndex={searchIndex} onSelect={(ticker) => onAdd(ticker)} />
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {PRESETS.map((preset) => {
+              const selectedPreset = preset.tickers.every((ticker) => selected.includes(ticker));
               return (
                 <button
-                  key={t}
+                  key={preset.label}
                   type="button"
-                  disabled={isFull || added}
-                  onClick={() => onAdd(t)}
-                  className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-                    added
-                      ? "border-[#10b981] bg-[#ecfdf5] text-[#065f46] cursor-default"
-                      : isFull
-                        ? "border-[#e5e7eb] bg-white text-[#9ca3af] cursor-not-allowed"
-                        : "border-[#e5e7eb] bg-white text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff]"
+                  onClick={() => onPreset(preset)}
+                  className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold transition-all ${
+                    selectedPreset
+                      ? "border-[#1b7f5d] bg-[#eaf7f1] text-[#086848]"
+                      : "border-[#e0e5e2] bg-white text-[#5e6962] hover:-translate-y-0.5 hover:border-[#9fb8a9] hover:text-[#111111]"
                   }`}
                 >
-                  {added ? "✓ " : ""}{t}
+                  {preset.tickers.join(" vs ")}
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Compare button */}
-        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-[#f3f4f6]">
+          {error && (
+            <div role="alert" className="mt-4 rounded-xl bg-[#fff0f0] px-3 py-2 text-[12px] font-medium text-[#a12f2f]">
+              {error}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={onCompare}
-            disabled={!canCompare || phase === "loading"}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#111111] px-6 text-[13px] font-semibold text-white hover:bg-black active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!canCompare}
+            className="mt-5 flex h-12 w-full items-center justify-between rounded-2xl bg-[#111713] px-5 text-[13px] font-semibold text-white shadow-[0_8px_22px_rgba(17,23,19,0.18)] transition-all hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:bg-[#d9ddda] disabled:text-[#8f9791] disabled:shadow-none"
           >
-            {phase === "loading" ? (
-              <>
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                Comparing…
-              </>
-            ) : (
-              <>
-                Compare {canCompare ? `${selected.length}` : ""} stocks
-                <span aria-hidden>→</span>
-              </>
-            )}
+            <span>{canCompare ? `Compare ${selected.length} stocks` : "Choose at least two"}</span>
+            <span className="text-[18px]" aria-hidden>↗</span>
           </button>
-          <span className="text-[12px] text-[#6b7280]">
-            {canCompare
-              ? "Free. No sign-in required."
-              : "Pick at least 2 tickers to start."}
-          </span>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
 }
 
-function PopularStarters({ onPick }: { onPick: (t: string) => void }) {
+function LoadingArena({ tickers }: { tickers: string[] }) {
+  const reducedMotion = useReducedMotion();
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-[20px] font-semibold text-[#111111] tracking-[-0.02em]">
-        Popular comparisons
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {POPULAR_BUCKETS.map((bucket) => (
-          <div
-            key={bucket.label}
-            className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-4"
+    <section className="flex min-h-[560px] flex-col items-center justify-center overflow-hidden rounded-[32px] border border-[#dde3df] bg-[#f7faf8] px-6 text-center">
+      <div className="relative mb-8 flex h-28 items-center justify-center">
+        {tickers.slice(0, 3).map((ticker, index) => (
+          <motion.div
+            key={ticker}
+            initial={reducedMotion ? false : { opacity: 0, x: index % 2 === 0 ? -40 : 40 }}
+            animate={
+              reducedMotion
+                ? { opacity: 1 }
+                : { opacity: 1, y: [0, -7, 0], rotate: [0, index % 2 === 0 ? -2 : 2, 0] }
+            }
+            transition={{
+              opacity: { duration: 0.25 },
+              y: { duration: 1.6, repeat: Infinity, delay: index * 0.16 },
+              rotate: { duration: 1.6, repeat: Infinity, delay: index * 0.16 },
+            }}
+            className="-mx-1 flex h-20 w-20 items-center justify-center rounded-3xl border border-[#d9e2dc] bg-white shadow-[0_14px_36px_rgba(20,55,37,0.12)]"
           >
-            <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6b7280]">
-              {bucket.label}
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {bucket.tickers.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => onPick(t)}
-                  className="rounded-full border border-[#e5e7eb] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
+            <StockLogo ticker={ticker} size={40} />
+          </motion.div>
         ))}
+      </div>
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#087a5b]">
+        Building the matchup
+      </p>
+      <h1 className="mt-3 text-[30px] font-semibold tracking-[-0.04em] text-[#111713]">
+        Finding the actual trade-offs…
+      </h1>
+      <div className="mt-7 h-1.5 w-52 overflow-hidden rounded-full bg-[#dce4df]">
+        <motion.div
+          className="h-full rounded-full bg-[#13986b]"
+          initial={{ width: "8%" }}
+          animate={reducedMotion ? { width: "70%" } : { width: ["8%", "86%", "32%", "92%"] }}
+          transition={{ duration: 2.2, repeat: reducedMotion ? 0 : Infinity, ease: "easeInOut" }}
+        />
       </div>
     </section>
   );
 }
 
-function HowItWorksPreview() {
-  return (
-    <section className="flex flex-col gap-5 rounded-2xl border border-[#e5e7eb] bg-white p-6">
-      <h2 className="text-[18px] font-semibold text-[#111111] tracking-[-0.02em]">
-        How comparing stocks works here
-      </h2>
-      <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          {
-            n: "1",
-            t: "Add 2 to 5 tickers",
-            b: "Search by ticker or company name, paste a list, or tap a quick-add chip. Up to 5 stocks at once.",
-          },
-          {
-            n: "2",
-            t: "See them lined up",
-            b: "Price, market cap, scores, valuation, returns, RSI, analyst target — all in one side-by-side table.",
-          },
-          {
-            n: "3",
-            t: "Spot the winner fast",
-            b: "Each row highlights the best stock with a green badge so you can scan and decide in seconds.",
-          },
-        ].map((s) => (
-          <li
-            key={s.n}
-            className="flex flex-col gap-2 rounded-xl border border-[#f3f4f6] bg-[#fafaf7] p-4"
-          >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#111111] text-[12px] font-bold text-white">
-              {s.n}
-            </span>
-            <span className="text-[14px] font-semibold text-[#111111]">{s.t}</span>
-            <p className="text-[12px] text-[#6b7280] leading-[1.55]">{s.b}</p>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Loading skeleton
-// ---------------------------------------------------------------------------
-
-function LoadingSkeleton({ count }: { count: number }) {
-  const slots = Math.max(count, 2);
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden animate-pulse">
-        <div className="flex border-b border-[#e5e7eb]">
-          <div className="p-4 w-[220px] shrink-0" />
-          {Array.from({ length: slots }).map((_, i) => (
-            <div key={i} className="flex-1 min-w-[160px] p-4 flex flex-col items-center gap-2 border-l border-[#f3f4f6]">
-              <div className="w-12 h-12 rounded-xl bg-[#f3f4f6]" />
-              <div className="h-3 w-14 rounded-full bg-[#f3f4f6]" />
-              <div className="h-2.5 w-20 rounded-full bg-[#f3f4f6]" />
-              <div className="h-3 w-12 rounded-full bg-[#f3f4f6]" />
-            </div>
-          ))}
-        </div>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex border-b border-[#f3f4f6] last:border-0">
-            <div className="p-3 w-[220px] shrink-0">
-              <div className="h-2.5 w-20 rounded-full bg-[#f3f4f6]" />
-            </div>
-            {Array.from({ length: slots }).map((_, j) => (
-              <div key={j} className="flex-1 min-w-[160px] p-3 border-l border-[#f3f4f6] flex justify-center">
-                <div className="h-3 w-12 rounded-full bg-[#f3f4f6]" />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="p-4 flex items-center justify-center">
-        <p className="text-[12px] text-[#9ca3af]">Scoring and lining up {slots} stocks…</p>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Results section
-// ---------------------------------------------------------------------------
-
-function ResultsSection({
+function ResultsExperience({
   result,
-  onRemoveTicker,
-  onAddTicker,
   onEdit,
+  onStartOver,
 }: {
   result: CompareStocksResult;
-  onRemoveTicker: (t: string) => void;
-  onAddTicker: (t: string) => void;
   onEdit: () => void;
+  onStartOver: () => void;
 }) {
-  const { stocks, missing_tickers } = result;
-  const columnCount = stocks.length + missing_tickers.length;
-  const emptySlotCount = Math.max(0, MAX_TICKERS - columnCount);
-
+  const [category, setCategory] = useState<MetricCategory>("snapshot");
+  const { stocks, missing_tickers: missingTickers } = result;
+  const overallLeader = scoreLeader(stocks, "overall");
+  const valuationLeader = scoreLeader(stocks, "valuation");
+  const qualityLeader = scoreLeader(stocks, "quality");
+  const momentumLeader = scoreLeader(stocks, "momentum");
   const instrumentIds = useMemo(
-    () => stocks.map((s) => s.instrument_id).filter((id) => !!id),
+    () => stocks.map((stock) => stock.instrument_id).filter(Boolean),
     [stocks],
   );
 
+  if (stocks.length < 2) {
+    return (
+      <section className="rounded-[28px] border border-[#eadfce] bg-[#fffaf1] px-6 py-12 text-center">
+        <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-[#17130f]">
+          We need two covered stocks.
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-[14px] leading-6 text-[#71675b]">
+          {missingTickers.length ? `${missingTickers.join(", ")} could not be resolved.` : "Not enough stock data came back."}
+        </p>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="mt-6 rounded-full bg-[#111111] px-5 py-2.5 text-[12px] font-semibold text-white"
+        >
+          Edit matchup
+        </button>
+      </section>
+    );
+  }
+
+  const summaryBits = [
+    valuationLeader ? `${valuationLeader.ticker} leads valuation` : null,
+    qualityLeader ? `${qualityLeader.ticker} leads quality` : null,
+    momentumLeader ? `${momentumLeader.ticker} leads momentum` : null,
+  ].filter(Boolean);
+
   return (
-    <section className="flex flex-col gap-6">
-      {/* Top action bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+    <section className="flex flex-col gap-5 sm:gap-7">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[12px] font-semibold text-[#374151]">
-            Comparing {stocks.length} stock{stocks.length !== 1 ? "s" : ""}
-            {missing_tickers.length > 0 && ` (${missing_tickers.length} missing)`}
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#667169]">
+            Matchup
           </span>
-          {stocks.map((s) => (
-            <span
-              key={s.ticker}
-              className="inline-flex items-center rounded-full border border-[#e5e7eb] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#374151]"
-            >
-              {s.ticker}
+          {stocks.map((stock) => (
+            <span key={stock.ticker} className="rounded-full bg-[#edf2ef] px-2.5 py-1 text-[10px] font-bold text-[#26332b]">
+              {stock.ticker}
             </span>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3.5 text-[12px] font-semibold text-[#374151] hover:border-[#111111] transition-colors"
+            className="rounded-full border border-[#dce2de] bg-white px-3.5 py-2 text-[11px] font-semibold text-[#344139] hover:border-[#8a978f]"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M7 3L4 6l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Edit selection
+            Edit
           </button>
-          {stocks.length > 0 && (
-            <TrackInRadarButton
-              instrumentIds={instrumentIds}
-              positionType="watchlist"
-              label={`Track ${stocks.length} in Radar`}
-              className="!h-9 !px-4 !text-[12px]"
-            />
-          )}
+          <button
+            type="button"
+            onClick={onStartOver}
+            className="rounded-full px-3 py-2 text-[11px] font-semibold text-[#6d7771] hover:text-[#111111]"
+          >
+            New comparison
+          </button>
         </div>
       </div>
 
-      {missing_tickers.length > 0 && <MissingTickersNote missing={missing_tickers} />}
-
-      {/* Comparison table */}
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px]">
-            <thead>
-              <tr className="border-b border-[#e5e7eb] bg-[#fafaf7]">
-                <th className="p-3 text-left align-middle">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6b7280]">
-                      Metric
-                    </span>
-                    <span className="text-[10px] text-[#9ca3af]">Best in green</span>
-                  </div>
-                </th>
-                {stocks.map((s) => (
-                  <th key={s.ticker} className="p-0 align-top border-l border-[#f3f4f6]">
-                    <StockHeader stock={s} onRemove={() => onRemoveTicker(s.ticker)} />
-                  </th>
-                ))}
-                {missing_tickers.map((t) => (
-                  <th key={`missing-${t}`} className="p-0 align-top border-l border-[#f3f4f6]">
-                    <MissingStockHeader ticker={t} onRemove={() => onRemoveTicker(t)} />
-                  </th>
-                ))}
-                {Array.from({ length: emptySlotCount }).map((_, i) => (
-                  <th key={`slot-${i}`} className="p-0 align-top border-l border-[#f3f4f6]">
-                    <EmptyStockSlot
-                      idx={stocks.length + missing_tickers.length + i}
-                      onAdd={onAddTicker}
-                    />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.map((row) => {
-                const values = stocks.map((s) => row.render(s));
-                const numerics = values.map((v) => v.numeric);
-                const best = row.key === "ticker" || row.key === "sector" ? null : bestIndex(numerics, !!row.lowerIsBetter);
-                return (
-                  <tr key={row.key} className="border-b border-[#f3f4f6] last:border-0">
-                    <td className="p-3 align-middle">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[13px] font-semibold text-[#111111]">{row.label}</span>
-                        {row.hint && (
-                          <span className="text-[10px] text-[#9ca3af]">{row.hint}</span>
-                        )}
-                      </div>
-                    </td>
-                    {values.map((v, i) => {
-                      const isBest = best === i && best !== null;
-                      return (
-                        <td key={i} className="p-3 align-middle text-center border-l border-[#f3f4f6]">
-                          <div className="flex flex-col items-center gap-1.5">
-                            <MetricCell
-                              value={v.display}
-                              highlight={isBest}
-                              sub={v.sub}
-                            />
-                            {isBest && <BestBadge />}
-                          </div>
-                        </td>
-                      );
-                    })}
-                    {missing_tickers.map((t) => (
-                      <td key={`m-${t}`} className="p-3 align-middle text-center border-l border-[#f3f4f6]">
-                        <span className="text-[12px] text-[#9ca3af]">—</span>
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Bottom action bar */}
-      {stocks.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-[#111111] bg-[#111111] p-6 text-white">
-          <div className="flex flex-col gap-1 max-w-[480px]">
-            <h2 className="text-[18px] font-semibold tracking-[-0.02em]">
-              Like the comparison? Track them all.
-            </h2>
-            <p className="text-[13px] text-white/70 leading-relaxed">
-              Add these {stocks.length} stocks to your Radar for daily directives, alerts when setups shift, and pillar breakdowns.
-              Free for 3 stocks, Pro for unlimited.
-            </p>
-          </div>
-          <TrackInRadarButton
-            instrumentIds={instrumentIds}
-            positionType="watchlist"
-            label={`Track all ${stocks.length} in Radar`}
-            className="!bg-white !text-[#111111] hover:!bg-white/90"
-          />
+      {missingTickers.length > 0 && (
+        <div className="rounded-2xl border border-[#eadfce] bg-[#fffaf1] px-4 py-3 text-[12px] text-[#7f6542]">
+          No current data for {missingTickers.join(", ")}. The comparison below uses the covered stocks.
         </div>
       )}
+
+      <div className="grid overflow-hidden rounded-[30px] border border-[#dce3de] bg-white lg:grid-cols-[0.92fr_1.08fr]">
+        <div className="relative overflow-hidden bg-[#102018] px-6 py-8 text-white sm:px-9 sm:py-10">
+          <div aria-hidden className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#35c58d]/20 blur-3xl" />
+          <p className="relative font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#85d8b5]">
+            The quick read
+          </p>
+          <div className="relative mt-7 flex items-center gap-4">
+            {overallLeader && <StockLogo ticker={overallLeader.ticker} logoUrl={overallLeader.logo_url} size={58} market={overallLeader.market} eager />}
+            <div>
+              <p className="text-[12px] text-white/55">Strongest overall score</p>
+              <h1 className="text-[32px] font-semibold tracking-[-0.04em]">
+                {overallLeader?.ticker || "No clear leader"}
+              </h1>
+            </div>
+            {overallLeader?.scores.overall !== null && overallLeader?.scores.overall !== undefined && (
+              <span className="ml-auto text-[42px] font-semibold tabular-nums tracking-[-0.05em] text-[#8be0bb]">
+                {Math.round(overallLeader.scores.overall)}
+              </span>
+            )}
+          </div>
+          <p className="relative mt-7 max-w-lg text-[14px] leading-6 text-white/72">
+            {summaryBits.join(" · ")}.
+          </p>
+          <p className="relative mt-5 text-[10px] uppercase tracking-[0.1em] text-white/40">
+            A data lead, not a buy verdict
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-px bg-[#e7ece9] sm:grid-cols-4">
+          {[
+            { label: "Valuation", stock: valuationLeader },
+            { label: "Growth", stock: scoreLeader(stocks, "growth") },
+            { label: "Quality", stock: qualityLeader },
+            { label: "Momentum", stock: momentumLeader },
+          ].map((item, index) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.08 + index * 0.06 }}
+              className="flex min-h-[132px] flex-col justify-between bg-[#f8faf9] p-4 sm:min-h-0 sm:p-5"
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#7a857e]">{item.label}</span>
+              <div>
+                <span className="text-[22px] font-semibold tracking-[-0.03em] text-[#172119]">{item.stock?.ticker || "—"}</span>
+                <ScoreBar score={item.stock?.scores[item.label.toLowerCase() as keyof CompareStock["scores"]] ?? null} />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      <StockScorecards stocks={stocks} overallLeader={overallLeader} />
+
+      <div className="overflow-hidden rounded-[26px] border border-[#dde3df] bg-white">
+        <div className="flex flex-col gap-4 border-b border-[#e7ebe8] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <h2 className="text-[18px] font-semibold tracking-[-0.025em] text-[#161c18]">Compare the details</h2>
+            <p className="mt-0.5 text-[11px] text-[#7b857f]">Best comparable value is marked. Neutral metrics are not ranked.</p>
+          </div>
+          <div role="tablist" aria-label="Comparison metric category" className="grid grid-cols-3 rounded-xl bg-[#f0f3f1] p-1">
+            {(Object.keys(CATEGORY_LABELS) as MetricCategory[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={category === key}
+                onClick={() => {
+                  setCategory(key);
+                  captureEvent("compare_category_viewed", { category: key });
+                }}
+                className={`rounded-lg px-3 py-2 text-[10px] font-semibold transition-all sm:px-4 sm:text-[11px] ${
+                  category === key
+                    ? "bg-white text-[#111713] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+                    : "text-[#6f7973] hover:text-[#111713]"
+                }`}
+              >
+                {CATEGORY_LABELS[key]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={category}
+            role="tabpanel"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ComparisonMatrix
+              stocks={stocks}
+              metrics={METRICS.filter((metric) => metric.category === category)}
+            />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-[24px] bg-[#eef7f2] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+        <div>
+          <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#15231b]">Keep the matchup on your Radar.</h2>
+          <p className="mt-1 text-[12px] text-[#627067]">Track the names and come back when the setup changes.</p>
+        </div>
+        <TrackInRadarButton
+          instrumentIds={instrumentIds}
+          positionType="watchlist"
+          label={`Track ${stocks.length} in Radar`}
+          className="w-full sm:w-auto"
+        />
+      </div>
     </section>
   );
 }
 
-function MissingTickersNote({ missing }: { missing: string[] }) {
-  if (!missing.length) return null;
+function ScoreBar({ score }: { score: number | null }) {
+  const reducedMotion = useReducedMotion();
+  const width = score === null ? 0 : Math.min(100, Math.max(0, score));
   return (
-    <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3 flex items-start gap-2.5">
-      <span className="text-[14px] mt-0.5">⚠️</span>
-      <div>
-        <p className="text-[12px] font-semibold text-[#92400e]">
-          Couldn&apos;t resolve: {missing.join(", ")}
-        </p>
-        <p className="text-[11px] text-[#b45309] mt-0.5">
-          These may be delisted, renamed, or not in our universe. Add more tickers or remove these to see the full comparison.
-        </p>
-      </div>
+    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#dce4df]">
+      <motion.div
+        className="h-full rounded-full bg-[#15956a]"
+        initial={{ width: 0 }}
+        animate={{ width: `${width}%` }}
+        transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+      />
     </div>
+  );
+}
+
+function StockScorecards({
+  stocks,
+  overallLeader,
+}: {
+  stocks: CompareStock[];
+  overallLeader: CompareStock | null;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      {stocks.map((stock, index) => {
+        const isLeader = overallLeader?.ticker === stock.ticker;
+        return (
+          <motion.div
+            key={stock.ticker}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: index * 0.06 }}
+            className={`relative min-w-0 rounded-[20px] border p-4 ${
+              isLeader
+                ? "border-[#17241c] bg-[#17241c] text-white shadow-[0_14px_34px_rgba(16,36,24,0.16)]"
+                : "border-[#dfe5e1] bg-white text-[#182019]"
+            }`}
+          >
+            {isLeader && (
+              <span className="absolute right-3 top-3 rounded-full bg-[#91e0bc] px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.09em] text-[#123d2c]">
+                Leads
+              </span>
+            )}
+            <div className="flex items-center gap-2.5">
+              <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} size={34} market={stock.market} />
+              <div className="min-w-0">
+                <Link
+                  href={`/stock/${encodeURIComponent(stock.ticker)}`}
+                  className="text-[14px] font-bold hover:underline"
+                >
+                  {stock.ticker}
+                </Link>
+                <p className={`truncate text-[9px] ${isLeader ? "text-white/50" : "text-[#7b857f]"}`}>{stock.name}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex items-end justify-between gap-2">
+              <div>
+                <p className={`text-[9px] uppercase tracking-[0.1em] ${isLeader ? "text-white/45" : "text-[#929b95]"}`}>Score</p>
+                <p className="mt-0.5 text-[30px] font-semibold tabular-nums tracking-[-0.05em]">{formatScore(stock.scores.overall)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-semibold tabular-nums">{formatPrice(stock.price)}</p>
+                <p className={`text-[10px] font-semibold tabular-nums ${isLeader ? "text-[#91e0bc]" : toneForNumber(stock.day_change_pct)}`}>
+                  {formatPercent(stock.day_change_pct)}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ComparisonMatrix({
+  stocks,
+  metrics,
+}: {
+  stocks: CompareStock[];
+  metrics: Metric[];
+}) {
+  return (
+    <>
+      <div className="hidden md:block">
+        <div
+          className="grid border-b border-[#e7ebe8] bg-[#fbfcfb]"
+          style={{ gridTemplateColumns: `minmax(160px, 0.85fr) repeat(${stocks.length}, minmax(0, 1fr))` }}
+        >
+          <div className="p-4" />
+          {stocks.map((stock) => (
+            <div key={stock.ticker} className="flex items-center justify-center gap-2 border-l border-[#edf0ee] p-4">
+              <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} size={24} market={stock.market} />
+              <span className="text-[12px] font-bold text-[#202a23]">{stock.ticker}</span>
+            </div>
+          ))}
+        </div>
+
+        {metrics.map((metric) => {
+          const values = stocks.map(metric.read);
+          const winner = bestIndex(values.map((value) => value.numeric), metric.winner);
+          return (
+            <div
+              key={metric.key}
+              className="grid border-b border-[#edf0ee] last:border-b-0"
+              style={{ gridTemplateColumns: `minmax(160px, 0.85fr) repeat(${stocks.length}, minmax(0, 1fr))` }}
+            >
+              <div className="flex min-h-[66px] flex-col justify-center px-5 py-3">
+                <span className="text-[12px] font-semibold text-[#2d3931]">{metric.label}</span>
+                {metric.note && <span className="mt-0.5 text-[9px] text-[#929a95]">{metric.note}</span>}
+              </div>
+              {values.map((value, index) => {
+                const isWinner = winner === index;
+                return (
+                  <div
+                    key={stocks[index].ticker}
+                    className={`relative flex min-h-[66px] items-center justify-center border-l border-[#edf0ee] px-2 py-3 text-[13px] font-semibold tabular-nums ${
+                      isWinner ? "bg-[#edf9f3]" : ""
+                    }`}
+                  >
+                    <span>{value.display}</span>
+                    {isWinner && (
+                      <span className="absolute right-2 top-2 rounded-full bg-[#cceedd] px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-[#0b6a49]">
+                        Best
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="divide-y divide-[#e9edea] md:hidden">
+        {metrics.map((metric) => {
+          const values = stocks.map(metric.read);
+          const winner = bestIndex(values.map((value) => value.numeric), metric.winner);
+          return (
+            <div key={metric.key} className="p-4">
+              <div className="mb-3 flex items-end justify-between gap-4">
+                <span className="text-[12px] font-semibold text-[#28342c]">{metric.label}</span>
+                {metric.note && <span className="text-right text-[9px] text-[#929a95]">{metric.note}</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {values.map((value, index) => {
+                  const isWinner = winner === index;
+                  return (
+                    <div
+                      key={stocks[index].ticker}
+                      className={`flex min-w-0 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${
+                        isWinner
+                          ? "border-[#abd9c2] bg-[#edf9f3]"
+                          : "border-[#e5e9e6] bg-[#fafbfa]"
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold text-[#69746d]">{stocks[index].ticker}</span>
+                      <div className="flex items-center gap-1.5 text-[12px] font-semibold tabular-nums text-[#1e2821]">
+                        {value.display}
+                        {isWinner && <span className="h-1.5 w-1.5 rounded-full bg-[#0d8b61]" aria-label="Best value" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
