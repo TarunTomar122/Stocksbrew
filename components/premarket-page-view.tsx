@@ -385,6 +385,25 @@ export function PremarketPageView({
       .filter((item) => item.ticker)
       .map((item) => [item.ticker.toUpperCase(), item] as const),
   );
+  const moversSection = (
+    <section className={`${CARD} overflow-hidden`}>
+      <div className="flex items-end justify-between gap-3 border-b border-outline-variant/70 px-5 py-4">
+        <div>
+          <p className={KICK}>US pre-market</p>
+          <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Movers</h2>
+        </div>
+        <span className="font-mono text-[10px] text-on-surface-variant">
+          {movers?.generated_at ? relativeTime(movers.generated_at) : "4:00 AM ET"}
+        </span>
+      </div>
+      <PremarketMoversTables
+        movers={movers}
+        trackedIds={tracked}
+        catalysts={catalysts}
+        reportGeneratedAt={data.generated_at}
+      />
+    </section>
+  );
 
   return (
     <div className={embedded ? "w-full min-w-0" : "mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7"}>
@@ -453,16 +472,7 @@ export function PremarketPageView({
             <CueTable cues={embedded ? sortedCues.slice(0, 5) : sortedCues} />
           </section>
 
-          <section className={`${CARD} overflow-hidden`}>
-            <div className="flex items-end justify-between gap-3 border-b border-outline-variant/70 px-5 py-4">
-              <div>
-                <p className={KICK}>US pre-market</p>
-                <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Movers</h2>
-              </div>
-              <span className="font-mono text-[10px] text-on-surface-variant">{movers?.generated_at ? relativeTime(movers.generated_at) : "4:00 AM ET"}</span>
-            </div>
-            <PremarketMoversTables movers={movers} trackedIds={tracked} catalysts={catalysts} reportGeneratedAt={data.generated_at} />
-          </section>
+          {!embedded ? moversSection : null}
 
           {!embedded && data.news.length ? (
             <section className={`${CARD} overflow-hidden`}>
@@ -518,6 +528,8 @@ export function PremarketPageView({
           ) : null}
         </aside>
       </div>
+
+      {embedded ? <div className="mt-4">{moversSection}</div> : null}
 
       {!embedded ? <footer className="mt-6 border-t border-outline-variant/60 pt-4 font-mono text-[9.5px] uppercase tracking-[0.04em] text-on-surface-variant">
         Global pricing · monitored social feeds · pre-market quotes · not investment advice
