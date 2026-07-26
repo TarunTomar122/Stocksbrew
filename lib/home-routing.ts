@@ -1,3 +1,3 @@
-export function signedInHomeDestination(signedIn: boolean): "/watchlist" | null {
-  return signedIn ? "/watchlist" : null;
+export function signedInHomeDestination(_signedIn: boolean): null {
+  return null;
 }

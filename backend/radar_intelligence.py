@@ -804,7 +804,7 @@ def compute_event_id(ticker: str, kind: str, transition_key: str, *discriminator
 def _prose_rsi_oversold(ticker: str, payload: Mapping[str, Any], citations: Sequence[Citation]) -> tuple[str, str, str]:
     rsi = payload.get("current_rsi")
     what = f"{ticker}'s 14-day RSI dropped to {rsi:.1f}, crossing into oversold territory (35 or below)."
-    why = f"Selling has become unusually one-sided in {ticker}; that is a condition to monitor, not a reversal signal by itself."
+    why = f"{ticker}'s {rsi:.1f} RSI reading confirms that near-term momentum is oversold."
     next_trigger = f"Watching for {ticker}'s RSI to climb back above 35, which would signal the selling pressure is easing."
     return what, why, next_trigger
 
@@ -812,7 +812,7 @@ def _prose_rsi_oversold(ticker: str, payload: Mapping[str, Any], citations: Sequ
 def _prose_rsi_overbought(ticker: str, payload: Mapping[str, Any], citations: Sequence[Citation]) -> tuple[str, str, str]:
     rsi = payload.get("current_rsi")
     what = f"{ticker}'s 14-day RSI climbed to {rsi:.1f}, crossing into overbought territory (70 or above)."
-    why = f"Buying has become unusually one-sided in {ticker}; momentum is strong, but RSI alone does not predict a pullback."
+    why = f"{ticker}'s {rsi:.1f} RSI reading confirms that near-term momentum is overbought."
     next_trigger = f"Watching for {ticker}'s RSI to fall back below 70, which would signal momentum is cooling."
     return what, why, next_trigger
 

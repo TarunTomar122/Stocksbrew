@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
 import { relativeTime } from "@/lib/freshness";
-import { getRedditCues } from "@/lib/reddit-cues";
+import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { socialDataState } from "@/lib/social-data";
 
 const TONE: Record<string, { label: string; color: string }> = {
@@ -33,15 +33,28 @@ export async function SocialPageStream() {
 
   const stateLabel =
     state === "stale"
-      ? `Stale · last built ${age(snapshot.generated_at)}`
+      ? `Last updated ${age(snapshot.generated_at)}`
       : state === "partial"
-      ? `Partial coverage · built ${age(snapshot.generated_at)}`
-      : `Current · built ${age(snapshot.generated_at)}`;
+      ? `Limited signal · ${age(snapshot.generated_at)}`
+      : `Live signal · ${age(snapshot.generated_at)}`;
+  const insights = snapshot.tickers.filter(hasRedditBrief).slice(0, 12);
+
+  if (insights.length === 0) {
+    return (
+      <section className="rounded-xl border border-outline-variant bg-surface px-5 py-10">
+        <p className="text-[15px] font-semibold text-on-surface">No strong social insight right now.</p>
+        <p className="mt-1 text-[13px] text-on-surface-variant">
+          We&apos;ll show a name when the discussion has a clear investment angle.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-outline-variant py-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-outline-variant py-3 font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" aria-hidden />
           <span
             style={{
               color: state === "fresh" ? "var(--signal-bullish)" : "var(--signal-neutral)",
@@ -49,35 +62,21 @@ export async function SocialPageStream() {
           >
             {stateLabel}
           </span>
-          <span>{snapshot.window_hours / 24}-day rolling window</span>
-          <span>{snapshot.deduplicated_post_count} unique posts</span>
-          <span>{snapshot.duplicate_post_count} reposts removed</span>
-          <span>{snapshot.subreddits.length} communities configured</span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
-          Source · Reddit
-        </span>
+        <span>{insights.length} names with a clear read</span>
       </div>
 
-      <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface">
-        <div className="hidden grid-cols-[minmax(150px,0.7fr)_110px_120px_minmax(300px,2fr)_120px] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant md:grid">
-          <span>Stock</span>
-          <span>Volume</span>
-          <span>Tone</span>
-          <span>Dominant topic</span>
-          <span className="text-right">Latest</span>
-        </div>
-        <div className="divide-y divide-outline-variant/60">
-          {snapshot.tickers.map((row) => {
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {insights.map((row) => {
             const tone = TONE[row.sentiment] ?? TONE.neutral;
             return (
               <Link
                 key={row.ticker}
                 href={`/stock/${encodeURIComponent(row.ticker)}`}
-                className="group grid gap-2 px-4 py-3.5 transition-colors hover:bg-surface-container-low md:grid-cols-[minmax(150px,0.7fr)_110px_120px_minmax(300px,2fr)_120px] md:items-center md:gap-4"
+                className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card transition-all hover:border-outline hover:shadow-card-hover"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <StockLogo ticker={row.ticker} market="US" size={28} />
+                  <StockLogo ticker={row.ticker} market="US" size={30} />
                   <div className="min-w-0">
                     <p className="font-mono text-[13px] font-bold text-on-surface group-hover:text-landing-brand">
                       {row.ticker}
@@ -88,65 +87,31 @@ export async function SocialPageStream() {
                       </p>
                     ) : null}
                   </div>
-                </div>
-                <p className="font-mono text-[12px] font-semibold tabular-nums text-on-surface">
-                  {row.mention_count}{" "}
-                  <span className="text-[10px] font-normal text-on-surface-variant">posts</span>
-                </p>
-                <p
-                  className="font-mono text-[10.5px] font-semibold uppercase"
-                  style={{ color: tone.color }}
-                >
-                  {tone.label}
-                </p>
-                <div className="min-w-0">
-                  <p className="line-clamp-2 text-[13px] leading-[1.45] text-on-surface">
-                    {row.summary}
+                  <p
+                    className="ml-auto shrink-0 font-mono text-[9.5px] font-semibold uppercase tracking-[0.06em]"
+                    style={{ color: tone.color }}
+                  >
+                    {tone.label}
                   </p>
-                  {row.source_subreddits?.length ? (
-                    <p className="mt-1 truncate font-mono text-[9.5px] text-on-surface-variant">
-                      r/{row.source_subreddits.slice(0, 3).join(" · r/")}
-                    </p>
-                  ) : null}
                 </div>
-                <p className="font-mono text-[10.5px] text-on-surface-variant md:text-right">
-                  {age(row.latest_post_at)}
+
+                {row.catalysts?.[0] ? (
+                  <p className="mt-4 line-clamp-2 text-[14px] font-semibold leading-[1.4] text-on-surface">
+                    {row.catalysts[0]}
+                  </p>
+                ) : null}
+                <p className="mt-2 line-clamp-4 text-[12.5px] leading-[1.55] text-on-surface-variant">
+                  {row.summary}
                 </p>
+
+                <div className="mt-auto flex items-center justify-between gap-3 pt-4 font-mono text-[9.5px] text-on-surface-variant">
+                  <span>{row.mention_count} mentions</span>
+                  <span>{age(row.latest_post_at)}</span>
+                </div>
               </Link>
             );
           })}
-        </div>
       </section>
-
-      {snapshot.top_posts.length ? (
-        <details className="rounded-xl border border-outline-variant bg-surface">
-          <summary className="cursor-pointer px-4 py-3 text-[12px] font-semibold text-on-surface">
-            Recent source posts{" "}
-            <span className="ml-1 font-normal text-on-surface-variant">· secondary context</span>
-          </summary>
-          <div className="divide-y divide-outline-variant/60 border-t border-outline-variant">
-            {snapshot.top_posts.slice(0, 8).map((post, index) => (
-              <a
-                key={`${post.url || post.title}-${index}`}
-                href={post.url}
-                target="_blank"
-                rel="noreferrer"
-                className="grid gap-1 px-4 py-3 hover:bg-surface-container-low sm:grid-cols-[minmax(0,1fr)_170px]"
-              >
-                <p className="line-clamp-1 text-[12.5px] text-on-surface">{post.title}</p>
-                <p className="font-mono text-[9.5px] text-on-surface-variant sm:text-right">
-                  r/{post.subreddit} · {age(post.published)}
-                </p>
-              </a>
-            ))}
-          </div>
-        </details>
-      ) : null}
-
-      <p className="text-[11px] leading-relaxed text-on-surface-variant">
-        Social measures attention and directional discussion from public Reddit threads. It is not
-        verified news, a causal explanation, or a StocksBrew recommendation.
-      </p>
     </div>
   );
 }

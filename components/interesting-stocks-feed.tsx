@@ -25,6 +25,13 @@ function moveText(value?: number | null): { text: string; color: string } {
   };
 }
 
+function priceText(value?: number | null): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return value >= 1000
+    ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : `$${value.toFixed(2)}`;
+}
+
 function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boolean }) {
   const setupLabel = SETUP_LABEL[row.setup_type] ?? row.setup_type.replaceAll("_", " ");
   const move = moveText(row.day_change_pct);
@@ -47,7 +54,7 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 md:block">
+      <div className="flex items-center justify-between gap-2 lg:block">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-landing-brand">
           {setupLabel}
         </span>
@@ -58,7 +65,30 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
         ) : null}
       </div>
 
-      <div className="min-w-0">
+      <div className="flex items-end justify-between gap-3 lg:block lg:text-right">
+        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-on-surface-variant lg:hidden">
+          Today
+        </span>
+        <div>
+          <p className="font-mono text-[11.5px] font-semibold tabular-nums" style={{ color: move.color }}>
+            {move.text}
+          </p>
+          {todayFact ? (
+            <p className="mt-1 font-mono text-[9.5px] text-on-surface-variant">{todayFact}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 lg:block lg:text-right">
+        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-on-surface-variant lg:hidden">
+          Price
+        </span>
+        <p className="font-mono text-[12px] font-semibold tabular-nums text-on-surface">
+          {priceText(row.price)}
+        </p>
+      </div>
+
+      <div className="col-span-2 min-w-0 border-t border-outline-variant/60 pt-2.5 lg:col-span-1 lg:border-0 lg:pt-0">
         {locked ? (
           <FeedRowLockedBlur variant="mover" ticker={row.ticker} size="inline" dense />
         ) : (
@@ -74,20 +104,11 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
           </>
         )}
       </div>
-
-      <div className="text-left md:text-right">
-        <p className="font-mono text-[11.5px] font-semibold tabular-nums" style={{ color: move.color }}>
-          {move.text}
-        </p>
-        {todayFact ? (
-          <p className="mt-1 font-mono text-[9.5px] text-on-surface-variant">{todayFact}</p>
-        ) : null}
-      </div>
     </>
   );
 
   const className =
-    "group grid min-w-0 gap-2.5 px-4 py-3.5 transition-colors hover:bg-surface-container-low md:grid-cols-[minmax(170px,0.85fr)_145px_minmax(300px,1.8fr)_135px] md:items-center md:gap-4";
+    "group grid min-w-0 grid-cols-2 gap-3 px-4 py-4 transition-colors hover:bg-surface-container-low lg:grid-cols-[minmax(150px,0.75fr)_120px_118px_100px_minmax(280px,1.55fr)] lg:items-center lg:gap-4";
 
   return locked ? (
     <div className={className} aria-label={`${row.ticker} — Pro setup`}>
@@ -118,16 +139,15 @@ export function InterestingStocksFeed({
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-[14px] font-semibold text-on-surface">Today&apos;s setups</p>
-        <p className="mt-1 text-[13px] text-on-surface-variant">
-          Ranked setups with entry context and risk/reward—not a generic movers list.
-        </p>
+        <p className="mt-1 text-[13px] text-on-surface-variant">The strongest setups on today&apos;s tape.</p>
       </div>
       <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface">
-        <div className="hidden grid-cols-[minmax(170px,0.85fr)_145px_minmax(300px,1.8fr)_135px] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant md:grid">
+        <div className="hidden grid-cols-[minmax(150px,0.75fr)_120px_118px_100px_minmax(280px,1.55fr)] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant lg:grid">
           <span>Stock</span>
           <span>Setup</span>
-          <span>Why it is interesting</span>
           <span className="text-right">Today</span>
+          <span className="text-right">Price</span>
+          <span>Why it is interesting</span>
         </div>
         <div className="divide-y divide-outline-variant/60">
           {source.map((row, index) => (

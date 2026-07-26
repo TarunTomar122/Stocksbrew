@@ -217,7 +217,7 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
 
       {error ? <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
       <p className="mt-6 border-t border-outline-variant pt-4 text-[11px] leading-relaxed text-on-surface-variant">
-        Personal use only. No bulk extraction, resale, or redistribution. <Link href="/agents" className="font-semibold text-landing-brand">See how it works</Link> or <Link href="/developers" className="font-semibold text-landing-brand">read the API docs</Link>.
+        Personal use only. No bulk extraction, resale, or redistribution. <Link href="/agents" className="font-semibold text-landing-brand">See agent access</Link> or <Link href="/developers" className="font-semibold text-landing-brand">read the API docs</Link>.
       </p>
     </div>
   );

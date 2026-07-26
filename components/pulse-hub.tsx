@@ -232,9 +232,7 @@ export function PulseHub({
                   <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <p className="text-[14px] font-semibold text-on-surface">Recent reports</p>
-                      <p className="mt-1 text-[13px] text-on-surface-variant">
-                        Newest post-earnings reads first.
-                      </p>
+                      <p className="mt-1 text-[13px] text-on-surface-variant">What changed after the print.</p>
                     </div>
                     <Link
                       href="/earnings-intel"
@@ -243,35 +241,41 @@ export function PulseHub({
                       full archive →
                     </Link>
                   </div>
-                  <div className="pulse-list-panel">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {recentEarnings.slice(0, 7).map((e) => (
                       <Link
                         key={`${e.ticker}-${e.eventDate}`}
                         href={`/earnings-intel/${encodeURIComponent(e.ticker)}`}
-                        className="pulse-list-row grid gap-2 sm:grid-cols-[minmax(150px,0.75fr)_100px_minmax(260px,1.6fr)] sm:items-center"
+                        className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card transition-all hover:border-outline hover:shadow-card-hover"
                       >
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <StockLogo ticker={e.ticker} market="US" size={24} />
+                        <span className="flex min-w-0 items-center gap-3">
+                          <StockLogo ticker={e.ticker} market="US" size={30} />
                           <span className="min-w-0">
-                            <span className="block font-bold text-on-surface">{e.ticker}</span>
+                            <span className="block font-mono text-[13px] font-bold text-on-surface group-hover:text-landing-brand">{e.ticker}</span>
                             <span className="block truncate text-[11px] text-on-surface-variant">{e.company}</span>
                           </span>
-                        </span>
-                        <span className="flex items-center gap-2 sm:block">
-                          <span className="font-mono text-[10px] tabular-nums text-on-surface-variant">
+                          <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-on-surface-variant">
                             {fmtDate(e.eventDate)}
+                          </span>
+                        </span>
+                        <span className="mt-4 flex min-h-5 items-center">
+                          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-on-surface-variant">
+                            Report read
                           </span>
                           {e.epsTag ? (
                             <span
-                              className="ml-2 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                              className="ml-auto rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
                               style={{ color: epsColor(e.epsTag), background: `color-mix(in srgb, ${epsColor(e.epsTag)} 14%, var(--surface))` }}
                             >
                               {EPS_LABEL[e.epsTag] ?? e.epsTag}
                             </span>
                           ) : null}
                         </span>
-                        <span className="line-clamp-2 text-[12.5px] leading-[1.45] text-on-surface">
+                        <span className="mt-2 line-clamp-3 text-[13px] font-medium leading-[1.5] text-on-surface">
                           {e.headline}
+                        </span>
+                        <span className="mt-auto pt-4 font-mono text-[10px] font-semibold text-landing-brand">
+                          Open report →
                         </span>
                       </Link>
                     ))}
@@ -283,9 +287,7 @@ export function PulseHub({
                 <div className={recentEarnings.length > 0 ? "mt-8" : undefined}>
                   <div className="mb-3">
                     <p className="text-[14px] font-semibold text-on-surface">Upcoming reports</p>
-                    <p className="mt-1 text-[13px] text-on-surface-variant">
-                      Chronological schedule with pre-earnings setup context.
-                    </p>
+                    <p className="mt-1 text-[13px] text-on-surface-variant">The next names due to report.</p>
                   </div>
                   <div className="pulse-list-panel">
                     {earnings.map((e) => (

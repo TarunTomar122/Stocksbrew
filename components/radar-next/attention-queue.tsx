@@ -26,14 +26,20 @@ export function AttentionQueue({ items }: { items: RadarAttentionItem[] }) {
           </p>
         </div>
       ) : (
-        <div className="rn-card divide-y divide-[var(--rn-line)] overflow-hidden">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((item) => {
             const citation = item.citations[0];
+            const isRsi =
+              item.event_type === "rsi_oversold_cross" ||
+              item.event_type === "rsi_overbought_cross";
+            const supportingCopy = isRsi
+              ? item.next_trigger
+              : item.why_it_matters || item.next_trigger;
             return (
               <Link
                 key={item.item_id}
                 href={`/stock/${encodeURIComponent(item.ticker)}`}
-                className="group grid min-w-0 gap-2 px-3 py-3 transition-colors hover:bg-[var(--rn-card-2)] sm:grid-cols-[150px_minmax(0,1.2fr)_minmax(220px,0.9fr)] sm:items-center sm:gap-4 sm:px-4"
+                className="group flex min-w-0 flex-col rounded-xl border border-[var(--rn-line)] bg-[var(--rn-card)] p-4 transition-all hover:border-[var(--rn-muted)] hover:bg-[var(--rn-card-2)] hover:shadow-sm"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <StockLogo ticker={item.ticker} market="US" size={28} />
@@ -45,18 +51,23 @@ export function AttentionQueue({ items }: { items: RadarAttentionItem[] }) {
                       {radarEventLabel(item.event_type)}
                     </span>
                   </div>
+                  <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.05em] text-[var(--rn-muted)]">
+                    {relativeTime(item.occurred_at)}
+                  </span>
                 </div>
-                <p className="line-clamp-2 text-[12.5px] font-semibold leading-[1.45] text-[var(--rn-ink)]">
-                  {item.why_it_matters || item.headline}
+                <p className="mt-4 text-[13px] font-semibold leading-[1.5] text-[var(--rn-ink)]">
+                  {item.what_changed || item.headline}
                 </p>
-                <div className="min-w-0">
-                  <p className="line-clamp-1 text-[11px] text-[var(--rn-muted)]">
-                    {item.what_changed}
+                {supportingCopy ? (
+                  <p className="mt-2 line-clamp-3 text-[11.5px] leading-[1.5] text-[var(--rn-muted)]">
+                    {supportingCopy}
                   </p>
-                  <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.04em] text-[var(--rn-muted)]">
+                ) : null}
+                <div className="mt-auto pt-4">
+                  <p className="truncate border-t border-[var(--rn-line)] pt-3 font-mono text-[9px] uppercase tracking-[0.04em] text-[var(--rn-muted)]">
                     {citation
                       ? `${citation.publisher} · verified source · ${relativeTime(citation.published_at)}`
-                      : `StocksBrew technical state · ${relativeTime(item.occurred_at)}`}
+                      : "Price and technical data"}
                   </p>
                 </div>
               </Link>

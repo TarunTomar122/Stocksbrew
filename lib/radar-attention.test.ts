@@ -74,4 +74,17 @@ describe("radarAttentionItems", () => {
       ),
     ).toEqual([]);
   });
+
+  it("shows only the highest-priority item for a repeated technical state", () => {
+    const rows = radarAttentionItems(
+      [
+        item("RKLB", "rsi_oversold_cross", { priority_score: 80 }),
+        item("OKLO", "rsi_oversold_cross", { priority_score: 70 }),
+        item("MSFT", "earnings_upcoming", { priority_score: 60 }),
+      ],
+      Date.parse("2026-07-24T10:00:00Z"),
+    );
+
+    expect(rows.map((row) => row.ticker)).toEqual(["RKLB", "MSFT"]);
+  });
 });

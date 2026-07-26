@@ -506,7 +506,7 @@ export function EarningsIntelReport({
       </div>
 
       <p className="px-4 text-center text-xs text-[#9ca3af] sm:px-0">
-        AI-generated post-earnings analysis · not investment advice
+        Stocksbrew post-earnings read · not investment advice
       </p>
     </div>
   );

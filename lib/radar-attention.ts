@@ -14,7 +14,7 @@ export function radarAttentionItems(
   max = 3,
 ): RadarAttentionItem[] {
   const recentCutoff = now - 36 * 60 * 60 * 1000;
-  return items
+  const ranked = items
     .filter((item) => {
       if (!MEANINGFUL_EVENT_TYPES.has(item.event_type)) return false;
       if (item.event_type === "abnormal_price_move" && item.citations.length === 0) return false;
@@ -26,8 +26,19 @@ export function radarAttentionItems(
         Number(right.position_type === "holding") - Number(left.position_type === "holding");
       if (heldDelta) return heldDelta;
       return right.priority_score - left.priority_score;
-    })
-    .slice(0, max);
+    });
+
+  const selected: RadarAttentionItem[] = [];
+  const technicalTypes = new Set<string>();
+  for (const item of ranked) {
+    const isTechnicalExtreme =
+      item.event_type === "rsi_oversold_cross" || item.event_type === "rsi_overbought_cross";
+    if (isTechnicalExtreme && technicalTypes.has(item.event_type)) continue;
+    selected.push(item);
+    if (isTechnicalExtreme) technicalTypes.add(item.event_type);
+    if (selected.length >= max) break;
+  }
+  return selected;
 }
 
 export function radarEventLabel(eventType: string): string {

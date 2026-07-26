@@ -202,7 +202,7 @@ export function StockEarningsTab({ doc, ticker }: Props) {
       </div>
 
       <p className="text-xs text-on-surface-variant">
-        AI-generated post-earnings analysis · not investment advice
+        Stocksbrew post-earnings read · not investment advice
       </p>
     </section>
   );

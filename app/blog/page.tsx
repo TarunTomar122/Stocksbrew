@@ -151,7 +151,7 @@ export default function BlogPage() {
             <span className="text-[16px] font-semibold text-[#111111]">Give your AI current, structured stock data</span>
             <span className="text-[13px] text-[#6b7280]">Connect with MCP or use the read-only stock API.</span>
           </div>
-          <span className="text-[13px] font-semibold text-[#166534] shrink-0">See how it works →</span>
+          <span className="text-[13px] font-semibold text-[#166534] shrink-0">Read the guide →</span>
         </Link>
 
         <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6 flex flex-col gap-4">

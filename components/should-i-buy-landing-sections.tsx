@@ -23,7 +23,7 @@ export function ShouldIBuyLandingSections() {
       <div className="border-t border-[#e5e7eb] bg-[#fafaf7]">
         <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-14 md:py-20 flex flex-col gap-14">
           <section className="flex flex-col gap-5 max-w-[720px]">
-            <h2 className="text-[28px] font-semibold text-[#111111] tracking-[-0.03em]">How it works</h2>
+            <h2 className="text-[28px] font-semibold text-[#111111] tracking-[-0.03em]">What you get</h2>
             <ol className="flex flex-col gap-4">
               {SHOULD_I_BUY_STEPS.map((step, i) => (
                 <li key={step.title} className="flex gap-4">

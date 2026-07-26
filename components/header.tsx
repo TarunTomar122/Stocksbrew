@@ -31,7 +31,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/pulse",     label: "Pulse",  icon: "monitoring" },
   { href: "/social",    label: "Social", icon: "forum" },
   { href: "/watchlist", label: "Radar",  icon: "radar" },
-  { href: "/explore",   label: "Explore", icon: "explore", authOnly: true },
 ];
 
 export function Header({ searchIndex: initialSearchIndex = [], market, trackedIds = [], isSubscribed = false }: Props) {

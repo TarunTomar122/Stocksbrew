@@ -20,7 +20,7 @@ export function AgentAccessLandingSection() {
             <AgentSetupPrompt compact className="mt-6" />
             <AgentClientLogos compact className="mt-5" />
             <p className="mt-5 text-[12px] text-on-surface-variant">
-              <Link href="/agents" className="font-bold text-on-surface hover:text-landing-brand">See how it works →</Link>
+              <Link href="/agents" className="font-bold text-on-surface hover:text-landing-brand">See agent access →</Link>
               <span className="mx-2 text-outline">/</span>
               <Link href="/developers" className="font-semibold hover:text-landing-brand">Read the docs</Link>
             </p>
@@ -65,7 +65,7 @@ export function StockAgentAccessCta({ ticker, isSubscribed }: { ticker: string; 
           <AgentClientLogos compact className="mt-4" />
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Link href="/agents" className="inline-flex rounded-full border border-outline-variant px-4 py-2 text-[12px] font-semibold text-on-surface">How it works</Link>
+          <Link href="/agents" className="inline-flex rounded-full border border-outline-variant px-4 py-2 text-[12px] font-semibold text-on-surface">Agent access</Link>
           <Link href={isSubscribed ? "/profile#agent-access" : "/subscribe"} className="inline-flex rounded-full bg-on-surface px-4 py-2 text-[12px] font-bold text-surface">
             {isSubscribed ? "Connect an agent" : "Unlock with Pro"}
           </Link>

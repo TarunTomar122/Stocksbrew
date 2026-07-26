@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Keep row dividers visible when a hover background is painted over a table row. */
+table tbody tr:hover {
+  border-color: var(--outline-variant) !important;
+}
+table tbody tr:hover > * {
+  border-color: inherit;
+}
+
 /* ── Theme tokens: light ─────────────────────────────────────────────────── */
 :root {
   /* Brand / primary - refined violet */
