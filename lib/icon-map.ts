@@ -74,6 +74,7 @@ export const MATERIAL_TO_LUCIDE: Record<string, string> = {
   show_chart: "chart-line",
   signpost: "map-pin",
   silver: "sparkles",
+  smart_toy: "cpu",
   speed: "gauge",
   spx: "chart-line",
   stacked_bar_chart: "chart-spline",

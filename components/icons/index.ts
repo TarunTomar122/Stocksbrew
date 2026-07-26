@@ -25,6 +25,7 @@ export { CpuIcon } from "./cpu";
 export { DeleteIcon } from "./delete";
 export { DropletIcon } from "./droplet";
 export { EyeOffIcon } from "./eye-off";
+export { FileTextIcon } from "./file-text";
 export { FlameIcon } from "./flame";
 export { GaugeIcon } from "./gauge";
 export { HomeIcon } from "./home";
