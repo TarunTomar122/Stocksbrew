@@ -21,7 +21,6 @@ import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
 import { StockLogo } from "@/components/stock-logo";
 import { StockDetail } from "@/components/stock-detail";
-import { StockTrialGate } from "@/components/stock-trial-gate";
 import { StockSeoSummary } from "@/components/stock-seo-summary";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
@@ -196,15 +195,8 @@ export async function StockPageStream({ params }: Props) {
     : [];
   const subscribed = resolveIsSubscribed(userDoc);
   const currency = currencySymbolFor(stock.instrument_id.split("_", 1)[0]);
-
-  if (!subscribed) {
-    return (
-      <>
-        <StockViewTracker ticker={stock.ticker} instrumentId={stock.instrument_id} market={market} />
-        <StockTrialGate stock={stock} currency={currency} market={market} />
-      </>
-    );
-  }
+  // Non-Pro users see the real page with facts free and the call masked (the
+  // trial CTA lives in the locked verdict), not a bare full-page wall.
 
   const tier = resolveStockTier(stock.instrument_id, tracked);
   const isLaunchBrief = tier === "ai_launch";

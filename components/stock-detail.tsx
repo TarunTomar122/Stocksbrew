@@ -713,6 +713,7 @@ export function StockDetail(props: Props) {
                 overviewHeadline={overviewHeadline}
                 fundamentalsScore={hasReliableOverall ? (intelPro?.overall?.score ?? null) : null}
                 preEarningsDays={earningsDays}
+                market={market}
               />
             </div>
           ) : (

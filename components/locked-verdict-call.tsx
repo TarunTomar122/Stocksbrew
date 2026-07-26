@@ -83,24 +83,28 @@ function MaskedCall() {
 
 function VerdictUnlockCard({
   signedIn,
+  hasTrial,
   onSignIn,
   onGetPro,
   error,
 }: {
   signedIn: boolean;
+  hasTrial: boolean;
   onSignIn: () => void;
   onGetPro: () => void;
   error: string | null;
 }) {
-  const cta = signedIn
-    ? {
-        label: `Unlock Pro · ${US_PRO_MONTHLY_MO}`,
-        onClick: onGetPro,
-      }
-    : {
-        label: "Sign in to unlock the call",
-        onClick: onSignIn,
-      };
+  const onClick = signedIn ? onGetPro : onSignIn;
+  const label = hasTrial
+    ? "Start your 3-day free trial"
+    : signedIn
+      ? `Unlock Pro · ${US_PRO_MONTHLY_MO}`
+      : "Sign in to unlock the call";
+  const subtext = hasTrial
+    ? `Free for 3 days, then ${US_PRO_MONTHLY_MO}. Cancel anytime.`
+    : signedIn
+      ? "Cancel anytime."
+      : `${US_PRO_MONTHLY_MO} · Cancel anytime.`;
 
   return (
     <div className="border-t border-outline-variant pt-4">
@@ -115,14 +119,12 @@ function VerdictUnlockCard({
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <button
           type="button"
-          onClick={() => cta.onClick()}
+          onClick={() => onClick()}
           className="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-primary px-5 text-[13.5px] font-bold text-on-primary transition-opacity hover:opacity-90 sm:flex-none sm:px-7"
         >
-          {cta.label}
+          {label}
         </button>
-        <p className="text-[10.5px] text-on-surface-variant">
-          {signedIn ? "Cancel anytime." : `${US_PRO_MONTHLY_MO} · Cancel anytime.`}
-        </p>
+        <p className="text-[10.5px] text-on-surface-variant">{subtext}</p>
       </div>
       {error ? (
         <p className="mt-2 text-[12px] font-medium text-[#ef4444]">{error}</p>
@@ -188,6 +190,7 @@ export function LockedVerdictCall({
   overviewHeadline,
   fundamentalsScore,
   preEarningsDays,
+  market = "US",
 }: {
   ticker: string;
   hist: Point[];
@@ -197,7 +200,9 @@ export function LockedVerdictCall({
   overviewHeadline?: string;
   fundamentalsScore?: number | null;
   preEarningsDays?: number | null;
+  market?: "US" | "IN";
 }) {
+  const hasTrial = market === "US";
   const { user, loading } = useUser();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -237,6 +242,7 @@ export function LockedVerdictCall({
       />
       <VerdictUnlockCard
         signedIn={signedIn}
+        hasTrial={hasTrial}
         onSignIn={handleSignIn}
         onGetPro={handleGetPro}
         error={error}
