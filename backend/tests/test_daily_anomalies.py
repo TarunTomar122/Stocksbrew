@@ -9,6 +9,9 @@ from backend.scripts import build_daily_anomalies
 
 
 class DailyAnomaliesTest(unittest.TestCase):
+    def test_anomaly_publish_revalidates_pulse(self) -> None:
+        self.assertIn("/pulse", build_daily_anomalies.ANOMALY_REVALIDATE_PATHS)
+
     def test_select_mover_ids_balances_gainers_and_losers(self) -> None:
         prices = {
             "US_A": {"quote": {"day_change_pct": 5.0}},

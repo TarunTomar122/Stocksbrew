@@ -28,6 +28,37 @@ export function isDisplayableMove(item: AnomalyItem): boolean {
 }
 
 const WEAK_MOVE_HEADLINE = "No clear company-specific driver surfaced yet.";
+const GENERIC_HEADLINE_PATTERNS = [
+  /\bis a top (?:up|down) mover\b/i,
+  /\bis moving (?:higher|lower)\b/i,
+  /\b(?:rises|falls|gains|drops) \d+(?:\.\d+)?%\s*$/i,
+];
+const GENERIC_DETAIL_PATTERNS = [
+  /^provides? stock quote(?:,| )/i,
+  /^stock (?:quote|price),? (?:price,? )?(?:history|forecast|news)/i,
+  /^shares? (?:experienced|saw|had) a pause\b/i,
+  /^investors are waiting for more information\b/i,
+  /^move is driven by price momentum\b/i,
+  /^watch for follow-through, catalyst updates\b/i,
+  /^verified source coverage is available\b/i,
+  /^no confirmed catalyst yet\.?$/i,
+];
+
+function isUsefulNarrative(value: string | null | undefined, patterns: RegExp[]): value is string {
+  const text = value?.trim();
+  return Boolean(text && !patterns.some((pattern) => pattern.test(text)));
+}
+
+function isUsefulHeadline(value: string | null | undefined): value is string {
+  return (
+    isUsefulNarrative(value, GENERIC_HEADLINE_PATTERNS) &&
+    isUsefulNarrative(value, GENERIC_DETAIL_PATTERNS)
+  );
+}
+
+function isUsefulDetail(value: string | null | undefined): value is string {
+  return isUsefulNarrative(value, GENERIC_DETAIL_PATTERNS);
+}
 
 export function isWeakMoveExplanation(item: AnomalyItem): boolean {
   const explanation = item.move_explanation;
@@ -51,10 +82,14 @@ export function anomalyHeadline(item: AnomalyItem): string {
   if (isWeakMoveExplanation(item)) {
     return topMoverHeadline(item);
   }
-  const headline =
-    item.move_explanation?.headline?.trim() ||
-    item.headline?.trim() ||
-    item.visual_summary?.what_changed?.trim();
+  const headline = [
+    item.move_explanation?.headline,
+    item.headline,
+    item.visual_summary?.what_changed,
+    item.catalyst,
+    item.thesis,
+    item.visual_summary?.drivers?.[0]?.label,
+  ].find(isUsefulHeadline)?.trim();
   return headline || `${item.ticker} moved sharply today`;
 }
 
@@ -63,13 +98,22 @@ export function anomalyDetail(item: AnomalyItem): string | null {
     return ANOMALY_NO_NEWS_COPY;
   }
 
+  const matchingCatalyst = item.visual_summary?.catalyst_cards?.find((card) => {
+    const event = card.event?.trim().toLowerCase();
+    const catalyst = item.catalyst?.trim().toLowerCase();
+    return Boolean(event && catalyst && (event.includes(catalyst) || catalyst.includes(event)));
+  });
   const candidates = [
     item.move_explanation?.why_it_matters?.trim(),
     item.today_brief?.trim(),
-    item.thesis?.trim(),
     item.visual_summary?.why_it_matters?.trim(),
+    matchingCatalyst?.detail?.trim(),
+    item.visual_summary?.catalyst_cards?.[0]?.detail?.trim(),
+    item.visual_summary?.drivers?.[0]?.detail?.trim(),
+    item.thesis?.trim(),
+    item.catalyst?.trim(),
     ...(item.key_points || []).map((point) => point?.trim()).filter((point): point is string => Boolean(point)),
-  ].filter((value): value is string => Boolean(value));
+  ].filter(isUsefulDetail);
 
   if (!candidates.length) return null;
 

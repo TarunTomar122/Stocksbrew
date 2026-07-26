@@ -74,6 +74,61 @@ describe("anomalyDetail", () => {
     expect(anomalyHeadline(row)).toBe("SMR is a top up mover in Utilities.");
     expect(anomalyDetail(row)).toBe(ANOMALY_NO_NEWS_COPY);
   });
+
+  it("keeps materialized post-close research when the expensive move explainer was skipped", () => {
+    const row = item({
+      headline: "Oilfield demand gives SLB fresh operating leverage",
+      today_brief:
+        "International drilling strength and firmer service pricing improve the earnings setup.",
+      move_explanation: null,
+    });
+
+    expect(anomalyHeadline(row)).toBe("Oilfield demand gives SLB fresh operating leverage");
+    expect(anomalyDetail(row)).toBe(
+      "International drilling strength and firmer service pricing improve the earnings setup.",
+    );
+  });
+
+  it("does not present provider boilerplate as the reason for a move", () => {
+    const row = item({
+      ticker: "VZ",
+      sector: "Communication Services",
+      headline: "VZ is a top up mover in Communication Services.",
+      today_brief: "Provides stock quote price and forecast.",
+      catalyst: "In-line Q2 print",
+      visual_summary: {
+        what_changed: "Provides stock quote price and forecast",
+        why_it_matters: "Provides stock quote price and forecast.",
+        catalyst_cards: [
+          {
+            event: "In-line Q2 print",
+            detail: "The muted positive reaction removed a near-term earnings risk.",
+          },
+        ],
+      },
+      move_explanation: null,
+    });
+
+    expect(anomalyHeadline(row)).toBe("In-line Q2 print");
+    expect(anomalyDetail(row)).toBe(
+      "The muted positive reaction removed a near-term earnings risk.",
+    );
+  });
+
+  it("does not leak unrelated analysis from an explicitly unclear move explainer", () => {
+    const row = item({
+      ticker: "NOW",
+      sector: "Technology",
+      move_explanation: {
+        cause_type: "unclear",
+        headline: "No clear company-specific driver surfaced yet.",
+        why_it_matters: "NOW has +30.4% analyst target runway.",
+      },
+    });
+
+    expect(anomalyHeadline(row)).toBe("NOW is a top up mover in Technology.");
+    expect(anomalyDetail(row)).toBe(ANOMALY_NO_NEWS_COPY);
+  });
 });
 
 describe("splitDisplayableMoves", () => {

@@ -29,6 +29,18 @@ export type AnomalyItem = {
     what_changed?: string;
     why_it_matters?: string;
     what_to_watch?: string;
+    drivers?: Array<{
+      label?: string;
+      detail?: string;
+      direction?: string;
+      strength?: number;
+    }>;
+    catalyst_cards?: Array<{
+      event?: string;
+      detail?: string;
+      window?: string;
+      priced_in?: string;
+    }>;
   } | null;
   move_explanation?: {
     cause_type?: string;

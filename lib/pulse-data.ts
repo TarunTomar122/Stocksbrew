@@ -1,5 +1,10 @@
 import type { ScannerItem } from "@/components/movers-scanner";
-import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
+import {
+  ANOMALY_NO_NEWS_COPY,
+  anomalyDetail,
+  anomalyHeadline,
+  isWeakMoveExplanation,
+} from "@/components/daily-anomalies-shared";
 import type { EarningsPick, PulseTopline, RecentEarningsPick, RedditPick, SectorCard } from "@/components/pulse-hub";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
@@ -27,20 +32,10 @@ function epsTagFromReported(reported?: string): string | undefined {
 
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
   return anomalies.map((a) => {
-    const confidence = a.move_explanation?.confidence?.toLowerCase();
-    const hasVerifiedCause =
-      (a.move_explanation?.evidence?.length ?? 0) > 0 ||
-      (a.news_count > 0 && a.source_count > 0 && confidence !== "low");
-    const headline = hasVerifiedCause
-      ? anomalyHeadline(a)
-      : `${a.ticker} ${a.day_change_pct >= 0 ? "rises" : "falls"} ${Math.abs(a.day_change_pct).toFixed(2)}%`;
-    const tag = (a.catalyst || a.visual_summary?.what_changed || "").trim() || headline;
-    const whyItMatters = hasVerifiedCause
-      ? a.move_explanation?.why_it_matters?.trim() ||
-        anomalyDetail(a) ||
-        (a.today_brief || a.visual_summary?.why_it_matters || a.thesis || "").trim() ||
-        "Verified source coverage is available on the stock page."
-      : "No confirmed catalyst yet.";
+    const weakExplanation = isWeakMoveExplanation(a);
+    const headline = anomalyHeadline(a);
+    const whyItMatters = anomalyDetail(a) || ANOMALY_NO_NEWS_COPY;
+    const tag = (a.catalyst || a.visual_summary?.what_changed || "").trim();
 
     return {
       ticker: a.ticker,
@@ -51,7 +46,7 @@ function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>):
       buzz: buzzBy.get(a.ticker.toUpperCase()),
       headline,
       whyItMatters,
-      confidence: hasVerifiedCause ? a.move_explanation?.confidence : "low",
+      confidence: weakExplanation ? "low" : a.move_explanation?.confidence,
     };
   });
 }

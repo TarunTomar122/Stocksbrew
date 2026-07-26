@@ -15,6 +15,7 @@ from backend.context_search import context_search_enabled, search_context_articl
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.llm_client import json_response_format, llm_api_key, llm_api_url, llm_headers, llm_model, parse_json_content, schema_system_prompt
 from backend.open_email_intel import fresh_sector_summary_from_prices
+from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
 from backend.instrument_universe import list_instruments
 from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
@@ -22,6 +23,7 @@ from backend.storage import TraceMoneyStore
 
 OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 MIN_EXPLAIN_MOVE_PCT = 2.0
+ANOMALY_REVALIDATE_PATHS = ["/", "/pulse", "/anomalies", "/radar"]
 ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS = max(
     48,
     int(os.getenv("ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS", "48") or 48),
@@ -1302,9 +1304,8 @@ def main() -> None:
             "stale_price_ids": stale_price_ids[:50],
         },
     )
-    from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
 
-    revalidated = trigger_web_revalidate(["/", "/anomalies", "/radar"], force=True)
+    revalidated = trigger_web_revalidate(ANOMALY_REVALIDATE_PATHS, force=True)
     if args.require_web_revalidate and not revalidated:
         raise RuntimeError("anomaly feed was saved, but the web refresh failed")
     print({"market": args.market, "scanned": len(instrument_ids), "selected": len(selected_ids), "written": len(rows)})
