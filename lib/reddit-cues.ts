@@ -50,6 +50,7 @@ function normalizeTicker(raw: unknown, fallbackTicker = ""): RedditTicker | null
       ? item.supporting_post_ids.filter((value): value is string => typeof value === "string")
       : [],
     window_hours: typeof item.window_hours === "number" ? item.window_hours : undefined,
+    source: typeof item.source === "string" ? item.source : undefined,
   };
 }
 

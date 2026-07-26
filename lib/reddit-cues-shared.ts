@@ -10,6 +10,7 @@ export type RedditTicker = {
   source_subreddits?: string[];
   supporting_post_ids?: string[];
   window_hours?: number;
+  source?: string;
   company?: string;
   price?: number;
   changePct?: number;
@@ -62,9 +63,11 @@ export type RedditTickerContext = {
 
 const MENTION_ONLY_SUMMARY_RE = /^[A-Z0-9.-]+ mentioned in \d+ Reddit posts?\.?$/i;
 const CHATTER_ONLY_SUMMARY_RE = /^[A-Z0-9.-]+ is active in Reddit chatter\.?$/i;
+const RAW_DISCUSSION_SUMMARY_RE = /^Latest discussion:/i;
 
 /** True when the ticker has a real narrative brief, not just a mention count stub. */
 export function hasRedditBrief(item: RedditTicker): boolean {
+  if (item.source === "heuristic") return false;
   const catalysts = (item.catalysts ?? []).map((c) => String(c).trim()).filter(Boolean);
   if (catalysts.length > 0) return true;
 
@@ -72,6 +75,7 @@ export function hasRedditBrief(item: RedditTicker): boolean {
   if (!summary) return false;
   if (MENTION_ONLY_SUMMARY_RE.test(summary)) return false;
   if (CHATTER_ONLY_SUMMARY_RE.test(summary)) return false;
+  if (RAW_DISCUSSION_SUMMARY_RE.test(summary)) return false;
   return true;
 }
 
