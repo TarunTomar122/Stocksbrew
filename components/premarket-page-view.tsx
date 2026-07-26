@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PremarketShareCard } from "@/components/premarket-share-card";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { OpeningCue, OpeningReport, OpeningTone } from "@/lib/premarket-opening";
 import type { PremarketMovers, PremarketRow } from "@/lib/premarket";
 import { currentOpeningReport } from "@/lib/premarket-view";
@@ -14,6 +15,9 @@ import { relativeTime } from "@/lib/freshness";
 type Tab = "up" | "down";
 
 const CARD = "rounded-2xl border border-outline-variant bg-surface";
+// Supporting sections: borderless, recede behind the hero so the page doesn't read as a wall of equal boxes.
+const SUB = "rounded-xl bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+const SUB_HEAD = "flex items-end justify-between gap-3 border-b border-outline-variant/60 px-5 py-3.5";
 const KICK = "font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant";
 
 const PHASE_LABEL: Record<string, string> = {
@@ -277,51 +281,54 @@ function MoverTable({
           <span className="font-mono text-[11px] font-bold" style={{ color }}>{rows.length}</span>
         </div>
       ) : null}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[610px] border-collapse text-[13px]">
-          <thead>
-            <tr className="border-b border-outline-variant/50 text-left font-mono text-[9.5px] uppercase tracking-[0.07em] text-on-surface-variant">
-              <th className="px-4 py-2.5 font-normal">Ticker</th>
-              <th className="px-3 py-2.5 text-right font-normal">Gap</th>
-              <th className="px-3 py-2.5 text-right font-normal">Price</th>
-              <th className="px-3 py-2.5 font-normal">Why it is moving</th>
-              <th className="w-10 px-3 py-2.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const up = row.pre_market_change_pct >= 0;
-              const catalyst = catalysts.get(row.ticker.toUpperCase());
-              return (
-                <tr key={row.instrument_id} className="border-b border-outline-variant/40 last:border-b-0 hover:bg-surface-container-low">
-                  <td className="px-4 py-3">
-                    <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="group flex min-w-0 items-center gap-2.5">
-                      <StockLogo ticker={row.ticker} market="US" size={28} logoUrl={row.logo_url} />
-                      <div className="min-w-0">
-                        <p className="font-mono text-[12px] font-bold text-on-surface group-hover:text-accent-terminal">{row.ticker}</p>
-                        {row.sector ? <p className="max-w-[125px] truncate text-[10px] text-on-surface-variant">{row.sector}</p> : null}
-                      </div>
-                    </Link>
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono font-bold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>{signed(row.pre_market_change_pct)}</td>
-                  <td className="px-3 py-3 text-right font-mono tabular-nums text-on-surface">${fmtPrice(row.pre_market_price)}</td>
-                  <td className="max-w-[250px] px-3 py-3">
-                    <p className="line-clamp-2 text-[11.5px] leading-[1.4] text-on-surface">
-                      {catalyst?.headline || catalyst?.detail || "No confirmed catalyst yet."}
-                    </p>
-                    <p className="mt-1 truncate font-mono text-[8.5px] uppercase tracking-[0.04em] text-on-surface-variant">
-                      {catalyst
-                        ? `${catalyst.source || "Verified news"} · ${relativeTime(reportGeneratedAt || "")}`
-                        : "No verified source"}
-                    </p>
-                  </td>
-                  <td className="px-3 py-3"><TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.has(row.instrument_id)} variant="icon" /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Table className="min-w-[480px] [&_th:first-child]:pl-4 [&_td:first-child]:pl-4">
+        <TableHeader>
+          <TableRow className="border-outline-variant/50 hover:bg-transparent">
+            <TableHead>Ticker</TableHead>
+            <TableHead className="text-right">Gap · Price</TableHead>
+            <TableHead>Why it is moving</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => {
+            const up = row.pre_market_change_pct >= 0;
+            const catalyst = catalysts.get(row.ticker.toUpperCase());
+            return (
+              <TableRow key={row.instrument_id} className="border-outline-variant/40">
+                <TableCell>
+                  <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="group flex min-w-0 items-center gap-2.5">
+                    <StockLogo ticker={row.ticker} market="US" size={28} logoUrl={row.logo_url} />
+                    <div className="min-w-0">
+                      <p className="font-mono text-[12px] font-bold text-on-surface group-hover:text-primary">{row.ticker}</p>
+                      {row.sector ? <p className="text-[10px] text-on-surface-variant">{row.sector}</p> : null}
+                    </div>
+                  </Link>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+                    {signed(row.pre_market_change_pct)}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-on-surface-variant">${fmtPrice(row.pre_market_price)}</span>
+                </TableCell>
+                <TableCell>
+                  {catalyst ? (
+                    <>
+                      <p className="text-[11.5px] leading-[1.4] text-on-surface">
+                        {catalyst.headline || catalyst.detail}
+                      </p>
+                      <p className="mt-1 font-mono text-[8.5px] uppercase tracking-[0.04em] text-on-surface-variant">
+                        {`${catalyst.source || "Verified news"} · ${relativeTime(reportGeneratedAt || "")}`}
+                      </p>
+                    </>
+                  ) : null}
+                </TableCell>
+                <TableCell><TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.has(row.instrument_id)} variant="icon" /></TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -400,8 +407,8 @@ export function PremarketPageView({
       .map((item) => [item.ticker.toUpperCase(), item] as const),
   );
   const moversSection = (
-    <section className={`${CARD} overflow-hidden`}>
-      <div className="flex items-end justify-between gap-3 border-b border-outline-variant/70 px-5 py-4">
+    <section className={`${SUB} overflow-hidden`}>
+      <div className={SUB_HEAD}>
         <div>
           <p className={KICK}>US pre-market</p>
           <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Movers</h2>
@@ -441,7 +448,7 @@ export function PremarketPageView({
         <PremarketShareCard />
       </header> : null}
 
-      <section className={`${CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card)" }}>
+      <section className={`${CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card-hover)" }}>
         <div className={`grid px-4 py-4 ${embedded ? "gap-4 lg:grid-cols-[minmax(0,1fr)_230px] lg:gap-6" : "gap-6 sm:p-6 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-10 lg:p-7"}`}>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -485,8 +492,8 @@ export function PremarketPageView({
 
       <div className="mt-6 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="min-w-0 space-y-4">
-          <section className={`${CARD} overflow-hidden`}>
-            <div className="flex items-end justify-between gap-3 border-b border-outline-variant/70 px-5 py-4">
+          <section className={`${SUB} overflow-hidden`}>
+            <div className={SUB_HEAD}>
               <div>
                 <p className={KICK}>Global handoff</p>
                 <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Market tape</h2>
@@ -501,8 +508,8 @@ export function PremarketPageView({
           {!embedded ? moversSection : null}
 
           {!embedded && data.news.length ? (
-            <section className={`${CARD} overflow-hidden`}>
-              <div className="border-b border-outline-variant/70 px-5 py-4">
+            <section className={`${SUB} overflow-hidden`}>
+              <div className="border-b border-outline-variant/60 px-5 py-3.5">
                 <p className={KICK}>Overnight catalysts</p>
               </div>
               <div className="divide-y divide-outline-variant/50">
@@ -523,14 +530,14 @@ export function PremarketPageView({
         </div>
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-20">
-          <section className={`${CARD} p-4 sm:p-5`}>
+          <section className={`${SUB} p-4 sm:p-5`}>
             <p className={`${KICK} mb-4`}>S&amp;P 500 · 5 sessions</p>
             <SessionTape sessions={data.sessions} />
           </section>
 
           {data.social.available || data.social.top_tickers.length ? (
-            <section className={`${CARD} overflow-hidden`}>
-              <div className="flex items-end justify-between gap-3 border-b border-outline-variant/60 px-4 py-4 sm:px-5">
+            <section className={`${SUB} overflow-hidden`}>
+              <div className="flex items-end justify-between gap-3 border-b border-outline-variant/60 px-4 py-3.5 sm:px-5">
                 <div>
                   <p className={KICK}>Social tape</p>
                   <p className="mt-1 text-[24px] font-extrabold tabular-nums" style={{ color: toneColor(socialTone) }}>{data.social.sentiment_score >= 0 ? "+" : ""}{data.social.sentiment_score.toFixed(0)}</p>
@@ -544,7 +551,7 @@ export function PremarketPageView({
                 <div className="divide-y divide-outline-variant/50">
                   {data.social.top_tickers.slice(0, 6).map((ticker) => (
                     <div key={ticker.ticker} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-                      <Link href={`/stock/${encodeURIComponent(ticker.ticker)}`} className="font-mono text-[12px] font-bold text-on-surface hover:text-accent-terminal">{ticker.ticker}</Link>
+                      <Link href={`/stock/${encodeURIComponent(ticker.ticker)}`} className="font-mono text-[12px] font-bold text-on-surface hover:text-primary">{ticker.ticker}</Link>
                       <span className="font-mono text-[10px] tabular-nums" style={{ color: toneColor(ticker.sentiment) }}>{ticker.mentions} mentions</span>
                     </div>
                   ))}

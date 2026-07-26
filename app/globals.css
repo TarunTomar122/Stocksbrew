@@ -23,25 +23,25 @@ table tbody tr:hover > * {
   --on-primary-fixed-variant:  #5516be;
   --inverse-primary:           #d0bcff;
 
-  /* Secondary - warm amber */
-  --secondary:                   #9d4300;
-  --secondary-container:         #fd761a;
-  --secondary-fixed:             #ffdbca;
-  --secondary-fixed-dim:         #ffb690;
+  /* Secondary - collapsed to neutral (was amber). Decorative accents go grayscale. */
+  --secondary:                   #475569;
+  --secondary-container:         #eef0f3;
+  --secondary-fixed:             #eef0f3;
+  --secondary-fixed-dim:         #dfe3e8;
   --on-secondary:                #ffffff;
-  --on-secondary-container:      #5c2400;
-  --on-secondary-fixed:          #341100;
-  --on-secondary-fixed-variant:  #783200;
+  --on-secondary-container:      #1f242b;
+  --on-secondary-fixed:          #111215;
+  --on-secondary-fixed-variant:  #3b4048;
 
-  /* Tertiary */
-  --tertiary:                    #735c00;
-  --tertiary-container:          #cea700;
-  --tertiary-fixed:              #ffe083;
-  --tertiary-fixed-dim:          #eec200;
-  --on-tertiary:                 #ffffff;
-  --on-tertiary-container:       #4e3e00;
-  --on-tertiary-fixed:           #231b00;
-  --on-tertiary-fixed-variant:   #574500;
+  /* Tertiary - unused; aliased to brand so any stray use stays on-palette */
+  --tertiary:                    var(--primary);
+  --tertiary-container:          var(--primary-container);
+  --tertiary-fixed:              var(--primary-fixed);
+  --tertiary-fixed-dim:          var(--primary-fixed-dim);
+  --on-tertiary:                 var(--on-primary);
+  --on-tertiary-container:       var(--on-primary-container);
+  --on-tertiary-fixed:           var(--on-primary-fixed);
+  --on-tertiary-fixed-variant:   var(--on-primary-fixed-variant);
 
   /* Error */
   --error:                  #ba1a1a;
@@ -77,15 +77,15 @@ table tbody tr:hover > * {
   /* Semantic status colors — darker for WCAG AA text on white/light panels */
   --signal-bullish:  #047857;
   --signal-bearish:  #b91c1c;
-  --signal-neutral:  #b45309;
+  --signal-neutral:  #475569;   /* hold/neutral is a gray, not a hue */
 
-  /* Terminal accent (section labels, hold/watch, neutral sentiment) */
-  --accent-terminal: #0e7490;
+  /* Terminal accent (section labels, hold/watch) — neutralized from cyan */
+  --accent-terminal: #475569;
 
-  /* Landing aliases (overridden on .landing-page) */
-  --landing-brand: var(--signal-bullish);
-  --landing-brand-hover: #036348;
-  --landing-mint: var(--signal-bullish);
+  /* Landing aliases (overridden on .landing-page) — brand is purple, not green */
+  --landing-brand: var(--primary);
+  --landing-brand-hover: var(--primary-container);
+  --landing-mint: var(--primary);
   --landing-on-brand: #ffffff;
   --landing-btn-primary-bg: var(--landing-brand);
   --landing-btn-primary-hover: var(--landing-brand-hover);
@@ -94,7 +94,7 @@ table tbody tr:hover > * {
   --landing-card-border: var(--outline-variant);
   --landing-inset-bg: var(--surface-container-low);
   --landing-glow-mint: var(--landing-mint);
-  --landing-glow-cyan: var(--accent-terminal);
+  --landing-glow-cyan: var(--primary);
   --landing-glow-mint-opacity: 16%;
   --landing-glow-cyan-opacity: 8%;
   --landing-reddit: #2563eb;
@@ -118,23 +118,23 @@ table tbody tr:hover > * {
   --on-primary-fixed-variant:  #5516be;
   --inverse-primary:           #6b38d4;
 
-  --secondary:                   #ffb690;
-  --secondary-container:         #783200;
-  --secondary-fixed:             #ffdbca;
-  --secondary-fixed-dim:         #ffb690;
-  --on-secondary:                #5c2400;
-  --on-secondary-container:      #ffdbca;
-  --on-secondary-fixed:          #341100;
-  --on-secondary-fixed-variant:  #783200;
+  --secondary:                   #94a3b8;
+  --secondary-container:         #1e2530;
+  --secondary-fixed:             #cbd5e1;
+  --secondary-fixed-dim:         #94a3b8;
+  --on-secondary:                #0f1512;
+  --on-secondary-container:      #e2e8f0;
+  --on-secondary-fixed:          #0f1512;
+  --on-secondary-fixed-variant:  #cbd5e1;
 
-  --tertiary:                    #eec200;
-  --tertiary-container:          #574500;
-  --tertiary-fixed:              #ffe083;
-  --tertiary-fixed-dim:          #eec200;
-  --on-tertiary:                 #3c2f00;
-  --on-tertiary-container:       #ffe083;
-  --on-tertiary-fixed:           #231b00;
-  --on-tertiary-fixed-variant:   #574500;
+  --tertiary:                    var(--primary);
+  --tertiary-container:          var(--primary-container);
+  --tertiary-fixed:              var(--primary-fixed);
+  --tertiary-fixed-dim:          var(--primary-fixed-dim);
+  --on-tertiary:                 var(--on-primary);
+  --on-tertiary-container:       var(--on-primary-container);
+  --on-tertiary-fixed:           var(--on-primary-fixed);
+  --on-tertiary-fixed-variant:   var(--on-primary-fixed-variant);
 
   --error:                  #ffb4ab;
   --error-container:        #93000a;
@@ -163,21 +163,22 @@ table tbody tr:hover > * {
   --outline:          #3a4049;
   --outline-variant:  #232830;
 
+  --landing-card-border: var(--outline-variant);
+
   --signal-bullish:  #4ade80;
   --signal-bearish:  #fb7185;
-  --signal-neutral:  #fbbf24;
+  --signal-neutral:  #94a3b8;   /* hold/neutral is a gray, not amber */
 
-  --accent-terminal: #22d3ee;
+  --accent-terminal: #94a3b8;   /* neutralized from cyan */
 
-  --landing-brand: #4ade80;
-  --landing-brand-hover: #6ee7b7;
-  --landing-mint: #4ade80;
-  --landing-on-brand: #052e16;
-  --landing-btn-primary-bg: #4ade80;
-  --landing-btn-primary-hover: #6ee7b7;
+  --landing-brand: var(--primary);
+  --landing-brand-hover: var(--primary-fixed);
+  --landing-mint: var(--primary);
+  --landing-on-brand: var(--on-primary);
+  --landing-btn-primary-bg: var(--primary);
+  --landing-btn-primary-hover: var(--primary-fixed);
   --landing-btn-secondary-bg: var(--surface-container);
   --landing-card-bg: var(--surface-container-low);
-  --landing-card-border: color-mix(in srgb, var(--signal-bullish) 10%, var(--outline-variant));
   --landing-inset-bg: var(--surface-container);
   --landing-glow-mint-opacity: 11%;
   --landing-glow-cyan-opacity: 7%;
@@ -284,12 +285,12 @@ table tbody tr:hover > * {
   border-radius: 10px;
   box-shadow: inset 0 0 0 1px var(--outline-variant);
 }
-/* In dark, give cards a faint green edge so they read against the near-black. */
+/* In dark, give cards a faint neutral edge so they read against the near-black. */
 .dark .panel {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal-bullish) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-surface) 8%, transparent);
 }
 .dark .inset {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal-bullish) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-surface) 6%, transparent);
 }
 /* Optional hairline for the rare panel that genuinely needs definition. */
 .panel-hairline {
@@ -343,19 +344,13 @@ table tbody tr:hover > * {
 }
 
 /* Landing skeleton shimmer */
-@keyframes landing-bone-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@keyframes landing-bone-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 .landing-bone {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--surface-container-high) 88%, transparent) 0%,
-    color-mix(in srgb, var(--on-surface) 10%, var(--surface-container-high)) 50%,
-    color-mix(in srgb, var(--surface-container-high) 88%, transparent) 100%
-  );
-  background-size: 200% 100%;
-  animation: landing-bone-shimmer 1.6s ease-in-out infinite;
+  background: var(--surface-container-high);
+  animation: landing-bone-pulse 1.4s ease-in-out infinite;
 }
 @keyframes landing-stream-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -371,10 +366,10 @@ table tbody tr:hover > * {
   max-width: 100%;
   margin-inline: 0;
 
-  /* Shared landing tokens (overridden per theme below) */
-  --landing-brand: var(--signal-bullish);
-  --landing-brand-hover: var(--signal-bullish);
-  --landing-mint: var(--signal-bullish);
+  /* Shared landing tokens (overridden per theme below) — brand is purple */
+  --landing-brand: var(--primary);
+  --landing-brand-hover: var(--primary-container);
+  --landing-mint: var(--primary);
   --landing-on-brand: #ffffff;
   --landing-btn-primary-bg: var(--landing-brand);
   --landing-btn-secondary-bg: var(--surface);
@@ -383,7 +378,7 @@ table tbody tr:hover > * {
   --landing-card-shadow: var(--shadow-card);
   --landing-inset-bg: var(--surface-container-low);
   --landing-glow-mint: var(--landing-mint);
-  --landing-glow-cyan: var(--accent-terminal);
+  --landing-glow-cyan: var(--primary);
   --landing-glow-mint-opacity: 16%;
   --landing-glow-cyan-opacity: 8%;
 }
@@ -442,9 +437,9 @@ table tbody tr:hover > * {
   --surface-container: #f3f4f6;
   --surface-container-high: #e5e7eb;
   --outline-variant: #e5e7eb;
-  --landing-brand: #065f46;
-  --landing-brand-hover: #054f3d;
-  --landing-mint: #10b981;
+  --landing-brand: var(--primary);
+  --landing-brand-hover: var(--primary-container);
+  --landing-mint: var(--primary);
   --landing-on-brand: #ffffff;
   --landing-btn-primary-bg: var(--landing-brand);
   --landing-btn-secondary-bg: #ffffff;
@@ -452,44 +447,33 @@ table tbody tr:hover > * {
   --landing-inset-bg: #f9fafb;
   --signal-bullish: #10b981;
   --signal-bearish: #ef4444;
-  --accent-terminal: #059669;
+  --accent-terminal: #475569;
   --landing-reddit: #3b82f6;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 /* Dark landing palette */
 .dark .landing-page {
-  --landing-brand: #4ade80;
-  --landing-brand-hover: #6ee7b7;
-  --landing-mint: #4ade80;
-  --landing-on-brand: #052e16;
-  --landing-btn-primary-bg: #4ade80;
-  --landing-btn-primary-hover: #6ee7b7;
+  --landing-brand: var(--primary);
+  --landing-brand-hover: var(--primary-fixed);
+  --landing-mint: var(--primary);
+  --landing-on-brand: var(--on-primary);
+  --landing-btn-primary-bg: var(--primary);
+  --landing-btn-primary-hover: var(--primary-fixed);
   --landing-btn-secondary-bg: var(--surface-container);
   --landing-card-bg: var(--surface-container-low);
   --landing-inset-bg: var(--surface-container);
-  --landing-card-border: color-mix(in srgb, var(--signal-bullish) 10%, var(--outline-variant));
+  --landing-card-border: var(--outline-variant);
   --signal-bullish: #4ade80;
   --signal-bearish: #fb7185;
-  --accent-terminal: #22d3ee;
+  --accent-terminal: #94a3b8;
   --landing-glow-mint-opacity: 11%;
   --landing-glow-cyan-opacity: 7%;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .landing-page .landing-hero-glow {
-  background:
-    radial-gradient(
-      ellipse 75% 60% at 0% 0%,
-      color-mix(in srgb, var(--landing-glow-mint) var(--landing-glow-mint-opacity), transparent),
-      transparent 68%
-    ),
-    radial-gradient(
-      ellipse 50% 40% at 100% 0%,
-      color-mix(in srgb, var(--landing-glow-cyan) var(--landing-glow-cyan-opacity), transparent),
-      transparent 60%
-    ),
-    var(--background);
+  background: var(--background);
 }
 
 .landing-page .landing-card,
@@ -1060,7 +1044,7 @@ table tbody tr:hover > * {
 
 /* ── Pulse page ──────────────────────────────────────────────────────────── */
 .pulse-page {
-  --pulse-brand: var(--signal-bullish);
+  --pulse-brand: var(--primary);
 }
 
 .pulse-shell {
@@ -1152,16 +1136,18 @@ table tbody tr:hover > * {
 }
 @media (max-width: 639px) {
   .pulse-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow: visible;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .pulse-tabs::-webkit-scrollbar {
+    display: none;
   }
   .pulse-tab {
-    min-width: 0;
     justify-content: center;
     gap: 0.35rem;
-    padding: 0.65rem 0.35rem;
+    padding: 0.65rem 0.7rem;
     font-size: 11.5px;
+    white-space: nowrap;
   }
 }
 
@@ -1262,7 +1248,7 @@ table tbody tr:hover > * {
    command-center aesthetic (mac chrome, glow, mono chrome) but scoped so it
    never leaks into the rest of the app. */
 .radar-next {
-  --rn-accent: var(--signal-bullish);
+  --rn-accent: var(--primary);
   --rn-cyan: var(--accent-terminal);
   --rn-bull: var(--signal-bullish);
   --rn-bear: var(--signal-bearish);
@@ -1390,22 +1376,12 @@ table tbody tr:hover > * {
 }
 @keyframes rn-sweep { 0% { transform: translateX(-100%);} 55%,100% { transform: translateX(100%);} }
 
-/* Loading bone with shimmer */
+/* Loading bone — flat neutral pulse, no shimmer gradient */
 .rn-bone {
-  position: relative;
-  overflow: hidden;
   border-radius: 8px;
   background: var(--rn-card-2);
+  animation: landing-bone-pulse 1.4s ease-in-out infinite;
 }
-.rn-bone::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rn-ink) 6%, transparent), transparent);
-  animation: rn-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes rn-shimmer { 100% { transform: translateX(100%); } }
 
 /* Book table — clearer shell + unified row hover */
 .radar-next .rn-book-shell {

@@ -124,7 +124,7 @@ export function MoversScanner({
                         <span className="min-w-0">
                           <span className="block text-[15px] font-bold text-on-surface">{a.ticker}</span>
                           {a.company ? (
-                            <span className="block max-w-[220px] truncate text-[10.5px] text-on-surface-variant">
+                            <span className="block text-[10.5px] text-on-surface-variant">
                               {a.company}
                             </span>
                           ) : null}
@@ -147,7 +147,7 @@ export function MoversScanner({
                       <p className="mt-3 text-[15px] font-semibold leading-snug text-on-surface">{a.headline}</p>
                     ) : null}
                     {!locked && (a.whyItMatters || a.tag) ? (
-                      <p className="mt-2 line-clamp-3 text-[13px] leading-relaxed text-on-surface-variant">
+                      <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
                         {a.whyItMatters || a.tag}
                       </p>
                     ) : null}
@@ -189,7 +189,7 @@ export function MoversScanner({
                           <span className="min-w-0 flex-1">
                             <span className="block font-semibold text-on-surface">{a.ticker}</span>
                             {a.company ? (
-                              <span className="block truncate text-[10px] text-on-surface-variant">{a.company}</span>
+                              <span className="block text-[10px] text-on-surface-variant">{a.company}</span>
                             ) : null}
                           </span>
                           <div className="shrink-0 text-right leading-tight">
@@ -207,10 +207,10 @@ export function MoversScanner({
                           <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="block" className="mt-3" />
                         ) : (
                           <>
-                            <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-[1.35] text-on-surface">
+                            <p className="mt-3 min-h-[2.5rem] text-[13px] font-semibold leading-[1.35] text-on-surface">
                               {a.headline || `${a.ticker} is moving ${up ? "higher" : "lower"}`}
                             </p>
-                            <p className="mt-2 line-clamp-3 min-h-[3.4rem] text-[11.5px] leading-[1.45] text-on-surface-variant">
+                            <p className="mt-2 min-h-[3.4rem] text-[11.5px] leading-[1.45] text-on-surface-variant">
                               {a.whyItMatters || "No confirmed catalyst yet."}
                             </p>
                             {a.tag ? (
@@ -381,7 +381,7 @@ export function MoversScanner({
                     ) : (
                       <Link href={stockHref} className="mt-1 block hover:opacity-90">
                         {a.headline ? (
-                          <span className="block truncate text-[13px] font-semibold leading-snug text-on-surface">
+                          <span className="block text-[13px] font-semibold leading-snug text-on-surface">
                             {a.headline}
                           </span>
                         ) : null}

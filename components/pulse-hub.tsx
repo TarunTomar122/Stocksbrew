@@ -104,7 +104,7 @@ export function PulseHub({
   isSubscribed?: boolean;
 }) {
   const showPremarket = Boolean(premarketMovers || premarketReport);
-  const [lens, setLens] = useState<Lens>(() => (showPremarket ? "premarket" : "movers"));
+  const [lens, setLens] = useState<Lens>("movers");
 
   useEffect(() => {
     if (lens === "premarket" && !showPremarket) setLens("movers");
@@ -185,7 +185,7 @@ export function PulseHub({
                       <span className="sector-heat-icon">
                         <AnimatedIcon name={theme.icon} size={15} className="sector-heat-icon-glyph" aria-hidden />
                       </span>
-                      <span className="truncate text-[15px] font-bold text-on-surface">{s.label}</span>
+                      <span className="text-[15px] font-bold text-on-surface">{s.label}</span>
                     </div>
                     <span
                       className="flex shrink-0 items-center gap-1 text-[13px] font-bold tabular-nums"
@@ -252,7 +252,7 @@ export function PulseHub({
                           <StockLogo ticker={e.ticker} market="US" size={30} />
                           <span className="min-w-0">
                             <span className="block font-mono text-[13px] font-bold text-on-surface group-hover:text-landing-brand">{e.ticker}</span>
-                            <span className="block truncate text-[11px] text-on-surface-variant">{e.company}</span>
+                            <span className="block text-[11px] text-on-surface-variant">{e.company}</span>
                           </span>
                           <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-on-surface-variant">
                             {fmtDate(e.eventDate)}
@@ -271,7 +271,7 @@ export function PulseHub({
                             </span>
                           ) : null}
                         </span>
-                        <span className="mt-2 line-clamp-3 text-[13px] font-medium leading-[1.5] text-on-surface">
+                        <span className="mt-2 text-[13px] font-medium leading-[1.5] text-on-surface">
                           {e.headline}
                         </span>
                         <span className="mt-auto pt-4 font-mono text-[10px] font-semibold text-landing-brand">
@@ -298,7 +298,7 @@ export function PulseHub({
                       >
                         <StockLogo ticker={e.ticker} market="US" size={24} />
                         <span className="w-14 shrink-0 font-bold text-on-surface">{e.ticker}</span>
-                        <span className="hidden min-w-0 flex-1 truncate text-on-surface-variant sm:block">{e.company}</span>
+                        <span className="hidden min-w-0 flex-1 text-on-surface-variant sm:block">{e.company}</span>
                         <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
                           {e.epsOutlook ? (
                             <span

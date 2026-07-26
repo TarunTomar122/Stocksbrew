@@ -539,11 +539,7 @@ export function StockDetail(props: Props) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h1 className="font-mono text-[20px] font-extrabold leading-none tracking-tight text-on-surface">{stock.ticker}</h1>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <p className="line-clamp-2 min-w-0 text-[13px] font-medium leading-snug text-on-surface/75">{stock.name}</p>
-                  <TrackButton {...trackButtonProps} />
-                  <StockShareCard ticker={stock.ticker} market={market} />
-                </div>
+                <p className="mt-0.5 min-w-0 text-[13px] font-medium leading-snug text-on-surface/75">{stock.name}</p>
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-[20px] font-extrabold leading-none tabular-nums text-on-surface">{money(stock.price)}</p>
@@ -581,6 +577,10 @@ export function StockDetail(props: Props) {
                 ) : null}
               </div>
             ) : null}
+            <div className="mt-3 flex items-center gap-2">
+              <TrackButton {...trackButtonProps} variant="compact" />
+              <StockShareCard ticker={stock.ticker} market={market} />
+            </div>
           </div>
         </div>
 
@@ -590,8 +590,6 @@ export function StockDetail(props: Props) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-extrabold leading-none tracking-tight text-on-surface">{stock.name}</h1>
-                <TrackButton {...trackButtonProps} />
-                <StockShareCard ticker={stock.ticker} market={market} />
                 {hasAnomalyMove && (
                   <a
                     href="#stock-todays-move"
@@ -609,19 +607,25 @@ export function StockDetail(props: Props) {
               <p className="mt-1 font-mono text-[12px] text-on-surface-variant">{metaLine}</p>
             </div>
           </div>
-          <div className="ml-auto shrink-0 text-right">
-            <p className="text-2xl font-extrabold tracking-tight tabular-nums text-on-surface">{money(stock.price)}</p>
-            <p className="mt-0.5 font-mono text-[13px] font-semibold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-              {up ? "▲" : "▼"} {sign(dayPct, 2)}
-              {dayAbs ? ` · ${dayAbs >= 0 ? "+" : "−"}${money(Math.abs(dayAbs))} today` : ""}
-            </p>
+          <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
+            <div className="text-right">
+              <p className="text-2xl font-extrabold tracking-tight tabular-nums text-on-surface">{money(stock.price)}</p>
+              <p className="mt-0.5 font-mono text-[13px] font-semibold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+                {up ? "▲" : "▼"} {sign(dayPct, 2)}
+                {dayAbs ? ` · ${dayAbs >= 0 ? "+" : "−"}${money(Math.abs(dayAbs))} today` : ""}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <TrackButton {...trackButtonProps} variant="compact" />
+              <StockShareCard ticker={stock.ticker} market={market} />
+            </div>
           </div>
         </div>
       </header>
 
       {/* TIER 1: VERDICT */}
       {showVerdict && (
-        <section className={`${V3_CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card)" }}>
+        <section className={`${V3_CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card-hover)" }}>
           {directive?.text ? (
             <div className="px-3.5 py-4 sm:p-6 lg:p-7">
               <VerdictCallChart

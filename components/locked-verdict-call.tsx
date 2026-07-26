@@ -34,6 +34,53 @@ function LockIcon() {
   );
 }
 
+/** A redacted row: real label, value hidden behind a bar. Shows the shape of the
+ *  answer without fabricating one. */
+function MaskedRow({ label, width = "3.5rem" }: { label: string; width?: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-on-surface-variant">{label}</span>
+      <span
+        className="h-[15px] rounded-[3px] bg-[repeating-linear-gradient(-45deg,var(--surface-container-high),var(--surface-container-high)_5px,var(--surface-container)_5px,var(--surface-container)_10px)]"
+        style={{ width }}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+/** The masked "call" — mirrors the real Pro call's structure (stance, conviction,
+ *  levels, drivers) so a free user sees exactly what's behind the lock. */
+function MaskedCall() {
+  return (
+    <div className="relative select-none" aria-hidden>
+      <div className="flex items-center gap-2">
+        <span className={KICK} style={{ color: "color-mix(in srgb, var(--primary) 55%, var(--on-surface-variant))" }}>
+          our call
+        </span>
+        <LockIcon />
+      </div>
+      <div className="mt-2 flex items-end gap-3">
+        <span className="h-[2.1rem] w-[8.5rem] rounded-md bg-[repeating-linear-gradient(-45deg,var(--surface-container-high),var(--surface-container-high)_6px,var(--surface-container)_6px,var(--surface-container)_12px)]" />
+        <span className="mb-1 flex gap-1">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <span key={i} className="h-1.5 w-1.5 rounded-full bg-surface-container-high" />
+          ))}
+        </span>
+      </div>
+      <div className="mt-5 grid grid-cols-3 gap-4">
+        <MaskedRow label="entry zone" width="4.5rem" />
+        <MaskedRow label="target" width="3.5rem" />
+        <MaskedRow label="risk / stop" width="3.5rem" />
+      </div>
+      <div className="mt-5 space-y-2">
+        <span className="block h-[11px] w-full max-w-md rounded-[3px] bg-surface-container" />
+        <span className="block h-[11px] w-[82%] max-w-md rounded-[3px] bg-surface-container" />
+      </div>
+    </div>
+  );
+}
+
 function VerdictUnlockCard({
   signedIn,
   onSignIn,
@@ -51,29 +98,25 @@ function VerdictUnlockCard({
         onClick: onGetPro,
       }
     : {
-        label: "Sign in to view Pro",
+        label: "Sign in to unlock the call",
         onClick: onSignIn,
       };
 
   return (
     <div className="border-t border-outline-variant pt-4">
       <div className="flex items-center gap-2">
-        <LockIcon />
         <p className="text-[15px] font-bold tracking-[-0.015em] text-on-surface">
-          Unlock Stocksbrew&apos;s call
+          The call, conviction, and levels are Pro
         </p>
-        <span className="font-mono text-[10px] font-semibold uppercase text-landing-brand">
-          Pro
-        </span>
       </div>
-      <p className="mt-2 max-w-md text-[13px] leading-relaxed text-on-surface-variant">
-        See our current Add, Hold, or Trim call—plus price zones, target, drivers, risks, and Radar alerts.
+      <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-on-surface-variant">
+        Unlock our current Add, Hold, or Trim stance—plus entry zones, target, drivers, risks, and Radar alerts.
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={() => cta.onClick()}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-on-surface px-5 font-mono text-[12px] font-bold text-surface transition-opacity hover:opacity-85"
+          className="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-primary px-5 text-[13.5px] font-bold text-on-primary transition-opacity hover:opacity-90 sm:flex-none sm:px-7"
         >
           {cta.label}
         </button>
@@ -184,7 +227,8 @@ export function LockedVerdictCall({
   }
 
   const callSlot = (
-    <div className="flex min-h-0 flex-col gap-4">
+    <div className="flex min-h-0 flex-col gap-5">
+      <MaskedCall />
       <FreeShelf
         ticker={ticker}
         overviewHeadline={overviewHeadline}

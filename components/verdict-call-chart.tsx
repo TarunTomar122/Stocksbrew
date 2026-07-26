@@ -30,7 +30,7 @@ function ReturnsRow({
   const autoMargin = columnsAt === "md" ? "md:mt-auto md:pt-6" : "lg:mt-auto lg:pt-6";
 
   return (
-    <div className={`mt-5 border-t border-outline-variant/40 pt-4 ${autoMargin}`}>
+    <div className={`mt-7 border-t border-outline-variant/40 pt-5 ${autoMargin}`}>
       <div
         className="grid divide-x divide-outline-variant/35"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}

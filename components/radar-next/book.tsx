@@ -191,13 +191,13 @@ function BookTable({
                     </span>
                     {row.needsAttention && row.attentionAction ? (
                       <span
-                        className="mt-0.5 block max-w-[9rem] truncate text-[11px] font-semibold leading-tight sm:max-w-[17rem]"
+                        className="mt-0.5 block text-[11px] font-semibold leading-tight"
                         style={{ color: accent ?? "var(--rn-ink)" }}
                       >
                         {row.attentionAction}
                       </span>
                     ) : row.name ? (
-                      <span className="mt-0.5 block max-w-[8.5rem] truncate text-[11px] leading-tight text-[var(--rn-muted)] sm:max-w-[17rem]">
+                      <span className="mt-0.5 block text-[11px] leading-tight text-[var(--rn-muted)]">
                         {row.name}
                       </span>
                     ) : null}
