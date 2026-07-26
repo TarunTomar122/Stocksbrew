@@ -96,7 +96,7 @@ export function ProLockCard({
         {!busy && <span aria-hidden>→</span>}
       </ProCtaButton>
       <span className="text-[11px] font-medium text-on-surface-variant">
-        Yearly includes 3 days free. Monthly starts today.
+        3 days free on monthly or yearly. Cancel anytime.
       </span>
     </div>
   );

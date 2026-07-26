@@ -23,7 +23,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes on yearly. You get 3 days of full Pro access. Monthly starts right away. Either way, cancel in one click.",
+    a: "Yes. Monthly and yearly both include 3 days of full Pro access. Cancel anytime before the trial ends.",
   },
   {
     q: "Is this investment advice?",

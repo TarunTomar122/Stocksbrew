@@ -1,6 +1,6 @@
 import { AnimatedIcon } from "@/components/animated-icon";
 import { LandingProPricingCta } from "@/components/landing-pro-pricing-cta";
-import { US_PRO_MONTHLY_LABEL, US_PRO_MONTHLY_MO, US_PRO_PLAN_LINE, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
+import { US_PRO_MONTHLY_LABEL, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 
 type Props = {
   isSignedIn: boolean;
@@ -51,7 +51,7 @@ export const PRO_BULLETS = [
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? `Subscribe - ${US_PRO_MONTHLY_MO}` : "Sign in & choose Pro";
+  const ctaLabel = isSignedIn ? "Start 3-day free trial" : "Sign in to start free trial";
 
   return (
     <section className="flex flex-col gap-16">
@@ -88,7 +88,7 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
             tag="Monthly"
             price={US_PRO_MONTHLY_LABEL}
             period="/ month"
-            note="Monthly starts today"
+            trial={`3 days free, then ${US_PRO_MONTHLY_LABEL}/mo`}
             isSignedIn={isSignedIn}
             ctaLabel={ctaLabel}
           />

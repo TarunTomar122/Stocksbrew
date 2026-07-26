@@ -10,7 +10,12 @@ import { US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing
 import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
 const PLANS = {
-  monthly: { price: US_PRO_MONTHLY, suffix: "/month", detail: "Billed monthly" },
+  monthly: {
+    price: US_PRO_MONTHLY,
+    suffix: "/month",
+    detail: "Billed monthly",
+    trial: "3 days free",
+  },
   yearly: {
     price: US_PRO_YEARLY,
     suffix: "/year",
@@ -171,7 +176,7 @@ export function ProPlanPicker() {
         <div className="pro-compare-card pro-compare-card-highlight">
           <div className="flex items-center gap-2">
             <p className="pro-compare-tier">Pro</p>
-            {plan === "yearly" ? <span className="pro-plan-trial-pill">{PLANS.yearly.trial}</span> : null}
+            <span className="pro-plan-trial-pill">{active.trial}</span>
           </div>
           <p className="pro-compare-price">
             ${active.price}
@@ -191,7 +196,7 @@ export function ProPlanPicker() {
           </ul>
 
           <Link href={`/subscribe?plan=${plan}`} className="pro-plan-cta">
-            {plan === "yearly" ? "Start 3-day free trial" : "Activate Pro"}
+            Start 3-day free trial
             <span aria-hidden>→</span>
           </Link>
           <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-on-surface-variant">

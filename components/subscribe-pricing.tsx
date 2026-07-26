@@ -28,6 +28,7 @@ const PLANS_US = [
     price: US_PRO_MONTHLY_LABEL,
     period: "per month",
     save: null,
+    trial: "3 days free",
   },
   {
     id: "yearly" as const,
@@ -217,8 +218,7 @@ export function SubscribePricing({
   const activePlan = plans.find((plan) => plan.id === selectedPlan) ?? plans[0];
   const isLoading = loadingPlan !== null;
   const contextLines = buildSubscribeContextLines(trackedCount);
-  const trialNote =
-    selectedPlan === "yearly" && market === "US" ? "3 days free · " : "";
+  const trialNote = market === "US" ? "3 days free · " : "";
 
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-5 md:gap-6">
@@ -323,15 +323,19 @@ export function SubscribePricing({
               : user
                 ? DEV_FAKE_SUBSCRIBE
                   ? `Activate Pro (dev) · ${activePlan.price}`
-                  : `Subscribe for ${activePlan.price}`
+                  : market === "US"
+                    ? "Start 3-day free trial"
+                    : `Subscribe for ${activePlan.price}`
                 : DEV_FAKE_SUBSCRIBE
                   ? "Sign in and activate Pro"
-                  : "Sign in and subscribe"}
+                  : market === "US"
+                    ? "Sign in to start free trial"
+                    : "Sign in and subscribe"}
           </ProCtaButton>
           <p className="text-center font-mono text-[10px] leading-relaxed text-on-surface-variant">
             {trialNote}
-            {selectedPlan === "yearly" && market === "US"
-              ? "Cancel anytime · 7-day refund"
+            {market === "US"
+              ? `${activePlan.price} after trial · cancel anytime`
               : "Starts today · cancel anytime · 7-day refund"}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 pt-0.5">

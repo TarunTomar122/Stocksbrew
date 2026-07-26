@@ -36,6 +36,21 @@ describe("first Radar activation flow", () => {
     );
   });
 
+  it("keeps the Dodo product trial enabled for eligible US monthly and yearly checkouts", () => {
+    const checkout = source("app/api/subscription/create-checkout/route.ts");
+    expect(checkout).toContain('const trialEligible = market === "US" && isTrialEligible(userDoc)');
+    expect(checkout).not.toContain('effectivePeriod === "yearly" && isTrialEligible(userDoc)');
+  });
+
+  it("stops non-Pro stock pages before loading or rendering research sections", () => {
+    const stockPage = source("components/stock-page-stream.tsx");
+    const gate = stockPage.indexOf("if (!subscribed)");
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(stockPage.indexOf("await Promise.all([", gate));
+    expect(gate).toBeLessThan(stockPage.indexOf("<StockDetail"));
+    expect(stockPage).toContain("<StockTrialGate");
+  });
+
   it("shows the bulk Radar action after signed-out auth resolution", () => {
     const bulkTrack = source("components/track-in-radar-button.tsx");
     expect(bulkTrack).toContain("const { user, loading, initialAuthed } = useUser()");

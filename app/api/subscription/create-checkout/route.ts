@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const trialEligible = effectivePeriod === "yearly" && isTrialEligible(userDoc);
+  const trialEligible = market === "US" && isTrialEligible(userDoc);
 
   // 6. Create Dodo checkout session
   const dodoPayload: Record<string, unknown> = {
@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
     },
     return_url: `${appUrl}/subscribe?success=1&from=checkout&plan=${effectivePeriod}`,
   };
-  // Dodo applies product-level trials unless overridden. Only yearly may trial.
+  // Dodo applies the product-level trial to either US billing period.
+  // Explicitly disable it for ineligible accounts and markets without a trial.
   if (!trialEligible) {
     dodoPayload.subscription_data = { trial_period_days: 0 };
   }

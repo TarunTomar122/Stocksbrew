@@ -302,7 +302,7 @@ export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
               {!busy && <span aria-hidden>→</span>}
             </ProCtaButton>
             <span className="text-center text-[11px] font-medium text-[#9ca3af] sm:text-left">
-              Yearly includes 3 days free. Monthly starts today.
+              3 days free on monthly or yearly. Cancel anytime.
             </span>
           </div>
         </div>

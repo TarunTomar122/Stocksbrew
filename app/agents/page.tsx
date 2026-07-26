@@ -165,7 +165,7 @@ export default function AgentsPage() {
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Link href="#connect" className="rounded-full bg-on-surface px-5 py-2.5 text-[12px] font-bold text-surface">Copy the setup prompt</Link>
-              <Link href="/subscribe" className="rounded-full border border-outline-variant px-5 py-2.5 text-[12px] font-semibold text-on-surface">Included with Pro · $9/month</Link>
+              <Link href="/subscribe" className="rounded-full border border-outline-variant px-5 py-2.5 text-[12px] font-semibold text-on-surface">Try Pro free for 3 days</Link>
             </div>
           </header>
 
@@ -240,7 +240,7 @@ export default function AgentsPage() {
           <footer className="border-t border-outline-variant px-5 py-10 sm:px-10 lg:px-12">
             <h2 className="text-2xl font-extrabold tracking-tight text-on-surface">Give your AI the stock context it is missing.</h2>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/subscribe" className="rounded-full bg-on-surface px-5 py-2.5 text-[12px] font-bold text-surface">Get Pro for $9/month</Link>
+              <Link href="/subscribe" className="rounded-full bg-on-surface px-5 py-2.5 text-[12px] font-bold text-surface">Start 3-day free trial</Link>
               <Link href="/profile#agent-access" className="rounded-full border border-outline-variant px-5 py-2.5 text-[12px] font-semibold text-on-surface">Connect an agent</Link>
             </div>
           </footer>
@@ -252,7 +252,7 @@ export default function AgentsPage() {
             <AgentClientLogos compact className="mt-4 flex-col items-stretch" />
             <div className="mt-7 border-y border-outline-variant py-4 text-[10px] leading-relaxed text-on-surface-variant">
               <p className="font-semibold text-on-surface">Included with Pro</p>
-              <p className="mt-1">$9/month · read-only · cancel anytime</p>
+              <p className="mt-1">3 days free, then $9/month · read-only · cancel anytime</p>
             </div>
             <Link href="/developers" className="mt-5 inline-flex text-[11px] font-bold text-landing-brand">Open the docs →</Link>
           </div>

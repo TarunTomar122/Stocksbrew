@@ -14,8 +14,8 @@ const FAQS: QA[] = [
     a: "No. stocksbrew is research and opinion to help you decide faster. You make the call. We are not a broker and we do not touch your money.",
   },
   {
-    q: "Which plan has the free trial?",
-    a: "Yearly includes 3 days of full Pro access. Monthly starts right away. Either way, cancel in one click.",
+    q: "Is there a free trial?",
+    a: "Yes. Monthly and yearly both include 3 days of full Pro access. Cancel anytime before the trial ends.",
   },
   {
     q: "Can I cancel anytime?",

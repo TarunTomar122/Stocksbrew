@@ -65,7 +65,7 @@ const FAQS = [
   },
   {
     question: "How much does Radar cost?",
-    answer: `Free for 3 tracked stocks. Pro is $${US_PRO_MONTHLY}/month for unlimited watchlist names and email alerts when setups change.`,
+    answer: `Free for 3 tracked stocks. Try Pro free for 3 days, then pay $${US_PRO_MONTHLY}/month for unlimited watchlist names and email alerts when setups change.`,
   },
 ];
 
