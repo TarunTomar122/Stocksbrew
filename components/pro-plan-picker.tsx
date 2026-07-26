@@ -119,7 +119,7 @@ function FreeRadarCta() {
 }
 
 export function ProPlanPicker() {
-  const [plan, setPlan] = useState<"monthly" | "yearly">("yearly");
+  const [plan, setPlan] = useState<"monthly" | "yearly">("monthly");
   const active = PLANS[plan];
 
   return (

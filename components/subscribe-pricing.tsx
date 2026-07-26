@@ -118,7 +118,7 @@ export function SubscribePricing({
 }) {
   const { user } = useUser();
   const plans = market === "IN" ? PLANS_IN : PLANS_US;
-  const defaultPlan = plans.find((plan) => plan.badge) ?? plans[0];
+  const defaultPlan = plans.find((plan) => plan.id === "monthly") ?? plans[0];
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">(defaultPlan.id);
   const [loadingPlan, setLoadingPlan] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -43,7 +43,7 @@ export function PulseHubContentSkeleton() {
   return (
     <>
       <nav className="pulse-tabs" aria-hidden>
-        {["Movers", "Reddit", "Sectors", "Earnings", "Interesting"].map((label) => (
+        {["Movers", "Pre-market", "Sectors", "Earnings", "Interesting"].map((label) => (
           <div key={label} className="pulse-tab text-on-surface-variant">
             {label}
           </div>

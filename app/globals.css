@@ -1419,10 +1419,10 @@ table tbody tr:hover > * {
     inset 0 0 0 1px color-mix(in srgb, var(--rn-muted) 12%, var(--rn-line));
 }
 .radar-next .rn-book-table tbody td {
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 .radar-next .rn-book-table tbody tr:not(:last-child) td {
-  box-shadow: inset 0 -1px 0 var(--rn-line);
+  border-bottom: 1px solid var(--rn-line);
 }
 .radar-next .rn-book-table tbody tr:hover td {
   background: var(--rn-card-2);
@@ -1435,9 +1435,6 @@ table tbody tr:hover > * {
 }
 .radar-next .rn-book-table tbody tr.rn-book-row--attention td:first-child {
   box-shadow: inset 3px 0 0 var(--rn-row-accent);
-}
-.radar-next .rn-book-table tbody tr.rn-book-row--attention:not(:last-child) td:first-child {
-  box-shadow: inset 3px 0 0 var(--rn-row-accent), inset 0 -1px 0 var(--rn-line);
 }
 
 @media (prefers-reduced-motion: reduce) {

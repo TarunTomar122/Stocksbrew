@@ -8,17 +8,6 @@ import { MarketingSchema } from "@/components/seo/marketing-schema";
 
 export const revalidate = 120;
 
-const SECTOR_BRIEFS = [
-  ["ai-infrastructure", "AI infrastructure"],
-  ["big-tech", "Big tech"],
-  ["consumer", "Consumer"],
-  ["energy", "Energy"],
-  ["financials", "Financials"],
-  ["healthcare", "Healthcare"],
-  ["industrials", "Industrials"],
-  ["semiconductors", "Semiconductors"],
-] as const;
-
 export const metadata: Metadata = {
   title: "US Stock Market Analysis Today",
   description:
@@ -58,22 +47,6 @@ export default function PulsePage() {
         <Suspense fallback={<PulsePageSkeleton />}>
           <PulseHubStream />
         </Suspense>
-        <section className="mt-8 rounded-2xl border border-outline-variant bg-surface px-5 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-            Sector briefs
-          </p>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-            {SECTOR_BRIEFS.map(([slug, label]) => (
-              <Link
-                key={slug}
-                href={`/sector/${slug}`}
-                className="text-[13px] font-medium text-landing-brand hover:underline"
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-        </section>
         <section className="mt-8 grid gap-6 border-y border-outline-variant py-8 md:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">

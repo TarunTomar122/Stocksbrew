@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Caveat } from "next/font/google";
 
+import { AnimatedIcon } from "@/components/animated-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import { VerdictCallChart } from "@/components/verdict-call-chart";
@@ -65,88 +66,98 @@ export type LandingHeroFeatured = {
 };
 
 const RADAR_SAMPLE_ROWS = [
-  { tag: "Earnings today", ticker: "NVDA", reason: "A scheduled report can reset the current setup.", fact: "Calendar event · source verified" },
-  { tag: "Newly oversold", ticker: "TSLA", reason: "Momentum crossed into a new weak-state threshold.", fact: "RSI below 30 · technical reading" },
-  { tag: "Abnormal move", ticker: "MSFT", reason: "A material move has an attributable company update.", fact: "Company filing · verified source" },
+  { ticker: "NVDA", price: "$208.76", move: "−1.56%", state: "Earnings today", tone: "neutral" },
+  { ticker: "MSFT", price: "$512.44", move: "+1.12%", state: "Above target zone", tone: "up" },
+  { ticker: "TSLA", price: "$319.28", move: "−3.08%", state: "RSI crossed 30", tone: "down" },
+  { ticker: "AMZN", price: "$231.09", move: "+0.74%", state: "No material change", tone: "quiet" },
 ] as const;
 
 function LandingRadarBrew() {
   return (
-    <div className="min-h-[520px] space-y-4 p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3 font-mono text-[10.5px] uppercase tracking-[0.08em] text-on-surface-variant">
-        <span>$ brew radar --sample</span>
-        <span>Illustrative · not user data</span>
+    <div className="min-h-[520px] bg-[radial-gradient(circle_at_85%_10%,color-mix(in_srgb,var(--primary)_9%,transparent),transparent_42%)] p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
+            Your Radar
+          </p>
+          <h3 className="mt-1 text-xl font-extrabold tracking-tight text-on-surface">Know what changed.</h3>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-on-surface-variant">
+          <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" />
+          sample view
+        </span>
       </div>
 
-      <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface">
-        <div className="flex items-center justify-between border-b border-outline-variant/60 px-4 py-3">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
-            // needs attention
-          </p>
-          <span className="font-mono text-[9px] uppercase text-on-surface-variant">3 material changes</span>
-        </div>
-        <div className="divide-y divide-outline-variant/50">
-          {RADAR_SAMPLE_ROWS.map((row) => (
-            <div
-              key={row.ticker}
-              className="grid gap-1.5 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)_180px] sm:items-center sm:gap-3"
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[12px] font-bold text-on-surface">{row.ticker}</span>
-                <span className="rounded bg-surface-container px-1.5 py-0.5 font-mono text-[8px] font-semibold uppercase text-landing-brand">
-                  {row.tag}
+      <div className="mt-5 grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
+        <section className="overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface shadow-card">
+          <div className="border-b border-outline-variant/60 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--signal-neutral)_14%,var(--surface))] text-[var(--signal-neutral)]">
+                <AnimatedIcon name="calendar_today" size={18} aria-hidden />
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-on-surface-variant">Today · 1 event</span>
+            </div>
+            <p className="mt-5 font-mono text-[11px] font-bold text-on-surface">NVDA</p>
+            <h4 className="mt-1 text-[18px] font-extrabold leading-tight text-on-surface">Earnings after the bell</h4>
+            <p className="mt-2 text-[12px] leading-relaxed text-on-surface-variant">
+              The report can reset the current call, target room, and risk case.
+            </p>
+            <div className="mt-5 flex items-center justify-between border-t border-outline-variant/60 pt-3 font-mono text-[9.5px] text-on-surface-variant">
+              <span>Calendar verified</span>
+              <span className="font-semibold text-landing-brand">Open NVDA →</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-outline-variant/60 bg-surface-container-low/60">
+            <div className="p-3.5">
+              <p className="font-mono text-[8.5px] uppercase text-on-surface-variant">Current call</p>
+              <p className="mt-1 text-[13px] font-bold text-on-surface">Hold</p>
+            </div>
+            <div className="p-3.5">
+              <p className="font-mono text-[8.5px] uppercase text-on-surface-variant">Next check</p>
+              <p className="mt-1 text-[13px] font-bold text-on-surface">Guidance</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface shadow-card">
+          <div className="flex items-center justify-between border-b border-outline-variant/60 px-4 py-3">
+            <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Tracked stocks</p>
+            <span className="font-mono text-[9px] text-on-surface-variant">4 names</span>
+          </div>
+          <div>
+            {RADAR_SAMPLE_ROWS.map((row) => (
+              <div key={row.ticker} className="grid grid-cols-[48px_minmax(0,1fr)_70px] items-center gap-2 border-b border-outline-variant/45 px-4 py-3 last:border-b-0">
+                <span className="font-mono text-[11px] font-bold text-on-surface">{row.ticker}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-[10.5px] font-medium text-on-surface">{row.state}</p>
+                  <p className="mt-0.5 font-mono text-[9px] text-on-surface-variant">{row.price}</p>
+                </div>
+                <span
+                  className="text-right font-mono text-[10px] font-semibold"
+                  style={{
+                    color:
+                      row.tone === "up"
+                        ? "var(--signal-bullish)"
+                        : row.tone === "down"
+                          ? "var(--signal-bearish)"
+                          : "var(--on-surface-variant)",
+                  }}
+                >
+                  {row.move}
                 </span>
               </div>
-              <p className="text-[11.5px] font-medium leading-snug text-on-surface">{row.reason}</p>
-              <p className="font-mono text-[8.5px] uppercase tracking-[0.03em] text-on-surface-variant sm:text-right">
-                {row.fact}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div className="grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
-        <section className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface">
-          <div className="grid grid-cols-[1fr_80px_80px] border-b border-outline-variant/60 bg-surface-container-low px-4 py-2 font-mono text-[8.5px] uppercase text-on-surface-variant">
-            <span>Tracked stock</span>
-            <span className="text-right">Last</span>
-            <span className="text-right">Today</span>
+            ))}
           </div>
-          {[
-            ["NVDA", "$208.76", "−1.56%"],
-            ["MSFT", "$512.44", "+1.12%"],
-            ["TSLA", "$319.28", "−3.08%"],
-            ["AMZN", "$231.09", "+0.74%"],
-          ].map(([ticker, price, move]) => (
-            <div key={ticker} className="grid grid-cols-[1fr_80px_80px] border-b border-outline-variant/40 px-4 py-2.5 font-mono text-[10.5px] last:border-b-0">
-              <span className="font-bold text-on-surface">{ticker}</span>
-              <span className="text-right text-on-surface">{price}</span>
-              <span className="text-right text-on-surface-variant">{move}</span>
-            </div>
-          ))}
-        </section>
-
-        <section className="rounded-xl border border-outline-variant/60 bg-surface p-4">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-            Book health
-          </p>
-          <p className="mt-2 text-[20px] font-extrabold tracking-tight text-[var(--signal-neutral)]">
-            Concentration elevated
-          </p>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-on-surface-variant">
-            Two names account for 46% of this sample book. That is a material risk-state change.
-          </p>
         </section>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant/50 pt-4">
-        <p className="text-[11px] text-on-surface-variant">
-          Return when a tracked stock changes state—not for another generic feed.
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant/60 bg-surface-container-low/70 px-4 py-3">
+        <p className="text-[11.5px] font-medium text-on-surface">
+          One place for price zones, earnings, and material changes.
         </p>
         <Link
           href="/watchlist"
-          className="rounded-full bg-landing-brand px-4 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
+          className="text-[11.5px] font-bold text-landing-brand hover:underline"
         >
           Build your Radar →
         </Link>

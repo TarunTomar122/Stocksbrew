@@ -7,6 +7,7 @@ import type { RadarAttentionItem } from "@/lib/watchlist-view";
 
 export function AttentionQueue({ items }: { items: RadarAttentionItem[] }) {
   const rows = radarAttentionItems(items);
+  if (rows.length === 0) return null;
 
   return (
     <section aria-labelledby="rn-attention">
@@ -19,14 +20,7 @@ export function AttentionQueue({ items }: { items: RadarAttentionItem[] }) {
         </span>
       </div>
 
-      {rows.length === 0 ? (
-        <div className="rn-card px-4 py-4">
-          <p className="text-[13px] text-[var(--rn-muted)]">
-            No material changes in your book today.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((item) => {
             const citation = item.citations[0];
             const isRsi =
@@ -73,8 +67,7 @@ export function AttentionQueue({ items }: { items: RadarAttentionItem[] }) {
               </Link>
             );
           })}
-        </div>
-      )}
+      </div>
     </section>
   );
 }

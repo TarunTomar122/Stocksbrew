@@ -1,9 +1,14 @@
 import Link from "next/link";
 
+import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
+import { getSessionUser } from "@/lib/auth-server";
 import { relativeTime } from "@/lib/freshness";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { socialDataState } from "@/lib/social-data";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+
+const FREE_SOCIAL_CARDS = 3;
 
 const TONE: Record<string, { label: string; color: string }> = {
   bullish: { label: "Bullish", color: "var(--signal-bullish)" },
@@ -17,7 +22,12 @@ function age(value?: string): string {
 }
 
 export async function SocialPageStream() {
-  const snapshot = await getRedditCues("US").catch(() => null);
+  const [snapshot, session] = await Promise.all([
+    getRedditCues("US").catch(() => null),
+    getSessionUser().catch(() => null),
+  ]);
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const isSubscribed = resolveIsSubscribed(userDoc);
   const state = socialDataState(snapshot);
 
   if (!snapshot || state === "empty") {
@@ -67,14 +77,11 @@ export async function SocialPageStream() {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {insights.map((row) => {
+          {insights.map((row, index) => {
             const tone = TONE[row.sentiment] ?? TONE.neutral;
-            return (
-              <Link
-                key={row.ticker}
-                href={`/stock/${encodeURIComponent(row.ticker)}`}
-                className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card transition-all hover:border-outline hover:shadow-card-hover"
-              >
+            const locked = !isSubscribed && index >= FREE_SOCIAL_CARDS;
+            const body = (
+              <>
                 <div className="flex min-w-0 items-center gap-2.5">
                   <StockLogo ticker={row.ticker} market="US" size={30} />
                   <div className="min-w-0">
@@ -95,23 +102,61 @@ export async function SocialPageStream() {
                   </p>
                 </div>
 
-                {row.catalysts?.[0] ? (
-                  <p className="mt-4 line-clamp-2 text-[14px] font-semibold leading-[1.4] text-on-surface">
-                    {row.catalysts[0]}
-                  </p>
-                ) : null}
-                <p className="mt-2 line-clamp-4 text-[12.5px] leading-[1.55] text-on-surface-variant">
-                  {row.summary}
-                </p>
+                {locked ? (
+                  <FeedRowLockedBlur
+                    variant="reddit"
+                    ticker={row.ticker}
+                    previewLines={[row.catalysts?.[0] || row.summary, row.summary]}
+                    size="block"
+                    className="mt-4"
+                  />
+                ) : (
+                  <>
+                    {row.catalysts?.[0] ? (
+                      <p className="mt-4 text-[14px] font-semibold leading-[1.4] text-on-surface">
+                        {row.catalysts[0]}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-[12.5px] leading-[1.55] text-on-surface-variant">
+                      {row.summary}
+                    </p>
+                  </>
+                )}
 
                 <div className="mt-auto flex items-center justify-between gap-3 pt-4 font-mono text-[9.5px] text-on-surface-variant">
                   <span>{row.mention_count} mentions</span>
                   <span>{age(row.latest_post_at)}</span>
                 </div>
-              </Link>
+              </>
+            );
+            return (
+              locked ? (
+                <div
+                  key={row.ticker}
+                  className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface p-4 shadow-card"
+                >
+                  {body}
+                </div>
+              ) : (
+                <Link
+                  key={row.ticker}
+                  href={`/stock/${encodeURIComponent(row.ticker)}`}
+                  className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card transition-all hover:border-outline hover:shadow-card-hover"
+                >
+                  {body}
+                </Link>
+              )
             );
           })}
       </section>
+      {!isSubscribed && insights.length > FREE_SOCIAL_CARDS ? (
+        <FeedUnlockBar
+          surface="reddit_buzz"
+          className="rounded-xl border border-outline-variant bg-surface"
+          signedOutLabel="Sign in to read all"
+          signedInLabel="Unlock all with Pro"
+        />
+      ) : null}
     </div>
   );
 }

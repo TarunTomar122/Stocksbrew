@@ -35,6 +35,7 @@ export function MoversScanner({
   trackedIds,
   isSubscribed,
   trackedCount,
+  showUnlockCta = true,
 }: {
   items: ScannerItem[];
   limit?: number;
@@ -47,6 +48,7 @@ export function MoversScanner({
   trackedIds?: string[];
   isSubscribed?: boolean;
   trackedCount?: number;
+  showUnlockCta?: boolean;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const gainers = items.filter((i) => i.changePct >= 0);
@@ -376,11 +378,24 @@ export function MoversScanner({
                     </div>
                     {locked ? (
                       <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" className="mt-1" />
-                    ) : a.tag ? (
-                      <Link href={stockHref} className="mt-1 block line-clamp-2 text-[13px] leading-snug text-on-surface-variant hover:opacity-90">
-                        {a.tag}
+                    ) : (
+                      <Link href={stockHref} className="mt-1 block hover:opacity-90">
+                        {a.headline ? (
+                          <span className="block text-[13px] font-semibold leading-snug text-on-surface">
+                            {a.headline}
+                          </span>
+                        ) : null}
+                        {a.whyItMatters ? (
+                          <span className="mt-1 block text-[12px] leading-[1.45] text-on-surface-variant">
+                            {a.whyItMatters}
+                          </span>
+                        ) : !a.headline && a.tag ? (
+                          <span className="block text-[13px] leading-snug text-on-surface-variant">
+                            {a.tag}
+                          </span>
+                        ) : null}
                       </Link>
-                    ) : null}
+                    )}
                   </div>
                   {locked ? priceBlock : (
                     <Link href={stockHref} className="shrink-0 hover:opacity-90">
@@ -429,7 +444,7 @@ export function MoversScanner({
               </Link>
             );
           })}
-          {hasLockedRows ? (
+          {hasLockedRows && showUnlockCta ? (
             <>
               <FeedUnlockBar
                 surface="market_anomalies"

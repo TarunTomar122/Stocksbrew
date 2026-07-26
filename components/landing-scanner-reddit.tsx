@@ -4,6 +4,7 @@ import { AnimatedIcon } from "@/components/animated-icon";
 
 import Link from "next/link";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
+import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
 import { RedditMark } from "@/components/reddit-mark";
 
@@ -99,6 +100,7 @@ export function LandingScannerReddit({
                 trackedIds={trackedIds}
                 isSubscribed={isSubscribed}
                 trackedCount={trackedIds.length}
+                showUnlockCta={false}
               />
             </div>
 
@@ -120,6 +122,7 @@ export function LandingScannerReddit({
                     showTalkingPoints={false}
                     hideLockedRows
                     unlockSignedOutLabel={HOMEPAGE_UNLOCK_LABEL}
+                    showUnlockCta={false}
                   />
                 ) : (
                   <Link
@@ -132,6 +135,16 @@ export function LandingScannerReddit({
               </div>
             </div>
           </div>
+
+          {!isSubscribed ? (
+            <FeedUnlockBar
+              surface="market_anomalies"
+              className="border-outline-variant bg-surface-container-lowest"
+              compact
+              signedOutLabel={HOMEPAGE_UNLOCK_LABEL}
+              signedInLabel="Unlock every market read with Pro"
+            />
+          ) : null}
 
           <footer className="flex flex-col gap-2 border-t border-outline-variant px-5 py-4 text-[12px] text-on-surface-variant sm:flex-row sm:items-center sm:justify-between md:px-6">
             <p className="flex items-center gap-2">

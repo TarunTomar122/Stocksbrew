@@ -49,6 +49,7 @@ export function RedditBuzzFeed({
   hideLockedRows = false,
   unlockSignedOutLabel,
   unlockSignedInLabel,
+  showUnlockCta = true,
 }: {
   items: RedditTicker[];
   isSubscribed: boolean;
@@ -62,6 +63,7 @@ export function RedditBuzzFeed({
   hideLockedRows?: boolean;
   unlockSignedOutLabel?: string;
   unlockSignedInLabel?: string;
+  showUnlockCta?: boolean;
 }) {
   const sourceItems = limit ? items.slice(0, limit) : items;
   const freeVisibleLimit = signedIn
@@ -93,7 +95,7 @@ export function RedditBuzzFeed({
           />
         ))}
       </div>
-      {hasLocked ? (
+      {hasLocked && showUnlockCta ? (
         <>
           <FeedUnlockBar
             surface="reddit_buzz"

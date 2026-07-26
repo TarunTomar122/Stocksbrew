@@ -36,6 +36,19 @@ function signed(value: number, digits = 2): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
 }
 
+function reportDateLabel(value?: string): string | null {
+  if (!value?.trim()) return null;
+  const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function scoreStyle(score: number): { accent: string; label: string } {
   if (score >= 56) return { accent: "var(--signal-bullish)", label: "Constructive" };
   if (score <= 44) return { accent: "var(--signal-bearish)", label: "Cautious" };
@@ -369,6 +382,7 @@ export function PremarketPageView({
   embedded?: boolean;
 }) {
   const data = currentOpeningReport(report, movers) ?? fallbackReport(movers);
+  const reportFor = reportDateLabel(movers?.date ?? data.generated_at);
   const score = scoreStyle(data.score);
   const tracked = new Set(trackedIds);
   const futures = averageGroup(data.global_cues, "futures");
@@ -415,6 +429,11 @@ export function PremarketPageView({
               {premarketLive ? "Premarket live" : data.phase === "early" ? "Overnight read" : "Latest read"}
             </span>
             <span className="font-mono text-[10px] text-on-surface-variant">Weekdays · 2:00 PM IST</span>
+            {reportFor ? (
+              <span className="font-mono text-[10px] font-semibold text-on-surface">
+                Report for {reportFor}
+              </span>
+            ) : null}
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-on-surface sm:text-[30px]">US market opening</h1>
           <p className="mt-1 font-mono text-[11px] text-on-surface-variant">Futures · global markets · pre-market breadth</p>
@@ -425,7 +444,14 @@ export function PremarketPageView({
       <section className={`${CARD} overflow-hidden`} style={{ boxShadow: "var(--shadow-card)" }}>
         <div className={`grid px-4 py-4 ${embedded ? "gap-4 lg:grid-cols-[minmax(0,1fr)_230px] lg:gap-6" : "gap-6 sm:p-6 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-10 lg:p-7"}`}>
           <div className="min-w-0">
-            <p className={KICK}>Expected opening</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className={KICK}>Expected opening</p>
+              {embedded && reportFor ? (
+                <p className="font-mono text-[9.5px] font-semibold text-on-surface-variant">
+                  {reportFor}
+                </p>
+              ) : null}
+            </div>
             <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
               <h2 className={`${embedded ? "text-[1.55rem] sm:text-[1.8rem]" : "text-[2rem] sm:text-[2.65rem]"} font-extrabold leading-none tracking-tight`} style={{ color: score.accent }}>{score.label} setup</h2>
               <span className="pb-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">{data.confidence} confidence</span>
