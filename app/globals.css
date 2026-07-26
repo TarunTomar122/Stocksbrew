@@ -1150,6 +1150,20 @@ table tbody tr:hover > * {
 .pulse-tab-active .pulse-tab-icon {
   color: color-mix(in srgb, var(--on-surface) 78%, var(--pulse-brand));
 }
+@media (max-width: 639px) {
+  .pulse-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .pulse-tab {
+    min-width: 0;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.65rem 0.35rem;
+    font-size: 11.5px;
+  }
+}
 
 .pulse-mover-card {
   display: block;
