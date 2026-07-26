@@ -381,15 +381,11 @@ export function MoversScanner({
                     ) : (
                       <Link href={stockHref} className="mt-1 block hover:opacity-90">
                         {a.headline ? (
-                          <span className="block text-[13px] font-semibold leading-snug text-on-surface">
+                          <span className="block truncate text-[13px] font-semibold leading-snug text-on-surface">
                             {a.headline}
                           </span>
                         ) : null}
-                        {a.whyItMatters ? (
-                          <span className="mt-1 block text-[12px] leading-[1.45] text-on-surface-variant">
-                            {a.whyItMatters}
-                          </span>
-                        ) : !a.headline && a.tag ? (
+                        {!a.headline && a.tag ? (
                           <span className="block text-[13px] leading-snug text-on-surface-variant">
                             {a.tag}
                           </span>

@@ -8,6 +8,7 @@ import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
 import type { StockReturns } from "@/lib/chart-range";
+import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
 
 const KICK = "font-mono text-[11px] uppercase tracking-[0.13em] text-on-surface-variant";
 
@@ -46,46 +47,43 @@ function VerdictUnlockCard({
 }) {
   const cta = signedIn
     ? {
-        label: "Get Pro",
-        sub: "Unlock our call on every ticker you add to Radar",
+        label: `Unlock Pro · ${US_PRO_MONTHLY_MO}`,
         onClick: onGetPro,
       }
     : {
-        label: "Sign in with Google",
-        sub: "Free to browse · Pro unlocks our call on any name in Radar",
+        label: "Sign in to view Pro",
         onClick: onSignIn,
       };
 
   return (
-    <div className="rounded-xl border border-outline-variant/80 bg-surface-container-low/35 p-4 sm:p-4.5">
-      <div className="flex items-start gap-3">
+    <div className="border-t border-outline-variant pt-4">
+      <div className="flex items-center gap-2">
         <LockIcon />
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className={`${KICK} font-semibold text-on-surface`}>our call</p>
-            <span className="rounded-md border border-outline-variant px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-              pro
-            </span>
-          </div>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">
-            Add · Hold · Trim, chart levels, and full drivers &amp; risks.
-          </p>
-        </div>
+        <p className="text-[15px] font-bold tracking-[-0.015em] text-on-surface">
+          Unlock Stocksbrew&apos;s call
+        </p>
+        <span className="font-mono text-[10px] font-semibold uppercase text-landing-brand">
+          Pro
+        </span>
       </div>
-
-      <button
-        type="button"
-        onClick={() => cta.onClick()}
-        className="mt-4 flex h-10 w-full items-center justify-center rounded-lg font-mono text-[13px] font-bold tracking-tight transition-transform hover:-translate-y-px active:translate-y-0"
-        style={{
-          background: "var(--signal-bullish)",
-          color: "var(--background)",
-        }}
-      >
-        {cta.label}
-      </button>
-      <p className="mt-2 text-center text-[11px] leading-relaxed text-on-surface-variant">{cta.sub}</p>
-      {error ? <p className="mt-2 text-center text-[12px] font-medium text-[#ef4444]">{error}</p> : null}
+      <p className="mt-2 max-w-md text-[13px] leading-relaxed text-on-surface-variant">
+        See our current Add, Hold, or Trim call—plus price zones, target, drivers, risks, and Radar alerts.
+      </p>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          onClick={() => cta.onClick()}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-on-surface px-5 font-mono text-[12px] font-bold text-surface transition-opacity hover:opacity-85"
+        >
+          {cta.label}
+        </button>
+        <p className="text-[10.5px] text-on-surface-variant">
+          {signedIn ? "Cancel anytime." : `${US_PRO_MONTHLY_MO} · Cancel anytime.`}
+        </p>
+      </div>
+      {error ? (
+        <p className="mt-2 text-[12px] font-medium text-[#ef4444]">{error}</p>
+      ) : null}
     </div>
   );
 }
@@ -174,7 +172,7 @@ export function LockedVerdictCall({
     trackPaywallUnlockClicked({ surface: "locked_verdict_call", ticker, signedIn: false });
     try {
       await signInWithGoogle({ surface: "locked_verdict_call" });
-      router.refresh();
+      router.push("/subscribe");
     } catch {
       setError("Sign-in cancelled or failed.");
     }
