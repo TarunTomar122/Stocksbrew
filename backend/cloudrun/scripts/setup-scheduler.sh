@@ -55,7 +55,6 @@ STOCK_REQUESTS_LIMIT="${STOCK_REQUESTS_LIMIT:-25}"
 CRON_STOCK_FACTS="${CRON_STOCK_FACTS:-0 8 * * 0}" # Sunday 08:00 UTC; slow fundamentals/facts refresh
 CRON_TRUMP_LOGIC="${CRON_TRUMP_LOGIC:-30 12 * * *}" # 12:30 UTC daily — Truth Social market digest
 # Premarket scheduling lives only on the VPS as one `premarket_pipeline` timer.
-CRON_NEWSLETTER_EMAIL="${CRON_NEWSLETTER_EMAIL:-12 12 * * 1-5}" # 12:12 UTC = 8:12 ET; after close anomalies + premarket pipeline
 CRON_OPEN_EMAIL="${CRON_OPEN_EMAIL:-5 14 * * 1-5}" # 14:05 UTC; leaves time for open_anomalies to publish fresh prices
 CRON_WEEKLY_EMAIL="${CRON_WEEKLY_EMAIL:-30 4 * * 6}" # 04:30 UTC = 10:00 AM IST Saturday
 CRON_CONTRARIAN="${CRON_CONTRARIAN:-0 14 * * 1-5}" # 14:00 UTC = 30m after open; refresh hero contrarian wall with fresh open prices
@@ -157,7 +156,6 @@ printf '%s\n' "$(mk_body pre_earnings_intel ",\"--upcoming-days\",\"7\",\"--max-
 printf '%s\n' "$(mk_minimal_body on_demand_news "${extra_universe},\"--limit\",\"6\",\"--per-stock-cap\",\"6\"")" > "${tmp_dir}/on_demand_news.json"
 printf '%s\n' "$(mk_minimal_body stock_facts "${extra_universe},\"--limit\",\"${STOCK_FACTS_LIMIT}\",\"--max-workers\",\"${STOCK_FACTS_MAX_WORKERS}\"")" > "${tmp_dir}/stock_facts.json"
 printf '%s\n' "$(mk_minimal_body trump_logic "${extra_universe}")" > "${tmp_dir}/trump_logic.json"
-printf '%s\n' "$(mk_minimal_body newsletter_pipeline "${extra_universe},\"--newsletter-mode\",\"morning\"")" > "${tmp_dir}/newsletter_pipeline.json"
 printf '%s\n' "$(mk_minimal_body open_email "${extra_universe}")" > "${tmp_dir}/open_email.json"
 printf '%s\n' "$(mk_minimal_body weekly_email "${extra_universe}")" > "${tmp_dir}/weekly_email.json"
 printf '%s\n' "$(mk_minimal_body contrarian_calls "${extra_universe}")" > "${tmp_dir}/contrarian_calls.json"
@@ -189,7 +187,6 @@ upsert_job "tikrr-pre-earnings-intel" "${CRON_PRE_EARNINGS_INTEL}" "${tmp_dir}/p
 upsert_job "tikrr-on-demand-news" "${CRON_ON_DEMAND_NEWS}" "${tmp_dir}/on_demand_news.json"
 upsert_job "tikrr-stock-facts" "${CRON_STOCK_FACTS}" "${tmp_dir}/stock_facts.json"
 upsert_job "tikrr-trump-logic" "${CRON_TRUMP_LOGIC}" "${tmp_dir}/trump_logic.json"
-upsert_job "tikrr-newsletter-pipeline" "${CRON_NEWSLETTER_EMAIL}" "${tmp_dir}/newsletter_pipeline.json"
 upsert_job "tikrr-open-email" "${CRON_OPEN_EMAIL}" "${tmp_dir}/open_email.json"
 upsert_job "tikrr-weekly-email" "${CRON_WEEKLY_EMAIL}" "${tmp_dir}/weekly_email.json"
 upsert_job "tikrr-contrarian-calls" "${CRON_CONTRARIAN}" "${tmp_dir}/contrarian_calls.json"
@@ -199,5 +196,18 @@ upsert_job "tikrr-radar-materialize-open" "${CRON_RADAR_MATERIALIZE_OPEN}" "${tm
 upsert_job "tikrr-radar-official-close" "${CRON_RADAR_OFFICIAL_CLOSE}" "${tmp_dir}/radar_official.json"
 upsert_job "tikrr-radar-materialize-close" "${CRON_RADAR_MATERIALIZE_CLOSE}" "${tmp_dir}/radar_materialize.json"
 upsert_job "tikrr-radar-outcomes" "${CRON_RADAR_OUTCOMES}" "${tmp_dir}/radar_outcomes.json"
+
+# Retired: the 12:12 UTC "Market today" send duplicated the VPS pre-market
+# email. Delete any legacy Cloud Scheduler copy instead of recreating it.
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "DRY_RUN delete scheduler job=tikrr-newsletter-pipeline"
+elif gcloud scheduler jobs describe "tikrr-newsletter-pipeline" \
+  --location="${SCHEDULER_LOCATION}" \
+  --project="${GOOGLE_CLOUD_PROJECT}" >/dev/null 2>&1; then
+  gcloud scheduler jobs delete "tikrr-newsletter-pipeline" \
+    --location="${SCHEDULER_LOCATION}" \
+    --project="${GOOGLE_CLOUD_PROJECT}" \
+    --quiet
+fi
 
 echo "Scheduler jobs ready in ${SCHEDULER_LOCATION}."

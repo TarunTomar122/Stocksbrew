@@ -91,7 +91,6 @@ write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
 # 08:30 UTC is 2:00 PM IST year-round.
 write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline
-write_pair newsletter-email "Mon..Fri *-*-* 12:12:00" newsletter_pipeline "--newsletter-mode morning"
 # The anomaly snapshot is written near the end of the 13:38 lane and can take
 # 15+ minutes when a mover needs fresh intelligence. Keep the email after it.
 write_pair open-email "Mon..Fri *-*-* 14:05:00" open_email
@@ -113,6 +112,10 @@ systemctl disable --now tikrr-premarket-intel.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-premarket-intel.service" "${UNIT_DIR}/tikrr-premarket-intel.timer"
 systemctl disable --now tikrr-premarket-email.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-premarket-email.service" "${UNIT_DIR}/tikrr-premarket-email.timer"
+# Retired: this stale "Market today" newsletter duplicated the 2 PM IST
+# pre-market email before the US open.
+systemctl disable --now tikrr-newsletter-email.timer >/dev/null 2>&1 || true
+rm -f "${UNIT_DIR}/tikrr-newsletter-email.timer"
 
 systemctl daemon-reload
 if [[ "${ENABLE_TIMERS:-1}" == "1" ]]; then
