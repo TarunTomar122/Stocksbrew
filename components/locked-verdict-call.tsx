@@ -120,7 +120,7 @@ function VerdictUnlockCard({
         <button
           type="button"
           onClick={() => onClick()}
-          className="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-primary px-5 text-[13.5px] font-bold text-on-primary transition-opacity hover:opacity-90 sm:flex-none sm:px-7"
+          className="inline-flex min-h-14 w-full flex-1 items-center justify-center rounded-xl bg-primary px-5 py-3.5 text-[13.5px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90 sm:min-h-12 sm:w-auto sm:flex-none sm:rounded-lg sm:px-7 sm:py-3"
         >
           {label}
         </button>

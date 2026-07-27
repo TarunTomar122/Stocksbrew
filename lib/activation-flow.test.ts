@@ -42,13 +42,20 @@ describe("first Radar activation flow", () => {
     expect(checkout).not.toContain('effectivePeriod === "yearly" && isTrialEligible(userDoc)');
   });
 
-  it("stops non-Pro stock pages before loading or rendering research sections", () => {
+  it("keeps the Pro intelligence masked on non-Pro stock pages", () => {
     const stockPage = source("components/stock-page-stream.tsx");
-    const gate = stockPage.indexOf("if (!subscribed)");
-    expect(gate).toBeGreaterThan(-1);
-    expect(gate).toBeLessThan(stockPage.indexOf("await Promise.all([", gate));
-    expect(gate).toBeLessThan(stockPage.indexOf("<StockDetail"));
-    expect(stockPage).toContain("<StockTrialGate");
+    const stockDetail = source("components/stock-detail.tsx");
+    expect(stockPage).toContain("const shouldLoadAI = subscribed");
+    expect(stockDetail).toContain("const showLockedVerdict = !subscribed");
+    expect(stockDetail).toContain("<LockedVerdictCall");
+  });
+
+  it("keeps every stock unlock CTA at a mobile-safe tap height", () => {
+    const trialGate = source("components/stock-trial-gate.tsx");
+    const legacyGate = source("components/locked-verdict-call.tsx");
+    expect(trialGate).toContain("min-h-14");
+    expect(legacyGate).toContain("min-h-14");
+    expect(legacyGate).not.toContain("inline-flex h-10");
   });
 
   it("shows the bulk Radar action after signed-out auth resolution", () => {

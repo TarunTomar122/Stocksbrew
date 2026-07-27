@@ -93,7 +93,7 @@ export function StockTrialGate({ stock, currency, market }: Props) {
           type="button"
           disabled={busy}
           onClick={() => void startTrial()}
-          className="mt-8 inline-flex min-h-12 w-full max-w-sm items-center justify-center rounded-xl bg-on-surface px-6 font-mono text-[13px] font-bold text-surface transition-opacity hover:opacity-85 disabled:opacity-60"
+          className="mt-8 inline-flex min-h-14 w-full max-w-sm items-center justify-center rounded-xl bg-on-surface px-6 py-3.5 font-mono text-[13px] font-bold leading-none text-surface transition-opacity hover:opacity-85 disabled:opacity-60 sm:min-h-[52px] sm:py-3"
         >
           {busy
             ? "Signing you in…"
