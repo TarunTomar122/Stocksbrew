@@ -128,4 +128,44 @@ describe("mergeAnomaliesWithLatestPrices", () => {
     });
     expect(merged.anomalies[1]).toBe(aapl);
   });
+
+  it("keeps a verified reason when only an intraday quote changes in the same session", () => {
+    const anomaly = {
+      ...row("CNXC"),
+      price_as_of: "2026-07-29T13:50:05.000Z",
+      narrative_status: "verified" as const,
+      move_explanation: {
+        headline: "Concentrix named AI leader",
+        why_it_matters: "Current recognition supports the move.",
+      },
+    };
+    const feed: DailyAnomaliesDoc = {
+      market: "US",
+      generated_at: "2026-07-29T13:50:05.000Z",
+      date: "2026-07-29",
+      anomaly_count: 1,
+      threshold_pct: 1,
+      up_count: 1,
+      down_count: 0,
+      anomalies: [anomaly],
+    };
+    const latest = new Map<string, Pick<LatestPrice, "quote"> & Partial<Pick<LatestPrice, "captured_at">>>([
+      [
+        "US_CNXC",
+        {
+          captured_at: "2026-07-29T14:00:00.000Z",
+          quote: { current: 103.8, previous_close: 100, day_change_pct: 3.8, day_change_abs: 3.8 },
+        },
+      ],
+    ]);
+
+    const merged = mergeAnomaliesWithLatestPrices(feed, latest);
+
+    expect(merged.anomalies[0]).toMatchObject({
+      price: 103.8,
+      day_change_pct: 3.8,
+      narrative_status: "verified",
+      move_explanation: { headline: "Concentrix named AI leader" },
+    });
+  });
 });

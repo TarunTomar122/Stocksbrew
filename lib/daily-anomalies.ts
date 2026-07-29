@@ -14,6 +14,8 @@ export type AnomalyItem = {
   day_change_pct: number;
   day_change_abs: number | null;
   volume: number | null;
+  /** Canonical quote timestamp used when this mover was selected. */
+  price_as_of?: string | null;
   direction: "up" | "down";
   narrative_status?: "verified" | "unverified";
   narrative_as_of?: string | null;
@@ -88,6 +90,31 @@ function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+type LatestQuoteSnapshot = Pick<LatestPrice, "quote"> &
+  Partial<Pick<LatestPrice, "captured_at" | "updated_at" | "session_phase">>;
+
+function marketDate(value: string | null | undefined, market: "US" | "IN"): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: market === "IN" ? "Asia/Kolkata" : "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function isSameTradingSession(
+  anomaly: AnomalyItem,
+  latest: LatestQuoteSnapshot,
+  market: "US" | "IN",
+): boolean {
+  const anomalyDate = marketDate(anomaly.price_as_of, market);
+  const quoteDate = marketDate(latest.captured_at ?? latest.updated_at, market);
+  return Boolean(anomalyDate && quoteDate && anomalyDate === quoteDate);
+}
+
 /**
  * Source volatile quote fields from the same canonical collection used by
  * stock pages. If that quote differs from the materialized mover snapshot,
@@ -96,11 +123,12 @@ function finiteNumber(value: unknown): number | null {
  */
 export function mergeAnomaliesWithLatestPrices(
   feed: DailyAnomaliesDoc,
-  latestPrices: ReadonlyMap<string, Pick<LatestPrice, "quote">>,
+  latestPrices: ReadonlyMap<string, LatestQuoteSnapshot>,
 ): DailyAnomaliesDoc {
   let changed = false;
   const anomalies = feed.anomalies.map((anomaly) => {
-    const quote = latestPrices.get(anomaly.instrument_id)?.quote;
+    const latest = latestPrices.get(anomaly.instrument_id);
+    const quote = latest?.quote;
     const price = finiteNumber(quote?.current);
     if (!quote || price === null) return anomaly;
 
@@ -128,6 +156,26 @@ export function mergeAnomaliesWithLatestPrices(
     }
 
     changed = true;
+    // Anomaly research is tied to a trading session, not an exact tick. A
+    // quote can move between the 20-minute open scan and the next intraday
+    // refresh while the same news catalyst remains the reason it is moving.
+    // Keep that session's verified research visible, but still clear it at a
+    // new market date so yesterday's reason can never describe today.
+    if (
+      anomaly.narrative_status === "verified" &&
+      latest &&
+      isSameTradingSession(anomaly, latest, feed.market as "US" | "IN")
+    ) {
+      return {
+        ...anomaly,
+        price,
+        previous_close: previousClose,
+        day_change_abs: dayChangeAbs,
+        day_change_pct: dayChangePct,
+        volume,
+        direction,
+      };
+    }
     return {
       ...anomaly,
       price,
