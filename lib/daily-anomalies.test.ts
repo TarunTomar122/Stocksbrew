@@ -52,10 +52,11 @@ describe("findAnomalyInFeed", () => {
 });
 
 describe("mergeAnomaliesWithLatestPrices", () => {
-  it("uses canonical quote fields while preserving materialized research", () => {
+  it("uses canonical quote fields without carrying an explanation to a changed quote", () => {
     const anomaly = {
       ...row("NVDA"),
       headline: "Existing explanation",
+      today_brief: "Research written for the earlier move.",
       comparative_context: { day_change_pct: 5, vs_market_day_change_pct: 3 },
     };
     const feed: DailyAnomaliesDoc = {
@@ -92,11 +93,10 @@ describe("mergeAnomaliesWithLatestPrices", () => {
       day_change_pct: 12,
       volume: 42,
       direction: "up",
-      headline: "Existing explanation",
-      comparative_context: {
-        day_change_pct: 12,
-        vs_market_day_change_pct: 3,
-      },
+      narrative_status: "unverified",
+      headline: null,
+      today_brief: null,
+      comparative_context: null,
     });
     expect(feed.anomalies[0].price).toBe(100);
   });

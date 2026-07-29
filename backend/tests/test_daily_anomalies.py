@@ -9,6 +9,50 @@ from backend.scripts import build_daily_anomalies
 
 
 class DailyAnomaliesTest(unittest.TestCase):
+    def test_pick_row_strips_old_intelligence_from_a_fresh_quote(self) -> None:
+        row = build_daily_anomalies._pick_row(
+            {"instrument_id": "US_BKNG", "ticker": "BKNG", "name": "Booking Holdings"},
+            {
+                "captured_at": "2026-07-28T20:10:00+00:00",
+                "quote": {"current": 199.31, "day_change_pct": 6.7},
+            },
+            {
+                "generated_at": "2026-07-20T14:03:34+00:00",
+                "headline": "BKNG fell 4.13% today.",
+                "today_brief": "Stale price commentary.",
+                "visual_summary": {"what_changed": "BKNG fell 4.13% today."},
+                "news_count": 4,
+            },
+            explain_moves=False,
+            external_search=False,
+            market="US",
+        )
+
+        assert row is not None
+        self.assertEqual(row["narrative_status"], "unverified")
+        self.assertIsNone(row["headline"])
+        self.assertIsNone(row["today_brief"])
+        self.assertIsNone(row["visual_summary"])
+        self.assertEqual(row["news_count"], 0)
+
+    def test_intelligence_must_be_same_session_and_recent_for_quote(self) -> None:
+        quote = {"captured_at": "2026-07-28T20:10:00+00:00"}
+        self.assertTrue(
+            build_daily_anomalies._is_current_intelligence_for_quote(
+                {"generated_at": "2026-07-28T19:43:00+00:00"}, quote, market="US"
+            )
+        )
+        self.assertFalse(
+            build_daily_anomalies._is_current_intelligence_for_quote(
+                {"generated_at": "2026-07-28T14:03:00+00:00"}, quote, market="US"
+            )
+        )
+        self.assertFalse(
+            build_daily_anomalies._is_current_intelligence_for_quote(
+                {"generated_at": "2026-07-27T20:10:00+00:00"}, quote, market="US"
+            )
+        )
+
     def test_anomaly_publish_revalidates_pulse(self) -> None:
         self.assertIn("/pulse", build_daily_anomalies.ANOMALY_REVALIDATE_PATHS)
 

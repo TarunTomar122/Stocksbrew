@@ -97,4 +97,19 @@ describe("Pulse mover narratives", () => {
       whyItMatters: ANOMALY_NO_NEWS_COPY,
     });
   });
+
+  it("does not display stale research as a reason for a current move", () => {
+    const row = anomaly({
+      ticker: "BKNG",
+      day_change_pct: 6.7,
+      narrative_status: "unverified",
+      headline: "BKNG fell 4.13% today.",
+      today_brief: "Stale price commentary.",
+    });
+
+    expect(pulseItems([row])[0]).toMatchObject({
+      headline: "BKNG is up 6.7% today.",
+      whyItMatters: "",
+    });
+  });
 });

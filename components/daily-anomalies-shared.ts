@@ -70,6 +70,15 @@ export function isWeakMoveExplanation(item: AnomalyItem): boolean {
   return why.startsWith("The move is large, but current internal");
 }
 
+export function hasUnverifiedNarrative(item: AnomalyItem): boolean {
+  return item.narrative_status === "unverified";
+}
+
+function verifiedMoveHeadline(item: AnomalyItem): string {
+  const direction = item.direction === "up" ? "up" : "down";
+  return `${item.ticker.trim().toUpperCase()} is ${direction} ${Math.abs(item.day_change_pct).toFixed(1)}% today.`;
+}
+
 export function topMoverHeadline(item: AnomalyItem): string {
   const ticker = item.ticker.trim().toUpperCase();
   const side = item.direction === "up" ? "up" : "down";
@@ -79,6 +88,7 @@ export function topMoverHeadline(item: AnomalyItem): string {
 }
 
 export function anomalyHeadline(item: AnomalyItem): string {
+  if (hasUnverifiedNarrative(item)) return verifiedMoveHeadline(item);
   if (isWeakMoveExplanation(item)) {
     return topMoverHeadline(item);
   }
@@ -94,6 +104,7 @@ export function anomalyHeadline(item: AnomalyItem): string {
 }
 
 export function anomalyDetail(item: AnomalyItem): string | null {
+  if (hasUnverifiedNarrative(item)) return null;
   if (isWeakMoveExplanation(item)) {
     return ANOMALY_NO_NEWS_COPY;
   }
@@ -123,6 +134,7 @@ export function anomalyDetail(item: AnomalyItem): string | null {
 }
 
 export function anomalyWatchLine(item: AnomalyItem): string | null {
+  if (hasUnverifiedNarrative(item)) return null;
   if (isWeakMoveExplanation(item)) return null;
   const watch = item.visual_summary?.what_to_watch?.trim();
   if (!watch) return null;

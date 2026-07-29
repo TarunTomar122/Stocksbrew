@@ -15,6 +15,8 @@ export type AnomalyItem = {
   day_change_abs: number | null;
   volume: number | null;
   direction: "up" | "down";
+  narrative_status?: "verified" | "unverified";
+  narrative_as_of?: string | null;
   headline: string | null;
   thesis: string | null;
   today_brief: string | null;
@@ -87,9 +89,10 @@ function finiteNumber(value: unknown): number | null {
 }
 
 /**
- * Keep materialized research/explanations, but source volatile quote fields
- * from the same canonical collection used by stock pages. This prevents a
- * failed or slow anomaly rebuild from showing an old close on the homepage.
+ * Source volatile quote fields from the same canonical collection used by
+ * stock pages. If that quote differs from the materialized mover snapshot,
+ * clear its explanation as well: research must not be presented as a reason
+ * for a price it did not describe.
  */
 export function mergeAnomaliesWithLatestPrices(
   feed: DailyAnomaliesDoc,
@@ -133,9 +136,21 @@ export function mergeAnomaliesWithLatestPrices(
       day_change_pct: dayChangePct,
       volume,
       direction,
-      comparative_context: anomaly.comparative_context
-        ? { ...anomaly.comparative_context, day_change_pct: dayChangePct }
-        : anomaly.comparative_context,
+      narrative_status: "unverified" as const,
+      headline: null,
+      thesis: null,
+      today_brief: null,
+      news_count: 0,
+      source_count: 0,
+      overall_score: null,
+      overall_label: null,
+      catalyst: null,
+      risk: null,
+      key_points: [],
+      visual_summary: null,
+      move_explanation: null,
+      overall_verdict: null,
+      comparative_context: null,
     };
   });
 

@@ -4,6 +4,7 @@ import {
   ANOMALY_NO_NEWS_COPY,
   anomalyDetail,
   anomalyHeadline,
+  hasUnverifiedNarrative,
   isWeakMoveExplanation,
   splitDisplayableMoves,
   topMoverHeadline,
@@ -42,6 +43,20 @@ function item(overrides: Partial<AnomalyItem> = {}): AnomalyItem {
 }
 
 describe("anomalyDetail", () => {
+  it("shows only the verified price move when research is older than the quote", () => {
+    const row = item({
+      ticker: "BKNG",
+      day_change_pct: 6.7,
+      narrative_status: "unverified",
+      headline: "BKNG fell 4.13% today.",
+      today_brief: "Stale price commentary.",
+    });
+
+    expect(hasUnverifiedNarrative(row)).toBe(true);
+    expect(anomalyHeadline(row)).toBe("BKNG is up 6.7% today.");
+    expect(anomalyDetail(row)).toBeNull();
+  });
+
   it("prefers the hard-move explanation over generic anomaly brief text", () => {
     const moveExplanation = "Search found a specific catalyst explaining today's move.";
     const genericBrief = "A".repeat(260);

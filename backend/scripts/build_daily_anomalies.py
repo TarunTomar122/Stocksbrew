@@ -6,8 +6,9 @@ import math
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -24,6 +25,14 @@ from backend.storage import TraceMoneyStore
 OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 MIN_EXPLAIN_MOVE_PCT = 2.0
 ANOMALY_REVALIDATE_PATHS = ["/", "/pulse", "/anomalies", "/radar"]
+ANOMALY_INTELLIGENCE_MAX_AGE_HOURS = max(
+    1,
+    int(os.getenv("ANOMALY_INTELLIGENCE_MAX_AGE_HOURS", "6") or 6),
+)
+MARKET_TIMEZONES = {
+    "US": ZoneInfo("America/New_York"),
+    "IN": ZoneInfo("Asia/Kolkata"),
+}
 ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS = max(
     48,
     int(os.getenv("ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS", "48") or 48),
@@ -147,6 +156,52 @@ def _now_iso() -> str:
 
 def _today_utc() -> str:
     return datetime.now(timezone.utc).date().isoformat()
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _intelligence_timestamp(intel_doc: dict[str, Any] | None) -> datetime | None:
+    if not isinstance(intel_doc, dict):
+        return None
+    return _parse_timestamp(
+        intel_doc.get("generated_at") or intel_doc.get("as_of") or intel_doc.get("updated_at")
+    )
+
+
+def _is_current_intelligence_for_quote(
+    intel_doc: dict[str, Any] | None,
+    quote_doc: dict[str, Any] | None,
+    *,
+    market: str,
+) -> bool:
+    """Return whether narrative research can truthfully describe this quote.
+
+    Price snapshots and stock research are produced independently. A prior
+    session's stock brief is valuable historical context, but must never be
+    labelled as the reason for a new mover. Require the same market session
+    and a bounded age window before the public anomaly feed joins them.
+    """
+    if not isinstance(quote_doc, dict):
+        return False
+    quote_time = _parse_timestamp(quote_doc.get("captured_at") or quote_doc.get("updated_at"))
+    intel_time = _intelligence_timestamp(intel_doc)
+    if quote_time is None or intel_time is None:
+        return False
+    market_tz = MARKET_TIMEZONES.get(str(market or "").upper(), timezone.utc)
+    if quote_time.astimezone(market_tz).date() != intel_time.astimezone(market_tz).date():
+        return False
+    return intel_time >= quote_time - timedelta(hours=ANOMALY_INTELLIGENCE_MAX_AGE_HOURS)
 
 
 def _ticker_context_doc_id(market: str, ticker: str) -> str:
@@ -936,31 +991,38 @@ def _pick_row(
     instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
     ticker = str(instrument.get("ticker") or "").strip().upper()
     direction = "up" if day_change_pct >= 0 else "down"
+    intelligence_is_current = _is_current_intelligence_for_quote(
+        intel_doc, quote_doc, market=market
+    )
+    # Never mix a fresh quote with old narrative fields. The UI receives an
+    # explicit status so it can render the verified move without inventing an
+    # explanation while fresh research is unavailable.
+    current_intel_doc = intel_doc if intelligence_is_current else None
     key_points = [
-        point for point in (_filtered_internal_text(p) for p in ((intel_doc or {}).get("key_points") or []))
+        point for point in (_filtered_internal_text(p) for p in ((current_intel_doc or {}).get("key_points") or []))
         if point
     ][:4]
-    headline = _filtered_internal_text((intel_doc or {}).get("headline")) or None
-    thesis = _filtered_internal_text((intel_doc or {}).get("thesis")) or None
+    headline = _filtered_internal_text((current_intel_doc or {}).get("headline")) or None
+    thesis = _filtered_internal_text((current_intel_doc or {}).get("thesis")) or None
     raw_brief = (
         _filtered_internal_text(
-            (intel_doc or {}).get("today_brief")
-            or (intel_doc or {}).get("body")
+            (current_intel_doc or {}).get("today_brief")
+            or (current_intel_doc or {}).get("body")
             or ""
         )
         or None
     )
     brief = raw_brief or (key_points[0] if key_points else None)
-    label = str((intel_doc or {}).get("overall_label") or "").strip() or None
-    score = (intel_doc or {}).get("overall_score")
+    label = str((current_intel_doc or {}).get("overall_label") or "").strip() or None
+    score = (current_intel_doc or {}).get("overall_score")
     overall_score = int(score) if isinstance(score, (int, float)) else None
-    visual_summary = (intel_doc or {}).get("visual_summary")
+    visual_summary = (current_intel_doc or {}).get("visual_summary")
     if not isinstance(visual_summary, dict):
         visual_summary = None
     move_explanation = (
         _move_explanation(
             instrument=instrument,
-            intel_doc=intel_doc,
+            intel_doc=current_intel_doc,
             day_change_pct=day_change_pct,
             external_search=external_search,
             intel_pro_doc=intel_pro_doc,
@@ -974,13 +1036,13 @@ def _pick_row(
         else None
     )
 
-    if not headline:
+    if intelligence_is_current and not headline:
         sector = str(instrument.get("sector") or "").strip()
         if sector:
             headline = f"{ticker} is a top {direction} mover in {sector}."
         else:
             headline = f"{ticker} is a top {direction} mover today."
-    if not brief:
+    if intelligence_is_current and not brief:
         context = (
             f"relative to its prior close and peer moves"
             if previous_close is not None
@@ -1005,21 +1067,25 @@ def _pick_row(
         "volume": volume,
         "price_as_of": str(quote_doc.get("captured_at") or quote_doc.get("updated_at") or ""),
         "direction": direction,
+        "narrative_status": "verified" if intelligence_is_current else "unverified",
+        "narrative_as_of": (
+            _intelligence_timestamp(current_intel_doc).isoformat() if current_intel_doc else None
+        ),
         "headline": headline,
         "thesis": thesis,
         "today_brief": brief,
-        "news_count": int((intel_doc or {}).get("news_count") or 0),
-        "source_count": int((intel_doc or {}).get("source_count") or 0),
+        "news_count": int((current_intel_doc or {}).get("news_count") or 0),
+        "source_count": int((current_intel_doc or {}).get("source_count") or 0),
         "overall_score": overall_score,
         "overall_label": label,
-        "catalyst": _filtered_catalyst_text((intel_doc or {}).get("catalyst")) or None,
-        "risk": _filtered_internal_text((intel_doc or {}).get("risk")) or None,
+        "catalyst": _filtered_catalyst_text((current_intel_doc or {}).get("catalyst")) or None,
+        "risk": _filtered_internal_text((current_intel_doc or {}).get("risk")) or None,
         "key_points": key_points,
         "visual_summary": visual_summary,
         "move_explanation": move_explanation,
-        "overall_verdict": (intel_doc or {}).get("overall_verdict"),
-        "comparative_context": (intel_doc or {}).get("comparative_context")
-        if isinstance((intel_doc or {}).get("comparative_context"), dict)
+        "overall_verdict": (current_intel_doc or {}).get("overall_verdict"),
+        "comparative_context": (current_intel_doc or {}).get("comparative_context")
+        if isinstance((current_intel_doc or {}).get("comparative_context"), dict)
         else None,
     }
 
@@ -1199,6 +1265,9 @@ def main() -> None:
             for instrument_id in selected_ids
             if not intelligence.get(instrument_id)
             or int((intelligence.get(instrument_id) or {}).get("news_count") or 0) <= 0
+            or not _is_current_intelligence_for_quote(
+                intelligence.get(instrument_id), prices.get(instrument_id), market=args.market
+            )
         ]
         _run_intelligence_fill_for_missing(
             market=args.market,
@@ -1223,27 +1292,36 @@ def main() -> None:
         # output rows from a second quote read rather than the pre-enrichment
         # snapshot held in memory.
         prices.update(latest_prices)
-        fallback_docs: dict[str, dict[str, Any]] = {}
-        for instrument_id in selected_ids:
-            existing = intelligence.get(instrument_id) or {}
-            if str(existing.get("headline") or "").strip() and str(existing.get("today_brief") or "").strip():
-                continue
-            instrument = by_id.get(instrument_id) or {}
-            fallback_doc = build_no_news_intelligence_doc(
-                instrument=instrument,
-                market=args.market,
-                universe_id=universe_id,
-                latest_price_doc=latest_prices.get(instrument_id),
-                technical_doc=None,
-                intel_pro_doc=intel_pro_docs.get(instrument_id),
-                avg_volume=None,
-                store=store,
-            )
-            if fallback_doc:
-                fallback_docs[instrument_id] = fallback_doc
-        if fallback_docs:
-            for instrument_id, doc in fallback_docs.items():
-                intelligence[instrument_id] = doc
+        # The close path is intentionally price-first. Do not spend minutes
+        # generating a no-news brief after the close; _pick_row emits an
+        # explicitly unverified, price-only mover until current intelligence
+        # exists. The open-session path has already requested enrichment.
+        if args.enrich_missing:
+            fallback_docs: dict[str, dict[str, Any]] = {}
+            for instrument_id in selected_ids:
+                existing = intelligence.get(instrument_id) or {}
+                if (
+                    _is_current_intelligence_for_quote(
+                        existing, latest_prices.get(instrument_id), market=args.market
+                    )
+                    and str(existing.get("headline") or "").strip()
+                    and str(existing.get("today_brief") or "").strip()
+                ):
+                    continue
+                instrument = by_id.get(instrument_id) or {}
+                fallback_doc = build_no_news_intelligence_doc(
+                    instrument=instrument,
+                    market=args.market,
+                    universe_id=universe_id,
+                    latest_price_doc=latest_prices.get(instrument_id),
+                    technical_doc=None,
+                    intel_pro_doc=intel_pro_docs.get(instrument_id),
+                    avg_volume=None,
+                    store=store,
+                )
+                if fallback_doc:
+                    fallback_docs[instrument_id] = fallback_doc
+            intelligence.update(fallback_docs)
 
     rows: list[dict[str, Any]] = []
     for index, instrument_id in enumerate(selected_ids):
@@ -1302,6 +1380,9 @@ def main() -> None:
             "required_price_session_phase": args.require_price_session_phase,
             "stale_price_count": len(stale_price_ids),
             "stale_price_ids": stale_price_ids[:50],
+            "unverified_narrative_count": sum(
+                1 for row in rows if row.get("narrative_status") != "verified"
+            ),
         },
     )
 
