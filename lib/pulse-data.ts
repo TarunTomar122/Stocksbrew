@@ -3,6 +3,7 @@ import {
   ANOMALY_NO_NEWS_COPY,
   anomalyDetail,
   anomalyHeadline,
+  hasResearchBackedNarrative,
   hasUnverifiedNarrative,
   isWeakMoveExplanation,
 } from "@/components/daily-anomalies-shared";
@@ -32,7 +33,7 @@ function epsTagFromReported(reported?: string): string | undefined {
 }
 
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
-  return anomalies.map((a) => {
+  return anomalies.filter(hasResearchBackedNarrative).map((a) => {
     const weakExplanation = isWeakMoveExplanation(a);
     const unverifiedNarrative = hasUnverifiedNarrative(a);
     const headline = anomalyHeadline(a);

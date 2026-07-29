@@ -74,9 +74,14 @@ export function hasUnverifiedNarrative(item: AnomalyItem): boolean {
   return item.narrative_status === "unverified";
 }
 
-function verifiedMoveHeadline(item: AnomalyItem): string {
-  const direction = item.direction === "up" ? "up" : "down";
-  return `${item.ticker.trim().toUpperCase()} is ${direction} ${Math.abs(item.day_change_pct).toFixed(1)}% today.`;
+/** A mover belongs in the researched feed only after this run found evidence. */
+export function hasResearchBackedNarrative(item: AnomalyItem): boolean {
+  return (
+    item.narrative_status === "verified" &&
+    Boolean(item.move_explanation?.headline?.trim()) &&
+    Boolean(item.move_explanation?.why_it_matters?.trim()) &&
+    !isWeakMoveExplanation(item)
+  );
 }
 
 export function topMoverHeadline(item: AnomalyItem): string {
@@ -88,7 +93,7 @@ export function topMoverHeadline(item: AnomalyItem): string {
 }
 
 export function anomalyHeadline(item: AnomalyItem): string {
-  if (hasUnverifiedNarrative(item)) return verifiedMoveHeadline(item);
+  if (hasUnverifiedNarrative(item)) return "";
   if (isWeakMoveExplanation(item)) {
     return topMoverHeadline(item);
   }
@@ -169,12 +174,12 @@ export function splitDisplayableMoves(
 
   const ups = displayable
     .filter((a) => a.direction === "up")
-    .filter((a) => !explainedOnly || !isWeakMoveExplanation(a))
+    .filter((a) => !explainedOnly || hasResearchBackedNarrative(a))
     .sort((a, b) => b.day_change_pct - a.day_change_pct)
     .slice(0, limit);
   const downs = displayable
     .filter((a) => a.direction === "down")
-    .filter((a) => !explainedOnly || !isWeakMoveExplanation(a))
+    .filter((a) => !explainedOnly || hasResearchBackedNarrative(a))
     .sort((a, b) => a.day_change_pct - b.day_change_pct)
     .slice(0, limit);
   return { ups, downs };

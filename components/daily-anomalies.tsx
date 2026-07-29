@@ -14,7 +14,7 @@ type Props = {
 export function DailyAnomalies({ anomalies, generatedAt, reddit = null, isSubscribed = false, fullItemLimit }: Props) {
   if (!anomalies || anomalies.length === 0) return null;
 
-  const { ups, downs } = splitDisplayableMoves(anomalies);
+  const { ups, downs } = splitDisplayableMoves(anomalies, { explainedOnly: true });
   if (ups.length === 0 && downs.length === 0) return null;
 
   return (

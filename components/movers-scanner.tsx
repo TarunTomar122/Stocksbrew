@@ -142,7 +142,13 @@ export function MoversScanner({
                       </div>
                     </div>
                     {locked ? (
-                      <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="block" className="mt-3" />
+                      <FeedRowLockedBlur
+                        variant="mover"
+                        ticker={a.ticker}
+                        previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
+                        size="block"
+                        className="mt-3"
+                      />
                     ) : a.headline ? (
                       <p className="mt-3 text-[15px] font-semibold leading-snug text-on-surface">{a.headline}</p>
                     ) : null}
@@ -204,7 +210,13 @@ export function MoversScanner({
                           </div>
                         </div>
                         {locked ? (
-                          <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="block" className="mt-3" />
+                          <FeedRowLockedBlur
+                            variant="mover"
+                            ticker={a.ticker}
+                            previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
+                            size="block"
+                            className="mt-3"
+                          />
                         ) : (
                           <>
                             <p className="mt-3 min-h-[2.5rem] text-[13px] font-semibold leading-[1.35] text-on-surface">
@@ -377,7 +389,13 @@ export function MoversScanner({
                       ) : null}
                     </div>
                     {locked ? (
-                      <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" className="mt-1" />
+                      <FeedRowLockedBlur
+                        variant="mover"
+                        ticker={a.ticker}
+                        previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
+                        size="inline"
+                        className="mt-1"
+                      />
                     ) : (
                       <Link href={stockHref} className="mt-1 block hover:opacity-90">
                         {a.headline ? (
@@ -415,7 +433,13 @@ export function MoversScanner({
                   </span>
                 </div>
                 {locked ? (
-                  <FeedRowLockedBlur variant="mover" ticker={a.ticker} size="inline" className="mt-3" />
+                  <FeedRowLockedBlur
+                    variant="mover"
+                    ticker={a.ticker}
+                    previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
+                    size="inline"
+                    className="mt-3"
+                  />
                 ) : a.tag ? (
                   <p className="mt-3 text-[13px] leading-relaxed text-on-surface/90">{a.tag}</p>
                 ) : null}

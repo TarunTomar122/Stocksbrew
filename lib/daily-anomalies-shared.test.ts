@@ -43,7 +43,7 @@ function item(overrides: Partial<AnomalyItem> = {}): AnomalyItem {
 }
 
 describe("anomalyDetail", () => {
-  it("shows only the verified price move when research is older than the quote", () => {
+  it("suppresses an unverified narrative instead of inventing a price-only reason", () => {
     const row = item({
       ticker: "BKNG",
       day_change_pct: 6.7,
@@ -53,7 +53,7 @@ describe("anomalyDetail", () => {
     });
 
     expect(hasUnverifiedNarrative(row)).toBe(true);
-    expect(anomalyHeadline(row)).toBe("BKNG is up 6.7% today.");
+    expect(anomalyHeadline(row)).toBe("");
     expect(anomalyDetail(row)).toBeNull();
   });
 
@@ -153,7 +153,11 @@ describe("splitDisplayableMoves", () => {
       item({
         ticker: "NVDA",
         day_change_pct: 8,
-        move_explanation: { why_it_matters: "AI demand drove the move." },
+        narrative_status: "verified",
+        move_explanation: {
+          headline: "AI demand drove the move",
+          why_it_matters: "Fresh demand data gave investors a reason to reprice the shares.",
+        },
       }),
     ];
 

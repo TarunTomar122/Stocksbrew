@@ -13,15 +13,6 @@ import {
 import { captureEvent } from "@/lib/posthog";
 import { signInWithGoogle } from "@/lib/sign-in";
 
-const MOVER_LINES = [
-  (ticker: string) =>
-    `${ticker} surges on analyst upgrade as AI demand outlook strengthens across the group.`,
-  () => `Shares jump after earnings beat and raised guidance surprise the street.`,
-  (ticker: string) =>
-    `${ticker} rallies on sector tailwinds and fresh institutional buying interest.`,
-  () => `Move tied to product catalyst chatter and upward estimate revisions this week.`,
-];
-
 const REDDIT_LINES = [
   (ticker: string) =>
     `Retail crowd leans bullish on ${ticker} after fresh product hype and momentum posts.`,
@@ -36,13 +27,11 @@ function hashTicker(ticker: string): number {
 }
 
 function placeholderLines(ticker: string, variant: "mover" | "reddit"): string[] {
-  const pool = variant === "mover" ? MOVER_LINES : REDDIT_LINES;
+  if (variant === "mover") return [];
+  const pool = REDDIT_LINES;
   const i = hashTicker(ticker) % pool.length;
   const primary = pool[i](ticker);
-  const secondary =
-    variant === "mover"
-      ? "Setup context, confidence, and what to watch next."
-      : "Catalyst theme · mention velocity";
+  const secondary = "Catalyst theme · mention velocity";
   return [primary, secondary];
 }
 

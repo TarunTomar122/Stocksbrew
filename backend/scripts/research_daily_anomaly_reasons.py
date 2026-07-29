@@ -11,17 +11,17 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.context_search import context_search_enabled, search_context_articles_for_ticker
 from backend.news_finnhub import fetch_finnhub_news_for_tickers
-from backend.news_marketaux import fetch_marketaux_news_for_tickers
+from backend.news_av import fetch_av_news_for_tickers
 from backend.scripts.build_daily_anomalies import (
-    ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS,
     ANOMALY_REVALIDATE_PATHS,
     _article_to_move_item,
-    _context_rescue_move_explanation,
     _llm_move_explanation,
     _parse_timestamp,
     _write_ticker_read_models,
@@ -31,6 +31,7 @@ from backend.storage import TraceMoneyStore
 
 
 REASON_LOOKBACK_HOURS = 48
+REASON_CONTEXT_WORKERS = 6
 
 
 def _fresh_items(items: list[dict[str, Any]], *, reference: datetime) -> list[dict[str, Any]]:
@@ -81,14 +82,19 @@ def _source_items_by_ticker(
     tickers: list[str], *, market: str, reference: datetime
 ) -> dict[str, list[dict[str, Any]]]:
     """Fetch narrow, source-attributed company-news evidence for the movers only."""
-    fetched = fetch_finnhub_news_for_tickers(
+    # Alpha Vantage is the primary broad-market source: one call gives the
+    # entire selected mover cohort with entity relevance. The earlier anomaly
+    # lane skipped it, which is why obvious names often reached a weak search
+    # fallback with no usable evidence.
+    fetched = fetch_av_news_for_tickers(
+        tickers, market=market, lookback_hours=REASON_LOOKBACK_HOURS
+    )
+    fetched.extend(fetch_finnhub_news_for_tickers(
         tickers, market=market, lookback_days=3, max_per_ticker=8, sleep_between=0.2
-    )
-    fetched.extend(
-        fetch_marketaux_news_for_tickers(
-            tickers, market=market, lookback_hours=REASON_LOOKBACK_HOURS, sleep_between_calls=0.1
-        )
-    )
+    ))
+    # Marketaux is intentionally not part of this latency-sensitive lane. Its
+    # production quota is exhausted/paid-only (402), and one serial request
+    # per mover turned a source outage into a slow, low-coverage anomaly run.
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for article in fetched:
         ticker = str(getattr(article, "focus_ticker", "") or "").strip().upper()
@@ -100,15 +106,56 @@ def _source_items_by_ticker(
     }
 
 
+def _context_items_by_ticker(
+    instruments: dict[str, dict[str, Any]],
+    *,
+    market: str,
+    reference: datetime,
+) -> dict[str, list[dict[str, Any]]]:
+    """Acquire independent web evidence for the whole selected mover set.
+
+    Context Search plus Firecrawl is a first-class source in this lane, rather
+    than an afterthought after a single provider happens to miss a ticker. It
+    runs concurrently and its dated results are combined with the market-news
+    feeds before one evidence-bound explanation is attempted for each mover.
+    """
+    if not instruments or not context_search_enabled():
+        return {}
+
+    def fetch_one(ticker: str, instrument: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
+        try:
+            articles, health = search_context_articles_for_ticker(
+                instrument,
+                market=market,
+                limit=5,
+                lookback_hours=REASON_LOOKBACK_HOURS,
+            )
+        except Exception as exc:
+            print({"stage": "anomaly_web_source_error", "ticker": ticker, "error": str(exc)}, flush=True)
+            return ticker, []
+        if not articles:
+            print({"stage": "anomaly_web_source_empty", "ticker": ticker, "health": health}, flush=True)
+            return ticker, []
+        return ticker, _fresh_items([_article_to_move_item(article) for article in articles], reference=reference)
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    with ThreadPoolExecutor(max_workers=min(REASON_CONTEXT_WORKERS, len(instruments))) as executor:
+        futures = [
+            executor.submit(fetch_one, ticker, instrument)
+            for ticker, instrument in instruments.items()
+        ]
+        for future in as_completed(futures):
+            ticker, items = future.result()
+            if items:
+                grouped[ticker] = items
+    return grouped
+
+
 def _research_row(
     *,
     row: dict[str, Any],
     instrument: dict[str, Any],
     current_items: list[dict[str, Any]],
-    market: str,
-    universe_id: str,
-    store: TraceMoneyStore,
-    reference: datetime,
 ) -> dict[str, Any] | None:
     day_change = row.get("day_change_pct")
     if not isinstance(day_change, (int, float)):
@@ -120,22 +167,9 @@ def _research_row(
     )
     if explanation:
         explanation["searched_externally"] = True
-        explanation["external_source"] = "company_news"
+        explanation["external_source"] = "mover_research"
         return explanation
-
-    # This is the expensive last mile: only names without evidence in the
-    # current company-news feeds receive a web/context lookup and Firecrawl
-    # extraction. The helper is evidence-bound and returns None when it cannot
-    # support a move-specific explanation.
-    return _context_rescue_move_explanation(
-        instrument=instrument,
-        market=market,
-        universe_id=universe_id,
-        day_change_pct=float(day_change),
-        store=store,
-        limit=5,
-        lookback_hours=ANOMALY_CONTEXT_RESCUE_LOOKBACK_HOURS,
-    )
+    return None
 
 
 def main() -> None:
@@ -144,6 +178,11 @@ def main() -> None:
     parser.add_argument("--universe", required=True)
     parser.add_argument("--expected-price-session-phase", default=None)
     parser.add_argument("--require-web-revalidate", action="store_true")
+    parser.add_argument(
+        "--only-unresolved",
+        action="store_true",
+        help="Research only rows that still lack a verified anomaly reason; preserve existing evidence.",
+    )
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -168,7 +207,16 @@ def main() -> None:
     if reference is None:
         raise RuntimeError("Anomaly snapshot generated_at is invalid")
 
-    tickers = [str(row.get("ticker") or "").strip().upper() for row in rows]
+    research_rows = [
+        row
+        for row in rows
+        if not (
+            args.only_unresolved
+            and row.get("narrative_status") == "verified"
+            and bool(row.get("move_explanation"))
+        )
+    ]
+    tickers = [str(row.get("ticker") or "").strip().upper() for row in research_rows]
     instruments = {
         str(item.get("ticker") or "").strip().upper(): item
         for item in store.list_instruments(args.market, [str(row.get("instrument_id") or "") for row in rows])
@@ -177,11 +225,25 @@ def main() -> None:
     intelligence = store.get_stock_intelligence_docs_batch(
         args.market, args.universe, [str(row.get("instrument_id") or "") for row in rows]
     )
+    research_instruments = {
+        ticker: instruments[ticker]
+        for ticker in tickers
+        if ticker in instruments
+    }
     source_items = _source_items_by_ticker(tickers, market=args.market, reference=reference)
+    web_items = _context_items_by_ticker(
+        research_instruments,
+        market=args.market,
+        reference=reference,
+    )
 
     reasoned = 0
     now_iso = datetime.now(timezone.utc).isoformat()
     for row in rows:
+        already_verified = row.get("narrative_status") == "verified" and bool(row.get("move_explanation"))
+        if args.only_unresolved and already_verified:
+            reasoned += 1
+            continue
         # The anomaly feed is a move-reasoning product. Never carry old
         # generic brief prose forward merely because its timestamp was recent.
         # A row becomes displayable only after this job finds move-specific
@@ -208,15 +270,11 @@ def main() -> None:
             continue
         evidence = _timeline_items(
             intelligence.get(str(row.get("instrument_id") or "")), reference=row_reference
-        ) + source_items.get(ticker, [])
+        ) + source_items.get(ticker, []) + web_items.get(ticker, [])
         explanation = _research_row(
             row=row,
             instrument=instrument,
             current_items=_fresh_items(evidence, reference=row_reference),
-            market=args.market,
-            universe_id=args.universe,
-            store=store,
-            reference=row_reference,
         )
         if not explanation:
             continue

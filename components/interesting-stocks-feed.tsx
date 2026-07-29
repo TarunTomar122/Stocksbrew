@@ -90,7 +90,13 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
 
       <div className="col-span-2 min-w-0 border-t border-outline-variant/60 pt-2.5 lg:col-span-1 lg:border-0 lg:pt-0">
         {locked ? (
-          <FeedRowLockedBlur variant="mover" ticker={row.ticker} size="inline" dense />
+          <FeedRowLockedBlur
+            variant="mover"
+            ticker={row.ticker}
+            previewLines={[row.headline, row.reasons?.slice(0, 2).join(" · ") || ""]}
+            size="inline"
+            dense
+          />
         ) : (
           <>
             <p className="line-clamp-2 text-[12.5px] font-medium leading-[1.45] text-on-surface">

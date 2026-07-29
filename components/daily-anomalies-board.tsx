@@ -56,7 +56,7 @@ function LockedMoveRow({ item }: { item: AnomalyItem }) {
       <FeedRowLockedBlur
         variant="mover"
         ticker={item.ticker}
-        previewLines={headline ? [headline, anomalyDetail(item) || "Setup context and what to watch next."] : undefined}
+        previewLines={headline ? [headline, anomalyDetail(item) || ""] : undefined}
         size="inline"
       />
     </div>
@@ -161,7 +161,7 @@ function LockedMoveCard({ item }: { item: AnomalyItem }) {
         <FeedRowLockedBlur
           variant="mover"
           ticker={item.ticker}
-          previewLines={headline ? [headline, detail || "Setup context and what to watch next."] : undefined}
+          previewLines={headline ? [headline, detail || ""] : undefined}
           size="block"
         />
       </div>

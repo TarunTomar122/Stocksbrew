@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { ANOMALY_NO_NEWS_COPY } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { buildPulsePageData } from "@/lib/pulse-data";
 
@@ -50,15 +49,21 @@ function pulseItems(rows: AnomalyItem[]) {
 }
 
 describe("Pulse mover narratives", () => {
-  it("preserves the stored headline and reasoning in post-close rows without evidence metadata", () => {
-    expect(pulseItems([anomaly()])[0]).toMatchObject({
+  it("shows a mover only after a researched explanation was stored", () => {
+    expect(pulseItems([anomaly({
+      narrative_status: "verified",
+      move_explanation: {
+        headline: "Oilfield demand gives SLB fresh operating leverage",
+        why_it_matters: "International drilling strength and firmer service pricing improve the earnings setup.",
+      },
+    })])[0]).toMatchObject({
       headline: "Oilfield demand gives SLB fresh operating leverage",
       whyItMatters:
         "International drilling strength and firmer service pricing improve the earnings setup.",
     });
   });
 
-  it("uses honest no-catalyst copy instead of provider boilerplate", () => {
+  it("uses the stored evidence-backed explanation instead of provider boilerplate", () => {
     const row = anomaly({
       ticker: "VZ",
       name: "Verizon",
@@ -76,6 +81,11 @@ describe("Pulse mover narratives", () => {
           },
         ],
       },
+      narrative_status: "verified",
+      move_explanation: {
+        headline: "In-line Q2 print",
+        why_it_matters: "The muted positive reaction removed a near-term earnings risk.",
+      },
     });
 
     expect(pulseItems([row])[0]).toMatchObject({
@@ -84,7 +94,7 @@ describe("Pulse mover narratives", () => {
     });
   });
 
-  it("uses honest no-catalyst copy when no useful research exists", () => {
+  it("does not publish an unresearched mover as a fabricated explanation", () => {
     const row = anomaly({
       ticker: "EMPTY",
       headline: "EMPTY is a top up mover in Technology.",
@@ -92,10 +102,7 @@ describe("Pulse mover narratives", () => {
       thesis: null,
     });
 
-    expect(pulseItems([row])[0]).toMatchObject({
-      headline: "EMPTY moved sharply today",
-      whyItMatters: ANOMALY_NO_NEWS_COPY,
-    });
+    expect(pulseItems([row])).toEqual([]);
   });
 
   it("does not display stale research as a reason for a current move", () => {
@@ -107,9 +114,6 @@ describe("Pulse mover narratives", () => {
       today_brief: "Stale price commentary.",
     });
 
-    expect(pulseItems([row])[0]).toMatchObject({
-      headline: "BKNG is up 6.7% today.",
-      whyItMatters: "",
-    });
+    expect(pulseItems([row])).toEqual([]);
   });
 });

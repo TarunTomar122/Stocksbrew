@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Callable
 from urllib.parse import urlparse
 
@@ -204,7 +203,6 @@ def search_context_articles_for_ticker(
     else:
         extracted_rows = [extract_func(result.url) for result in results]
 
-    now_iso = datetime.now(timezone.utc).isoformat()
     articles: list[Article] = []
     for result, extracted in zip(results, extracted_rows, strict=False):
         if getattr(extracted, "status", "") != "ok":
@@ -216,7 +214,11 @@ def search_context_articles_for_ticker(
             continue
 
         summary = str(getattr(extracted, "summary", "") or result.snippet).strip()
-        published_at = str(getattr(extracted, "published_at", "") or result.published_at or now_iso).strip()
+        # A page without a publication time cannot be tied to today's price
+        # move. Do not make it look current by stamping the crawl time on it.
+        published_at = str(getattr(extracted, "published_at", "") or result.published_at).strip()
+        if not published_at:
+            continue
         source_name = str(getattr(extracted, "publisher", "") or result.source_name or _publisher_from_url(result.url)).strip()
 
         articles.append(
