@@ -1194,6 +1194,11 @@ def main() -> None:
     parser.add_argument("--per-stock-lookback-hours", type=int, default=168)
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument("--explain-hard-moves", action="store_true")
+    parser.add_argument(
+        "--mover-reasoning-only",
+        action="store_true",
+        help="Do not display generic stock-brief copy; a separate mover-evidence pass supplies reasons.",
+    )
     parser.add_argument("--exclude-tracked", action="store_true")
     parser.add_argument(
         "--require-price-session-phase",
@@ -1249,10 +1254,18 @@ def main() -> None:
         limit_per_side=args.limit,
     )
 
-    intelligence = store.get_stock_intelligence_docs_batch(args.market, universe_id, selected_ids)
-    intel_pro_docs = store.get_stock_intel_pro_batch(args.market, universe_id, selected_ids) if selected_ids else {}
-    market_context_doc = store.get_market_context_doc(args.market, universe_id) or {}
-    sector_context_docs = store.list_sector_context_docs(args.market, universe_id) if selected_ids else []
+    intelligence = (
+        {}
+        if args.mover_reasoning_only
+        else store.get_stock_intelligence_docs_batch(args.market, universe_id, selected_ids)
+    )
+    intel_pro_docs = (
+        {}
+        if args.mover_reasoning_only or not selected_ids
+        else store.get_stock_intel_pro_batch(args.market, universe_id, selected_ids)
+    )
+    market_context_doc = {} if args.mover_reasoning_only else (store.get_market_context_doc(args.market, universe_id) or {})
+    sector_context_docs = [] if args.mover_reasoning_only or not selected_ids else store.list_sector_context_docs(args.market, universe_id)
     sector_context_by_key = {
         str(doc.get(key) or "").strip().lower(): doc
         for doc in sector_context_docs
@@ -1260,6 +1273,8 @@ def main() -> None:
         if str(doc.get(key) or "").strip()
     }
     if args.enrich_missing:
+        if args.mover_reasoning_only:
+            raise ValueError("--enrich-missing cannot be combined with --mover-reasoning-only")
         missing_ids = [
             instrument_id
             for instrument_id in selected_ids
@@ -1361,6 +1376,11 @@ def main() -> None:
         "sector_price_as_of": sector_price_as_of,
         "sector_quoted_count": sector_quoted_count,
         "universe_id": universe_id,
+        # The dedicated anomaly-reasoning pass pins itself to this exact
+        # price-session snapshot. It must never reselect movers from a later
+        # intraday or pre-market quote set.
+        "price_session_phase": args.require_price_session_phase,
+        "reasoning_mode": "mover_evidence" if args.mover_reasoning_only else "stock_brief_join",
     }
     store.db.collection("tm_daily_anomalies").document(f"{args.market}__latest").set(payload)
     _write_ticker_read_models(store, args.market, payload)

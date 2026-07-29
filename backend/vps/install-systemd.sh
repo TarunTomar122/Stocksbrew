@@ -63,9 +63,14 @@ EOF
 
 # UTC schedules mirror backend/cloudrun/scripts/setup-scheduler.sh.
 write_pair preopen-news "Mon..Fri *-*-* 12:45:00" tracked_news_prep
-write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25"
-write_pair open-briefs "Mon..Fri *-*-* 13:35:00" tracked_open_briefs "--session-phase open_check"
-write_pair open-anomalies "Mon..Fri *-*-* 13:38:00" open_anomalies
+# The reason pass must use a completed session snapshot, not race a fixed
+# wall-clock timer. At the open this becomes prices -> briefs -> anomalies.
+# The final anomaly worker does its own mover-only evidence research; it never
+# asks generic briefs to explain a move.
+write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25" "tikrr-open-briefs.service"
+write_service open-briefs tracked_open_briefs "--session-phase open_check" "tikrr-open-anomalies.service"
+write_service open-anomalies open_anomalies "--price-session-phase open_check" "tikrr-open-email.service"
+write_service open-email open_email
 write_pair reddit-buzz "Mon..Fri *-*-* 12,15,18,21:20:00" reddit_buzz
 write_pair zone-briefs "Mon..Fri *-*-* 14:00:00" zone_briefs
 write_pair market-events-open "Mon..Fri *-*-* 14:10:00" market_events "--skip-if-fresh-hours 20"
@@ -73,10 +78,12 @@ write_pair data-health-open "Mon..Fri *-*-* 14:20:00" data_health
 write_pair market-events-close "Mon..Fri *-*-* 22:30:00" market_events
 write_pair data-health-close "Mon..Fri *-*-* 22:40:00" data_health
 write_pair intraday-price-hourly "Mon..Fri *-*-* 13..19:00:00" price_core_intraday "--session-phase mid_check --max-parallel 1 --max-workers 2 --shard-size 40"
-# Close anomalies must consume the completed post-close price cohort. Chaining
-# on service success removes the race with a variable-length post-close run.
+# At the close the same dependency chain applies: completed close data ->
+# stock-brief refresh -> mover-only anomaly reasoning. This avoids a generic
+# brief and an anomaly explanation racing each other or a later quote phase.
 write_service close-anomalies open_anomalies "--price-session-phase post_close"
-write_pair postclose "Mon..Fri *-*-* 20:10:00" daily_postclose "" "tikrr-close-anomalies.service"
+write_service close-briefs tracked_open_briefs "--session-phase post_close" "tikrr-close-anomalies.service"
+write_pair postclose "Mon..Fri *-*-* 20:10:00" daily_postclose "" "tikrr-close-briefs.service"
 write_pair earnings-intel "Mon..Fri *-*-* 22:00:00" earnings_intel "--recent-days 3 --max-events 30"
 write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--upcoming-days 7 --max-events 200"
 write_pair on-demand-news "Mon..Fri *-*-* 00,04,08,12,16,20:00:00" on_demand_news "--limit 6 --per-stock-cap 6"
@@ -86,9 +93,9 @@ write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
 # 08:30 UTC is 2:00 PM IST year-round.
 write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline
-# The anomaly snapshot is written near the end of the 13:38 lane and can take
-# 15+ minutes when a mover needs fresh intelligence. Keep the email after it.
-write_pair open-email "Mon..Fri *-*-* 14:05:00" open_email
+# The opening email is triggered by the successful anomaly research pass. A
+# fixed 14:05 timer previously sent stale movers whenever the brief pass ran
+# longer than a few minutes.
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls
@@ -101,6 +108,13 @@ write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"
+# These jobs are now service-success dependencies of the price / brief lanes.
+# Remove their former fixed-time timers or they would run a second, racing
+# anomaly pass in the same session.
+for name in open-briefs open-anomalies open-email; do
+  systemctl disable --now "tikrr-${name}.timer" >/dev/null 2>&1 || true
+  rm -f "${UNIT_DIR}/tikrr-${name}.timer"
+done
 # Retired: intraday tracked-news polling repeatedly regenerated DeepSeek
 # briefs. Price lanes now own intraday freshness; the daily open-brief lane is
 # the only scheduled tracked-stock synthesis pass.

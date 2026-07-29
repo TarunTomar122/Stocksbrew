@@ -49,17 +49,29 @@ def main() -> None:
         str(args.per_stock_cap),
         "--chunk-workers",
         str(args.chunk_workers),
+        "--mover-reasoning-only",
         "--require-web-revalidate",
     ]
-    # Closing-price materialization must not wait on missing intelligence or
-    # external catalyst searches. Those are useful for the open-session feed,
-    # but they can take minutes per ticker and previously left the homepage on
-    # yesterday's mover snapshot even after canonical prices were current.
-    if args.price_session_phase != "post_close":
-        anomaly_cmd.extend(["--enrich-missing", "--explain-hard-moves"])
     if args.price_session_phase:
         anomaly_cmd.extend(["--require-price-session-phase", args.price_session_phase])
+
+    # First materialize the session's movers from canonical prices. Reasons are
+    # deliberately a separate job: a stock brief is broad product context,
+    # whereas an anomaly reason must be evidence tied to this specific move.
     _run(anomaly_cmd)
+    research_cmd = [
+        sys.executable,
+        "-m",
+        "backend.scripts.research_daily_anomaly_reasons",
+        "--market",
+        args.market,
+        "--universe",
+        args.universe,
+        "--require-web-revalidate",
+    ]
+    if args.price_session_phase:
+        research_cmd.extend(["--expected-price-session-phase", args.price_session_phase])
+    _run(research_cmd)
     market_only = ["--market", args.market]
     universe_pair = ["--ai-universe", args.universe, "--price-universe", args.universe]
     _run([sys.executable, "-m", "backend.scripts.build_heat_list", *market_only, *universe_pair])

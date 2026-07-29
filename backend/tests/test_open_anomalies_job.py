@@ -5,7 +5,7 @@ from unittest.mock import patch
 from backend.cloudrun.jobs import open_anomalies_job
 
 
-def test_close_anomalies_requires_post_close_price_phase() -> None:
+def test_close_anomalies_publishes_prices_then_runs_dedicated_mover_research() -> None:
     calls: list[list[str]] = []
     argv = [
         "open_anomalies_job",
@@ -26,16 +26,23 @@ def test_close_anomalies_requires_post_close_price_phase() -> None:
     ):
         open_anomalies_job.main()
 
-    anomaly = calls[0]
-    assert "backend.scripts.build_daily_anomalies" in anomaly
-    phase_index = anomaly.index("--require-price-session-phase")
-    assert anomaly[phase_index + 1] == "post_close"
-    assert "--require-web-revalidate" in anomaly
-    assert "--enrich-missing" not in anomaly
-    assert "--explain-hard-moves" not in anomaly
+    price_pass, research_pass = calls[:2]
+    assert "backend.scripts.build_daily_anomalies" in price_pass
+    phase_index = price_pass.index("--require-price-session-phase")
+    assert price_pass[phase_index + 1] == "post_close"
+    assert "--require-web-revalidate" in price_pass
+    assert "--mover-reasoning-only" in price_pass
+    assert "--enrich-missing" not in price_pass
+    assert "--explain-hard-moves" not in price_pass
+    assert "--mover-reasoning-only" in price_pass
+    assert "backend.scripts.research_daily_anomaly_reasons" in research_pass
+    assert "--enrich-missing" not in research_pass
+    assert "--explain-hard-moves" not in research_pass
+    research_phase = research_pass.index("--expected-price-session-phase")
+    assert research_pass[research_phase + 1] == "post_close"
 
 
-def test_open_anomalies_keeps_intelligence_enrichment() -> None:
+def test_open_anomalies_runs_dedicated_mover_research() -> None:
     calls: list[list[str]] = []
     argv = [
         "open_anomalies_job",
@@ -54,6 +61,7 @@ def test_open_anomalies_keeps_intelligence_enrichment() -> None:
     ):
         open_anomalies_job.main()
 
-    anomaly = calls[0]
-    assert "--enrich-missing" in anomaly
-    assert "--explain-hard-moves" in anomaly
+    price_pass, research_pass = calls[:2]
+    assert "--enrich-missing" not in price_pass
+    assert "--explain-hard-moves" not in price_pass
+    assert "backend.scripts.research_daily_anomaly_reasons" in research_pass
