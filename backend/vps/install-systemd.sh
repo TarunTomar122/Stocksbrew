@@ -69,8 +69,7 @@ write_pair preopen-news "Mon..Fri *-*-* 12:45:00" tracked_news_prep
 # explain a move.
 write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25" "tikrr-open-briefs.service"
 write_service open-briefs tracked_open_briefs "--session-phase open_check"
-write_pair open-anomalies "Mon..Fri *-*-* 13:50:00" open_anomalies "--price-session-phase open_check" "tikrr-open-email.service"
-write_service open-email open_email
+write_pair open-anomalies "Mon..Fri *-*-* 13:50:00" open_anomalies "--price-session-phase open_check"
 write_pair reddit-buzz "Mon..Fri *-*-* 12,15,18,21:20:00" reddit_buzz
 write_pair zone-briefs "Mon..Fri *-*-* 14:00:00" zone_briefs
 write_pair market-events-open "Mon..Fri *-*-* 14:10:00" market_events "--skip-if-fresh-hours 20"
@@ -93,9 +92,9 @@ write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
 # 08:30 UTC is 2:00 PM IST year-round.
 write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline
-# The opening email is triggered by the successful anomaly research pass. A
-# fixed 14:05 timer previously sent stale movers whenever the brief pass ran
-# longer than a few minutes.
+# The opening email is sent inside the anomaly worker immediately after the
+# mover snapshot and its evidence-backed reasons have been written. It must
+# not wait for optional heat/divergence/sentiment read models.
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls

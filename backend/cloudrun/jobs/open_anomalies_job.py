@@ -72,6 +72,26 @@ def main() -> None:
     if args.price_session_phase:
         research_cmd.extend(["--expected-price-session-phase", args.price_session_phase])
     _run(research_cmd)
+
+    # The feed and its evidence-backed explanations are complete at this
+    # point. Send the opening email before the optional discovery read models
+    # below: heat/divergence/sentiment can take many minutes and must never
+    # delay a fresh 20-minute-after-open report.
+    if args.price_session_phase == "open_check":
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "backend.scripts.send_open_briefs",
+                "--market",
+                args.market,
+                "--limit",
+                "0",
+            ]
+        )
+
+    # These are independent discovery models. They may be slow, but they are
+    # not a dependency of the mover feed or its email.
     market_only = ["--market", args.market]
     universe_pair = ["--ai-universe", args.universe, "--price-universe", args.universe]
     _run([sys.executable, "-m", "backend.scripts.build_heat_list", *market_only, *universe_pair])
