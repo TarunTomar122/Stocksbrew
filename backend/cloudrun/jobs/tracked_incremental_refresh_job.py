@@ -6,14 +6,13 @@ import sys
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Incremental tracked news refresh worker")
+    parser = argparse.ArgumentParser(description="Non-LLM tracked news discovery worker")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--lane", default="tracked_incremental_refresh")
     parser.add_argument("--market", choices=["US", "IN"], required=True)
     parser.add_argument("--universe", required=True)
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
-    parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args()
 
     cmd = [
@@ -29,8 +28,6 @@ def main() -> None:
         "--chunk-workers",
         str(args.chunk_workers),
     ]
-    if args.no_llm:
-        cmd.append("--no-llm")
     print({"run_id": args.run_id, "lane": args.lane, "cmd": " ".join(cmd)})
     subprocess.run(cmd, check=True)
 

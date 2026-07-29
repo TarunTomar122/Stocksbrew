@@ -641,7 +641,6 @@ def main() -> None:
                 str(args.per_stock_cap),
                 "--chunk-workers",
                 str(args.chunk_workers),
-                "--no-llm",
             ]
         elif args.lane == "open_anomalies":
             if args.price_session_phase:

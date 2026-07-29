@@ -63,11 +63,6 @@ EOF
 
 # UTC schedules mirror backend/cloudrun/scripts/setup-scheduler.sh.
 write_pair preopen-news "Mon..Fri *-*-* 12:45:00" tracked_news_prep
-write_pair tracked-refresh-t6 "Mon..Fri *-*-* 07:30:00" tracked_incremental_refresh
-write_pair tracked-refresh-t2 "Mon..Fri *-*-* 11:30:00" tracked_incremental_refresh
-write_pair tracked-refresh-pre "Mon..Fri *-*-* 13:00:00" tracked_incremental_refresh
-write_pair tracked-refresh-intraday "Mon..Fri *-*-* 16,19:30:00" tracked_incremental_refresh
-write_pair tracked-refresh-close "Mon..Fri *-*-* 20:30:00" tracked_incremental_refresh
 write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25"
 write_pair open-briefs "Mon..Fri *-*-* 13:35:00" tracked_open_briefs "--session-phase open_check"
 write_pair open-anomalies "Mon..Fri *-*-* 13:38:00" open_anomalies
@@ -106,6 +101,13 @@ write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"
+# Retired: intraday tracked-news polling repeatedly regenerated DeepSeek
+# briefs. Price lanes now own intraday freshness; the daily open-brief lane is
+# the only scheduled tracked-stock synthesis pass.
+for name in tracked-refresh-t6 tracked-refresh-t2 tracked-refresh-pre tracked-refresh-intraday tracked-refresh-close; do
+  systemctl disable --now "tikrr-${name}.timer" >/dev/null 2>&1 || true
+  rm -f "${UNIT_DIR}/tikrr-${name}.service" "${UNIT_DIR}/tikrr-${name}.timer"
+done
 systemctl disable --now tikrr-close-anomalies.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-close-anomalies.timer"
 systemctl disable --now tikrr-premarket-intel.timer >/dev/null 2>&1 || true

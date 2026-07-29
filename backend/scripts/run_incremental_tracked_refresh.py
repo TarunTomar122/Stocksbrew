@@ -1,8 +1,9 @@
-"""Incremental tracked-stock news refresh.
+"""Cheap, non-LLM discovery for tracked-stock news.
 
-Stage 1: cheap discovery across all tracked names.
-Stage 2: selective enrichment + brief rebuild for changed names only.
-Then rebuild only the affected user watchlists.
+This remains available for a manual diagnostic or a future material-catalyst
+workflow, but it must never regenerate stock or portfolio briefs. Intraday
+price lanes own quote freshness; the once-daily ``tracked_open_briefs`` lane
+owns intentional DeepSeek brief synthesis.
 """
 from __future__ import annotations
 
@@ -41,13 +42,11 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Incremental tracked-stock news refresh")
+    parser = argparse.ArgumentParser(description="Non-LLM tracked-stock news discovery")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None)
     parser.add_argument("--per-stock-cap", type=int, default=5)
     parser.add_argument("--chunk-workers", type=int, default=4)
-    parser.add_argument("--subscribed-only", action="store_true")
-    parser.add_argument("--no-llm", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -111,58 +110,16 @@ def main() -> None:
         print({"status": "noop", "reason": "no_changed_tickers", "tracked_count": len(instrument_ids)})
         return
 
-    synthesis_cmd = [
-        sys.executable,
-        "-m",
-        "backend.scripts.build_per_stock_intelligence",
-        "--market",
-        args.market,
-        "--universe",
-        universe_id,
-        "--instrument-ids",
-        ",".join(changed_ids),
-        "--incremental",
-        "--upsert",
-        "--include-no-news",
-        "--per-stock-cap",
-        str(args.per_stock_cap),
-        "--broad-cap",
-        "0",
-        "--chunk-size",
-        "10",
-        "--chunk-workers",
-        str(args.chunk_workers),
-        "--skip-context",
-        "--skip-av",
-        "--skip-finnhub",
-        "--skip-marketaux",
-    ]
-    synthesis_result = _run(synthesis_cmd)
-
-    watchlist_cmd = [
-        sys.executable,
-        "-m",
-        "backend.scripts.build_watchlist_views",
-        "--instrument-ids",
-        ",".join(changed_ids),
-    ]
-    if args.subscribed_only:
-        watchlist_cmd.append("--subscribed-only")
-    if args.no_llm:
-        watchlist_cmd.append("--no-llm")
-    watchlist_result = _run(watchlist_cmd)
-
     print(
         {
-            "status": "success",
+            "status": "discovered",
             "market": args.market,
             "universe_id": universe_id,
             "tracked_count": len(instrument_ids),
             "changed_count": len(changed_ids),
             "changed_ids": changed_ids,
             "discovery_stdout_tail": "\n".join(discovery_result.stdout.strip().splitlines()[-8:]) if discovery_result.stdout else "",
-            "synthesis_stdout_tail": "\n".join(synthesis_result.stdout.strip().splitlines()[-8:]) if synthesis_result.stdout else "",
-            "watchlist_stdout_tail": "\n".join(watchlist_result.stdout.strip().splitlines()[-8:]) if watchlist_result.stdout else "",
+            "next_step": "No brief synthesis was run. The daily tracked_open_briefs lane handles deliberate LLM refreshes.",
         }
     )
 
