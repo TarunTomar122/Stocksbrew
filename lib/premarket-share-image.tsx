@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/dist/server/web/spec-extension/image-response";
 
 import { getPremarketOpeningReport, type OpeningReport } from "@/lib/premarket-opening";
+import { getPremarketMovers, type PremarketMovers, type PremarketRow } from "@/lib/premarket";
 
 export const PREMARKET_SHARE_SIZE = { width: 1200, height: 630 } as const;
 export const PREMARKET_SOCIAL_SHARE_SIZE = { width: 1080, height: 1350 } as const;
@@ -64,51 +65,65 @@ function dateLabel(value: string | undefined): string {
     .toUpperCase();
 }
 
-function concise(value: string, max = 130): string {
-  const clean = value.replace(/\s+/g, " ").trim();
-  if (clean.length <= max) return clean;
-  const clipped = clean.slice(0, max + 1).replace(/\s+\S*$/, "").trim();
-  return `${clipped}…`;
+function heatTone(change: number): { background: string; foreground: string; border: string } {
+  const strength = Math.abs(change);
+  if (change >= 0) {
+    if (strength >= 6) return { background: "#9ee8d0", foreground: "#006b52", border: "#73dcbf" };
+    if (strength >= 3) return { background: "#c4f1df", foreground: "#00795d", border: "#a7e7d0" };
+    return { background: "#e8f8f0", foreground: "#08775c", border: "#d7f0e4" };
+  }
+  if (strength >= 6) return { background: "#ffc6cf", foreground: "#b4233a", border: "#f5aeb9" };
+  if (strength >= 3) return { background: "#ffe0e5", foreground: "#c0394d", border: "#f7c9d1" };
+  return { background: "#fff0f2", foreground: "#bd4152", border: "#fae0e4" };
 }
 
-function MoverLine({
-  ticker,
-  name,
-  gap,
-  tone,
-}: {
-  ticker: string;
-  name?: string;
-  gap: number;
-  tone: "up" | "down";
-}) {
-  const positive = tone === "up";
+function HeatCell({ row, prominent = false }: { row: PremarketRow; prominent?: boolean }) {
+  const tone = heatTone(row.pre_market_change_pct);
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 0", borderBottom: "1px solid #26322f" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-        <span style={{ color: "#f7faf8", fontSize: 30, fontWeight: 800, letterSpacing: "-0.045em" }}>{ticker}</span>
-        <span style={{ color: "#95a49e", fontSize: 16, fontWeight: 600 }}>{concise(name || "US listed equity", 28)}</span>
-      </div>
-      <span style={{ color: positive ? "#55d6a5" : "#ff8b9b", fontSize: 29, fontWeight: 800, letterSpacing: "-0.05em" }}>
-        {signed(gap)}
-      </span>
+    <div style={{ display: "flex", minWidth: 0, flex: 1, flexDirection: "column", justifyContent: "space-between", padding: prominent ? "23px 22px" : "14px 14px", border: `1px solid ${tone.border}`, borderRadius: 7, background: tone.background }}>
+      <span style={{ color: "#18231f", fontSize: prominent ? 39 : 20, fontWeight: 800, letterSpacing: "-0.06em" }}>{row.ticker}</span>
+      <span style={{ color: tone.foreground, fontSize: prominent ? 30 : 20, fontWeight: 800, letterSpacing: "-0.06em" }}>{signed(row.pre_market_change_pct)}</span>
     </div>
   );
 }
 
-function renderSocialShareImage(report: OpeningReport | null) {
-  const tone = toneFor(report);
-  const gainers = report?.premarket.top_gainers.slice(0, 3) ?? [];
-  const losers = report?.premarket.top_losers.slice(0, 3) ?? [];
-  const futures = [
-    { label: "S&P FUT", value: changeFor(report, "ES=F") },
-    { label: "NASDAQ", value: changeFor(report, "NQ=F") },
-    { label: "VIX", value: changeFor(report, "VIX"), inverse: true },
+function renderSocialShareImage(report: OpeningReport | null, movers: PremarketMovers | null) {
+  const rows = [
+    ...(movers?.gappers_up ?? []),
+    ...(movers?.gappers_down ?? []),
+  ].sort((a, b) => Math.abs(b.pre_market_change_pct) - Math.abs(a.pre_market_change_pct));
+  const fallbackRows: PremarketRow[] = [
+    ...(report?.premarket.top_gainers ?? []).map((row) => ({
+      instrument_id: row.ticker,
+      ticker: row.ticker,
+      name: row.name || row.ticker,
+      logo_url: null,
+      sector: row.sector || null,
+      pre_market_price: 0,
+      previous_close: 0,
+      pre_market_change_pct: row.gap_pct,
+    })),
+    ...(report?.premarket.top_losers ?? []).map((row) => ({
+      instrument_id: row.ticker,
+      ticker: row.ticker,
+      name: row.name || row.ticker,
+      logo_url: null,
+      sector: row.sector || null,
+      pre_market_price: 0,
+      previous_close: 0,
+      pre_market_change_pct: row.gap_pct,
+    })),
   ];
-  const thesis = concise(
-    report?.summary || "The opening tape is warming up. Check futures, breadth, and the largest pre-market gaps before the bell.",
-    175,
+  const heatmapRows = (rows.length ? rows : fallbackRows).slice(0, 12);
+  const heatmapBands = Array.from({ length: Math.ceil(heatmapRows.length / 4) }, (_, index) =>
+    heatmapRows.slice(index * 4, index * 4 + 4),
   );
+  // A small squareroot curve makes the strongest gaps visibly dominant while
+  // keeping the lower part of the map usable. Width within each band remains
+  // directly proportional to the absolute percentage move.
+  const heightWeights = heatmapBands.map((band) => Math.sqrt(Math.max(...band.map((row) => Math.abs(row.pre_market_change_pct)), 1)));
+  const totalHeightWeight = heightWeights.reduce((sum, weight) => sum + weight, 0) || 1;
+  const heatmapHeight = 1000;
 
   return new ImageResponse(
     (
@@ -118,64 +133,45 @@ function renderSocialShareImage(report: OpeningReport | null) {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          padding: "62px 64px 46px",
-          background: "#101714",
-          color: "#f7faf8",
+          padding: "46px 52px 36px",
+          background: "#f7f9fb",
+          color: "#101827",
           fontFamily: "Arial, sans-serif",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 99, display: "flex", background: "#55d6a5" }} />
-            <span style={{ fontSize: 25, fontWeight: 800, letterSpacing: "-0.055em" }}>stocksbrew</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 12, height: 12, borderRadius: 99, display: "flex", background: "#008a6b" }} />
+            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.055em" }}>stocksbrew</span>
           </div>
-          <span style={{ color: "#aab8b2", fontSize: 14, fontWeight: 800, letterSpacing: "0.12em" }}>
+          <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 800, letterSpacing: "0.12em" }}>
             {dateLabel(report?.generated_at)} · {freshLabel(report?.generated_at)}
           </span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", marginTop: 72 }}>
-          <span style={{ color: "#8ca097", fontSize: 15, fontWeight: 800, letterSpacing: "0.18em" }}>THE OPENING SETUP</span>
-          <span style={{ maxWidth: 890, marginTop: 20, fontSize: 58, lineHeight: 1.08, letterSpacing: "-0.065em", fontWeight: 800 }}>
-            {thesis}
-          </span>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 38 }}>
+          <span style={{ color: "#596760", fontSize: 13, fontWeight: 800, letterSpacing: "0.16em" }}>PRE-MARKET</span>
+          <span style={{ color: "#7b8781", fontSize: 13, fontWeight: 800, letterSpacing: "0.1em" }}>TOP {heatmapRows.length} · US MOVERS</span>
         </div>
 
-        <div style={{ display: "flex", gap: 24, marginTop: 58 }}>
-          {futures.map((cue) => {
-            const colors = tileColors(cue.value, cue.inverse);
+        <div style={{ display: "flex", height: heatmapHeight, flexDirection: "column", gap: 6, marginTop: 18 }}>
+          {heatmapBands.map((band, index) => {
+            const rowHeight = Math.floor((heatmapHeight - 6 * Math.max(0, heatmapBands.length - 1)) * (heightWeights[index] / totalHeightWeight));
             return (
-              <div key={cue.label} style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 21px", borderRadius: 18, background: colors.background }}>
-                <span style={{ color: "#64756d", fontSize: 13, fontWeight: 800, letterSpacing: "0.1em" }}>{cue.label}</span>
-                <span style={{ marginTop: 12, color: colors.color, fontSize: 31, fontWeight: 800, letterSpacing: "-0.06em" }}>
-                  {cue.value === null ? "—" : signed(cue.value)}
-                </span>
+              <div key={`band-${index}`} style={{ display: "flex", height: rowHeight, gap: 6 }}>
+                {band.map((mover) => (
+                  <div key={mover.instrument_id || mover.ticker} style={{ display: "flex", minWidth: 0, flex: Math.max(Math.abs(mover.pre_market_change_pct), 0.75) }}>
+                    <HeatCell row={mover} prominent={index === 0} />
+                  </div>
+                ))}
               </div>
             );
           })}
         </div>
 
-        <div style={{ display: "flex", gap: 54, marginTop: 58 }}>
-          <div style={{ display: "flex", flex: 1, flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 9, height: 9, borderRadius: 99, display: "flex", background: "#55d6a5" }} />
-              <span style={{ color: "#aab8b2", fontSize: 14, fontWeight: 800, letterSpacing: "0.14em" }}>GAPPING UP</span>
-            </div>
-            {gainers.map((mover) => <MoverLine key={mover.ticker} ticker={mover.ticker} name={mover.name} gap={mover.gap_pct} tone="up" />)}
-          </div>
-          <div style={{ width: 1, display: "flex", background: "#2a3732" }} />
-          <div style={{ display: "flex", flex: 1, flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 9, height: 9, borderRadius: 99, display: "flex", background: "#ff8b9b" }} />
-              <span style={{ color: "#aab8b2", fontSize: 14, fontWeight: 800, letterSpacing: "0.14em" }}>GAPPING DOWN</span>
-            </div>
-            {losers.map((mover) => <MoverLine key={mover.ticker} ticker={mover.ticker} name={mover.name} gap={mover.gap_pct} tone="down" />)}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 30, borderTop: "1px solid #2a3732" }}>
-          <span style={{ color: tone.accent, fontSize: 17, fontWeight: 800, letterSpacing: "0.02em" }}>{tone.label} before the bell</span>
-          <span style={{ color: "#8ca097", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em" }}>stocksbrew.online/premarket</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
+          <span style={{ color: "#75817b", fontSize: 11, fontWeight: 800, letterSpacing: "0.1em" }}>SIZE + COLOR = PRE-MARKET CHANGE</span>
+          <span style={{ color: "#75817b", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em" }}>stocksbrew.online/premarket</span>
         </div>
       </div>
     ),
@@ -184,8 +180,11 @@ function renderSocialShareImage(report: OpeningReport | null) {
 }
 
 export async function renderPremarketShareImage(format: PremarketShareFormat = "open_graph") {
-  const report = await getPremarketOpeningReport().catch(() => null);
-  if (format === "social") return renderSocialShareImage(report);
+  const [report, movers] = await Promise.all([
+    getPremarketOpeningReport().catch(() => null),
+    getPremarketMovers("US").catch(() => null),
+  ]);
+  if (format === "social") return renderSocialShareImage(report, movers);
   const tone = toneFor(report);
   const score = report?.score ?? 50;
   const tiles: Tile[] = [

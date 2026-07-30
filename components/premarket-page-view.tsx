@@ -59,6 +59,18 @@ function scoreStyle(score: number): { accent: string; label: string } {
   return { accent: "var(--signal-neutral)", label: "Mixed" };
 }
 
+function heatmapStyle(change: number): { background: string; border: string; text: string } {
+  const strength = Math.abs(change);
+  if (change >= 0) {
+    if (strength >= 6) return { background: "#9ee8d0", border: "#73dcbf", text: "#006b52" };
+    if (strength >= 3) return { background: "#c4f1df", border: "#a7e7d0", text: "#00795d" };
+    return { background: "#e8f8f0", border: "#d7f0e4", text: "#08775c" };
+  }
+  if (strength >= 6) return { background: "#ffc6cf", border: "#f5aeb9", text: "#b4233a" };
+  if (strength >= 3) return { background: "#ffe0e5", border: "#f7c9d1", text: "#c0394d" };
+  return { background: "#fff0f2", border: "#fae0e4", text: "#bd4152" };
+}
+
 function toneColor(tone: OpeningTone | "up" | "down" | "mixed"): string {
   if (tone === "positive" || tone === "up") return "var(--signal-bullish)";
   if (tone === "negative" || tone === "down") return "var(--signal-bearish)";
@@ -377,6 +389,49 @@ function PremarketMoversTables({
   );
 }
 
+function PremarketHeatmap({ movers }: { movers: PremarketMovers | null }) {
+  const rows = [...(movers?.gappers_up ?? []), ...(movers?.gappers_down ?? [])]
+    .sort((a, b) => Math.abs(b.pre_market_change_pct) - Math.abs(a.pre_market_change_pct))
+    .slice(0, 12);
+  if (!rows.length) return null;
+
+  const bands = Array.from({ length: Math.ceil(rows.length / 4) }, (_, index) => rows.slice(index * 4, index * 4 + 4));
+  const heights = ["h-32 sm:h-44", "h-28 sm:h-36", "h-24 sm:h-28"];
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-outline-variant bg-surface p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-5">
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className={KICK}>Pre-market map</p>
+        <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Top {rows.length} gaps</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {bands.map((band, bandIndex) => (
+          <div key={`heatmap-band-${bandIndex}`} className={`flex min-w-0 gap-1.5 ${heights[bandIndex] ?? "h-24"}`}>
+            {band.map((row) => {
+              const style = heatmapStyle(row.pre_market_change_pct);
+              const prominent = bandIndex === 0;
+              return (
+                <Link
+                  key={row.instrument_id}
+                  href={`/stock/${encodeURIComponent(row.ticker)}`}
+                  className="group flex min-w-0 flex-col justify-between rounded-md border p-2.5 transition-transform hover:-translate-y-0.5 sm:p-4"
+                  style={{ flex: Math.max(Math.abs(row.pre_market_change_pct), 0.75), background: style.background, borderColor: style.border }}
+                  title={`${row.name}: ${signed(row.pre_market_change_pct)} pre-market`}
+                >
+                  <span className={`${prominent ? "text-[20px] sm:text-[28px]" : "text-[14px] sm:text-[18px]"} truncate font-bold tracking-[-0.055em] text-on-surface group-hover:underline`}>{row.ticker}</span>
+                  <span className={`${prominent ? "text-[16px] sm:text-[22px]" : "text-[12px] sm:text-[16px]"} font-mono font-bold tracking-[-0.05em] tabular-nums`} style={{ color: style.text }}>
+                    {signed(row.pre_market_change_pct)}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function PremarketPageView({
   movers,
   report,
@@ -495,6 +550,8 @@ export function PremarketPageView({
           <Metric label="Social" value={data.social.available ? `${data.social.sentiment_score >= 0 ? "+" : ""}${data.social.sentiment_score.toFixed(0)}` : "—"} tone={data.social.available ? socialTone : "neutral"} />
         </div>
       </section>
+
+      {!embedded ? <div className="mt-5"><PremarketHeatmap movers={movers} /></div> : null}
 
       <div className="mt-6 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
         <div className="min-w-0 space-y-4">
