@@ -65,6 +65,13 @@ const COLUMNS: Column[] = [
 
 const BADGES = [
   {
+    href: "https://submitforbacklinks.com/badge/xNvGEzXTw4VcoyOPskL10pWc?ref=badge",
+    src: "https://submitforbacklinks.com/api/badge/xNvGEzXTw4VcoyOPskL10pWc.svg?variant=verified&theme=dark",
+    alt: "stocksbrew — Verified on SubmitForBacklinks",
+    width: 220,
+    height: 48,
+  },
+  {
     href: "https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch",
     src: "https://www.scrolllaunch.com/api/badge/tikrr",
     alt: "Featured on ScrollLaunch",
