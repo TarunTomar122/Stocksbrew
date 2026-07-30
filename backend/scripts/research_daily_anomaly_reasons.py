@@ -229,6 +229,11 @@ def main() -> None:
         action="store_true",
         help="Research unresolved and provisional price-context rows; preserve source-backed evidence.",
     )
+    parser.add_argument(
+        "--only-price-context",
+        action="store_true",
+        help="Replace legacy price-context rows without touching source-backed explanations.",
+    )
     args = parser.parse_args()
 
     store = TraceMoneyStore()
@@ -257,6 +262,11 @@ def main() -> None:
         row
         for row in rows
         if not (args.only_unresolved and _is_final_explanation(row))
+        and not (
+            args.only_price_context
+            and str((row.get("move_explanation") or {}).get("cause_type") or "").strip().lower()
+            != "price_context"
+        )
     ]
     tickers = [str(row.get("ticker") or "").strip().upper() for row in research_rows]
     instruments = {
@@ -287,6 +297,8 @@ def main() -> None:
     reasoned = 0
     now_iso = datetime.now(timezone.utc).isoformat()
     for row in rows:
+        if args.only_price_context and str((row.get("move_explanation") or {}).get("cause_type") or "").strip().lower() != "price_context":
+            continue
         already_final = _is_final_explanation(row)
         if args.only_unresolved and already_final:
             reasoned += 1
