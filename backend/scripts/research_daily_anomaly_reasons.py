@@ -151,11 +151,90 @@ def _context_items_by_ticker(
     return grouped
 
 
+def _price_context_explanation(
+    *,
+    row: dict[str, Any],
+    instrument: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Describe verified tape facts when no same-day catalyst is available.
+
+    This deliberately explains *how the tape is behaving*, not why a company
+    made an announcement. It keeps every mover useful without inventing a
+    company-news catalyst.
+    """
+    ticker = str(instrument.get("ticker") or row.get("ticker") or "").strip().upper()
+    day_change = float(row.get("day_change_pct") or 0.0)
+    direction = "up" if day_change >= 0 else "down"
+
+    by_day: dict[str, dict[str, Any]] = {}
+    for point in history:
+        captured_at = str(point.get("captured_at") or "")
+        quote = point.get("quote") if isinstance(point.get("quote"), dict) else point
+        current = quote.get("current") if isinstance(quote, dict) else None
+        if not captured_at or not isinstance(current, (int, float)) or current <= 0:
+            continue
+        by_day[captured_at[:10]] = {"current": float(current), "volume": quote.get("volume")}
+    points = [by_day[day] for day in sorted(by_day)][-6:]
+
+    session_count = max(0, len(points) - 1)
+    multi_day_change: float | None = None
+    if session_count and points[0]["current"]:
+        multi_day_change = ((points[-1]["current"] - points[0]["current"]) / points[0]["current"]) * 100
+
+    volumes = [float(point["volume"]) for point in points if isinstance(point.get("volume"), (int, float)) and point["volume"] > 0]
+    volume_ratio: float | None = None
+    if len(volumes) >= 3:
+        baseline = sum(volumes[:-1]) / len(volumes[:-1])
+        if baseline > 0:
+            volume_ratio = volumes[-1] / baseline
+
+    if multi_day_change is not None and abs(multi_day_change) >= 3:
+        trend_word = "slide" if multi_day_change < 0 else "rally"
+        headline = f"{ticker} extends a {session_count}-session {trend_word}"
+        trend_sentence = f"Shares are {abs(multi_day_change):.1f}% {'lower' if multi_day_change < 0 else 'higher'} over the last {session_count} sessions"
+    else:
+        headline = f"{ticker} {'breaks lower' if direction == 'down' else 'pushes higher'} in a volatile tape"
+        trend_sentence = f"Today’s {abs(day_change):.1f}% move is the clearest recent price signal"
+
+    volume_sentence = ""
+    if volume_ratio is not None:
+        if volume_ratio >= 1.2:
+            volume_sentence = f" Trading volume is {volume_ratio:.1f}× the recent average, showing active repositioning."
+        elif volume_ratio <= 0.8:
+            volume_sentence = f" Volume is below the recent average, so conviction in the move looks limited."
+
+    return {
+        "cause_type": "price_context",
+        "dominant_angle": "technical_break",
+        "headline": headline,
+        "why_it_matters": (
+            f"{trend_sentence}, and today’s {abs(day_change):.1f}% {'drop' if direction == 'down' else 'gain'} continues that pattern."
+            f"{volume_sentence} No company-specific catalyst was verified in the current news sweep; this is a price-action read."
+        ),
+        "confidence": "low",
+        "searched_externally": True,
+        "external_source": "price_history",
+        "evidence": [],
+    }
+
+
+def _is_final_explanation(row: dict[str, Any]) -> bool:
+    """Source-backed reasons stay put; price-context reads are intentionally provisional."""
+    explanation = row.get("move_explanation") if isinstance(row.get("move_explanation"), dict) else {}
+    return (
+        row.get("narrative_status") == "verified"
+        and bool(explanation)
+        and str(explanation.get("cause_type") or "").strip().lower() != "price_context"
+    )
+
+
 def _research_row(
     *,
     row: dict[str, Any],
     instrument: dict[str, Any],
     current_items: list[dict[str, Any]],
+    price_history: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
     day_change = row.get("day_change_pct")
     if not isinstance(day_change, (int, float)):
@@ -169,7 +248,7 @@ def _research_row(
         explanation["searched_externally"] = True
         explanation["external_source"] = "mover_research"
         return explanation
-    return None
+    return _price_context_explanation(row=row, instrument=instrument, history=price_history)
 
 
 def main() -> None:
@@ -179,9 +258,14 @@ def main() -> None:
     parser.add_argument("--expected-price-session-phase", default=None)
     parser.add_argument("--require-web-revalidate", action="store_true")
     parser.add_argument(
+        "--price-context-only",
+        action="store_true",
+        help="Skip web acquisition and fill unresolved movers from retained price history only.",
+    )
+    parser.add_argument(
         "--only-unresolved",
         action="store_true",
-        help="Research only rows that still lack a verified anomaly reason; preserve existing evidence.",
+        help="Research unresolved and provisional price-context rows; preserve source-backed evidence.",
     )
     args = parser.parse_args()
 
@@ -210,11 +294,7 @@ def main() -> None:
     research_rows = [
         row
         for row in rows
-        if not (
-            args.only_unresolved
-            and row.get("narrative_status") == "verified"
-            and bool(row.get("move_explanation"))
-        )
+        if not (args.only_unresolved and _is_final_explanation(row))
     ]
     tickers = [str(row.get("ticker") or "").strip().upper() for row in research_rows]
     instruments = {
@@ -230,24 +310,29 @@ def main() -> None:
         for ticker in tickers
         if ticker in instruments
     }
-    source_items = _source_items_by_ticker(tickers, market=args.market, reference=reference)
-    web_items = _context_items_by_ticker(
-        research_instruments,
-        market=args.market,
-        reference=reference,
+    price_docs = store.get_latest_prices([str(row.get("instrument_id") or "") for row in rows])
+    source_items = {} if args.price_context_only else _source_items_by_ticker(tickers, market=args.market, reference=reference)
+    web_items = (
+        {}
+        if args.price_context_only
+        else _context_items_by_ticker(
+            research_instruments,
+            market=args.market,
+            reference=reference,
+        )
     )
 
     reasoned = 0
     now_iso = datetime.now(timezone.utc).isoformat()
     for row in rows:
-        already_verified = row.get("narrative_status") == "verified" and bool(row.get("move_explanation"))
-        if args.only_unresolved and already_verified:
+        already_final = _is_final_explanation(row)
+        if args.only_unresolved and already_final:
             reasoned += 1
             continue
         # The anomaly feed is a move-reasoning product. Never carry old
         # generic brief prose forward merely because its timestamp was recent.
-        # A row becomes displayable only after this job finds move-specific
-        # evidence for the snapshot it was given.
+        # Every row gets an honest price-action read first; this source pass
+        # replaces it only when it finds evidence for this exact snapshot.
         row["narrative_status"] = "unverified"
         row["narrative_as_of"] = None
         row["move_explanation"] = None
@@ -275,12 +360,13 @@ def main() -> None:
             row=row,
             instrument=instrument,
             current_items=_fresh_items(evidence, reference=row_reference),
+            price_history=list((price_docs.get(str(row.get("instrument_id") or "")) or {}).get("history_window") or []),
         )
         if not explanation:
             continue
         row["move_explanation"] = explanation
-        # `narrative_status` gates display. Here it means an evidence-backed
-        # explanation for this exact price snapshot, not a generic stock brief.
+        # This explanation is tied to the current price snapshot. It is either
+        # source-backed or an explicitly-labelled price-action read.
         row["narrative_status"] = "verified"
         row["narrative_as_of"] = now_iso
         reasoned += 1

@@ -93,7 +93,13 @@ export function topMoverHeadline(item: AnomalyItem): string {
 }
 
 export function anomalyHeadline(item: AnomalyItem): string {
-  if (hasUnverifiedNarrative(item)) return "";
+  // Price snapshots land before the longer catalyst-research pass. Never
+  // leave an otherwise valid top mover blank in that short window; be clear
+  // that this is the observed move, not an asserted company-news catalyst.
+  if (hasUnverifiedNarrative(item)) {
+    const side = item.day_change_pct >= 0 ? "up" : "down";
+    return `${item.ticker.trim().toUpperCase()} is ${side} ${Math.abs(item.day_change_pct).toFixed(1)}% today`;
+  }
   if (isWeakMoveExplanation(item)) {
     return topMoverHeadline(item);
   }
@@ -109,7 +115,9 @@ export function anomalyHeadline(item: AnomalyItem): string {
 }
 
 export function anomalyDetail(item: AnomalyItem): string | null {
-  if (hasUnverifiedNarrative(item)) return null;
+  if (hasUnverifiedNarrative(item)) {
+    return "No company-specific catalyst has been verified yet. A price-action read is being prepared from the recent tape.";
+  }
   if (isWeakMoveExplanation(item)) {
     return ANOMALY_NO_NEWS_COPY;
   }

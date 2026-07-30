@@ -21,7 +21,7 @@ import { buildLandingHeroCallData } from "@/lib/landing-hero-call";
 import { pickLandingHeroDriverRisk } from "@/lib/landing-hero-insights";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
-import { anomalyDetail, anomalyHeadline, hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
+import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -207,8 +207,7 @@ export async function LandingScannerRedditStream() {
     getLandingUserContext(),
   ]);
   const anomalies = anomaliesDoc?.anomalies ?? [];
-  const researchedAnomalies = anomalies.filter(hasResearchBackedNarrative);
-  if (researchedAnomalies.length === 0) return null;
+  if (anomalies.length === 0) return null;
 
   const redditPicks = enrichRedditTickers(
     (redditData?.tickers ?? [])
@@ -221,7 +220,7 @@ export async function LandingScannerRedditStream() {
   return (
     <div className="landing-stream-in">
       <LandingScannerReddit
-      scannerItems={redactScannerItemsAfterLimit(researchedAnomalies.map((a) => ({
+      scannerItems={redactScannerItemsAfterLimit(anomalies.map((a) => ({
         ticker: a.ticker,
         instrument_id: a.instrument_id,
         price: a.price,

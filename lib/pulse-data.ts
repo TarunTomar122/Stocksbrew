@@ -3,8 +3,6 @@ import {
   ANOMALY_NO_NEWS_COPY,
   anomalyDetail,
   anomalyHeadline,
-  hasResearchBackedNarrative,
-  hasUnverifiedNarrative,
   isWeakMoveExplanation,
 } from "@/components/daily-anomalies-shared";
 import type { EarningsPick, PulseTopline, RecentEarningsPick, RedditPick, SectorCard } from "@/components/pulse-hub";
@@ -33,12 +31,11 @@ function epsTagFromReported(reported?: string): string | undefined {
 }
 
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
-  return anomalies.filter(hasResearchBackedNarrative).map((a) => {
+  return anomalies.map((a) => {
     const weakExplanation = isWeakMoveExplanation(a);
-    const unverifiedNarrative = hasUnverifiedNarrative(a);
     const headline = anomalyHeadline(a);
-    const whyItMatters = unverifiedNarrative ? "" : anomalyDetail(a) || ANOMALY_NO_NEWS_COPY;
-    const tag = unverifiedNarrative ? "" : (a.catalyst || a.visual_summary?.what_changed || "").trim();
+    const whyItMatters = anomalyDetail(a) || ANOMALY_NO_NEWS_COPY;
+    const tag = (a.catalyst || a.visual_summary?.what_changed || "").trim();
 
     return {
       ticker: a.ticker,
@@ -49,7 +46,7 @@ function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>):
       buzz: buzzBy.get(a.ticker.toUpperCase()),
       headline,
       whyItMatters,
-      confidence: weakExplanation ? "low" : a.move_explanation?.confidence,
+      confidence: weakExplanation || a.narrative_status === "unverified" ? "low" : a.move_explanation?.confidence,
     };
   });
 }

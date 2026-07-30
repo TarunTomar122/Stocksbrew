@@ -14,7 +14,7 @@ export function AnomaliesPageView({
   isSubscribed?: boolean;
   fullItemLimit?: number;
 }) {
-  const { ups, downs } = splitDisplayableMoves(anomalies, { explainedOnly: true, limit: anomalies.length });
+  const { ups, downs } = splitDisplayableMoves(anomalies, { limit: anomalies.length });
 
   const freshness = SHOW_DATA_FRESHNESS_UI
     ? freshnessInfo(generatedAt, MARKET_FEED_FRESHNESS)

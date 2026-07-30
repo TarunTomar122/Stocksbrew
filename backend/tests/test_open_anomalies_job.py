@@ -26,7 +26,7 @@ def test_close_anomalies_publishes_prices_then_runs_dedicated_mover_research() -
     ):
         open_anomalies_job.main()
 
-    price_pass, research_pass = calls[:2]
+    price_pass, price_context_pass, research_pass = calls[:3]
     assert "backend.scripts.build_daily_anomalies" in price_pass
     phase_index = price_pass.index("--require-price-session-phase")
     assert price_pass[phase_index + 1] == "post_close"
@@ -35,7 +35,10 @@ def test_close_anomalies_publishes_prices_then_runs_dedicated_mover_research() -
     assert "--enrich-missing" not in price_pass
     assert "--explain-hard-moves" not in price_pass
     assert "--mover-reasoning-only" in price_pass
+    assert "backend.scripts.research_daily_anomaly_reasons" in price_context_pass
+    assert "--price-context-only" in price_context_pass
     assert "backend.scripts.research_daily_anomaly_reasons" in research_pass
+    assert "--only-unresolved" in research_pass
     assert "--enrich-missing" not in research_pass
     assert "--explain-hard-moves" not in research_pass
     research_phase = research_pass.index("--expected-price-session-phase")
@@ -64,9 +67,11 @@ def test_open_anomalies_runs_dedicated_mover_research() -> None:
     ):
         open_anomalies_job.main()
 
-    price_pass, research_pass, email_pass = calls[:3]
+    price_pass, price_context_pass, research_pass, email_pass = calls[:4]
     assert "--enrich-missing" not in price_pass
     assert "--explain-hard-moves" not in price_pass
+    assert "--price-context-only" in price_context_pass
     assert "backend.scripts.research_daily_anomaly_reasons" in research_pass
+    assert "--only-unresolved" in research_pass
     assert "backend.scripts.send_open_briefs" in email_pass
     assert email_pass[email_pass.index("--market") + 1] == "US"

@@ -53,11 +53,44 @@ class _Store:
     def get_stock_intelligence_docs_batch(self, _market, _universe, _ids):
         return {}
 
+    def get_latest_prices(self, _ids):
+        return {}
+
     def save_stage_watermark(self, **_kwargs):
         return None
 
 
 class DailyAnomalyReasoningTest(unittest.TestCase):
+    def test_price_context_is_provisional_but_source_backed_reason_is_final(self) -> None:
+        self.assertFalse(
+            reasons._is_final_explanation(
+                {"narrative_status": "verified", "move_explanation": {"cause_type": "price_context"}}
+            )
+        )
+        self.assertTrue(
+            reasons._is_final_explanation(
+                {"narrative_status": "verified", "move_explanation": {"cause_type": "earnings"}}
+            )
+        )
+
+    def test_price_context_explains_a_multi_session_move_without_claiming_news(self) -> None:
+        explanation = reasons._price_context_explanation(
+            row={"ticker": "ABC", "day_change_pct": -12.8},
+            instrument={"ticker": "ABC"},
+            history=[
+                {"captured_at": "2026-07-23T20:00:00+00:00", "quote": {"current": 100, "volume": 10}},
+                {"captured_at": "2026-07-24T20:00:00+00:00", "quote": {"current": 96, "volume": 12}},
+                {"captured_at": "2026-07-27T20:00:00+00:00", "quote": {"current": 91, "volume": 11}},
+                {"captured_at": "2026-07-28T20:00:00+00:00", "quote": {"current": 85, "volume": 14}},
+                {"captured_at": "2026-07-29T20:00:00+00:00", "quote": {"current": 74, "volume": 28}},
+            ],
+        )
+
+        self.assertEqual(explanation["cause_type"], "price_context")
+        self.assertEqual(explanation["confidence"], "low")
+        self.assertIn("4-session slide", explanation["headline"])
+        self.assertIn("No company-specific catalyst was verified", explanation["why_it_matters"])
+
     def test_fresh_items_rejects_undated_and_stale_evidence(self) -> None:
         reference = datetime(2026, 7, 28, 20, tzinfo=timezone.utc)
         rows = reasons._fresh_items(

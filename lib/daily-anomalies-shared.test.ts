@@ -43,7 +43,7 @@ function item(overrides: Partial<AnomalyItem> = {}): AnomalyItem {
 }
 
 describe("anomalyDetail", () => {
-  it("suppresses an unverified narrative instead of inventing a price-only reason", () => {
+  it("labels an unverified mover honestly until the price-context read lands", () => {
     const row = item({
       ticker: "BKNG",
       day_change_pct: 6.7,
@@ -53,8 +53,8 @@ describe("anomalyDetail", () => {
     });
 
     expect(hasUnverifiedNarrative(row)).toBe(true);
-    expect(anomalyHeadline(row)).toBe("");
-    expect(anomalyDetail(row)).toBeNull();
+    expect(anomalyHeadline(row)).toBe("BKNG is up 6.7% today");
+    expect(anomalyDetail(row)).toContain("No company-specific catalyst has been verified yet");
   });
 
   it("prefers the hard-move explanation over generic anomaly brief text", () => {

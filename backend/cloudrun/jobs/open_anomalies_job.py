@@ -57,8 +57,28 @@ def main() -> None:
 
     # First materialize the session's movers from canonical prices. Reasons are
     # deliberately a separate job: a stock brief is broad product context,
-    # whereas an anomaly reason must be evidence tied to this specific move.
+    # whereas an anomaly reason must be tied to this specific move.
     _run(anomaly_cmd)
+
+    # Publish a fast, factual price-action read for every selected mover before
+    # waiting on external news and web research. This means the UI never has
+    # empty mover rows; the slower pass below upgrades these provisional reads
+    # to a source-backed catalyst whenever one is found.
+    price_context_cmd = [
+        sys.executable,
+        "-m",
+        "backend.scripts.research_daily_anomaly_reasons",
+        "--market",
+        args.market,
+        "--universe",
+        args.universe,
+        "--price-context-only",
+        "--require-web-revalidate",
+    ]
+    if args.price_session_phase:
+        price_context_cmd.extend(["--expected-price-session-phase", args.price_session_phase])
+    _run(price_context_cmd)
+
     research_cmd = [
         sys.executable,
         "-m",
@@ -67,6 +87,7 @@ def main() -> None:
         args.market,
         "--universe",
         args.universe,
+        "--only-unresolved",
         "--require-web-revalidate",
     ]
     if args.price_session_phase:
