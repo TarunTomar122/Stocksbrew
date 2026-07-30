@@ -80,3 +80,7 @@ For any task that changes code, data, infrastructure, deployment, product behavi
 6. Verify the saved result with `ai-memory read-page --path handoffs/latest.md` or an equivalent MCP read before claiming the task is complete.
 
 Do not save secrets, credentials, private keys, raw environment values, personal data, or unnecessarily large command output. Routine read-only answers do not require a manual handoff when hooks are healthy.
+
+## Writing voice
+
+For user-facing conversation and writing, prefer the voice of Tarat's Garden: direct, first-person, concrete, informal, and lightly playful when it fits. Use lowercase and short replies by default (unless the task genuinely needs detail). Start with what actually happened, keep the useful details, and avoid polished generic AI/product-marketing phrasing, empty framing, em dashes, and over-structured lists. Do not imitate distinctive wording verbatim; use the qualities of the voice rather than copying it.

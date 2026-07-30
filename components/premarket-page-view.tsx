@@ -295,17 +295,15 @@ function MoverTable({
       ) : null}
       <Table className="min-w-[480px] table-fixed [&_th:first-child]:pl-4 [&_td:first-child]:pl-4">
         <colgroup>
-          <col className="w-[32%]" />
-          <col className="w-[16%]" />
-          <col className="w-[46%]" />
-          <col className="w-[6%]" />
+          <col className="w-[34%]" />
+          <col className="w-[15%]" />
+          <col className="w-[51%]" />
         </colgroup>
         <TableHeader>
           <TableRow className="border-outline-variant/50 hover:bg-transparent">
             <TableHead>Ticker</TableHead>
             <TableHead className="text-right">Gap · Price</TableHead>
             <TableHead>Why it is moving</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -313,15 +311,20 @@ function MoverTable({
             const up = row.pre_market_change_pct >= 0;
             const catalyst = catalysts.get(row.ticker.toUpperCase());
             return (
-              <TableRow key={row.instrument_id} className="border-outline-variant/40">
+              <TableRow key={row.instrument_id} className="group border-outline-variant/40">
                 <TableCell>
-                  <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="group flex min-w-0 items-center gap-2.5">
-                    <StockLogo ticker={row.ticker} market="US" size={28} logoUrl={row.logo_url} />
-                    <div className="min-w-0">
-                      <p className="font-mono text-[12px] font-bold text-on-surface group-hover:text-primary">{row.ticker}</p>
-                      {row.sector ? <p className="text-[10px] text-on-surface-variant">{row.sector}</p> : null}
-                    </div>
-                  </Link>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="flex min-w-0 items-center gap-2.5">
+                      <StockLogo ticker={row.ticker} market="US" size={28} logoUrl={row.logo_url} />
+                      <div className="min-w-0">
+                        <p className="font-mono text-[12px] font-bold text-on-surface transition-colors group-hover:text-primary">{row.ticker}</p>
+                        {row.sector ? <p className="text-[10px] text-on-surface-variant">{row.sector}</p> : null}
+                      </div>
+                    </Link>
+                    <span className="shrink-0 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
+                      <TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.has(row.instrument_id)} variant="icon" />
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
@@ -341,7 +344,6 @@ function MoverTable({
                     </>
                   ) : null}
                 </TableCell>
-                <TableCell><TrackButton ticker={row.ticker} instrumentId={row.instrument_id} isTracked={trackedIds.has(row.instrument_id)} variant="icon" /></TableCell>
               </TableRow>
             );
           })}
@@ -551,7 +553,9 @@ export function PremarketPageView({
         </div>
       </section>
 
-      {!embedded ? <div className="mt-5"><PremarketHeatmap movers={movers} /></div> : null}
+      <div className="mt-5"><PremarketHeatmap movers={movers} /></div>
+
+      {!embedded ? <div className="mt-4">{moversSection}</div> : null}
 
       <div className="mt-6 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
         <div className="min-w-0 space-y-4">
@@ -567,8 +571,6 @@ export function PremarketPageView({
             </div>
             <CueTable cues={embedded ? sortedCues.slice(0, 5) : sortedCues} />
           </section>
-
-          {!embedded ? moversSection : null}
 
           {!embedded && data.news.length ? (
             <section className={`${SUB} overflow-hidden`}>
