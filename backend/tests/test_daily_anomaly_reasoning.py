@@ -73,7 +73,7 @@ class DailyAnomalyReasoningTest(unittest.TestCase):
             )
         )
 
-    def test_price_context_explains_a_multi_session_move_without_claiming_news(self) -> None:
+    def test_unresolved_price_history_never_becomes_a_causal_explanation(self) -> None:
         explanation = reasons._price_context_explanation(
             row={"ticker": "ABC", "day_change_pct": -12.8},
             instrument={"ticker": "ABC"},
@@ -86,10 +86,10 @@ class DailyAnomalyReasoningTest(unittest.TestCase):
             ],
         )
 
-        self.assertEqual(explanation["cause_type"], "price_context")
+        self.assertEqual(explanation["cause_type"], "no_verified_catalyst")
         self.assertEqual(explanation["confidence"], "low")
-        self.assertIn("4-session slide", explanation["headline"])
-        self.assertIn("No company-specific catalyst was verified", explanation["why_it_matters"])
+        self.assertEqual(explanation["headline"], "--")
+        self.assertEqual(explanation["why_it_matters"], "")
 
     def test_fresh_items_rejects_undated_and_stale_evidence(self) -> None:
         reference = datetime(2026, 7, 28, 20, tzinfo=timezone.utc)

@@ -157,75 +157,37 @@ def _price_context_explanation(
     instrument: dict[str, Any],
     history: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Describe verified tape facts when no same-day catalyst is available.
+    """Represent an unresolved mover without turning an incomplete tape into a cause.
 
-    This deliberately explains *how the tape is behaving*, not why a company
-    made an announcement. It keeps every mover useful without inventing a
-    company-news catalyst.
+    The prior implementation compared an aggregate five-day return with today's
+    move and called it a continuation. Those are different measurements: a
+    stock can be down over five sessions while sharply up today. We do not
+    publish a causal-sounding price-history sentence unless a dated source
+    actually explains the current move.
     """
-    ticker = str(instrument.get("ticker") or row.get("ticker") or "").strip().upper()
-    day_change = float(row.get("day_change_pct") or 0.0)
-    direction = "up" if day_change >= 0 else "down"
-
-    by_day: dict[str, dict[str, Any]] = {}
-    for point in history:
-        captured_at = str(point.get("captured_at") or "")
-        quote = point.get("quote") if isinstance(point.get("quote"), dict) else point
-        current = quote.get("current") if isinstance(quote, dict) else None
-        if not captured_at or not isinstance(current, (int, float)) or current <= 0:
-            continue
-        by_day[captured_at[:10]] = {"current": float(current), "volume": quote.get("volume")}
-    points = [by_day[day] for day in sorted(by_day)][-6:]
-
-    session_count = max(0, len(points) - 1)
-    multi_day_change: float | None = None
-    if session_count and points[0]["current"]:
-        multi_day_change = ((points[-1]["current"] - points[0]["current"]) / points[0]["current"]) * 100
-
-    volumes = [float(point["volume"]) for point in points if isinstance(point.get("volume"), (int, float)) and point["volume"] > 0]
-    volume_ratio: float | None = None
-    if len(volumes) >= 3:
-        baseline = sum(volumes[:-1]) / len(volumes[:-1])
-        if baseline > 0:
-            volume_ratio = volumes[-1] / baseline
-
-    if multi_day_change is not None and abs(multi_day_change) >= 3:
-        trend_word = "slide" if multi_day_change < 0 else "rally"
-        headline = f"{ticker} extends a {session_count}-session {trend_word}"
-        trend_sentence = f"Shares are {abs(multi_day_change):.1f}% {'lower' if multi_day_change < 0 else 'higher'} over the last {session_count} sessions"
-    else:
-        headline = f"{ticker} {'breaks lower' if direction == 'down' else 'pushes higher'} in a volatile tape"
-        trend_sentence = f"Today’s {abs(day_change):.1f}% move is the clearest recent price signal"
-
-    volume_sentence = ""
-    if volume_ratio is not None:
-        if volume_ratio >= 1.2:
-            volume_sentence = f" Trading volume is {volume_ratio:.1f}× the recent average, showing active repositioning."
-        elif volume_ratio <= 0.8:
-            volume_sentence = f" Volume is below the recent average, so conviction in the move looks limited."
-
+    # `history` is intentionally unused. Its values are still useful input for
+    # future research, but not sufficient evidence for a public explanation.
+    _ = row, instrument, history
     return {
-        "cause_type": "price_context",
-        "dominant_angle": "technical_break",
-        "headline": headline,
-        "why_it_matters": (
-            f"{trend_sentence}, and today’s {abs(day_change):.1f}% {'drop' if direction == 'down' else 'gain'} continues that pattern."
-            f"{volume_sentence} No company-specific catalyst was verified in the current news sweep; this is a price-action read."
-        ),
+        "cause_type": "no_verified_catalyst",
+        "dominant_angle": "unresolved",
+        "headline": "--",
+        "why_it_matters": "",
         "confidence": "low",
         "searched_externally": True,
-        "external_source": "price_history",
+        "external_source": None,
         "evidence": [],
     }
 
 
 def _is_final_explanation(row: dict[str, Any]) -> bool:
-    """Source-backed reasons stay put; price-context reads are intentionally provisional."""
+    """Source-backed reasons stay put; unresolved rows are retried next run."""
     explanation = row.get("move_explanation") if isinstance(row.get("move_explanation"), dict) else {}
     return (
         row.get("narrative_status") == "verified"
         and bool(explanation)
-        and str(explanation.get("cause_type") or "").strip().lower() != "price_context"
+        and str(explanation.get("cause_type") or "").strip().lower()
+        not in {"price_context", "no_verified_catalyst"}
     )
 
 
@@ -331,8 +293,9 @@ def main() -> None:
             continue
         # The anomaly feed is a move-reasoning product. Never carry old
         # generic brief prose forward merely because its timestamp was recent.
-        # Every row gets an honest price-action read first; this source pass
-        # replaces it only when it finds evidence for this exact snapshot.
+        # Every row is reset to this exact snapshot. This source pass writes a
+        # reason only when it finds dated evidence for the move; otherwise it
+        # writes an explicit unresolved marker, never speculative prose.
         row["narrative_status"] = "unverified"
         row["narrative_as_of"] = None
         row["move_explanation"] = None

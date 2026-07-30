@@ -63,7 +63,7 @@ function isUsefulDetail(value: string | null | undefined): value is string {
 export function isWeakMoveExplanation(item: AnomalyItem): boolean {
   const explanation = item.move_explanation;
   if (!explanation) return false;
-  if (String(explanation.cause_type || "").toLowerCase() === "unclear") return true;
+  if (["unclear", "price_context", "no_verified_catalyst"].includes(String(explanation.cause_type || "").toLowerCase())) return true;
   const headline = String(explanation.headline || "").trim();
   if (headline === WEAK_MOVE_HEADLINE || headline.startsWith("No clear company-specific")) return true;
   const why = String(explanation.why_it_matters || "").trim();
@@ -101,7 +101,7 @@ export function anomalyHeadline(item: AnomalyItem): string {
     return `${item.ticker.trim().toUpperCase()} is ${side} ${Math.abs(item.day_change_pct).toFixed(1)}% today`;
   }
   if (isWeakMoveExplanation(item)) {
-    return topMoverHeadline(item);
+    return "--";
   }
   const headline = [
     item.move_explanation?.headline,
@@ -119,7 +119,7 @@ export function anomalyDetail(item: AnomalyItem): string | null {
     return "No company-specific catalyst has been verified yet. A price-action read is being prepared from the recent tape.";
   }
   if (isWeakMoveExplanation(item)) {
-    return ANOMALY_NO_NEWS_COPY;
+    return null;
   }
 
   const matchingCatalyst = item.visual_summary?.catalyst_cards?.find((card) => {

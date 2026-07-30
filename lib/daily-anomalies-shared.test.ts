@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ANOMALY_NO_NEWS_COPY,
   anomalyDetail,
   anomalyHeadline,
   hasUnverifiedNarrative,
@@ -71,7 +70,7 @@ describe("anomalyDetail", () => {
     expect(detail).toBe(moveExplanation);
   });
 
-  it("uses plain no-news copy for weak move explainers", () => {
+  it("shows an explicit blank marker for weak move explainers", () => {
     const row = item({
       ticker: "SMR",
       sector: "Utilities",
@@ -86,8 +85,8 @@ describe("anomalyDetail", () => {
 
     expect(isWeakMoveExplanation(row)).toBe(true);
     expect(topMoverHeadline(row)).toBe("SMR is a top up mover in Utilities.");
-    expect(anomalyHeadline(row)).toBe("SMR is a top up mover in Utilities.");
-    expect(anomalyDetail(row)).toBe(ANOMALY_NO_NEWS_COPY);
+    expect(anomalyHeadline(row)).toBe("--");
+    expect(anomalyDetail(row)).toBeNull();
   });
 
   it("keeps materialized post-close research when the expensive move explainer was skipped", () => {
@@ -141,8 +140,8 @@ describe("anomalyDetail", () => {
       },
     });
 
-    expect(anomalyHeadline(row)).toBe("NOW is a top up mover in Technology.");
-    expect(anomalyDetail(row)).toBe(ANOMALY_NO_NEWS_COPY);
+    expect(anomalyHeadline(row)).toBe("--");
+    expect(anomalyDetail(row)).toBeNull();
   });
 });
 

@@ -1,6 +1,5 @@
 import type { ScannerItem } from "@/components/movers-scanner";
 import {
-  ANOMALY_NO_NEWS_COPY,
   anomalyDetail,
   anomalyHeadline,
   isWeakMoveExplanation,
@@ -34,7 +33,7 @@ function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>):
   return anomalies.map((a) => {
     const weakExplanation = isWeakMoveExplanation(a);
     const headline = anomalyHeadline(a);
-    const whyItMatters = anomalyDetail(a) || ANOMALY_NO_NEWS_COPY;
+    const whyItMatters = anomalyDetail(a) || "";
     const tag = (a.catalyst || a.visual_summary?.what_changed || "").trim();
 
     return {
