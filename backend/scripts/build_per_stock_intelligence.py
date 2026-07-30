@@ -377,13 +377,15 @@ def _material_price_signal(latest_price: dict[str, Any], *, phase: str) -> dict[
         return None
 
     current_day = captured_at[:10]
+    # Use provider daily bars, not our rolling fetch history. The latter can
+    # skip days when a stock was outside an older cohort and must never be
+    # interpreted as consecutive market sessions.
     by_day: dict[str, float] = {}
-    for point in latest_price.get("history_window") or []:
+    for point in latest_price.get("recent_sessions") or []:
         if not isinstance(point, dict):
             continue
-        point_quote = point.get("quote") if isinstance(point.get("quote"), dict) else point
-        price = _finite(point_quote.get("current") if isinstance(point_quote, dict) else None)
-        day = str(point.get("captured_at") or (point_quote or {}).get("captured_at") or "")[:10]
+        price = _finite(point.get("close"))
+        day = str(point.get("date") or "")[:10]
         if day and price is not None and price > 0:
             by_day[day] = price
     by_day[current_day] = current
@@ -411,8 +413,57 @@ def _material_price_signal(latest_price: dict[str, Any], *, phase: str) -> dict[
         "continuation": continuation,
         "breakout": breakout,
     }
-    signal["fingerprint"] = hashlib.sha256(json.dumps(signal, sort_keys=True).encode()).hexdigest()
+    # `phase` is provenance, not content. Open and close must not become two
+    # different AI inputs merely because the same tape was observed twice.
+    fingerprint_payload = {key: value for key, value in signal.items() if key != "phase"}
+    signal["fingerprint"] = hashlib.sha256(
+        json.dumps(fingerprint_payload, sort_keys=True).encode()
+    ).hexdigest()
     return signal
+
+
+def _price_signal_changed_materially(
+    signal: dict[str, Any],
+    previous_freshness: dict[str, Any],
+) -> bool:
+    """Decide whether a tape-only brief deserves another model call.
+
+    Exact quote percentages naturally drift between the open and close. That
+    is not enough to rewrite prose. Refresh only when the tape meaning changes
+    or the move grows/shrinks enough to alter an investor's read.
+    """
+    previous_signal = previous_freshness.get("price_brief_signal")
+    if not isinstance(previous_signal, dict) or not previous_signal:
+        return signal.get("fingerprint") != previous_freshness.get(
+            "price_brief_input_fingerprint"
+        )
+
+    if signal.get("captured_day") != previous_signal.get("captured_day"):
+        return True
+
+    for key in ("reversal", "continuation", "breakout"):
+        if bool(signal.get(key)) != bool(previous_signal.get(key)):
+            return True
+
+    current_day_move = _finite(signal.get("day_change_pct"))
+    previous_day_move = _finite(previous_signal.get("day_change_pct"))
+    if current_day_move is None or previous_day_move is None:
+        return True
+    if current_day_move * previous_day_move < 0:
+        return True
+    if abs(current_day_move - previous_day_move) >= 2.0:
+        return True
+
+    current_five = _finite(signal.get("five_session_change_pct"))
+    previous_five = _finite(previous_signal.get("five_session_change_pct"))
+    if current_five is None or previous_five is None:
+        return True
+    if current_five * previous_five < 0:
+        return True
+    if abs(current_five - previous_five) >= 3.0:
+        return True
+
+    return False
 
 
 def main() -> None:
@@ -453,6 +504,11 @@ def main() -> None:
     parser.add_argument("--enrich-only", action="store_true", help="Fetch + enrich news only, skip brief synthesis")
     parser.add_argument("--synthesis-only", action="store_true", help="Build briefs from existing enrichments only")
     parser.add_argument("--discovery-only", action="store_true", help="Fetch raw articles, detect changed tickers, and stop before enrichment")
+    parser.add_argument(
+        "--require-complete",
+        action="store_true",
+        help="Fail before publishing freshness state unless every selected instrument produced a brief.",
+    )
     parser.add_argument("--skip-av", action="store_true", help="Skip Alpha Vantage news augmentation (fall back to RSS only)")
     parser.add_argument("--skip-finnhub", action="store_true", help="Skip Finnhub news augmentation")
     parser.add_argument("--skip-marketaux", action="store_true", help="Skip Marketaux news augmentation")
@@ -576,7 +632,7 @@ def main() -> None:
                 if not signal:
                     continue
                 previous = prior_freshness.get(instrument_id) or {}
-                if signal["fingerprint"] == previous.get("price_brief_input_fingerprint"):
+                if not _price_signal_changed_materially(signal, previous):
                     continue
                 price_signals[instrument_id] = signal
                 changed_instrument_set.add(instrument_id)
@@ -597,8 +653,24 @@ def main() -> None:
                         json.dump([], handle)
                 print("[per-stock] synthesis-only incremental found no changed instruments; exiting")
                 return
-        max_docs = max(200, len(instruments) * max(1, args.per_stock_cap) * 4)
-        enriched_payloads = store.list_article_enrichments(args.market, universe_id, limit=max_docs)
+        selected_tickers = [
+            str(instrument.get("ticker") or "").strip().upper()
+            for instrument in instruments
+            if str(instrument.get("ticker") or "").strip()
+        ]
+        if hasattr(store, "list_article_enrichments_for_tickers"):
+            enriched_payloads = store.list_article_enrichments_for_tickers(
+                args.market,
+                universe_id,
+                selected_tickers,
+            )
+        else:
+            max_docs = max(800, len(instruments) * max(1, args.per_stock_cap) * 8)
+            enriched_payloads = store.list_article_enrichments(
+                args.market,
+                universe_id,
+                limit=max_docs,
+            )
         selected_ids = {
             str(instrument.get("instrument_id") or "").strip().upper()
             for instrument in instruments
@@ -1021,6 +1093,23 @@ def main() -> None:
             no_news_docs += 1
         print(f"[per-stock] no-news briefs: {no_news_docs} built, {skipped} skipped (missing price/LLM)")
 
+    final_covered_ids = {
+        str(doc.get("instrument_id") or "").strip().upper()
+        for doc in docs
+        if str(doc.get("instrument_id") or "").strip()
+    }
+    incomplete_ids = [
+        str(instrument.get("instrument_id") or "").strip().upper()
+        for instrument in instruments
+        if str(instrument.get("instrument_id") or "").strip().upper() not in final_covered_ids
+    ]
+    if args.require_complete and incomplete_ids:
+        raise RuntimeError(
+            "Brief synthesis incomplete for "
+            f"{len(incomplete_ids)}/{len(instruments)} instruments: "
+            + ",".join(incomplete_ids[:20])
+        )
+
     if args.upsert or args.paid_only or requested_ids is not None:
         store.upsert_stock_intelligence_docs(args.market, universe_id, docs)
     else:
@@ -1038,6 +1127,11 @@ def main() -> None:
             if not instrument_id:
                 continue
             payload = dict(freshness_payloads.get(instrument_id) or prior_freshness.get(instrument_id) or {})
+            if instrument_id not in final_covered_ids:
+                payload["needs_brief_refresh"] = True
+                payload["last_brief_error"] = "no_brief_built"
+                freshness_payloads[instrument_id] = payload
+                continue
             payload.update(
                 {
                     "market": args.market.upper(),
@@ -1052,6 +1146,7 @@ def main() -> None:
                     "pending_article_count": 0,
                     "latest_brief_at": now_iso,
                     "needs_brief_refresh": False,
+                    "last_brief_error": "",
                     "brief_input_fingerprint": hashlib.sha256(
                         json.dumps(docs_by_id.get(instrument_id) or {}, sort_keys=True).encode("utf-8")
                     ).hexdigest(),
@@ -1059,6 +1154,11 @@ def main() -> None:
                         price_signals.get(instrument_id, {}).get("fingerprint")
                         or payload.get("price_brief_input_fingerprint")
                         or ""
+                    ),
+                    "price_brief_signal": (
+                        price_signals.get(instrument_id)
+                        or payload.get("price_brief_signal")
+                        or {}
                     ),
                 }
             )

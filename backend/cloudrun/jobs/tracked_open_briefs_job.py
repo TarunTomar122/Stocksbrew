@@ -1,16 +1,64 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import subprocess
 import sys
 
 from backend.scripts.materialize_views import materialize_views
-from backend.scripts.sync_price_snapshots import sync_price_snapshots
 from backend.storage import TraceMoneyStore
 
 
 def _parse_ids(value: str) -> list[str]:
     return [item.strip().upper() for item in value.split(",") if item.strip()]
+
+
+def _fresh_price_ids(
+    store: TraceMoneyStore,
+    instrument_ids: list[str],
+    *,
+    session_phase: str,
+) -> tuple[list[str], list[str]]:
+    latest = store.get_latest_prices(instrument_ids)
+    fresh: list[str] = []
+    stale: list[str] = []
+    for instrument_id in instrument_ids:
+        payload = latest.get(instrument_id) or {}
+        if str(payload.get("session_phase") or "") == session_phase:
+            fresh.append(instrument_id)
+        else:
+            stale.append(instrument_id)
+    return fresh, stale
+
+
+def _parse_time(value: object) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _stale_news_ids(
+    store: TraceMoneyStore,
+    instrument_ids: list[str],
+    *,
+    market: str,
+    max_age_minutes: int,
+) -> list[str]:
+    freshness = store.get_news_freshness_docs(market, instrument_ids)
+    cutoff = datetime.now(timezone.utc).timestamp() - (max(1, max_age_minutes) * 60)
+    stale: list[str] = []
+    for instrument_id in instrument_ids:
+        discovered = _parse_time((freshness.get(instrument_id) or {}).get("last_discovery_at"))
+        if discovered is None or discovered.timestamp() < cutoff:
+            stale.append(instrument_id)
+    return stale
 
 
 def main() -> None:
@@ -26,6 +74,12 @@ def main() -> None:
     parser.add_argument("--per-stock-cap", type=int, default=4)
     parser.add_argument("--chunk-workers", type=int, default=4)
     parser.add_argument(
+        "--max-news-age-minutes",
+        type=int,
+        default=120,
+        help="Fail closed when the source-discovery input is older than this.",
+    )
+    parser.add_argument(
         "--brief-timeout-seconds",
         type=int,
         default=480,
@@ -38,17 +92,38 @@ def main() -> None:
         raise ValueError("No instrument ids provided")
 
     store = TraceMoneyStore()
-
-    price_result = sync_price_snapshots(
-        market=args.market,
-        universe_id=args.universe,
+    fresh_ids, stale_ids = _fresh_price_ids(
+        store,
+        ids,
         session_phase=args.session_phase,
-        max_workers=args.max_workers,
-        instrument_ids=ids,
-        activate=False,
-        merge_market_snapshot=True,
-        store=store,
     )
+    if stale_ids:
+        print(
+            {
+                "stage": "brief_price_freshness",
+                "shard_id": args.shard_id,
+                "expected_phase": args.session_phase,
+                "fresh_count": len(fresh_ids),
+                "stale_count": len(stale_ids),
+                "stale_ids": stale_ids,
+            }
+        )
+    if not fresh_ids:
+        raise RuntimeError(
+            f"No prices in shard {args.shard_id} match required phase {args.session_phase}"
+        )
+    stale_news_ids = _stale_news_ids(
+        store,
+        fresh_ids,
+        market=args.market,
+        max_age_minutes=args.max_news_age_minutes,
+    )
+    if stale_news_ids:
+        raise RuntimeError(
+            f"News discovery is stale for {len(stale_news_ids)}/{len(fresh_ids)} "
+            f"brief inputs in shard {args.shard_id}: {','.join(stale_news_ids[:12])}"
+        )
+    ids_csv = ",".join(fresh_ids)
 
     cmd = [
         sys.executable,
@@ -59,10 +134,12 @@ def main() -> None:
         "--universe",
         args.universe,
         "--instrument-ids",
-        args.instrument_ids,
+        ids_csv,
         "--upsert",
         "--synthesis-only",
         "--incremental",
+        "--include-no-news",
+        "--require-complete",
         "--price-trigger-phase",
         args.session_phase,
         "--synthesis-lookback-hours",
@@ -84,7 +161,7 @@ def main() -> None:
     materialize_result = materialize_views(
         market=args.market,
         universe_id=args.universe,
-        instrument_ids=ids,
+        instrument_ids=fresh_ids,
         activate=False,
         allow_missing_context=True,
         skip_sector_scrape=True,
@@ -96,8 +173,8 @@ def main() -> None:
         "run_id": args.run_id,
         "lane": args.lane,
         "shard_id": args.shard_id,
-        "instrument_count": len(ids),
-        "price": price_result,
+        "instrument_count": len(fresh_ids),
+        "stale_price_count": len(stale_ids),
         "materialize": materialize_result,
     })
 

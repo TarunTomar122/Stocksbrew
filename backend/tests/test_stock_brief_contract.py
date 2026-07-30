@@ -10,6 +10,7 @@ from backend.stock_intelligence import (
     _clean_sentence,
     _llm_synthesize_brief,
     _validate_stock_brief_payload,
+    stock_brief_model,
 )
 
 
@@ -76,6 +77,12 @@ class _Store:
 
 
 class StockBriefContractTest(unittest.TestCase):
+    def test_stock_brief_uses_fast_structured_model_by_default(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(stock_brief_model(), "openai/gpt-4o-mini")
+        with patch.dict("os.environ", {"STOCK_BRIEF_MODEL": "custom/brief-model"}):
+            self.assertEqual(stock_brief_model(), "custom/brief-model")
+
     def test_sentence_cleaner_preserves_hyphenated_finance_terms(self) -> None:
         self.assertEqual(_clean_sentence("Valuation re-rating"), "Valuation re-rating")
         self.assertEqual(
@@ -104,6 +111,38 @@ class StockBriefContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "echoed the schema envelope"):
             _validate_stock_brief_payload(schema_echo)
 
+    def test_validator_derives_legacy_primary_trigger_from_zone(self) -> None:
+        payload = _valid_brief()
+        payload["directive"].pop("trigger_type")
+        payload["directive"].pop("trigger_value")
+        payload["directive"]["stance"] = "accumulate"
+        payload["directive"]["add_on"] = {
+            "text": "Add below $90",
+            "trigger_type": "price_below",
+            "trigger_value": "90",
+        }
+
+        result = _validate_stock_brief_payload(payload)
+
+        self.assertEqual(result["directive"]["trigger_type"], "price_below")
+        self.assertEqual(result["directive"]["trigger_value"], "90")
+
+    def test_validator_normalizes_harmless_enum_aliases(self) -> None:
+        payload = _valid_brief()
+        payload["drivers"][0]["horizon"] = "next quarter"
+        payload["catalyst_cards"] = [{
+            "event": "Estimate reset",
+            "detail": "Lower estimates could create a cleaner base for the next quarter.",
+            "window": "quarter",
+            "expected_impact": 1,
+            "priced_in": "medium",
+        }]
+
+        result = _validate_stock_brief_payload(payload)
+
+        self.assertEqual(result["drivers"][0]["horizon"], "quarter")
+        self.assertEqual(result["catalyst_cards"][0]["priced_in"], "med")
+
     def test_invalid_cached_and_first_model_payload_are_retried_and_never_cached(self) -> None:
         schema_echo = {
             "name": "stock_brief",
@@ -118,7 +157,7 @@ class StockBriefContractTest(unittest.TestCase):
         ]
 
         with patch("backend.stock_intelligence.llm_api_key", return_value="test-key"), patch(
-            "backend.stock_intelligence.llm_model", return_value="test-model"
+            "backend.stock_intelligence.stock_brief_model", return_value="test-model"
         ), patch(
             "backend.stock_intelligence.post_chat_completion", side_effect=responses
         ) as post:

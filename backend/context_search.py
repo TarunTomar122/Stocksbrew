@@ -265,3 +265,68 @@ def search_context_articles_for_ticker(
         "attempt_count": len(results),
         "error": "",
     }
+
+
+def search_context_evidence_for_ticker(
+    instrument: dict[str, Any],
+    *,
+    market: str,
+    limit: int = DEFAULT_LIMIT,
+    lookback_hours: int = DEFAULT_LOOKBACK_HOURS,
+    post_func: Callable[..., Any] = requests.post,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return dated search evidence without crawling every result page.
+
+    The anomaly lane needs a fast second opinion for at most 30 movers. Search
+    titles/snippets are enough for the explainer model to decide whether a
+    result plausibly matches the move; crawling five pages per ticker turned
+    one upstream timeout into a 10-15 minute critical-path delay. Full-page
+    extraction remains available to the broader news pipeline.
+    """
+    ticker = str(instrument.get("ticker") or "").strip().upper()
+    name = str(instrument.get("name") or ticker).strip()
+    if not ticker:
+        return [], {
+            "source_id": SOURCE_ID,
+            "ok": False,
+            "article_count": 0,
+            "error": "missing ticker",
+        }
+    query = (
+        f"{ticker} {name} stock why moving today latest news earnings guidance "
+        f"analyst contract partnership last {lookback_hours} hours"
+    )
+    try:
+        results = search_context(
+            query,
+            limit=limit,
+            lookback_hours=lookback_hours,
+            post_func=post_func,
+        )
+    except Exception as exc:
+        return [], {
+            "source_id": SOURCE_ID,
+            "ok": False,
+            "article_count": 0,
+            "error": str(exc),
+        }
+
+    evidence = [
+        {
+            "date": result.published_at,
+            "source": result.source_name or _publisher_from_url(result.url),
+            "title": result.title,
+            "summary": result.snippet,
+            "url": result.url,
+        }
+        for result in results
+        if result.title and result.published_at
+    ]
+    return evidence, {
+        "source_id": SOURCE_ID,
+        "source_name": "Context Search",
+        "ok": True,
+        "article_count": len(evidence),
+        "attempt_count": len(results),
+        "error": "",
+    }

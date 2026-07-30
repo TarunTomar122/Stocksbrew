@@ -55,7 +55,10 @@ PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
 OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 STALE_RUNNING_TTL_MINUTES = 20
-RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending", "needs_confirmation"}
+# `needs_confirmation` is a terminal human-input state. Re-running the same
+# ambiguous/junk query every 30 minutes burns provider and model capacity and
+# competes with the market-session pipeline without any new information.
+RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending"}
 INVALID_REQUEST_TOKENS = {
     "TO", "IT", "IN", "ON", "AT", "IS", "ARE",
     "HTTPS", "HTTP", "WWW", "COM", "DIV", "HREF",

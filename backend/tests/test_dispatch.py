@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import argparse
 import unittest
 
-from backend.cloudrun.orchestrator.dispatch import _lane_universe_id, _run_sharded_lane, _run_single_job_lane
+from unittest.mock import patch
+
+from backend.cloudrun.orchestrator.dispatch import (
+    _ai_brief_ids,
+    _lane_universe_id,
+    _price_core_ids,
+    _run_sharded_lane,
+    _run_single_job_lane,
+    _tracked_lane_extra_args,
+)
 from backend.cloudrun.orchestrator.local_api import LocalJobsClient
 
 
@@ -30,6 +40,70 @@ class DispatchUniverseScopeTest(unittest.TestCase):
     def test_other_lanes_keep_runtime_universe_default(self) -> None:
         store = _StubStore("us_core_100")
         self.assertEqual(_lane_universe_id(store, "US", "earnings_intel", None), "us_core_100")
+
+    def test_ai_brief_cohort_is_active_ai_universe_plus_pro_tracked(self) -> None:
+        store = object()
+        with patch(
+            "backend.cloudrun.orchestrator.dispatch.list_instruments",
+            return_value=[
+                {"instrument_id": "US_AAPL"},
+                {"instrument_id": "US_NVDA"},
+            ],
+        ), patch(
+            "backend.cloudrun.orchestrator.dispatch._tracked_ids",
+            return_value=["US_NVDA", "US_SNDK"],
+        ):
+            self.assertEqual(
+                _ai_brief_ids(store, "US", "us_core_100"),
+                ["US_AAPL", "US_NVDA", "US_SNDK"],
+            )
+
+    def test_price_cohort_ranks_the_broad_coverage_universe(self) -> None:
+        class Store:
+            def get_price_core_overrides(self, _market):
+                return ["US_EXTRA"]
+
+            def list_instruments(self, _market, _ids):
+                return [{"instrument_id": "US_EXTRA"}]
+
+        store = Store()
+        with patch(
+            "backend.cloudrun.orchestrator.dispatch.get_coverage_universe_id",
+            return_value="us_core_155",
+        ), patch(
+            "backend.cloudrun.orchestrator.dispatch._rank_instruments",
+            return_value=[
+                {"instrument_id": "US_AAPL"},
+                {"instrument_id": "US_NVDA"},
+            ],
+        ) as rank:
+            ids = _price_core_ids(store, "US", "us_core_100", 500)
+
+        rank.assert_called_once_with(store, "US", "us_core_155", 500)
+        self.assertEqual(ids, ["US_AAPL", "US_NVDA", "US_EXTRA"])
+
+    def test_brief_workers_receive_required_price_phase(self) -> None:
+        args = argparse.Namespace(
+            lane="tracked_open_briefs",
+            per_stock_cap=4,
+            chunk_workers=2,
+            session_phase="post_close",
+            max_workers=6,
+        )
+
+        self.assertEqual(
+            _tracked_lane_extra_args(args),
+            [
+                "--per-stock-cap",
+                "4",
+                "--chunk-workers",
+                "2",
+                "--session-phase",
+                "post_close",
+                "--max-workers",
+                "6",
+            ],
+        )
 
 
 class _FakeClient:

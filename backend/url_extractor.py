@@ -422,9 +422,35 @@ def _extract_firecrawl_batch(urls: list[str]) -> list[ExtractedArticle | None]:
                 if not isinstance(rows, list):
                     return [None] * len(urls)
                 elapsed_ms = int((time.time() - started) * 1000)
+                rows_by_url: dict[str, dict] = {}
+                rows_without_url: list[dict] = []
+                for raw_row in rows:
+                    if not isinstance(raw_row, dict):
+                        continue
+                    metadata = (
+                        raw_row.get("metadata")
+                        if isinstance(raw_row.get("metadata"), dict)
+                        else {}
+                    )
+                    source_url = str(
+                        raw_row.get("url")
+                        or metadata.get("sourceURL")
+                        or metadata.get("sourceUrl")
+                        or metadata.get("url")
+                        or ""
+                    ).strip()
+                    if source_url:
+                        rows_by_url[source_url.rstrip("/")] = raw_row
+                    else:
+                        rows_without_url.append(raw_row)
                 results: list[ExtractedArticle | None] = []
-                for index, url in enumerate(urls):
-                    row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+                for url in urls:
+                    row = rows_by_url.get(url.rstrip("/"))
+                    # Some older/self-hosted Firecrawl builds omit sourceURL
+                    # but preserve input order. Use order only for those
+                    # unmapped rows, never for a row belonging to another URL.
+                    if row is None:
+                        row = rows_without_url.pop(0) if rows_without_url else {}
                     results.append(_extract_firecrawl_data(url, row, elapsed_ms=elapsed_ms))
                 return results
             if status in {"failed", "cancelled"}:
@@ -433,6 +459,57 @@ def _extract_firecrawl_batch(urls: list[str]) -> list[ExtractedArticle | None]:
     except Exception as exc:
         logger.info("firecrawl_batch_failed urls=%s error=%s", len(urls), exc)
     return [None] * len(urls)
+
+
+def search_firecrawl(
+    query: str,
+    *,
+    limit: int = 4,
+    time_filter: str = "qdr:d",
+) -> list[ExtractedArticle]:
+    """Search and scrape results in one Firecrawl request."""
+    if not firecrawl_enabled() or not str(query or "").strip():
+        return []
+    started = time.time()
+    response = requests.post(
+        f"{firecrawl_api_url()}/search",
+        headers=_firecrawl_headers(),
+        json={
+            "query": str(query).strip(),
+            "limit": max(1, min(10, int(limit))),
+            "tbs": time_filter,
+            "ignoreInvalidURLs": True,
+            "scrapeOptions": {
+                "formats": ["markdown"],
+                "onlyMainContent": True,
+            },
+        },
+        timeout=70,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return []
+    elapsed_ms = int((time.time() - started) * 1000)
+    extracted: list[ExtractedArticle] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        url = str(
+            row.get("url")
+            or metadata.get("sourceURL")
+            or metadata.get("sourceUrl")
+            or metadata.get("url")
+            or ""
+        ).strip()
+        if not url:
+            continue
+        result = _extract_firecrawl_data(url, row, elapsed_ms=elapsed_ms)
+        if result.status == "ok":
+            extracted.append(result)
+    return extracted
 
 
 def extract_urls(urls: list[str]) -> list[ExtractedArticle]:

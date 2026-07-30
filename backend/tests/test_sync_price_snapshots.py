@@ -34,6 +34,35 @@ class FakeStore:
 
 
 class SyncPriceSnapshotsTests(unittest.TestCase):
+    def test_postclose_price_phase_never_requests_fundamentals(self) -> None:
+        store = FakeStore()
+        instrument = {
+            "instrument_id": "US_MSFT",
+            "market": "US",
+            "ticker": "MSFT",
+            "currency": "USD",
+        }
+
+        class FakeClient:
+            def __init__(self, **_kwargs) -> None:
+                pass
+
+            def fetch_quotes(self, _instruments, *, include_fundamentals: bool = True):
+                self.__class__.include_fundamentals = include_fundamentals
+                return {}
+
+        with (
+            patch("backend.scripts.sync_price_snapshots.list_instruments", return_value=[instrument]),
+            patch("backend.scripts.sync_price_snapshots.YFinanceClient", FakeClient),
+        ):
+            sync_price_snapshots(
+                market="US",
+                universe_id="test",
+                session_phase="post_close",
+                store=store,
+            )
+        self.assertFalse(FakeClient.include_fundamentals)
+
     def test_intraday_snapshot_does_not_write_empty_enrichment(self) -> None:
         store = FakeStore()
         instrument = {
@@ -54,6 +83,10 @@ class SyncPriceSnapshotsTests(unittest.TestCase):
                     "US_NVDA": {
                         "captured_at": "2026-07-02T14:30:00+00:00",
                         "currency": "USD",
+                        "recent_sessions": [
+                            {"date": "2026-07-01", "close": 100.0, "change_pct": None},
+                            {"date": "2026-07-02", "close": 106.0, "change_pct": 6.0},
+                        ],
                         "quote": {
                             "current": 106.0,
                             "previous_close": 100.0,
@@ -77,6 +110,7 @@ class SyncPriceSnapshotsTests(unittest.TestCase):
         self.assertFalse(FakeClient.include_fundamentals)
         self.assertNotIn("fundamentals", store.saved_rows[0])
         self.assertNotIn("analyst_consensus", store.saved_rows[0])
+        self.assertEqual(len(store.saved_rows[0]["recent_sessions"]), 2)
         self.assertEqual(store.fundamental_rows, [])
 
     def test_snapshot_recomputes_change_from_current_and_previous_close(self) -> None:

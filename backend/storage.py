@@ -33,6 +33,47 @@ def _serialize(obj: Any) -> Any:
     return obj
 
 
+def _firestore_write_batches(
+    writes: list[tuple[Any, dict[str, Any]]],
+    *,
+    max_operations: int = 400,
+    max_payload_bytes: int = 7_500_000,
+) -> list[list[tuple[Any, dict[str, Any]]]]:
+    """Chunk writes by both Firestore operation count and request bytes.
+
+    Rolling price documents can be tens of KB each. A 450-operation commit may
+    therefore exceed Firestore's 10 MiB RPC limit even though it is under the
+    500-write count limit. Keep a conservative byte ceiling for protobuf
+    overhead and credentials/field-path metadata.
+    """
+    batches: list[list[tuple[Any, dict[str, Any]]]] = []
+    current: list[tuple[Any, dict[str, Any]]] = []
+    current_bytes = 0
+    for ref, payload in writes:
+        encoded_bytes = len(
+            json.dumps(payload, ensure_ascii=True, separators=(",", ":"), default=str).encode(
+                "utf-8"
+            )
+        )
+        estimated_bytes = encoded_bytes + len(str(getattr(ref, "path", ""))) + 512
+        if estimated_bytes > max_payload_bytes:
+            raise ValueError(
+                f"Firestore document payload is too large for a safe batch: {estimated_bytes} bytes"
+            )
+        if current and (
+            len(current) >= max_operations
+            or current_bytes + estimated_bytes > max_payload_bytes
+        ):
+            batches.append(current)
+            current = []
+            current_bytes = 0
+        current.append((ref, payload))
+        current_bytes += estimated_bytes
+    if current:
+        batches.append(current)
+    return batches
+
+
 def _compact_heat_list(payload: dict[str, Any]) -> dict[str, Any]:
     rows_raw = payload.get("rows") or []
     rows = [row for row in rows_raw if isinstance(row, dict)]
@@ -364,12 +405,18 @@ class TraceMoneyStore:
             pending.append((latest_collection.document(instrument_id), latest_payload))
 
         saved = 0
-        for start in range(0, len(pending), 450):
+        write_batches = _firestore_write_batches(pending)
+        for write_batch in write_batches:
             batch = self.db.batch()
-            for ref, payload in pending[start:start + 450]:
+            for ref, payload in write_batch:
                 batch.set(ref, payload, merge=True)
                 saved += 1
             batch.commit()
+        if len(write_batches) > 1:
+            print(
+                f"[price storage] committed {saved} rolling price docs "
+                f"in {len(write_batches)} size-bounded batches"
+            )
         return saved
 
     def save_price_history_bulk(
@@ -1073,6 +1120,39 @@ class TraceMoneyStore:
         else:
             docs = query.stream()
         rows = [_serialize(doc.to_dict()) or {} for doc in docs]
+        rows.sort(key=lambda row: row.get("published_at", ""), reverse=True)
+        return rows
+
+    def list_article_enrichments_for_tickers(
+        self,
+        market: str,
+        universe_id: str,
+        tickers: list[str],
+    ) -> list[dict[str, Any]]:
+        """Read evidence for the requested stocks, not a global latest-N slice."""
+        normalized = sorted(
+            {
+                str(ticker or "").strip().upper()
+                for ticker in tickers
+                if str(ticker or "").strip()
+            }
+        )
+        if not normalized:
+            return []
+        collection = self._news_namespace(market, universe_id).collection("enrichments")
+        rows_by_id: dict[str, dict[str, Any]] = {}
+        for offset in range(0, len(normalized), 30):
+            batch = normalized[offset:offset + 30]
+            queries = (
+                collection.where("focus_ticker", "in", batch),
+                collection.where("stock_tickers", "array_contains_any", batch),
+            )
+            for query in queries:
+                for doc in query.stream():
+                    payload = _serialize(doc.to_dict()) or {}
+                    row_id = str(payload.get("id") or doc.id)
+                    rows_by_id[row_id] = payload
+        rows = list(rows_by_id.values())
         rows.sort(key=lambda row: row.get("published_at", ""), reverse=True)
         return rows
 

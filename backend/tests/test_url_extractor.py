@@ -48,6 +48,75 @@ class UrlExtractorTest(unittest.TestCase):
         self.assertEqual(rows[0].title, "A real article")
         self.assertEqual(calls, ["http://127.0.0.1:3002/v1/batch/scrape", "http://firecrawl/batch/1"])
 
+    def test_firecrawl_batch_results_are_matched_by_source_url(self) -> None:
+        def fake_post(_url, **_kwargs):
+            return FakeResponse({"success": True, "url": "http://firecrawl/batch/1"})
+
+        def fake_get(_url, **_kwargs):
+            body = " ".join(["word"] * 80)
+            return FakeResponse(
+                {
+                    "status": "completed",
+                    "data": [
+                        {
+                            "markdown": body,
+                            "metadata": {
+                                "title": "Article B",
+                                "sourceURL": "https://example.com/b",
+                            },
+                        },
+                        {
+                            "markdown": body,
+                            "metadata": {
+                                "title": "Article A",
+                                "sourceURL": "https://example.com/a",
+                            },
+                        },
+                    ],
+                }
+            )
+
+        with patch.dict(os.environ, {"EXTRACT_PROVIDER": "auto"}, clear=True):
+            with patch.object(url_extractor.requests, "post", fake_post), patch.object(
+                url_extractor.requests, "get", fake_get
+            ):
+                rows = url_extractor.extract_urls(
+                    ["https://example.com/a", "https://example.com/b"]
+                )
+
+        self.assertEqual([row.title for row in rows], ["Article A", "Article B"])
+
+    def test_search_firecrawl_returns_scraped_dated_articles(self) -> None:
+        body = " ".join(["word"] * 80)
+
+        def fake_post(url, **kwargs):
+            self.assertEqual(url, "http://127.0.0.1:3002/v1/search")
+            self.assertEqual(kwargs["json"]["tbs"], "qdr:d")
+            return FakeResponse(
+                {
+                    "success": True,
+                    "data": [
+                        {
+                            "url": "https://example.com/current",
+                            "markdown": body,
+                            "metadata": {
+                                "title": "Current mover news",
+                                "sourceURL": "https://example.com/current",
+                                "publishedTime": "2026-07-30T13:00:00Z",
+                            },
+                        }
+                    ],
+                }
+            )
+
+        with patch.dict(os.environ, {"EXTRACT_PROVIDER": "auto"}, clear=True):
+            with patch.object(url_extractor.requests, "post", fake_post):
+                rows = url_extractor.search_firecrawl("ABC stock moving today")
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].title, "Current mover news")
+        self.assertEqual(rows[0].published_at, "2026-07-30T13:00:00+00:00")
+
     def test_extract_urls_falls_back_when_firecrawl_batch_is_short(self) -> None:
         def fake_post(_url, **_kwargs):
             return FakeResponse({"success": True, "url": "http://firecrawl/batch/1"})

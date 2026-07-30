@@ -9,6 +9,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -47,6 +48,7 @@ load_backend_env()
 
 DEFAULT_MODEL = llm_enrichment_model()
 CACHE_VERSION = "2026-07-02-slim-v1"
+STABLE_URL_CACHE_VERSION = "2026-07-30-url-v1"
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
 
 
@@ -209,7 +211,17 @@ def normalize_enrichment_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _prepare_article_for_enrichment(article: Article) -> Article:
-    if not article.url or not article_needs_url_extract(
+    parsed_url = urlparse(str(article.url or ""))
+    host = parsed_url.netloc.lower().removeprefix("www.")
+    path = parsed_url.path.lower()
+    known_feed_shell = (
+        host == "news.google.com" and path.startswith("/rss/articles/")
+    ) or host == "finance.yahoo.com" or (
+        host == "seekingalpha.com"
+        and path.startswith("/symbol/")
+        and path.endswith("/news")
+    )
+    if not article.url or known_feed_shell or not article_needs_url_extract(
         title=article.title,
         summary=article.summary,
         body_text=article.body_text,
@@ -328,17 +340,79 @@ class OpenAIArticleEnricher:
             raise ValueError("OPENROUTER_API_KEY or LLM_ENRICHMENT_API_KEY is required for article enrichment")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
-        pending: list[tuple[int, Article, str]] = []
+        pending_prepare: list[tuple[int, Article, str]] = []
         for index, article in enumerate(articles):
-            prepared = _prepare_article_for_enrichment(article)
-            cache_key = self._cache_key(prepared)
+            # Cache identity deliberately excludes extracted body text. Most
+            # feed rows already have a stable URL/title/summary, so checking
+            # the cache before a remote scrape avoids paying Firecrawl's
+            # latency again for an article whose LLM result already exists.
+            cleaned = replace(
+                article,
+                title=strip_html(article.title),
+                summary=strip_html(article.summary),
+                body_text=strip_html(article.body_text),
+            )
+            cache_key = self._cache_key(cleaned)
             payload = self._get_cached_payload(cache_key)
             if payload is None:
-                pending.append((index, prepared, cache_key))
+                # Migrate an existing title-sensitive entry without scraping.
+                legacy_key = self._legacy_cache_key(cleaned)
+                payload = self._get_cached_payload(legacy_key)
+                if payload is not None:
+                    self._save_cached_payload(cache_key, cleaned, payload)
+            if payload is None:
+                pending_prepare.append((index, cleaned, cache_key))
                 continue
             try:
-                enriched[index] = apply_enrichment(prepared, normalize_enrichment_payload(payload))
+                enriched[index] = apply_enrichment(cleaned, normalize_enrichment_payload(payload))
             except ValueError:
+                pending_prepare.append((index, cleaned, cache_key))
+
+        pending: list[tuple[int, Article, str]] = []
+        if pending_prepare:
+            # URL extraction is I/O bound. Run it only for cache misses and in
+            # a bounded pool instead of serially blocking every article.
+            prepared_rows: list[tuple[int, Article, str]] = []
+            # Scraping is heavier than the model call and all shards share one
+            # local Firecrawl service. Keep each worker modest so concurrent
+            # shards do not turn normal pages into 30-second queue timeouts.
+            prepare_workers = min(4, self.max_workers, len(pending_prepare))
+            with ThreadPoolExecutor(max_workers=prepare_workers) as executor:
+                future_map = {
+                    executor.submit(_prepare_article_for_enrichment, article): (index, article, initial_key)
+                    for index, article, initial_key in pending_prepare
+                }
+                for future in as_completed(future_map):
+                    index, article, initial_key = future_map[future]
+                    try:
+                        prepared = future.result()
+                    except Exception as exc:
+                        logger.warning(
+                            "article URL preparation failed source_id=%s err=%s url=%s",
+                            article.source_id,
+                            exc,
+                            article.url,
+                        )
+                        prepared = article
+                    prepared_rows.append((index, prepared, initial_key))
+
+            prepared_rows.sort(key=lambda item: item[0])
+            for index, prepared, stable_key in prepared_rows:
+                cache_key = self._cache_key(prepared)
+                # Extraction can fill/change title/summary. Consult the
+                # pre-migration key once, then persist the result under the
+                # URL-stable key so future runs never need this scrape.
+                payload = self._get_cached_payload(self._legacy_cache_key(prepared))
+                if payload is not None:
+                    try:
+                        enriched[index] = apply_enrichment(
+                            prepared,
+                            normalize_enrichment_payload(payload),
+                        )
+                        self._save_cached_payload(stable_key, prepared, payload)
+                        continue
+                    except ValueError:
+                        pass
                 pending.append((index, prepared, cache_key))
 
         if pending:
@@ -456,6 +530,17 @@ class OpenAIArticleEnricher:
         raise RuntimeError("LLM enrichment request failed without an error")
 
     def _cache_key(self, article: Article) -> str:
+        fingerprint = "\n".join([
+            STABLE_URL_CACHE_VERSION,
+            self.model,
+            article.market,
+            article.source_id,
+            article.url,
+        ])
+        digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+        return f"{article.market.lower()}_{digest}"
+
+    def _legacy_cache_key(self, article: Article) -> str:
         fingerprint = "\n".join([
             CACHE_VERSION,
             self.model,

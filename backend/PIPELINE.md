@@ -1,5 +1,10 @@
 # Backend Pipeline
 
+> Current production sequencing, cohort sizes, live benchmarks, and failure
+> barriers are documented in `docs/production-data-pipeline-2026-07.md`.
+> Some Cloud Run details below remain for compatibility and historical
+> reference; production market jobs now run through VPS systemd units.
+
 Primary entrypoint:
 
 ```bash
@@ -24,9 +29,9 @@ names, not product concepts.
 
 | Stage | Script | US | IN | Frequency | Firestore collection |
 |-------|--------|----|----|-----------|----------------------|
-| **Prices** | `sync_price_snapshots` | active runtime universe + priority/override lanes | ~166 (`in_core_150`) | Market windows; limit caps ranked runtime core, then priority overrides are appended | `tm_latest_prices`, `market_price_snapshots` |
+| **Prices** | `sync_price_snapshots` | 573 selected coverage + valid overrides (569 resolved in latest live run) | ~166 (`in_core_150`) | 9 US market-session publications/day; limit caps ranked runtime core, then priority overrides are appended | `tm_latest_prices`, `market_price_snapshots` |
 | **Fundamentals** | `sync_stock_metrics` (Finviz scrape) | coverage catalog / selected refresh set | ~166 | Every 5 days | `tm_stock_metrics` |
-| **AI briefs + news** | tracked Cloud Run lanes + `build_per_stock_intelligence` | runtime core + UNION(subscribed tracked) | AI universe + tracked | Daily/pre-open/on-demand | `tm_news_runs`, `tm_stock_intelligence` |
+| **AI briefs + news** | tracked VPS lanes + `build_per_stock_intelligence` | 145 current: runtime core + UNION(subscribed tracked) | AI universe + tracked | Twice per US trading day; model calls only for changed source/material tape fingerprints | `tm_news_runs`, `tm_stock_intelligence` |
 | **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_earnings_intel` |
 | **Pre-earnings intel** | `build_pre_earnings_intel` | full supported US market catalog + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
 | **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Pre-market + on-demand | `tm_watchlist_views` |
@@ -67,15 +72,22 @@ Each article starts with `sentiment_score=0.0, sentiment_label="unscored"`. `llm
 - `what_happened`, `why_it_matters`, `bullish_points`, `bearish_points`
 - `key_points`, `primary_event_type`
 
-This is the most expensive step in the pipeline — one LLM call per article across every stock in scope.
+Article enrichment is cache-first by stable source URL. It calls the model only
+for new/changed articles in the 145-stock AI cohort, not for the full price
+cohort and not again on a warm source pass.
 
 **Alpha Vantage** is currently used only for: symbol master (`build_symbol_master.py`), IPO sync (`sync_ipos.py`), earnings calendar (`sync_earnings_calendar.py`). It is NOT used for news. The `NEWS_SENTIMENT` endpoint (25 calls/day, up to ~25 tickers per call) could replace the LLM enrichment step for sentiment scoring and provide net-new articles from sources not in our RSS feeds (MarketBeat, Morningstar, Investing.com).
 
 ## Pipeline shape
 
-- Price/scoring chain: `sync_price_snapshots` → `sync_stock_metrics` → `build_stock_intel_pro` → `build_stock_technicals` → `build_market_breadth`
-- AI chain: `build_per_stock_intelligence` → `build_heat_list` / `build_divergence` / `build_sentiment_flip`
+- Open: 09:30 price → changed briefs; 09:50 settled price → top-30 anomaly research → email
+- Intraday: hourly batched price publication from 10:00 through 15:00 ET
+- Close: 16:10 batched price/read models → changed briefs → top-30 anomaly research
+- Weekly: broad fundamentals/facts/Finviz refresh
 - View chain: `materialize_views` (price universe) → `build_snapshot` + `build_watchlist_views`
+
+Quote batches persist provider-supplied `recent_sessions`. Brief/anomaly jobs
+must not treat the rolling Stocksbrew fetch history as consecutive sessions.
 
 ## Cloud Run jobs
 

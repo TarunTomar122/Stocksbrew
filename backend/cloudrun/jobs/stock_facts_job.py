@@ -4,9 +4,43 @@ import argparse
 import subprocess
 import sys
 
+from backend.instrument_universe import get_coverage_universe_id, list_instruments
+from backend.storage import TraceMoneyStore
+
+
+def _price_cohort_ids(store: TraceMoneyStore, market: str, universe_id: str) -> list[str]:
+    ids: list[str] = []
+    seen: set[str] = set()
+    coverage_universe_id = get_coverage_universe_id(market) or universe_id
+    try:
+        instruments = list_instruments(market, coverage_universe_id)
+    except ValueError:
+        instruments = list_instruments(market, universe_id)
+    for instrument in instruments:
+        instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+        if instrument_id and instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
+    raw_overrides = [
+        str(raw or "").strip().upper()
+        for raw in store.get_price_core_overrides(market)
+        if str(raw or "").strip()
+    ]
+    valid_override_ids = {
+        str(row.get("instrument_id") or "").strip().upper()
+        for row in store.list_instruments(market, raw_overrides)
+        if str(row.get("instrument_id") or "").strip()
+    }
+    for raw in raw_overrides:
+        instrument_id = str(raw or "").strip().upper()
+        if instrument_id and instrument_id in valid_override_ids and instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
+    return ids
+
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Stock facts refresh worker")
+    parser = argparse.ArgumentParser(description="Weekly fundamentals refresh worker")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--lane", default="stock_facts")
     parser.add_argument("--market", choices=["US", "IN"], required=True)
@@ -16,8 +50,16 @@ def main() -> None:
     parser.add_argument("--pause", type=float, default=0.25)
     args = parser.parse_args()
 
-    cmd = [
-        sys.executable,
+    py = sys.executable
+    store = TraceMoneyStore()
+    instrument_ids = _price_cohort_ids(store, args.market, args.universe)
+    if args.limit > 0:
+        instrument_ids = instrument_ids[: args.limit]
+    if not instrument_ids:
+        raise RuntimeError("Weekly fundamentals cohort is empty")
+    ids_csv = ",".join(instrument_ids)
+    facts_cmd = [
+        py,
         "-m",
         "backend.scripts.sync_stock_facts",
         "--market",
@@ -28,9 +70,11 @@ def main() -> None:
         str(max(1, args.max_workers)),
         "--pause",
         str(max(0.0, args.pause)),
+        "--instrument-ids",
+        ids_csv,
     ]
     if args.universe:
-        cmd.extend(["--universe", args.universe])
+        facts_cmd.extend(["--universe", args.universe])
 
     print(
         {
@@ -39,10 +83,51 @@ def main() -> None:
             "market": args.market,
             "universe_id": args.universe,
             "limit": args.limit,
-            "cmd": " ".join(cmd),
+            "cmd": " ".join(facts_cmd),
         }
     )
-    subprocess.run(cmd, check=True)
+    subprocess.run(facts_cmd, check=True)
+
+    cohort = [
+        "--market",
+        args.market,
+        "--universe",
+        args.universe,
+        "--instrument-ids",
+        ids_csv,
+    ]
+    commands = [
+        [
+            py,
+            "-m",
+            "backend.scripts.sync_stock_metrics",
+            *cohort,
+            "--max-workers",
+            str(max(1, args.max_workers)),
+            "--pause",
+            "0.25",
+        ],
+        [py, "-m", "backend.scripts.build_stock_intel_pro", *cohort],
+        [
+            py,
+            "-m",
+            "backend.scripts.build_stock_technicals",
+            *cohort,
+            "--finviz-workers",
+            "3",
+        ],
+        [
+            py,
+            "-m",
+            "backend.scripts.materialize_views",
+            *cohort,
+            "--allow-missing-context",
+            "--skip-sector-scrape",
+        ],
+    ]
+    for command in commands:
+        print({"lane": args.lane, "cmd": " ".join(command)})
+        subprocess.run(command, check=True)
 
 
 if __name__ == "__main__":

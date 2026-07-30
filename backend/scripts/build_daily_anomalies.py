@@ -10,14 +10,19 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import requests
-
 from backend.context_search import context_search_enabled, search_context_articles_for_ticker
 from backend.llm_enrichment import OpenAIArticleEnricher
-from backend.llm_client import json_response_format, llm_api_key, llm_api_url, llm_headers, llm_model, parse_json_content, schema_system_prompt
+from backend.llm_client import (
+    json_response_format,
+    llm_api_key,
+    llm_model,
+    parse_json_content,
+    post_chat_completion,
+    schema_system_prompt,
+)
 from backend.open_email_intel import fresh_sector_summary_from_prices
 from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
-from backend.instrument_universe import list_instruments
+from backend.instrument_universe import get_coverage_universe_id, list_instruments
 from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
 
@@ -418,22 +423,22 @@ def _llm_move_explanation(
         "latest_articles": articles,
     }
     try:
-        resp = requests.post(
-            llm_api_url(),
-            headers=llm_headers(api_key),
-            json={
-                "model": llm_model(OPENAI_DEFAULT_MODEL),
-                "temperature": 0.0,
-                "messages": [
-                    {"role": "system", "content": schema_system_prompt(MOVE_EXPLAINER_PROMPT, MOVE_EXPLAINER_SCHEMA)},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {
+                    "role": "system",
+                    "content": schema_system_prompt(MOVE_EXPLAINER_PROMPT, MOVE_EXPLAINER_SCHEMA),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=llm_model(OPENAI_DEFAULT_MODEL),
+            temperature=0.0,
+            response_format=json_response_format(),
             timeout=35,
+            stage="anomaly_source_explainer",
+            max_attempts=3,
         )
-        resp.raise_for_status()
-        parsed = parse_json_content(resp.json()["choices"][0]["message"]["content"])
+        parsed = parse_json_content(body["choices"][0]["message"]["content"])
     except Exception as exc:
         print(f"  [move explainer] failed {payload['ticker']}: {exc}", flush=True)
         return None
@@ -676,25 +681,25 @@ def _llm_internal_context_move_explanation(
     ):
         return None
     try:
-        resp = requests.post(
-            llm_api_url(),
-            headers=llm_headers(api_key),
-            json={
-                "model": llm_model(OPENAI_DEFAULT_MODEL),
-                "temperature": 0.1,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": schema_system_prompt(INTERNAL_MOVE_CONTEXT_PROMPT, INTERNAL_MOVE_CONTEXT_SCHEMA),
-                    },
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-                ],
-                "response_format": json_response_format(),
-            },
+        body = post_chat_completion(
+            messages=[
+                {
+                    "role": "system",
+                    "content": schema_system_prompt(
+                        INTERNAL_MOVE_CONTEXT_PROMPT,
+                        INTERNAL_MOVE_CONTEXT_SCHEMA,
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+            ],
+            model=llm_model(OPENAI_DEFAULT_MODEL),
+            temperature=0.1,
+            response_format=json_response_format(),
             timeout=35,
+            stage="anomaly_internal_context",
+            max_attempts=3,
         )
-        resp.raise_for_status()
-        parsed = parse_json_content(resp.json()["choices"][0]["message"]["content"])
+        parsed = parse_json_content(body["choices"][0]["message"]["content"])
     except Exception as exc:
         print(f"  [move internal context] failed {payload['ticker']}: {exc}", flush=True)
         return None
@@ -949,6 +954,7 @@ def _load_scan_instruments(
     market: str,
     universe_id: str,
     include_tracked: bool,
+    include_price_overrides: bool = True,
 ) -> list[dict[str, Any]]:
     rows = list_instruments(market, universe_id)
     by_id = {
@@ -956,8 +962,28 @@ def _load_scan_instruments(
         for row in rows
         if str(row.get("instrument_id") or "").strip()
     }
+    coverage_universe_id = get_coverage_universe_id(market)
+    if coverage_universe_id and coverage_universe_id != universe_id:
+        try:
+            coverage_rows = list_instruments(market, coverage_universe_id)
+        except ValueError:
+            coverage_rows = []
+        for row in coverage_rows:
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            if instrument_id:
+                by_id[instrument_id] = row
     if include_tracked:
         missing_ids = [iid for iid in _tracked_instrument_ids(store, market) if iid not in by_id]
+        for row in store.list_instruments(market, missing_ids):
+            instrument_id = str(row.get("instrument_id") or "").strip().upper()
+            if instrument_id:
+                by_id[instrument_id] = row
+    if include_price_overrides:
+        missing_ids = [
+            str(iid or "").strip().upper()
+            for iid in store.get_price_core_overrides(market)
+            if str(iid or "").strip().upper() not in by_id
+        ]
         for row in store.list_instruments(market, missing_ids):
             instrument_id = str(row.get("instrument_id") or "").strip().upper()
             if instrument_id:
@@ -1396,6 +1422,7 @@ def main() -> None:
             "limit": args.limit,
             "enrich_missing": bool(args.enrich_missing),
             "include_tracked": not bool(args.exclude_tracked),
+            "include_price_overrides": True,
             "scan_count": len(instrument_ids),
             "required_price_session_phase": args.require_price_session_phase,
             "stale_price_count": len(stale_price_ids),

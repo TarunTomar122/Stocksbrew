@@ -96,9 +96,13 @@ def sync_price_snapshots(
                 instruments.append(row)
     else:
         instruments = list_instruments(market, universe_id)
-    client = YFinanceClient(max_workers=max_workers)
-    include_fundamentals = session_phase in ("post_close", "manual")
-    raw_quotes = client.fetch_quotes(instruments, include_fundamentals=include_fundamentals)
+    client = YFinanceClient(max_workers=max_workers, max_retries=1)
+    # Price and fundamentals are different products with different cadences.
+    # Every scheduled price phase must stay on Yahoo's batched download path.
+    # Weekly fundamentals jobs own `.info`/scraper work; letting post-close or
+    # manual price refreshes request fundamentals turns a ~500-stock batch into
+    # hundreds of slow per-ticker HTTP calls.
+    raw_quotes = client.fetch_quotes(instruments, include_fundamentals=False)
 
     instrument_by_id: dict[str, dict] = {i["instrument_id"]: i for i in instruments}
 
@@ -130,6 +134,9 @@ def sync_price_snapshots(
                 "name": quote_payload.get("name", instrument.get("name", "")),
             },
         }
+        recent_sessions = quote_payload.get("recent_sessions")
+        if isinstance(recent_sessions, list) and recent_sessions:
+            snapshot["recent_sessions"] = recent_sessions
         if "fundamentals" in quote_payload:
             snapshot["fundamentals"] = quote_payload["fundamentals"]
         if "analyst_consensus" in quote_payload:

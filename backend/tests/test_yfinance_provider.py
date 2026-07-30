@@ -14,6 +14,93 @@ from backend.providers.yfinance_provider import (
 
 
 class YFinanceProviderTest(unittest.TestCase):
+    def test_quote_only_missing_symbols_are_retried_as_a_batch_not_info(self) -> None:
+        instruments = [
+            {
+                "instrument_id": "US_AAPL",
+                "market": "US",
+                "ticker": "AAPL",
+                "quote_symbol": "AAPL",
+            },
+            {
+                "instrument_id": "US_MSFT",
+                "market": "US",
+                "ticker": "MSFT",
+                "quote_symbol": "MSFT",
+            },
+        ]
+
+        def quote(price: float) -> dict:
+            return {
+                "current": price,
+                "day_change_abs": 1.0,
+                "day_change_pct": 1.0,
+                "open": price - 1,
+                "high": price,
+                "low": price - 2,
+                "previous_close": price - 1,
+                "volume": 100,
+                "captured_at": "2026-07-30T14:00:00+00:00",
+            }
+
+        with patch(
+            "backend.providers.yfinance_provider._batch_download_quote_only",
+            side_effect=[
+                {"AAPL": quote(200)},
+                {"MSFT": quote(500)},
+            ],
+        ) as batched, patch.object(
+            YFinanceClient,
+            "_fetch_one_with_retry",
+            side_effect=AssertionError("price lane must not call .info"),
+        ):
+            rows = YFinanceClient(max_retries=1, retry_backoff_s=0).fetch_quotes(
+                instruments,
+                include_fundamentals=False,
+            )
+
+        self.assertEqual(set(rows), {"US_AAPL", "US_MSFT"})
+        self.assertEqual(batched.call_count, 2)
+        self.assertEqual(batched.call_args_list[1].args[0], ["MSFT"])
+
+    def test_quote_only_reuses_one_symbol_quote_for_duplicate_instrument_ids(self) -> None:
+        instruments = [
+            {
+                "instrument_id": "US_GOOG",
+                "market": "US",
+                "ticker": "GOOG",
+                "quote_symbol_yahoo": "GOOG",
+            },
+            {
+                "instrument_id": "US_GOOG_LEGACY",
+                "market": "US",
+                "ticker": "GOOG",
+                "quote_symbol_yahoo": "GOOG",
+            },
+        ]
+        quote = {
+            "current": 200.0,
+            "day_change_abs": 2.0,
+            "day_change_pct": 1.0,
+            "open": 198.0,
+            "high": 201.0,
+            "low": 197.0,
+            "previous_close": 198.0,
+            "volume": 100,
+            "captured_at": "2026-07-30T14:00:00+00:00",
+        }
+        with patch(
+            "backend.providers.yfinance_provider._batch_download_quote_only",
+            return_value={"GOOG": quote},
+        ) as batched:
+            rows = YFinanceClient(max_retries=0).fetch_quotes(
+                instruments,
+                include_fundamentals=False,
+            )
+
+        self.assertEqual(set(rows), {"US_GOOG", "US_GOOG_LEGACY"})
+        self.assertEqual(batched.call_args.args[0], ["GOOG"])
+
     def test_yahoo_symbol_for_us(self) -> None:
         instrument = {
             "market": "US",
@@ -85,6 +172,13 @@ class YFinanceProviderTest(unittest.TestCase):
 
         self.assertEqual(row["quote"]["current"], 106.0)
         self.assertEqual(row["quote"]["previous_close"], 100.0)
+        self.assertEqual(
+            row["recent_sessions"],
+            [
+                {"date": "2026-07-01", "close": 100.0, "volume": 10.0, "change_pct": None},
+                {"date": "2026-07-02", "close": 106.0, "change_pct": 6.0, "volume": 20.0},
+            ],
+        )
         self.assertNotIn("fundamentals", row)
         self.assertNotIn("analyst_consensus", row)
 
@@ -175,6 +269,10 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertEqual(row["quote"]["current"], 106.0)
         self.assertEqual(row["quote"]["previous_close"], 104.0)
         self.assertEqual(row["quote"]["day_change_pct"], 1.92)
+        self.assertEqual(
+            row["recent_sessions"][-1],
+            {"date": "2026-07-15", "close": 106.0, "change_pct": 1.92, "volume": 20.0},
+        )
 
     def test_quote_only_fetch_flattens_single_symbol_multiindex_download(self) -> None:
         index = [

@@ -22,10 +22,15 @@ Current VPS:
 
 No job rewrite. The dispatcher still owns lane selection, sharding, Firestore run state, and materialization.
 
-The weekday post-close service starts `tikrr-close-anomalies.service` through
-systemd `OnSuccess=`. There is intentionally no independent close-anomalies
-timer: anomaly materialization must wait for both the runtime-core and dynamic
-override price cohorts to finish their post-close refresh.
+The market-session chains are dependency-driven:
+
+- 09:30 ET price → changed opening briefs
+- 09:50 ET settled mover price → anomaly research → opening email
+- 16:10 ET post-close prices/read models → changed closing briefs → anomalies
+
+There are no independent brief or close-anomaly timers. The 09:50 anomaly
+worker also checks the session record and waits up to 15 minutes for a slow
+opening brief stage before failing closed.
 
 ## One-time VPS setup
 

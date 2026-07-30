@@ -424,6 +424,71 @@ class LLMEnrichmentTest(unittest.TestCase):
         self.assertEqual(first[0].topic_label, "Amazon")
         self.assertEqual(second[0].topic_label, "Amazon")
 
+    def test_enricher_checks_cache_before_url_extraction(self) -> None:
+        article = Article(
+            id="cached-before-scrape",
+            source_id="src",
+            source_name="Publisher",
+            source_kind="publisher",
+            market="US",
+            title="Nvidia rises after an analyst upgrade",
+            url="https://example.com/nvda",
+            summary="Nvidia shares rose after the upgrade.",
+            article_overview="",
+            article_key_points=[],
+            published_at="2026-07-30T10:00:00+00:00",
+            topic_key="",
+            topic_label="",
+            topic_kind="",
+            tags=[],
+            sector_tags=[],
+            stock_candidates=[],
+            stock_tickers=[],
+            signal_types=[],
+            bucket_keys=[],
+            bucket_labels=[],
+            bucket_kinds=[],
+            entity_mentions=[],
+            sentiment_score=0.0,
+            sentiment_label="unscored",
+            enrichment_source="raw",
+            focus_ticker="NVDA",
+        )
+        payload = {
+            "summary": "Nvidia rose after an analyst upgrade.",
+            "key_points": ["The analyst raised its view."],
+            "sentiment": "bullish",
+            "entities": [
+                {
+                    "ticker": "NVDA",
+                    "relevance": "primary",
+                    "facts": ["An analyst upgraded Nvidia."],
+                }
+            ],
+        }
+
+        class StubStore:
+            def __init__(self) -> None:
+                self.rows: dict[str, dict] = {}
+
+            def get_llm_enrichment(self, cache_key: str) -> dict | None:
+                return self.rows.get(cache_key)
+
+            def save_llm_enrichment(self, cache_key: str, row: dict) -> None:
+                self.rows[cache_key] = row
+
+        store = StubStore()
+        enricher = OpenAIArticleEnricher(api_key="test-key", store=store, max_workers=2)
+        store.rows[enricher._cache_key(article)] = {"payload": payload}
+
+        with patch(
+            "backend.llm_enrichment._prepare_article_for_enrichment",
+            side_effect=AssertionError("cached article must not be scraped"),
+        ):
+            result = enricher.enrich_articles([article])
+
+        self.assertEqual(result[0].stock_tickers, ["NVDA"])
+
     def test_parse_json_content_rejects_empty(self) -> None:
         for raw in ("", "   ", "\n", "```\n```", "```json\n```"):
             with self.subTest(raw=repr(raw)):

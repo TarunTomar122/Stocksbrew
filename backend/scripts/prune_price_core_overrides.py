@@ -108,8 +108,25 @@ def main() -> None:
     market = args.market.upper()
     store = TraceMoneyStore()
     current = store.get_price_core_overrides(market)
+    original_current_set = {
+        str(item or "").strip().upper()
+        for item in current
+        if str(item or "").strip()
+    }
+    valid_ids = {
+        str(row.get("instrument_id") or "").strip().upper()
+        for row in store.list_instruments(market)
+        if str(row.get("instrument_id") or "").strip()
+    }
+    current = [
+        instrument_id
+        for instrument_id in current
+        if str(instrument_id or "").strip().upper() in valid_ids
+    ]
     keep_tracked = _tracked_ids(store, market)
     keep_recent = _recent_view_ids(store, market, args.recent_days)
+    keep_tracked &= valid_ids
+    keep_recent &= valid_ids
     kept = retained_override_ids(
         current,
         tracked=keep_tracked,
@@ -117,10 +134,9 @@ def main() -> None:
         target_cap=args.target_cap,
         floor=args.floor,
     )
-    current_set = {str(item or "").strip().upper() for item in current if str(item or "").strip()}
     kept_set = set(kept)
-    removed_count = len(current_set - kept_set)
-    added_count = len(kept_set - current_set)
+    removed_count = len(original_current_set - kept_set)
+    added_count = len(kept_set - original_current_set)
 
     if args.dry_run:
         print(

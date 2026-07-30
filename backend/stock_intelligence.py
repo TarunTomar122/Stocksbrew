@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
+import os
 import re
 from typing import Any
 
@@ -27,6 +28,14 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 logger = logging.getLogger(__name__)
 
 STOCK_BRIEF_CACHE_VERSION = "2026-07-02-stock-brief-v17-anomaly-alignment"
+DEFAULT_STOCK_BRIEF_MODEL = "openai/gpt-4o-mini"
+
+
+def stock_brief_model() -> str:
+    return (
+        os.getenv("STOCK_BRIEF_MODEL", "").strip()
+        or DEFAULT_STOCK_BRIEF_MODEL
+    )
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -110,6 +119,28 @@ def _recent_session_prices(
     *,
     limit: int = 5,
 ) -> list[dict[str, Any]]:
+    provider_sessions = (
+        (latest_price_doc or {}).get("recent_sessions")
+        if isinstance(latest_price_doc, dict)
+        else None
+    )
+    if isinstance(provider_sessions, list) and provider_sessions:
+        recent: list[dict[str, Any]] = []
+        for row in provider_sessions[-limit:]:
+            if not isinstance(row, dict):
+                continue
+            close = _to_float(row.get("close"))
+            date_key = str(row.get("date") or "")[:10]
+            if close is None or not date_key:
+                continue
+            entry: dict[str, Any] = {"date": date_key, "close": round(close, 4)}
+            day_change = _to_float(row.get("change_pct"))
+            if day_change is not None:
+                entry["day_change_pct"] = round(day_change, 2)
+            recent.append(entry)
+        if recent:
+            return recent
+
     rows: list[tuple[str, float, float | None]] = []
     for row in history_points:
         quote = row.get("quote") or {}
@@ -755,6 +786,68 @@ def _json_schema_errors(value: Any, schema: dict[str, Any], *, path: str = "$") 
     return errors
 
 
+def _normalize_stock_brief_payload(payload: Any) -> Any:
+    """Repair harmless shape drift without inventing investment content."""
+    if not isinstance(payload, dict):
+        return payload
+
+    directive = payload.get("directive")
+    if isinstance(directive, dict):
+        stance = str(directive.get("stance") or "").strip().lower()
+        zone_order = (
+            ("add_on", "breaks_if", "trim_on")
+            if stance == "accumulate"
+            else ("trim_on", "breaks_if", "add_on")
+            if stance == "trim"
+            else ("breaks_if", "add_on", "trim_on")
+        )
+        primary_type = "none"
+        primary_value = ""
+        for zone_name in zone_order:
+            zone = directive.get(zone_name)
+            if not isinstance(zone, dict):
+                continue
+            zone_type = str(zone.get("trigger_type") or "none").strip()
+            zone_value = str(zone.get("trigger_value") or "").strip()
+            if zone_type != "none" and zone_value:
+                primary_type = zone_type
+                primary_value = zone_value
+                break
+        directive.setdefault("trigger_type", primary_type)
+        directive.setdefault("trigger_value", primary_value)
+
+    horizon_aliases = {
+        "near-term": "today",
+        "near term": "today",
+        "short-term": "week",
+        "short term": "week",
+        "medium-term": "quarter",
+        "medium term": "quarter",
+        "long-term": "quarter",
+        "long term": "quarter",
+    }
+    for driver in payload.get("drivers") or []:
+        if isinstance(driver, dict):
+            horizon = str(driver.get("horizon") or "").strip().lower()
+            if horizon in horizon_aliases:
+                driver["horizon"] = horizon_aliases[horizon]
+            elif horizon not in {"today", "week", "quarter"}:
+                if any(token in horizon for token in ("today", "day", "immediate")):
+                    driver["horizon"] = "today"
+                elif any(token in horizon for token in ("week", "near", "short")):
+                    driver["horizon"] = "week"
+                elif any(token in horizon for token in ("quarter", "month", "medium", "long")):
+                    driver["horizon"] = "quarter"
+
+    priced_in_aliases = {"medium": "med", "moderate": "med"}
+    for card in payload.get("catalyst_cards") or []:
+        if isinstance(card, dict):
+            priced_in = str(card.get("priced_in") or "").strip().lower()
+            if priced_in in priced_in_aliases:
+                card["priced_in"] = priced_in_aliases[priced_in]
+    return payload
+
+
 def _validate_stock_brief_payload(payload: Any) -> dict[str, Any]:
     """Reject schema echoes and incomplete stock briefs before use or caching."""
     if not isinstance(payload, dict):
@@ -762,6 +855,7 @@ def _validate_stock_brief_payload(payload: Any) -> dict[str, Any]:
     if "schema" in payload and "name" in payload:
         raise ValueError("stock brief response echoed the schema envelope")
 
+    payload = _normalize_stock_brief_payload(payload)
     errors = _json_schema_errors(payload, STOCK_BRIEF_SCHEMA["schema"])
     for field in ("headline", "body", "thesis"):
         if isinstance(payload.get(field), str) and not payload[field].strip():
@@ -809,7 +903,7 @@ def _llm_synthesize_brief(
     if not api_key:
         return None
 
-    model = llm_model()
+    model = stock_brief_model()
 
     payload = {
         "today": datetime.now(timezone.utc).date().isoformat(),
@@ -1079,7 +1173,7 @@ def generate_no_news_brief(
     if not api_key:
         return None
 
-    model = llm_model()
+    model = stock_brief_model()
     ticker = str(instrument.get("ticker", "")).strip()
     name = str(instrument.get("name", ticker))
 

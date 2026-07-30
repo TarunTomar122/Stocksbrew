@@ -1,5 +1,9 @@
 # Pipeline Cost Audit
 
+> Historical audit from the Cloud Run/Scheduler era. For the current VPS
+> systemd pipeline and July 2026 live benchmarks, use
+> `docs/production-data-pipeline-2026-07.md`.
+
 Verified on 2026-05-31 against Cloud Run/Scheduler project `tikrr-496409` and
 Firestore project `trace-money-72276`.
 
@@ -36,15 +40,17 @@ Firestore project `trace-money-72276`.
 | `tikrr-data-health-close` | `data_health` | staged: `30 21 * * 1-5` | Lightweight frontend source freshness snapshot after close derived feeds. |
 | `tikrr-on-demand-news` | `on_demand_news` | `*/10 * * * 1-5` | Poll queued on-demand news jobs. |
 
-## GitHub Workflows
+## Retired GitHub Workflows
 
-These are not Cloud Run spend, but they can write the same Firebase data:
+These historical writers were deleted after the VPS cutover. Their active
+replacements are the systemd on-demand-news poller, radar-alert timer, and
+weekly stock-facts timer:
 
 | Workflow | Trigger | Runtime role | Notes |
 | --- | --- | --- | --- |
-| `.github/workflows/price-alert-checker.yml` | Scheduled every 15 minutes across overlapping US-market UTC windows plus manual | Runs `backend.scripts.check_price_alerts` and may send Brevo email alerts | Separate from Cloud Run price refresh; depends on latest Firebase price docs. |
-| `.github/workflows/on-demand-news-jobs.yml` | Manual or `repository_dispatch: process_on_demand_news` | Runs `process_on_demand_news_jobs --limit` directly in GitHub Actions | No current repo caller found for `repository_dispatch`; Cloud Run Scheduler is the active polling path. |
-| `.github/workflows/weekly-stock-facts.yml` | Scheduled Sunday 08:00 UTC plus manual | Runs `sync_stock_facts` for weekly/broad facts refresh | This is the slower stock-detail facts lane, not an automatic daily Cloud Run cost source. |
+| `.github/workflows/price-alert-checker.yml` | Deleted | Replaced by `tikrr-radar-alerts.timer`. |
+| `.github/workflows/on-demand-news-jobs.yml` | Deleted | Replaced by `tikrr-on-demand-news.timer`. |
+| `.github/workflows/weekly-stock-facts.yml` | Deleted | Replaced by `tikrr-stock-facts.timer`. |
 
 ## Runtime Evidence
 

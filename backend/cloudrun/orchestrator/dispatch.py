@@ -8,7 +8,8 @@ import subprocess
 import sys
 from typing import Any
 
-from backend.instrument_universe import list_instruments
+from backend.instrument_universe import get_coverage_universe_id, list_instruments
+from backend.market_session_state import MarketSessionState
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
 from backend.storage import TraceMoneyStore
@@ -54,6 +55,26 @@ def _tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
     return out
 
 
+def _ai_brief_ids(
+    store: TraceMoneyStore,
+    market: str,
+    universe_id: str,
+) -> list[str]:
+    """Active AI universe plus every Pro-tracked stock, deduped."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for instrument in list_instruments(market, universe_id):
+        instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+        if instrument_id and instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
+    for instrument_id in _tracked_ids(store, market):
+        if instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
+    return ids
+
+
 def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None) -> str:
     if explicit:
         return explicit
@@ -78,7 +99,11 @@ def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit
     # `limit` only caps the ranked runtime core. Price-core overrides are the
     # extended high-priority coverage set and must be included for every
     # price-core phase, including intraday.
-    ranked = _rank_instruments(store, market, universe_id, limit)
+    coverage_universe_id = get_coverage_universe_id(market) or universe_id
+    try:
+        ranked = _rank_instruments(store, market, coverage_universe_id, limit)
+    except ValueError:
+        ranked = _rank_instruments(store, market, universe_id, limit)
     ids: list[str] = []
     seen: set[str] = set()
     for row in ranked:
@@ -89,12 +114,43 @@ def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit
             continue
         seen.add(iid)
         ids.append(iid)
-    for iid in store.get_price_core_overrides(market):
+    raw_overrides = [
+        str(iid or "").strip().upper()
+        for iid in store.get_price_core_overrides(market)
+        if str(iid or "").strip()
+    ]
+    valid_override_ids = {
+        str(row.get("instrument_id") or "").strip().upper()
+        for row in store.list_instruments(market, raw_overrides)
+        if str(row.get("instrument_id") or "").strip()
+    }
+    for iid in raw_overrides:
+        if iid not in valid_override_ids:
+            continue
         if iid in seen:
             continue
         seen.add(iid)
         ids.append(iid)
     return ids
+
+
+def _tracked_lane_extra_args(args: argparse.Namespace) -> list[str]:
+    extra = [
+        "--per-stock-cap",
+        str(args.per_stock_cap),
+        "--chunk-workers",
+        str(args.chunk_workers),
+    ]
+    if args.lane == "tracked_open_briefs":
+        extra.extend(
+            [
+                "--session-phase",
+                str(args.session_phase),
+                "--max-workers",
+                str(max(1, args.max_workers)),
+            ]
+        )
+    return extra
 
 
 def _run_sharded_lane(
@@ -315,6 +371,7 @@ def main() -> None:
             "tracked_open_briefs",
             "price_core_intraday",
             "open_anomalies",
+            "market_discovery",
             "reddit_buzz",
             "zone_briefs",
             "market_events",
@@ -380,6 +437,8 @@ def main() -> None:
     parser.add_argument("--watchlist-with-llm", action="store_true")
     parser.add_argument("--activate", action="store_true")
     parser.add_argument("--with-llm", action="store_true")
+    parser.add_argument("--include-discovery", action="store_true")
+    parser.add_argument("--not-before-minutes-after-open", type=int, default=0)
     parser.add_argument("--newsletter-mode", choices=["morning", "close"], default="morning")
     parser.add_argument("--include-ir", action="store_true")
     parser.add_argument("--wait-for-completion", action="store_true")
@@ -389,9 +448,11 @@ def main() -> None:
     # Cost guardrails: cap intraday fanout server-side so a stale scheduler payload
     # cannot explode Cloud Run executions/cost.
     if args.lane == "price_core_intraday":
-        intraday_limit_cap = max(1, int(os.getenv("INTRADAY_LIMIT_CAP", "80")))
-        intraday_shard_min = max(1, int(os.getenv("INTRADAY_SHARD_SIZE_MIN", "40")))
-        intraday_parallel_cap = max(1, int(os.getenv("INTRADAY_MAX_PARALLEL_CAP", "2")))
+        # Price fetches are one Yahoo multi-symbol download, not per-ticker
+        # API calls. Keep the cohort broad and the execution fanout at one.
+        intraday_limit_cap = max(1, int(os.getenv("INTRADAY_LIMIT_CAP", "500")))
+        intraday_shard_min = max(1, int(os.getenv("INTRADAY_SHARD_SIZE_MIN", "700")))
+        intraday_parallel_cap = max(1, int(os.getenv("INTRADAY_MAX_PARALLEL_CAP", "1")))
         args.limit = min(max(1, args.limit), intraday_limit_cap)
         args.shard_size = max(args.shard_size, intraday_shard_min)
         args.max_parallel = min(max(1, args.max_parallel), intraday_parallel_cap)
@@ -417,6 +478,7 @@ def main() -> None:
         "tracked_open_briefs": os.getenv("TRACKED_OPEN_BRIEFS_JOB_NAME", "tikrr-tracked-open-briefs"),
         "price_core_intraday": os.getenv("PRICE_CORE_INTRADAY_JOB_NAME", "tikrr-price-core-intraday"),
         "open_anomalies": os.getenv("OPEN_ANOMALIES_JOB_NAME", "tikrr-open-anomalies"),
+        "market_discovery": os.getenv("MARKET_DISCOVERY_JOB_NAME", "tikrr-market-discovery"),
         "reddit_buzz": os.getenv("REDDIT_BUZZ_JOB_NAME", "tikrr-reddit-buzz"),
         "zone_briefs": os.getenv("ZONE_BRIEFS_JOB_NAME", "tikrr-zone-briefs"),
         "market_events": os.getenv("MARKET_EVENTS_JOB_NAME", "tikrr-market-events"),
@@ -524,7 +586,7 @@ def main() -> None:
                 subscribed_only=False,
             )
     elif args.lane in {"tracked_news_prep", "tracked_open_briefs"}:
-        instrument_ids = _tracked_ids(store, args.market)
+        instrument_ids = _ai_brief_ids(store, args.market, universe_id)
         if args.dry_run:
             print(
                 {
@@ -548,6 +610,7 @@ def main() -> None:
                 "shard_size": args.shard_size,
             },
         )
+        tracked_extra_args = _tracked_lane_extra_args(args)
         summary = _run_sharded_lane(
             lane=args.lane,
             market=args.market,
@@ -556,18 +619,17 @@ def main() -> None:
             job_name=job_name,
             instrument_ids=instrument_ids,
             shard_size=args.shard_size,
-            extra_args=[
-                "--per-stock-cap",
-                str(args.per_stock_cap),
-                "--chunk-workers",
-                str(args.chunk_workers),
-            ],
+            extra_args=tracked_extra_args,
             max_parallel=args.max_parallel,
             client=client,
             state=state,
             wait_for_completion=args.wait_for_completion,
         )
-        should_refresh_watchlists = args.wait_for_completion and (args.refresh_watchlists or args.lane == "tracked_open_briefs")
+        should_refresh_watchlists = (
+            args.wait_for_completion
+            and int(summary.get("failed_count") or 0) == 0
+            and (args.refresh_watchlists or args.lane == "tracked_open_briefs")
+        )
         if should_refresh_watchlists:
             summary["watchlist_refresh"] = _refresh_watchlist_views(
                 run_id=run_id,
@@ -643,8 +705,14 @@ def main() -> None:
                 str(args.chunk_workers),
             ]
         elif args.lane == "open_anomalies":
+            single_extra_args = [
+                "--not-before-minutes-after-open",
+                str(max(0, args.not_before_minutes_after_open)),
+            ]
             if args.price_session_phase:
-                single_extra_args = ["--price-session-phase", args.price_session_phase]
+                single_extra_args.extend(["--price-session-phase", args.price_session_phase])
+            if args.include_discovery:
+                single_extra_args.append("--include-discovery")
         elif args.lane == "market_events":
             single_extra_args = ["--limit", str(max(1, args.limit))]
             if args.skip_if_fresh_hours > 0:
@@ -706,6 +774,7 @@ def main() -> None:
         "daily_postclose",
         "tracked_incremental_refresh",
         "open_anomalies",
+        "market_discovery",
         "reddit_buzz",
         "zone_briefs",
         "market_events",
@@ -735,6 +804,44 @@ def main() -> None:
     if status == "dispatched":
         state.mark_run_dispatched(run_id=run_id, summary=summary)
     else:
+        if status == "success":
+            session_state = MarketSessionState(store)
+            if args.lane == "price_core_open" and args.session_phase in {
+                "open_check",
+                "post_close",
+            }:
+                session_state.record_stage(
+                    market=args.market,
+                    phase=args.session_phase,
+                    stage="price",
+                    run_id=run_id,
+                    metadata={
+                        "shard_count": summary.get("shard_count"),
+                        "failed_count": summary.get("failed_count"),
+                    },
+                )
+            elif args.lane == "daily_postclose":
+                session_state.record_stage(
+                    market=args.market,
+                    phase="post_close",
+                    stage="price",
+                    run_id=run_id,
+                    metadata={"read_models_complete": True},
+                )
+            elif args.lane == "tracked_open_briefs" and args.session_phase in {
+                "open_check",
+                "post_close",
+            }:
+                session_state.record_stage(
+                    market=args.market,
+                    phase=args.session_phase,
+                    stage="briefs",
+                    run_id=run_id,
+                    metadata={
+                        "shard_count": summary.get("shard_count"),
+                        "failed_count": summary.get("failed_count"),
+                    },
+                )
         state.mark_run_finished(run_id=run_id, status=status, summary=summary)
     print(summary)
     if status not in {"success", "dispatched"}:

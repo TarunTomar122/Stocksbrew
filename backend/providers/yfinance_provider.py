@@ -146,6 +146,41 @@ def _history_metrics(history) -> tuple[float, float, float, float, float, float,
     return current, previous_close, open_price, high, low, volume, captured_at.astimezone(timezone.utc).isoformat()
 
 
+def _recent_daily_sessions(history: Any, *, limit: int = 6) -> list[dict[str, Any]]:
+    """Serialize actual Yahoo daily bars for tape-aware downstream jobs.
+
+    `tm_latest_prices.history_window` is a history of *our fetches*. It can
+    have multi-day gaps when a ticker was outside an older runtime cohort, so
+    adjacent entries there are not necessarily adjacent market sessions.
+    Yahoo's already-batched daily frame is the trustworthy source for this
+    small recent-session window and does not require another network call.
+    """
+    if history is None or getattr(history, "empty", True):
+        return []
+    sessions: list[dict[str, Any]] = []
+    previous_close: float | None = None
+    for index in range(len(history)):
+        row = history.iloc[index]
+        close = _finite_positive(row.get("Close"))
+        if close is None:
+            continue
+        raw_volume = _to_float(row.get("Volume"), default=float("nan"))
+        volume = raw_volume if math.isfinite(raw_volume) and raw_volume >= 0 else None
+        session: dict[str, Any] = {
+            "date": _row_date(row).isoformat(),
+            "close": round(close, 4),
+        }
+        if volume is not None:
+            session["volume"] = volume
+        if previous_close is not None and previous_close > 0:
+            session["change_pct"] = round(((close - previous_close) / previous_close) * 100.0, 2)
+        else:
+            session["change_pct"] = None
+        sessions.append(session)
+        previous_close = close
+    return sessions[-max(1, limit):]
+
+
 def _row_datetime(row: Any) -> datetime:
     captured = getattr(row.name, "to_pydatetime", lambda: datetime.now(timezone.utc))()
     if captured.tzinfo is None:
@@ -328,7 +363,9 @@ def _batch_download_frames(symbols: list[str], *, period: str, interval: str, pr
 
 def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
     """Cheap live-ish quote rows without Yahoo .info."""
-    daily_by_symbol = _batch_download_frames(symbols, period="5d", interval="1d")
+    # Ten calendar days reliably contains at least six completed US trading
+    # sessions across weekends/holidays. The response is still one batch.
+    daily_by_symbol = _batch_download_frames(symbols, period="10d", interval="1d")
     intraday_by_symbol = _batch_download_frames(symbols, period="1d", interval="1m")
     rows: dict[str, dict[str, Any]] = {}
     metadata_symbols: list[str] = []
@@ -355,6 +392,23 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
 
         day_change_abs = current - prev_close if prev_close else 0.0
         day_change_pct = ((day_change_abs / prev_close) * 100.0) if prev_close else 0.0
+        recent_sessions = _recent_daily_sessions(daily, limit=6)
+        captured_day = (
+            _row_date(intraday.iloc[-1]).isoformat()
+            if intraday is not None and not getattr(intraday, "empty", True)
+            else str(daily_at)[:10]
+        )
+        current_session = {
+            "date": captured_day,
+            "close": round(current, 4),
+            "change_pct": round(day_change_pct, 2),
+            "volume": volume,
+        }
+        if recent_sessions and recent_sessions[-1].get("date") == captured_day:
+            recent_sessions[-1] = current_session
+        else:
+            recent_sessions.append(current_session)
+            recent_sessions = recent_sessions[-6:]
         rows[symbol] = {
             "current": current,
             "day_change_abs": round(day_change_abs, 4),
@@ -365,6 +419,7 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
             "previous_close": prev_close,
             "volume": volume,
             "captured_at": captured_at,
+            "recent_sessions": recent_sessions,
         }
 
     if metadata_symbols:
@@ -388,6 +443,9 @@ def _batch_download_quote_only(symbols: list[str]) -> dict[str, dict[str, Any]]:
             row["previous_close"] = previous_close
             row["day_change_abs"] = round(day_change_abs, 4)
             row["day_change_pct"] = round((day_change_abs / previous_close) * 100.0, 2)
+            sessions = list(row.get("recent_sessions") or [])
+            if sessions:
+                sessions[-1]["change_pct"] = row["day_change_pct"]
         print(
             f"[yfinance previous-close metadata repair] "
             f"requested={len(metadata_symbols)} repaired={len(repaired)}"
@@ -511,30 +569,52 @@ class YFinanceClient:
         if not instruments:
             return {}
         if not include_fundamentals:
-            symbol_to_instrument = {yahoo_symbol_for(instrument): instrument for instrument in instruments}
-            quote_rows = _batch_download_quote_only(list(symbol_to_instrument.keys()))
+            symbol_to_instruments: dict[str, list[dict[str, Any]]] = {}
+            for instrument in instruments:
+                symbol_to_instruments.setdefault(yahoo_symbol_for(instrument), []).append(instrument)
+            symbols = list(symbol_to_instruments)
+            quote_rows = _batch_download_quote_only(symbols)
+            # Yahoo occasionally omits a handful of symbols from a large
+            # multi-ticker response. Retry only those symbols, still as one
+            # or two batched downloads. Never fall through to `.info` here:
+            # that defeats the price lane's bounded batch contract.
+            missing_symbols = [symbol for symbol in symbols if symbol not in quote_rows]
+            for attempt in range(self.max_retries):
+                if not missing_symbols:
+                    break
+                if self.retry_backoff_s:
+                    time.sleep(self.retry_backoff_s * (attempt + 1))
+                retry_rows = _batch_download_quote_only(missing_symbols)
+                quote_rows.update(retry_rows)
+                missing_symbols = [symbol for symbol in missing_symbols if symbol not in quote_rows]
+            if missing_symbols:
+                print(
+                    "[yfinance batch quote incomplete] "
+                    f"requested={len(symbols)} resolved={len(quote_rows)} "
+                    f"missing={len(missing_symbols)} symbols={','.join(missing_symbols[:20])}"
+                )
             rows: dict[str, dict[str, Any]] = {}
-            for yahoo_symbol, instrument in symbol_to_instrument.items():
-                quote = quote_rows.get(yahoo_symbol)
-                if quote is None:
-                    try:
-                        payload = self._fetch_one_with_retry(instrument)
-                    except Exception as exc:
-                        print(f"yfinance fallback fetch failed for {instrument.get('instrument_id')}: {exc}")
-                        continue
-                    payload.pop("fundamentals", None)
-                    payload.pop("analyst_consensus", None)
-                    rows[instrument["instrument_id"]] = payload
+            for yahoo_symbol, matching_instruments in symbol_to_instruments.items():
+                quote_row = quote_rows.get(yahoo_symbol)
+                if quote_row is None:
                     continue
-                rows[instrument["instrument_id"]] = {
-                    "symbol": str(instrument.get("ticker", yahoo_symbol)),
-                    "yahoo_symbol": yahoo_symbol,
-                    "name": instrument.get("name", ""),
-                    "exchange": instrument.get("exchange", ""),
-                    "currency": instrument.get("currency", "USD"),
-                    "captured_at": quote["captured_at"],
-                    "quote": quote,
+                quote = {
+                    key: value
+                    for key, value in quote_row.items()
+                    if key != "recent_sessions"
                 }
+                recent_sessions = list(quote_row.get("recent_sessions") or [])
+                for instrument in matching_instruments:
+                    rows[instrument["instrument_id"]] = {
+                        "symbol": str(instrument.get("ticker", yahoo_symbol)),
+                        "yahoo_symbol": yahoo_symbol,
+                        "name": instrument.get("name", ""),
+                        "exchange": instrument.get("exchange", ""),
+                        "currency": instrument.get("currency", "USD"),
+                        "captured_at": quote["captured_at"],
+                        "quote": quote,
+                        "recent_sessions": recent_sessions,
+                    }
             return rows
 
         history_by_symbol = _batch_download_frames(

@@ -16,6 +16,11 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
+# SEC rejects anonymous/default clients. Keep the same production identity for
+# timer-driven and manual VPS runs even when backend.env omits the optional
+# setting.
+export SEC_USER_AGENT="${SEC_USER_AGENT:-Stocksbrew/1.0 contact@stocksbrew.online}"
+
 # Web materialization jobs use a file-backed secret so credentials never live
 # in the repository or systemd unit. The production Vercel project holds the
 # matching REVALIDATE_TOKEN.

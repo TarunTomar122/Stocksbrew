@@ -29,10 +29,12 @@ User=${USER_NAME}
 WorkingDirectory=${REPO_DIR}
 Environment=TIKRR_REPO_DIR=${REPO_DIR}
 Environment=TIKRR_ENV_FILE=${ENV_FILE}
+Environment="SEC_USER_AGENT=${SEC_USER_AGENT:-Stocksbrew/1.0 contact@stocksbrew.online}"
 MemoryMax=${TIKRR_SERVICE_MEMORY_MAX:-6G}
 MemorySwapMax=${TIKRR_SERVICE_MEMORY_SWAP_MAX:-2G}
 ExecStart=${REPO_DIR}/backend/vps/run-dispatch.sh ${lane} ${extra}
 EOF
+  chmod 0644 "${service}"
 }
 
 write_pair() {
@@ -58,33 +60,38 @@ Unit=tikrr-${name}.service
 [Install]
 WantedBy=timers.target
 EOF
+  chmod 0644 "${timer}"
   TIMER_NAMES+=("tikrr-${name}.timer")
 }
 
-# UTC schedules mirror backend/cloudrun/scripts/setup-scheduler.sh.
-write_pair preopen-news "Mon..Fri *-*-* 12:45:00" tracked_news_prep
-# Stock briefs and mover reasons are independent products. Prices trigger the
-# brief refresh, while the mover-evidence pass starts 20 minutes after the
-# open, once opening price data has settled. It never asks generic briefs to
-# explain a move.
-write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25" "tikrr-open-briefs.service"
-# Brief work is incremental. Small shards let a material opening move fan out
-# without a single slow ticker holding the remaining tracked names hostage.
-write_service open-briefs tracked_open_briefs "--session-phase open_check --shard-size 10 --max-parallel 4"
-write_pair open-anomalies "Mon..Fri *-*-* 13:50:00" open_anomalies "--price-session-phase open_check"
+# Use exchange-local schedules so US daylight-saving transitions do not move
+# the pipeline one hour away from the market session.
+write_pair preopen-news "Mon..Fri *-*-* 08:45:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2"
+write_pair preclose-news "Mon..Fri *-*-* 15:40:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2"
+# One dependency chain owns the publish order. A single large Yahoo batch
+# replaces ~20 sequential 25-stock price shards.
+write_pair open-price "Mon..Fri *-*-* 09:30:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-briefs.service"
+write_service open-briefs tracked_open_briefs "--session-phase open_check --shard-size 6 --max-parallel 12"
+# Movers must be selected from a settled 20-minute tape, not the 09:30 quote
+# batch that fed the opening briefs. This second batch is cheap and chains
+# directly into anomaly research + the opening email.
+write_pair open-movers-price "Mon..Fri *-*-* 09:50:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-anomalies.service"
+write_service open-anomalies open_anomalies "--price-session-phase open_check"
 write_pair reddit-buzz "Mon..Fri *-*-* 12,15,18,21:20:00" reddit_buzz
 write_pair zone-briefs "Mon..Fri *-*-* 14:00:00" zone_briefs
 write_pair market-events-open "Mon..Fri *-*-* 14:10:00" market_events "--skip-if-fresh-hours 20"
 write_pair data-health-open "Mon..Fri *-*-* 14:20:00" data_health
 write_pair market-events-close "Mon..Fri *-*-* 22:30:00" market_events
 write_pair data-health-close "Mon..Fri *-*-* 22:40:00" data_health
-write_pair intraday-price-hourly "Mon..Fri *-*-* 13..19:00:00" price_core_intraday "--session-phase mid_check --max-parallel 1 --max-workers 2 --shard-size 40"
-# At the close, stock briefs and mover reasoning fan out from the completed
-# closing-price job. They are separate lanes, so neither can contaminate or
-# delay the other.
+write_pair intraday-price-hourly "Mon..Fri *-*-* 10..15:00:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700"
+# Closing price/read-model work feeds briefs, which feed the final anomaly
+# pass. They are separate products but no longer race each other.
 write_service close-anomalies open_anomalies "--price-session-phase post_close"
-write_service close-briefs tracked_open_briefs "--session-phase post_close --shard-size 10 --max-parallel 4"
-write_pair postclose "Mon..Fri *-*-* 20:10:00" daily_postclose "" "tikrr-close-briefs.service tikrr-close-anomalies.service"
+write_service close-briefs tracked_open_briefs "--session-phase post_close --shard-size 6 --max-parallel 12" "tikrr-close-anomalies.service"
+write_pair postclose "Mon..Fri *-*-* 16:10:00 America/New_York" daily_postclose "" "tikrr-close-briefs.service"
+# Slow, non-critical discovery cards run outside the email critical path.
+write_pair market-discovery-open "Mon..Fri *-*-* 10:30:00 America/New_York" market_discovery
+write_pair market-discovery-close "Mon..Fri *-*-* 17:00:00 America/New_York" market_discovery
 write_pair earnings-intel "Mon..Fri *-*-* 22:00:00" earnings_intel "--recent-days 3 --max-events 30"
 write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--upcoming-days 7 --max-events 200"
 write_pair on-demand-news "Mon..Fri *-*-* 00,04,08,12,16,20:00:00" on_demand_news "--limit 6 --per-stock-cap 6"
@@ -109,18 +116,19 @@ write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"
-# These jobs are now service-success dependencies of the price lane. Remove
-# their former fixed-time timers; the anomaly timer below is intentional.
-for name in open-briefs open-email; do
+# These jobs are now service-success dependencies. Remove their former
+# fixed-time timers; `open-movers-price.timer` owns the settled open trigger.
+for name in open-briefs open-anomalies open-email; do
   systemctl disable --now "tikrr-${name}.timer" >/dev/null 2>&1 || true
   rm -f "${UNIT_DIR}/tikrr-${name}.timer"
 done
 # Retired: intraday tracked-news polling repeatedly regenerated DeepSeek
-# briefs. Price lanes now own intraday freshness; the daily open-brief lane is
-# the only scheduled tracked-stock synthesis pass.
+# briefs. Price lanes own quote freshness; brief synthesis runs only at the
+# dependency-chained open and close checkpoints.
 for name in tracked-refresh-t6 tracked-refresh-t2 tracked-refresh-pre tracked-refresh-intraday tracked-refresh-close; do
   systemctl disable --now "tikrr-${name}.timer" >/dev/null 2>&1 || true
   rm -f "${UNIT_DIR}/tikrr-${name}.service" "${UNIT_DIR}/tikrr-${name}.timer"
+  systemctl reset-failed "tikrr-${name}.service" >/dev/null 2>&1 || true
 done
 systemctl disable --now tikrr-close-anomalies.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-close-anomalies.timer"
