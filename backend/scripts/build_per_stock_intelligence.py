@@ -870,6 +870,7 @@ def main() -> None:
         enriched_articles,
         store=store,
         include_options_digest=True,
+        include_no_news=args.include_no_news,
     )
 
     covered_ids = {doc["instrument_id"] for doc in docs if doc.get("instrument_id")}

@@ -3614,6 +3614,7 @@ def build_stock_intelligence_docs(
     store: Any | None = None,
     *,
     include_options_digest: bool = False,
+    include_no_news: bool = False,
 ) -> list[dict[str, Any]]:
     articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
     raw_articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
@@ -3766,19 +3767,20 @@ def build_stock_intelligence_docs(
                 )
                 matched_articles = sorted(articles, key=lambda item: item.published_at, reverse=True)
             else:
-                no_news_doc = build_no_news_intelligence_doc(
-                    instrument=instrument,
-                    market=market,
-                    universe_id=universe_id,
-                    latest_price_doc=latest_prices_by_id.get(instrument_id),
-                    technical_doc=None,
-                    intel_pro_doc=intel_pro_by_id.get(instrument_id),
-                    store=store,
-                )
-                if no_news_doc:
-                    no_news_doc["coverage_type"] = "on_demand_no_news"
-                    no_news_doc["source"] = LLM_BRIEF_SOURCE
-                    docs.append(no_news_doc)
+                if include_no_news:
+                    no_news_doc = build_no_news_intelligence_doc(
+                        instrument=instrument,
+                        market=market,
+                        universe_id=universe_id,
+                        latest_price_doc=latest_prices_by_id.get(instrument_id),
+                        technical_doc=None,
+                        intel_pro_doc=intel_pro_by_id.get(instrument_id),
+                        store=store,
+                    )
+                    if no_news_doc:
+                        no_news_doc["coverage_type"] = "on_demand_no_news"
+                        no_news_doc["source"] = LLM_BRIEF_SOURCE
+                        docs.append(no_news_doc)
                 continue
         primary_articles = [
             article

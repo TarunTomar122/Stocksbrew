@@ -28,6 +28,7 @@ def main() -> None:
         "--instrument-ids",
         args.instrument_ids,
         "--upsert",
+        "--incremental",
         "--enrich-only",
         "--per-stock-cap",
         str(args.per_stock_cap),
