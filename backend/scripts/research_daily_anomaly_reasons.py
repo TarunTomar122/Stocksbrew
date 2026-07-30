@@ -331,11 +331,16 @@ def main() -> None:
         evidence = _timeline_items(
             intelligence.get(str(row.get("instrument_id") or "")), reference=row_reference
         ) + source_items.get(ticker, []) + web_items.get(ticker, [])
-        explanation = _research_row(
-            row=row,
-            instrument=instrument,
-            current_items=_fresh_items(evidence, reference=row_reference),
-            price_history=list((price_docs.get(str(row.get("instrument_id") or "")) or {}).get("history_window") or []),
+        price_history = list((price_docs.get(str(row.get("instrument_id") or "")) or {}).get("history_window") or [])
+        explanation = (
+            _price_context_explanation(row=row, instrument=instrument, history=price_history)
+            if args.price_context_only
+            else _research_row(
+                row=row,
+                instrument=instrument,
+                current_items=_fresh_items(evidence, reference=row_reference),
+                price_history=price_history,
+            )
         )
         if not explanation:
             continue
