@@ -29,4 +29,14 @@ describe("feed access", () => {
     expect(redacted[12]?.headline).toBe("down-5");
     expect(redacted[13]?.headline).toBeUndefined();
   });
+
+  it("keeps the real copy available for a deliberately blurred preview", () => {
+    const rows = [
+      { changePct: 1, headline: "first" },
+      { changePct: 2, headline: "second" },
+    ];
+
+    const preview = redactScannerItemsAfterLimit(rows, 1, { preservePreview: true });
+    expect(preview[1]?.headline).toBe("second");
+  });
 });

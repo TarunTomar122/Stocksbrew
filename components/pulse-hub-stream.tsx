@@ -63,7 +63,7 @@ export async function PulseHubStream() {
     <div className="landing-stream-in">
       <PulseHubHero topline={data.topline} />
       <PulseHub
-        items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit)}
+        items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit, { preservePreview: true })}
         sectors={data.sectors}
         earnings={data.earnings}
         recentEarnings={data.recentEarnings}

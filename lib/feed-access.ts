@@ -32,6 +32,7 @@ type RedactableFeedItem = {
 export function redactScannerItemsAfterLimit<T extends RedactableFeedItem>(
   items: T[],
   fullItemLimit: number,
+  options?: { preservePreview?: boolean },
 ): T[] {
   if (!Number.isFinite(fullItemLimit)) return items;
 
@@ -40,6 +41,8 @@ export function redactScannerItemsAfterLimit<T extends RedactableFeedItem>(
     const side = item.changePct >= 0 ? "up" : "down";
     const index = seenBySide[side]++;
     if (index < fullItemLimit) return item;
+
+    if (options?.preservePreview) return item;
 
     return {
       ...item,

@@ -21,7 +21,7 @@ import { buildLandingHeroCallData } from "@/lib/landing-hero-call";
 import { pickLandingHeroDriverRisk } from "@/lib/landing-hero-insights";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
-import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
+import { anomalyDetail, anomalyHeadline, hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -207,7 +207,8 @@ export async function LandingScannerRedditStream() {
     getLandingUserContext(),
   ]);
   const anomalies = anomaliesDoc?.anomalies ?? [];
-  if (anomalies.length === 0) return null;
+  const researchedAnomalies = anomalies.filter(hasResearchBackedNarrative);
+  if (researchedAnomalies.length === 0) return null;
 
   const redditPicks = enrichRedditTickers(
     (redditData?.tickers ?? [])
@@ -220,7 +221,7 @@ export async function LandingScannerRedditStream() {
   return (
     <div className="landing-stream-in">
       <LandingScannerReddit
-      scannerItems={redactScannerItemsAfterLimit(anomalies.map((a) => ({
+      scannerItems={redactScannerItemsAfterLimit(researchedAnomalies.map((a) => ({
         ticker: a.ticker,
         instrument_id: a.instrument_id,
         price: a.price,
@@ -229,7 +230,7 @@ export async function LandingScannerRedditStream() {
         headline: anomalyHeadline(a),
         whyItMatters: anomalyDetail(a) || undefined,
         confidence: a.move_explanation?.confidence,
-      })), user.fullItemLimit)}
+      })), user.fullItemLimit, { preservePreview: true })}
       redditPicks={redditPicks}
       dataAsOf={anomaliesDoc?.date ?? anomaliesDoc?.generated_at}
       fullItemLimit={user.fullItemLimit}
