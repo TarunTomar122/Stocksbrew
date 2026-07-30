@@ -281,7 +281,13 @@ function MoverTable({
           <span className="font-mono text-[11px] font-bold" style={{ color }}>{rows.length}</span>
         </div>
       ) : null}
-      <Table className="min-w-[480px] [&_th:first-child]:pl-4 [&_td:first-child]:pl-4">
+      <Table className="min-w-[480px] table-fixed [&_th:first-child]:pl-4 [&_td:first-child]:pl-4">
+        <colgroup>
+          <col className="w-[32%]" />
+          <col className="w-[16%]" />
+          <col className="w-[46%]" />
+          <col className="w-[6%]" />
+        </colgroup>
         <TableHeader>
           <TableRow className="border-outline-variant/50 hover:bg-transparent">
             <TableHead>Ticker</TableHead>
@@ -427,7 +433,7 @@ export function PremarketPageView({
   );
 
   return (
-    <div className={embedded ? "w-full min-w-0" : "mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7"}>
+    <div className={embedded ? "w-full min-w-0" : "mx-auto w-full min-w-0 max-w-[1360px] px-3 py-4 sm:px-5 sm:py-7"}>
       {!embedded ? <header className="mb-4 flex items-start justify-between gap-4 sm:mb-5">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -490,7 +496,7 @@ export function PremarketPageView({
         </div>
       </section>
 
-      <div className="mt-6 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_290px]">
+      <div className="mt-6 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
         <div className="min-w-0 space-y-4">
           <section className={`${SUB} overflow-hidden`}>
             <div className={SUB_HEAD}>
