@@ -24,7 +24,7 @@ export function PremarketShareCard() {
   function getCard(): Promise<Blob> {
     if (blobRef.current) return Promise.resolve(blobRef.current);
     if (pendingRef.current) return pendingRef.current;
-    const pending = fetch("/api/premarket-share", { cache: "no-store" })
+    const pending = fetch("/api/premarket-share?format=social", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error(`share image returned ${response.status}`);
         return response.blob();
@@ -48,7 +48,7 @@ export function PremarketShareCard() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "stocksbrew-us-opening.png";
+    anchor.download = "stocksbrew-us-premarket.png";
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
