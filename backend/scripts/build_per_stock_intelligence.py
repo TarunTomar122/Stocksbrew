@@ -353,6 +353,68 @@ def _fetch_chunk(
     return chunk_index, articles, source_health, time.time() - started
 
 
+def _finite(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number == number else None
+
+
+def _material_price_signal(latest_price: dict[str, Any], *, phase: str) -> dict[str, Any] | None:
+    """Return a stable, factual signal when tape data merits a new AI brief.
+
+    A normal daily tick only refreshes the quote. We ask the brief model again
+    when the current move is material on its own or materially changes the
+    five-session setup. The resulting payload is facts only; the model must
+    not turn a five-day aggregate into a false company-news explanation.
+    """
+    quote = latest_price.get("quote") if isinstance(latest_price.get("quote"), dict) else {}
+    current = _finite(quote.get("current"))
+    day_change = _finite(quote.get("day_change_pct"))
+    captured_at = str(quote.get("captured_at") or latest_price.get("captured_at") or "")
+    if current is None or current <= 0 or day_change is None or not captured_at:
+        return None
+
+    current_day = captured_at[:10]
+    by_day: dict[str, float] = {}
+    for point in latest_price.get("history_window") or []:
+        if not isinstance(point, dict):
+            continue
+        point_quote = point.get("quote") if isinstance(point.get("quote"), dict) else point
+        price = _finite(point_quote.get("current") if isinstance(point_quote, dict) else None)
+        day = str(point.get("captured_at") or (point_quote or {}).get("captured_at") or "")[:10]
+        if day and price is not None and price > 0:
+            by_day[day] = price
+    by_day[current_day] = current
+    ordered = [(day, by_day[day]) for day in sorted(by_day)]
+    prior = [price for day, price in ordered if day != current_day][-5:]
+    if len(prior) < 2:
+        return None
+
+    prior_change = ((prior[-1] - prior[0]) / prior[0]) * 100 if prior[0] else 0.0
+    five_session_change = ((current - prior[0]) / prior[0]) * 100 if prior[0] else 0.0
+    reversal = abs(day_change) >= 3 and abs(prior_change) >= 8 and day_change * prior_change < 0
+    continuation = abs(day_change) >= 3 and abs(five_session_change) >= 10 and day_change * five_session_change > 0
+    breakout = current >= max(prior) * 1.03 or current <= min(prior) * 0.97
+    material = abs(day_change) >= 5 or reversal or continuation or (abs(day_change) >= 3 and breakout)
+    if not material:
+        return None
+
+    signal = {
+        "captured_day": current_day,
+        "phase": phase,
+        "day_change_pct": round(day_change, 2),
+        "prior_five_session_change_pct": round(prior_change, 2),
+        "five_session_change_pct": round(five_session_change, 2),
+        "reversal": reversal,
+        "continuation": continuation,
+        "breakout": breakout,
+    }
+    signal["fingerprint"] = hashlib.sha256(json.dumps(signal, sort_keys=True).encode()).hexdigest()
+    return signal
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build per-stock AI intelligence for an AI-tier universe")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
@@ -399,6 +461,11 @@ def main() -> None:
         type=int,
         default=24,
         help="When --synthesis-only, include only enrichments newer than this many hours (default 24). Set 0 to disable.",
+    )
+    parser.add_argument(
+        "--price-trigger-phase",
+        default="scheduled",
+        help="Session label used to dedupe material price-triggered briefs.",
     )
     args = parser.parse_args()
     if args.enrich_only and args.synthesis_only:
@@ -483,6 +550,7 @@ def main() -> None:
     )
     changed_instrument_ids: list[str] = []
     changed_instrument_set: set[str] = set()
+    price_signals: dict[str, dict[str, Any]] = {}
     freshness_payloads: dict[str, dict[str, Any]] = {}
     logger.info(
         "per_stock_intelligence instrument_union market=%s universe=%s base_count=%s paid_tracked_count=%s paid_extra_count=%s total_count=%s",
@@ -497,11 +565,22 @@ def main() -> None:
     enriched_articles: list[Article]
     if args.synthesis_only:
         if args.incremental:
-            changed_instrument_ids = sorted(
+            changed_instrument_set = {
                 instrument_id
                 for instrument_id, payload in prior_freshness.items()
                 if bool(payload.get("needs_brief_refresh"))
-            )
+            }
+            latest_prices = store.get_latest_prices(selected_instrument_ids)
+            for instrument_id, latest_price in latest_prices.items():
+                signal = _material_price_signal(latest_price, phase=str(args.price_trigger_phase))
+                if not signal:
+                    continue
+                previous = prior_freshness.get(instrument_id) or {}
+                if signal["fingerprint"] == previous.get("price_brief_input_fingerprint"):
+                    continue
+                price_signals[instrument_id] = signal
+                changed_instrument_set.add(instrument_id)
+            changed_instrument_ids = sorted(changed_instrument_set)
             changed_instrument_set = set(changed_instrument_ids)
             if changed_instrument_ids:
                 instruments = [
@@ -871,6 +950,8 @@ def main() -> None:
         store=store,
         include_options_digest=True,
         include_no_news=args.include_no_news,
+        no_news_instrument_ids=set(price_signals),
+        no_news_tape_events=price_signals,
     )
 
     covered_ids = {doc["instrument_id"] for doc in docs if doc.get("instrument_id")}
@@ -974,6 +1055,11 @@ def main() -> None:
                     "brief_input_fingerprint": hashlib.sha256(
                         json.dumps(docs_by_id.get(instrument_id) or {}, sort_keys=True).encode("utf-8")
                     ).hexdigest(),
+                    "price_brief_input_fingerprint": (
+                        price_signals.get(instrument_id, {}).get("fingerprint")
+                        or payload.get("price_brief_input_fingerprint")
+                        or ""
+                    ),
                 }
             )
             freshness_payloads[instrument_id] = payload

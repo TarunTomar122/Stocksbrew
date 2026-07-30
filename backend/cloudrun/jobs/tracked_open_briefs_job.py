@@ -25,6 +25,12 @@ def main() -> None:
     parser.add_argument("--max-workers", type=int, default=4)
     parser.add_argument("--per-stock-cap", type=int, default=4)
     parser.add_argument("--chunk-workers", type=int, default=4)
+    parser.add_argument(
+        "--brief-timeout-seconds",
+        type=int,
+        default=480,
+        help="Hard ceiling for one synthesis shard so a slow model cannot hold this lane indefinitely.",
+    )
     args = parser.parse_args()
 
     ids = _parse_ids(args.instrument_ids)
@@ -57,6 +63,8 @@ def main() -> None:
         "--upsert",
         "--synthesis-only",
         "--incremental",
+        "--price-trigger-phase",
+        args.session_phase,
         "--synthesis-lookback-hours",
         "24",
         "--per-stock-cap",
@@ -71,7 +79,7 @@ def main() -> None:
         "--skip-materialize",
     ]
     print({"run_id": args.run_id, "lane": args.lane, "shard_id": args.shard_id, "cmd": " ".join(cmd)})
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, timeout=max(60, args.brief_timeout_seconds))
 
     materialize_result = materialize_views(
         market=args.market,

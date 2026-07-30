@@ -68,7 +68,9 @@ write_pair preopen-news "Mon..Fri *-*-* 12:45:00" tracked_news_prep
 # open, once opening price data has settled. It never asks generic briefs to
 # explain a move.
 write_pair open-price "Mon..Fri *-*-* 13:30:00" price_core_open "--session-phase open_check --max-parallel 1 --max-workers 2 --shard-size 25" "tikrr-open-briefs.service"
-write_service open-briefs tracked_open_briefs "--session-phase open_check"
+# Brief work is incremental. Small shards let a material opening move fan out
+# without a single slow ticker holding the remaining tracked names hostage.
+write_service open-briefs tracked_open_briefs "--session-phase open_check --shard-size 10 --max-parallel 4"
 write_pair open-anomalies "Mon..Fri *-*-* 13:50:00" open_anomalies "--price-session-phase open_check"
 write_pair reddit-buzz "Mon..Fri *-*-* 12,15,18,21:20:00" reddit_buzz
 write_pair zone-briefs "Mon..Fri *-*-* 14:00:00" zone_briefs
@@ -81,7 +83,7 @@ write_pair intraday-price-hourly "Mon..Fri *-*-* 13..19:00:00" price_core_intrad
 # closing-price job. They are separate lanes, so neither can contaminate or
 # delay the other.
 write_service close-anomalies open_anomalies "--price-session-phase post_close"
-write_service close-briefs tracked_open_briefs "--session-phase post_close"
+write_service close-briefs tracked_open_briefs "--session-phase post_close --shard-size 10 --max-parallel 4"
 write_pair postclose "Mon..Fri *-*-* 20:10:00" daily_postclose "" "tikrr-close-briefs.service tikrr-close-anomalies.service"
 write_pair earnings-intel "Mon..Fri *-*-* 22:00:00" earnings_intel "--recent-days 3 --max-events 30"
 write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--upcoming-days 7 --max-events 200"

@@ -975,6 +975,8 @@ The user sees the price chart. Don't describe the price. Tell them what the quie
 
 STYLE: Conversational, sharp, zero filler. Keep user-facing fields naturally short through writing, not truncation.
 Do not repeat the same fact across body/key_findings/thesis/drivers/catalyst/risk.
+
+If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
 """
 
 NO_NEWS_BRIEF_CACHE_VERSION = "2026-04-21-no-news-brief-v4-native"
@@ -1061,6 +1063,7 @@ def generate_no_news_brief(
     avg_volume: float | None = None,
     store: Any | None = None,
     history_points: list[dict[str, Any]] | None = None,
+    tape_event: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Generate an LLM brief for stocks with no news coverage.
 
@@ -1113,6 +1116,7 @@ def generate_no_news_brief(
         "analyst_rating": rating_label,
         "analyst_target_price": target_price if target_price is not None else "unknown",
         "analyst_upside_pct": upside_pct if upside_pct is not None else "unknown",
+        "tape_event": tape_event or None,
     }
 
     cache_key = None
@@ -1169,6 +1173,7 @@ def build_no_news_intelligence_doc(
     avg_volume: float | None = None,
     store: Any | None = None,
     history_points: list[dict[str, Any]] | None = None,
+    tape_event: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Package a no-news LLM brief into the same shape as
     `build_stock_intelligence_docs` produces, so it can be saved to
@@ -1180,6 +1185,7 @@ def build_no_news_intelligence_doc(
         intel_pro_doc=intel_pro_doc,
         avg_volume=avg_volume,
         store=store,
+        tape_event=tape_event,
     )
     if not brief:
         return None
@@ -3615,6 +3621,8 @@ def build_stock_intelligence_docs(
     *,
     include_options_digest: bool = False,
     include_no_news: bool = False,
+    no_news_instrument_ids: set[str] | None = None,
+    no_news_tape_events: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
     raw_articles_by_instrument: dict[str, list[Article]] = defaultdict(list)
@@ -3767,15 +3775,33 @@ def build_stock_intelligence_docs(
                 )
                 matched_articles = sorted(articles, key=lambda item: item.published_at, reverse=True)
             else:
-                if include_no_news:
+                if include_no_news or instrument_id in (no_news_instrument_ids or set()):
+                    latest_price_doc = latest_prices_by_id.get(instrument_id)
+                    history_points: list[dict[str, Any]] = []
+                    if store is not None:
+                        try:
+                            history_points = store.get_price_history(instrument_id, limit=65)
+                        except Exception:
+                            history_points = []
+                    technical_doc = technicals_by_id.get(instrument_id)
+                    if not technical_doc and latest_price_doc and history_points:
+                        technical_doc = build_stock_technical_doc(
+                            instrument=instrument,
+                            latest_price=latest_price_doc,
+                            history_points=history_points,
+                            as_of_date=now_utc.date().isoformat(),
+                        )
                     no_news_doc = build_no_news_intelligence_doc(
                         instrument=instrument,
                         market=market,
                         universe_id=universe_id,
-                        latest_price_doc=latest_prices_by_id.get(instrument_id),
-                        technical_doc=None,
+                        latest_price_doc=latest_price_doc,
+                        technical_doc=technical_doc,
                         intel_pro_doc=intel_pro_by_id.get(instrument_id),
+                        avg_volume=_avg_volume_from_history(history_points),
                         store=store,
+                        history_points=history_points,
+                        tape_event=(no_news_tape_events or {}).get(instrument_id),
                     )
                     if no_news_doc:
                         no_news_doc["coverage_type"] = "on_demand_no_news"
