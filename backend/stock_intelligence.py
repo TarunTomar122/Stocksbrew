@@ -973,7 +973,7 @@ def _llm_synthesize_brief(
                 # storms and could exhaust the enclosing shard's 8m ceiling.
                 timeout=300,
                 stage="stock_brief",
-                max_attempts=2,
+                max_attempts=3,
             )
             content = body["choices"][0]["message"]["content"]
             try:
@@ -1237,7 +1237,7 @@ def generate_no_news_brief(
             response_format=json_response_format(),
             timeout=300,
             stage="no_news_brief",
-            max_attempts=2,
+            max_attempts=3,
         )
         content = body["choices"][0]["message"]["content"]
         result = parse_json_content(content)

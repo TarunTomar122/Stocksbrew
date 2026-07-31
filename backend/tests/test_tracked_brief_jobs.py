@@ -55,7 +55,7 @@ class TrackedBriefJobsTest(unittest.TestCase):
         self.assertIn("--price-trigger-phase", command)
         self.assertIn("--include-no-news", command)
         self.assertIn("--require-complete", command)
-        self.assertEqual(kwargs["timeout"], 1800)
+        self.assertEqual(kwargs["timeout"], 2400)
 
     def test_open_refreshes_stale_news_before_synthesis(self) -> None:
         argv = [
