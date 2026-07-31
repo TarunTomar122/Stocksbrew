@@ -396,7 +396,7 @@ export async function getStockSummary(
         previous_close: quote.previous_close,
         day_high: quote.high,
         day_low: quote.low,
-        captured_at: priceData?.updated_at || priceData?.captured_at,
+        captured_at: priceData?.captured_at || priceData?.updated_at,
         source: "instrument",
         fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
       };
@@ -441,7 +441,7 @@ export async function getStockSummary(
         previous_close: quote.previous_close,
         day_high: quote.high,
         day_low: quote.low,
-        captured_at: fallbackPrice?.updated_at || fallbackPrice?.captured_at,
+        captured_at: fallbackPrice?.captured_at || fallbackPrice?.updated_at,
         source: "instrument",
         fundamentals: (fallbackPrice?.fundamentals ?? null) as StockFundamentals | null,
       };
@@ -467,7 +467,7 @@ export async function getStockSummary(
         previous_close: quote.previous_close,
         day_high: quote.high,
         day_low: quote.low,
-        captured_at: priceData?.updated_at || priceData?.captured_at,
+        captured_at: priceData?.captured_at || priceData?.updated_at,
         source: "snapshot",
         fundamentals: (priceData?.fundamentals ?? null) as StockFundamentals | null,
       };

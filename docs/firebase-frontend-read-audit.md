@@ -92,6 +92,10 @@ Collection counts observed: `tm_instruments=546`, `tm_latest_prices=716`, `tm_st
 - Added `tm_heat_list_view/{market}` compact read model. Live `/heat` payload drops from ~427 KB / 511 rows to ~46 KB / 51 rows while keeping setup counts.
 - Added `tm_home_view_core/{market}` and `tm_home_news/{market}` read models. Core homepage reads drop from ~314 KB to ~29 KB by trimming unused dashboard fields and bounding snapshot rows; news rail reads ~52 KB for the 8 rendered articles instead of pulling all 30 in the core doc.
 - Added per-ticker stock-detail read models for anomaly and Reddit context. Listed stock pages now read `tm_daily_anomaly_tickers/{market}__{ticker}` and `reddit_ticker_contexts/{market}__{ticker}` instead of pulling `tm_daily_anomalies/{market}__latest` (~58 KB) and `reddit_snapshots/{market}__latest` (~19 KB) just to filter one ticker.
+- Stock pages reconcile the compact anomaly row with their canonical
+  `tm_latest_prices` quote before rendering. Rows from another market session
+  disappear, and a same-session direction reversal clears the old narrative,
+  so the move badge and explanation can never come from different price states.
 
 ## Next optimization queue
 

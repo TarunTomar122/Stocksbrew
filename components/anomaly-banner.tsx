@@ -10,16 +10,11 @@ import type { AnomalyItem } from "@/lib/daily-anomalies";
 
 type Props = {
   anomaly: AnomalyItem;
-  /** Live quote from tm_latest_prices — overrides stale anomaly snapshot for the move badge. */
-  liveDayChangePct?: number | null;
   isSubscribed?: boolean;
 };
 
-export function AnomalyBanner({ anomaly, liveDayChangePct, isSubscribed = false }: Props) {
-  const dayChangePct =
-    typeof liveDayChangePct === "number" && Number.isFinite(liveDayChangePct)
-      ? liveDayChangePct
-      : anomaly.day_change_pct;
+export function AnomalyBanner({ anomaly, isSubscribed = false }: Props) {
+  const dayChangePct = anomaly.day_change_pct;
   const isUp = Number.isFinite(dayChangePct) ? dayChangePct >= 0 : anomaly.direction === "up";
   const borderTint = isUp ? "border-outline-variant" : "border-outline-variant";
   const cardBg = isUp

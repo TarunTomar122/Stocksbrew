@@ -97,6 +97,18 @@ function marketDate(value: string | null | undefined, market: "US" | "IN"): stri
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
+  // Yahoo daily bars encode the trading date as midnight UTC. That is a date
+  // label, not an instant to shift into New York (which would make July 30
+  // look like July 29). Non-midnight values are real intraday instants.
+  if (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  ) {
+    const labelledDay = value.trim().slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(labelledDay)) return labelledDay;
+  }
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: market === "IN" ? "Asia/Kolkata" : "America/New_York",
     year: "numeric",
@@ -115,6 +127,106 @@ function isSameTradingSession(
   return Boolean(anomalyDate && quoteDate && anomalyDate === quoteDate);
 }
 
+function clearAnomalyNarrative(
+  anomaly: AnomalyItem,
+  quoteFields: Pick<
+    AnomalyItem,
+    | "price"
+    | "previous_close"
+    | "day_change_abs"
+    | "day_change_pct"
+    | "volume"
+    | "direction"
+    | "price_as_of"
+  >,
+): AnomalyItem {
+  return {
+    ...anomaly,
+    ...quoteFields,
+    narrative_status: "unverified",
+    narrative_as_of: null,
+    headline: null,
+    thesis: null,
+    today_brief: null,
+    news_count: 0,
+    source_count: 0,
+    overall_score: null,
+    overall_label: null,
+    catalyst: null,
+    risk: null,
+    key_points: [],
+    visual_summary: null,
+    move_explanation: null,
+    overall_verdict: null,
+    comparative_context: null,
+  };
+}
+
+/**
+ * Reconcile one materialized anomaly with the canonical live quote.
+ *
+ * A different market session means the anomaly is no longer current and must
+ * disappear. Within one session, a direction reversal invalidates the old
+ * narrative; smaller same-direction quote changes may keep verified research.
+ */
+export function mergeAnomalyWithLatestPrice(
+  anomaly: AnomalyItem,
+  latest: LatestQuoteSnapshot | null | undefined,
+  market: "US" | "IN",
+): AnomalyItem | null {
+  const quote = latest?.quote;
+  const price = finiteNumber(quote?.current);
+  if (!quote || price === null) return anomaly;
+
+  const latestPriceAsOf = latest?.captured_at ?? latest?.updated_at ?? null;
+  const hasSessionTimestamps = Boolean(anomaly.price_as_of && latestPriceAsOf);
+  const sameTradingSession = Boolean(
+    latest && isSameTradingSession(anomaly, latest, market),
+  );
+  if (hasSessionTimestamps && !sameTradingSession) return null;
+
+  const previousClose = finiteNumber(quote.previous_close) ?? anomaly.previous_close;
+  const dayChangeAbs =
+    finiteNumber(quote.day_change_abs) ??
+    (previousClose !== null ? price - previousClose : anomaly.day_change_abs);
+  const dayChangePct =
+    finiteNumber(quote.day_change_pct) ??
+    (previousClose !== null && previousClose !== 0
+      ? ((price - previousClose) / previousClose) * 100
+      : anomaly.day_change_pct);
+  const volume = finiteNumber(quote.volume) ?? anomaly.volume;
+  const direction: AnomalyItem["direction"] = dayChangePct >= 0 ? "up" : "down";
+  const quoteFields = {
+    price,
+    previous_close: previousClose,
+    day_change_abs: dayChangeAbs,
+    day_change_pct: dayChangePct,
+    volume,
+    direction,
+    price_as_of: latestPriceAsOf ?? anomaly.price_as_of ?? null,
+  };
+
+  if (
+    price === anomaly.price &&
+    previousClose === anomaly.previous_close &&
+    dayChangeAbs === anomaly.day_change_abs &&
+    dayChangePct === anomaly.day_change_pct &&
+    volume === anomaly.volume &&
+    direction === anomaly.direction
+  ) {
+    return anomaly;
+  }
+
+  if (
+    anomaly.narrative_status === "verified" &&
+    sameTradingSession &&
+    direction === anomaly.direction
+  ) {
+    return { ...anomaly, ...quoteFields };
+  }
+  return clearAnomalyNarrative(anomaly, quoteFields);
+}
+
 /**
  * Source volatile quote fields from the same canonical collection used by
  * stock pages. If that quote differs from the materialized mover snapshot,
@@ -126,83 +238,25 @@ export function mergeAnomaliesWithLatestPrices(
   latestPrices: ReadonlyMap<string, LatestQuoteSnapshot>,
 ): DailyAnomaliesDoc {
   let changed = false;
-  const anomalies = feed.anomalies.map((anomaly) => {
-    const latest = latestPrices.get(anomaly.instrument_id);
-    const quote = latest?.quote;
-    const price = finiteNumber(quote?.current);
-    if (!quote || price === null) return anomaly;
+  const anomalies: AnomalyItem[] = [];
+  for (const anomaly of feed.anomalies) {
+    const merged = mergeAnomalyWithLatestPrice(
+      anomaly,
+      latestPrices.get(anomaly.instrument_id),
+      feed.market as "US" | "IN",
+    );
+    if (merged !== anomaly) changed = true;
+    if (merged) anomalies.push(merged);
+  }
 
-    const previousClose = finiteNumber(quote.previous_close) ?? anomaly.previous_close;
-    const dayChangeAbs =
-      finiteNumber(quote.day_change_abs) ??
-      (previousClose !== null ? price - previousClose : anomaly.day_change_abs);
-    const dayChangePct =
-      finiteNumber(quote.day_change_pct) ??
-      (previousClose !== null && previousClose !== 0
-        ? ((price - previousClose) / previousClose) * 100
-        : anomaly.day_change_pct);
-    const volume = finiteNumber(quote.volume) ?? anomaly.volume;
-    const direction: AnomalyItem["direction"] = dayChangePct >= 0 ? "up" : "down";
-
-    if (
-      price === anomaly.price &&
-      previousClose === anomaly.previous_close &&
-      dayChangeAbs === anomaly.day_change_abs &&
-      dayChangePct === anomaly.day_change_pct &&
-      volume === anomaly.volume &&
-      direction === anomaly.direction
-    ) {
-      return anomaly;
-    }
-
-    changed = true;
-    // Anomaly research is tied to a trading session, not an exact tick. A
-    // quote can move between the 20-minute open scan and the next intraday
-    // refresh while the same news catalyst remains the reason it is moving.
-    // Keep that session's verified research visible, but still clear it at a
-    // new market date so yesterday's reason can never describe today.
-    if (
-      anomaly.narrative_status === "verified" &&
-      latest &&
-      isSameTradingSession(anomaly, latest, feed.market as "US" | "IN")
-    ) {
-      return {
-        ...anomaly,
-        price,
-        previous_close: previousClose,
-        day_change_abs: dayChangeAbs,
-        day_change_pct: dayChangePct,
-        volume,
-        direction,
-      };
-    }
-    return {
-      ...anomaly,
-      price,
-      previous_close: previousClose,
-      day_change_abs: dayChangeAbs,
-      day_change_pct: dayChangePct,
-      volume,
-      direction,
-      narrative_status: "unverified" as const,
-      headline: null,
-      thesis: null,
-      today_brief: null,
-      news_count: 0,
-      source_count: 0,
-      overall_score: null,
-      overall_label: null,
-      catalyst: null,
-      risk: null,
-      key_points: [],
-      visual_summary: null,
-      move_explanation: null,
-      overall_verdict: null,
-      comparative_context: null,
-    };
-  });
-
-  return changed ? { ...feed, anomalies } : feed;
+  if (!changed) return feed;
+  return {
+    ...feed,
+    anomalies,
+    anomaly_count: anomalies.length,
+    up_count: anomalies.filter((row) => row.direction === "up").length,
+    down_count: anomalies.filter((row) => row.direction === "down").length,
+  };
 }
 
 async function getDailyAnomaliesUncached(
@@ -263,13 +317,9 @@ async function getDailyAnomalyForTickerUncached(
   const normalized = normalizeAnomalyTicker(ticker);
   if (!normalized) return null;
 
-  // Prefer the latest feed. Per-ticker docs are a read-model optimization and
-  // can briefly lag after a rebuild, which is bad on stock pages where stale
-  // move explanations are very visible.
-  const feed = await getDailyAnomaliesUncached(market);
-  const latest = findAnomalyInFeed(feed?.anomalies, normalized);
-  if (latest) return latest;
-
+  // The writer updates these compact docs and deletes tickers that leave the
+  // current feed in one batch. Stock pages should not download the full market
+  // feed just to resolve one ticker.
   const doc = await adminFirestore
     .collection("tm_daily_anomaly_tickers")
     .doc(`${market}__${normalized}`)
@@ -284,6 +334,6 @@ async function getDailyAnomalyForTickerUncached(
 
 export const getDailyAnomalyForTicker = unstable_cache(
   getDailyAnomalyForTickerUncached,
-  ["daily-anomaly-for-ticker-v2"],
+  ["daily-anomaly-for-ticker-v3"],
   { revalidate: 120 },
 );

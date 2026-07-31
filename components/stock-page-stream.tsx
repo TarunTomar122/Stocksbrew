@@ -53,7 +53,10 @@ import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol
 import { getNewsForTicker } from "@/lib/news";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor } from "@/lib/utils";
-import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
+import {
+  getDailyAnomalyForTicker,
+  mergeAnomalyWithLatestPrice,
+} from "@/lib/daily-anomalies";
 import { anomalyHeadline, anomalyDetail } from "@/components/daily-anomalies-shared";
 import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
 import { getNextEarningsCalendarEvent } from "@/lib/earnings";
@@ -305,6 +308,21 @@ export async function StockPageStream({ params }: Props) {
   const isHighFrequencyEligible = inPriorityCohort || inExtendedOverrides;
   const showPriorityNotice = priorityIds.length > 0 && !isHighFrequencyEligible;
   const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
+  const displayAnomaly = anomaly
+    ? mergeAnomalyWithLatestPrice(
+        anomaly,
+        {
+          captured_at: stock.captured_at,
+          quote: {
+            current: stock.price,
+            previous_close: stock.previous_close,
+            day_change_abs: stock.day_change_abs,
+            day_change_pct: stock.day_change_pct,
+          },
+        },
+        market,
+      )
+    : null;
 
   const resolvedOnDemandStatus = onDemandJob?.status;
   const showAiPreparationState =
@@ -344,8 +362,8 @@ export async function StockPageStream({ params }: Props) {
 
   const overviewContent = (
     <section className="flex flex-col gap-10">
-      {anomaly && (
-        <AnomalyBanner anomaly={anomaly} liveDayChangePct={stock.day_change_pct} isSubscribed={subscribed} />
+      {displayAnomaly && (
+        <AnomalyBanner anomaly={displayAnomaly} isSubscribed={subscribed} />
       )}
       {subscribed && activePreEarningsIntel ? (
         <a href="#stock-section-earnings" className="block scroll-mt-32">
@@ -546,12 +564,12 @@ export async function StockPageStream({ params }: Props) {
         directive={normalizedDirective}
         setupState={intelligence?.setup_state}
         visual={intelligence?.visual_summary}
-        overview={anomaly ? (anomalyDetail(anomaly) ?? undefined) : undefined}
-        overviewHeadline={anomaly ? anomalyHeadline(anomaly) : undefined}
+        overview={displayAnomaly ? (anomalyDetail(displayAnomaly) ?? undefined) : undefined}
+        overviewHeadline={displayAnomaly ? anomalyHeadline(displayAnomaly) : undefined}
         preEarnings={activePreEarningsIntel ?? undefined}
         preEarningsDoc={preEarningsDoc ?? undefined}
         calendarEarnings={calendarEarnings ?? undefined}
-        overviewConfidence={anomaly?.move_explanation?.confidence}
+        overviewConfidence={displayAnomaly?.move_explanation?.confidence}
         facts={stockFacts}
         intelPro={intelPro}
         analyst={analystConsensus}

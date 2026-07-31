@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { anomalyHeadline } from "@/components/daily-anomalies-shared";
 import {
   findAnomalyInFeed,
+  mergeAnomalyWithLatestPrice,
   mergeAnomaliesWithLatestPrices,
   type AnomalyItem,
 } from "@/lib/daily-anomalies";
@@ -166,6 +168,139 @@ describe("mergeAnomaliesWithLatestPrices", () => {
       day_change_pct: 3.8,
       narrative_status: "verified",
       move_explanation: { headline: "Concentrix named AI leader" },
+    });
+  });
+
+  it("removes an anomaly when the latest quote belongs to another session", () => {
+    const anomaly = {
+      ...row("NVDA"),
+      price_as_of: "2026-07-29T20:00:00.000Z",
+      narrative_status: "verified" as const,
+    };
+    const feed: DailyAnomaliesDoc = {
+      market: "US",
+      generated_at: "2026-07-29T20:05:00.000Z",
+      date: "2026-07-29",
+      anomaly_count: 1,
+      threshold_pct: 1,
+      up_count: 1,
+      down_count: 0,
+      anomalies: [anomaly],
+    };
+    const latest = new Map([
+      [
+        "US_NVDA",
+        {
+          captured_at: "2026-07-30T20:00:00.000Z",
+          quote: { current: 101, previous_close: 100, day_change_pct: 1, day_change_abs: 1 },
+        },
+      ],
+    ]);
+
+    const merged = mergeAnomaliesWithLatestPrices(feed, latest);
+
+    expect(merged.anomalies).toEqual([]);
+    expect(merged).toMatchObject({ anomaly_count: 0, up_count: 0, down_count: 0 });
+  });
+});
+
+describe("mergeAnomalyWithLatestPrice", () => {
+  it("reconciles the exact CBRS down-to-up reversal without split-brain copy", () => {
+    const anomaly = {
+      ...row("CBRS"),
+      price: 148,
+      previous_close: 168,
+      day_change_abs: -20,
+      day_change_pct: -12,
+      direction: "down" as const,
+      price_as_of: "2026-07-30T13:50:00.000Z",
+      narrative_status: "unverified" as const,
+    };
+
+    const merged = mergeAnomalyWithLatestPrice(
+      anomaly,
+      {
+        captured_at: "2026-07-30T20:00:00.000Z",
+        quote: {
+          current: 203.07,
+          previous_close: 169.39,
+          day_change_abs: 33.68,
+          day_change_pct: 19.88,
+        },
+      },
+      "US",
+    );
+
+    expect(merged).toMatchObject({
+      day_change_pct: 19.88,
+      direction: "up",
+      narrative_status: "unverified",
+    });
+    expect(merged?.headline).toBeNull();
+    expect(anomalyHeadline(merged!)).toBe("CBRS is up 19.9% today");
+  });
+
+  it("clears verified research when the live move reverses direction", () => {
+    const anomaly = {
+      ...row("CBRS"),
+      price_as_of: "2026-07-30T13:50:00.000Z",
+      narrative_status: "verified" as const,
+      move_explanation: {
+        headline: "Old downside explanation",
+        why_it_matters: "Written for the selloff.",
+      },
+    };
+
+    const merged = mergeAnomalyWithLatestPrice(
+      anomaly,
+      {
+        captured_at: "2026-07-30T20:00:00.000Z",
+        quote: {
+          current: 90,
+          previous_close: 100,
+          day_change_abs: -10,
+          day_change_pct: -10,
+        },
+      },
+      "US",
+    );
+
+    expect(merged).toMatchObject({
+      direction: "down",
+      narrative_status: "unverified",
+      move_explanation: null,
+    });
+  });
+
+  it("treats Yahoo midnight daily bars as market-date labels", () => {
+    const anomaly = {
+      ...row("CBRS"),
+      price_as_of: "2026-07-30T00:00:00.000Z",
+      narrative_status: "verified" as const,
+      move_explanation: {
+        headline: "Current session catalyst",
+        why_it_matters: "Still relevant during the same market session.",
+      },
+    };
+
+    const merged = mergeAnomalyWithLatestPrice(
+      anomaly,
+      {
+        captured_at: "2026-07-30T18:00:00.000Z",
+        quote: {
+          current: 106,
+          previous_close: 100,
+          day_change_abs: 6,
+          day_change_pct: 6,
+        },
+      },
+      "US",
+    );
+
+    expect(merged).toMatchObject({
+      day_change_pct: 6,
+      narrative_status: "verified",
+      move_explanation: { headline: "Current session catalyst" },
     });
   });
 });
