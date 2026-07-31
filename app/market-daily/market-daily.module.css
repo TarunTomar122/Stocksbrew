@@ -1,5 +1,5 @@
 .page {
-  --paper: var(--background);
+  --paper: var(--surface);
   --paper-deep: var(--surface-container);
   --ink: var(--on-surface);
   --muted: var(--on-surface-variant);
