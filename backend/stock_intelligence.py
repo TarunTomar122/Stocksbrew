@@ -971,7 +971,7 @@ def _llm_synthesize_brief(
                 # The structured stock payload regularly takes longer than
                 # 30s on OpenRouter. A short timeout created duplicate retry
                 # storms and could exhaust the enclosing shard's 8m ceiling.
-                timeout=90,
+                timeout=180,
                 stage="stock_brief",
                 max_attempts=2,
             )
@@ -1235,7 +1235,7 @@ def generate_no_news_brief(
             model=model,
             temperature=0.2,
             response_format=json_response_format(),
-            timeout=90,
+            timeout=180,
             stage="no_news_brief",
             max_attempts=2,
         )
