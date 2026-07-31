@@ -6,6 +6,10 @@
   --rule: var(--outline-variant);
   --red: var(--primary);
   --panel: var(--surface);
+  position: relative;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
   min-height: 100vh;
   color: var(--ink);
   background: var(--paper);
@@ -86,9 +90,9 @@
 }
 
 .headlineBlock {
-  max-width: 990px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: clamp(52px, 8vw, 92px) 0 clamp(38px, 6vw, 68px);
+  padding: clamp(44px, 6vw, 68px) 0 clamp(34px, 4vw, 52px);
   text-align: center;
 }
 
@@ -105,20 +109,20 @@
 .headline {
   margin: 0;
   font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(48px, 8.5vw, 102px);
+  font-size: clamp(42px, 6vw, 78px);
   font-weight: 530;
-  line-height: 0.91;
-  letter-spacing: -0.057em;
+  line-height: 0.97;
+  letter-spacing: -0.047em;
   text-wrap: balance;
 }
 
 .dek {
-  max-width: 720px;
-  margin: 28px auto 0;
+  max-width: 680px;
+  margin: 24px auto 0;
   font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(21px, 3vw, 29px);
+  font-size: clamp(19px, 2vw, 24px);
   font-weight: 390;
-  line-height: 1.28;
+  line-height: 1.38;
   color: var(--on-surface-variant);
   text-wrap: balance;
 }
@@ -153,15 +157,15 @@
 
 .articleProse:first-child > p:first-child {
   margin-top: 0;
-  font-size: clamp(23px, 3vw, 31px);
-  line-height: 1.43;
+  font-size: clamp(20px, 2.2vw, 24px);
+  line-height: 1.58;
   color: var(--ink);
 }
 
 .articleProse:first-child > p:first-child::first-letter {
   float: left;
   margin: 5px 10px 0 0;
-  font-size: 4.15em;
+  font-size: 3.2em;
   font-weight: 570;
   line-height: 0.72;
   color: var(--red);
@@ -503,14 +507,14 @@
 .opening {
   margin: 0 0 52px;
   font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(23px, 3vw, 31px);
-  line-height: 1.43;
+  font-size: clamp(20px, 2.2vw, 24px);
+  line-height: 1.58;
 }
 
 .opening::first-letter {
   float: left;
   margin: 5px 10px 0 0;
-  font-size: 4.15em;
+  font-size: 3.2em;
   font-weight: 570;
   line-height: 0.72;
   color: var(--red);
@@ -900,11 +904,11 @@
   }
 
   .headlineBlock {
-    padding-top: 48px;
+    padding-top: 40px;
   }
 
   .headline {
-    font-size: clamp(44px, 14vw, 66px);
+    font-size: clamp(40px, 11.5vw, 52px);
   }
 
   .articleGrid {
