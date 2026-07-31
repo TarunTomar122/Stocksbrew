@@ -1,5 +1,16 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import {
+  marketDateIso,
+  type PremarketQuoteValue,
+} from "@/lib/premarket-shared";
+
+export {
+  getLivePremarketQuote,
+  isPremarketLive,
+  isUsPremarketWindow,
+  type LivePremarketQuote,
+} from "@/lib/premarket-shared";
 
 export type PremarketRow = {
   instrument_id: string;
@@ -21,7 +32,7 @@ export type PremarketMovers = {
   quoted_count: number;
   gappers_up: PremarketRow[];
   gappers_down: PremarketRow[];
-  by_ticker: Record<string, { pre_market_change_pct: number; pre_market_price: number }>;
+  by_ticker: Record<string, PremarketQuoteValue>;
 };
 
 async function getPremarketMoversUncached(
@@ -35,88 +46,15 @@ async function getPremarketMoversUncached(
   return doc.data() as PremarketMovers;
 }
 
-function tradingDateIso(market: "US" | "IN", ref = new Date()): string {
-  const timeZone = market === "IN" ? "Asia/Kolkata" : "America/New_York";
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(ref);
-  const year = parts.find((p) => p.type === "year")?.value ?? "";
-  const month = parts.find((p) => p.type === "month")?.value ?? "";
-  const day = parts.find((p) => p.type === "day")?.value ?? "";
-  return `${year}-${month}-${day}`;
-}
-
 export async function getPremarketMovers(
   market: "US" | "IN" = "US",
 ): Promise<PremarketMovers | null> {
-  const dateKey = tradingDateIso(market);
+  const dateKey = marketDateIso(market);
   return unstable_cache(
     () => getPremarketMoversUncached(market),
     ["premarket-movers", market, dateKey],
     { revalidate: 60, tags: [`premarket-${market}`] },
   )();
-}
-
-type EasternParts = {
-  weekday: string;
-  year: string;
-  month: string;
-  day: string;
-  hour: string;
-  minute: string;
-};
-
-function easternParts(ref = new Date()): EasternParts {
-  const parts: Partial<EasternParts> = {};
-  for (const p of new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(ref)) {
-    if (p.type === "weekday") parts.weekday = p.value;
-    if (p.type === "year") parts.year = p.value;
-    if (p.type === "month") parts.month = p.value;
-    if (p.type === "day") parts.day = p.value;
-    if (p.type === "hour") parts.hour = p.value;
-    if (p.type === "minute") parts.minute = p.value;
-  }
-  return parts as EasternParts;
-}
-
-function easternDateIso(parts: EasternParts): string {
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
-/** US regular-session pre-market: Mon–Fri, 4:00–9:30 ET. */
-export function isUsPremarketWindow(ref = new Date()): boolean {
-  const parts = easternParts(ref);
-  if (parts.weekday === "Sat" || parts.weekday === "Sun") return false;
-  const mins = Number(parts.hour) * 60 + Number(parts.minute);
-  return mins >= 4 * 60 && mins < 9 * 60 + 30;
-}
-
-/** True only during the live pre-market window.
- * The Firestore doc can stay stamped PRE after the open; we gate on clock time too. */
-export function isPremarketLive(
-  doc: PremarketMovers | null,
-  market: "US" | "IN" = "US",
-): boolean {
-  if (!doc) return false;
-  if (market === "US" && !isUsPremarketWindow()) return false;
-
-  const todayEt = easternDateIso(easternParts());
-  const docDate = String(doc.date || "").slice(0, 10);
-  if (docDate !== todayEt) return false;
-
-  return String(doc.market_state || "").toUpperCase().startsWith("PRE");
 }
 
 /** True when today's snapshot has at least one pre-market gapper. */
@@ -125,7 +63,7 @@ export function hasPremarketDataForToday(
   market: "US" | "IN" = "US",
 ): boolean {
   if (!doc || doc.market !== market) return false;
-  const todayEt = easternDateIso(easternParts());
+  const todayEt = marketDateIso(market);
   const docDate = String(doc.date || "").slice(0, 10);
   if (docDate !== todayEt) return false;
   return (doc.gappers_up?.length ?? 0) + (doc.gappers_down?.length ?? 0) > 0;

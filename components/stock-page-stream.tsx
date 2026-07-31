@@ -64,6 +64,7 @@ import { getPreEarningsIntelDoc } from "@/lib/pre-earnings-intel";
 import { isWithinPreEarningsWindow, shouldShowPreEarningsIntel } from "@/lib/pre-earnings-intel-shared";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
+import { getLivePremarketQuote, getPremarketMovers } from "@/lib/premarket";
 
 export const revalidate = 60;
 
@@ -230,6 +231,7 @@ export async function StockPageStream({ params }: Props) {
     preEarningsDoc,
     calendarEarnings,
     recentNews,
+    premarketDoc,
   ] = await Promise.all([
     shouldLoadAI
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
@@ -255,7 +257,15 @@ export async function StockPageStream({ params }: Props) {
       : Promise.resolve(null),
     getNextEarningsCalendarEvent(market, stock.ticker).catch(() => null),
     getNewsForTicker(market, stock.ticker, { days: 7, limit: 7 }).catch(() => []),
+    market === "US"
+      ? getPremarketMovers(market).catch(() => null)
+      : Promise.resolve(null),
   ]);
+  const premarketQuote = getLivePremarketQuote(
+    premarketDoc,
+    stock.ticker,
+    market,
+  );
   const normalizedDirective = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null);
   const activePreEarningsIntel =
     preEarningsDoc &&
@@ -601,6 +611,7 @@ export async function StockPageStream({ params }: Props) {
         subscribed={subscribed}
         isTracked={isTracked}
         tier={tier}
+        premarketQuote={premarketQuote}
         updatedLabel={stock.captured_at ? `updated ${formatRelative(stock.captured_at)}` : undefined}
         lockedCall={
           hasBriefText(intelligence) ? (
