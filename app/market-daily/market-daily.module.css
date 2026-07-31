@@ -24,11 +24,10 @@
 .masthead {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: end;
+  align-items: center;
   gap: 24px;
-  padding: 18px 0 16px;
-  border-top: 4px solid var(--ink);
-  border-bottom: 1px solid var(--ink);
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule);
 }
 
 .edition,
@@ -46,12 +45,12 @@
 }
 
 .brand {
-  color: var(--ink);
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(34px, 5vw, 64px);
-  font-weight: 550;
-  line-height: 0.85;
-  letter-spacing: -0.055em;
+  color: var(--primary);
+  font-family: Satoshi, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
   text-align: center;
   text-decoration: none;
 }
@@ -90,10 +89,10 @@
 }
 
 .headlineBlock {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: clamp(44px, 6vw, 68px) 0 clamp(34px, 4vw, 52px);
-  text-align: center;
+  max-width: 820px;
+  margin: 0;
+  padding: 44px 0 38px;
+  text-align: left;
 }
 
 .rubric {
@@ -108,21 +107,20 @@
 
 .headline {
   margin: 0;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(42px, 6vw, 78px);
-  font-weight: 530;
-  line-height: 0.97;
-  letter-spacing: -0.047em;
-  text-wrap: balance;
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
 }
 
 .dek {
-  max-width: 680px;
-  margin: 24px auto 0;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(19px, 2vw, 24px);
-  font-weight: 390;
-  line-height: 1.38;
+  max-width: 650px;
+  margin: 16px 0 0;
+  font-family: Satoshi, sans-serif;
+  font-size: 17px;
+  font-weight: 450;
+  line-height: 1.55;
   color: var(--on-surface-variant);
   text-wrap: balance;
 }
@@ -151,42 +149,34 @@
 }
 
 .articleProse {
-  font-family: var(--font-market-editorial), Georgia, serif;
+  font-family: Satoshi, sans-serif;
   color: var(--on-surface);
 }
 
 .articleProse:first-child > p:first-child {
   margin-top: 0;
-  font-size: clamp(20px, 2.2vw, 24px);
-  line-height: 1.58;
+  font-size: 18px;
+  line-height: 1.62;
   color: var(--ink);
 }
 
-.articleProse:first-child > p:first-child::first-letter {
-  float: left;
-  margin: 5px 10px 0 0;
-  font-size: 3.2em;
-  font-weight: 570;
-  line-height: 0.72;
-  color: var(--red);
-}
-
 .articleProse h2 {
-  max-width: 700px;
-  margin: 64px 0 26px;
-  padding-top: 42px;
+  max-width: 760px;
+  margin: 44px 0 18px;
+  padding-top: 30px;
   border-top: 1px solid var(--rule);
-  font-size: clamp(36px, 5.4vw, 56px);
-  font-weight: 540;
-  line-height: 0.98;
-  letter-spacing: -0.04em;
-  text-wrap: balance;
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(25px, 3vw, 32px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
 }
 
 .articleProse p {
-  margin: 0 0 23px;
-  font-size: clamp(19px, 2vw, 21px);
-  line-height: 1.68;
+  max-width: 780px;
+  margin: 0 0 18px;
+  font-size: 16px;
+  line-height: 1.7;
 }
 
 .articleProse a {
@@ -505,23 +495,15 @@
 }
 
 .opening {
-  margin: 0 0 52px;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(20px, 2.2vw, 24px);
-  line-height: 1.58;
-}
-
-.opening::first-letter {
-  float: left;
-  margin: 5px 10px 0 0;
-  font-size: 3.2em;
-  font-weight: 570;
-  line-height: 0.72;
-  color: var(--red);
+  margin: 0 0 36px;
+  max-width: 780px;
+  font-family: Satoshi, sans-serif;
+  font-size: 18px;
+  line-height: 1.62;
 }
 
 .section {
-  padding: 48px 0 46px;
+  padding: 36px 0;
   border-top: 1px solid var(--rule);
 }
 
@@ -537,21 +519,21 @@
 }
 
 .sectionHeading {
-  max-width: 680px;
-  margin: 0 0 24px;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(34px, 5vw, 51px);
-  font-weight: 540;
-  line-height: 0.98;
-  letter-spacing: -0.035em;
-  text-wrap: balance;
+  max-width: 760px;
+  margin: 0 0 16px;
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
 }
 
 .paragraph {
-  margin: 0 0 21px;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: 20px;
-  line-height: 1.66;
+  max-width: 780px;
+  margin: 0 0 18px;
+  font-family: Satoshi, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
   color: var(--on-surface);
 }
 
@@ -644,11 +626,11 @@
 
 .watchTitle {
   margin: 0 0 24px;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(38px, 5vw, 58px);
-  font-weight: 540;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .watchList {
@@ -684,19 +666,20 @@
 
 .watchDetail {
   margin: 0;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: 18px;
-  line-height: 1.48;
+  font-family: Satoshi, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .closing {
-  margin: 42px 0;
-  padding: 30px 0 0;
-  border-top: 1px solid var(--ink);
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(25px, 3.5vw, 36px);
-  font-style: italic;
-  line-height: 1.25;
+  margin: 32px 0;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--rule);
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(20px, 2.5vw, 26px);
+  font-style: normal;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .method {
@@ -736,10 +719,10 @@
 }
 
 .editionNavLink strong {
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: 18px;
-  font-weight: 550;
-  line-height: 1.2;
+  font-family: Satoshi, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .editionNavNext {
@@ -755,27 +738,26 @@
 
 .archiveHeader {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
-  gap: 40px;
-  align-items: end;
-  padding: 70px 0 50px;
-  border-bottom: 1px solid var(--ink);
+  gap: 14px;
+  max-width: 760px;
+  padding: 48px 0 32px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .archiveTitle {
   margin: 0;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(56px, 10vw, 126px);
-  font-weight: 530;
-  line-height: 0.8;
-  letter-spacing: -0.065em;
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(36px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
 }
 
 .archiveIntro {
   margin: 0;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: 22px;
-  line-height: 1.45;
+  font-family: Satoshi, sans-serif;
+  font-size: 17px;
+  line-height: 1.55;
   color: var(--on-surface-variant);
 }
 
@@ -786,11 +768,11 @@
 }
 
 .editionCard {
-  grid-column: span 6;
+  grid-column: span 12;
   display: flex;
-  min-height: 250px;
+  min-height: 0;
   flex-direction: column;
-  padding: 34px 0 30px;
+  padding: 24px 0;
   border-bottom: 1px solid var(--rule);
   color: var(--ink);
   text-decoration: none;
@@ -798,7 +780,7 @@
 
 .editionCard:first-child {
   grid-column: span 12;
-  min-height: 360px;
+  min-height: 0;
 }
 
 .cardDate {
@@ -811,32 +793,31 @@
 }
 
 .cardHeadline {
-  max-width: 900px;
-  margin: 18px 0 14px;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: clamp(34px, 5vw, 58px);
-  font-weight: 530;
-  line-height: 0.98;
-  letter-spacing: -0.04em;
-  text-wrap: balance;
+  max-width: 780px;
+  margin: 10px 0 8px;
+  font-family: Satoshi, sans-serif;
+  font-size: clamp(22px, 2.5vw, 30px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
 
 .editionCard:first-child .cardHeadline {
-  font-size: clamp(48px, 7vw, 84px);
+  font-size: clamp(22px, 2.5vw, 30px);
 }
 
 .cardDek {
-  max-width: 680px;
+  max-width: 720px;
   margin: 0;
-  font-family: var(--font-market-editorial), Georgia, serif;
-  font-size: 18px;
-  line-height: 1.45;
+  font-family: Satoshi, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--muted);
 }
 
 .cardAction {
-  margin-top: auto;
-  padding-top: 28px;
+  margin-top: 14px;
+  padding-top: 0;
   font-family: Satoshi, sans-serif;
   font-size: 11px;
   font-weight: 800;
