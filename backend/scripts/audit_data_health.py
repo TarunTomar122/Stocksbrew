@@ -9,12 +9,14 @@ doc that can be used by ops/UI without fan-out reads.
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+from backend.market_session_state import MARKET_TIMEZONES, session_doc_id
+from backend.price_pipeline_contract import is_current_market_timestamp
 from backend.storage import TraceMoneyStore
 
 MARKET_FEED_AGING_HOURS = 36
@@ -163,6 +165,51 @@ def _freshness_item(
     return item
 
 
+def _open_session_item(
+    *,
+    market: str,
+    data: dict[str, Any] | None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Report whether today's opening publish chain actually completed.
+
+    Wall-clock freshness alone is insufficient after the market opens: a
+    20-hour-old anomaly or watchlist document is still "fresh" under a daily
+    TTL while being wrong for the current session. The explicit session-stage
+    record is the authoritative publish contract.
+    """
+    current = now or _now()
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    market = market.upper()
+    zone = MARKET_TIMEZONES.get(market, timezone.utc)
+    local = current.astimezone(zone)
+    open_hour, open_minute = (9, 30) if market == "US" else (9, 15)
+    due_at = local.replace(hour=open_hour, minute=open_minute, second=0, microsecond=0) + timedelta(
+        minutes=45
+    )
+    due = local.weekday() < 5 and local >= due_at
+    required = ["price", "briefs", "anomalies"]
+    stages = data.get("stages") if isinstance((data or {}).get("stages"), dict) else {}
+    missing = [
+        stage
+        for stage in required
+        if not isinstance(stages.get(stage), dict) or stages[stage].get("status") != "success"
+    ]
+    status = "stale" if due and missing else "fresh"
+    return {
+        "name": "open_session_pipeline",
+        "path": f"tm_market_session_runs/{session_doc_id(market, 'open_check', local.date().isoformat())}",
+        "exists": bool(data),
+        "status": status,
+        "due": due,
+        "due_at": due_at.isoformat(),
+        "required_stages": required,
+        "missing_stages": missing if due else [],
+        "session_date": local.date().isoformat(),
+    }
+
+
 def build_health(store: TraceMoneyStore, market: str) -> dict[str, Any]:
     market = market.upper()
     active = _get_doc(store, "tm_config/active_universes") or {}
@@ -291,6 +338,21 @@ def build_health(store: TraceMoneyStore, market: str) -> dict[str, Any]:
             count_fields=count_fields,
         )
 
+    session_path = session_doc_id(market, "open_check")
+    items["open_session_pipeline"] = _open_session_item(
+        market=market,
+        data=_get_doc(store, f"tm_market_session_runs/{session_path}"),
+    )
+
+    # Once the opening chain is due, yesterday's anomaly and Radar watchlist
+    # documents are stale even when their generic daily TTL has not expired.
+    if items["open_session_pipeline"]["due"]:
+        for key in ("daily_anomalies",):
+            timestamp = items[key].get("timestamp")
+            if not is_current_market_timestamp(timestamp, market=market):
+                items[key]["status"] = "stale"
+                items[key]["session_error"] = "not_current_market_session"
+
     latest_price = _first_ordered_doc(store, "tm_latest_prices", "updated_at", market=market)
     if latest_price is None:
         latest_price = _first_ordered_doc(store, "tm_latest_prices", "updated_at")
@@ -328,6 +390,12 @@ def build_health(store: TraceMoneyStore, market: str) -> dict[str, Any]:
         count_fields=["rows"],
     )
     items["watchlist_views"]["collection_count"] = _count_collection(store, "tm_watchlist_views")
+    if items["open_session_pipeline"]["due"] and not is_current_market_timestamp(
+        items["watchlist_views"].get("timestamp"),
+        market=market,
+    ):
+        items["watchlist_views"]["status"] = "stale"
+        items["watchlist_views"]["session_error"] = "not_current_market_session"
 
     radar_specs = (
         ("radar_evidence", "tm_radar_evidence", "detected_at", 24, 72),

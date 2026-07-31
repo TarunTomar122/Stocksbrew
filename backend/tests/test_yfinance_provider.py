@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -14,6 +15,16 @@ from backend.providers.yfinance_provider import (
 
 
 class YFinanceProviderTest(unittest.TestCase):
+    @staticmethod
+    def _current_us_session_timestamp() -> str:
+        local = datetime.now(ZoneInfo("America/New_York")).replace(
+            hour=10,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        return local.astimezone(timezone.utc).isoformat()
+
     def test_quote_only_missing_symbols_are_retried_as_a_batch_not_info(self) -> None:
         instruments = [
             {
@@ -40,7 +51,7 @@ class YFinanceProviderTest(unittest.TestCase):
                 "low": price - 2,
                 "previous_close": price - 1,
                 "volume": 100,
-                "captured_at": "2026-07-30T14:00:00+00:00",
+                "captured_at": self._current_us_session_timestamp(),
             }
 
         with patch(
@@ -62,6 +73,45 @@ class YFinanceProviderTest(unittest.TestCase):
         self.assertEqual(set(rows), {"US_AAPL", "US_MSFT"})
         self.assertEqual(batched.call_count, 2)
         self.assertEqual(batched.call_args_list[1].args[0], ["MSFT"])
+
+    def test_quote_only_retries_stale_session_rows_not_just_missing_rows(self) -> None:
+        instruments = [
+            {
+                "instrument_id": "US_AAPL",
+                "market": "US",
+                "ticker": "AAPL",
+                "quote_symbol": "AAPL",
+            }
+        ]
+
+        def quote(price: float, captured_at: str) -> dict:
+            return {
+                "current": price,
+                "day_change_abs": 1.0,
+                "day_change_pct": 1.0,
+                "open": price - 1,
+                "high": price,
+                "low": price - 2,
+                "previous_close": price - 1,
+                "volume": 100,
+                "captured_at": captured_at,
+            }
+
+        with patch(
+            "backend.providers.yfinance_provider._batch_download_quote_only",
+            side_effect=[
+                {"AAPL": quote(199, "2020-01-02T14:00:00+00:00")},
+                {"AAPL": quote(200, self._current_us_session_timestamp())},
+            ],
+        ) as batched:
+            rows = YFinanceClient(max_retries=1, retry_backoff_s=0).fetch_quotes(
+                instruments,
+                include_fundamentals=False,
+            )
+
+        self.assertEqual(rows["US_AAPL"]["quote"]["current"], 200)
+        self.assertEqual(batched.call_count, 2)
+        self.assertEqual(batched.call_args_list[1].args[0], ["AAPL"])
 
     def test_quote_only_reuses_one_symbol_quote_for_duplicate_instrument_ids(self) -> None:
         instruments = [
