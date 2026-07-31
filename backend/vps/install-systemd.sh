@@ -101,6 +101,10 @@ write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
 # 08:30 UTC is 2:00 PM IST year-round.
 write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline
+# The editorial letter gets a second, fresher read one hour later. 09:30 UTC is
+# 3:00 PM IST year-round and still leaves four hours before the US cash open
+# during daylight-saving time.
+write_pair market-daily "Mon..Fri *-*-* 09:30:00" market_daily
 # The opening email is sent inside the anomaly worker immediately after the
 # mover snapshot and its evidence-backed reasons have been written. It must
 # not wait for optional heat/divergence/sentiment read models.

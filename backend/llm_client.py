@@ -5,6 +5,8 @@ import fcntl
 import json
 import logging
 import os
+import signal
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,34 @@ DEFAULT_OPENROUTER_MODEL = DEFAULT_OPENAI_MODEL
 LLM_BRIEF_SOURCE = "llm"
 
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
+
+
+class LLMWallTimeout(TimeoutError):
+    """Raised when a provider keeps a response open beyond the caller deadline."""
+
+
+class _wall_timeout:
+    def __init__(self, seconds: int):
+        self.seconds = max(1, int(seconds))
+        self.enabled = threading.current_thread() is threading.main_thread() and hasattr(signal, "setitimer")
+        self.previous_handler: Any = None
+
+    def __enter__(self) -> None:
+        if not self.enabled:
+            return
+        self.previous_handler = signal.getsignal(signal.SIGALRM)
+
+        def handle_timeout(_signum: int, _frame: Any) -> None:
+            raise LLMWallTimeout(f"LLM request exceeded {self.seconds}s wall timeout")
+
+        signal.signal(signal.SIGALRM, handle_timeout)
+        signal.setitimer(signal.ITIMER_REAL, self.seconds)
+
+    def __exit__(self, _exc_type: Any, _exc: Any, _tb: Any) -> None:
+        if not self.enabled:
+            return
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, self.previous_handler)
 
 
 def _cerebras_throttle_state_path() -> Path:
@@ -204,7 +234,7 @@ def post_chat_completion(
     messages: list[dict[str, Any]],
     model: str | None = None,
     temperature: float = 0.2,
-    response_format: dict[str, str] | None = None,
+    response_format: dict[str, Any] | None = None,
     timeout: int = 45,
     stage: str = "chat",
     max_attempts: int = 6,
@@ -225,12 +255,13 @@ def post_chat_completion(
     for attempt in range(1, max_attempts + 1):
         _throttle_cerebras(_estimate_tokens(payload))
         try:
-            response = requests.post(
-                url,
-                headers=llm_headers(api_key),
-                json=payload,
-                timeout=timeout,
-            )
+            with _wall_timeout(timeout):
+                response = requests.post(
+                    url,
+                    headers=llm_headers(api_key),
+                    json=payload,
+                    timeout=timeout,
+                )
             if response.status_code in RETRYABLE_STATUS_CODES:
                 retry_after = response.headers.get("Retry-After")
                 sleep_s = float(retry_after) if retry_after else min(2 ** attempt, 30)
@@ -245,6 +276,14 @@ def post_chat_completion(
                 )
                 time.sleep(sleep_s)
                 continue
+            if response.status_code >= 400:
+                logger.error(
+                    "LLM HTTP error stage=%s status=%s model=%s body=%s",
+                    stage,
+                    response.status_code,
+                    resolved_model,
+                    str(response.text)[:1200],
+                )
             response.raise_for_status()
             body = response.json()
             usage = body.get("usage") if isinstance(body, dict) else {}

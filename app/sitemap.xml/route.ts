@@ -4,6 +4,7 @@ import { getThematicScreens } from "@/lib/screens";
 import { USE_CASES } from "@/lib/use-cases-data";
 import { SEO_STOCK_PAGES } from "@/lib/seo/stock-pages";
 import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
+import { listMarketDailyEditions } from "@/lib/market-daily";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -25,6 +26,7 @@ export async function GET() {
     "/social",
     "/heat",
     "/premarket",
+    "/market-daily",
     "/events",
     "/news",
     "/stocks",
@@ -70,6 +72,20 @@ export async function GET() {
   // Blog posts
   for (const p of indexableBlogPosts) {
     entries.push(url(`/blog/${p.slug}`, p.updated ?? p.date));
+  }
+
+  try {
+    const dailyEditions = await listMarketDailyEditions(90);
+    for (const edition of dailyEditions) {
+      entries.push(
+        url(
+          `/market-daily/${edition.edition_date}`,
+          edition.updated_at?.slice(0, 10) || edition.edition_date,
+        ),
+      );
+    }
+  } catch {
+    /* Firestore may be unreachable */
   }
 
   // Only the curated US core universe is indexable. Unknown and long-tail

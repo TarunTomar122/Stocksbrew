@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_PATHS = ["/"];
-const ALLOWED_PATHS = new Set(["/", "/radar", "/watchlist", "/heat", "/news", "/screens", "/pulse", "/premarket", "/anomalies", "/resources", "/compare"]);
+const ALLOWED_PATHS = new Set(["/", "/radar", "/watchlist", "/heat", "/news", "/screens", "/pulse", "/premarket", "/anomalies", "/resources", "/compare", "/market-daily", "/sitemap.xml"]);
 const DEDUPE_MS = 60_000;
 
 const revalidateState = globalThis as typeof globalThis & {
@@ -13,7 +13,11 @@ function parsePaths(raw: unknown): string[] {
   if (!Array.isArray(raw)) return DEFAULT_PATHS;
   const paths = raw
     .map((item) => String(item || "").trim())
-    .filter((path) => ALLOWED_PATHS.has(path));
+    .filter(
+      (path) =>
+        ALLOWED_PATHS.has(path) ||
+        /^\/market-daily\/\d{4}-\d{2}-\d{2}$/.test(path),
+    );
   return paths.length ? Array.from(new Set(paths)) : DEFAULT_PATHS;
 }
 
