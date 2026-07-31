@@ -727,6 +727,8 @@ STOCK_BRIEF_SCHEMA = {
     },
 }
 
+STOCK_BRIEF_SEMANTIC_ATTEMPTS = 4
+
 
 def _json_schema_errors(value: Any, schema: dict[str, Any], *, path: str = "$") -> list[str]:
     """Validate the JSON-schema subset used by stock briefs without extra deps."""
@@ -962,7 +964,7 @@ def _llm_synthesize_brief(
             {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
         ]
         result: dict[str, Any] | None = None
-        for semantic_attempt in range(1, 3):
+        for semantic_attempt in range(1, STOCK_BRIEF_SEMANTIC_ATTEMPTS + 1):
             body = post_chat_completion(
                 messages=messages,
                 model=model,
@@ -980,12 +982,13 @@ def _llm_synthesize_brief(
                 result = _validate_stock_brief_payload(parse_json_content(content))
                 break
             except (KeyError, TypeError, ValueError) as exc:
-                if semantic_attempt >= 2:
+                if semantic_attempt >= STOCK_BRIEF_SEMANTIC_ATTEMPTS:
                     raise ValueError(f"invalid stock brief after {semantic_attempt} attempts: {exc}") from exc
                 logger.warning(
-                    "Invalid LLM brief for %s; retrying semantic_attempt=%s/2: %s",
+                    "Invalid LLM brief for %s; retrying semantic_attempt=%s/%s: %s",
                     ticker,
                     semantic_attempt,
+                    STOCK_BRIEF_SEMANTIC_ATTEMPTS,
                     exc,
                 )
                 messages.append({
@@ -1227,20 +1230,48 @@ def generate_no_news_brief(
             pass
 
     try:
-        body = post_chat_completion(
-            messages=[
-                {"role": "system", "content": schema_system_prompt(NO_NEWS_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
-            ],
-            model=model,
-            temperature=0.2,
-            response_format=json_response_format(),
-            timeout=300,
-            stage="no_news_brief",
-            max_attempts=3,
-        )
-        content = body["choices"][0]["message"]["content"]
-        result = parse_json_content(content)
+        messages = [
+            {"role": "system", "content": schema_system_prompt(NO_NEWS_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
+        ]
+        result: dict[str, Any] | None = None
+        for semantic_attempt in range(1, STOCK_BRIEF_SEMANTIC_ATTEMPTS + 1):
+            body = post_chat_completion(
+                messages=messages,
+                model=model,
+                temperature=0.2,
+                response_format=json_response_format(),
+                timeout=300,
+                stage="no_news_brief",
+                max_attempts=3,
+            )
+            content = body["choices"][0]["message"]["content"]
+            try:
+                result = _validate_stock_brief_payload(parse_json_content(content))
+                break
+            except (KeyError, TypeError, ValueError) as exc:
+                if semantic_attempt >= STOCK_BRIEF_SEMANTIC_ATTEMPTS:
+                    raise ValueError(
+                        f"invalid no-news brief after {semantic_attempt} attempts: {exc}"
+                    ) from exc
+                logger.warning(
+                    "Invalid no-news LLM brief for %s; retrying semantic_attempt=%s/%s: %s",
+                    ticker,
+                    semantic_attempt,
+                    STOCK_BRIEF_SEMANTIC_ATTEMPTS,
+                    exc,
+                )
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "The prior response was invalid. Return the completed stock brief data object, "
+                        "not the schema or response-format envelope. Include every required field and "
+                        f"match all field types. Validation error: {str(exc)[:500]}"
+                    ),
+                })
+
+        if result is None:
+            raise ValueError("LLM returned no valid no-news brief")
 
         if store is not None and cache_key:
             try:

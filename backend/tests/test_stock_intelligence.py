@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -18,10 +19,55 @@ from backend.stock_intelligence import (
     _summarize_price_context,
     build_no_news_intelligence_doc,
     build_stock_intelligence_docs,
+    generate_no_news_brief,
 )
 
 
 class StockIntelligenceTest(unittest.TestCase):
+    def test_no_news_brief_retries_malformed_model_output(self) -> None:
+        valid_brief = {
+            "headline": "SNAP holds its current setup",
+            "body": "The stock is quiet without a fresh company catalyst. Watch whether the current trend holds.",
+            "key_findings": ["No fresh company news is driving the move."],
+            "catalyst": "A new company update",
+            "risk": "Momentum can fade without a catalyst.",
+            "thesis": "Quiet trading keeps the setup unchanged",
+            "setup_state": "unclear",
+            "drivers": [],
+            "catalyst_cards": [],
+            "risk_cards": [],
+            "directive": {
+                "text": "Hold and watch",
+                "action_now": "Hold and watch for a fresh catalyst.",
+                "stance": "hold",
+                "trigger_type": "new_catalyst",
+                "trigger_value": "company update",
+                "add_on": {"text": "No add trigger", "trigger_type": "none", "trigger_value": ""},
+                "trim_on": {"text": "No trim trigger", "trigger_type": "none", "trigger_value": ""},
+                "breaks_if": {"text": "Trend weakens", "trigger_type": "sentiment_flip", "trigger_value": "negative"},
+                "rationale": "There is no fresh company catalyst.",
+                "confidence": "low",
+            },
+        }
+        invalid = {"choices": [{"message": {"content": ""}}]}
+        valid = {"choices": [{"message": {"content": json.dumps(valid_brief)}}]}
+
+        with patch("backend.stock_intelligence.llm_api_key", return_value="test-key"), patch(
+            "backend.stock_intelligence.stock_brief_model", return_value="test-model"
+        ), patch(
+            "backend.stock_intelligence.post_chat_completion",
+            side_effect=[invalid, invalid, invalid, valid],
+        ) as completion:
+            result = generate_no_news_brief(
+                {"instrument_id": "US_SNAP", "ticker": "SNAP", "name": "Snap Inc."},
+                {"quote": {"current": 9.5, "day_change_pct": 0.2, "volume": 1_000}},
+                None,
+                None,
+            )
+
+        self.assertEqual(result, valid_brief)
+        self.assertEqual(completion.call_count, 4)
+
     def test_repair_directive_preserves_now_call_and_derives_primary_zone(self) -> None:
         directive = _repair_directive({
             "text": "Accumulate on dips below 185",
