@@ -251,25 +251,23 @@ export default async function MarketDailyEditionPage({ params }: Props) {
       />
       <div className={styles.shell}>
         <header className={styles.masthead}>
-          <span className={styles.edition}>Edition {edition.edition_date}</span>
+          <span className={styles.edition}>US markets</span>
           <Link href="/market-daily" className={styles.brand}>
-            Market Daily<span className={styles.brandDot}>.</span>
+            Market Daily
           </Link>
           <span className={styles.dateline}>{dateLabel(edition.edition_date)}</span>
         </header>
 
         <div className={styles.strap}>
-          <span>One market idea, properly unpacked, before New York wakes up</span>
+          <span>Stocksbrew market view</span>
           <span className={styles.status}>Sources checked · figures verified</span>
         </div>
 
         <header className={styles.headlineBlock}>
-          <div className={styles.rubric}>Before the bell</div>
+          <div className={styles.rubric}>Market daily</div>
           <h1 className={styles.headline}>{edition.headline}</h1>
           <p className={styles.dek}>{edition.dek}</p>
           <div className={styles.byline}>
-            <span>By the Stocksbrew research desk</span>
-            <span>·</span>
             <span>Premarket checked {timeLabel(edition.premarket.as_of)}</span>
           </div>
         </header>

@@ -43,19 +43,17 @@ export default async function MarketDailyArchivePage() {
     <main className={styles.page}>
       <div className={styles.shell}>
         <header className={styles.masthead}>
-          <span className={styles.edition}>US markets · before the bell</span>
+          <span className={styles.edition}>US markets</span>
           <div className={styles.brand}>
-            Market Daily<span className={styles.brandDot}>.</span>
+            Market Daily
           </div>
-          <span className={styles.dateline}>stocksbrew editorial desk</span>
+          <span className={styles.dateline}>Stocksbrew</span>
         </header>
 
         <section className={styles.archiveHeader}>
-          <h1 className={styles.archiveTitle}>Yesterday,<br />explained.</h1>
+          <h1 className={styles.archiveTitle}>What moved the market.</h1>
           <p className={styles.archiveIntro}>
-            One argument about yesterday’s market, checked against the overnight
-            news and morning data before the US open. Sources stay attached.
-            Unknowns stay unknown.
+            A short daily read on the market, the stocks behind the move, and what to watch next.
           </p>
         </section>
 
@@ -67,14 +65,14 @@ export default async function MarketDailyArchivePage() {
                 className={styles.editionCard}
                 key={edition.edition_date}
               >
-                <span className={styles.cardDate}>
-                  {index === 0 ? "Latest · " : ""}
+                {index === 0 ? <span className={styles.cardLatest}>Latest edition</span> : null}
+                <time className={styles.cardDate} dateTime={edition.edition_date}>
                   {dateLabel(edition.edition_date)}
-                </span>
+                </time>
                 <h2 className={styles.cardHeadline}>{edition.headline}</h2>
                 <p className={styles.cardDek}>{edition.dek}</p>
                 <span className={styles.cardAction}>
-                  Read the {edition.quality.word_count}-word edition →
+                  Read market view →
                 </span>
               </Link>
             ))}

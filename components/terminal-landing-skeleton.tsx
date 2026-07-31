@@ -17,53 +17,57 @@ export function LandingTapeSkeleton() {
   );
 }
 
-export function LandingHeroCommandSkeleton() {
-  return (
-    <div className="landing-hero-command-wrap relative w-full">
-      <div className="landing-hero-command landing-card w-full overflow-hidden">
-        <div className="landing-hero-command-chrome flex items-center justify-between border-b px-4 py-2.5">
-          <span className="flex items-center gap-1.5" aria-hidden>
-            <span className="landing-hero-traffic-light landing-hero-traffic-light--close" />
-            <span className="landing-hero-traffic-light landing-hero-traffic-light--minimize" />
-            <span className="landing-hero-traffic-light landing-hero-traffic-light--maximize" />
-          </span>
-          <Bone className="h-3 w-10" />
-        </div>
-        <div className="space-y-3 p-4">
-          <Bone className="h-3.5 w-44" />
-          <div className="inset space-y-3 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 space-y-2">
-                <Bone className="h-4 w-52" />
-                <Bone className="h-3 w-32" />
-              </div>
-              <Bone className="h-9 w-24 shrink-0 rounded-lg" />
-            </div>
-            <Bone className="h-[136px] w-full rounded-md" />
-          </div>
-          <div className="space-y-2">
-            <Bone className="h-3 w-full" />
-            <Bone className="h-3 w-[92%]" />
-            <Bone className="h-3 w-[78%]" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function LandingHeroSkeleton() {
   return (
-    <div className="flex w-full flex-col items-center">
-      <div className="flex w-full max-w-3xl flex-col items-center" aria-hidden>
-        <Bone className="h-10 w-[min(32rem,90%)]" />
-        <Bone className="mt-5 h-5 w-[min(38rem,95%)]" />
-        <Bone className="mt-2 h-5 w-[min(30rem,82%)]" />
-        <Bone className="mt-8 h-14 w-full rounded-2xl" />
-        <Bone className="mt-7 h-4 w-[min(28rem,80%)]" />
+    <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-12">
+      <div className="lg:pb-5">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-primary">Stocksbrew</p>
+        <h1 className="max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-0.045em] text-on-surface sm:text-5xl lg:text-[3.75rem]">
+          Know when to buy, hold, or walk away.
+        </h1>
+        <p className="mt-5 max-w-lg text-base leading-7 text-on-surface-variant">
+          See the current call, levels, and risks. We will alert you when there is a reason to look again.
+        </p>
+        <div className="mt-7 space-y-3" aria-hidden>
+          <Bone className="h-14 w-full rounded-full" />
+          <Bone className="h-12 w-44 rounded-full" />
+        </div>
       </div>
-      <div className="mt-10 w-full max-w-4xl sm:mt-12">
-        <LandingHeroCommandSkeleton />
+      <div className="landing-card overflow-hidden" aria-hidden>
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+          <Bone className="h-3 w-32" />
+          <Bone className="h-3 w-20" />
+        </div>
+        <div className="p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-4 border-b border-outline-variant pb-4">
+            <div className="flex items-start gap-3">
+              <Bone className="h-9 w-9 rounded-lg" />
+              <div className="space-y-2">
+                <Bone className="h-5 w-36" />
+                <Bone className="h-3 w-28" />
+              </div>
+            </div>
+            <Bone className="h-5 w-16 rounded-full" />
+          </div>
+          <div className="mt-5 grid gap-6 md:grid-cols-2">
+            <div className="space-y-3">
+              <Bone className="h-3 w-24" />
+              <Bone className="h-9 w-40" />
+              <Bone className="h-4 w-full" />
+              <Bone className="h-4 w-4/5" />
+              <div className="mt-6 grid grid-cols-3 gap-3 border-t border-outline-variant pt-4">
+                <Bone className="h-9 w-full" />
+                <Bone className="h-9 w-full" />
+                <Bone className="h-9 w-full" />
+              </div>
+            </div>
+            <Bone className="min-h-48 h-full w-full rounded-lg" />
+          </div>
+          <div className="mt-6 grid gap-5 border-t border-outline-variant pt-5 sm:grid-cols-2">
+            <div className="space-y-2"><Bone className="h-3 w-16" /><Bone className="h-5 w-24" /><Bone className="h-3 w-20" /></div>
+            <div className="space-y-2"><Bone className="h-3 w-20" /><Bone className="h-5 w-20" /><Bone className="h-3 w-24" /></div>
+          </div>
+        </div>
       </div>
     </div>
   );

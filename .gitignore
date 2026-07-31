@@ -46,3 +46,4 @@ backend/firebase-service-account.json
 .tokensave
 backend/vps/LOCAL_SECRETS.md
 openclaw-migration.tar.gz
+.env*.local

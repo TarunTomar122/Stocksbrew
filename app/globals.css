@@ -512,7 +512,7 @@ html:not(.dark):has(.landing-page) body {
 }
 
 .landing-hero-command-wrap {
-  padding-top: 2.25rem;
+  padding-top: 0;
 }
 
 .landing-hero-mover-callout {
