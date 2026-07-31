@@ -397,21 +397,17 @@ function hasPriceZone(zone?: DirectiveZone): boolean {
 function isCallActionableNow(row: WatchlistRow, d: Directive, callKind: RadarCallKind): boolean {
   const price = row.price;
   if (typeof price !== "number" || !Number.isFinite(price)) return false;
-  const stance = (d.stance ?? "hold").toLowerCase();
 
   switch (callKind) {
     case "buy_dip":
-      if (hasPriceZone(d.add_on)) return zoneTriggerMet(d.add_on, price);
-      return stance === "accumulate";
+      return hasPriceZone(d.add_on) && zoneTriggerMet(d.add_on, price);
     case "trim":
       if (hasPriceZone(d.trim_on)) return zoneTriggerMet(d.trim_on, price);
       return false;
     case "entry":
-      if (hasPriceZone(d.add_on)) return zoneTriggerMet(d.add_on, price);
-      return stance === "accumulate";
+      return hasPriceZone(d.add_on) && zoneTriggerMet(d.add_on, price);
     case "exit":
-      if (hasPriceZone(d.breaks_if)) return zoneTriggerMet(d.breaks_if, price);
-      return stance === "avoid";
+      return hasPriceZone(d.breaks_if) && zoneTriggerMet(d.breaks_if, price);
   }
 }
 
@@ -691,16 +687,23 @@ function zoneDistanceToTrigger(price: number, zone?: DirectiveZone): number | nu
   return null;
 }
 
-/** Pick the book call closest to today's price — buy-below beats trim-above when nearer the add zone. */
+/**
+ * Pick a price-zone action that agrees with the current directive.
+ *
+ * Directive documents can retain both add and trim levels for context. Those
+ * secondary levels must not turn an avoid, watch, or trim directive into an
+ * Accumulate-now decision just because price happens to cross one.
+ */
 export function resolveBookCallHint(row: WatchlistRow, d: Directive): BookCallHint | null {
   const price = row.price;
   if (typeof price !== "number" || !Number.isFinite(price)) return null;
   const isHolding = row.position_type === "holding";
+  const stance = (d.stance ?? "hold").toLowerCase();
 
   type Candidate = { hint: string; callKind: RadarCallKind; urgent: boolean; distance: number };
   const candidates: Candidate[] = [];
 
-  if (d.add_on?.trigger_type) {
+  if (stance === "accumulate" && d.add_on?.trigger_type) {
     const hint = formatZoneLabel(d.add_on, isHolding ? "buy" : "entry");
     const distance = zoneDistanceToTrigger(price, d.add_on);
     if (hint && distance != null) {
@@ -713,7 +716,7 @@ export function resolveBookCallHint(row: WatchlistRow, d: Directive): BookCallHi
     }
   }
 
-  if (d.trim_on?.trigger_type) {
+  if (stance === "trim" && d.trim_on?.trigger_type) {
     const hint = formatZoneLabel(d.trim_on, "trim");
     const distance = zoneDistanceToTrigger(price, d.trim_on);
     if (hint && distance != null) {
@@ -726,7 +729,7 @@ export function resolveBookCallHint(row: WatchlistRow, d: Directive): BookCallHi
     }
   }
 
-  if (d.breaks_if?.trigger_type) {
+  if ((stance === "trim" || stance === "avoid") && d.breaks_if?.trigger_type) {
     const hint = formatZoneLabel(d.breaks_if, "trim") || "Exit if thesis breaks";
     const distance = zoneDistanceToTrigger(price, d.breaks_if);
     if (distance != null) {
@@ -750,7 +753,6 @@ export function resolveBookCallHint(row: WatchlistRow, d: Directive): BookCallHi
 
   const actionLine = humanizeDirectiveLine(d.text);
   if (!actionLine) return null;
-  const stance = (d.stance ?? "hold").toLowerCase();
   if (stance === "trim") return { hint: actionLine, urgent: false, callKind: "trim" };
   if (stance === "avoid") return { hint: actionLine, urgent: false, callKind: "exit" };
   if (stance === "accumulate") {

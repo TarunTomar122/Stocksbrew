@@ -51,7 +51,7 @@ export const PRO_BULLETS = [
 export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Start 3-day free trial" : "Sign in to start free trial";
+  const ctaLabel = "Start your 3-day free trial";
 
   return (
     <section className="flex flex-col gap-16">

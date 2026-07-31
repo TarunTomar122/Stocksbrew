@@ -1,12 +1,20 @@
 import type { RadarAttentionItem } from "@/lib/watchlist-view";
 
-const MEANINGFUL_EVENT_TYPES = new Set([
-  "rsi_oversold_cross",
-  "rsi_overbought_cross",
-  "earnings_upcoming",
+const SOURCE_BACKED_EVENT_TYPES = new Set([
   "abnormal_price_move",
-  "portfolio_risk_transition",
+  "analyst_rating_change",
+  "analyst_target_revision",
+  "earnings_results",
+  "earnings_guidance_change",
+  "filing_catalyst",
 ]);
+
+function hasSourceBackedExplanation(item: RadarAttentionItem): boolean {
+  return (
+    SOURCE_BACKED_EVENT_TYPES.has(item.event_type) &&
+    item.citations.some((citation) => citation.title.trim() && citation.url.trim())
+  );
+}
 
 export function radarAttentionItems(
   items: RadarAttentionItem[],
@@ -16,8 +24,7 @@ export function radarAttentionItems(
   const recentCutoff = now - 36 * 60 * 60 * 1000;
   const ranked = items
     .filter((item) => {
-      if (!MEANINGFUL_EVENT_TYPES.has(item.event_type)) return false;
-      if (item.event_type === "abnormal_price_move" && item.citations.length === 0) return false;
+      if (!hasSourceBackedExplanation(item)) return false;
       const occurred = Date.parse(item.occurred_at);
       return !Number.isFinite(occurred) || occurred >= recentCutoff;
     })
@@ -28,24 +35,15 @@ export function radarAttentionItems(
       return right.priority_score - left.priority_score;
     });
 
-  const selected: RadarAttentionItem[] = [];
-  const technicalTypes = new Set<string>();
-  for (const item of ranked) {
-    const isTechnicalExtreme =
-      item.event_type === "rsi_oversold_cross" || item.event_type === "rsi_overbought_cross";
-    if (isTechnicalExtreme && technicalTypes.has(item.event_type)) continue;
-    selected.push(item);
-    if (isTechnicalExtreme) technicalTypes.add(item.event_type);
-    if (selected.length >= max) break;
-  }
-  return selected;
+  return ranked.slice(0, max);
 }
 
 export function radarEventLabel(eventType: string): string {
-  if (eventType === "rsi_oversold_cross") return "Newly oversold";
-  if (eventType === "rsi_overbought_cross") return "Newly overbought";
-  if (eventType === "earnings_upcoming") return "Earnings soon";
   if (eventType === "abnormal_price_move") return "Abnormal move";
-  if (eventType === "portfolio_risk_transition") return "Book risk";
+  if (eventType === "analyst_rating_change") return "Rating change";
+  if (eventType === "analyst_target_revision") return "Target revision";
+  if (eventType === "earnings_results") return "Earnings result";
+  if (eventType === "earnings_guidance_change") return "Guidance update";
+  if (eventType === "filing_catalyst") return "Filing update";
   return "Update";
 }

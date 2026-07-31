@@ -55,39 +55,6 @@ function indexAlerts(rows: StoredAlert[]): { keys: Set<string>; idsByKey: Record
   return { keys, idsByKey };
 }
 
-function ActionBadge({ active, busy, activeLabel, inactiveLabel }: {
-  active: boolean;
-  busy: boolean;
-  activeLabel: string;
-  inactiveLabel: string;
-}) {
-  if (busy) {
-    return (
-      <span className="shrink-0 font-mono text-[12px] font-semibold text-on-surface-variant">…</span>
-    );
-  }
-  if (active) {
-    return (
-      <span
-        className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[11px] font-semibold"
-        style={{
-          borderColor: "color-mix(in srgb, var(--signal-bullish) 35%, var(--outline-variant))",
-          background: "color-mix(in srgb, var(--signal-bullish) 10%, var(--surface-container-low))",
-          color: "var(--signal-bullish)",
-        }}
-      >
-        <AnimatedIcon name="notifications_active" size={14} className="text-[14px] leading-none" aria-hidden />
-        {activeLabel}
-      </span>
-    );
-  }
-  return (
-    <span className="shrink-0 font-mono text-[12px] font-semibold" style={{ color: "var(--signal-bullish)" }}>
-      {inactiveLabel}
-    </span>
-  );
-}
-
 export function StockSmartAlertsRail({
   ticker,
   instrumentId,
@@ -338,44 +305,47 @@ export function StockSmartAlertsRail({
 
   if (!isSubscribed) {
     return (
-      <section className="border-t border-outline-variant py-5 sm:py-6">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">
-          Pro alerts
-        </p>
-        <h3 className="mt-2 text-[14px] font-bold text-on-surface">Let the setup bring you back</h3>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-on-surface-variant">
-          Pro watches earnings, buy zones, and trim zones automatically. You can also set a manual price alert.
-        </p>
-        <Link
-          href="/subscribe"
-          className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-on-surface px-4 text-[12px] font-semibold text-surface no-underline"
-        >
-          Unlock Pro alerts
-        </Link>
-      </section>
+      <div className="min-w-0">
+        <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+          Alerts
+        </span>
+        <span className="mt-1 flex items-center gap-2">
+          <span className="text-[15px] font-bold tracking-tight text-on-surface sm:text-[17px]">Watch this setup</span>
+          <Link
+            href="/subscribe"
+            aria-label="Unlock Pro alerts"
+            title="Unlock Pro alerts"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant transition-colors hover:border-[var(--signal-bullish)] hover:text-[var(--signal-bullish)]"
+          >
+            <AnimatedIcon name="bell" size={14} aria-hidden />
+          </Link>
+        </span>
+      </div>
     );
   }
 
   return (
     <>
-      <section className="border-t border-outline-variant py-5 sm:py-6">
-        <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">
-          smart alerts
-        </p>
-        <div className="space-y-1">
-          {alerts.map((alert) => {
-            const colors = smartAlertToneColors(alert.tone);
-            const key =
-              alert.alertable && alert.price != null && alert.condition
-                ? priceAlertKey(alert.condition, alert.price)
-                : alert.id;
-            const isActive = alert.alertable && alert.price != null && alert.condition ? activeKeys.has(key) : false;
-            const isBusy = busyKey === key;
-            const interactive = alert.alertable && alert.price != null && alert.condition;
+      {alerts.map((alert) => {
+        const colors = smartAlertToneColors(alert.tone);
+        const key =
+          alert.alertable && alert.price != null && alert.condition
+            ? priceAlertKey(alert.condition, alert.price)
+            : alert.id;
+        const isActive = alert.alertable && alert.price != null && alert.condition ? activeKeys.has(key) : false;
+        const isBusy = busyKey === key;
+        const interactive = alert.alertable && alert.price != null && alert.condition;
 
-            return (
+        return (
+          <div key={alert.id} className="min-w-0">
+            <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+              {alert.title}
+            </span>
+            <span className="mt-1 flex items-center gap-2">
+              <span className="text-[15px] font-bold tabular-nums tracking-tight sm:text-[17px]" style={{ color: colors.title }}>
+                {alert.detail ?? "Watch trigger"}
+              </span>
               <button
-                key={alert.id}
                 type="button"
                 disabled={!interactive || isBusy}
                 onClick={() => handlePriceAlert(alert)}
@@ -385,36 +355,42 @@ export function StockSmartAlertsRail({
                     ? `Turn off price alert for ${alert.title}`
                     : `Set price alert for ${alert.title}`
                 }
-                className={`flex w-full items-start gap-2.5 rounded-lg px-1 py-2.5 text-left transition-colors disabled:cursor-default ${
-                  interactive ? "hover:bg-surface-container-low active:bg-surface-container" : ""
-                }`}
+                title={isActive ? "Alert active. Click to turn off." : "Set alert"}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border transition-colors disabled:cursor-default disabled:opacity-40"
+                style={
+                  isActive
+                    ? {
+                        color: "var(--signal-bullish)",
+                        borderColor: "color-mix(in srgb, var(--signal-bullish) 45%, var(--outline-variant))",
+                        background: "color-mix(in srgb, var(--signal-bullish) 12%, var(--surface))",
+                      }
+                    : {
+                        color: "var(--on-surface-variant)",
+                        borderColor: "var(--outline-variant)",
+                        background: "var(--surface-container-low)",
+                      }
+                }
               >
-                <span aria-hidden className="mt-0.5 shrink-0 text-[13px] leading-none">
-                  🔔
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-semibold leading-snug" style={{ color: colors.title }}>
-                    {alert.title}
-                  </p>
-                  {alert.detail ? (
-                    <p className="mt-0.5 font-mono text-[11.5px] leading-snug tabular-nums text-on-surface-variant">
-                      {alert.detail}
-                    </p>
-                  ) : null}
-                </div>
-                {interactive ? (
-                  <ActionBadge
-                    active={isActive}
-                    busy={isBusy}
-                    activeLabel="Active"
-                    inactiveLabel="Create"
-                  />
-                ) : null}
+                {isBusy ? (
+                  <span className="font-mono text-[11px]" aria-hidden>…</span>
+                ) : (
+                  <AnimatedIcon name="bell" size={14} aria-hidden />
+                )}
               </button>
-            );
-          })}
+            </span>
+          </div>
+        );
+      })}
 
-          {earningsAlert ? (
+      {earningsAlert ? (
+        <div className="min-w-0">
+          <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+            Earnings
+          </span>
+          <span className="mt-1 flex items-center gap-2">
+            <span className="text-[15px] font-bold tracking-tight text-on-surface sm:text-[17px]">
+              {earningsAlert.dateLabel}
+            </span>
             <button
               type="button"
               disabled={busyKey === earningsAlertKey()}
@@ -425,27 +401,31 @@ export function StockSmartAlertsRail({
                   ? "Turn off earnings reminder"
                   : "Set earnings reminder"
               }
-              className="flex w-full items-start gap-2.5 rounded-lg px-1 py-2.5 text-left transition-colors hover:bg-surface-container-low active:bg-surface-container"
+              title={activeKeys.has(earningsAlertKey()) ? "Reminder active. Click to turn off." : "Set earnings reminder"}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full border transition-colors disabled:cursor-default disabled:opacity-40"
+              style={
+                activeKeys.has(earningsAlertKey())
+                  ? {
+                      color: "var(--signal-bullish)",
+                      borderColor: "color-mix(in srgb, var(--signal-bullish) 45%, var(--outline-variant))",
+                      background: "color-mix(in srgb, var(--signal-bullish) 12%, var(--surface))",
+                    }
+                  : {
+                      color: "var(--on-surface-variant)",
+                      borderColor: "var(--outline-variant)",
+                      background: "var(--surface-container-low)",
+                    }
+              }
             >
-              <span aria-hidden className="mt-0.5 shrink-0 text-[13px] leading-none">
-                🔔
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[12.5px] font-semibold leading-snug text-on-surface">Earnings</p>
-                <p className="mt-0.5 font-mono text-[11.5px] leading-snug text-on-surface-variant">
-                  {earningsAlert.dateLabel}
-                </p>
-              </div>
-              <ActionBadge
-                active={activeKeys.has(earningsAlertKey())}
-                busy={busyKey === earningsAlertKey()}
-                activeLabel="Reminder on"
-                inactiveLabel="Remind"
-              />
+              {busyKey === earningsAlertKey() ? (
+                <span className="font-mono text-[11px]" aria-hidden>…</span>
+              ) : (
+                <AnimatedIcon name="bell" size={14} aria-hidden />
+              )}
             </button>
-          ) : null}
+          </span>
         </div>
-      </section>
+      ) : null}
 
       <AlertSetModal
         open={modal.open}

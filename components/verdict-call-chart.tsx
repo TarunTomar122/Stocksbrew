@@ -15,10 +15,8 @@ const RETURN_ROWS: Array<{ label: string; key: keyof StockReturns }> = [
 
 function ReturnsRow({
   returns,
-  columnsAt = "lg",
 }: {
   returns?: StockReturns | null;
-  columnsAt?: "md" | "lg";
 }) {
   const items = RETURN_ROWS.map(({ label, key }) => ({
     label,
@@ -27,10 +25,8 @@ function ReturnsRow({
 
   if (!items.length) return null;
 
-  const autoMargin = columnsAt === "md" ? "md:mt-auto md:pt-6" : "lg:mt-auto lg:pt-6";
-
   return (
-    <div className={`mt-7 border-t border-outline-variant/40 pt-5 ${autoMargin}`}>
+    <div className="mt-9 border-t border-outline-variant/40 pt-5">
       <div
         className="grid divide-x divide-outline-variant/35"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
@@ -94,7 +90,7 @@ export function VerdictCallChart({
     <div className={`grid gap-5 ${gridCols} ${gridStretch} ${gridGap}`}>
       <div className="flex min-w-0 flex-col">
         {callSlot}
-        <ReturnsRow returns={returns} columnsAt={columnsAt} />
+        <ReturnsRow returns={returns} />
       </div>
 
       {hasChart && (

@@ -40,7 +40,6 @@ export type LandingHeroCallData = {
     hint?: string;
     hintTone?: "bullish" | "bearish" | "neutral";
   }>;
-  driver_footer: string | null;
   chart_line_color: string;
 };
 
@@ -194,11 +193,6 @@ export function buildLandingHeroCallData(
     featured.headline?.trim() ||
     null;
 
-  const driverFooter =
-    n(analystTarget) && featured.price > 0 && featured.price < analystTarget
-      ? `${(((analystTarget - featured.price) / featured.price) * 100).toFixed(0)}% below our analyst target of ${formatMoney(analystTarget)}`
-      : null;
-
   const up = featured.day_change_pct >= 0;
   const chartLineColor =
     directive != null ? accent : up ? "var(--signal-bullish)" : "var(--signal-bearish)";
@@ -215,7 +209,6 @@ export function buildLandingHeroCallData(
     chart_zones: chartZones,
     zone_hint: zoneHint,
     call_metrics: buildCallMetrics(directive, featured.price, metrics, analystTarget, formatMoney),
-    driver_footer: driverFooter,
     chart_line_color: chartLineColor,
   };
 }

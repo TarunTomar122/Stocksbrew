@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 
-import { AgentAccessLandingStrip } from "@/components/agent-access-marketing";
 import { FeedbackWidget } from "@/components/feedback-widget";
-import { NewsletterModal } from "@/components/newsletter-modal";
+import { AgentAccessLandingStrip } from "@/components/agent-access-marketing";
+import { LandingSimpleWay } from "@/components/landing-simple-way";
 import { TerminalLandingFaq } from "@/components/terminal-landing-faq";
 import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
 import {
   LandingHeroSkeleton,
+  LandingPricingSkeleton,
   LandingScannerRedditSkeleton,
   LandingSectorHeatSkeleton,
   LandingTapeSkeleton,
@@ -28,12 +29,14 @@ export function PublicHomePage() {
         </Suspense>
 
         <header className="landing-hero-glow relative border-b border-outline-variant">
-          <div className="landing-inner py-10 sm:py-14 lg:py-20">
+          <div className="landing-inner py-10 sm:py-14 lg:py-16">
             <Suspense fallback={<LandingHeroSkeleton />}>
               <LandingHeroStream />
             </Suspense>
           </div>
         </header>
+
+        <LandingSimpleWay />
 
         <Suspense fallback={<LandingScannerRedditSkeleton />}>
           <LandingScannerRedditStream />
@@ -43,16 +46,16 @@ export function PublicHomePage() {
           <LandingSectorHeatStream />
         </Suspense>
 
-        <Suspense fallback={null}>
+        <Suspense fallback={<LandingPricingSkeleton />}>
           <LandingProSectionStream />
         </Suspense>
+
         <TerminalLandingTestimonials />
         <TerminalLandingFaq />
         <AgentAccessLandingStrip />
       </div>
 
       <FeedbackWidget />
-      <NewsletterModal />
     </main>
   );
 }

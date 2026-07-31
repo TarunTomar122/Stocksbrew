@@ -35,27 +35,27 @@ function item(
 }
 
 describe("radarAttentionItems", () => {
-  it("keeps only meaningful current state changes and caps the queue at three", () => {
+  it("keeps only cited source-backed changes and caps the queue at three", () => {
     const rows = radarAttentionItems(
       [
         item("AAPL", "analyst_target_revision"),
         item("NVDA", "rsi_overbought_cross"),
         item("MSFT", "earnings_upcoming"),
         item("TSLA", "abnormal_price_move"),
-        item("AMD", "rsi_oversold_cross"),
+        item("AMD", "filing_catalyst"),
       ],
       Date.parse("2026-07-24T10:00:00Z"),
     );
 
     expect(rows).toHaveLength(3);
-    expect(rows.map((row) => row.ticker)).not.toContain("AAPL");
+    expect(rows.map((row) => row.ticker)).toEqual(["AAPL", "TSLA", "AMD"]);
   });
 
   it("prioritizes held names over watched names", () => {
     const rows = radarAttentionItems(
       [
-        item("NVDA", "rsi_overbought_cross", { priority_score: 99 }),
-        item("MSFT", "earnings_upcoming", {
+        item("NVDA", "abnormal_price_move", { priority_score: 99 }),
+        item("MSFT", "analyst_rating_change", {
           position_type: "holding",
           priority_score: 10,
         }),
@@ -66,25 +66,33 @@ describe("radarAttentionItems", () => {
     expect(rows[0].ticker).toBe("MSFT");
   });
 
-  it("drops unexplained abnormal moves", () => {
+  it("drops uncited and deterministic technical changes", () => {
     expect(
       radarAttentionItems(
-        [item("TSLA", "abnormal_price_move", { citations: [] })],
+        [
+          item("TSLA", "abnormal_price_move", { citations: [] }),
+          item("NVDA", "rsi_oversold_cross"),
+          item("MSFT", "earnings_upcoming"),
+        ],
         Date.parse("2026-07-24T10:00:00Z"),
       ),
     ).toEqual([]);
   });
 
-  it("shows only the highest-priority item for a repeated technical state", () => {
+  it("requires a usable source headline and link", () => {
     const rows = radarAttentionItems(
       [
-        item("RKLB", "rsi_oversold_cross", { priority_score: 80 }),
-        item("OKLO", "rsi_oversold_cross", { priority_score: 70 }),
-        item("MSFT", "earnings_upcoming", { priority_score: 60 }),
+        item("RKLB", "filing_catalyst", {
+          citations: [{ title: "", url: "https://example.com", publisher: "Example", published_at: "2026-07-24T09:00:00Z" }],
+        }),
+        item("OKLO", "filing_catalyst", {
+          citations: [{ title: "Source", url: "", publisher: "Example", published_at: "2026-07-24T09:00:00Z" }],
+        }),
+        item("MSFT", "filing_catalyst"),
       ],
       Date.parse("2026-07-24T10:00:00Z"),
     );
 
-    expect(rows.map((row) => row.ticker)).toEqual(["RKLB", "MSFT"]);
+    expect(rows.map((row) => row.ticker)).toEqual(["MSFT"]);
   });
 });

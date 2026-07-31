@@ -24,6 +24,31 @@ export function MarketFeedStreamSkeleton() {
   );
 }
 
+/** Mirrors the Social feed: narrative-first rows rather than anonymous cards. */
+export function SocialFeedSkeleton() {
+  return (
+    <div className="space-y-5" aria-busy="true" aria-label="Loading social attention">
+      <div className="flex items-center justify-between border-y border-outline-variant py-3">
+        <Bone className="h-3 w-36" />
+        <Bone className="h-3 w-28" />
+      </div>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <article key={index} className="flex min-h-[12rem] flex-col rounded-xl border border-outline-variant bg-surface p-4">
+            <div className="flex items-center gap-2.5">
+              <Bone className="h-[30px] w-[30px] shrink-0 rounded-lg" />
+              <div className="space-y-1.5"><Bone className="h-3 w-12" /><Bone className="h-2.5 w-24" /></div>
+              <Bone className="ml-auto h-5 w-14 rounded-full" />
+            </div>
+            <div className="mt-5 space-y-2"><Bone className="h-3.5 w-[88%]" /><Bone className="h-3 w-full" /><Bone className="h-3 w-[72%]" /></div>
+            <div className="mt-auto flex justify-between pt-5"><Bone className="h-2.5 w-20" /><Bone className="h-2.5 w-12" /></div>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 /** Generic market feed page — anomalies, reddit, events, premarket. */
 export function MarketFeedPageSkeleton() {
   return (
@@ -196,34 +221,40 @@ export function StockPageSkeleton() {
   return (
     <main className="flex min-w-0 w-full flex-grow flex-col" aria-busy="true" aria-label="Loading stock">
       <div className="mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7">
-        <header className="mb-4 sm:mb-5">
-          <div className="flex items-center gap-3.5">
+        <header className="border-b border-outline-variant pb-5 sm:pb-6">
+          <div className="flex items-start gap-3.5">
             <Bone className="h-11 w-11 shrink-0 rounded-xl" />
             <div className="min-w-0 flex-1">
-              <Bone className="h-7 w-52 max-w-full" />
-              <Bone className="mt-2 h-3 w-72 max-w-full" />
+              <Bone className="h-6 w-44 max-w-full" />
+              <Bone className="mt-2 h-3 w-64 max-w-full" />
+              <div className="mt-4 flex gap-2"><Bone className="h-7 w-24 rounded-full" /><Bone className="h-7 w-14 rounded-full" /></div>
             </div>
             <div className="shrink-0">
-              <Bone className="ml-auto h-8 w-24" />
-              <Bone className="mt-1.5 ml-auto h-3 w-20" />
+              <Bone className="ml-auto h-7 w-20" />
+              <Bone className="mt-2 ml-auto h-3 w-16" />
             </div>
           </div>
+          <div className="mt-6 flex gap-5"><Bone className="h-3 w-14" /><Bone className="h-3 w-16" /><Bone className="h-3 w-14" /><Bone className="h-3 w-16" /></div>
         </header>
 
-        <Bone className="h-[260px] w-full rounded-2xl sm:h-[300px] lg:h-[320px]" />
+        <section className="grid gap-7 border-b border-outline-variant py-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(20rem,1.1fr)] lg:items-center">
+          <div>
+            <Bone className="h-3 w-20" />
+            <Bone className="mt-3 h-11 w-52 max-w-full" />
+            <Bone className="mt-4 h-4 w-full max-w-[25rem]" />
+            <Bone className="mt-2 h-4 w-[82%] max-w-[22rem]" />
+            <div className="mt-7 grid grid-cols-3 divide-x divide-outline-variant"><Bone className="h-10 w-16" /><Bone className="ml-5 h-10 w-16" /><Bone className="ml-5 h-10 w-16" /></div>
+          </div>
+          <div>
+            <Bone className="h-3 w-24" />
+            <Bone className="mt-4 h-[176px] w-full" />
+            <div className="mt-3 flex justify-between"><Bone className="h-3 w-14" /><Bone className="h-3 w-14" /><Bone className="h-3 w-14" /><Bone className="h-3 w-14" /></div>
+          </div>
+        </section>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:mt-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-5">
-          <div className="flex flex-col gap-4">
-            <Bone className="h-44 w-full rounded-2xl" />
-            <Bone className="h-52 w-full rounded-2xl" />
-            <Bone className="h-36 w-full rounded-2xl" />
-          </div>
-          <div className="flex flex-col gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Bone key={i} className="h-[104px] w-full rounded-2xl" />
-            ))}
-          </div>
-        </div>
+        <section className="border-b border-outline-variant py-7"><Bone className="h-3 w-28" /><Bone className="mt-3 h-7 w-72 max-w-full" /><div className="mt-6 grid gap-5 lg:grid-cols-[0.72fr_1.28fr]"><div className="grid grid-cols-2 gap-x-8 gap-y-6"><Bone className="h-10 w-24" /><Bone className="h-10 w-24" /><Bone className="h-10 w-24" /><Bone className="h-10 w-24" /></div><div className="border-l border-outline-variant pl-5"><div className="flex gap-2"><Bone className="h-8 w-20 rounded-full" /><Bone className="h-8 w-20 rounded-full" /><Bone className="h-8 w-20 rounded-full" /></div><div className="mt-5 grid gap-4 sm:grid-cols-2">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="space-y-2"><Bone className="h-3 w-28" /><Bone className="h-3 w-full" /><Bone className="h-3 w-[72%]" /></div>)}</div></div></div></section>
+
+        <section className="py-7"><Bone className="h-3 w-20" /><Bone className="mt-3 h-7 w-64" /><div className="mt-5 grid gap-4 md:grid-cols-2">{Array.from({ length: 2 }).map((_, index) => <div key={index} className="border-t border-outline-variant pt-4"><Bone className="h-4 w-[70%]" /><Bone className="mt-3 h-3 w-full" /><Bone className="mt-2 h-3 w-[84%]" /></div>)}</div></section>
       </div>
     </main>
   );

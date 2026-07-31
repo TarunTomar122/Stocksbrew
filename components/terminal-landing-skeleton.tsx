@@ -195,6 +195,19 @@ export function LandingSectorHeatSkeleton() {
   );
 }
 
+export function LandingPricingSkeleton() {
+  return (
+    <section className="border-t border-outline-variant bg-background" aria-busy="true" aria-label="Loading plans">
+      <div className="landing-inner py-14 lg:py-16">
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="mx-auto flex w-fit gap-1 rounded-full border border-outline-variant p-1"><Bone className="h-7 w-20 rounded-full" /><Bone className="h-7 w-20 rounded-full" /></div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">{[0, 1].map((index) => <div key={index} className="border-y border-outline-variant py-6"><Bone className="h-3 w-12" /><Bone className="mt-4 h-9 w-28" /><Bone className="mt-3 h-3 w-28" /><div className="mt-6 space-y-3">{Array.from({ length: 4 }).map((_, row) => <div key={row} className="flex gap-2"><Bone className="h-3.5 w-3.5 rounded-full" /><Bone className="h-3 w-full" /></div>)}</div><Bone className="mt-7 h-10 w-full rounded-lg" /></div>)}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function TerminalLandingPageSkeleton() {
   return (
     <div className="landing-page bg-background text-on-surface">
@@ -206,6 +219,7 @@ export function TerminalLandingPageSkeleton() {
       </header>
       <LandingScannerRedditSkeleton />
       <LandingSectorHeatSkeleton />
+      <LandingPricingSkeleton />
     </div>
   );
 }

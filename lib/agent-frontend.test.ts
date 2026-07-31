@@ -20,7 +20,6 @@ describe("agent access frontend launch surfaces", () => {
     expect(source("components/public-home-page.tsx")).toContain("AgentAccessLandingStrip");
     expect(source("components/pro-plan-picker.tsx")).toContain("Current stock context for your AI");
     expect(source("lib/subscribe-benefits.ts")).toContain("Current stock context for your AI");
-    expect(source("components/stock-page-stream.tsx")).toContain("StockAgentAccessCta");
     expect(source("app/profile/page.tsx")).toContain('id="agent-access"');
   });
 

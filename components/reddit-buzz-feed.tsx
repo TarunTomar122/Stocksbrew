@@ -1,6 +1,6 @@
 "use client";
 
-import { FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
+import { FeedLockedSection, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
 import { RedditBuzzCard } from "@/components/reddit-buzz-card";
 import { FREE_REDDIT_BUZZ_VISIBLE_LIMIT } from "@/lib/pro-features";
 import type { RedditTicker } from "@/lib/reddit-cues-shared";
@@ -44,12 +44,12 @@ export function RedditBuzzFeed({
   variant = "home",
   gridCols = "3",
   scrollClassName = "",
-  unlockBarClassName,
   showTalkingPoints = true,
   hideLockedRows = false,
   unlockSignedOutLabel,
   unlockSignedInLabel,
   showUnlockCta = true,
+  lockedPreviewCount = 0,
 }: {
   items: RedditTicker[];
   isSubscribed: boolean;
@@ -58,26 +58,24 @@ export function RedditBuzzFeed({
   variant?: "home" | "pulse" | "landing";
   gridCols?: "1" | "2" | "3";
   scrollClassName?: string;
-  unlockBarClassName?: string;
   showTalkingPoints?: boolean;
   hideLockedRows?: boolean;
   unlockSignedOutLabel?: string;
   unlockSignedInLabel?: string;
   showUnlockCta?: boolean;
+  lockedPreviewCount?: number;
 }) {
   const sourceItems = limit ? items.slice(0, limit) : items;
   const freeVisibleLimit = signedIn
     ? FREE_REDDIT_BUZZ_VISIBLE_LIMIT + 1
     : FREE_REDDIT_BUZZ_VISIBLE_LIMIT;
   const hasLocked = !isSubscribed && sourceItems.length > freeVisibleLimit;
-  const visibleItems =
-    isSubscribed || !hideLockedRows
-      ? sourceItems
-      : sourceItems.slice(0, freeVisibleLimit);
-  const unlockClass =
-    unlockBarClassName ??
-    (variant === "pulse" ? "border-outline-variant bg-surface" : "border-[#e5e7eb] bg-white");
-
+  const visibleItems = isSubscribed || !hideLockedRows
+    ? sourceItems
+    : [
+        ...sourceItems.slice(0, freeVisibleLimit),
+        ...sourceItems.slice(freeVisibleLimit, freeVisibleLimit + lockedPreviewCount),
+      ];
   if (visibleItems.length === 0) {
     return null;
   }
@@ -89,7 +87,7 @@ export function RedditBuzzFeed({
           <RedditBuzzCard
             key={item.ticker}
             item={item}
-            locked={!isSubscribed && !hideLockedRows && index >= freeVisibleLimit}
+            locked={!isSubscribed && index >= freeVisibleLimit}
             variant={variant}
             showTalkingPoints={showTalkingPoints}
           />
@@ -97,10 +95,10 @@ export function RedditBuzzFeed({
       </div>
       {hasLocked && showUnlockCta ? (
         <>
-          <FeedUnlockBar
+          <FeedLockedSection
             surface="reddit_buzz"
-            className={`rounded-xl border ${unlockClass}`}
-            compact
+            count={sourceItems.length - freeVisibleLimit}
+            noun="crowd reads"
             signedOutLabel={unlockSignedOutLabel}
             signedInLabel={unlockSignedInLabel}
           />

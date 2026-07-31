@@ -49,9 +49,9 @@ table tbody tr:hover > * {
   --on-error:               #ffffff;
   --on-error-container:     #93000a;
 
-  /* Surfaces - page is a hair off-white so white cards separate by elevation
-     (no border needed); cards/surfaces stay pure white above it. */
-  --background:                    #f8fafc;
+  /* Surfaces - the light canvas matches the header; hierarchy comes from
+     spacing, dividers, and intentional grouped surfaces rather than gutters. */
+  --background:                    #ffffff;
   --surface:                       #ffffff;
   --surface-bright:                #ffffff;
   --surface-dim:                   #e4e5e7;
@@ -431,7 +431,7 @@ table tbody tr:hover > * {
 
 /* Light landing palette */
 :not(.dark) .landing-page {
-  --background: #f9fafb;
+  --background: #ffffff;
   --surface: #ffffff;
   --surface-container-low: #ffffff;
   --surface-container: #f3f4f6;
@@ -450,6 +450,13 @@ table tbody tr:hover > * {
   --accent-terminal: #475569;
   --landing-reddit: #3b82f6;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* The homepage is a single white canvas. The layout shell sits outside the
+   full-bleed landing element, so set the document canvas as well. */
+html:not(.dark):has(.landing-page),
+html:not(.dark):has(.landing-page) body {
+  background-color: #ffffff;
 }
 
 /* Dark landing palette */
@@ -1062,39 +1069,22 @@ table tbody tr:hover > * {
 }
 
 .pulse-hero {
-  position: relative;
-  overflow: hidden;
   margin-bottom: 2rem;
-  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--outline-variant);
+  padding-bottom: 1.5rem;
 }
-.pulse-hero-chart {
-  pointer-events: none;
-  position: absolute;
-  top: -0.5rem;
-  right: -2rem;
-  height: 9rem;
-  width: min(52%, 22rem);
-  opacity: 0.55;
-}
-@media (min-width: 768px) {
-  .pulse-hero-chart {
-    height: 10.5rem;
-    width: min(48%, 26rem);
-  }
-}
-
-.pulse-live-badge {
+.pulse-facts {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  border-radius: 9999px;
-  border: 1px solid var(--outline-variant);
-  background: var(--surface);
-  padding: 0.3rem 0.65rem;
-  font-size: 11px;
-  font-weight: 600;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--on-surface-variant);
-  box-shadow: var(--shadow-card);
 }
 
 .pulse-tabs {
@@ -1243,10 +1233,9 @@ table tbody tr:hover > * {
   box-shadow: var(--shadow-card-hover);
 }
 
-/* ── Radar Next — command-center theme ─────────────────────────────────────
-   A fresh, self-contained look for the redesigned Radar. Mirrors the homepage
-   command-center aesthetic (mac chrome, glow, mono chrome) but scoped so it
-   never leaks into the rest of the app. */
+/* ── Radar ──────────────────────────────────────────────────────────────────
+   A quiet, information-first surface. Boundaries group complete systems;
+   typography, spacing, and dividers carry the rest of the hierarchy. */
 .radar-next {
   --rn-accent: var(--primary);
   --rn-cyan: var(--accent-terminal);
@@ -1264,47 +1253,11 @@ table tbody tr:hover > * {
   --rn-card-2: var(--surface-container);
 }
 
-/* No ambient wash — keep the board on the plain app background. */
-.radar-next-glow {
-  position: relative;
-}
-
 @media (max-width: 639px) {
-  .radar-next .rn-window {
-    border-radius: 12px;
-  }
   .radar-next .rn-card {
     border-radius: 12px;
   }
 }
-
-/* Window shell */
-.rn-window {
-  border-radius: 18px;
-  background: var(--rn-card);
-  box-shadow:
-    0 2px 6px rgba(15, 23, 42, 0.05),
-    0 18px 44px rgba(15, 23, 42, 0.10),
-    inset 0 0 0 1px var(--rn-line);
-  overflow: hidden;
-}
-.dark .rn-window {
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.3),
-    0 18px 44px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px var(--rn-line);
-}
-
-.rn-chrome {
-  border-bottom: 1px solid var(--rn-line);
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--surface-container-high) 80%, var(--surface)) 0%,
-    color-mix(in srgb, var(--surface-container) 90%, var(--surface)) 100%);
-}
-.rn-light { display: block; height: 0.72rem; width: 0.72rem; border-radius: 9999px; box-shadow: inset 0 -1px 1px rgba(0,0,0,0.12); }
-.rn-light--r { background: #ff5f57; }
-.rn-light--y { background: #febc2e; }
-.rn-light--g { background: #28c840; }
 
 /* Card primitive */
 .rn-card {
@@ -1365,17 +1318,6 @@ table tbody tr:hover > * {
   line-height: 1;
 }
 
-/* Subtle scanline sweep for the header */
-.rn-scan { position: relative; overflow: hidden; }
-.rn-scan::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rn-ink) 4%, transparent), transparent);
-  transform: translateX(-100%);
-  animation: rn-sweep 7s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes rn-sweep { 0% { transform: translateX(-100%);} 55%,100% { transform: translateX(100%);} }
-
 /* Loading bone — flat neutral pulse, no shimmer gradient */
 .rn-bone {
   border-radius: 8px;
@@ -1414,7 +1356,7 @@ table tbody tr:hover > * {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rn-pulse::before, .rn-scan::after, .rn-bone::after { animation: none; }
+  .rn-pulse::before, .rn-bone::after { animation: none; }
 }
 
 /* Status tints that adapt to theme (faint signal color over the surface). */

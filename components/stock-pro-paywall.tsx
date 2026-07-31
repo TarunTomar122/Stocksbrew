@@ -154,7 +154,7 @@ export function StockProPaywall({
 
         <div className="flex flex-col gap-2 sm:max-w-[280px]">
           <ProCtaButton type="button" disabled={busy} onClick={handleUnlock} fullWidth showStar>
-            {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in and choose Pro"}
+            {busy ? "Signing you in…" : user ? "Choose Pro" : "Start your 3-day free trial"}
             {!busy && <span aria-hidden>→</span>}
           </ProCtaButton>
           <span className="text-[11px] text-on-surface-variant">

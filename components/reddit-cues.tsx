@@ -169,7 +169,7 @@ export function RedditCues({ data, isSubscribed = false }: Props) {
 
       {!isSubscribed && (lockedCount > 0 || hiddenCount > 0) ? (
         <>
-          <FeedUnlockBar surface="reddit_buzz" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+          <FeedUnlockBar surface="reddit_buzz" compact />
           <FeedStickyUnlock surface="reddit_buzz" />
         </>
       ) : null}

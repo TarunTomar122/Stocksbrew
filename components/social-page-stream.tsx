@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { FeedRowLockedBlur, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedLockedSection, FeedRowLockedBlur } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import { getSessionUser } from "@/lib/auth-server";
 import { relativeTime } from "@/lib/freshness";
@@ -10,11 +10,11 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 const FREE_SOCIAL_CARDS = 3;
 
-const TONE: Record<string, { label: string; color: string }> = {
-  bullish: { label: "Bullish", color: "var(--signal-bullish)" },
-  bearish: { label: "Bearish", color: "var(--signal-bearish)" },
-  neutral: { label: "Mixed", color: "var(--signal-neutral)" },
-  mixed: { label: "Mixed", color: "var(--signal-neutral)" },
+const TONE: Record<string, { label: string; color: string; background: string }> = {
+  bullish: { label: "Bullish", color: "var(--signal-bullish)", background: "#ecfdf5" },
+  bearish: { label: "Bearish", color: "var(--signal-bearish)", background: "#fef2f2" },
+  neutral: { label: "Mixed", color: "var(--signal-neutral)", background: "#f1f5f9" },
+  mixed: { label: "Mixed", color: "var(--signal-neutral)", background: "#f1f5f9" },
 };
 
 function age(value?: string): string {
@@ -48,6 +48,9 @@ export async function SocialPageStream() {
       ? `Limited signal · ${age(snapshot.generated_at)}`
       : `Live signal · ${age(snapshot.generated_at)}`;
   const insights = snapshot.tickers.filter(hasRedditBrief).slice(0, 12);
+  const visibleInsights = isSubscribed
+    ? insights
+    : [...insights.slice(0, FREE_SOCIAL_CARDS), ...insights.slice(FREE_SOCIAL_CARDS, FREE_SOCIAL_CARDS + 2)];
 
   if (insights.length === 0) {
     return (
@@ -77,7 +80,7 @@ export async function SocialPageStream() {
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {insights.map((row, index) => {
+          {visibleInsights.map((row, index) => {
             const tone = TONE[row.sentiment] ?? TONE.neutral;
             const locked = !isSubscribed && index >= FREE_SOCIAL_CARDS;
             const body = (
@@ -94,12 +97,12 @@ export async function SocialPageStream() {
                       </p>
                     ) : null}
                   </div>
-                  <p
-                    className="ml-auto shrink-0 font-mono text-[9.5px] font-semibold uppercase tracking-[0.06em]"
-                    style={{ color: tone.color }}
+                  <span
+                    className="ml-auto shrink-0 rounded-full px-2 py-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.06em]"
+                    style={{ color: tone.color, backgroundColor: tone.background }}
                   >
                     {tone.label}
-                  </p>
+                  </span>
                 </div>
 
                 {locked ? (
@@ -112,14 +115,14 @@ export async function SocialPageStream() {
                   />
                 ) : (
                   <>
-                    {row.catalysts?.[0] ? (
-                      <p className="mt-4 text-[14px] font-semibold leading-[1.4] text-on-surface">
-                        {row.catalysts[0]}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-[12.5px] leading-[1.55] text-on-surface-variant">
-                      {row.summary}
+                  {row.catalysts?.[0] ? (
+                    <p className="mt-4 text-[14px] font-semibold leading-[1.4] text-on-surface">
+                      {row.catalysts[0]}
                     </p>
+                  ) : null}
+                  <p className="mt-2 text-[12.5px] leading-[1.55] text-on-surface-variant">
+                    {row.summary}
+                  </p>
                   </>
                 )}
 
@@ -133,30 +136,30 @@ export async function SocialPageStream() {
               locked ? (
                 <div
                   key={row.ticker}
-                  className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface p-4 shadow-card"
+                  className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card"
                 >
                   {body}
                 </div>
-              ) : (
-                <Link
-                  key={row.ticker}
-                  href={`/stock/${encodeURIComponent(row.ticker)}`}
-                  className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card transition-all hover:border-outline hover:shadow-card-hover"
-                >
-                  {body}
-                </Link>
-              )
+              ) : <Link
+                key={row.ticker}
+                href={`/stock/${encodeURIComponent(row.ticker)}`}
+                className="group flex min-w-0 flex-col rounded-xl border border-outline-variant bg-surface p-4 shadow-card transition-all hover:border-outline hover:shadow-card-hover"
+              >
+                {body}
+              </Link>
             );
           })}
+          {!isSubscribed && insights.length > FREE_SOCIAL_CARDS ? (
+            <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface sm:col-span-2 xl:col-span-3">
+              <FeedLockedSection
+                surface="reddit_buzz"
+                count={insights.length - FREE_SOCIAL_CARDS}
+                noun="social reads"
+                signedInLabel="Unlock all with Pro"
+              />
+            </div>
+          ) : null}
       </section>
-      {!isSubscribed && insights.length > FREE_SOCIAL_CARDS ? (
-        <FeedUnlockBar
-          surface="reddit_buzz"
-          className="rounded-xl border border-outline-variant bg-surface"
-          signedOutLabel="Sign in to read all"
-          signedInLabel="Unlock all with Pro"
-        />
-      ) : null}
     </div>
   );
 }

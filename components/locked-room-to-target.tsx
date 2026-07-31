@@ -46,17 +46,14 @@ export function LockedRoomToTarget({
 
   const signedIn = Boolean(user);
   const count = analystCount ?? ratingTotal;
-  const teaser = signedIn
-    ? count > 0
-      ? `${count} analyst${count === 1 ? "" : "s"} cover ${ticker} — Pro unlocks consensus target and upside.`
-      : `Pro unlocks analyst target and upside on ${ticker}.`
-    : count > 0
-      ? `${count} analyst${count === 1 ? "" : "s"} cover ${ticker} — sign in to see consensus target and upside.`
-      : `Sign in to see analyst target and upside on ${ticker}.`;
+  const teaser =
+    count > 0
+      ? `${count} analyst${count === 1 ? "" : "s"} cover ${ticker}`
+      : `Analyst coverage for ${ticker}`;
 
   const cta = !signedIn
     ? {
-        label: "Sign in free",
+        label: "Start your 3-day free trial",
         onClick: async () => {
           trackPaywallUnlockClicked({ surface: "locked_room_to_target", ticker, signedIn: false });
           try {
@@ -78,53 +75,51 @@ export function LockedRoomToTarget({
   return (
     <>
       <p className={`${RAIL_KICKER} mb-2`}>room to target</p>
-      {count > 0 && (
-        <p className="text-[13px] text-on-surface-variant">
-          {count} analysts · <RedactedLine width="4.5rem" />
-        </p>
-      )}
-
-      <div className="mt-2 flex items-end gap-2">
-        <div>
-          <p className="font-mono text-[10px] text-on-surface-variant">now</p>
-          <p className="text-[18px] font-extrabold tabular-nums text-on-surface">{currentPriceLabel}</p>
-        </div>
-        <div className="flex-1 pb-1">
-          <div className="h-2 overflow-hidden rounded-full bg-surface-container-high" aria-hidden>
-            <span
-              className="block h-full w-[58%] rounded-full opacity-45"
-              style={{
-                background:
-                  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 20%, transparent), color-mix(in srgb, var(--signal-bullish) 45%, transparent))",
-              }}
-            />
+      <div className="relative min-h-[190px] overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low/35">
+        <div className="pointer-events-none p-5 opacity-80 blur-[4px]" aria-hidden>
+          {count > 0 && (
+            <p className="text-[13px] text-on-surface-variant">
+              {count} analysts · <RedactedLine width="4.5rem" />
+            </p>
+          )}
+          <div className="mt-4 flex items-end gap-2">
+            <div>
+              <p className="font-mono text-[10px] text-on-surface-variant">now</p>
+              <p className="text-[18px] font-extrabold tabular-nums text-on-surface">{currentPriceLabel}</p>
+            </div>
+            <div className="flex-1 pb-1">
+              <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
+                <span
+                  className="block h-full w-[58%] rounded-full opacity-45"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 20%, transparent), color-mix(in srgb, var(--signal-bullish) 45%, transparent))",
+                  }}
+                />
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-mono text-[10px] text-on-surface-variant">target</p>
+              <p className="text-[18px] font-extrabold tabular-nums">
+                <RedactedLine width="5.5rem" />
+              </p>
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <p className="font-mono text-[10px] text-on-surface-variant">target</p>
-          <p className="text-[18px] font-extrabold tabular-nums">
-            <RedactedLine width="5.5rem" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--surface)_86%,transparent)_0%,color-mix(in_srgb,var(--surface)_66%,transparent)_68%,transparent_100%)] p-5 text-center">
+          <p className="text-[15px] font-extrabold tracking-[-0.01em] text-on-surface">
+            Analyst target and upside
           </p>
+          <p className="mt-1 text-[11px] text-on-surface-variant">{teaser}</p>
+          <button
+            type="button"
+            onClick={() => cta.onClick()}
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 py-2 text-[12px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
+          >
+            {cta.label}
+          </button>
+          {error ? <p className="mt-1.5 text-[11px] font-medium text-[#ef4444]">{error}</p> : null}
         </div>
-      </div>
-
-      <p className="mt-1.5 text-center text-[13px] font-semibold" aria-hidden>
-        <RedactedLine width="6rem" />
-      </p>
-
-      <div
-        className="mt-3 border-l-2 py-0.5 pl-3"
-        style={{ borderColor: "var(--accent-terminal)" }}
-      >
-        <p className="text-[12px] leading-relaxed text-on-surface">{teaser}</p>
-        <button
-          type="button"
-          onClick={() => cta.onClick()}
-          className="mt-2 font-mono text-[12px] font-bold text-accent-terminal underline-offset-2 hover:underline"
-        >
-          {cta.label} →
-        </button>
-        {error ? <p className="mt-1.5 text-[11px] font-medium text-[#ef4444]">{error}</p> : null}
       </div>
     </>
   );

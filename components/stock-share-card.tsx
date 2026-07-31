@@ -69,7 +69,7 @@ export function StockShareCard({ ticker, market }: Props) {
         setTimeout(() => setImgState("idle"), 2500);
         return;
       }
-      // Clipboard image API unavailable — download as a graceful fallback.
+      // Clipboard image API unavailable. Download as a graceful fallback.
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -98,7 +98,7 @@ export function StockShareCard({ ticker, market }: Props) {
       : imgState === "copied"
       ? "Copied!"
       : imgState === "error"
-      ? "Failed — try again"
+      ? "Failed. Try again"
       : "Copy card image";
 
   const rowClass =

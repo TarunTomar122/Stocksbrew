@@ -115,7 +115,7 @@ function isPlaceholderDescription(desc: string, name?: string): boolean {
 }
 
 function fmtMarketCap(v: number, currencySymbol: string): string {
-  if (!Number.isFinite(v) || v <= 0) return "—";
+  if (!Number.isFinite(v) || v <= 0) return "N/A";
   if (v >= 1e12) return `${currencySymbol}${(v / 1e12).toFixed(2)}T`;
   if (v >= 1e9) return `${currencySymbol}${(v / 1e9).toFixed(2)}B`;
   if (v >= 1e6) return `${currencySymbol}${(v / 1e6).toFixed(0)}M`;

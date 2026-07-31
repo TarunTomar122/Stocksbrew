@@ -41,4 +41,27 @@ describe("directive-ui", () => {
       body: "Risk/reward has weakened; avoid adding and use any bounce to reduce exposure.",
     });
   });
+
+  it("can round actionable levels without rounding the live price", () => {
+    const formatPrice = (value: number) => `$${value.toFixed(2)}`;
+    const formatLevel = (value: number) => `$${Math.round(value)}`;
+    const call = resolvePriceAwareCall(
+      {
+        ...trimDirective,
+        stance: "accumulate",
+        add_on: {
+          text: "Add after reclaim",
+          trigger_type: "price_above",
+          trigger_value: "14.49",
+        },
+      },
+      13.92,
+      formatPrice,
+      formatLevel,
+    );
+
+    expect(call.body).toContain("$13.92");
+    expect(call.body).toContain("$14");
+    expect(call.body).not.toContain("$14.49");
+  });
 });

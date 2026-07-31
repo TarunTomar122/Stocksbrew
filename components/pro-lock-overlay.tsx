@@ -92,7 +92,7 @@ export function ProLockCard({
       )}
 
       <ProCtaButton type="button" disabled={busy} onClick={handleUnlock} fullWidth showStar>
-        {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in & choose Pro"}
+        {busy ? "Signing you in…" : user ? "Choose Pro" : "Start your 3-day free trial"}
         {!busy && <span aria-hidden>→</span>}
       </ProCtaButton>
       <span className="text-[11px] font-medium text-on-surface-variant">

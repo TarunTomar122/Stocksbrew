@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
+import { SocialFeedSkeleton } from "@/components/page-stream-skeletons";
 import { SocialPageStream } from "@/components/social-page-stream";
 
 export const revalidate = 300;
@@ -28,7 +28,7 @@ export default function SocialPage() {
             The clearest stock narratives moving through investor conversations right now.
           </p>
         </header>
-        <Suspense fallback={<MarketFeedStreamSkeleton />}>
+        <Suspense fallback={<SocialFeedSkeleton />}>
           <SocialPageStream />
         </Suspense>
       </div>

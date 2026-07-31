@@ -253,7 +253,7 @@ function CardsSection({
       </div>
       {hasLocked ? (
         <>
-          <FeedUnlockBar surface="market_anomalies" className="rounded-xl border border-[#e5e7eb] bg-white" compact />
+          <FeedUnlockBar surface="market_anomalies" compact />
           <FeedStickyUnlock surface="market_anomalies" />
         </>
       ) : null}
@@ -294,7 +294,7 @@ function MovesTable({
   ];
   const unlockBar = hasLocked ? (
     <>
-      <FeedUnlockBar surface="market_anomalies" className="border-[#e5e7eb] bg-white" compact />
+      <FeedUnlockBar surface="market_anomalies" compact />
       <FeedStickyUnlock surface="market_anomalies" />
     </>
   ) : null;

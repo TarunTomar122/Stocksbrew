@@ -4,7 +4,7 @@ import { AnimatedIcon } from "@/components/animated-icon";
 
 import Link from "next/link";
 import { useState } from "react";
-import { FeedRowLockedBlur, FeedUnlockBar, FeedStickyUnlock } from "@/components/feed-row-lock-teaser";
+import { FeedLockedSection, FeedRowLockedBlur } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
@@ -36,6 +36,8 @@ export function MoversScanner({
   isSubscribed,
   trackedCount,
   showUnlockCta = true,
+  hideLockedRows = false,
+  lockedPreviewCount = 0,
 }: {
   items: ScannerItem[];
   limit?: number;
@@ -49,6 +51,8 @@ export function MoversScanner({
   isSubscribed?: boolean;
   trackedCount?: number;
   showUnlockCta?: boolean;
+  hideLockedRows?: boolean;
+  lockedPreviewCount?: number;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const gainers = items.filter((i) => i.changePct >= 0);
@@ -99,6 +103,12 @@ export function MoversScanner({
     typeof fullItemLimit === "number" &&
     Number.isFinite(fullItemLimit) &&
     rows.some((_, index) => index >= fullItemLimit);
+  const visibleRows = hasLockedRows && (hideLockedRows || showUnlockCta)
+    ? [
+        ...rows.filter((_, index) => !isLocked(index)),
+        ...rows.filter((_, index) => isLocked(index)).slice(0, lockedPreviewCount),
+      ]
+    : rows;
 
   return (
     <div>
@@ -111,17 +121,16 @@ export function MoversScanner({
       ) : detailed ? (
         uiVariant === "pulse" ? (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
-              {rows.slice(0, 4).map((a, index) => {
+            <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface">
+              {visibleRows.map((a, index) => {
                 const up = a.changePct >= 0;
                 const locked = isLocked(index);
-                const shellClass = "pulse-mover-card";
+                const shellClass = "grid min-w-0 gap-3 border-t border-outline-variant px-4 py-4 first:border-t-0 transition-colors hover:bg-surface-container-low sm:grid-cols-[13rem_minmax(0,1fr)_6rem] sm:items-start sm:gap-4 sm:px-5";
                 const body = (
                   <>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
                         <StockLogo ticker={a.ticker} market="US" size={28} />
-                        <span className="min-w-0">
+                        <span className="min-w-0 flex-1">
                           <span className="block text-[15px] font-bold text-on-surface">{a.ticker}</span>
                           {a.company ? (
                             <span className="block text-[10.5px] text-on-surface-variant">
@@ -129,8 +138,30 @@ export function MoversScanner({
                             </span>
                           ) : null}
                         </span>
-                      </div>
-                      <div className="shrink-0 text-right">
+                        <div className="shrink-0 text-right sm:hidden">
+                          <p className="text-[15px] font-bold tabular-nums text-on-surface">${money(a.price)}</p>
+                          <p className="mt-0.5 text-[12px] font-semibold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+                            {up ? "▲" : "▼"} {Math.abs(a.changePct).toFixed(2)}%
+                          </p>
+                        </div>
+                    </div>
+                    <div className="min-w-0">
+                    {locked ? (
+                      <FeedRowLockedBlur
+                        variant="mover"
+                        ticker={a.ticker}
+                        previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
+                        size="inline"
+                      />
+                    ) : (
+                      <>
+                        {a.headline ? <p className="text-[13px] font-semibold leading-snug text-on-surface">{a.headline}</p> : null}
+                        {a.whyItMatters ? <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{a.whyItMatters}</p> : null}
+                        {!a.whyItMatters && a.tag ? <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{a.tag}</p> : null}
+                      </>
+                    )}
+                    </div>
+                    <div className="hidden shrink-0 text-right sm:block">
                         <p className="text-[15px] font-bold tabular-nums text-on-surface">${money(a.price)}</p>
                         <p
                           className="mt-0.5 flex items-center justify-end gap-0.5 text-[12px] font-semibold tabular-nums"
@@ -139,31 +170,7 @@ export function MoversScanner({
                           <span className="text-[10px] leading-none">{up ? "▲" : "▼"}</span>
                           {Math.abs(a.changePct).toFixed(2)}%
                         </p>
-                      </div>
                     </div>
-                    {locked ? (
-                      <FeedRowLockedBlur
-                        variant="mover"
-                        ticker={a.ticker}
-                        previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
-                        size="block"
-                        className="mt-3"
-                      />
-                    ) : a.headline ? (
-                      <p className="mt-3 text-[15px] font-semibold leading-snug text-on-surface">{a.headline}</p>
-                    ) : null}
-                    {!locked && (a.whyItMatters || a.tag) ? (
-                      <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
-                        {a.whyItMatters || a.tag}
-                      </p>
-                    ) : null}
-                    {!locked && a.confidence === "high" ? (
-                      <p className="pulse-confidence">Confidence high</p>
-                    ) : !locked && a.confidence === "low" ? (
-                      <p className="pulse-confidence" style={{ color: "var(--signal-neutral)" }}>
-                        Confidence low
-                      </p>
-                    ) : null}
                   </>
                 );
                 return locked ? (
@@ -176,89 +183,15 @@ export function MoversScanner({
                   </Link>
                 );
               })}
-            </div>
-
-            {rows.length > 4 ? (
-              <>
-                <p className="mb-2 mt-8 text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                  Everything else moving
-                </p>
-                <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {rows.slice(4).map((a, offset) => {
-                    const index = offset + 4;
-                    const up = a.changePct >= 0;
-                    const locked = isLocked(index);
-                    const cardBody = (
-                      <>
-                        <div className="flex items-start gap-2.5">
-                          <StockLogo ticker={a.ticker} market="US" size={24} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold text-on-surface">{a.ticker}</span>
-                            {a.company ? (
-                              <span className="block text-[10px] text-on-surface-variant">{a.company}</span>
-                            ) : null}
-                          </span>
-                          <div className="shrink-0 text-right leading-tight">
-                            <p className="tabular-nums text-[13px] font-medium text-on-surface">${money(a.price)}</p>
-                            <p
-                              className="mt-0.5 flex items-center justify-end gap-0.5 text-[12px] font-semibold tabular-nums"
-                              style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
-                            >
-                              <span className="text-[9px] leading-none">{up ? "▲" : "▼"}</span>
-                              {Math.abs(a.changePct).toFixed(2)}%
-                            </p>
-                          </div>
-                        </div>
-                        {locked ? (
-                          <FeedRowLockedBlur
-                            variant="mover"
-                            ticker={a.ticker}
-                            previewLines={[a.headline || "", a.whyItMatters || a.tag || ""]}
-                            size="block"
-                            className="mt-3"
-                          />
-                        ) : (
-                          <>
-                            <p className="mt-3 min-h-[2.5rem] text-[13px] font-semibold leading-[1.35] text-on-surface">
-                              {a.headline || `${a.ticker} is moving ${up ? "higher" : "lower"}`}
-                            </p>
-                            <p className="mt-2 min-h-[3.4rem] text-[11.5px] leading-[1.45] text-on-surface-variant">
-                              {a.whyItMatters || "No confirmed catalyst yet."}
-                            </p>
-                            {a.tag ? (
-                              <span className="mt-auto inline-flex w-fit rounded bg-surface-container px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-on-surface-variant">
-                                {a.tag}
-                              </span>
-                            ) : null}
-                          </>
-                        )}
-                      </>
-                    );
-                    const className =
-                      "flex min-h-[190px] flex-col rounded-xl border border-outline-variant bg-surface p-3.5 shadow-[var(--shadow-card)] transition-colors hover:border-landing-brand/25 hover:bg-surface-container-low";
-                    return locked ? (
-                      <div key={a.ticker} className={className}>
-                        {cardBody}
-                      </div>
-                    ) : (
-                      <Link key={a.ticker} href={`/stock/${a.ticker}`} className={className}>
-                        {cardBody}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </>
-            ) : null}
-            {hasLockedRows ? (
-              <>
-                <FeedUnlockBar
+              {hasLockedRows && showUnlockCta ? (
+                <FeedLockedSection
                   surface="market_anomalies"
-                  className="mt-4 rounded-xl border border-outline-variant"
+                  count={rows.length - visibleRows.length}
+                  noun="market moves"
                   signedOutLabel={unlockSignedOutLabel}
                 />
-                <FeedStickyUnlock surface="market_anomalies" signedOutLabel={unlockSignedOutLabel} />
-              </>
-            ) : null}
+              ) : null}
+            </div>
           </>
         ) : (
         <>
@@ -334,7 +267,7 @@ export function MoversScanner({
         )
       ) : (
         <div className={listShell}>
-          {rows.map((a, index) => {
+          {visibleRows.map((a, index) => {
             const up = a.changePct >= 0;
             const locked = isLocked(index);
             if (uiVariant === "landing") {
@@ -465,15 +398,12 @@ export function MoversScanner({
             );
           })}
           {hasLockedRows && showUnlockCta ? (
-            <>
-              <FeedUnlockBar
-                surface="market_anomalies"
-                compact
-                className={uiVariant === "landing" ? "" : "border-outline-variant"}
-                signedOutLabel={unlockSignedOutLabel}
-              />
-              <FeedStickyUnlock surface="market_anomalies" signedOutLabel={unlockSignedOutLabel} />
-            </>
+            <FeedLockedSection
+              surface="market_anomalies"
+              count={rows.length - visibleRows.length}
+              noun="market moves"
+              signedOutLabel={unlockSignedOutLabel}
+            />
           ) : null}
         </div>
       )}

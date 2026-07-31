@@ -488,7 +488,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
   // --- Case: anon or non-subscribed → blurred sample + CTA overlay ---
   const teaserTitle = "Your Radar";
   const teaserBody = "Research-backed calls on the tickers you track.";
-  const ctaLabel = signedIn ? "Unlock Radar" : "Sign in to start";
+  const ctaLabel = signedIn ? "Unlock Radar" : "Start your 3-day free trial";
   const onClick = signedIn ? () => router.push("/subscribe") : handleSignIn;
 
   return (

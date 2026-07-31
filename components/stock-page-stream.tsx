@@ -15,7 +15,6 @@ import { StockEarningsTab } from "@/components/stock-earnings-tab";
 import { TrackButton } from "@/components/track-button";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
 import { ProLockCard } from "@/components/pro-lock-overlay";
-import { StockAgentAccessCta } from "@/components/agent-access-marketing";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
@@ -179,7 +178,7 @@ export async function StockPageStream({ params }: Props) {
     const subscribed = resolveIsSubscribed(userDoc);
 
     return (
-      <main className="flex min-w-0 w-full flex-grow flex-col">
+      <main className="flex min-w-0 w-full flex-grow flex-col bg-surface">
         <UnlistedStockShell
           ticker={normalizedTicker}
           market={cookieMarket}
@@ -550,7 +549,7 @@ export async function StockPageStream({ params }: Props) {
   const headerMeta = [displayStock.ticker, displayStock.exchange, displayStock.sector].filter(Boolean).join(" · ");
 
   return (
-    <main className="flex min-w-0 w-full flex-grow flex-col">
+    <main className="flex min-w-0 w-full flex-grow flex-col bg-surface">
       <StockViewTracker ticker={displayStock.ticker} instrumentId={displayStock.instrument_id} market={market} />
       <PriorityStockModal
         open={showPriorityNotice}
@@ -624,7 +623,6 @@ export async function StockPageStream({ params }: Props) {
         sectorSlug={seoSectorSlug}
         currency={currency}
       />
-      <StockAgentAccessCta ticker={displayStock.ticker} isSubscribed={subscribed} />
     </main>
   );
 }

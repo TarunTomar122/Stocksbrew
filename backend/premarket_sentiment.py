@@ -314,14 +314,16 @@ def summarize_news(
     rows: list[dict[str, Any]] = []
     for ticker, raw in ordered:
         row = raw if isinstance(raw, dict) else {}
-        detail = _clip(row.get("tape_line") or row.get("why") or row.get("headline"), 170)
-        if not detail:
+        detail = _clip(row.get("why") or row.get("headline"), 170)
+        tape_line = _clip(row.get("tape_line"), 170)
+        if not detail and not tape_line:
             continue
         symbol = str(ticker or "").upper()
         rows.append({
             "ticker": symbol,
             "headline": _clip(row.get("headline"), 150),
             "detail": detail,
+            "tape_line": tape_line or None,
             "source": _clip(row.get("source"), 48),
             "url": str(row.get("url") or ""),
             "gap_pct": gap_by_ticker.get(symbol),

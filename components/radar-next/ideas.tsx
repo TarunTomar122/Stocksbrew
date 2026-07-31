@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+
 import { StockLogo } from "@/components/stock-logo";
 import type { IdeaCard, IdeaLens } from "@/components/radar-next/types";
 
-function scoreColor(v: number | null): string {
-  if (v === null) return "var(--rn-muted)";
-  if (v >= 70) return "var(--rn-bull)";
-  if (v >= 50) return "var(--signal-neutral)";
+function scoreColor(value: number | null): string {
+  if (value === null) return "var(--rn-muted)";
+  if (value >= 70) return "var(--rn-bull)";
+  if (value >= 50) return "var(--signal-neutral)";
   return "var(--rn-bear)";
 }
 
@@ -18,96 +19,67 @@ function currencySymbol(code: string | null): string {
   return code ?? "";
 }
 
-function fmtPrice(price: number | null, currency: string | null): string | null {
-  if (price === null) return null;
-  return `${currencySymbol(currency)}${price.toLocaleString(undefined, {
+function priceText(idea: IdeaCard): string {
+  if (idea.price === null) return "–";
+  return `${currencySymbol(idea.currency)}${idea.price.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 }
 
-function IdeaTile({ idea }: { idea: IdeaCard }) {
-  const price = fmtPrice(idea.price, idea.currency);
-  const chg = idea.dayChangePct;
-  const up = (chg ?? 0) >= 0;
-  const moveColor = chg === null ? "var(--rn-muted)" : up ? "var(--rn-bull)" : "var(--rn-bear)";
-  const target = idea.targetUpsidePct;
-
-  return (
-    <Link href={idea.href} className="rn-card rn-card--hover flex flex-col gap-2.5 p-3.5 no-underline">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <StockLogo ticker={idea.ticker} market={idea.market} size={28} className="shrink-0" />
-          <div className="min-w-0">
-            <span className="block text-[14px] font-bold leading-tight tracking-tight text-[var(--rn-ink)]">
-              {idea.ticker}
-            </span>
-            {idea.name ? (
-              <span className="block max-w-[10rem] truncate text-[11px] leading-tight text-[var(--rn-muted)]">
-                {idea.name}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        {idea.score !== null ? (
-          <span
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums"
-            style={{ color: scoreColor(idea.score), background: `color-mix(in srgb, ${scoreColor(idea.score)} 12%, transparent)` }}
-          >
-            <span className="font-medium opacity-70">score</span>
-            {Math.round(idea.score)}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="flex items-end justify-between gap-2">
-        <div className="flex items-baseline gap-2">
-          <span className="rn-stat text-[19px] font-extrabold text-[var(--rn-ink)]">{price ?? "-"}</span>
-          {chg !== null ? (
-            <span
-              className="flex items-baseline gap-0.5 font-mono text-[11.5px] font-bold tabular-nums"
-              style={{ color: moveColor }}
-            >
-              <span aria-hidden className="text-[8px]">
-                {up ? "▲" : "▼"}
-              </span>
-              {Math.abs(chg).toFixed(2)}%
-            </span>
-          ) : null}
-        </div>
-        {target !== null ? (
-          <span
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums"
-            style={{
-              color: target >= 0 ? "var(--rn-bull)" : "var(--rn-bear)",
-              background: `color-mix(in srgb, ${target >= 0 ? "var(--rn-bull)" : "var(--rn-bear)"} 12%, transparent)`,
-            }}
-          >
-            <span className="font-medium opacity-70">target</span>
-            {target >= 0 ? "+" : ""}
-            {Math.round(target)}%
-          </span>
-        ) : null}
-      </div>
-
-      {idea.reason ? (
-        <p className="line-clamp-2 text-[12px] leading-relaxed text-[var(--rn-muted)]">{idea.reason}</p>
-      ) : null}
-
-      {idea.tag ? (
-        <span className="mt-auto inline-flex w-fit rounded-full px-2 py-0.5 font-mono text-[9.5px] font-medium text-[var(--rn-muted)] shadow-[inset_0_0_0_1px_var(--rn-line)]">
-          {idea.tag}
-        </span>
-      ) : null}
-    </Link>
-  );
+function changeText(value: number | null): string {
+  if (value === null) return "–";
+  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
 }
 
 const LENSES: Array<{ id: IdeaLens; label: string }> = [
-  { id: "fits", label: "fits your book" },
-  { id: "top", label: "top rated" },
-  { id: "unusual", label: "unusual moves" },
+  { id: "unusual", label: "New today" },
+  { id: "fits", label: "Fits your book" },
+  { id: "top", label: "Top rated" },
 ];
+
+function IdeaRow({ idea }: { idea: IdeaCard }) {
+  const moveColor =
+    idea.dayChangePct === null
+      ? "var(--rn-muted)"
+      : idea.dayChangePct >= 0
+        ? "var(--rn-bull)"
+        : "var(--rn-bear)";
+  return (
+    <Link
+      href={idea.href}
+      className="group grid min-w-0 gap-3 py-4 no-underline transition-colors hover:bg-[var(--rn-card-2)] sm:grid-cols-[minmax(9rem,0.8fr)_minmax(15rem,1.5fr)_7rem_5rem_7rem] sm:items-center sm:px-3"
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        <StockLogo ticker={idea.ticker} market={idea.market} size={28} className="shrink-0" />
+        <span className="min-w-0">
+          <span className="block text-[13px] font-bold text-[var(--rn-ink)] group-hover:underline">{idea.ticker}</span>
+          <span className="block truncate text-[10.5px] text-[var(--rn-muted)]">{idea.name}</span>
+        </span>
+      </span>
+
+      <span className="min-w-0 text-[11.5px] leading-relaxed text-[var(--rn-muted)]">
+        {idea.reason}
+        {idea.tag ? <span className="ml-1 font-mono text-[9px] uppercase tracking-wide text-[var(--rn-ink)]">· {idea.tag}</span> : null}
+      </span>
+
+      <span className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
+        <span className="font-mono text-[12.5px] font-semibold tabular-nums text-[var(--rn-ink)]">{priceText(idea)}</span>
+        <span className="font-mono text-[10.5px] font-semibold tabular-nums sm:mt-1 sm:block" style={{ color: moveColor }}>
+          {changeText(idea.dayChangePct)}
+        </span>
+      </span>
+
+      <span className="hidden text-right font-mono text-[12px] font-bold tabular-nums sm:block" style={{ color: scoreColor(idea.score) }}>
+        {idea.score === null ? "–" : Math.round(idea.score)}
+      </span>
+
+      <span className="hidden text-right font-mono text-[10.5px] font-semibold tabular-nums sm:block" style={{ color: (idea.targetUpsidePct ?? 0) >= 0 ? "var(--rn-bull)" : "var(--rn-bear)" }}>
+        {idea.targetUpsidePct === null ? "–" : `${idea.targetUpsidePct >= 0 ? "+" : ""}${Math.round(idea.targetUpsidePct)}% target`}
+      </span>
+    </Link>
+  );
+}
 
 export function Ideas({
   fits,
@@ -119,44 +91,43 @@ export function Ideas({
   unusual: IdeaCard[];
 }) {
   const byLens: Record<IdeaLens, IdeaCard[]> = { fits, top, unusual };
-  const available = LENSES.filter((l) => byLens[l.id].length > 0);
-  const [lens, setLens] = useState<IdeaLens>(available[0]?.id ?? "fits");
+  const available = LENSES.filter((lens) => byLens[lens.id].length > 0);
+  const [lens, setLens] = useState<IdeaLens>(available.find((item) => item.id === "unusual")?.id ?? available[0]?.id ?? "fits");
 
   if (available.length === 0) return null;
   const ideas = byLens[lens] ?? [];
 
   return (
     <section aria-labelledby="rn-ideas">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="rn-ideas" className="rn-kick">
-          // ideas · stocks to buy next
-        </h2>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {available.map((l) => {
-            const active = lens === l.id;
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="rn-kick">Discovery</span>
+          <h2 id="rn-ideas" className="mt-1 text-[22px] font-bold tracking-[-0.025em] text-[var(--rn-ink)] sm:text-[26px]">
+            Ideas to explore
+          </h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Radar idea lens">
+          {available.map((item) => {
+            const active = lens === item.id;
             return (
               <button
-                key={l.id}
+                key={item.id}
                 type="button"
-                onClick={() => setLens(l.id)}
-                className="rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition-colors"
-                style={
-                  active
-                    ? { color: "var(--rn-ink)", background: "var(--rn-card-2)", boxShadow: "inset 0 0 0 1px var(--rn-line)" }
-                    : { color: "var(--rn-muted)" }
-                }
+                role="tab"
+                aria-selected={active}
+                onClick={() => setLens(item.id)}
+                className="rounded-full px-3 py-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-wide transition-colors"
+                style={active ? { color: "var(--rn-ink)", background: "var(--rn-card-2)", boxShadow: "inset 0 0 0 1px var(--rn-line)" } : { color: "var(--rn-muted)" }}
               >
-                {l.label}
+                {item.label}
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ideas.map((idea) => (
-          <IdeaTile key={`${idea.market}-${idea.ticker}`} idea={idea} />
-        ))}
+      <div className="divide-y divide-[var(--rn-line)] border-y border-[var(--rn-line)]">
+        {ideas.map((idea) => <IdeaRow key={`${idea.market}-${idea.ticker}`} idea={idea} />)}
       </div>
     </section>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { metricContextLine } from "@/components/percentile-rail";
 import { pillarCoverage } from "@/lib/fundamentals-coverage";
 import type { StockIntelMetric, StockIntelPro } from "@/lib/types";
@@ -29,7 +30,7 @@ function metricTone(signal?: string, score?: number | null): string {
 }
 
 function formatMetricValue(v: number | null): string {
-  if (v == null || !Number.isFinite(v)) return "—";
+  if (v == null || !Number.isFinite(v)) return "N/A";
   if (Math.abs(v) >= 1000 || Number.isInteger(v)) return String(v);
   return v.toFixed(1);
 }
@@ -81,12 +82,43 @@ function relativeMetricLine(m: StockIntelMetric): string {
   return context || "";
 }
 
+type MetricGroup = {
+  title: string;
+  metrics: StockIntelMetric[];
+};
+
+function groupPillarMetrics(key: Key, metrics: StockIntelMetric[]): MetricGroup[] {
+  const inFirstGroup = (metric: StockIntelMetric): boolean => {
+    const label = metric.label.toLowerCase();
+    if (key === "growth") return !/(forecast|next)/.test(label);
+    if (key === "momentum") return /(quant|beat|analyst)/.test(label);
+    if (key === "valuation") return /(p\/e|peg|multiple)/.test(label);
+    return /(roe|margin|return on)/.test(label);
+  };
+
+  const titles: Record<Key, [string, string]> = {
+    growth: ["Reported growth", "Forward outlook"],
+    momentum: ["Market signal", "Positioning & trend"],
+    valuation: ["Valuation multiples", "Price context"],
+    quality: ["Profitability", "Balance sheet & ownership"],
+  };
+
+  const first = metrics.filter(inFirstGroup);
+  const second = metrics.filter((metric) => !inFirstGroup(metric));
+  if (first.length === 0 || second.length === 0) return [{ title: "Key metrics", metrics }];
+
+  return [
+    { title: titles[key][0], metrics: first },
+    { title: titles[key][1], metrics: second },
+  ];
+}
+
 function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
   const relative = relativeMetricLine(m);
   const tone = metricTone(m.signal, m.score);
 
   return (
-    <div className="py-2">
+    <div className="min-w-0 py-3">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[13px] font-medium text-on-surface">{m.label}</span>
         {m.value != null ? (
@@ -96,10 +128,10 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
         ) : null}
       </div>
       {relative ? (
-        <div className="mt-0.5 flex items-start justify-between gap-3 text-[12px] leading-snug text-on-surface-variant">
-          <span>{relative}</span>
+        <div className="mt-1.5 text-[11.5px] leading-snug text-on-surface-variant">
+          <span className="block max-w-[42ch]">{relative}</span>
           {m.benchmark != null && m.benchmark_label ? (
-            <span className="shrink-0 tabular-nums text-[11px] text-on-surface-variant/80">
+            <span className="mt-1 block font-mono tabular-nums text-[10px] text-on-surface-variant/80">
               {m.benchmark_label}: {formatMetricValue(m.benchmark)}
             </span>
           ) : null}
@@ -109,7 +141,7 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
   );
 }
 
-function PillarRing({
+function PillarTab({
   score,
   coverage,
   color,
@@ -130,33 +162,47 @@ function PillarRing({
     <button
       type="button"
       onClick={onClick}
-      className={`border-b-2 py-3 text-left transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-colors ${
         active
-          ? "border-on-surface text-on-surface"
-          : "border-transparent text-on-surface-variant hover:text-on-surface"
+          ? "border-[color-mix(in_srgb,var(--on-surface)_20%,transparent)] bg-surface-container-low text-on-surface"
+          : "border-outline-variant bg-surface text-on-surface-variant hover:border-on-surface hover:text-on-surface"
       }`}
+      aria-pressed={active}
     >
-      <span className="block text-[18px] font-extrabold tabular-nums leading-none" style={{ color }}>
+      <span className="text-[10.5px] font-semibold">{label}</span>
+      <span
+        className="font-mono text-[12px] font-extrabold tabular-nums leading-none"
+        style={{ color }}
+      >
         {sufficient ? score : "N/A"}
       </span>
-      <span className="mt-1.5 block text-[10.5px] font-semibold">{label}</span>
     </button>
   );
 }
 
-export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pillars"] }) {
+export function FundamentalsBreakdown({
+  pillars,
+  isSubscribed,
+}: {
+  pillars: StockIntelPro["pillars"];
+  isSubscribed: boolean;
+}) {
   const [active, setActive] = useState<Key>("growth");
   const p = pillars[active];
   const metrics = (p?.metrics ?? []).filter((m) => m.value != null || m.summary);
+  const groups = groupPillarMetrics(active, metrics);
+  const availableMetrics = p.available_metrics ?? p.metrics.filter((metric) => metric.score != null).length;
+  const totalMetrics = p.total_metrics ?? p.metrics.length;
+  const coverage = Math.round(pillarCoverage(p) * 100);
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-4 border-b border-outline-variant">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Fundamental score category">
         {KEYS.map((key) => {
           const pl = pillars[key];
           const coverage = pillarCoverage(pl);
           return (
-            <PillarRing
+            <PillarTab
               key={key}
               score={pl.score}
               coverage={coverage}
@@ -169,25 +215,78 @@ export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pil
         })}
       </div>
 
-      {metrics.length > 0 && (
-        <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--outline-variant)" }}>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[12px] text-on-surface-variant">
-            <p className="text-[13px] capitalize">{p.verdict}</p>
-            <p className="font-mono tabular-nums">
-              {p.available_metrics ?? p.metrics.filter((metric) => metric.score != null).length} of{" "}
-              {p.total_metrics ?? p.metrics.length} metrics · {Math.round(pillarCoverage(p) * 100)}% coverage
-            </p>
+      {metrics.length > 0 && isSubscribed && (
+        <div className="mt-6">
+          <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2">
+            <div>
+              <p className="text-[16px] font-semibold capitalize text-on-surface">{p.verdict}</p>
+              <p className="mt-1 max-w-[48ch] text-[10.5px] leading-relaxed text-on-surface-variant">
+                {pillarCoverage(p) < 0.5
+                  ? "Score withheld until enough weighted inputs are available."
+                  : "Compared with sector peers where available."}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-mono text-[10.5px] tabular-nums text-on-surface-variant">
+                {availableMetrics} / {totalMetrics} metrics
+              </p>
+              <p className="mt-0.5 font-mono text-[10.5px] font-semibold tabular-nums text-on-surface">
+                {coverage}% coverage
+              </p>
+            </div>
           </div>
-          <div className="divide-y divide-outline-variant">
-            {metrics.map((m, i) => (
-              <MetricRow key={`${m.label}-${i}`} metric={m} />
+
+          <div className="mt-5 grid gap-7 md:grid-cols-2 md:gap-0 md:divide-x md:divide-outline-variant/50">
+            {groups.map((group) => (
+              <section
+                key={group.title}
+                className="min-w-0 first:md:pr-7 last:md:pl-7"
+              >
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+                  {group.title}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {group.metrics.map((metric, index) => (
+                    <MetricRow key={`${metric.label}-${index}`} metric={metric} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-on-surface-variant">
-            {pillarCoverage(p) < 0.5
-              ? "Score withheld until at least half of this pillar's weighted inputs are available."
-              : "Missing inputs are treated as neutral uncertainty; compared with sector peers where available."}
-          </p>
+        </div>
+      )}
+
+      {!isSubscribed && (
+        <div className="relative mt-6 min-h-[15rem] overflow-hidden rounded-lg bg-surface-container-low">
+          <div aria-hidden className="pointer-events-none select-none space-y-5 p-5 blur-[6px]">
+            <div className="flex items-start justify-between gap-5">
+              <div className="space-y-2">
+                <div className="h-5 w-24 rounded bg-surface-container-high" />
+                <div className="h-3 w-52 rounded bg-surface-container-high" />
+              </div>
+              <div className="h-8 w-20 rounded bg-surface-container-high" />
+            </div>
+            <div className="grid gap-7 md:grid-cols-2">
+              {[0, 1].map((column) => (
+                <div key={column} className="space-y-4">
+                  <div className="h-3 w-28 rounded bg-surface-container-high" />
+                  <div className="h-4 w-full rounded bg-surface-container-high" />
+                  <div className="h-3 w-4/5 rounded bg-surface-container-high" />
+                  <div className="h-4 w-10/12 rounded bg-surface-container-high" />
+                  <div className="h-3 w-2/3 rounded bg-surface-container-high" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center bg-surface/20 px-4">
+            <FeedUnlockBar
+              surface="stock_tab"
+              compact
+              signedOutLabel="Start your 3-day free trial"
+              signedInLabel="Unlock fundamental detail"
+              buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary !text-on-primary !shadow-none"
+            />
+          </div>
         </div>
       )}
     </div>

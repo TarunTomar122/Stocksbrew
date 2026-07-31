@@ -12,6 +12,7 @@ export type DecisionCard = {
   score: number | null; // overall stocksbrew score, 0..100
   targetUpsidePct: number | null; // analyst target upside
   catalyst: string | null; // short structured chip, NOT a news headline
+  driver?: string | null; // one supplied reason for the decision, never inferred
   nextTrigger: string | null; // the level / event to watch
   positionLabel: string | null; // "Holding" | "Watching"
   urgent: boolean;
@@ -35,10 +36,10 @@ export type BookRow = {
   currency: string; // symbol
   score: number | null; // overall stocksbrew score, 0..100
   flags: BookFlag[];
+  stance: string | null;
   isHolding: boolean;
   /** Actionable today: trim/sell on a holding, or buy/accumulate on a watched name. */
   needsAttention: boolean;
-  attentionAction: string | null;
   attentionDirection: Direction | null;
 };
 

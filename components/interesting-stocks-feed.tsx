@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { FeedRowLockedBlur, FeedStickyUnlock, FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+import { FeedLockedSection, FeedRowLockedBlur } from "@/components/feed-row-lock-teaser";
 import { StockLogo } from "@/components/stock-logo";
 import type { InterestingStockRow } from "@/lib/interesting-stocks";
 import { FREE_INTERESTING_STOCKS_VISIBLE_LIMIT } from "@/lib/pro-features";
@@ -38,8 +38,6 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
   const todayFact =
     typeof row.risk_reward_ratio === "number"
       ? `${row.risk_reward_ratio.toFixed(1)}× risk/reward`
-      : typeof row.session_max_move_pct === "number"
-      ? `${Math.abs(row.session_max_move_pct).toFixed(1)}% session range`
       : typeof row.rsi_14 === "number"
       ? `RSI ${row.rsi_14.toFixed(0)}`
       : null;
@@ -130,9 +128,11 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
 export function InterestingStocksFeed({
   rows,
   isSubscribed,
+  lockedPreviewCount = 0,
 }: {
   rows: InterestingStockRow[];
   isSubscribed: boolean;
+  lockedPreviewCount?: number;
 }) {
   const source = rows.slice(0, 10);
   if (source.length === 0) {
@@ -140,6 +140,12 @@ export function InterestingStocksFeed({
   }
 
   const hasLocked = !isSubscribed && source.length > FREE_INTERESTING_STOCKS_VISIBLE_LIMIT;
+  const visibleRows = hasLocked
+    ? [
+        ...source.slice(0, FREE_INTERESTING_STOCKS_VISIBLE_LIMIT),
+        ...source.slice(FREE_INTERESTING_STOCKS_VISIBLE_LIMIT, FREE_INTERESTING_STOCKS_VISIBLE_LIMIT + lockedPreviewCount),
+      ]
+    : source;
 
   return (
     <div className="flex flex-col gap-4">
@@ -156,31 +162,23 @@ export function InterestingStocksFeed({
           <span>Why it is interesting</span>
         </div>
         <div className="divide-y divide-outline-variant/60">
-          {source.map((row, index) => (
+          {visibleRows.map((row, index) => (
             <InterestingRow
               key={row.instrument_id || row.ticker}
               row={row}
               locked={!isSubscribed && index >= FREE_INTERESTING_STOCKS_VISIBLE_LIMIT}
             />
           ))}
+          {hasLocked ? (
+            <FeedLockedSection
+              surface="interesting_stocks"
+              count={source.length - FREE_INTERESTING_STOCKS_VISIBLE_LIMIT}
+              noun="setups"
+              signedInLabel="Unlock all 10 setups"
+            />
+          ) : null}
         </div>
       </section>
-      {hasLocked ? (
-        <>
-          <FeedUnlockBar
-            surface="interesting_stocks"
-            className="rounded-xl border border-outline-variant bg-surface"
-            compact
-            signedOutLabel="Sign in free"
-            signedInLabel="Unlock all 10 setups"
-          />
-          <FeedStickyUnlock
-            surface="interesting_stocks"
-            signedOutLabel="Sign in free"
-            signedInLabel="Unlock all 10 setups"
-          />
-        </>
-      ) : null}
     </div>
   );
 }
