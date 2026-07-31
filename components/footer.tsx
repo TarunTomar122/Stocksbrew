@@ -16,6 +16,7 @@ const COLUMNS: Column[] = [
       { label: "Social", href: "/social" },
       { label: "Radar", href: "/radar" },
       { label: "Pre-market movers", href: "/premarket" },
+      { label: "Market Daily", href: "/market-daily" },
       { label: "Earnings", href: "/earnings" },
       { label: "US stocks", href: "/stocks" },
       { label: "Stock sectors", href: "/sectors" },

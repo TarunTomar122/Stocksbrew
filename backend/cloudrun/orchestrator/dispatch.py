@@ -375,6 +375,7 @@ def main() -> None:
             "reddit_buzz",
             "zone_briefs",
             "market_events",
+            "market_daily",
             "data_health",
             "stock_facts",
             "earnings_intel",
@@ -482,6 +483,7 @@ def main() -> None:
         "reddit_buzz": os.getenv("REDDIT_BUZZ_JOB_NAME", "tikrr-reddit-buzz"),
         "zone_briefs": os.getenv("ZONE_BRIEFS_JOB_NAME", "tikrr-zone-briefs"),
         "market_events": os.getenv("MARKET_EVENTS_JOB_NAME", "tikrr-market-events"),
+        "market_daily": os.getenv("MARKET_DAILY_JOB_NAME", "tikrr-market-daily"),
         "data_health": os.getenv("DATA_HEALTH_JOB_NAME", "tikrr-data-health"),
         "stock_facts": os.getenv("STOCK_FACTS_JOB_NAME", "tikrr-stock-facts"),
         "earnings_intel": os.getenv("EARNINGS_INTEL_JOB_NAME", "tikrr-earnings-intel"),
@@ -717,6 +719,9 @@ def main() -> None:
             single_extra_args = ["--limit", str(max(1, args.limit))]
             if args.skip_if_fresh_hours > 0:
                 single_extra_args.extend(["--skip-if-fresh-hours", str(args.skip_if_fresh_hours)])
+        elif args.lane == "market_daily":
+            if str(args.model or "").strip():
+                single_extra_args = ["--model", str(args.model).strip()]
         elif args.lane == "reddit_buzz":
             single_extra_args = [
                 "--subreddit-batch-size",
@@ -778,6 +783,7 @@ def main() -> None:
         "reddit_buzz",
         "zone_briefs",
         "market_events",
+        "market_daily",
         "data_health",
         "stock_facts",
         "earnings_intel",

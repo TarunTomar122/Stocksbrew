@@ -964,6 +964,40 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_premarket_opening").document(f"{market.upper()}__latest").get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    def save_market_daily(self, payload: dict[str, Any]) -> None:
+        """Publish one immutable-date Market Daily edition plus the latest pointer."""
+        market = str(payload.get("market") or "US").strip().upper()
+        edition_date = str(payload.get("edition_date") or "").strip()
+        if not edition_date:
+            raise ValueError("Market Daily edition_date is required")
+        doc_id = f"{market}__{edition_date}"
+        batch = self.db.batch()
+        collection = self.db.collection("tm_market_daily")
+        batch.set(collection.document(doc_id), payload)
+        batch.set(collection.document(f"{market}__latest"), payload)
+        batch.commit()
+
+    def get_market_daily(self, market: str, edition_date: str = "latest") -> dict[str, Any] | None:
+        suffix = "latest" if edition_date == "latest" else str(edition_date).strip()
+        doc = self.db.collection("tm_market_daily").document(f"{market.upper()}__{suffix}").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_market_daily_draft(self, payload: dict[str, Any]) -> None:
+        """Save an approval candidate without changing the public edition."""
+        market = str(payload.get("market") or "US").strip().upper()
+        edition_date = str(payload.get("edition_date") or "").strip()
+        if not edition_date:
+            raise ValueError("Market Daily draft edition_date is required")
+        self.db.collection("tm_market_daily_drafts").document(
+            f"{market}__{edition_date}"
+        ).set(payload)
+
+    def get_market_daily_draft(self, market: str, edition_date: str) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_market_daily_drafts").document(
+            f"{market.upper()}__{str(edition_date).strip()}"
+        ).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
     def get_sector_regimes(self, market: str) -> dict[str, dict[str, Any]]:
         """Return all live sector regime docs for a market, keyed by sector_slug.
         Includes the macro doc under key 'macro'."""

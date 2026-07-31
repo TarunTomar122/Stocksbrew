@@ -47,7 +47,9 @@ import { formatRiskRewardRatio } from "@/lib/risk-reward";
 import { hasRedditBuzzData, StockRedditBuzzRailCard } from "@/components/stock-social-proof-card";
 import { StockNewsRailCard } from "@/components/stock-news-rail-card";
 import { StockTodaysMoveRailCard } from "@/components/stock-todays-move-rail-card";
+import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import type { NewsArticle } from "@/lib/news";
+import type { LivePremarketQuote } from "@/lib/premarket-shared";
 import type { StockIntelPro } from "@/lib/types";
 
 type RedditCtx = { sentiment?: string; summary?: string; mention_count?: number; catalysts?: string[] } | null;
@@ -138,6 +140,7 @@ type Props = {
   subscribed: boolean;
   isTracked: boolean;
   tier: "ai_launch" | "ai_personal" | "free";
+  premarketQuote?: LivePremarketQuote | null;
   updatedLabel?: string;
   lockedCall: ReactNode;
 };
@@ -206,7 +209,7 @@ function scoreToneColor(score: number | null): string {
 }
 
 export function StockDetail(props: Props) {
-  const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, updatedLabel, lockedCall } = props;
+  const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, lockedCall } = props;
 
   const money = (v: number) => `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const levelMoney = (v: number) => `${currency}${Math.round(v).toLocaleString()}`;
@@ -591,6 +594,13 @@ export function StockDetail(props: Props) {
                     {money(Math.abs(dayAbs))}
                   </p>
                 ) : null}
+                {premarketQuote ? (
+                  <StockPremarketQuote
+                    currency={currency}
+                    market={market}
+                    quote={premarketQuote}
+                  />
+                ) : null}
               </div>
             </div>
             {(metaShort || hasAnomalyMove || updatedLabel) ? (
@@ -660,6 +670,13 @@ export function StockDetail(props: Props) {
                 {up ? "▲" : "▼"} {sign(dayPct, 2)}
                 {dayAbs ? ` · ${dayAbs >= 0 ? "+" : "−"}${money(Math.abs(dayAbs))} today` : ""}
               </p>
+              {premarketQuote ? (
+                <StockPremarketQuote
+                  currency={currency}
+                  market={market}
+                  quote={premarketQuote}
+                />
+              ) : null}
             </div>
           </div>
         </div>

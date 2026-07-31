@@ -512,6 +512,48 @@ def search_firecrawl(
     return extracted
 
 
+def search_firecrawl_urls(
+    query: str,
+    *,
+    limit: int = 6,
+    time_filter: str = "qdr:d",
+) -> list[dict[str, str]]:
+    """Use Firecrawl for fast URL discovery without scraping every result."""
+    if not firecrawl_enabled() or not str(query or "").strip():
+        return []
+    response = requests.post(
+        f"{firecrawl_api_url()}/search",
+        headers=_firecrawl_headers(),
+        json={
+            "query": str(query).strip(),
+            "limit": max(1, min(10, int(limit))),
+            "tbs": time_filter,
+        },
+        timeout=35,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return []
+    discovered: list[dict[str, str]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        url = str(row.get("url") or "").strip()
+        title = str(row.get("title") or "").strip()
+        if not url or not title:
+            continue
+        discovered.append(
+            {
+                "url": url,
+                "title": title,
+                "description": str(row.get("description") or "").strip(),
+            }
+        )
+    return discovered
+
+
 def extract_urls(urls: list[str]) -> list[ExtractedArticle]:
     """Batch Firecrawl where available; preserve extract_url fallback semantics."""
     if not urls:
