@@ -6,7 +6,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, RadarChart, Radar, PolarGrid,
 import { ProCtaLink } from "@/components/pro-cta";
 import { StockLogo } from "@/components/stock-logo";
 import { PortfolioSearch } from "@/components/portfolio-search";
-import { ScreenshotUpload } from "@/components/screenshot-upload";
 import { TrackInRadarButton } from "@/components/track-in-radar-button";
 import type { SearchEntry } from "@/lib/search";
 import type { PortfolioAnalysis, PortfolioStock, RiskFlag, Opportunity } from "@/lib/portfolio-analyzer";
@@ -67,7 +66,7 @@ const OPP_META: Record<string, { icon: string }> = {
   analyst_runway: { icon: "🎯" },
 };
 
-type InputMode = "paste" | "search" | "screenshot";
+type InputMode = "paste" | "search";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -123,7 +122,7 @@ function InputSection({
   onAnalyze: () => void;
   loading: boolean;
 }) {
-  const [mode, setMode] = useState<InputMode>("screenshot");
+  const [mode, setMode] = useState<InputMode>("paste");
   const [pasteText, setPasteText] = useState("");
 
   function handlePasteAnalyze() {
@@ -136,17 +135,6 @@ function InputSection({
   }
 
   const modes: { key: InputMode; label: string; icon: React.ReactNode }[] = [
-    {
-      key: "screenshot",
-      label: "Screenshot",
-      icon: (
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
-          <rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.3"/>
-          <circle cx="5" cy="5" r="1.2" fill="currentColor"/>
-          <path d="M12 9L8 6 2 12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      ),
-    },
     {
       key: "paste",
       label: "Paste tickers",
@@ -212,10 +200,6 @@ function InputSection({
 
       {mode === "search" && (
         <PortfolioSearch searchIndex={searchIndex} onSelect={(ticker) => onAddTickers([ticker])} />
-      )}
-
-      {mode === "screenshot" && (
-        <ScreenshotUpload onTickersFound={onAddTickers} searchIndex={searchIndex} />
       )}
 
       {/* Selected tickers chip list */}
@@ -684,7 +668,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
             Portfolio analyzer
           </h1>
           <p className="text-[15px] text-[#6b7280] max-w-[540px] leading-relaxed">
-            Paste your tickers, search, or drop a brokerage screenshot. Get sector allocation, factor tilt, risk flags, and opportunities instantly, for free.
+            Paste your tickers or search by company. Get sector allocation, factor tilt, risk flags, and opportunities instantly, for free.
           </p>
         </div>
 
@@ -845,7 +829,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
             </svg>
           </div>
           <p className="text-[14px] font-medium text-[#374151]">Add your stocks above to get started</p>
-          <p className="text-[12px] text-[#9ca3af]">Paste tickers, search by name, or drop a brokerage screenshot</p>
+          <p className="text-[12px] text-[#9ca3af]">Paste tickers or search by company name</p>
         </div>
       )}
     </div>

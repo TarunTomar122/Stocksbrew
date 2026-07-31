@@ -759,7 +759,6 @@ function HeaderStrip({
               }))}
               isSubscribed={isSubscribed}
               ctaLabel="Add a stock"
-              enableImageUpload
             />
           )}
         </div>
@@ -2767,7 +2766,6 @@ function EmptyState({
           initialItems={[]}
           isSubscribed={isSubscribed}
           ctaLabel="Add stocks"
-          enableImageUpload
           triggerClassName="self-start inline-flex items-center justify-center h-[40px] rounded-full bg-on-surface px-5 text-[13px] font-semibold text-white hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0"
         />
       </div>
@@ -2957,7 +2955,6 @@ function UnsubscribedState({
                   initialItems={[]}
                   isSubscribed={false}
                   ctaLabel="Add a stock"
-                  enableImageUpload
                 />
               )}
             </div>

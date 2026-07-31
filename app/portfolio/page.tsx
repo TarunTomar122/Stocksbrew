@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Portfolio Analyzer",
   description:
-    "Analyze your stock portfolio for free. Paste tickers, search, or upload a screenshot to get sector allocation, factor tilt, risk flags, and opportunities.",
+    "Analyze your stock portfolio for free. Paste tickers or search by company to get sector allocation, factor tilt, risk flags, and opportunities.",
   alternates: { canonical: "/portfolio" },
   openGraph: {
     title: "Free Portfolio Analyzer | stocksbrew",

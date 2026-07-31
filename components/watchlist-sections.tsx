@@ -472,7 +472,7 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
                   average_cost: r.holding.average_cost ?? null,
                 } : undefined,
               }))}
-              ctaLabel="Add a stock" enableImageUpload
+              ctaLabel="Add a stock"
             />
           )}
         </div>

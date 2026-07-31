@@ -39,7 +39,6 @@ type Props = {
   isSubscribed: boolean;
   freeLimit?: number;
   ctaLabel?: string;
-  enableImageUpload?: boolean;
   triggerClassName?: string;
 };
 
@@ -49,7 +48,6 @@ export function RadarBatchEditModal({
   isSubscribed,
   freeLimit = 3,
   ctaLabel = "Add a stock",
-  enableImageUpload = true,
   triggerClassName,
 }: Props) {
   const router = useRouter();
@@ -66,11 +64,7 @@ export function RadarBatchEditModal({
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
-  const [extracting, setExtracting] = useState(false);
-  const [extractInfo, setExtractInfo] = useState<string | null>(null);
-  const [extractError, setExtractError] = useState<string | null>(null);
   const [limitModalOpen, setLimitModalOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   // Track which IDs existed when modal opened — anything else is "newly added this session"
   const originalIds = useRef<Set<string>>(new Set());
 
@@ -82,8 +76,6 @@ export function RadarBatchEditModal({
     setError(null);
     setSearchError(null);
     setTypeaheadResults([]);
-    setExtractInfo(null);
-    setExtractError(null);
   }, [open, initialItems]);
 
   useEffect(() => {
@@ -264,75 +256,6 @@ export function RadarBatchEditModal({
     }
   }
 
-  async function extractFromImage(file: File) {
-    setExtractError(null);
-    setExtractInfo(null);
-    setExtracting(true);
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      const res = await fetch("/api/watchlist/extract-from-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_data_url: dataUrl, market: "US" }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "extract_failed");
-      const matches = Array.isArray(data?.matches) ? data.matches : [];
-      const positions = Array.isArray(data?.positions) ? data.positions : [];
-      if (matches.length === 0) {
-        setExtractError("No valid US tickers found in screenshot.");
-        return;
-      }
-      const withAmounts = matches.filter((m: Record<string, unknown>) => {
-        const h = (m?.holding as Record<string, unknown> | undefined) || undefined;
-        return Boolean(h && (h.quantity != null || h.market_value != null));
-      }).length;
-      setItems((prev) => {
-        const byId = new Map(prev.map((i) => [i.instrument_id, i]));
-        for (const m of matches) {
-          const instrumentId = String(m?.instrument_id || "");
-          if (!instrumentId) continue;
-          const h = m?.holding as Record<string, unknown> | undefined;
-          const holding: StagedHolding | undefined = h
-            ? {
-                quantity: typeof h.quantity === "number" ? h.quantity : null,
-                market_value: typeof h.market_value === "number" ? h.market_value : null,
-                average_cost: typeof h.average_cost === "number" ? h.average_cost : null,
-              }
-            : undefined;
-          const hasHoldingValues = holding && (holding.quantity != null || holding.market_value != null);
-          if (!byId.has(instrumentId)) {
-            byId.set(instrumentId, {
-              instrument_id: instrumentId,
-              ticker: String(m?.ticker || instrumentId.replace(/^US_/, "")),
-              name: String(m?.name || ""),
-              position_type: hasHoldingValues ? "holding" : "watchlist",
-              holding: hasHoldingValues ? holding : undefined,
-            });
-          } else {
-            const existing = byId.get(instrumentId)!;
-            if (hasHoldingValues && existing.position_type !== "holding") {
-              byId.set(instrumentId, { ...existing, position_type: "holding", holding });
-            }
-          }
-        }
-        return [...byId.values()];
-      });
-      const tickerCount = matches.length;
-      setExtractInfo(
-        withAmounts > 0
-          ? `Found ${tickerCount} ticker${tickerCount > 1 ? "s" : ""}, ${withAmounts} with amounts.`
-          : `Added ${tickerCount} ticker${tickerCount > 1 ? "s" : ""} from screenshot.`,
-      );
-    } catch (e) {
-      console.error(e);
-      setExtractError("Couldn’t read screenshot. Use search below.");
-    } finally {
-      setExtracting(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
   return (
     <>
       <button
@@ -376,7 +299,7 @@ export function RadarBatchEditModal({
               </button>
             </div>
 
-            {/* ── Toolbar: search + upload ── */}
+            {/* ── Search toolbar ── */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-outline-variant shrink-0">
               {/* Search */}
               <div className="flex flex-1 items-center gap-2 rounded-xl border border-outline-variant px-3 py-2 focus-within:border-on-surface transition-colors">
@@ -398,41 +321,6 @@ export function RadarBatchEditModal({
                 )}
               </div>
 
-              {/* Upload */}
-              {enableImageUpload && (
-                <label className={`shrink-0 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-colors ${
-                  extracting
-                    ? "border-outline-variant text-on-surface-variant cursor-wait"
-                    : extractInfo
-                      ? "border-[#10b981] text-[#10b981] tint-bull"
-                      : "border-outline-variant text-on-surface bg-surface hover:border-on-surface"
-                }`}>
-                  {extracting ? (
-                    <><span className="h-3 w-3 rounded-full border-2 border-[#9ca3af] border-t-transparent animate-spin" />Reading…</>
-                  ) : extractInfo ? (
-                    <>✓ Done</>
-                  ) : (
-                    <>
-                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="text-on-surface-variant">
-                        <path d="M6.5 1v8M3 4.5l3.5-3.5L10 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M1 10.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                      </svg>
-                      Screenshot
-                    </>
-                  )}
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={extracting}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void extractFromImage(file);
-                    }}
-                  />
-                </label>
-              )}
             </div>
 
             {/* ── Content: search results OR stock list ── */}
@@ -481,7 +369,7 @@ export function RadarBatchEditModal({
                   {items.length === 0 && (
                     <li className="flex flex-col items-center gap-1 px-4 py-16 text-center">
                       <p className="text-[13px] font-medium text-on-surface">No stocks yet</p>
-                      <p className="text-[11px] text-on-surface-variant">Search above or upload a screenshot to get started.</p>
+                      <p className="text-[11px] text-on-surface-variant">Search above to add a stock.</p>
                     </li>
                   )}
                 </ul>
@@ -584,17 +472,4 @@ export function RadarBatchEditModal({
       <RadarFreeLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} limit={freeLimit} />
     </>
   );
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const out = typeof reader.result === "string" ? reader.result : "";
-      if (!out) reject(new Error("empty_result"));
-      else resolve(out);
-    };
-    reader.onerror = () => reject(reader.error || new Error("read_failed"));
-    reader.readAsDataURL(file);
-  });
 }

@@ -23,7 +23,7 @@ CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_ENRICHMENT_MODEL = "qwen/qwen-2.5-7b-instruct"
-DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
+DEFAULT_OPENROUTER_MODEL = DEFAULT_OPENAI_MODEL
 LLM_BRIEF_SOURCE = "llm"
 
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}

@@ -4,7 +4,7 @@
  *
  * Fetches hot posts from 6 investing subreddits via RSS (Reddit blocks
  * JSON API from servers), extracts stock tickers and sentiment via
- * GPT-4o-mini, and stores the snapshot in Firestore.
+ * the configured OpenRouter model, and stores the snapshot in Firestore.
  *
  * Collection: reddit_snapshots/{DATE} and reddit_snapshots/latest
  *

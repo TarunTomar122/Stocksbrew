@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
-import os
 import re
 from typing import Any
 
@@ -28,14 +27,11 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 logger = logging.getLogger(__name__)
 
 STOCK_BRIEF_CACHE_VERSION = "2026-07-02-stock-brief-v17-anomaly-alignment"
-DEFAULT_STOCK_BRIEF_MODEL = "openai/gpt-4o-mini"
+DEFAULT_STOCK_BRIEF_MODEL = "deepseek/deepseek-v4-flash"
 
 
 def stock_brief_model() -> str:
-    return (
-        os.getenv("STOCK_BRIEF_MODEL", "").strip()
-        or DEFAULT_STOCK_BRIEF_MODEL
-    )
+    return llm_model(DEFAULT_STOCK_BRIEF_MODEL)
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:

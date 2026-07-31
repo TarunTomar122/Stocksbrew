@@ -1,5 +1,6 @@
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import requests
@@ -16,6 +17,26 @@ from backend.llm_client import (
 
 
 class LlmClientProviderTest(unittest.TestCase):
+    def test_backend_does_not_pin_gpt4_models(self) -> None:
+        backend_root = Path(__file__).parents[1]
+        forbidden = "gpt" + "-4o"
+        offenders: list[str] = []
+        for path in backend_root.rglob("*"):
+            if not path.is_file() or path.suffix not in {
+                ".json",
+                ".md",
+                ".py",
+                ".sh",
+                ".yaml",
+                ".yml",
+            }:
+                continue
+            if "tests" in path.parts:
+                continue
+            if forbidden in path.read_text(encoding="utf-8", errors="ignore").lower():
+                offenders.append(str(path.relative_to(backend_root)))
+        self.assertEqual(offenders, [])
+
     def test_legacy_cerebras_provider_is_migrated_to_openrouter(self) -> None:
         with patch.dict(os.environ, {"LLM_PROVIDER": "cerebras"}, clear=True):
             self.assertEqual(llm_provider(), "openrouter")
@@ -56,13 +77,13 @@ class LlmClientProviderTest(unittest.TestCase):
             self.assertEqual(llm_provider(), "openrouter")
             self.assertEqual(llm_api_key(), "openrouter-key")
             self.assertEqual(llm_api_url(), OPENROUTER_API_URL)
-            self.assertEqual(llm_model(), "openai/gpt-4o-mini")
+            self.assertEqual(llm_model(), "deepseek/deepseek-v4-flash")
 
     def test_no_provider_env_defaults_to_openrouter(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(llm_provider(), "openrouter")
             self.assertEqual(llm_api_url(), OPENROUTER_API_URL)
-            self.assertEqual(llm_model(), "openai/gpt-4o-mini")
+            self.assertEqual(llm_model(), "deepseek/deepseek-v4-flash")
 
     def test_non_retryable_error_fails_immediately(self) -> None:
         response = Mock()

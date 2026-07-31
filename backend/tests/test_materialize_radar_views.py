@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from backend.radar_intelligence import Citation, RadarEvent, StockState
 from backend.scripts.materialize_radar_views import (
     build_user_view,
@@ -157,13 +159,16 @@ def test_llm_narrative_accepts_short_fact_only_copy() -> None:
         ]
     }
     fallback = {"headline": "1 change needs attention", "body": "AAPL changed."}
-    with patch("backend.llm_client.post_chat_completion", return_value=response):
+    with patch.dict(os.environ, {}, clear=True), patch(
+        "backend.llm_client.post_chat_completion", return_value=response
+    ) as post:
         narrative, status = synthesize_narrative(
             [{"ticker": "AAPL", "headline": "RSI changed", "what_changed": "RSI crossed into oversold territory."}],
             fallback,
         )
     assert narrative["headline"] == "AAPL needs a closer look"
     assert status == "generated"
+    assert post.call_args.kwargs["model"] == "deepseek/deepseek-v4-flash"
 
 
 def test_materialized_contracts_match_json_schemas() -> None:

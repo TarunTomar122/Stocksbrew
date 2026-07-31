@@ -322,7 +322,7 @@ def synthesize_narrative(
     """Use OpenRouter for phrasing only; facts and actions remain deterministic."""
     if not attention:
         return fallback, "fallback"
-    from backend.llm_client import post_chat_completion
+    from backend.llm_client import llm_model, post_chat_completion
 
     facts = [
         {
@@ -334,7 +334,7 @@ def synthesize_narrative(
     ]
     try:
         response = post_chat_completion(
-            model="openai/gpt-4o-mini",
+            model=llm_model(),
             temperature=0.1,
             response_format={"type": "json_object"},
             stage="radar_daily_narrative",
