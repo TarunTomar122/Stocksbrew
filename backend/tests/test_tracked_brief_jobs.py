@@ -55,7 +55,7 @@ class TrackedBriefJobsTest(unittest.TestCase):
         self.assertIn("--price-trigger-phase", command)
         self.assertIn("--include-no-news", command)
         self.assertIn("--require-complete", command)
-        self.assertEqual(kwargs["timeout"], 480)
+        self.assertEqual(kwargs["timeout"], 900)
 
     def test_same_phase_price_from_yesterday_is_rejected(self) -> None:
         class Store:
