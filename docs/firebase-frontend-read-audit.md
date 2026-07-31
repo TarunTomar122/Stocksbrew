@@ -2,6 +2,13 @@
 
 Current as of 2026-05-31. Firestore project: `trace-money-72276`. Compute project: `tikrr-496409`.
 
+> Historical point-in-time read audit. Production compute moved to the
+> Stocksbrew VPS after this snapshot. The three GitHub market workflows and
+> matching Cloud Scheduler ownership described below are retired; current
+> schedules, cohorts, barriers, and live counts are in
+> `docs/production-data-pipeline-2026-07.md`. Do not re-enable an old scheduler
+> from this audit while the VPS timers are active.
+
 ## High-level structure
 
 | Layer | Firestore source | Frontend consumers | Freshness owner |
@@ -63,7 +70,7 @@ Collection counts observed: `tm_instruments=546`, `tm_latest_prices=716`, `tm_st
 | --- | --- | --- |
 | `tm_latest_prices` | Latest US sample is aging on 2026-05-31 because the audit ran on a Sunday. During market hours these must be the fastest lane. | Keep open/intraday/post-close price jobs broad enough for price-core plus overrides. Do not remove extended coverage. |
 | `tm_watchlist_views` | Latest sample is fresh, but heavy Radar analysis should still be daily/on-demand. Quote fields must not depend on this doc. | Current fix overlays quotes from `tm_latest_prices`; rebuild watchlist only for intelligence/holdings/version changes. |
-| `tm_stock_facts` | Latest US facts captured 2026-05-10 and are truly stale. The workflow existed but was manual-only. | Added Sunday 08:00 UTC refresh in both GitHub Actions and Cloud Scheduler/Cloud Run; keep surfacing `captured_at` when facts are old. |
+| `tm_stock_facts` | Latest US facts captured 2026-05-10 and were truly stale at audit time. | Superseded: `tikrr-stock-facts.timer` owns the Sunday 08:00 UTC refresh on the VPS. The former GitHub workflow was deleted. Keep surfacing `captured_at` when facts are old. |
 | `tm_heat_list`, `tm_daily_anomalies`, `reddit_snapshots`, `tm_divergence`, `tm_thematic_screens` | Latest samples were generated Friday 2026-05-29 and the related Cloud Run jobs succeeded. Weekend gaps should show aging, not stale. | Health/UI freshness for anomaly and Reddit feeds now uses market-feed thresholds: aging after 36h, stale after 84h. Close jobs should remain reliable. |
 | `tm_market_events` | Earnings-only feed generated 2026-05-29. | Open job can skip if fresh; close job should always refresh after earnings cycle. |
 | `tm_search_index` | 112 KB catalog with embedded stale price fields. | Treat as symbol/name catalog only. Use `tm_latest_prices` for quotes. |
@@ -80,11 +87,14 @@ Collection counts observed: `tm_instruments=546`, `tm_latest_prices=716`, `tm_st
 - Added shared freshness classification for stock fundamentals, anomalies, Reddit, heat, and earnings feeds so stale docs are visible in the UI.
 - Added weekend-aware market-feed freshness for anomaly and Reddit feeds. On Sunday 2026-05-31, `daily_anomalies` and `reddit_snapshot` are aging Friday-close outputs, not stale.
 - Added `backend.scripts.audit_data_health`, which writes one `tm_data_health/{market}` snapshot with age/status/count/size for frontend source docs. Deployed `data_health` Cloud Run lane now refreshes this after open and close derived feeds. Live `tm_data_health/US` now reports `stock_facts` as the only stale item.
-- Added `stock_facts` Cloud Run lane and Scheduler job so stale stock facts are not dependent on GitHub Actions only.
+- Added the original `stock_facts` Cloud Run/Scheduler lane. This ownership was
+  later moved to `tikrr-stock-facts.timer` on the VPS.
 - Added `tm_heat_list_view/{market}` compact read model. Live `/heat` payload drops from ~427 KB / 511 rows to ~46 KB / 51 rows while keeping setup counts.
 - Added `tm_home_view_core/{market}` and `tm_home_news/{market}` read models. Core homepage reads drop from ~314 KB to ~29 KB by trimming unused dashboard fields and bounding snapshot rows; news rail reads ~52 KB for the 8 rendered articles instead of pulling all 30 in the core doc.
 - Added per-ticker stock-detail read models for anomaly and Reddit context. Listed stock pages now read `tm_daily_anomaly_tickers/{market}__{ticker}` and `reddit_ticker_contexts/{market}__{ticker}` instead of pulling `tm_daily_anomalies/{market}__latest` (~58 KB) and `reddit_snapshots/{market}__latest` (~19 KB) just to filter one ticker.
 
 ## Next optimization queue
 
-1. Confirm the first scheduled `weekly-stock-facts.yml` run refreshes `tm_stock_facts`; until then this remains the only currently stale frontend source in `tm_data_health/US`.
+Resolved after this audit: the deleted `weekly-stock-facts.yml` workflow is no
+longer an operational dependency. Verify `tikrr-stock-facts.timer` and
+`tm_data_health/US` instead.

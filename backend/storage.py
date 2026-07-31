@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.env import load_backend_env, resolve_backend_path
+from backend.price_history import latest_price_history
 
 load_backend_env()
 
@@ -72,6 +73,54 @@ def _firestore_write_batches(
     if current:
         batches.append(current)
     return batches
+
+
+FINAL_HISTORY_PHASES = {"close_check", "post_close", "manual", "historical"}
+
+
+def _latest_price_write_payload(
+    existing_data: dict[str, Any],
+    new_point: dict[str, Any],
+    *,
+    updated_at: str,
+    history_limit: int,
+) -> dict[str, Any]:
+    """Build a merge payload without rewriting rolling history every hour.
+
+    The first quote on a new trading day appends one history point. Later
+    intraday writes update only the top-level latest quote; the final close
+    replaces that day's history point with the settled value. Because callers
+    use Firestore ``merge=True``, omitting ``history_window`` preserves the
+    existing array and turns the common intraday write into a small document.
+    """
+    window = list(existing_data.get("history_window") or [])
+    new_day = _day_key(new_point.get("captured_at"))
+    same_day = bool(
+        window
+        and new_day
+        and _day_key(window[-1].get("captured_at")) == new_day
+    )
+    session_phase = str(new_point.get("session_phase") or "").strip()
+    write_history = not same_day or session_phase in FINAL_HISTORY_PHASES
+
+    latest_payload = {
+        **new_point,
+        "updated_at": updated_at,
+    }
+    if write_history:
+        if same_day:
+            window[-1] = new_point
+        else:
+            window.append(new_point)
+        if len(window) > history_limit:
+            window = window[-history_limit:]
+        latest_payload["history_window"] = window
+        latest_payload["history_window_size"] = len(window)
+
+    for key in ("fundamentals", "analyst_consensus"):
+        if latest_payload.get(key) in (None, {}) and key in existing_data:
+            latest_payload[key] = existing_data[key]
+    return latest_payload
 
 
 def _compact_heat_list(payload: dict[str, Any]) -> dict[str, Any]:
@@ -327,8 +376,9 @@ class TraceMoneyStore:
         `history_window` array of recent OHLCV points.
 
         The history_window holds at most PRICE_HISTORY_WINDOW_MAX entries
-        sorted oldest→newest. If the incoming point shares a trading day with
-        the last entry, we replace it (intraday upsert); otherwise we append.
+        sorted oldest→newest. The first point of a trading day is appended,
+        intermediate intraday writes update only the top-level quote, and a
+        close/manual point replaces the current day's history value.
 
         Replaces the old `tm_price_snapshots/{id}/points/{date}` subcollection
         design, which incurred one Firestore write per point and blew through
@@ -339,26 +389,13 @@ class TraceMoneyStore:
         latest_ref = self.db.collection("tm_latest_prices").document(instrument_id)
         existing = latest_ref.get()
         existing_data = existing.to_dict() if existing.exists else {}
-        window = list(existing_data.get("history_window") or [])
-
         new_point = _serialize(payload) or {}
-        new_day = _day_key(new_point.get("captured_at"))
-        if window and new_day and _day_key(window[-1].get("captured_at")) == new_day:
-            window[-1] = new_point
-        else:
-            window.append(new_point)
-            if len(window) > self.PRICE_HISTORY_WINDOW_MAX:
-                window = window[-self.PRICE_HISTORY_WINDOW_MAX:]
-
-        latest_payload = {
-            **new_point,
-            "history_window": window,
-            "history_window_size": len(window),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-        for key in ("fundamentals", "analyst_consensus"):
-            if latest_payload.get(key) in (None, {}) and key in existing_data:
-                latest_payload[key] = existing_data[key]
+        latest_payload = _latest_price_write_payload(
+            existing_data,
+            new_point,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+            history_limit=self.PRICE_HISTORY_WINDOW_MAX,
+        )
 
         latest_ref.set(latest_payload, merge=True)
 
@@ -384,24 +421,13 @@ class TraceMoneyStore:
         for payload in payloads:
             instrument_id = payload["instrument_id"]
             existing_data = existing_by_id.get(instrument_id, {})
-            window = list(existing_data.get("history_window") or [])
             new_point = _serialize(payload) or {}
-            new_day = _day_key(new_point.get("captured_at"))
-            if window and new_day and _day_key(window[-1].get("captured_at")) == new_day:
-                window[-1] = new_point
-            else:
-                window.append(new_point)
-                if len(window) > self.PRICE_HISTORY_WINDOW_MAX:
-                    window = window[-self.PRICE_HISTORY_WINDOW_MAX:]
-            latest_payload = {
-                **new_point,
-                "history_window": window,
-                "history_window_size": len(window),
-                "updated_at": updated_at,
-            }
-            for key in ("fundamentals", "analyst_consensus"):
-                if latest_payload.get(key) in (None, {}) and key in existing_data:
-                    latest_payload[key] = existing_data[key]
+            latest_payload = _latest_price_write_payload(
+                existing_data,
+                new_point,
+                updated_at=updated_at,
+                history_limit=self.PRICE_HISTORY_WINDOW_MAX,
+            )
             pending.append((latest_collection.document(instrument_id), latest_payload))
 
         saved = 0
@@ -619,10 +645,10 @@ class TraceMoneyStore:
         if not doc.exists:
             return []
         data = doc.to_dict() or {}
-        window = list(data.get("history_window") or [])
-        if limit and limit > 0 and len(window) > limit:
-            window = window[-limit:]
-        return [_serialize(row) or {} for row in window]
+        return [
+            _serialize(row) or {}
+            for row in latest_price_history(data, limit=limit)
+        ]
 
     def save_active_price_universe(self, market: str, universe_id: str) -> None:
         market_key = str(market).upper()

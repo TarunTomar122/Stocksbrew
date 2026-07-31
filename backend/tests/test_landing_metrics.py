@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from backend.landing_metrics import (
+    _extract_series,
     build_market_breadth_doc,
     build_stock_technical_doc,
     build_user_alert_flags,
@@ -10,6 +11,27 @@ from backend.landing_metrics import (
 
 
 class LandingMetricsTest(unittest.TestCase):
+    def test_extract_series_counts_intraday_overlay_as_one_trading_day(self) -> None:
+        closes, volumes = _extract_series(
+            [
+                {
+                    "captured_at": "2026-07-29T20:00:00Z",
+                    "quote": {"current": 98.0, "volume": 900},
+                },
+                {
+                    "captured_at": "2026-07-30T13:30:00Z",
+                    "quote": {"current": 100.0, "volume": 1000},
+                },
+            ],
+            {
+                "captured_at": "2026-07-30T18:00:00Z",
+                "quote": {"current": 110.0, "volume": 1500},
+            },
+        )
+
+        self.assertEqual(closes, [98.0, 110.0])
+        self.assertEqual(volumes, [900.0, 1500.0])
+
     def test_build_stock_technical_doc(self) -> None:
         instrument = {"instrument_id": "US_NVDA", "market": "US", "ticker": "NVDA"}
         latest = {

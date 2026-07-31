@@ -123,7 +123,28 @@ def test_recent_reporter_instrument_ids_dedupes_and_scopes(monkeypatch) -> None:
     assert ids == ["US_AAPL"]
 
 
-def test_yfinance_actuals_match_report_date() -> None:
+def test_yfinance_actuals_match_report_date(monkeypatch) -> None:
+    class Frame:
+        empty = False
+
+        def iterrows(self):
+            return [
+                (
+                    "2026-06-10 16:00:00-04:00",
+                    {
+                        "Reported EPS": 2.11,
+                        "EPS Estimate": 1.96,
+                        "Surprise(%)": 7.65,
+                    },
+                )
+            ]
+
+    class Ticker:
+        earnings_dates = Frame()
+
+    import yfinance as yf
+
+    monkeypatch.setattr(yf, "Ticker", lambda _ticker: Ticker())
     rows = fetch_yfinance_quarterly_actuals("ORCL")
     actual = pick_actual_for_event(rows, "2026-06-10")
     assert actual is not None

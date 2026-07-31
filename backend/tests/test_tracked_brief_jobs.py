@@ -3,7 +3,9 @@ from __future__ import annotations
 import sys
 import unittest
 from contextlib import ExitStack
+from datetime import datetime, timezone
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from backend.cloudrun.jobs import tracked_news_prep_job, tracked_open_briefs_job
 
@@ -27,8 +29,13 @@ class TrackedBriefJobsTest(unittest.TestCase):
             run = entered[1]
             if module is tracked_open_briefs_job:
                 store = entered[2].return_value
+                market_day = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
                 store.get_latest_prices.return_value = {
-                    "US_AAPL": {"session_phase": "open_check"}
+                    "US_AAPL": {
+                        "session_phase": "open_check",
+                        "captured_at": f"{market_day}T14:00:00+00:00",
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
                 }
                 store.get_news_freshness_docs.return_value = {
                     "US_AAPL": {"last_discovery_at": "2999-01-01T00:00:00+00:00"}
@@ -49,3 +56,26 @@ class TrackedBriefJobsTest(unittest.TestCase):
         self.assertIn("--include-no-news", command)
         self.assertIn("--require-complete", command)
         self.assertEqual(kwargs["timeout"], 480)
+
+    def test_same_phase_price_from_yesterday_is_rejected(self) -> None:
+        class Store:
+            def get_latest_prices(self, _instrument_ids):
+                return {
+                    "US_AAPL": {
+                        "session_phase": "open_check",
+                        "captured_at": "2026-07-29T13:30:00+00:00",
+                        "updated_at": "2026-07-29T13:31:00+00:00",
+                    }
+                }
+
+        fresh, stale = tracked_open_briefs_job._fresh_price_ids(
+            Store(),
+            ["US_AAPL"],
+            market="US",
+            session_phase="open_check",
+            max_age_hours=3,
+            now=datetime(2026, 7, 30, 14, 0, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(fresh, [])
+        self.assertEqual(stale, ["US_AAPL"])

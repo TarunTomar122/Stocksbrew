@@ -9,6 +9,7 @@ import time
 from typing import Sequence
 
 from backend.instrument_universe import get_coverage_universe_id, list_instruments
+from backend.price_pipeline_contract import require_price_batch_coverage
 from backend.scripts.sync_price_snapshots import sync_price_snapshots
 from backend.storage import TraceMoneyStore
 
@@ -116,12 +117,12 @@ def main() -> None:
             "saved_count": price_result["saved_count"],
         }
     )
-    resolvable_input_count = int(price_result.get("input_count") or len(price_ids))
-    coverage = price_result["saved_count"] / max(1, resolvable_input_count)
-    if coverage < 0.98:
-        raise RuntimeError(
-            f"Post-close batch price coverage {coverage:.1%} is below the 98% publish floor"
-        )
+    require_price_batch_coverage(
+        price_result,
+        minimum_coverage=0.98,
+        context=f"{args.market} post-close price batch",
+    )
+    resolvable_input_count = int(price_result["input_count"])
 
     ids_csv = ",".join(price_ids)
     cohort_args = [*common, "--instrument-ids", ids_csv]

@@ -1,4 +1,5 @@
 import { getLatestPrices } from "@/lib/firestore";
+import { buildPriceHistorySeries } from "@/lib/price-history-series";
 import type { LatestPrice } from "@/lib/types";
 import type {
   TrumpLogicMention,
@@ -6,44 +7,14 @@ import type {
   TrumpLogicTickerMove,
 } from "@/lib/trump-logic-types";
 
-type HistoryRow = {
-  captured_at?: string;
-  quote?: { current?: number };
-};
-
 function mentionDay(iso?: string): string | null {
   if (!iso) return null;
   const day = iso.trim().slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
 }
 
-function priceSeries(doc: LatestPrice & { history_window?: HistoryRow[] }): Array<{ date: string; close: number }> {
-  const pairs: Array<{ date: string; close: number }> = [];
-
-  for (const row of doc.history_window ?? []) {
-    const close = row.quote?.current;
-    const date = mentionDay(row.captured_at);
-    if (typeof close === "number" && date) {
-      pairs.push({ date, close });
-    }
-  }
-
-  const latestClose = doc.quote?.current;
-  const latestDate = mentionDay(doc.captured_at || doc.updated_at);
-  if (typeof latestClose === "number" && latestDate) {
-    pairs.push({ date: latestDate, close: latestClose });
-  }
-
-  const byDate = new Map<string, number>();
-  for (const row of pairs.sort((a, b) => a.date.localeCompare(b.date))) {
-    byDate.set(row.date, row.close);
-  }
-
-  return [...byDate.entries()].map(([date, close]) => ({ date, close }));
-}
-
 export function changeSinceMention(
-  doc: (LatestPrice & { history_window?: HistoryRow[] }) | undefined,
+  doc: LatestPrice | undefined,
   publishedAt?: string,
 ): TrumpLogicTickerMove | null {
   if (!doc?.ticker) return null;
@@ -57,7 +28,7 @@ export function changeSinceMention(
     };
   }
 
-  const series = priceSeries(doc);
+  const series = buildPriceHistorySeries(doc);
   if (series.length === 0) {
     return {
       ticker: doc.ticker.toUpperCase(),

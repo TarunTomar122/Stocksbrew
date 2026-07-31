@@ -36,13 +36,20 @@ Outputs:
 The same Yahoo batch also returns a ten-calendar-day daily frame. Stocksbrew
 stores its last six real market sessions as `recent_sessions`; AI jobs never
 infer consecutive-session returns from the separate rolling fetch history.
+Open and close workers require at least 98% provider coverage before recording
+their session stage as successful. Every downstream AI/publisher input checks
+the expected phase, latest-document write age, and provider timestamp against
+the exchange-local date. A provider miss or weekday market holiday therefore
+cannot make yesterday's same-phase Firestore document look current.
 
-Latest live benchmark: 573 selected instruments, 572 unique Yahoo symbols, 568
-unique quotes resolved, 569 instrument price documents saved, and 573
-instrument views materialized in about 95 seconds. Four catalog symbols were
-unavailable from Yahoo in the measured run: `APLS`, `BK`, `BLD`, and `GTLS`.
-The post-close coverage gate uses the resolvable input cohort and accepts the
-measured 99.30% result.
+Latest live read-only benchmark (2026-07-31): 578 selected instruments, 577
+unique Yahoo symbols, 574 instrument quotes resolved, and 571 current-session
+quotes accepted in 30.1 seconds (98.79% publishable coverage). Four Yahoo
+symbols were unavailable and three returned genuinely old daily bars; all 578
+selected IDs resolved through the local catalog plus Firebase.
+The unavailable Yahoo symbols were `APLS`, `BK`, `BLD`, and `GTLS`; the stale
+rows were `CPRX`, `SATS`, and `VSCO`. The worker rejects all seven instead of
+relabelling old data, while the measured batch remains above the 98% gate.
 
 ### Fundamentals and slower facts
 
@@ -148,6 +155,10 @@ up to 15 minutes for a still-running opening brief stage, then fails closed.
 
 - Firestore writes split by both operation count and estimated payload bytes,
   avoiding the 10 MiB commit limit.
+- The first quote of a trading day appends the embedded rolling-history point;
+  intraday writes merge only the small latest quote, and post-close seals the
+  final daily history value. The current US document set is about 16.8 MB, so
+  this avoids rewriting roughly 100+ MB of unchanged arrays each trading day.
 - The price provider uses batch quote calls, never `.info` fallbacks.
 - Source scraping is skipped on LLM cache hits and bounded across concurrent
   shards.

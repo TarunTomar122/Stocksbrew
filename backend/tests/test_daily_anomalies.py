@@ -96,6 +96,7 @@ class DailyAnomaliesTest(unittest.TestCase):
             {
                 "US_SNDK": {
                     "session_phase": "post_close",
+                    "captured_at": "2026-07-21T20:10:00+00:00",
                     "updated_at": "2026-07-21T20:43:43+00:00",
                 }
             },
@@ -111,6 +112,7 @@ class DailyAnomaliesTest(unittest.TestCase):
                 {
                     "US_SNDK": {
                         "session_phase": "mid_check",
+                        "captured_at": "2026-07-21T19:00:00+00:00",
                         "updated_at": "2026-07-21T19:02:15+00:00",
                     }
                 },
@@ -126,6 +128,7 @@ class DailyAnomaliesTest(unittest.TestCase):
                 {
                     "US_SNDK": {
                         "session_phase": "post_close",
+                        "captured_at": "2026-07-20T20:10:00+00:00",
                         "updated_at": "2026-07-20T20:43:43+00:00",
                     }
                 },
@@ -139,10 +142,12 @@ class DailyAnomaliesTest(unittest.TestCase):
         prices = {
             "US_FRESH": {
                 "session_phase": "post_close",
+                "captured_at": "2026-07-21T20:10:00+00:00",
                 "updated_at": "2026-07-21T20:50:00+00:00",
             },
             "US_STALE": {
                 "session_phase": "open_check",
+                "captured_at": "2026-07-21T13:30:00+00:00",
                 "updated_at": "2026-07-21T13:35:00+00:00",
             },
         }

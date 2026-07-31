@@ -88,6 +88,13 @@ cohort and not again on a warm source pass.
 
 Quote batches persist provider-supplied `recent_sessions`. Brief/anomaly jobs
 must not treat the rolling Stocksbrew fetch history as consecutive sessions.
+Scheduled open/mid/close writers reject provider rows whose Yahoo date label
+does not match the exchange-local session date. Open and close stages require
+98% batch coverage; downstream publishers recheck phase, capture date, and
+write age before using a mutable `tm_latest_prices` document.
+History consumers overlay the top-level live quote by provider date. This keeps
+charts and derived technicals current without letting Firestore write time
+relabel old market data or rewriting the full rolling array every hour.
 
 ## Cloud Run jobs
 

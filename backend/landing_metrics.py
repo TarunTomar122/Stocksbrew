@@ -38,19 +38,29 @@ def _extract_series(
         if close is None:
             continue
         pairs.append((ts, close, vol or 0.0))
+    history_days = [ts[:10] for ts, _close, _vol in pairs if len(ts) >= 10]
     latest_quote = latest_price.get("quote") or {}
     latest_close = _to_float(latest_quote.get("current"))
     latest_vol = _to_float(latest_quote.get("volume")) or 0.0
     latest_ts = str(latest_price.get("captured_at") or "")
-    if latest_close is not None:
+    latest_day = latest_ts[:10] if len(latest_ts) >= 10 else ""
+    if (
+        latest_close is not None
+        and latest_day
+        and (not history_days or latest_day >= max(history_days))
+    ):
         pairs.append((latest_ts, latest_close, latest_vol))
     pairs.sort(key=lambda item: item[0])
 
+    # History is a daily series. The top-level latest quote may have a newer
+    # intraday timestamp for the same provider date, so dedupe by date and let
+    # it win instead of counting one trading day as two RSI/SMA observations.
     dedup: dict[str, tuple[float, float]] = {}
     for ts, close, vol in pairs:
-        dedup[ts] = (close, vol)
-    closes = [item[0] for _ts, item in sorted(dedup.items(), key=lambda kv: kv[0])]
-    volumes = [item[1] for _ts, item in sorted(dedup.items(), key=lambda kv: kv[0])]
+        day = ts[:10] if len(ts) >= 10 else ts
+        dedup[day] = (close, vol)
+    closes = [item[0] for _day, item in sorted(dedup.items(), key=lambda kv: kv[0])]
+    volumes = [item[1] for _day, item in sorted(dedup.items(), key=lambda kv: kv[0])]
     return closes, volumes
 
 

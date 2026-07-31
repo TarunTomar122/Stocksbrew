@@ -67,7 +67,22 @@ function eventDayPctFromHistory(
   eventDate: string | null,
 ): number | null {
   if (!priceDoc || !eventDate) return null;
-  for (const row of priceDoc.history_window ?? []) {
+  const latestRow: PriceHistoryPoint = {
+    captured_at: priceDoc.captured_at,
+    quote: priceDoc.quote,
+  };
+  const historyRows = priceDoc.history_window ?? [];
+  const latestDay = eventDateKey(latestRow.captured_at);
+  const newestHistoryDay = historyRows.reduce<string | null>((newest, row) => {
+    const day = eventDateKey(row.captured_at);
+    return day && (!newest || day > newest) ? day : newest;
+  }, null);
+  const rows = (
+    latestDay && (!newestHistoryDay || latestDay >= newestHistoryDay)
+      ? [latestRow, ...historyRows]
+      : historyRows
+  );
+  for (const row of rows) {
     const day = eventDateKey(row.captured_at);
     if (day !== eventDate) continue;
     const quote = row.quote ?? {};

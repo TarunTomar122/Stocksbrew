@@ -76,9 +76,9 @@ export function RadarWatchlistPanel({
     holdings.length > 0 ? "holdings" : "watching",
   );
   const current = tabs.find((t) => t.key === tab) ?? tabs[0];
-  if (!current) return null;
 
   const rows = useMemo(() => {
+    if (!current) return [];
     return [...current.rows].sort((a, b) => {
       const au = a.callUrgent ? 1 : 0;
       const bu = b.callUrgent ? 1 : 0;
@@ -87,7 +87,9 @@ export function RadarWatchlistPanel({
       const bh = b.callHint ? 1 : 0;
       return bh - ah;
     });
-  }, [current.rows]);
+  }, [current]);
+
+  if (!current) return null;
 
   return (
     <div

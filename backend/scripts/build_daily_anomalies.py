@@ -21,6 +21,11 @@ from backend.llm_client import (
     schema_system_prompt,
 )
 from backend.open_email_intel import fresh_sector_summary_from_prices
+from backend.price_pipeline_contract import (
+    PriceFreshnessPolicy,
+    assert_fresh_price_documents,
+    partition_fresh_price_documents,
+)
 from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
 from backend.instrument_universe import get_coverage_universe_id, list_instruments
 from backend.stock_intelligence import build_no_news_intelligence_doc
@@ -1147,6 +1152,7 @@ def _assert_price_session_fresh(
     *,
     required_phase: str,
     max_age_hours: float,
+    market: str = "US",
     now: datetime | None = None,
 ) -> None:
     """Fail closed when a close feed would publish an older price phase.
@@ -1156,30 +1162,17 @@ def _assert_price_session_fresh(
     Validate both the requested phase and the document write time for every
     mover that is about to be published.
     """
-    current = now or datetime.now(timezone.utc)
-    stale: list[str] = []
-    for instrument_id in instrument_ids:
-        doc = prices.get(instrument_id) or {}
-        phase = str(doc.get("session_phase") or "").strip()
-        updated_raw = str(doc.get("updated_at") or "").strip()
-        age_hours: float | None = None
-        if updated_raw:
-            try:
-                parsed = datetime.fromisoformat(updated_raw.replace("Z", "+00:00"))
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
-                age_hours = (current - parsed.astimezone(timezone.utc)).total_seconds() / 3600.0
-            except ValueError:
-                age_hours = None
-        if phase != required_phase or age_hours is None or age_hours < -0.25 or age_hours > max_age_hours:
-            stale.append(
-                f"{instrument_id}(phase={phase or 'missing'},updated_at={updated_raw or 'missing'})"
-            )
-    if stale:
-        preview = ", ".join(stale[:12])
-        raise RuntimeError(
-            f"Refusing to publish {required_phase} anomalies from stale price inputs: {preview}"
-        )
+    assert_fresh_price_documents(
+        prices,
+        instrument_ids,
+        policy=PriceFreshnessPolicy(
+            required_phase=required_phase,
+            max_age_hours=max_age_hours,
+            market=market,
+        ),
+        context=f"to publish {required_phase} anomalies",
+        now=now,
+    )
 
 
 def _fresh_price_partition(
@@ -1188,25 +1181,21 @@ def _fresh_price_partition(
     *,
     required_phase: str,
     max_age_hours: float,
+    market: str = "US",
     now: datetime | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Separate the current session snapshot from isolated provider misses."""
-    fresh: dict[str, Any] = {}
-    stale: list[str] = []
-    for instrument_id in instrument_ids:
-        try:
-            _assert_price_session_fresh(
-                prices,
-                [instrument_id],
-                required_phase=required_phase,
-                max_age_hours=max_age_hours,
-                now=now,
-            )
-        except RuntimeError:
-            stale.append(instrument_id)
-        else:
-            fresh[instrument_id] = prices[instrument_id]
-    return fresh, stale
+    fresh, stale = partition_fresh_price_documents(
+        prices,
+        instrument_ids,
+        policy=PriceFreshnessPolicy(
+            required_phase=required_phase,
+            max_age_hours=max_age_hours,
+            market=market,
+        ),
+        now=now,
+    )
+    return dict(fresh), stale
 
 
 def main() -> None:
@@ -1266,6 +1255,7 @@ def main() -> None:
             instrument_ids,
             required_phase=args.require_price_session_phase,
             max_age_hours=max(0.25, float(args.max_price_age_hours)),
+            market=args.market,
         )
         minimum_fresh = max(1, int(len(instrument_ids) * 0.8))
         if len(prices) < minimum_fresh:
@@ -1328,6 +1318,7 @@ def main() -> None:
                 selected_ids,
                 required_phase=args.require_price_session_phase,
                 max_age_hours=max(0.25, float(args.max_price_age_hours)),
+                market=args.market,
             )
         # Intelligence enrichment can take minutes. Always build the final
         # output rows from a second quote read rather than the pre-enrichment

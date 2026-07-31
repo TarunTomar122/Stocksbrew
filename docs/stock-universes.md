@@ -10,9 +10,11 @@ The user-facing product is US-only today. India config and some historical
 Firestore data exist so IN can be reactivated later, but `getCurrentMarket()`
 currently returns `US`.
 
-Compute runs in Google Cloud project `tikrr-496409`. Firebase/Firestore data is
-in project `trace-money-72276`; Cloud Run jobs use the Firebase service-account
-secret to write there.
+Production compute runs on the Stocksbrew VPS under systemd. Firebase/Firestore
+data remains in project `trace-money-72276`; the VPS service environment uses
+the Firebase service account to write there. Google Cloud project
+`tikrr-496409` retains compatibility job definitions, but its schedulers are
+paused and are not the production owner.
 
 ## Canonical Tiers
 
@@ -25,7 +27,9 @@ secret to write there.
 
 ## Current Verified Mapping
 
-As of 2026-05-31:
+The concrete namespace mapping below was verified on 2026-05-31. Current live
+cohort counts are recorded separately in
+`docs/production-data-pipeline-2026-07.md`.
 
 - `tm_config/active_universes.US_universe = us_core_100`
 - `backend/config/instrument_universe.json.markets.US.universes.us_core_100`

@@ -5,6 +5,7 @@ import argparse
 from collections import defaultdict
 
 from backend.instrument_universe import list_instruments, list_intel_universe_ids
+from backend.price_history import latest_price_history
 from backend.sector_scraper import sector_tiles_for_market
 from backend.sector_slugs import resolve_sector_fields_from_row
 from backend.storage import TraceMoneyStore
@@ -19,12 +20,7 @@ def _parse_instrument_ids(value: str | None) -> list[str] | None:
 
 
 def _history_from_latest(latest_price: dict | None, limit: int = 12) -> list[dict]:
-    if not latest_price:
-        return []
-    window = list(latest_price.get("history_window") or [])
-    if limit > 0 and len(window) > limit:
-        window = window[-limit:]
-    return window
+    return latest_price_history(latest_price, limit=limit)
 
 
 def _assert_namespace_ready(store: TraceMoneyStore, market: str, universe_id: str) -> None:

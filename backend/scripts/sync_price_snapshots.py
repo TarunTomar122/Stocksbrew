@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 
 from backend.instrument_universe import list_instruments
+from backend.price_pipeline_contract import is_current_market_timestamp
 from backend.price_utils import has_valid_quote_change, normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.storage import TraceMoneyStore
@@ -63,6 +65,7 @@ def sync_price_snapshots(
     activate: bool = False,
     merge_market_snapshot: bool = False,
     store: TraceMoneyStore | None = None,
+    now: datetime | None = None,
 ) -> dict:
     store = store or TraceMoneyStore()
     if instrument_ids is not None:
@@ -109,10 +112,29 @@ def sync_price_snapshots(
     saved_rows = []
     fundamental_rows = []
     invalid_instrument_ids: list[str] = []
+    stale_session_instrument_ids: list[str] = []
+    require_current_session = session_phase in {
+        "open_check",
+        "mid_check",
+        "close_check",
+        "post_close",
+    }
+    reference_now = now or datetime.now(timezone.utc)
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]
         quote_payload = raw_quotes.get(instrument_id)
         if not quote_payload:
+            continue
+        if require_current_session and not is_current_market_timestamp(
+            quote_payload.get("captured_at"),
+            market=market,
+            now=reference_now,
+        ):
+            stale_session_instrument_ids.append(instrument_id)
+            print(
+                f"Skipping stale-session quote for {instrument_id}: "
+                f"captured_at={quote_payload.get('captured_at') or 'missing'}"
+            )
             continue
         quote = normalize_quote_change(quote_payload["quote"])
         if not has_valid_quote_change(quote):
@@ -180,6 +202,8 @@ def sync_price_snapshots(
             "merge_market_snapshot": bool(merge_market_snapshot),
             "invalid_quote_count": len(invalid_instrument_ids),
             "invalid_instrument_ids": invalid_instrument_ids,
+            "stale_session_quote_count": len(stale_session_instrument_ids),
+            "stale_session_instrument_ids": stale_session_instrument_ids,
         },
     )
 
@@ -192,6 +216,8 @@ def sync_price_snapshots(
         "instrument_ids": [row["instrument_id"] for row in saved_rows],
         "invalid_quote_count": len(invalid_instrument_ids),
         "invalid_instrument_ids": invalid_instrument_ids,
+        "stale_session_quote_count": len(stale_session_instrument_ids),
+        "stale_session_instrument_ids": stale_session_instrument_ids,
     }
 
 

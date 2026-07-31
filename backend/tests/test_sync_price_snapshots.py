@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from backend.scripts.sync_price_snapshots import sync_price_snapshots
@@ -105,6 +106,7 @@ class SyncPriceSnapshotsTests(unittest.TestCase):
                 universe_id="test",
                 session_phase="open_check",
                 store=store,
+                now=datetime(2026, 7, 2, 15, 0, tzinfo=timezone.utc),
             )
 
         self.assertFalse(FakeClient.include_fundamentals)
@@ -150,6 +152,7 @@ class SyncPriceSnapshotsTests(unittest.TestCase):
                 universe_id="test",
                 session_phase="open_check",
                 store=store,
+                now=datetime(2026, 7, 6, 15, 0, tzinfo=timezone.utc),
             )
 
         quote = store.saved_rows[0]["quote"]
@@ -193,11 +196,55 @@ class SyncPriceSnapshotsTests(unittest.TestCase):
                 universe_id="test",
                 session_phase="open_check",
                 store=store,
+                now=datetime(2026, 7, 15, 15, 0, tzinfo=timezone.utc),
             )
 
         self.assertEqual(store.saved_rows, [])
         self.assertEqual(result["invalid_quote_count"], 1)
         self.assertEqual(result["invalid_instrument_ids"], ["US_AAPL"])
+
+    def test_scheduled_snapshot_rejects_a_prior_session_even_when_fetched_now(self) -> None:
+        store = FakeStore()
+        instrument = {
+            "instrument_id": "US_AAPL",
+            "market": "US",
+            "ticker": "AAPL",
+            "currency": "USD",
+        }
+
+        class FakeClient:
+            def __init__(self, **_kwargs) -> None:
+                pass
+
+            def fetch_quotes(self, _instruments, *, include_fundamentals: bool = True):
+                return {
+                    "US_AAPL": {
+                        "captured_at": "2026-07-29T20:00:00+00:00",
+                        "currency": "USD",
+                        "quote": {
+                            "current": 200.0,
+                            "previous_close": 198.0,
+                            "day_change_abs": 2.0,
+                            "day_change_pct": 1.01,
+                        },
+                    }
+                }
+
+        with (
+            patch("backend.scripts.sync_price_snapshots.list_instruments", return_value=[instrument]),
+            patch("backend.scripts.sync_price_snapshots.YFinanceClient", FakeClient),
+        ):
+            result = sync_price_snapshots(
+                market="US",
+                universe_id="test",
+                session_phase="open_check",
+                store=store,
+                now=datetime(2026, 7, 30, 14, 0, tzinfo=timezone.utc),
+            )
+
+        self.assertEqual(store.saved_rows, [])
+        self.assertEqual(result["stale_session_quote_count"], 1)
+        self.assertEqual(result["stale_session_instrument_ids"], ["US_AAPL"])
 
 
 if __name__ == "__main__":

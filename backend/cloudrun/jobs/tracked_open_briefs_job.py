@@ -5,6 +5,10 @@ from datetime import datetime, timezone
 import subprocess
 import sys
 
+from backend.price_pipeline_contract import (
+    PriceFreshnessPolicy,
+    partition_fresh_price_documents,
+)
 from backend.scripts.materialize_views import materialize_views
 from backend.storage import TraceMoneyStore
 
@@ -17,18 +21,23 @@ def _fresh_price_ids(
     store: TraceMoneyStore,
     instrument_ids: list[str],
     *,
+    market: str,
     session_phase: str,
+    max_age_hours: float,
+    now: datetime | None = None,
 ) -> tuple[list[str], list[str]]:
     latest = store.get_latest_prices(instrument_ids)
-    fresh: list[str] = []
-    stale: list[str] = []
-    for instrument_id in instrument_ids:
-        payload = latest.get(instrument_id) or {}
-        if str(payload.get("session_phase") or "") == session_phase:
-            fresh.append(instrument_id)
-        else:
-            stale.append(instrument_id)
-    return fresh, stale
+    fresh, stale = partition_fresh_price_documents(
+        latest,
+        instrument_ids,
+        policy=PriceFreshnessPolicy(
+            required_phase=session_phase,
+            max_age_hours=max_age_hours,
+            market=market,
+        ),
+        now=now,
+    )
+    return list(fresh), stale
 
 
 def _parse_time(value: object) -> datetime | None:
@@ -80,6 +89,12 @@ def main() -> None:
         help="Fail closed when the source-discovery input is older than this.",
     )
     parser.add_argument(
+        "--max-price-age-hours",
+        type=float,
+        default=3.0,
+        help="Exclude latest-price documents that were not written by the current session run.",
+    )
+    parser.add_argument(
         "--brief-timeout-seconds",
         type=int,
         default=480,
@@ -95,7 +110,9 @@ def main() -> None:
     fresh_ids, stale_ids = _fresh_price_ids(
         store,
         ids,
+        market=args.market,
         session_phase=args.session_phase,
+        max_age_hours=max(0.25, args.max_price_age_hours),
     )
     if stale_ids:
         print(

@@ -54,9 +54,12 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
     expect(css).toContain("border-color: var(--outline-variant) !important");
   });
 
-  it("keeps every Pulse tab visible on mobile", () => {
+  it("keeps every Pulse tab reachable in the mobile scroller", () => {
     const css = source("app/globals.css");
     expect(css).toContain("@media (max-width: 639px)");
-    expect(css).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(css).toContain(".pulse-tabs {\n    overflow-x: auto;");
+    expect(css).toContain(".pulse-tab {\n    justify-content: center;");
+    expect(css).toContain("white-space: nowrap");
+    expect(css).toContain("flex-shrink: 0");
   });
 });

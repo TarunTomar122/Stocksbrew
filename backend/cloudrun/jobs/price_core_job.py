@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
+from backend.price_pipeline_contract import require_price_batch_coverage
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.sync_price_snapshots import sync_price_snapshots
 from backend.storage import TraceMoneyStore
@@ -40,6 +41,11 @@ def main() -> None:
         merge_market_snapshot=True,
         store=store,
     )
+    require_price_batch_coverage(
+        price_result,
+        minimum_coverage=0.98,
+        context=f"{args.market} {args.session_phase} price batch",
+    )
     materialize_result = materialize_views(
         market=args.market,
         universe_id=args.universe,
@@ -66,4 +72,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -2,6 +2,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { batchGetRefs, getLatestPrices } from "@/lib/firestore";
 import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
 import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
+import { buildPriceHistorySeries } from "@/lib/price-history-series";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
 import { resolveSectorSlug, sectorSlugForIntel } from "@/lib/sector-slugs";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
@@ -10,6 +11,7 @@ import { getCoverageUniverse, getIntelUniverseIds } from "@/lib/universe-tiers";
 
 export type { PriceHistoryPoint } from "@/lib/price-history-chart";
 export { PRICE_HISTORY_CHART_MIN } from "@/lib/price-history-chart";
+export { buildPriceHistorySeries } from "@/lib/price-history-series";
 
 export type DataQuality = {
   confidence_score?: number;
@@ -266,40 +268,6 @@ export type StockSummary = {
 };
 
 const PRICE_HISTORY_CHART_MAX = 252;
-
-function historyDayKey(iso?: string): string | null {
-  if (!iso) return null;
-  const day = iso.trim().slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
-}
-
-export function buildPriceHistorySeries(
-  priceData?: Pick<LatestPrice, "history_window" | "quote" | "captured_at" | "updated_at"> | null,
-): PriceHistoryPoint[] {
-  if (!priceData) return [];
-
-  const pairs: PriceHistoryPoint[] = [];
-  for (const row of priceData.history_window ?? []) {
-    const close = row.quote?.current;
-    const date = historyDayKey(row.captured_at);
-    if (typeof close === "number" && Number.isFinite(close) && date) {
-      pairs.push({ date, close });
-    }
-  }
-
-  const latestClose = priceData.quote?.current;
-  const latestDate = historyDayKey(priceData.updated_at || priceData.captured_at);
-  if (typeof latestClose === "number" && Number.isFinite(latestClose) && latestDate) {
-    pairs.push({ date: latestDate, close: latestClose });
-  }
-
-  const byDate = new Map<string, number>();
-  for (const row of pairs.sort((a, b) => a.date.localeCompare(b.date))) {
-    byDate.set(row.date, row.close);
-  }
-
-  return [...byDate.entries()].map(([date, close]) => ({ date, close }));
-}
 
 /** Daily closes for the Returns chart. Capped to ~1Y of sessions. */
 export async function getStockPriceHistory(
