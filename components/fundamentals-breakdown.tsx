@@ -124,47 +124,22 @@ function PillarRing({
   active: boolean;
   onClick: () => void;
 }) {
-  const size = 70;
-  const center = size / 2;
-  const r = 27;
-  const circ = 2 * Math.PI * r;
   const sufficient = coverage >= 0.5;
-  const off = sufficient ? circ * (1 - Math.max(0, Math.min(100, score)) / 100) : circ;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl py-2.5 text-center transition ${active ? "" : "opacity-70"}`}
-      style={
+      className={`border-b-2 py-3 text-left transition-colors ${
         active
-          ? {
-              background: "color-mix(in srgb, var(--signal-bullish) 6%, var(--surface))",
-              boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--signal-bullish) 25%, var(--outline-variant))",
-            }
-          : undefined
-      }
+          ? "border-on-surface text-on-surface"
+          : "border-transparent text-on-surface-variant hover:text-on-surface"
+      }`}
     >
-      <div className="relative mx-auto grid place-items-center" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90" aria-hidden>
-          <circle cx={center} cy={center} r={r} fill="none" stroke="var(--surface-container-high)" strokeWidth="5" />
-          <circle
-            cx={center}
-            cy={center}
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            strokeDashoffset={off}
-          />
-        </svg>
-        <span className="absolute text-[12px] font-extrabold tabular-nums leading-none text-on-surface">
-          {sufficient ? score : "N/A"}
-        </span>
-      </div>
-      <div className={`mt-1 text-[10.5px] ${active ? "font-semibold text-on-surface" : "text-on-surface-variant"}`}>{label}</div>
+      <span className="block text-[18px] font-extrabold tabular-nums leading-none" style={{ color }}>
+        {sufficient ? score : "N/A"}
+      </span>
+      <span className="mt-1.5 block text-[10.5px] font-semibold">{label}</span>
     </button>
   );
 }
@@ -176,7 +151,7 @@ export function FundamentalsBreakdown({ pillars }: { pillars: StockIntelPro["pil
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-4 border-b border-outline-variant">
         {KEYS.map((key) => {
           const pl = pillars[key];
           const coverage = pillarCoverage(pl);

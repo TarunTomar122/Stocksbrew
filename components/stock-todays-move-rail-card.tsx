@@ -52,8 +52,7 @@ export function StockTodaysMoveRailCard({
   return (
     <section
       id="stock-todays-move"
-      className="scroll-mt-24 overflow-hidden rounded-2xl border border-outline-variant bg-surface p-4 sm:p-5"
-      style={{ boxShadow: "var(--shadow-card)" }}
+      className="scroll-mt-24 border-t border-outline-variant py-5 sm:py-6"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">today&apos;s move</p>

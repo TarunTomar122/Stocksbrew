@@ -25,6 +25,9 @@ export function metricContextLine(m: StockIntelMetric): string {
   const value = typeof m.value === "number" ? m.value : null;
   const benchmark = typeof m.benchmark === "number" ? m.benchmark : null;
   const blabel = m.benchmark_label ?? "sector";
+  const benchmarkLabel = /\b(?:avg|average)$/i.test(blabel.trim())
+    ? blabel.trim()
+    : `${blabel.trim()} avg`;
 
   // If we have an actual benchmark number we can write a relative sentence.
   if (value !== null && benchmark !== null && benchmark !== 0) {
@@ -35,8 +38,8 @@ export function metricContextLine(m: StockIntelMetric): string {
     const pct = absDiff < 1 ? "<1" : Math.round(absDiff).toString();
     const direction = diff > 0 ? "above" : "below";
 
-    if (absDiff < 3) return `In line with ${blabel} avg`;
-    return `${pct}% ${direction} ${blabel} avg${ahead ? " · favorable" : ""}`;
+    if (absDiff < 3) return `In line with ${benchmarkLabel}`;
+    return `${pct}% ${direction} ${benchmarkLabel}${ahead ? " · favorable" : ""}`;
   }
 
   // Fallback to qualitative tier copy.

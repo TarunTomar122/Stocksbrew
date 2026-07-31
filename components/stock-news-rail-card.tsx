@@ -72,27 +72,12 @@ export function StockNewsRailCard({
   if (!stories.length) return null;
 
   return (
-    <section
-      className="overflow-hidden rounded-2xl border border-outline-variant bg-surface"
-      style={{ boxShadow: "var(--shadow-card)" }}
-    >
+    <section className="border-t border-outline-variant py-5 sm:py-6">
       <div
-        className="border-b px-4 py-3.5"
-        style={{
-          borderColor: "var(--outline-variant)",
-          background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--accent-terminal) 10%, var(--surface)) 0%, color-mix(in srgb, var(--accent-terminal) 3%, var(--surface)) 55%, var(--surface) 100%)",
-        }}
+        className="border-b border-outline-variant pb-3.5"
       >
         <div className="flex items-start gap-2.5">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-accent-terminal"
-            style={{
-              borderColor: "color-mix(in srgb, var(--accent-terminal) 22%, var(--outline-variant))",
-              background: "color-mix(in srgb, var(--accent-terminal) 10%, var(--surface))",
-              boxShadow: "inset 0 1px 0 color-mix(in srgb, white 40%, transparent)",
-            }}
-          >
+          <div className="mt-0.5 flex shrink-0 items-center justify-center text-on-surface-variant">
             <NewspaperIcon size={18} />
           </div>
           <div className="min-w-0 flex-1">
@@ -120,7 +105,7 @@ export function StockNewsRailCard({
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group block px-4 py-3.5 transition-colors hover:bg-surface-container-low"
+                className="group block py-3.5 transition-colors"
               >
                 <p className="line-clamp-3 text-[12.5px] font-semibold leading-snug tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
                   {article.title}
@@ -143,11 +128,7 @@ export function StockNewsRailCard({
       </div>
 
       <div
-        className="border-t px-4 py-3"
-        style={{
-          borderColor: "var(--outline-variant)",
-          background: "color-mix(in srgb, var(--accent-terminal) 3%, var(--surface))",
-        }}
+        className="border-t border-outline-variant pt-3"
       >
         <Link
           href="/news"
