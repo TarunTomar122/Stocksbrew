@@ -49,7 +49,7 @@ function MaskedRow({ label, width = "3.5rem" }: { label: string; width?: string 
   );
 }
 
-/** The masked "call" — mirrors the real Pro call's structure (stance, conviction,
+/** The masked "call" mirrors the real Pro call's structure (stance, conviction,
  *  levels, drivers) so a free user sees exactly what's behind the lock. */
 function MaskedCall() {
   return (
@@ -99,7 +99,7 @@ function VerdictUnlockCard({
     ? "Start your 3-day free trial"
     : signedIn
       ? `Unlock Pro · ${US_PRO_MONTHLY_MO}`
-      : "Sign in to unlock the call";
+      : "Start your 3-day free trial";
   const subtext = hasTrial
     ? `Free for 3 days, then ${US_PRO_MONTHLY_MO}. Cancel anytime.`
     : signedIn
@@ -107,25 +107,24 @@ function VerdictUnlockCard({
       : `${US_PRO_MONTHLY_MO} · Cancel anytime.`;
 
   return (
-    <div className="border-t border-outline-variant pt-4">
-      <div className="flex items-center gap-2">
-        <p className="text-[15px] font-bold tracking-[-0.015em] text-on-surface">
-          The call, conviction, and levels are Pro
-        </p>
-      </div>
-      <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-on-surface-variant">
-        Unlock our current Add, Hold, or Trim stance—plus entry zones, target, drivers, risks, and Radar alerts.
+    <div className="mx-auto flex max-w-[22rem] flex-col items-center text-center">
+      <span className="grid h-9 w-9 place-items-center rounded-full border border-outline-variant bg-surface">
+        <LockIcon />
+      </span>
+      <p className="mt-2 text-[16px] font-extrabold tracking-[-0.015em] text-on-surface">
+        Our call, levels and risk
       </p>
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button
-          type="button"
-          onClick={() => onClick()}
-          className="inline-flex min-h-14 items-center justify-center rounded-lg bg-primary px-5 py-3 text-[13px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
-        >
-          {label}
-        </button>
-        <p className="text-[10.5px] text-on-surface-variant">{subtext}</p>
-      </div>
+      <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+        Unlock the stance, entry zone, target, drivers and alerts.
+      </p>
+      <button
+        type="button"
+        onClick={() => onClick()}
+        className="mt-3 inline-flex min-h-14 items-center justify-center rounded-lg bg-primary px-5 py-3 text-[13px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
+      >
+        {label}
+      </button>
+      <p className="mt-2 text-[10.5px] text-on-surface-variant">{subtext}</p>
       {error ? (
         <p className="mt-2 text-[12px] font-medium text-[#ef4444]">{error}</p>
       ) : null}
@@ -174,7 +173,7 @@ function FreeShelf({
 
       {earningsSoon && !overviewHeadline ? (
         <p className="text-[13px] leading-relaxed text-on-surface-variant">
-          Earnings in {preEarningsDays}d on {ticker} — Pro unlocks our setup and levels to watch.
+          Earnings in {preEarningsDays}d on {ticker}. Pro unlocks our setup and levels to watch.
         </p>
       ) : null}
     </div>
@@ -233,20 +232,26 @@ export function LockedVerdictCall({
 
   const callSlot = (
     <div className="flex min-h-0 flex-col gap-5">
-      <MaskedCall />
       <FreeShelf
         ticker={ticker}
         overviewHeadline={overviewHeadline}
         fundamentalsScore={fundamentalsScore}
         preEarningsDays={preEarningsDays}
       />
-      <VerdictUnlockCard
-        signedIn={signedIn}
-        hasTrial={hasTrial}
-        onSignIn={handleSignIn}
-        onGetPro={handleGetPro}
-        error={error}
-      />
+      <div className="relative min-h-[250px] overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low/35">
+        <div className="pointer-events-none p-5 opacity-80 blur-[4px]" aria-hidden>
+          <MaskedCall />
+        </div>
+        <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--surface)_86%,transparent)_0%,color-mix(in_srgb,var(--surface)_68%,transparent)_58%,color-mix(in_srgb,var(--surface-container-low)_42%,transparent)_100%)] p-5">
+          <VerdictUnlockCard
+            signedIn={signedIn}
+            hasTrial={hasTrial}
+            onSignIn={handleSignIn}
+            onGetPro={handleGetPro}
+            error={error}
+          />
+        </div>
+      </div>
     </div>
   );
 

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export const CALL_KICK = "font-mono text-[11px] uppercase tracking-[0.13em] text-on-surface-variant";
 
 function convictionDots(confidence: string) {
@@ -81,6 +83,7 @@ export function CallInsightCard({
 
 export function CallMetricsStrip({
   metrics,
+  actions,
 }: {
   metrics: Array<{
     label: string;
@@ -88,8 +91,9 @@ export function CallMetricsStrip({
     hint?: string;
     hintTone?: "bullish" | "bearish" | "neutral";
   }>;
+  actions?: ReactNode;
 }) {
-  if (!metrics.length) return null;
+  if (!metrics.length && !actions) return null;
 
   const hintColor = (tone?: "bullish" | "bearish" | "neutral") =>
     tone === "bullish"
@@ -116,6 +120,7 @@ export function CallMetricsStrip({
           ) : null}
         </div>
       ))}
+      {actions}
     </div>
   );
 }

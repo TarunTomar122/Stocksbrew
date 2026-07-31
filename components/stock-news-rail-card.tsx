@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { StockLogo } from "@/components/stock-logo";
 import type { NewsArticle } from "@/lib/news";
 
 const MAX_STORIES = 7;
@@ -41,106 +42,95 @@ function formatArticleTime(iso: string): string {
 }
 
 function displaySentiment(raw: string): string {
-  const s = raw.toLowerCase();
-  if (s === "bullish") return "Bullish";
-  if (s === "bearish") return "Bearish";
-  if (s === "neutral") return "Neutral";
-  if (s === "mixed") return "Mixed";
-  if (!raw.trim()) return "Neutral";
-  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  const normalized = raw.toLowerCase();
+  if (normalized === "bullish") return "Bullish";
+  if (normalized === "bearish") return "Bearish";
+  if (normalized === "mixed") return "Mixed";
+  return "Neutral";
 }
 
 function sentimentTagClass(label: string): string {
-  const s = label.toLowerCase();
-  if (s === "bullish") return "text-[var(--signal-bullish)] tint-bull";
-  if (s === "bearish") return "text-[var(--signal-bearish)] tint-bear";
-  if (s === "mixed") return "text-[var(--signal-neutral)] tint-warn";
-  return "text-on-surface-variant bg-surface-container";
+  const normalized = label.toLowerCase();
+  if (normalized === "bullish") return "bg-[color-mix(in_srgb,var(--signal-bullish)_12%,transparent)] text-[var(--signal-bullish)]";
+  if (normalized === "bearish") return "bg-[color-mix(in_srgb,var(--signal-bearish)_12%,transparent)] text-[var(--signal-bearish)]";
+  if (normalized === "mixed") return "bg-[color-mix(in_srgb,var(--signal-neutral)_14%,transparent)] text-[var(--signal-neutral)]";
+  return "bg-surface-container text-on-surface-variant";
 }
 
-/** Compact recent-news card for the stock page left rail. */
+/** Editorial news stream for the stock page activity section. */
 export function StockNewsRailCard({
   ticker,
   articles,
   days = 7,
+  fullWidth = false,
 }: {
   ticker: string;
   articles: NewsArticle[];
   days?: number;
+  fullWidth?: boolean;
 }) {
   const stories = articles.slice(0, MAX_STORIES);
   if (!stories.length) return null;
 
   return (
-    <section className="border-t border-outline-variant py-5 sm:py-6">
-      <div
-        className="border-b border-outline-variant pb-3.5"
-      >
-        <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 flex shrink-0 items-center justify-center text-on-surface-variant">
-            <NewspaperIcon size={18} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-bold leading-tight tracking-[-0.01em] text-on-surface">Recent News</p>
-            <p className="mt-0.5 font-mono text-[10px] leading-snug text-on-surface-variant">
-              <span className="font-semibold text-on-surface">{stories.length}</span>{" "}
-              {stories.length === 1 ? "story" : "stories"} · last {days} days · {ticker}
-            </p>
-          </div>
+    <section className="min-w-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-on-surface">
+          <NewspaperIcon size={18} />
+          <h3 className="text-[15px] font-bold tracking-[-0.01em]">News</h3>
         </div>
+        <span className="font-mono text-[9.5px] text-on-surface-variant">
+          {stories.length} {stories.length === 1 ? "story" : "stories"} · {days}d · {ticker}
+        </span>
       </div>
 
-      <div className="max-h-[19rem] overflow-y-auto overscroll-contain">
-        <ul>
-          {stories.map((article) => {
+      <ul className={`mt-5 grid gap-x-7 gap-y-7 ${fullWidth ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"}`}>
+        {stories.map((article) => {
           const time = formatArticleTime(article.published_at);
           const source = article.source_name?.trim() || "News";
           return (
-            <li
-              key={article.id}
-              className="border-b last:border-b-0"
-              style={{ borderColor: "var(--outline-variant)" }}
-            >
+            <li key={article.id}>
               <a
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group block py-3.5 transition-colors"
+                className="group block"
               >
-                <p className="line-clamp-3 text-[12.5px] font-semibold leading-snug tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
+                <span className="flex items-center gap-1.5 font-mono text-[9.5px] leading-snug text-on-surface-variant">
+                  {article.tickers.length > 0 ? (
+                    <span className="flex -space-x-1.5" aria-label={`Related stocks: ${article.tickers.slice(0, 3).join(", ")}`}>
+                      {article.tickers.slice(0, 3).map((ticker) => (
+                        <StockLogo
+                          key={ticker}
+                          ticker={ticker}
+                          market={article.market}
+                          size={16}
+                          className="rounded-full border border-surface bg-surface"
+                        />
+                      ))}
+                    </span>
+                  ) : null}
+                  <span>{[time, source].filter(Boolean).join(" · ")}</span>
+                </span>
+                <p className="mt-2 line-clamp-3 text-[13px] font-semibold leading-[1.42] tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
                   {article.title}
                 </p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    className={`inline-block rounded px-1.5 py-px font-mono text-[9px] font-bold uppercase tracking-[0.06em] ${sentimentTagClass(article.sentiment_label)}`}
-                  >
-                    {displaySentiment(article.sentiment_label)}
-                  </span>
-                  <span className="font-mono text-[9.5px] leading-snug text-on-surface-variant">
-                    {[time, source].filter(Boolean).join(" · ")}
-                  </span>
-                </div>
+                <span className={`mt-2 inline-flex rounded-full px-2 py-1 font-mono text-[8.5px] font-bold uppercase tracking-[0.06em] ${sentimentTagClass(article.sentiment_label)}`}>
+                  {displaySentiment(article.sentiment_label)}
+                </span>
               </a>
             </li>
           );
         })}
-        </ul>
-      </div>
+      </ul>
 
-      <div
-        className="border-t border-outline-variant pt-3"
+      <Link
+        href="/news"
+        className="group mt-7 inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold text-accent-terminal"
       >
-        <Link
-          href="/news"
-          className="group inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold text-accent-terminal"
-        >
-          <NewspaperIcon size={12} />
-          <span className="group-hover:underline">all market news</span>
-          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-            →
-          </span>
-        </Link>
-      </div>
+        <span className="group-hover:underline">all market news</span>
+        <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+      </Link>
     </section>
   );
 }

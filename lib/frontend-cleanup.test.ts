@@ -20,12 +20,12 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
     expect(feed).toContain("priceText(row.price)");
   });
 
-  it("renders recent earnings and social insights as responsive cards", () => {
+  it("renders recent earnings as a compact ledger and social insights as responsive cards", () => {
     const pulse = source("components/pulse-hub.tsx");
     const social = source("components/social-page-stream.tsx");
 
-    expect(pulse).toContain("sm:grid-cols-2 xl:grid-cols-3");
-    expect(pulse).toContain("What changed after the print.");
+    expect(pulse).toContain("What changed after results");
+    expect(pulse).toContain("pulse-list-panel");
     expect(social).toContain("snapshot.tickers.filter(hasRedditBrief)");
     expect(social).toContain("sm:grid-cols-2 xl:grid-cols-3");
     expect(social).not.toContain("snapshot.top_posts.map");
@@ -38,14 +38,93 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
     expect(source("app/explore/page.tsx")).toContain('redirect("/")');
   });
 
-  it("uses attention cards and removes the repeated RSI copy", () => {
+  it("groups Radar decisions and source-backed changes into compact cards", () => {
     const queue = source("components/radar-next/attention-queue.tsx");
+    const decisions = source("components/radar-next/decision-queue.tsx");
+    const header = source("components/radar-next/command-header.tsx");
     const backend = source("backend/radar_intelligence.py");
 
     expect(queue).toContain("md:grid-cols-2 xl:grid-cols-3");
-    expect(queue).toContain("const isRsi");
+    expect(queue).toContain("{citation.title}");
+    expect(queue).not.toContain("const isRsi");
+    expect(queue).not.toContain("item.what_changed");
+    expect(queue).not.toContain("item.why_it_matters");
+    expect(queue).not.toContain("item.next_trigger");
+    expect(decisions).toContain("md:grid-cols-2 xl:grid-cols-3");
+    expect(decisions).not.toContain("sm:grid-cols-[2rem_minmax");
+    expect(decisions).toContain("function decisionPills");
+    expect(decisions).toContain("rounded-full border border-[var(--rn-line)]");
+    expect(decisions).not.toContain("inset 3px 0");
+    expect(decisions).toContain("Why:</span> {item.driver}");
+    const book = source("components/radar-next/book.tsx");
+    expect(book).not.toContain("Radar call");
+    expect(book).not.toContain("row.call");
+    expect(book.indexOf('label="Signals"')).toBeLessThan(book.indexOf('label="Score"'));
+    expect(book).not.toContain(">\n                Ready\n");
+    expect(book).toContain("Number(right.needsAttention) - Number(left.needsAttention)");
+    expect(book).toContain("backgroundColor: `color-mix(in srgb, ${accent} 9%, var(--rn-card))`");
+    expect(book).toContain("overflow-hidden rounded-xl border border-[var(--rn-line)] bg-[var(--rn-card)]");
+    expect(source("app/watchlist/page.tsx")).toContain("mx-auto flex w-full max-w-[1240px]");
+    expect(header).not.toContain("sb://radar");
+    expect(header).not.toContain("brew radar --today");
     expect(backend).not.toContain("Selling has become unusually one-sided");
     expect(backend).not.toContain("condition to monitor, not a reversal signal");
+  });
+
+  it("keeps sparse stock data compact and restores meaningful activity cards", () => {
+    const fundamentals = source("components/fundamentals-breakdown.tsx");
+    const detail = source("components/stock-detail.tsx");
+    const stream = source("components/stock-page-stream.tsx");
+    const reddit = source("components/stock-social-proof-card.tsx");
+    const news = source("components/stock-news-rail-card.tsx");
+    const alerts = source("components/stock-smart-alerts-rail.tsx");
+    const callUi = source("components/verdict-call-ui.tsx");
+
+    expect(fundamentals).toContain("groupPillarMetrics");
+    expect(fundamentals).toContain("rounded-full border px-3 py-2");
+    expect(fundamentals).toContain('aria-pressed={active}');
+    expect(fundamentals).toContain("isSubscribed: boolean");
+    expect(fundamentals).toContain("FeedUnlockBar");
+    expect(fundamentals).not.toContain("bg-on-surface text-surface");
+    expect(detail).toContain("lg:grid-cols-[minmax(15rem,0.32fr)_minmax(0,0.68fr)]");
+    expect(detail).toContain("overflow-hidden rounded-2xl border border-outline-variant");
+    expect(detail).toContain("ttm snapshot");
+    expect(fundamentals).not.toContain("rounded-xl border border-outline-variant");
+    expect(fundamentals).not.toContain("xl:grid-cols-5");
+    expect(stream).toContain("flex-grow flex-col bg-surface");
+    expect(stream).not.toContain("StockAgentAccessCta");
+    expect(detail).not.toContain("bg-[var(--background)]");
+    expect(detail).toContain("const levelMoney");
+    expect(detail).toContain("style={{ color: scoreToneColor(hasReliableOverall");
+    expect(detail).toContain("Street expectations and crowd signal");
+    expect(detail).toContain('const showPeerRevenueGrowth = peerRows.some((peer) => peer.revGrowth !== "-");');
+    expect(detail).toContain('{showPeerRevenueGrowth ? "rev growth" : "price"}');
+    expect(detail).toContain('hasMarketReddit ? "flex min-w-0 flex-col divide-y');
+    expect(detail.indexOf("Street expectations and crowd signal")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
+    expect(reddit).toContain('<section className="min-w-0">');
+    expect(reddit).toContain("max-w-[65ch]");
+    expect(reddit).toContain("isSubscribed: boolean");
+    expect(reddit).toContain("FeedUnlockBar");
+    expect(reddit).toContain('signedOutLabel="Start your 3-day free trial"');
+    expect(reddit).toContain('signedInLabel="Unlock Reddit Buzz"');
+    expect(reddit).toContain('buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary');
+    expect(detail.indexOf("<StockRedditBuzzRailCard")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
+    expect(detail).toContain("const hasActivitySection = Boolean(recentNews?.length);");
+    expect(news).toContain("Editorial news stream");
+    expect(news).toContain('fullWidth ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"');
+    expect(news).not.toContain("max-h-[19rem]");
+    expect(news).toContain("<StockLogo");
+    expect(news).toContain("sentimentTagClass");
+    expect(detail.indexOf("<StockSmartAlertsRail")).toBeLessThan(detail.indexOf("{/* EVIDENCE */}"));
+    expect(detail.indexOf("<StockSmartAlertsRail")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
+    expect(detail).toContain("actions={");
+    expect(callUi).toContain("actions?: ReactNode");
+    expect(callUi).toContain("{actions}");
+    expect(alerts).not.toContain("<section");
+    expect(alerts).not.toContain("min-h-[6.5rem]");
+    expect(alerts).toContain('name="bell"');
+    expect(alerts).toContain("rounded-full");
+    expect(alerts).not.toContain("Create alert");
   });
 
   it("keeps table dividers visible on hover", () => {

@@ -1753,17 +1753,30 @@ async function gatherSuggestionCandidates(
   };
 }
 
-// Pick the top 6 suggestions from the scored pool and LLM-rewrite their `why`
-// lines. Kept separate from gathering so the blind-spot fill can reuse the same
-// candidate pool.
+function liveDiscoveryScore(candidate: Record<string, unknown>): number {
+  const sources = Array.isArray(candidate.sources) ? candidate.sources.map(String) : [];
+  if (!sources.some((source) => ["anomaly", "heat", "reddit"].includes(source))) return 0;
+  return (
+    Math.abs(toNumber(candidate.anomaly_move_pct) ?? 0) * 10 +
+    (toNumber(candidate.heat_score) ?? 0) +
+    (toNumber(candidate.reddit_mentions) ?? 0) * 4
+  );
+}
+
+// Keep current market signals in the materialized pool before filling with
+// evergreen portfolio matches. Otherwise the same diversification names win
+// every rebuild and Discovery never feels current.
 async function finalizeSuggestions(
   candidates: Array<Record<string, unknown>>,
   ctx: SuggestionContext,
 ): Promise<Array<Record<string, unknown>>> {
   const suggested = new Set<string>();
+  const freshFirst = [...candidates].sort(
+    (a, b) => liveDiscoveryScore(b) - liveDiscoveryScore(a),
+  );
   // Take top 8 to give the LLM rewriter some room to pick the best 6.
   const topCandidates: Array<Record<string, unknown>> = [];
-  for (const candidate of candidates) {
+  for (const candidate of [...freshFirst, ...candidates]) {
     const instrumentId = String(candidate.instrument_id || "");
     if (!instrumentId || suggested.has(instrumentId)) continue;
     suggested.add(instrumentId);

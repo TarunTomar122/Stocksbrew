@@ -207,7 +207,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               disabled={busy}
               className="self-start inline-flex items-center justify-center h-11 px-6 rounded-full bg-on-surface text-surface text-[13px] font-semibold hover:bg-on-surface transition-colors disabled:opacity-60 shadow-[0_2px_16px_rgba(0,0,0,0.15)]"
             >
-              {busy ? "Signing you in…" : "Sign in free, takes 30 seconds →"}
+              {busy ? "Signing you in…" : "Start your 3-day free trial"}
             </button>
           </div>
 
@@ -313,7 +313,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               className="w-full inline-flex items-center justify-center h-13 px-8 rounded-full bg-on-surface text-surface text-[15px] font-semibold hover:bg-on-surface transition-colors disabled:opacity-60 shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
               style={{ height: "52px" }}
             >
-              {busy ? "Signing you in…" : "Sign in with Google, it's free →"}
+              {busy ? "Signing you in…" : "Start your 3-day free trial"}
             </button>
             <p className="text-[12px] text-on-surface-variant">
               Free for 3 stocks &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; Cancel anytime

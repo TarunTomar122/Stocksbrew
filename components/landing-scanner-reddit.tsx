@@ -8,7 +8,7 @@ import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
 import { RedditMark } from "@/components/reddit-mark";
 
-const HOMEPAGE_UNLOCK_LABEL = "Sign in for more";
+const HOMEPAGE_UNLOCK_LABEL = "Start your 3-day free trial";
 
 type RedditPick = {
   ticker: string;
@@ -101,6 +101,8 @@ export function LandingScannerReddit({
                 isSubscribed={isSubscribed}
                 trackedCount={trackedIds.length}
                 showUnlockCta={false}
+                hideLockedRows
+                lockedPreviewCount={2}
               />
             </div>
 
@@ -139,10 +141,11 @@ export function LandingScannerReddit({
           {!isSubscribed ? (
             <FeedUnlockBar
               surface="market_anomalies"
-              className="border-outline-variant bg-surface-container-lowest"
               compact
+              description="See every mover and crowd read with Pro."
               signedOutLabel={HOMEPAGE_UNLOCK_LABEL}
               signedInLabel="Unlock every market read with Pro"
+              className="border-t border-outline-variant bg-[#f7f5ff]"
             />
           ) : null}
 

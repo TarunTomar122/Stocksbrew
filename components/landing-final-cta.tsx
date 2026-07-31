@@ -9,7 +9,7 @@ export function LandingFinalCta({
 }) {
   if (isSignedIn && isSubscribed) return null;
 
-  const ctaLabel = isSignedIn ? "Start 3-day free trial" : "Sign in to start free trial";
+  const ctaLabel = "Start your 3-day free trial";
 
   return (
     <section className="mx-auto w-full max-w-[760px] rounded-[32px] border border-[#e5e7eb] bg-[#0a0a0a] px-6 py-12 md:px-12 md:py-16 text-center">

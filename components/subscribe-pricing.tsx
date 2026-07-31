@@ -16,7 +16,7 @@ import {
 } from "@/lib/product-analytics";
 import { ProBenefitsGrid } from "@/components/pro-benefits-grid";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
-import { SUBSCRIBE_BENEFITS, SUBSCRIBE_TRUST_STRIP, buildSubscribeContextLines } from "@/lib/subscribe-benefits";
+import { SUBSCRIBE_BENEFITS } from "@/lib/subscribe-benefits";
 import { US_PRO_MONTHLY_LABEL, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 
 const DEV_FAKE_SUBSCRIBE = process.env.NODE_ENV === "development";
@@ -51,6 +51,12 @@ const PLANS_IN = [
     save: "Save 33%",
     badge: "Best value",
   },
+];
+
+const PRO_HIGHLIGHTS = [
+  { icon: "verified", text: "Calls, zones, drivers, and risks" },
+  { icon: "flag", text: "Target price and room from today" },
+  { icon: "notifications_active", text: "Unlimited Radar and alerts" },
 ];
 
 async function devActivateSubscription(period: "monthly" | "yearly"): Promise<string> {
@@ -217,7 +223,6 @@ export function SubscribePricing({
 
   const activePlan = plans.find((plan) => plan.id === selectedPlan) ?? plans[0];
   const isLoading = loadingPlan !== null;
-  const contextLines = buildSubscribeContextLines(trackedCount);
   const trialNote = market === "US" ? "3 days free · " : "";
 
   return (
@@ -230,15 +235,9 @@ export function SubscribePricing({
         <h1 className="font-mono text-[26px] font-extrabold leading-tight tracking-tight text-on-surface md:text-[30px]">
           Choose your plan
         </h1>
-        <p className="max-w-md text-[13px] leading-relaxed text-on-surface-variant">
-          Detailed calls and zones, the Stocksbrew target price, and Radar alerts that tell you when to look again.
-        </p>
       </header>
 
-      <section
-        className="flex w-full flex-col gap-4 rounded-2xl border border-outline-variant bg-surface p-4 md:gap-5 md:p-5"
-        style={{ boxShadow: "var(--shadow-card)" }}
-      >
+      <section className="flex w-full flex-col gap-5">
         <div className={`grid gap-2.5 ${plans.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
           {plans.map((plan) => {
             const selected = selectedPlan === plan.id;
@@ -289,17 +288,15 @@ export function SubscribePricing({
           })}
         </div>
 
-        <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3.5">
+        <div className="border-y border-outline-variant py-4">
           <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-            {trackedCount > 0 ? "What Pro unlocks for you" : "What you get with Pro"}
+            {trackedCount > 0 ? "What Pro adds to Radar" : "What Pro includes"}
           </p>
-          <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-x-4">
-            {contextLines.map((line) => (
-              <li key={line.text} className="flex items-start gap-2.5">
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-outline-variant bg-surface shadow-sm">
-                  <AnimatedIcon name={line.icon} size={14} className="text-on-surface" aria-hidden />
-                </span>
-                <span className="pt-0.5 text-[12.5px] leading-snug text-on-surface">{line.text}</span>
+          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-x-4">
+            {PRO_HIGHLIGHTS.map((line) => (
+              <li key={line.text} className="flex items-start gap-2">
+                <AnimatedIcon name={line.icon} size={15} className="mt-0.5 shrink-0 text-[var(--signal-bullish)]" aria-hidden />
+                <span className="text-[12px] leading-snug text-on-surface">{line.text}</span>
               </li>
             ))}
           </ul>
@@ -329,29 +326,16 @@ export function SubscribePricing({
                 : DEV_FAKE_SUBSCRIBE
                   ? "Sign in and activate Pro"
                   : market === "US"
-                    ? "Sign in to start free trial"
+                    ? "Start your 3-day free trial"
                     : "Sign in and subscribe"}
           </ProCtaButton>
           <p className="text-center font-mono text-[10px] leading-relaxed text-on-surface-variant">
             {trialNote}
             {market === "US"
-              ? `${activePlan.price} after trial · cancel anytime`
-              : "Starts today · cancel anytime · 7-day refund"}
+              ? `${activePlan.price} after the trial`
+              : "Starts today"}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 pt-0.5">
-            {SUBSCRIBE_TRUST_STRIP.map((item) => (
-              <span key={item.label} className="inline-flex items-center gap-1 font-mono text-[10px] text-on-surface-variant">
-                <AnimatedIcon name={item.icon} size={13} aria-hidden />
-                {item.href ? (
-                  <a href={item.href} className="hover:text-accent-terminal hover:underline">
-                    {item.label}
-                  </a>
-                ) : (
-                  item.label
-                )}
-              </span>
-            ))}
-          </div>
+          <p className="text-center font-mono text-[10px] text-on-surface-variant">7-day refund · cancel anytime</p>
         </div>
 
         {error ? <p className="text-center text-[13px] font-medium text-[#ef4444]">{error}</p> : null}

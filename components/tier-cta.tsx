@@ -86,7 +86,7 @@ export function TierCTA({
         title={`Want the full read on ${ticker}?`}
         body="Sign in to add it to Radar. Pro unlocks detailed zones, drivers, risks, our target price, and alerts."
         primary={{
-          label: "Sign in with Google",
+          label: "Start your 3-day free trial",
           onClick: async () => {
             try {
               const auth = getFirebaseAuth();

@@ -431,7 +431,7 @@ export function WatchlistShowcase() {
               disabled={signingIn}
               className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform disabled:opacity-60"
             >
-              {user ? "Get Pro" : signingIn ? "Signing in…" : "Sign in"}
+              {user ? "Get Pro" : signingIn ? "Signing in…" : "Start your 3-day free trial"}
             </button>
             <span className="text-[12px] text-white/65">
               Pro {US_PRO_MONTHLY_MO} · cancel anytime

@@ -171,7 +171,6 @@ const RAIL_KICKER = "font-mono text-[10.5px] uppercase tracking-[0.12em] text-on
 const TIER = "font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--signal-bullish)]";
 const CHIP = "rounded-lg bg-surface-container-low";
 const STOCK_SECTION = "border-t border-outline-variant bg-transparent";
-const STOCK_SECTION_PAD = "py-5 sm:py-6";
 
 function CrowdRing({ score }: { score: number; label?: string }) {
   const r = 26;
@@ -213,6 +212,7 @@ export function StockDetail(props: Props) {
   const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, lockedCall } = props;
 
   const money = (v: number) => `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const levelMoney = (v: number) => `${currency}${Math.round(v).toLocaleString()}`;
   const dayPct = stock.day_change_pct ?? 0;
   const dayAbs = stock.day_change_abs ?? 0;
   const up = dayPct >= 0;
@@ -261,14 +261,14 @@ export function StockDetail(props: Props) {
   const stance = (directive?.stance ?? "watch").toLowerCase();
   const accent = STANCE_ACCENT[stance] ?? STANCE_ACCENT.watch;
   const setupChip = setupStateLabel(setupState, stance);
-  const priceAwareCall = directive ? resolvePriceAwareCall(directive, stock.price, money) : null;
+  const priceAwareCall = directive ? resolvePriceAwareCall(directive, stock.price, money, levelMoney) : null;
   const directiveChartZones = directive
     ? filterChartZones(
-        buildDirectiveChartZones(directive, money),
+        buildDirectiveChartZones(directive, levelMoney),
         priceAwareCall?.chartZoneKeys ?? [],
       )
     : [];
-  const directiveSmartAlerts = directive ? buildDirectiveSmartAlerts(directive, money) : [];
+  const directiveSmartAlerts = directive ? buildDirectiveSmartAlerts(directive, levelMoney) : [];
 
   const hasAnomalyMove = Boolean(overview || overviewHeadline);
   const moveConfidenceLevel = overviewConfidence;
@@ -317,11 +317,6 @@ export function StockDetail(props: Props) {
     .filter((text): text is string => Boolean(text));
   if (flipBullets.length === 0 && whatFlips) flipBullets.push(whatFlips);
 
-  const analystTargetFooter =
-    !isTrimLikeCall && n(target) && stock.price > 0 && stock.price < target!
-      ? `${(((target! - stock.price) / stock.price) * 100).toFixed(0)}% below our analyst target of ${money(target!)}`
-      : null;
-
   const showCallMetrics = n(profitTarget) || n(breakPrice);
   const showCallInsights = whyBullets.length > 0 || flipBullets.length > 0;
   const decisionContext = (
@@ -341,7 +336,7 @@ export function StockDetail(props: Props) {
   if (n(profitTarget)) {
     callMetrics.push({
       label: isTrimLikeCall ? "Trim above" : "Target",
-      value: money(profitTarget!),
+      value: levelMoney(profitTarget!),
       hint: n(profitTargetPct)
         ? isTrimLikeCall
           ? `${profitTargetPct! >= 0 ? "+" : ""}${profitTargetPct!.toFixed(1)}% to trim zone`
@@ -353,7 +348,7 @@ export function StockDetail(props: Props) {
   if (n(breakPrice) && directive?.breaks_if?.trigger_type === "price_below") {
     callMetrics.push({
       label: "Exit below",
-      value: money(breakPrice!),
+      value: levelMoney(breakPrice!),
       hint: n(breakRiskPct) ? `-${breakRiskPct!.toFixed(1)}% risk` : undefined,
       hintTone: "bearish",
     });
@@ -395,7 +390,9 @@ export function StockDetail(props: Props) {
   const has52WeekRange =
     n(week52High) && n(week52Low) && week52High! > week52Low!;
   const hasRsiSlider = n(rsi);
-  const showWhereItSits = has52WeekRange || hasRsiSlider;
+  const showWhereItSits = has52WeekRange || hasRsiSlider || hasAnomalyMove;
+  const pricePositionItemCount =
+    Number(has52WeekRange) + Number(hasRsiSlider) + Number(hasAnomalyMove);
 
   const crowdScore = n(sentiment?.overall_score)
     ? Math.round(sentiment!.overall_score!)
@@ -416,6 +413,8 @@ export function StockDetail(props: Props) {
     if (reddit?.sentiment === "bearish") return 28;
     return null;
   })();
+  const hasCrowdSignal = Boolean(reddit || n(sentiment?.overall_score));
+  const hasMarketReddit = Boolean(hasRedditBuzz && reddit);
 
   const analystBarPct =
     n(target) && target! > 0
@@ -467,6 +466,7 @@ export function StockDetail(props: Props) {
     marketCap: cap(marketCap) ?? "-",
     pe: hasPe ? pe!.toFixed(1) : "-",
     revGrowth: n(rev) ? sign(rev!) : "-",
+    price: stock.price > 0 ? money(stock.price) : "-",
     score: hasReliableOverall && intelPro?.overall?.score != null ? Math.round(intelPro.overall.score) : null,
     isCurrent: true,
     href: `/stock/${stock.ticker}`,
@@ -477,6 +477,7 @@ export function StockDetail(props: Props) {
     marketCap: string;
     pe: string;
     revGrowth: string;
+    price: string;
     score: number | null;
     isCurrent: boolean;
     href: string;
@@ -490,6 +491,7 @@ export function StockDetail(props: Props) {
         marketCap: cap(p.market_cap) ?? "-",
         pe: n(p.pe_ttm) ? p.pe_ttm!.toFixed(1) : "-",
         revGrowth: n(p.revenue_growth_yoy_pct) ? sign(p.revenue_growth_yoy_pct!) : "-",
+        price: n(p.price) && p.price! > 0 ? money(p.price!) : "-",
         score: n(p.score) ? Math.round(p.score) : null,
         isCurrent: false,
         href: `/stock/${encodeURIComponent(p.ticker)}`,
@@ -504,6 +506,7 @@ export function StockDetail(props: Props) {
         marketCap: "-",
         pe: "-",
         revGrowth: "-",
+        price: "-",
         score: peerScoreMap.get(p.ticker) ?? null,
         isCurrent: false,
         href: `/stock/${p.ticker}`,
@@ -517,12 +520,17 @@ export function StockDetail(props: Props) {
         marketCap: "-",
         pe: "-",
         revGrowth: "-",
+        price: "-",
         score: Math.round(bp.score),
         isCurrent: false,
         href: `/stock/${bp.ticker}`,
       });
     }
   }
+
+  // Revenue growth is only useful when the peer set has at least one reported value.
+  // Fall back to the current quote instead of rendering an empty column.
+  const showPeerRevenueGrowth = peerRows.some((peer) => peer.revGrowth !== "-");
 
   const metaLine = [stock.ticker, stock.exchange, stock.sector, stock.industry ?? intelPro?.industry_label].filter(Boolean).join(" · ");
   const metaShort = [stock.exchange, stock.sector, stock.industry ?? intelPro?.industry_label].filter(Boolean).join(" · ");
@@ -548,17 +556,11 @@ export function StockDetail(props: Props) {
       fundamentalStats.length > 0 ||
       finTiles.length > 0 ||
       peerRows.length > 1 ||
-      showAnalyst,
+      showAnalyst ||
+      hasCrowdSignal,
   );
   const hasSmartAlerts = directiveSmartAlerts.length > 0 || Boolean(earningsSmartAlertRail);
-  const hasActivitySection = Boolean(
-    hasAnomalyMove ||
-      hasRedditBuzz ||
-      reddit ||
-      n(sentiment?.overall_score) ||
-      hasSmartAlerts ||
-      recentNews?.length,
-  );
+  const hasActivitySection = Boolean(recentNews?.length);
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1240px] px-4 py-4 sm:px-6 sm:py-7">
@@ -631,8 +633,8 @@ export function StockDetail(props: Props) {
           </div>
         </div>
 
-        <div className="hidden w-full items-center gap-3.5 sm:flex">
-          <div className="flex min-w-0 items-center gap-3.5">
+        <div className="hidden w-full items-start gap-3.5 sm:flex">
+          <div className="flex min-w-0 items-start gap-3.5">
             <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={44} className="rounded-lg border border-outline-variant bg-surface p-1" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -655,9 +657,13 @@ export function StockDetail(props: Props) {
                 {metaLine}
                 {updatedLabel ? ` · price ${updatedLabel}` : ""}
               </p>
+              <div className="mt-3 flex items-center gap-2">
+                <TrackButton {...trackButtonProps} variant="compact" />
+                <StockShareCard ticker={stock.ticker} market={market} />
+              </div>
             </div>
           </div>
-          <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
+          <div className="ml-auto shrink-0 text-right">
             <div className="text-right">
               <p className="text-2xl font-extrabold tracking-tight tabular-nums text-on-surface">{money(stock.price)}</p>
               <p className="mt-0.5 font-mono text-[13px] font-semibold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
@@ -672,15 +678,11 @@ export function StockDetail(props: Props) {
                 />
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <TrackButton {...trackButtonProps} variant="compact" />
-              <StockShareCard ticker={stock.ticker} market={market} />
-            </div>
           </div>
         </div>
       </header>
 
-      <div className="-mx-4 bg-[var(--background)] sm:-mx-6">
+      <div className="-mx-4 bg-surface sm:-mx-6">
         <nav
           aria-label="Stock research sections"
           className="flex min-w-0 gap-6 overflow-x-auto border-b border-outline-variant px-4 sm:px-6"
@@ -777,9 +779,22 @@ export function StockDetail(props: Props) {
                 }
               />
 
-              {showCallMetrics && callMetrics.length > 0 && (
+              {(showCallMetrics || hasSmartAlerts) && (
                 <div className="mt-6">
-                  <CallMetricsStrip metrics={callMetrics} />
+                  <CallMetricsStrip
+                    metrics={callMetrics}
+                    actions={
+                      hasSmartAlerts ? (
+                        <StockSmartAlertsRail
+                          ticker={stock.ticker}
+                          instrumentId={stock.instrument_id}
+                          alerts={directiveSmartAlerts}
+                          earningsAlert={earningsSmartAlertRail}
+                          isSubscribed={subscribed}
+                        />
+                      ) : null
+                    }
+                  />
                 </div>
               )}
 
@@ -787,7 +802,7 @@ export function StockDetail(props: Props) {
                 <div className="mt-6 grid gap-6 border-t border-outline-variant/50 pt-6 sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-outline-variant/40">
                   {whyBullets.length > 0 && (
                     <div className="sm:pr-6">
-                      <CallInsightCard tone="bullish" title="drivers" bullets={whyBullets} footer={analystTargetFooter} />
+                      <CallInsightCard tone="bullish" title="drivers" bullets={whyBullets} />
                     </div>
                   )}
                   {flipBullets.length > 0 && (
@@ -830,6 +845,7 @@ export function StockDetail(props: Props) {
           ) : (
             <div>{lockedCall}</div>
           )}
+
         </section>
       )}
 
@@ -844,7 +860,15 @@ export function StockDetail(props: Props) {
                 Where {stock.ticker} sits now
               </h2>
             </div>
-            <div className="grid gap-8 md:grid-cols-2 md:gap-12">
+            <div
+              className={`grid gap-8 ${
+                pricePositionItemCount >= 3
+                  ? "md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)] md:gap-8"
+                  : pricePositionItemCount === 2
+                    ? "md:grid-cols-2 md:gap-12"
+                    : ""
+              }`}
+            >
               {has52WeekRange && (
                 <RangeBar
                   label="52-week range"
@@ -855,67 +879,224 @@ export function StockDetail(props: Props) {
                 />
               )}
               {hasRsiSlider && <RsiStrength value={rsi!} state={rsiState} />}
+              {hasAnomalyMove && (
+                <StockTodaysMoveRailCard
+                  dayPct={dayPct}
+                  dayAbs={dayAbs}
+                  up={up}
+                  formatMoney={money}
+                  headline={overviewHeadline}
+                  body={moveNarrative}
+                  confidence={moveConfidenceLevel}
+                />
+              )}
             </div>
           </section>
         )}
 
         {(pillars || fundamentalStats.length > 0 || finTiles.length > 0) && (
           <section className={`${STOCK_SECTION} py-7 sm:py-9`}>
-            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
+            <div className="mb-5">
               <div>
                 <span className={TIER}>fundamentals</span>
                 <h2 className="mt-1 text-[22px] font-extrabold tracking-tight text-on-surface">
                   Business quality and valuation
                 </h2>
               </div>
-              {pillars && (
-                <span className="font-mono text-[13px] font-bold tabular-nums text-on-surface">
-                  {hasReliableOverall ? (intelPro!.overall?.score ?? "–") : "N/A"}{" "}
-                  <span className="font-normal text-on-surface-variant">
-                    {hasReliableOverall ? "/100 vs peers" : "insufficient data"}
-                    {overallCoverage != null ? ` · ${Math.round(overallCoverage * 100)}% coverage` : ""}
-                  </span>
-                </span>
-              )}
             </div>
 
-            {pillars && <FundamentalsBreakdown pillars={pillars} />}
-
-            {fundamentalStats.length > 0 && (
-              <div className={`${pillars ? "mt-6 border-t border-outline-variant pt-5" : ""}`}>
-                <p className={`${RAIL_KICKER} mb-3`}>key figures</p>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-0 sm:grid-cols-4">
-                  {fundamentalStats.map((item) => (
-                    <div
-                      key={item.k}
-                      className="flex items-center justify-between gap-3 border-b border-outline-variant py-2.5 sm:block"
+            <div
+              className={`overflow-hidden rounded-2xl border border-outline-variant bg-surface ${
+                pillars ? "lg:grid lg:grid-cols-[minmax(15rem,0.32fr)_minmax(0,0.68fr)]" : ""
+              }`}
+            >
+              <aside className="bg-surface-container-low/65 p-5 sm:p-6 lg:border-r lg:border-outline-variant">
+                {pillars && (
+                  <div className="mb-7">
+                    <p className={RAIL_KICKER}>overall score</p>
+                    <p
+                      className="mt-2 font-mono text-[30px] font-extrabold leading-none tabular-nums"
+                      style={{ color: scoreToneColor(hasReliableOverall ? (intelPro?.overall?.score ?? null) : null) }}
                     >
-                      <span className="text-[12.5px] leading-snug text-on-surface-variant">{item.k}</span>
-                      <span
-                        className="shrink-0 font-mono text-[13px] font-bold tabular-nums sm:mt-1 sm:block"
-                        style={{ color: toneColor[item.tone] }}
-                      >
-                        {item.v}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                      {hasReliableOverall ? (intelPro!.overall?.score ?? "N/A") : "N/A"}
+                      {hasReliableOverall && (
+                        <span className="ml-1 text-[12px] font-normal text-on-surface-variant">/100</span>
+                      )}
+                    </p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-on-surface-variant">
+                      {hasReliableOverall ? "Compared with sector peers" : "Insufficient data"}
+                      {overallCoverage != null ? ` · ${Math.round(overallCoverage * 100)}% coverage` : ""}
+                    </p>
+                  </div>
+                )}
 
-            {finTiles.length > 0 && (
-              <div className="mt-6 border-t border-outline-variant pt-5">
-                <p className={`${RAIL_KICKER} mb-3`}>financials · ttm</p>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-                  {finTiles.map(([k, v]) => (
-                    <div key={k} className="min-w-0">
-                      <p className="font-mono text-[10.5px] text-on-surface-variant">{k}</p>
-                      <p className="mt-0.5 text-[14px] font-extrabold tabular-nums text-on-surface">{v}</p>
+                {(fundamentalStats.length > 0 || finTiles.length > 0) && (
+                  <>
+                  {fundamentalStats.length > 0 && (
+                    <div>
+                      <p className={`${RAIL_KICKER} mb-4`}>key figures</p>
+                      <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+                        {fundamentalStats.map((item) => (
+                          <div key={item.k} className="min-w-0">
+                            <span className="block text-[11px] leading-snug text-on-surface-variant">{item.k}</span>
+                            <span
+                              className="mt-1 block font-mono text-[13px] font-bold tabular-nums"
+                              style={{ color: toneColor[item.tone] }}
+                            >
+                              {item.v}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {finTiles.length > 0 && (
+                    <div className={fundamentalStats.length > 0 ? "mt-7" : ""}>
+                      <p className={`${RAIL_KICKER} mb-4`}>ttm snapshot</p>
+                      <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+                        {finTiles.map(([k, v]) => (
+                          <div key={k} className="min-w-0">
+                            <p className="text-[11px] leading-snug text-on-surface-variant">{k}</p>
+                            <p className="mt-1 font-mono text-[13px] font-bold tabular-nums text-on-surface">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  </>
+                )}
+              </aside>
+
+              {pillars && (
+                <div className="min-w-0 p-5 sm:p-6 lg:p-7">
+                  <FundamentalsBreakdown pillars={pillars} isSubscribed={subscribed} />
                 </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {(showAnalyst || hasCrowdSignal) && (
+          <section className={`${STOCK_SECTION} py-7 sm:py-9`}>
+            <div className="mb-5">
+              <span className={TIER}>market view</span>
+              <h2 className="mt-1 text-[22px] font-extrabold tracking-tight text-on-surface">
+                Street expectations and crowd signal
+              </h2>
+            </div>
+
+            <div
+              className={`grid gap-7 ${
+                showAnalyst && hasCrowdSignal && hasMarketReddit
+                  ? "lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/60"
+                  : showAnalyst && hasCrowdSignal
+                    ? "lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/60"
+                    : ""
+              }`}
+            >
+              <div className={hasMarketReddit ? "flex min-w-0 flex-col divide-y divide-outline-variant/60" : "contents"}>
+              {showAnalyst && (
+                <div className={`min-w-0 ${hasMarketReddit ? "pb-7" : "lg:pr-8"}`}>
+                  <p className={`${RAIL_KICKER} mb-3`}>analyst consensus</p>
+                  {!subscribed ? (
+                    <LockedRoomToTarget
+                      ticker={stock.ticker}
+                      currentPriceLabel={money(stock.price)}
+                      analystCount={analyst?.analyst_count}
+                      ratingTotal={ratingTotal}
+                    />
+                  ) : (
+                    <>
+                      {ratingTotal > 0 && (
+                        <p className="text-[13px] text-on-surface-variant">
+                          {analyst?.analyst_count ?? ratingTotal} analysts ·{" "}
+                          <b style={{ color: "var(--signal-bullish)" }}>{buyPct}% Buy</b>
+                        </p>
+                      )}
+                      {n(target) && (
+                        <>
+                          <div className="mt-3 flex items-end gap-3">
+                            <div>
+                              <p className="font-mono text-[10px] text-on-surface-variant">now</p>
+                              <p className="text-[18px] font-extrabold tabular-nums text-on-surface">{money(stock.price)}</p>
+                            </div>
+                            <div className="flex-1 pb-1">
+                              <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
+                                <span
+                                  className="block h-full rounded-full"
+                                  style={{
+                                    width: `${analystBarPct}%`,
+                                    background: aboveTarget
+                                      ? "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 30%, transparent), var(--signal-bearish))"
+                                      : "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 30%, transparent), var(--signal-bullish))",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-mono text-[10px] text-on-surface-variant">target</p>
+                              <p
+                                className="text-[18px] font-extrabold tabular-nums"
+                                style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
+                              >
+                                {levelMoney(target!)}
+                              </p>
+                            </div>
+                          </div>
+                          {n(targetGapPct) && (
+                            <p
+                              className="mt-2 text-right text-[13px] font-semibold"
+                              style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
+                            >
+                              {aboveTarget
+                                ? `${Math.abs(targetGapPct).toFixed(1)}% above target`
+                                : `${sign(targetGapPct)} upside`}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {hasCrowdSignal && (
+                <div className={`min-w-0 ${hasMarketReddit ? "pt-7" : "lg:pl-8"}`}>
+                  <p className={`${RAIL_KICKER} mb-3`}>crowd signal</p>
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+                    <CrowdRing score={crowdScore} />
+                    <div>
+                      <p className={RAIL_KICKER}>sentiment</p>
+                      <p className="mt-1 text-[16px] font-bold capitalize" style={{ color: crowdColor }}>
+                        {crowdLabel}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={RAIL_KICKER}>conversation</p>
+                      <p className="mt-1 font-mono text-[15px] font-bold tabular-nums text-on-surface">
+                        {n(reddit?.mention_count) ? `${reddit!.mention_count} posts` : "Retail chatter"}
+                      </p>
+                    </div>
+                    {crowdPositive != null && (
+                      <div>
+                        <p className={RAIL_KICKER}>positive</p>
+                        <p className="mt-1 font-mono text-[15px] font-bold tabular-nums text-on-surface">
+                          {crowdPositive}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               </div>
-            )}
+              {hasMarketReddit && reddit ? (
+                <div className="min-w-0 lg:pl-8">
+                  <p className={`${RAIL_KICKER} mb-3`}>reddit buzz</p>
+                  <StockRedditBuzzRailCard ticker={stock.ticker} reddit={reddit} isSubscribed={subscribed} />
+                </div>
+              ) : null}
+            </div>
           </section>
         )}
 
@@ -928,27 +1109,30 @@ export function StockDetail(props: Props) {
               </h2>
             </div>
             <div className="-mx-1 min-w-0 overflow-x-auto px-1">
-              <table className="w-full min-w-[640px] table-fixed text-[13px]">
+              <table className="w-full min-w-[540px] table-fixed text-[13px] lg:min-w-[640px]">
                 <colgroup>
-                  <col className="w-[44%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[16%]" />
-                  <col className="w-[10%]" />
+                  <col className="w-[24%] lg:w-[44%]" />
+                  <col className="w-[22%] lg:w-[18%]" />
+                  <col className="w-[16%] lg:w-[12%]" />
+                  <col className="w-[24%] lg:w-[16%]" />
+                  <col className="w-[14%] lg:w-[10%]" />
                 </colgroup>
                 <thead>
                   <tr className="border-b border-outline-variant text-left font-mono text-[10.5px] text-on-surface-variant">
                     <th className="px-2 pb-2 font-normal">company</th>
                     <th className="px-2 pb-2 text-right font-normal">mkt cap</th>
                     <th className="px-2 pb-2 text-right font-normal">P/E</th>
-                    <th className="px-2 pb-2 text-right font-normal">rev growth</th>
+                    <th className="px-2 pb-2 text-right font-normal">
+                      {showPeerRevenueGrowth ? "rev growth" : "price"}
+                    </th>
                     <th className="px-2 pb-2 text-right font-normal">score</th>
                   </tr>
                 </thead>
                 <tbody>
                   {peerRows.map((peer) => {
-                    const revUp = peer.revGrowth.startsWith("+");
-                    const revDown = peer.revGrowth.startsWith("-");
+                    const comparisonValue = showPeerRevenueGrowth ? peer.revGrowth : peer.price;
+                    const revUp = showPeerRevenueGrowth && comparisonValue.startsWith("+");
+                    const revDown = showPeerRevenueGrowth && comparisonValue.startsWith("-");
                     return (
                       <tr
                         key={peer.ticker}
@@ -963,7 +1147,7 @@ export function StockDetail(props: Props) {
                             <StockLogo ticker={peer.ticker} market={market} size={24} className="flex-none shrink-0" />
                             <span className="min-w-0 flex-1 overflow-hidden">
                               <span className="block whitespace-nowrap font-mono text-[13px] font-semibold">{peer.ticker}</span>
-                              <span className="block truncate text-[12px] font-normal text-on-surface-variant" title={peer.name}>
+                              <span className="hidden truncate text-[12px] font-normal text-on-surface-variant lg:block" title={peer.name}>
                                 {peer.name}
                               </span>
                             </span>
@@ -975,7 +1159,7 @@ export function StockDetail(props: Props) {
                           className="px-2 py-3 text-right font-mono tabular-nums"
                           style={{ color: revUp ? "var(--signal-bullish)" : revDown ? "var(--signal-bearish)" : "var(--on-surface-variant)" }}
                         >
-                          {peer.revGrowth}
+                          {comparisonValue}
                         </td>
                         <td className="px-2 py-3 text-right">
                           {peer.score != null ? (
@@ -991,80 +1175,6 @@ export function StockDetail(props: Props) {
                   })}
                 </tbody>
               </table>
-            </div>
-          </section>
-        )}
-
-        {showAnalyst && (
-          <section className={`${STOCK_SECTION} py-7 sm:py-9`}>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:gap-12">
-              <div>
-                <span className={TIER}>analyst consensus</span>
-                <h2 className="mt-1 text-[22px] font-extrabold tracking-tight text-on-surface">
-                  What the Street expects
-                </h2>
-              </div>
-              <div className="min-w-0 max-w-3xl">
-                {!subscribed ? (
-                  <LockedRoomToTarget
-                    ticker={stock.ticker}
-                    currentPriceLabel={money(stock.price)}
-                    analystCount={analyst?.analyst_count}
-                    ratingTotal={ratingTotal}
-                  />
-                ) : (
-                  <>
-                    {ratingTotal > 0 && (
-                      <p className="text-[13px] text-on-surface-variant">
-                        {analyst?.analyst_count ?? ratingTotal} analysts ·{" "}
-                        <b style={{ color: "var(--signal-bullish)" }}>{buyPct}% Buy</b>
-                      </p>
-                    )}
-                    {n(target) && (
-                      <>
-                        <div className="mt-3 flex items-end gap-3">
-                          <div>
-                            <p className="font-mono text-[10px] text-on-surface-variant">now</p>
-                            <p className="text-[18px] font-extrabold tabular-nums text-on-surface">{money(stock.price)}</p>
-                          </div>
-                          <div className="flex-1 pb-1">
-                            <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
-                              <span
-                                className="block h-full rounded-full"
-                                style={{
-                                  width: `${analystBarPct}%`,
-                                  background: aboveTarget
-                                    ? "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 30%, transparent), var(--signal-bearish))"
-                                    : "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 30%, transparent), var(--signal-bullish))",
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-mono text-[10px] text-on-surface-variant">target</p>
-                            <p
-                              className="text-[18px] font-extrabold tabular-nums"
-                              style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
-                            >
-                              {money(target!)}
-                            </p>
-                          </div>
-                        </div>
-                        {n(targetGapPct) && (
-                          <p
-                            className="mt-2 text-right text-[13px] font-semibold"
-                            style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
-                          >
-                            {aboveTarget
-                              ? `${Math.abs(targetGapPct).toFixed(1)}% above target`
-                              : `${sign(targetGapPct)} upside`}
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
             </div>
           </section>
         )}
@@ -1182,62 +1292,12 @@ export function StockDetail(props: Props) {
             </h2>
           </div>
 
-          {hasAnomalyMove && (
-            <StockTodaysMoveRailCard
-              dayPct={dayPct}
-              dayAbs={dayAbs}
-              up={up}
-              formatMoney={money}
-              headline={overviewHeadline}
-              body={moveNarrative}
-              confidence={moveConfidenceLevel}
-            />
-          )}
-
-          {(reddit || n(sentiment?.overall_score)) && (
-            <section className={`${STOCK_SECTION} ${STOCK_SECTION_PAD}`}>
-              <p className={`${RAIL_KICKER} mb-3`}>crowd signal</p>
-              <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
-                <CrowdRing score={crowdScore} />
-                <div>
-                  <p className={RAIL_KICKER}>sentiment</p>
-                  <p className="mt-1 text-[16px] font-bold capitalize" style={{ color: crowdColor }}>
-                    {crowdLabel}
-                  </p>
-                </div>
-                <div>
-                  <p className={RAIL_KICKER}>conversation</p>
-                  <p className="mt-1 font-mono text-[15px] font-bold tabular-nums text-on-surface">
-                    {n(reddit?.mention_count) ? `${reddit!.mention_count} posts` : "Retail chatter"}
-                  </p>
-                </div>
-                {crowdPositive != null && (
-                  <div>
-                    <p className={RAIL_KICKER}>positive</p>
-                    <p className="mt-1 font-mono text-[15px] font-bold tabular-nums text-on-surface">
-                      {crowdPositive}%
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {hasRedditBuzz && reddit && <StockRedditBuzzRailCard ticker={stock.ticker} reddit={reddit} />}
-
           {(recentNews?.length ?? 0) > 0 && (
-            <StockNewsRailCard ticker={stock.ticker} articles={recentNews!} />
+            <div className="mt-5">
+              <StockNewsRailCard ticker={stock.ticker} articles={recentNews!} fullWidth />
+            </div>
           )}
 
-          {hasSmartAlerts && (
-            <StockSmartAlertsRail
-              ticker={stock.ticker}
-              instrumentId={stock.instrument_id}
-              alerts={directiveSmartAlerts}
-              earningsAlert={earningsSmartAlertRail}
-              isSubscribed={subscribed}
-            />
-          )}
         </section>
       )}
     </div>

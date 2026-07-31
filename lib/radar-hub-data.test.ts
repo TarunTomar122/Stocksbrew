@@ -16,7 +16,7 @@ function row(price: number): WatchlistRow {
 }
 
 describe("resolveBookCallHint", () => {
-  it("prefers nearer buy-below zone over distant trim-above when stance is trim", () => {
+  it("does not turn a trim directive into an accumulate call from its contextual add zone", () => {
     const directive: Directive = {
       text: "Trim strength",
       stance: "trim",
@@ -34,9 +34,7 @@ describe("resolveBookCallHint", () => {
       },
     };
 
-    const hint = resolveBookCallHint(row(372.45), directive);
-    expect(hint?.callKind).toBe("buy_dip");
-    expect(hint?.hint).toContain("372");
+    expect(resolveBookCallHint(row(372.45), directive)?.urgent).toBe(false);
   });
 
   it("shows trim when price is inside trim-above zone", () => {

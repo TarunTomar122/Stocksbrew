@@ -48,12 +48,6 @@ export default async function SubscribePage({ searchParams }: Props) {
   const ipCountry = headerStore.get("x-vercel-ip-country") ?? "";
   const market: "US" | "IN" = ipCountry === "IN" ? "IN" : "US";
 
-  const trustItems = [
-    { icon: "lock", text: "Secure checkout" },
-    { icon: "sync_alt", text: "7-day refund" },
-    { icon: "cancel", text: "Cancel anytime" },
-  ];
-
   return (
     <main className="flex-grow bg-background">
       <SubscriptionSuccessModal
@@ -97,17 +91,6 @@ export default async function SubscribePage({ searchParams }: Props) {
             Array.isArray(userDoc?.tracked_stocks) ? userDoc.tracked_stocks.length : 0
           }
         />
-
-        {!isSubscribed ? (
-          <div className="flex flex-wrap items-center justify-center gap-4 font-mono text-[10px] text-on-surface-variant">
-            {trustItems.map(({ icon, text }) => (
-              <span key={text} className="inline-flex items-center gap-1.5">
-                <AnimatedIcon name={icon} size={15} aria-hidden />
-                {text}
-              </span>
-            ))}
-          </div>
-        ) : null}
       </div>
     </main>
   );

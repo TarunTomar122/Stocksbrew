@@ -103,7 +103,7 @@ export function LockedAiBrief({
     ? {
         title: `See the AI brief for ${ticker}`,
         body: "Free covers the launch list. Pro brings this same AI layer to any ticker you add to Radar.",
-        label: "Sign in with Google",
+        label: "Start your 3-day free trial",
         onClick: async () => {
           trackPaywallUnlockClicked({
             surface: "locked_ai_brief",

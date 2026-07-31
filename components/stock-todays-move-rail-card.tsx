@@ -27,7 +27,7 @@ function MoveConfidenceInline({ confidence }: { confidence?: string }) {
 
 const sign = (v: number, d = 1) => `${v >= 0 ? "+" : ""}${v.toFixed(d)}%`;
 
-/** Unusual-move explainer for the stock page right rail. */
+/** Compact unusual-move explainer that lives with the stock's price-position controls. */
 export function StockTodaysMoveRailCard({
   dayPct,
   dayAbs,
@@ -52,7 +52,7 @@ export function StockTodaysMoveRailCard({
   return (
     <section
       id="stock-todays-move"
-      className="scroll-mt-24 border-t border-outline-variant py-5 sm:py-6"
+      className="scroll-mt-24 border-t border-outline-variant pt-5 md:border-l md:border-t-0 md:pl-6 md:pt-0"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">today&apos;s move</p>

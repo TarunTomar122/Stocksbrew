@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 export type CommandHeaderProps = {
   greeting: string;
@@ -7,6 +8,7 @@ export type CommandHeaderProps = {
   trackedCount: number;
   isSubscribed: boolean;
   mode?: "live" | "sample";
+  actions?: ReactNode;
 };
 
 export function CommandHeader({
@@ -16,75 +18,54 @@ export function CommandHeader({
   trackedCount,
   isSubscribed,
   mode = "live",
+  actions,
 }: CommandHeaderProps) {
   return (
-    <section className="rn-window rn-scan">
-      <div className="rn-chrome flex items-center justify-between gap-2 px-2.5 py-2 font-mono text-[12px] sm:px-4 sm:py-2.5">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="flex items-center gap-1.5" aria-hidden>
-            <span className="rn-light rn-light--r" />
-            <span className="rn-light rn-light--y" />
-            <span className="rn-light rn-light--g" />
-          </span>
-          <span className="ml-1 truncate text-[var(--rn-muted)] sm:ml-3">sb://radar</span>
+    <header className="border-b border-[var(--rn-line)] pb-6 pt-3 sm:pb-8 sm:pt-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="rn-kick">Radar</span>
+        <span className="text-[var(--rn-line)]" aria-hidden>
+          /
         </span>
         <span
-          className={`flex shrink-0 items-center gap-1.5 ${
+          className={`flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${
             mode === "live" ? "text-[var(--rn-bull)]" : "text-[var(--rn-muted)]"
           }`}
         >
           <span className="rn-pulse" aria-hidden />
-          {mode === "live" ? "LIVE" : "SAMPLE"}
+          {mode === "live" ? "live" : "illustrative sample"}
+        </span>
+        <span className="ml-auto font-mono text-[10.5px] font-medium uppercase tracking-[0.06em] text-[var(--rn-muted)]">
+          {dateLabel}
         </span>
       </div>
 
-      <div className="px-2.5 pt-6 pb-4 sm:px-7 sm:pt-10 sm:pb-8">
-        <div className="font-mono text-[11px] text-[var(--rn-muted)] sm:text-[12px]">
-          $ <span className="text-[var(--rn-ink)]">brew radar --today</span>
-          <span
-            className="ml-0.5 inline-block w-[7px] animate-pulse bg-[var(--rn-ink)] align-[-0.12em]"
-            style={{ height: "1em" }}
-            aria-hidden
-          />
+      <div className="mt-6 flex flex-col gap-5 sm:mt-8 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-3xl min-w-0">
+          <h1 className="text-[34px] font-extrabold leading-[0.98] tracking-[-0.045em] text-[var(--rn-ink)] sm:text-[48px]">
+            Your stocks, sorted by what matters.
+          </h1>
+          <p className="mt-3 text-[13.5px] leading-relaxed text-[var(--rn-muted)] sm:text-[15px]">
+            <span className="font-semibold text-[var(--rn-ink)]">{greeting}.</span> {statusLine}
+          </p>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-6">
-          <div className="min-w-0">
-            <h1 className="text-[22px] font-extrabold leading-none tracking-tight text-[var(--rn-ink)] sm:text-[38px]">
-              {greeting}
-            </h1>
-            <p className="mt-2 font-mono text-[12px] leading-relaxed text-[var(--rn-muted)] sm:text-[12.5px]">{statusLine}</p>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <span className="rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold text-[var(--rn-muted)] shadow-[inset_0_0_0_1px_var(--rn-line)]">
-              {dateLabel}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {actions}
+          {isSubscribed ? (
+            <span className="rounded-full bg-[color-mix(in_srgb,var(--rn-bull)_12%,transparent)] px-2.5 py-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-wide text-[var(--rn-bull)]">
+              Pro · {trackedCount} tracked
             </span>
-            {isSubscribed ? (
-              <span
-                className="rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold"
-                style={{
-                  color: "var(--rn-bull)",
-                  background: "color-mix(in srgb, var(--rn-bull) 14%, transparent)",
-                }}
-              >
-                PRO · {trackedCount} tracked
-              </span>
-            ) : (
-              <Link
-                href="/subscribe"
-                className="rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold transition-colors"
-                style={{
-                  color: "var(--signal-neutral)",
-                  background: "color-mix(in srgb, var(--signal-neutral) 12%, transparent)",
-                }}
-              >
-                Upgrade →
-              </Link>
-            )}
-          </div>
+          ) : mode === "live" ? (
+            <Link
+              href="/subscribe"
+              className="rounded-full px-3 py-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-wide text-[var(--rn-muted)] no-underline shadow-[inset_0_0_0_1px_var(--rn-line)] transition-colors hover:text-[var(--rn-ink)]"
+            >
+              Free · {trackedCount}/3
+            </Link>
+          ) : null}
         </div>
       </div>
-    </section>
+    </header>
   );
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
+
 type RedditCtx = {
   sentiment?: string;
   summary?: string;
@@ -87,19 +89,21 @@ export function hasRedditBuzzData(reddit: RedditCtx | null | undefined): boolean
   return Boolean(reddit?.summary?.trim() || n(reddit?.mention_count));
 }
 
-/** Compact Reddit buzz card for the stock page left rail. */
+/** Cohesive Reddit buzz card for the stock page activity cluster. */
 export function StockRedditBuzzRailCard({
   ticker,
   reddit,
+  isSubscribed,
 }: {
   ticker: string;
   reddit: RedditCtx;
+  isSubscribed: boolean;
 }) {
   const mentions = n(reddit.mention_count) ? reddit.mention_count! : null;
   const catalysts = (reddit.catalysts ?? []).filter(Boolean).slice(0, 3);
 
   return (
-    <section className="border-t border-outline-variant py-5 sm:py-6">
+    <section className="min-w-0">
       <div
         className="border-b border-outline-variant pb-3.5"
       >
@@ -128,8 +132,10 @@ export function StockRedditBuzzRailCard({
       </div>
 
       <div className="pt-4">
+        {isSubscribed ? (
+          <>
         {reddit.summary?.trim() && (
-          <p className="text-[12.5px] leading-[1.58] text-on-surface/90">{reddit.summary}</p>
+          <p className="max-w-[65ch] text-[12.5px] leading-[1.58] text-on-surface/90">{reddit.summary}</p>
         )}
 
         {catalysts.length > 0 && (
@@ -166,6 +172,27 @@ export function StockRedditBuzzRailCard({
             →
           </span>
         </Link>
+          </>
+        ) : (
+          <div className="relative h-[9.5rem] overflow-hidden rounded-lg bg-surface-container-low">
+            <div aria-hidden className="pointer-events-none select-none space-y-3 p-4 blur-[6px]">
+              <div className="h-3 w-full rounded bg-surface-container-high" />
+              <div className="h-3 w-10/12 rounded bg-surface-container-high" />
+              <div className="mt-5 h-2.5 w-24 rounded bg-surface-container-high" />
+              <div className="h-2.5 w-3/5 rounded bg-surface-container-high" />
+              <div className="h-2.5 w-2/3 rounded bg-surface-container-high" />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-surface/20 px-4">
+              <FeedUnlockBar
+                surface="stock_tab"
+                compact
+                signedOutLabel="Start your 3-day free trial"
+                signedInLabel="Unlock Reddit Buzz"
+                buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary !text-on-primary !shadow-none"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

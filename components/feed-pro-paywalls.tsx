@@ -222,7 +222,7 @@ function ContextualFeedPaywallShell({
 
           <div className="flex flex-col gap-2 pt-0.5 sm:max-w-[300px]">
             <ProCtaButton type="button" disabled={busy} onClick={handleUnlock} fullWidth showStar>
-              {busy ? "Signing you in…" : user ? "Choose Pro" : "Sign in & choose Pro"}
+              {busy ? "Signing you in…" : user ? "Choose Pro" : "Start your 3-day free trial"}
               {!busy && <span aria-hidden>→</span>}
             </ProCtaButton>
             <span className="text-center text-[11px] font-medium text-[#9ca3af] sm:text-left">

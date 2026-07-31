@@ -399,6 +399,7 @@ export function resolvePriceAwareCall(
   directive: Directive,
   currentPrice: number,
   formatMoney: (value: number) => string,
+  formatLevel: (value: number) => string = formatMoney,
 ): PriceAwareCallCopy {
   const stance = (directive.stance ?? "watch").toLowerCase();
   const addPrice = directiveZonePrice(directive.add_on);
@@ -420,7 +421,7 @@ export function resolvePriceAwareCall(
     headline = stance === "avoid" ? "Avoid" : "Reassess";
     body =
       directive.breaks_if?.text?.trim() ||
-      `Below ${formatMoney(breakPrice)} the setup is broken — wait for reclaim or cut risk.`;
+      `Below ${formatLevel(breakPrice)} the setup is broken. Wait for reclaim or cut risk.`;
     return { headline, body, rationale, chartZoneKeys };
   }
 
@@ -428,31 +429,31 @@ export function resolvePriceAwareCall(
     if (directive.add_on?.trigger_type === "price_below") {
       if (currentPrice > addPrice) {
         headline = "Accumulate";
-        body = `Buy here for upside. Add more below ${formatMoney(addPrice)} if it dips.`;
+        body = `Buy here for upside. Add more below ${formatLevel(addPrice)} if it dips.`;
       } else {
         headline = "Accumulate now";
-        body = `In the buy zone at ${priceLabel} — good place to add.`;
+        body = `In the buy zone at ${priceLabel}. Good place to add.`;
       }
     } else if (directive.add_on?.trigger_type === "price_above") {
       if (currentPrice < addPrice) {
         headline = "Watch";
-        body = `Hold at ${priceLabel} until price reclaims ${formatMoney(addPrice)}.`;
+        body = `Hold at ${priceLabel} until price reclaims ${formatLevel(addPrice)}.`;
       } else {
         headline = "Accumulate now";
-        body = `Breakout held at ${priceLabel} — add here.`;
+        body = `Breakout held at ${priceLabel}. Add here.`;
       }
     }
   } else if (stance === "trim" && trimPrice != null && directive.trim_on?.trigger_type === "price_above") {
     if (currentPrice >= trimPrice) {
       headline = "Trim";
-      body = `At ${priceLabel} you're in the trim zone — take profits into strength.`;
+      body = `At ${priceLabel} you're in the trim zone. Take profits into strength.`;
     } else if (!directive.text?.trim()) {
       headline = "Trim into strength";
-      body = `Hold at ${priceLabel}; trim above ${formatMoney(trimPrice)} if it extends.`;
+      body = `Hold at ${priceLabel}; trim above ${formatLevel(trimPrice)} if it extends.`;
     }
   }
 
-  const levels = formatLevelsLine(directive, formatMoney, visible);
+  const levels = formatLevelsLine(directive, formatLevel, visible);
   return { headline, body, levels, rationale, chartZoneKeys };
 }
 

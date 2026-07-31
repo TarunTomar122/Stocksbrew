@@ -2,10 +2,11 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
+
 import { StockLogo } from "@/components/stock-logo";
 import type { BookFlag, BookFlagTone, BookRow } from "@/components/radar-next/types";
 
-type SortKey = "name" | "last" | "chg";
+type SortKey = "name" | "last" | "chg" | "score";
 type SortDir = "asc" | "desc";
 type SortState = { key: SortKey; dir: SortDir } | null;
 
@@ -21,66 +22,22 @@ function compareNullable(a: number | null, b: number | null, mul: number): numbe
 }
 
 function sortBookRows(rows: BookRow[], sort: SortState): BookRow[] {
-  if (!sort) return rows;
+  if (!sort) {
+    return [...rows].sort((left, right) => Number(right.needsAttention) - Number(left.needsAttention));
+  }
   const copy = [...rows];
   const mul = sort.dir === "asc" ? 1 : -1;
   copy.sort((a, b) => {
     if (sort.key === "name") return mul * a.ticker.localeCompare(b.ticker);
     if (sort.key === "last") return compareNullable(a.price, b.price, mul);
+    if (sort.key === "score") return compareNullable(a.score, b.score, mul);
     return compareNullable(a.dayChangePct, b.dayChangePct, mul);
   });
   return copy;
 }
 
-function SortHeader({
-  label,
-  sortKey,
-  align = "left",
-  active,
-  dir,
-  onPick,
-  rounded,
-}: {
-  label: string;
-  sortKey: SortKey;
-  align?: "left" | "right";
-  active: boolean;
-  dir: SortDir;
-  onPick: (key: SortKey) => void;
-  rounded?: "tl" | "tr";
-}) {
-  const roundClass =
-    rounded === "tl" ? "rounded-tl-[11px]" : rounded === "tr" ? "rounded-tr-[11px]" : "";
-  return (
-    <th
-      className={`sticky top-0 z-20 bg-[var(--rn-card)] px-2 pb-2 pt-2.5 font-normal shadow-[0_1px_0_var(--rn-line),0_6px_12px_-4px_var(--rn-card)] sm:px-4 sm:pt-3 ${roundClass} ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={() => onPick(sortKey)}
-        className={`rn-kick inline-flex items-center gap-1 transition-colors ${
-          align === "right" ? "w-full justify-end" : "justify-start"
-        } ${active ? "text-[var(--rn-ink)]" : "text-[var(--rn-muted)] hover:text-[var(--rn-ink)]"}`}
-        aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      >
-        {label}
-        <span
-          className={`text-[9px] leading-none transition-colors ${
-            active ? "text-[var(--rn-ink)]" : "text-[var(--rn-muted)] opacity-70"
-          }`}
-          aria-hidden
-        >
-          {active ? (dir === "desc" ? "▼" : "▲") : "▼"}
-        </span>
-      </button>
-    </th>
-  );
-}
-
 function flagStyle(tone: BookFlagTone): { color: string; background: string } {
-  const c =
+  const color =
     tone === "pos"
       ? "var(--rn-bull)"
       : tone === "neg"
@@ -89,26 +46,40 @@ function flagStyle(tone: BookFlagTone): { color: string; background: string } {
           ? "var(--signal-neutral)"
           : tone === "earnings"
             ? "var(--on-surface-variant)"
-            : "#2563eb"; // info
-  return { color: c, background: `color-mix(in srgb, ${c} 13%, transparent)` };
+            : "#2563eb";
+  return { color, background: `color-mix(in srgb, ${color} 12%, transparent)` };
 }
 
 function FlagChip({ flag }: { flag: BookFlag }) {
-  const s = flagStyle(flag.tone);
+  const style = flagStyle(flag.tone);
   return (
     <span
       title={flag.title}
-      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] font-semibold leading-none"
-      style={{ color: s.color, background: s.background }}
+      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold leading-none"
+      style={style}
     >
       {flag.label}
     </span>
   );
 }
 
-function changeColor(v: number | null): string {
-  if (v === null) return "var(--rn-muted)";
-  return v >= 0 ? "var(--rn-bull)" : "var(--rn-bear)";
+function changeColor(value: number | null): string {
+  if (value === null) return "var(--rn-muted)";
+  return value >= 0 ? "var(--rn-bull)" : "var(--rn-bear)";
+}
+
+function stanceColor(stance: string | null): string {
+  const normalized = (stance ?? "").toLowerCase();
+  if (["accumulate", "buy", "add"].includes(normalized)) return "var(--rn-bull)";
+  if (["trim", "sell", "reduce", "exit", "avoid"].includes(normalized)) return "var(--rn-bear)";
+  return "var(--rn-muted)";
+}
+
+function scoreColor(score: number | null): string {
+  if (score === null) return "var(--rn-muted)";
+  if (score >= 70) return "var(--rn-bull)";
+  if (score >= 50) return "var(--signal-neutral)";
+  return "var(--rn-bear)";
 }
 
 function attentionAccent(direction: BookRow["attentionDirection"]): string {
@@ -117,7 +88,101 @@ function attentionAccent(direction: BookRow["attentionDirection"]): string {
   return "var(--signal-neutral)";
 }
 
-function BookTable({
+function priceText(row: BookRow): string {
+  if (row.price === null) return "–";
+  return `${row.currency}${row.price.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function changeText(value: number | null): string {
+  if (value === null) return "–";
+  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  align = "left",
+  sort,
+  onPick,
+}: {
+  label: string;
+  sortKey: SortKey;
+  align?: "left" | "right";
+  sort: SortState;
+  onPick: (key: SortKey) => void;
+}) {
+  const active = sort?.key === sortKey;
+  const direction = active ? sort.dir : defaultDirFor(sortKey);
+  return (
+    <th
+      className={`px-3 py-3 font-normal ${align === "right" ? "text-right" : "text-left"}`}
+      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() => onPick(sortKey)}
+        className={`rn-kick inline-flex items-center gap-1 ${align === "right" ? "justify-end" : ""} ${
+          active ? "text-[var(--rn-ink)]" : "hover:text-[var(--rn-ink)]"
+        }`}
+      >
+        {label}
+        <span className="text-[8px]" aria-hidden>
+          {direction === "desc" ? "▼" : "▲"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function MobileRow({ row }: { row: BookRow }) {
+  const accent = row.needsAttention ? attentionAccent(row.attentionDirection) : null;
+  return (
+    <Link
+      href={row.href}
+      className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 px-3 py-4 no-underline"
+      style={accent ? ({ backgroundColor: `color-mix(in srgb, ${accent} 9%, var(--rn-card))` } as CSSProperties) : undefined}
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        <StockLogo ticker={row.ticker} market={row.market} size={30} className="shrink-0" />
+        <span className="min-w-0">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[13.5px] font-bold text-[var(--rn-ink)]">{row.ticker}</span>
+            <span className="font-mono text-[9px] font-semibold uppercase" style={{ color: stanceColor(row.stance) }}>
+              {row.stance ?? "watch"}
+            </span>
+          </span>
+          <span className="mt-0.5 block truncate text-[10.5px] text-[var(--rn-muted)]">{row.name}</span>
+        </span>
+      </span>
+
+      <span className="text-right">
+        <span className="block font-mono text-[12.5px] font-semibold tabular-nums text-[var(--rn-ink)]">
+          {priceText(row)}
+        </span>
+        <span className="block font-mono text-[10.5px] font-semibold tabular-nums" style={{ color: changeColor(row.dayChangePct) }}>
+          {changeText(row.dayChangePct)}
+        </span>
+      </span>
+
+      <span className="font-mono text-[10.5px] font-bold tabular-nums" style={{ color: scoreColor(row.score) }}>
+        {row.score === null ? "–" : Math.round(row.score)}
+      </span>
+
+      {row.flags.length > 0 ? (
+        <span className="col-span-2 flex flex-wrap gap-1.5 pl-[40px]">
+          {row.flags.map((flag, index) => (
+            <FlagChip key={`${flag.label}-${index}`} flag={flag} />
+          ))}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function DesktopTable({
   rows,
   sort,
   onPickSort,
@@ -126,158 +191,118 @@ function BookTable({
   sort: SortState;
   onPickSort: (key: SortKey) => void;
 }) {
-  if (rows.length === 0) {
-    return <p className="px-4 py-10 text-center text-[13px] text-[var(--rn-muted)]">Nothing here yet.</p>;
-  }
   return (
-    <table className="rn-book-table w-full min-w-0 border-collapse sm:min-w-[340px]">
-      <thead className="sticky top-0 z-20 bg-[var(--rn-card)]">
-        <tr className="text-left">
-          <SortHeader
-            label="name"
-            sortKey="name"
-            active={sort?.key === "name"}
-            dir={sort?.key === "name" ? sort.dir : "asc"}
-            onPick={onPickSort}
-            rounded="tl"
-          />
-          <SortHeader
-            label="last"
-            sortKey="last"
-            align="right"
-            active={sort?.key === "last"}
-            dir={sort?.key === "last" ? sort.dir : "desc"}
-            onPick={onPickSort}
-          />
-          <SortHeader
-            label="chg"
-            sortKey="chg"
-            align="right"
-            active={sort?.key === "chg"}
-            dir={sort?.key === "chg" ? sort.dir : "desc"}
-            onPick={onPickSort}
-            rounded="tr"
-          />
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => {
-          const price =
-            row.price !== null
-              ? `${row.currency}${row.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : "-";
-          const accent = row.needsAttention ? attentionAccent(row.attentionDirection) : null;
-          return (
-            <tr
-              key={`${row.market}-${row.ticker}`}
-              className={`group${accent ? " rn-book-row--attention" : ""}`}
-              style={
-                accent
-                  ? ({ "--rn-row-accent": accent } as CSSProperties)
-                  : undefined
-              }
-            >
-              <td className="px-2 py-3.5 sm:px-4 sm:py-3">
-                <Link href={row.href} className="flex items-center gap-2.5 no-underline sm:gap-3">
-                  <StockLogo ticker={row.ticker} market={row.market} size={28} className="shrink-0" />
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[13.5px] font-bold leading-tight tracking-tight text-[var(--rn-ink)] group-hover:underline">
-                        {row.ticker}
-                      </span>
-                      {row.flags.map((flag, i) => (
-                        <FlagChip key={i} flag={flag} />
-                      ))}
-                    </span>
-                    {row.needsAttention && row.attentionAction ? (
-                      <span
-                        className="mt-0.5 block text-[11px] font-semibold leading-tight"
-                        style={{ color: accent ?? "var(--rn-ink)" }}
-                      >
-                        {row.attentionAction}
-                      </span>
-                    ) : row.name ? (
-                      <span className="mt-0.5 block text-[11px] leading-tight text-[var(--rn-muted)]">
-                        {row.name}
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              </td>
-              <td className="px-2 py-3.5 text-right align-middle font-mono text-[13px] font-semibold tabular-nums text-[var(--rn-ink)] sm:px-4 sm:py-3">
-                {price}
-              </td>
-              <td
-                className="px-2 py-3.5 text-right align-middle font-mono text-[13px] font-semibold tabular-nums sm:px-4 sm:py-3"
-                style={{ color: changeColor(row.dayChangePct) }}
+    <div className="hidden max-h-[39rem] overflow-auto sm:block">
+      <table className="w-full min-w-[760px] border-collapse">
+        <thead className="sticky top-0 z-10 bg-[var(--rn-card)]">
+          <tr className="border-b border-[var(--rn-line)]">
+            <SortHeader label="Stock" sortKey="name" sort={sort} onPick={onPickSort} />
+            <SortHeader label="Last" sortKey="last" align="right" sort={sort} onPick={onPickSort} />
+            <SortHeader label="Day" sortKey="chg" align="right" sort={sort} onPick={onPickSort} />
+            <th className="px-3 py-3 text-left font-normal"><span className="rn-kick">Signals</span></th>
+            <SortHeader label="Score" sortKey="score" align="right" sort={sort} onPick={onPickSort} />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--rn-line)]">
+          {rows.map((row) => {
+            const accent = row.needsAttention ? attentionAccent(row.attentionDirection) : null;
+            return (
+              <tr
+                key={`${row.market}-${row.ticker}`}
+                className="group transition-colors hover:bg-[var(--rn-card-2)]"
+                style={accent ? ({ backgroundColor: `color-mix(in srgb, ${accent} 9%, var(--rn-card))` } as CSSProperties) : undefined}
               >
-                {row.dayChangePct === null
-                  ? "-"
-                  : `${row.dayChangePct >= 0 ? "+" : "−"}${Math.abs(row.dayChangePct).toFixed(2)}%`}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+                <td className="px-3 py-3.5">
+                  <Link href={row.href} className="flex min-w-0 items-center gap-2.5 no-underline">
+                    <StockLogo ticker={row.ticker} market={row.market} size={28} className="shrink-0" />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-[13px] font-bold text-[var(--rn-ink)] group-hover:underline">{row.ticker}</span>
+                      </span>
+                      <span className="block max-w-[12rem] truncate text-[10.5px] text-[var(--rn-muted)]">{row.name}</span>
+                    </span>
+                  </Link>
+                </td>
+                <td className="px-3 py-3.5 text-right font-mono text-[12.5px] font-semibold tabular-nums text-[var(--rn-ink)]">
+                  {priceText(row)}
+                </td>
+                <td className="px-3 py-3.5 text-right font-mono text-[12px] font-semibold tabular-nums" style={{ color: changeColor(row.dayChangePct) }}>
+                  {changeText(row.dayChangePct)}
+                </td>
+                <td className="px-3 py-3.5">
+                  <span className="flex max-w-[14rem] flex-wrap gap-1">
+                    {row.flags.length > 0 ? row.flags.map((flag, index) => <FlagChip key={`${flag.label}-${index}`} flag={flag} />) : <span className="text-[10.5px] text-[var(--rn-muted)]">On plan</span>}
+                  </span>
+                </td>
+                <td className="px-3 py-3.5 text-right font-mono text-[12px] font-bold tabular-nums" style={{ color: scoreColor(row.score) }}>
+                  {row.score === null ? "–" : Math.round(row.score)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 export function Book({ holdings, watching }: { holdings: BookRow[]; watching: BookRow[] }) {
-  const [tab, setTab] = useState<"holdings" | "watching">(
-    holdings.length > 0 ? "holdings" : "watching",
-  );
+  const [tab, setTab] = useState<"holdings" | "watching">(holdings.length > 0 ? "holdings" : "watching");
   const [sort, setSort] = useState<SortState>(null);
   const baseRows = tab === "holdings" ? holdings : watching;
   const rows = useMemo(() => sortBookRows(baseRows, sort), [baseRows, sort]);
 
   const onPickSort = (key: SortKey) => {
-    setSort((prev) => {
-      if (prev?.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+    setSort((previous) => {
+      if (previous?.key === key) return { key, dir: previous.dir === "asc" ? "desc" : "asc" };
       return { key, dir: defaultDirFor(key) };
     });
   };
 
-  const TabButton = ({ id, label, count }: { id: "holdings" | "watching"; label: string; count: number }) => {
-    const active = tab === id;
-    return (
-      <button
-        type="button"
-        onClick={() => setTab(id)}
-        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition-colors"
-        style={
-          active
-            ? { color: "var(--rn-ink)", background: "var(--rn-card-2)", boxShadow: "inset 0 0 0 1px var(--rn-line)" }
-            : { color: "var(--rn-muted)" }
-        }
-      >
-        {label}
-        <span
-          className="rounded-full px-1.5 text-[10px]"
-          style={{ background: active ? "color-mix(in srgb, var(--rn-accent) 16%, transparent)" : "var(--rn-card-2)", color: active ? "var(--rn-accent)" : "var(--rn-muted)" }}
-        >
-          {count}
-        </span>
-      </button>
-    );
-  };
-
   return (
-    <section aria-labelledby="rn-book" className="flex h-full flex-col">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="rn-book" className="rn-kick">
-          // your book
-        </h2>
-        <div className="flex items-center gap-1.5">
-          <TabButton id="holdings" label="holdings" count={holdings.length} />
-          <TabButton id="watching" label="watching" count={watching.length} />
+    <section aria-labelledby="rn-book">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="rn-kick">Your book</span>
+          <h2 id="rn-book" className="mt-1 text-[22px] font-bold tracking-[-0.025em] text-[var(--rn-ink)] sm:text-[26px]">
+            Every tracked stock, one consistent read
+          </h2>
+        </div>
+        <div className="flex items-center gap-1.5" role="tablist" aria-label="Radar positions">
+          {([
+            ["holdings", "Holdings", holdings.length],
+            ["watching", "Watching", watching.length],
+          ] as const).map(([id, label, count]) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(id)}
+                className="rounded-full px-3 py-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-wide transition-colors"
+                style={active ? { color: "var(--rn-ink)", background: "var(--rn-card-2)", boxShadow: "inset 0 0 0 1px var(--rn-line)" } : { color: "var(--rn-muted)" }}
+              >
+                {label} <span className="ml-1">{count}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
-      <div className="rn-card rn-book-shell flex min-h-0 flex-1 flex-col overflow-hidden max-sm:rounded-xl">
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto max-h-[min(72dvh,520px)] sm:max-h-[460px]">
-          <BookTable rows={rows} sort={sort} onPickSort={onPickSort} />
+
+      {rows.length === 0 ? (
+        <p className="border-y border-[var(--rn-line)] py-10 text-center text-[13px] text-[var(--rn-muted)]">
+          Nothing here yet.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-[var(--rn-line)] bg-[var(--rn-card)]">
+          <div className="max-h-[39rem] divide-y divide-[var(--rn-line)] overflow-y-auto sm:hidden">
+            {rows.map((row) => <MobileRow key={`${row.market}-${row.ticker}`} row={row} />)}
+          </div>
+          <DesktopTable rows={rows} sort={sort} onPickSort={onPickSort} />
         </div>
-      </div>
+      )}
     </section>
   );
 }

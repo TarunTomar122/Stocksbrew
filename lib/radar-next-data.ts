@@ -50,61 +50,14 @@ function isPriceZoneHit(row: WatchlistRow): {
   };
 }
 
-const BUY_STANCES = new Set(["accumulate", "buy", "add"]);
-const SELL_STANCES = new Set(["trim", "sell", "reduce", "exit"]);
-
-function directionForStance(stance: string | undefined): Direction {
-  const s = (stance || "").toLowerCase();
-  if (BUY_STANCES.has(s)) return "bullish";
-  if (SELL_STANCES.has(s) || s === "avoid") return "bearish";
-  return "neutral";
-}
-
-/**
- * A stock "needs a decision" today only when it's genuinely actionable:
- *  - you HOLD it and the call is to trim/sell (reduce exposure), or
- *  - you're WATCHING it and the call is to buy/accumulate (open a position).
- * Everything else (hold, avoid, add-to-a-holding) is not an action — it lives
- * in the book, not the decision deck.
- */
-function isDecision(isHolding: boolean, stance: string | undefined): boolean {
-  const s = (stance || "").toLowerCase();
-  return isHolding ? SELL_STANCES.has(s) : BUY_STANCES.has(s);
-}
-
 /** Count names trading inside an AI price zone right now. */
 export function countAttentionRows(rows: WatchlistRow[]): number {
   return rows.filter((row) => isPriceZoneHit(row).hit).length;
 }
 
-function money(value: number | null | undefined, currency: string): string | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null;
-  const sym = currency === "INR" ? "₹" : "$";
-  return `${sym}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function triggerFromZones(directive: DirectiveV2 | null, currency: string): string | null {
-  if (!directive?.zones) return null;
-  const z = directive.zones;
-  if (typeof z.accumulate_below === "number") return `dips below ${money(z.accumulate_below, currency)}`;
-  if (typeof z.breakout_above === "number") return `breaks above ${money(z.breakout_above, currency)}`;
-  if (typeof z.trim_above === "number") return `pushes above ${money(z.trim_above, currency)}`;
-  if (typeof z.near_term_resistance === "number") return `tests ${money(z.near_term_resistance, currency)}`;
-  return null;
-}
-
-function actionLabel(directive: DirectiveV2 | null, direction: Direction, isHolding: boolean): string {
-  const fromDirective = directive?.action?.label?.trim();
-  if (fromDirective) return fromDirective;
-  const stance = (directive?.stance || "").toLowerCase();
-  if (stance === "accumulate") return isHolding ? "Add to position" : "Start a position on weakness";
-  if (stance === "trim") return "Trim into strength";
-  if (stance === "avoid") return "Stand aside";
-  if (stance === "watch") return "Watch the level";
-  if (stance === "hold") return "Hold steady";
-  if (direction === "bullish") return isHolding ? "Let it run" : "Add on strength";
-  if (direction === "bearish") return isHolding ? "Tighten your stop" : "Wait for a reset";
-  return "Review the setup";
+function actionNowLabel(direction: Direction, isHolding: boolean, zoneLabel: string): string {
+  if (direction === "bearish") return zoneLabel.toLowerCase().startsWith("trim") ? "Trim now" : "Exit now";
+  return isHolding ? "Add now" : "Accumulate now";
 }
 
 function hasOpenTrigger(directive: DirectiveV2 | null): boolean {
@@ -130,8 +83,8 @@ function catalystChip(row: WatchlistRow): string | null {
   const dateLabel = /^\d{4}-\d{2}-\d{2}/.test(when)
     ? `${MONTHS[Number(when.slice(5, 7)) - 1]} ${Number(when.slice(8, 10))}`
     : null;
-  if (kind === "earnings") return dateLabel ? `Earnings · ${dateLabel}` : "Earnings soon";
-  if (kind && dateLabel) return `${kind[0].toUpperCase()}${kind.slice(1)} · ${dateLabel}`;
+  if (kind === "earnings") return dateLabel ? `Earnings ${dateLabel}` : "Earnings soon";
+  if (kind && dateLabel) return `${kind[0].toUpperCase()}${kind.slice(1)} ${dateLabel}`;
   // Only fall back to a label if it's short enough to be a chip, not a sentence.
   const label = String(catalyst.label || catalyst.title || "").trim();
   if (label && label.length <= 22 && !/\s\s/.test(label)) return label;
@@ -139,10 +92,17 @@ function catalystChip(row: WatchlistRow): string | null {
   return null;
 }
 
+/** One specific supplied reason, never an inferred or template fallback. */
+function decisionDriver(row: WatchlistRow): string | null {
+  const rationale = row.ai_directive_rationale?.trim();
+  if (rationale) return rationale;
+  const metricSummary = row.top_metric_summaries?.find((summary) => summary.trim());
+  return metricSummary?.trim() || null;
+}
+
 /**
- * Today deck — only genuinely actionable calls: trim/sell on a holding, or
- * buy/accumulate on a watched name. Ordered by real urgency (news driver first,
- * then attention score, then size of today's move).
+ * Today deck — a stock appears only after its live price has reached an explicit
+ * buy, trim, or exit zone. Directives alone are checkpoints, not decisions.
  */
 export function buildDecisionCards(
   rows: WatchlistRow[],
@@ -153,11 +113,10 @@ export function buildDecisionCards(
     (radarUserView?.attention_items ?? []).map((item) => item.instrument_id.toUpperCase()),
   );
 
-  const toCard = (row: WatchlistRow): DecisionCard => {
-    const directive = getDirective(row);
+  const toCard = (row: WatchlistRow, zone: NonNullable<ReturnType<typeof isPriceZoneHit>>): DecisionCard => {
     const isHolding = row.position_type === "holding";
-    const direction = directionForStance(directive?.stance);
-    const nextTrigger = triggerFromZones(directive, row.currency);
+    const direction = zone.direction ?? "neutral";
+    const zoneLabel = zone.action ?? "Price zone reached";
     // Only surface the analyst target when it *supports* the call — upside on a
     // buy, downside on a trim. A contradicting consensus target (e.g. accumulate
     // with negative analyst upside) is confusing, so we leave it off the card.
@@ -172,7 +131,7 @@ export function buildDecisionCards(
       ticker: row.ticker,
       market: row.market === "IN" ? "IN" : "US",
       href: `/stock/${row.ticker}`,
-      action: actionLabel(directive, direction, isHolding),
+      action: actionNowLabel(direction, isHolding, zoneLabel),
       direction,
       price: row.price,
       dayChangePct: row.day_change_pct,
@@ -180,10 +139,10 @@ export function buildDecisionCards(
       score: row.scores?.overall ?? null,
       targetUpsidePct,
       catalyst: catalystChip(row),
-      nextTrigger,
+      driver: decisionDriver(row),
+      nextTrigger: `Zone reached: ${zoneLabel}`,
       positionLabel: isHolding ? "Holding" : "Watching",
-      // Selling a holding is the most time-sensitive; news-driven ones too.
-      urgent: isHolding || newsIds.has(row.instrument_id.toUpperCase()),
+      urgent: true,
     };
   };
 
@@ -197,10 +156,11 @@ export function buildDecisionCards(
   };
 
   return rows
-    .filter((row) => isDecision(row.position_type === "holding", getDirective(row)?.stance))
-    .sort((a, b) => rank(b) - rank(a))
+    .map((row) => ({ row, zone: isPriceZoneHit(row) }))
+    .filter((item) => item.zone.hit)
+    .sort((a, b) => rank(b.row) - rank(a.row))
     .slice(0, max)
-    .map(toCard);
+    .map(({ row, zone }) => toCard(row, zone));
 }
 
 function daysUntil(iso: string): number | null {
@@ -292,10 +252,10 @@ export function buildBookRows(
   const newsIds = options.newsInstrumentIds ?? new Set<string>();
   const map = (row: WatchlistRow): BookRow => {
     const id = row.instrument_id.toUpperCase();
+    const directive = getNormalizedDirective(row);
     const zone = isPriceZoneHit(row);
     const needsAttention = zone.hit;
     const currency = row.currency === "INR" ? "₹" : "$";
-    const attentionAction = zone.action;
     const baseFlags = buildBookFlags(row, states[id], newsIds.has(id));
     const flags = baseFlags;
 
@@ -309,9 +269,9 @@ export function buildBookRows(
       currency,
       score: row.scores?.overall ?? null,
       flags,
+      stance: directive?.stance ?? null,
       isHolding: row.position_type === "holding",
       needsAttention,
-      attentionAction,
       attentionDirection: zone.direction,
     };
   };
@@ -351,11 +311,19 @@ function ideaFromCandidate(c: Record<string, unknown>): IdeaCard | null {
   const reasons = Array.isArray(c.personalization_reasons)
     ? (c.personalization_reasons as unknown[]).map((r) => String(r)).filter(Boolean)
     : [];
-  const reason =
-    reasons[0] ||
-    String(c.reason || c.why || c.anomaly_headline || c.heat_reason || "").trim() ||
-    null;
   const sources = Array.isArray(c.sources) ? (c.sources as unknown[]).map((s) => String(s)) : [];
+  // Fresh source context wins over an evergreen portfolio-fit explanation.
+  // Otherwise every row repeats the same diversification copy day after day.
+  const freshReason =
+    (sources.includes("anomaly") && String(c.anomaly_headline || "").trim()) ||
+    (sources.includes("heat") && String(c.heat_reason || c.heat_driver || "").trim()) ||
+    (sources.includes("reddit") && String(c.reddit_summary || "").trim()) ||
+    "";
+  const reason =
+    freshReason ||
+    reasons[0] ||
+    String(c.why || c.reason || "").trim() ||
+    null;
   const tag = sources.map((s) => SOURCE_TAGS[s]).find(Boolean) ?? null;
   return {
     instrumentId,
@@ -376,9 +344,8 @@ function ideaFromCandidate(c: Record<string, unknown>): IdeaCard | null {
 }
 
 /**
- * Ideas to buy — three lenses over the already-materialized suggestion pool:
- * what fits your book, the top-rated names, and unusual movers. All exclude
- * stocks you already track (the pool is pre-filtered upstream).
+ * Discovery separates live signals from evergreen portfolio-fit candidates.
+ * The Today lens never falls back to a static screen match.
  */
 export function buildIdeas(
   suggestions: Array<Record<string, unknown>> | undefined,
@@ -400,12 +367,40 @@ export function buildIdeas(
     .map((x) => x.card);
 
   const unusual = [...pool]
-    .filter((x) => x.card.movePct !== null)
-    .sort((a, b) => Math.abs(b.card.movePct ?? 0) - Math.abs(a.card.movePct ?? 0))
+    .filter(({ raw }) => {
+      const sources = Array.isArray(raw.sources) ? raw.sources.map(String) : [];
+      return (
+        sources.some((source) => ["anomaly", "heat", "reddit"].includes(source)) &&
+        (num(raw.anomaly_move_pct) !== null || Boolean(String(raw.heat_reason || raw.heat_driver || "").trim()) || (num(raw.reddit_mentions) ?? 0) >= 3)
+      );
+    })
+    .sort((a, b) => {
+      const freshness = (raw: Record<string, unknown>) =>
+        Math.abs(num(raw.anomaly_move_pct) ?? 0) * 10 +
+        (num(raw.heat_score) ?? 0) +
+        (num(raw.reddit_mentions) ?? 0) * 4;
+      return freshness(b.raw) - freshness(a.raw);
+    })
     .slice(0, perLens)
     .map((x) => x.card);
 
-  return { fits, top, unusual };
+  // A portfolio observation can apply to several suggestions. Show it once,
+  // rather than making every row repeat the same generic sentence.
+  const removeRepeatedReasons = (ideas: IdeaCard[]): IdeaCard[] => {
+    const seen = new Set<string>();
+    return ideas.map((idea) => {
+      const reason = idea.reason?.trim();
+      if (!reason || seen.has(reason)) return reason ? { ...idea, reason: null } : idea;
+      seen.add(reason);
+      return idea;
+    });
+  };
+
+  return {
+    fits: removeRepeatedReasons(fits),
+    top: removeRepeatedReasons(top),
+    unusual: removeRepeatedReasons(unusual),
+  };
 }
 
 export type IdeaMarketData = {

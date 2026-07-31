@@ -13,10 +13,10 @@ const PRO_CTA_BASE =
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold tracking-tight transition-all hover:-translate-y-[1px] active:translate-y-0 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0";
 
 const PRO_CTA_FILL =
-  "bg-gradient-to-r from-[#fde68a] via-[#fcd34d] to-[#fbbf24] text-[#78350f] border border-[#f59e0b]/45 shadow-[0_1px_2px_rgba(120,53,15,0.1),0_6px_18px_rgba(251,191,36,0.28)] hover:shadow-[0_2px_4px_rgba(120,53,15,0.12),0_10px_22px_rgba(251,191,36,0.34)]";
+  "bg-gradient-to-r from-[#6d35dc] to-[#7c3aed] text-white border border-[#6d35dc] shadow-[0_1px_2px_rgba(76,29,149,0.14),0_6px_18px_rgba(109,53,220,0.24)] hover:shadow-[0_2px_4px_rgba(76,29,149,0.18),0_10px_22px_rgba(109,53,220,0.3)]";
 
 const PRO_CTA_OUTLINE =
-  "bg-[#fffbeb] text-[#92400e] border-2 border-[#fcd34d] hover:bg-[#fef3c7] shadow-none hover:shadow-[0_4px_14px_rgba(251,191,36,0.18)]";
+  "bg-[#f7f5ff] text-[#6330c9] border-2 border-[#c4b5fd] hover:bg-[#ede9fe] shadow-none hover:shadow-[0_4px_14px_rgba(109,53,220,0.16)]";
 
 export function proCtaClassName({
   size = "md",
@@ -72,7 +72,7 @@ export function ProCtaLink({
 }: SharedProps & Omit<ComponentProps<typeof Link>, "href" | "className" | "children"> & { href?: string }) {
   return (
     <Link href={href} className={proCtaClassName({ size, fullWidth, variant, className })} {...props}>
-      {showStar ? <ProCtaStar className="text-[#b45309]" /> : null}
+      {showStar ? <ProCtaStar className="text-white" /> : null}
       {children}
     </Link>
   );
@@ -94,7 +94,7 @@ export function ProCtaButton({
       className={proCtaClassName({ size, fullWidth, variant, className })}
       {...props}
     >
-      {showStar ? <ProCtaStar className="text-[#b45309]" /> : null}
+      {showStar ? <ProCtaStar className="text-white" /> : null}
       {children}
     </button>
   );

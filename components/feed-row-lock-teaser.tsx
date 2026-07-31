@@ -142,12 +142,16 @@ function useFeedUnlockCta(surface: PaywallSurface) {
 export function FeedUnlockBar({
   surface,
   className = "",
+  buttonClassName = "",
+  description,
   compact = false,
-  signedOutLabel = "Sign in free",
+  signedOutLabel = "Start your 3-day free trial",
   signedInLabel = "Unlock Pro",
 }: {
   surface: PaywallSurface;
   className?: string;
+  buttonClassName?: string;
+  description?: string;
   compact?: boolean;
   signedOutLabel?: string;
   signedInLabel?: string;
@@ -157,21 +161,53 @@ export function FeedUnlockBar({
 
   return (
     <div
-      className={`flex items-center justify-center border-t border-outline-variant bg-surface-container-lowest px-4 py-3.5 ${
-        compact ? "py-3" : "py-4"
+      className={`flex items-center justify-center gap-3 px-4 ${
+        compact ? "py-4" : "py-6"
       } ${className}`}
     >
+      {description ? <p className="text-center text-[13px] text-on-surface-variant">{description}</p> : null}
       <button
         type="button"
         disabled={busy}
         onClick={handleUnlock}
         className={proCtaClassName({
           size: compact ? "sm" : "md",
-          className: compact ? "!py-1.5 !px-4 !text-[12px]" : "",
+          className: `${compact ? "!py-1.5 !px-4 !text-[12px]" : ""} ${buttonClassName}`,
         })}
       >
         {label}
       </button>
+    </div>
+  );
+}
+
+/** A single in-panel gate for all rows hidden below a free preview. */
+export function FeedLockedSection({
+  surface,
+  count,
+  noun,
+  signedOutLabel = "Start your 3-day free trial",
+  signedInLabel = "Unlock Pro",
+}: {
+  surface: PaywallSurface;
+  count: number;
+  noun: string;
+  signedOutLabel?: string;
+  signedInLabel?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant bg-[#f7f5ff] px-4 py-4 sm:px-5">
+      <div>
+        <p className="text-[13px] font-semibold text-on-surface">{count} more {noun}</p>
+        <p className="mt-0.5 text-[11.5px] text-on-surface-variant">Research details are available with Pro.</p>
+      </div>
+      <FeedUnlockBar
+        surface={surface}
+        compact
+        className="!justify-start !p-0"
+        signedOutLabel={signedOutLabel}
+        signedInLabel={signedInLabel}
+      />
     </div>
   );
 }
@@ -183,7 +219,7 @@ export function FeedUnlockBar({
  */
 export function FeedStickyUnlock({
   surface,
-  signedOutLabel = "Sign in free",
+  signedOutLabel = "Start your 3-day free trial",
   signedInLabel = "Unlock Pro",
 }: {
   surface: PaywallSurface;

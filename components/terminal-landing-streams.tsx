@@ -108,14 +108,15 @@ export async function LandingHeroStream() {
     : null;
 
   return (
-    <div className="landing-stream-in flex w-full flex-col items-center">
+    <div className="landing-stream-in grid w-full gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:items-center lg:gap-12">
       <TerminalLandingHeroCopy
         market={market}
         trackedIds={user.trackedIds}
         isSubscribed={user.isSubscribed}
+        align="left"
       />
       {commandCard ? (
-        <div className="mt-10 w-full max-w-4xl sm:mt-12">
+        <div className="w-full">
           <LandingHeroCommand {...commandCard} />
         </div>
       ) : null}

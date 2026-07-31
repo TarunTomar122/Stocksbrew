@@ -65,14 +65,13 @@ export async function PulseHubStream() {
       <PulseHub
         items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit, { preservePreview: true })}
         sectors={data.sectors}
+        reddit={data.reddit}
         earnings={data.earnings}
         recentEarnings={data.recentEarnings}
         premarketMovers={premarketDoc}
         premarketReport={premarketReport}
-        premarketLive={isPremarketLive(premarketDoc, market)}
         marketPhase={regimes.macro?.market_phase}
         marketRisk={regimes.macro?.risk_appetite}
-        trackedIds={Array.isArray(userDoc?.tracked_stocks) ? userDoc.tracked_stocks : []}
         interestingStocks={interestingData?.rows ?? []}
         fullItemLimit={feedAccess.fullItemLimit}
         isSubscribed={feedAccess.isSubscribed}

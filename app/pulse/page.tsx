@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { PulseHubStream } from "@/components/pulse-hub-stream";
 import { PulsePageSkeleton } from "@/components/pulse-hub-skeleton";
@@ -47,31 +46,6 @@ export default function PulsePage() {
         <Suspense fallback={<PulsePageSkeleton />}>
           <PulseHubStream />
         </Suspense>
-        <section className="mt-8 grid gap-6 border-y border-outline-variant py-8 md:grid-cols-[0.8fr_1.2fr]">
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
-              Read the market in layers
-            </p>
-            <h2 className="mt-2 text-xl font-bold tracking-[-0.02em] text-on-surface">
-              What a useful daily US market analysis includes
-            </h2>
-          </div>
-          <div className="text-[14px] leading-6 text-on-surface-variant">
-            <p>
-              Start with broad direction and sector participation, then inspect the stocks making unusual
-              moves. Check whether earnings, a filing, guidance, macro data, or a genuine company event
-              explains the move. Keep the market-wide read separate from the evidence for any one stock.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-semibold text-landing-brand">
-              <Link href="/stocks" className="hover:underline">Browse US stocks</Link>
-              <Link href="/earnings" className="hover:underline">Earnings calendar</Link>
-              <Link href="/news" className="hover:underline">US stock market news</Link>
-              <Link href="/blog/us-stock-market-analysis-daily-workflow-2026" className="hover:underline">
-                Daily analysis workflow
-              </Link>
-            </div>
-          </div>
-        </section>
       </div>
     </main>
   );

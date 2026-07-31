@@ -39,6 +39,7 @@ export type OpeningNewsItem = {
   ticker: string;
   headline?: string;
   detail: string;
+  tape_line?: string;
   source?: string;
   url?: string;
   gap_pct?: number | null;
@@ -180,6 +181,7 @@ function normalizeReport(raw: Record<string, unknown>): OpeningReport | null {
       ticker: String(row.ticker || ""),
       headline: row.headline ? String(row.headline) : undefined,
       detail: String(row.detail || ""),
+      tape_line: row.tape_line ? String(row.tape_line) : undefined,
       source: row.source ? String(row.source) : undefined,
       url: row.url ? String(row.url) : undefined,
       gap_pct: row.gap_pct === null || row.gap_pct === undefined ? null : numberOr(row.gap_pct),
