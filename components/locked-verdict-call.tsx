@@ -116,11 +116,11 @@ function VerdictUnlockCard({
       <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-on-surface-variant">
         Unlock our current Add, Hold, or Trim stance—plus entry zones, target, drivers, risks, and Radar alerts.
       </p>
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
           type="button"
           onClick={() => onClick()}
-          className="inline-flex min-h-14 w-full flex-1 items-center justify-center rounded-xl bg-primary px-5 py-3.5 text-[13.5px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90 sm:min-h-12 sm:w-auto sm:flex-none sm:rounded-lg sm:px-7 sm:py-3"
+          className="inline-flex min-h-14 items-center justify-center rounded-lg bg-primary px-5 py-3 text-[13px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
         >
           {label}
         </button>

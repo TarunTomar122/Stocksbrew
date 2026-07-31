@@ -338,7 +338,7 @@ export function StockSmartAlertsRail({
 
   if (!isSubscribed) {
     return (
-      <section className="rounded-2xl border border-outline-variant bg-surface p-4 sm:p-5">
+      <section className="border-t border-outline-variant py-5 sm:py-6">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">
           Pro alerts
         </p>
@@ -348,7 +348,7 @@ export function StockSmartAlertsRail({
         </p>
         <Link
           href="/subscribe"
-          className="mt-3 inline-flex h-9 items-center justify-center rounded-full bg-on-surface px-4 text-[12px] font-semibold text-surface no-underline"
+          className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-on-surface px-4 text-[12px] font-semibold text-surface no-underline"
         >
           Unlock Pro alerts
         </Link>
@@ -358,7 +358,7 @@ export function StockSmartAlertsRail({
 
   return (
     <>
-      <section className="rounded-2xl border border-outline-variant bg-surface p-4 sm:p-5">
+      <section className="border-t border-outline-variant py-5 sm:py-6">
         <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant">
           smart alerts
         </p>

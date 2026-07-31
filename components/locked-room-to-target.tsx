@@ -113,11 +113,8 @@ export function LockedRoomToTarget({
       </p>
 
       <div
-        className="mt-3 rounded-lg border px-3 py-2.5"
-        style={{
-          borderColor: "color-mix(in srgb, var(--accent-terminal) 18%, var(--outline-variant))",
-          background: "color-mix(in srgb, var(--accent-terminal) 5%, var(--surface))",
-        }}
+        className="mt-3 border-l-2 py-0.5 pl-3"
+        style={{ borderColor: "var(--accent-terminal)" }}
       >
         <p className="text-[12px] leading-relaxed text-on-surface">{teaser}</p>
         <button

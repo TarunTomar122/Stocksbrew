@@ -120,7 +120,7 @@ export function RangeBar({
   const refPct = reference ? clamp(reference.value) : null;
 
   return (
-    <div className="flex min-w-0 flex-col gap-2.5">
+    <div className="grid min-w-0 grid-rows-[1.25rem_2.5rem_auto_auto] gap-y-2.5">
       <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         {label}
       </span>
@@ -193,7 +193,7 @@ export function RsiStrength({ value, state }: RsiProps) {
         : { label: "Neutral", color: "var(--on-surface-variant)" };
 
   return (
-    <div className="flex min-w-0 flex-col gap-2.5">
+    <div className="grid min-w-0 grid-rows-[1.25rem_2.5rem_auto_auto] gap-y-2.5">
       <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
         RSI (14)
       </span>
