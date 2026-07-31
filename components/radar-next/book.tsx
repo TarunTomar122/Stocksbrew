@@ -153,6 +153,9 @@ function MobileRow({ row }: { row: BookRow }) {
             <span className="font-mono text-[9px] font-semibold uppercase" style={{ color: stanceColor(row.stance) }}>
               {row.stance ?? "watch"}
             </span>
+            {row.flags.map((flag, index) => (
+              <FlagChip key={`${flag.label}-${index}`} flag={flag} />
+            ))}
           </span>
           <span className="mt-0.5 block truncate text-[10.5px] text-[var(--rn-muted)]">{row.name}</span>
         </span>
@@ -167,17 +170,6 @@ function MobileRow({ row }: { row: BookRow }) {
         </span>
       </span>
 
-      <span className="font-mono text-[10.5px] font-bold tabular-nums" style={{ color: scoreColor(row.score) }}>
-        {row.score === null ? "–" : Math.round(row.score)}
-      </span>
-
-      {row.flags.length > 0 ? (
-        <span className="col-span-2 flex flex-wrap gap-1.5 pl-[40px]">
-          {row.flags.map((flag, index) => (
-            <FlagChip key={`${flag.label}-${index}`} flag={flag} />
-          ))}
-        </span>
-      ) : null}
     </Link>
   );
 }

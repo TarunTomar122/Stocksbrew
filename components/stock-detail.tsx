@@ -594,13 +594,6 @@ export function StockDetail(props: Props) {
                     {money(Math.abs(dayAbs))}
                   </p>
                 ) : null}
-                {premarketQuote ? (
-                  <StockPremarketQuote
-                    currency={currency}
-                    market={market}
-                    quote={premarketQuote}
-                  />
-                ) : null}
               </div>
             </div>
             {(metaShort || hasAnomalyMove || updatedLabel) ? (
@@ -630,6 +623,15 @@ export function StockDetail(props: Props) {
               <TrackButton {...trackButtonProps} variant="compact" />
               <StockShareCard ticker={stock.ticker} market={market} />
             </div>
+            {premarketQuote ? (
+              <div className="mt-2">
+                <StockPremarketQuote
+                  currency={currency}
+                  market={market}
+                  quote={premarketQuote}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
 
