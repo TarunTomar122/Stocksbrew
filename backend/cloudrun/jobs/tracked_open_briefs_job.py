@@ -97,7 +97,7 @@ def main() -> None:
     parser.add_argument(
         "--brief-timeout-seconds",
         type=int,
-        default=900,
+        default=1800,
         help="Hard ceiling for one synthesis shard; allows slow structured responses without killing valid work.",
     )
     args = parser.parse_args()
