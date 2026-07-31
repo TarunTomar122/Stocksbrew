@@ -22,13 +22,13 @@ _YFINANCE_CACHE_CONFIGURED = False
 
 
 def _configure_yfinance_cache() -> None:
-    """Give each worker process its own Yahoo SQLite cache.
+    """Keep Yahoo's optional SQLite caches out of threaded price workers.
 
     yfinance stores timezone and cookie state in SQLite. Sharing those files
     across overlapping systemd jobs can make a threaded ``yf.download`` fanout
     fail hundreds of otherwise-valid symbols with ``unable to open database
-    file``. A process-local directory preserves yfinance's cache semantics
-    without cross-job SQLite contention.
+    file``. Disable those persistence-only caches for this short-lived process;
+    a process-local directory remains available for future cache types.
     """
     global _YFINANCE_CACHE_CONFIGURED
     if _YFINANCE_CACHE_CONFIGURED:
@@ -42,11 +42,15 @@ def _configure_yfinance_cache() -> None:
         cache_dir.mkdir(mode=0o700, exist_ok=True)
         yf.set_tz_cache_location(str(cache_dir))
 
-        # yfinance lazily creates both SQLite schemas from download threads.
-        # Prime them on the caller thread so a fresh process cannot race eight
-        # workers through CREATE TABLE / WAL initialization.
-        yf_cache.get_tz_cache().initialise()
-        yf_cache.get_cookie_cache().initialise()
+        # These caches are only persistence optimizations. yfinance keeps the
+        # active cookie/crumb in memory and each Yahoo chart response carries
+        # its timezone. Disable SQLite access for this short-lived process so
+        # download threads cannot race through cache lookup or WAL handling.
+        # The process-local directory above remains a safe fallback for any
+        # future yfinance cache that does not expose the same dummy switch.
+        for cache in (yf_cache.get_tz_cache(), yf_cache.get_cookie_cache()):
+            if hasattr(cache, "dummy"):
+                cache.dummy = True
 
         # Avoid leaving one tiny directory behind for every timer invocation.
         # A full day is comfortably longer than any legitimate price worker.
