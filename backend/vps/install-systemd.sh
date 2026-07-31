@@ -77,8 +77,8 @@ EOF
 
 # Use exchange-local schedules so US daylight-saving transitions do not move
 # the pipeline one hour away from the market session.
-write_pair preopen-news "Mon..Fri *-*-* 08:45:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2"
-write_pair preclose-news "Mon..Fri *-*-* 15:40:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2"
+write_pair preopen-news "Mon..Fri *-*-* 08:45:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2" "" "5min"
+write_pair preclose-news "Mon..Fri *-*-* 15:40:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2" "" "5min"
 # One dependency chain owns the publish order. A single large Yahoo batch
 # replaces ~20 sequential 25-stock price shards.
 write_pair open-price "Mon..Fri *-*-* 09:30:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-briefs.service" "1min"
@@ -125,10 +125,10 @@ write_service market-daily market_daily
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls
-write_pair radar-official-open "Mon..Fri *-*-* 12:35:00" radar_official_sources "--recent-days 3 --include-ir"
-write_pair radar-materialize-open "Mon..Fri *-*-* 13:43:00" radar_materialize "--activate --with-llm"
-write_pair radar-official-close "Mon..Fri *-*-* 21:10:00" radar_official_sources "--recent-days 3 --include-ir"
-write_pair radar-materialize-close "Mon..Fri *-*-* 21:45:00" radar_materialize "--activate --with-llm"
+write_pair radar-official-open "Mon..Fri *-*-* 12:35:00" radar_official_sources "--recent-days 3 --include-ir" "" "5min"
+write_pair radar-materialize-open "Mon..Fri *-*-* 13:43:00" radar_materialize "--activate --with-llm" "" "5min"
+write_pair radar-official-close "Mon..Fri *-*-* 21:10:00" radar_official_sources "--recent-days 3 --include-ir" "" "5min"
+write_pair radar-materialize-close "Mon..Fri *-*-* 21:45:00" radar_materialize "--activate --with-llm" "" "5min"
 write_pair radar-outcomes "Mon..Fri *-*-* 23:00:00" radar_outcomes "--limit 0"
 write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
 
