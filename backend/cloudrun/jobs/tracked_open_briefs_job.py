@@ -136,10 +136,54 @@ def main() -> None:
         max_age_minutes=args.max_news_age_minutes,
     )
     if stale_news_ids:
-        raise RuntimeError(
-            f"News discovery is stale for {len(stale_news_ids)}/{len(fresh_ids)} "
-            f"brief inputs in shard {args.shard_id}: {','.join(stale_news_ids[:12])}"
+        # A delayed price recovery can push the otherwise-successful pre-open
+        # discovery run past its freshness window. Refresh this shard's stale
+        # prerequisite before synthesis instead of leaving the sequential
+        # chain permanently wedged until tomorrow's timer.
+        refresh_cmd = [
+            sys.executable,
+            "-m",
+            "backend.scripts.build_per_stock_intelligence",
+            "--market",
+            args.market,
+            "--universe",
+            args.universe,
+            "--instrument-ids",
+            ",".join(stale_news_ids),
+            "--upsert",
+            "--incremental",
+            "--enrich-only",
+            "--per-stock-cap",
+            str(args.per_stock_cap),
+            "--broad-cap",
+            "0",
+            "--chunk-size",
+            "10",
+            "--chunk-workers",
+            str(args.chunk_workers),
+            "--skip-context",
+            "--skip-materialize",
+        ]
+        print(
+            {
+                "stage": "refresh_stale_news",
+                "shard_id": args.shard_id,
+                "instrument_count": len(stale_news_ids),
+                "cmd": " ".join(refresh_cmd),
+            }
         )
+        subprocess.run(refresh_cmd, check=True, timeout=900)
+        stale_news_ids = _stale_news_ids(
+            store,
+            fresh_ids,
+            market=args.market,
+            max_age_minutes=args.max_news_age_minutes,
+        )
+        if stale_news_ids:
+            raise RuntimeError(
+                f"News refresh remained stale for {len(stale_news_ids)}/{len(fresh_ids)} "
+                f"brief inputs in shard {args.shard_id}: {','.join(stale_news_ids[:12])}"
+            )
     ids_csv = ",".join(fresh_ids)
 
     cmd = [
