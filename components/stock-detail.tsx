@@ -785,6 +785,7 @@ export function StockDetail(props: Props) {
                 <div className="mt-6">
                   <CallMetricsStrip
                     metrics={callMetrics}
+                    mobileColumns={2}
                     actions={
                       hasSmartAlerts ? (
                         <StockSmartAlertsRail

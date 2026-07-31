@@ -84,6 +84,7 @@ export function CallInsightCard({
 export function CallMetricsStrip({
   metrics,
   actions,
+  mobileColumns = "auto",
 }: {
   metrics: Array<{
     label: string;
@@ -92,6 +93,7 @@ export function CallMetricsStrip({
     hintTone?: "bullish" | "bearish" | "neutral";
   }>;
   actions?: ReactNode;
+  mobileColumns?: "auto" | 2;
 }) {
   if (!metrics.length && !actions) return null;
 
@@ -103,7 +105,13 @@ export function CallMetricsStrip({
         : "var(--on-surface-variant)";
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-x-4 gap-y-5 border-t border-outline-variant/50 pt-5 sm:gap-x-6">
+    <div
+      className={`grid gap-x-4 gap-y-5 border-t border-outline-variant/50 pt-5 sm:gap-x-6 ${
+        mobileColumns === 2
+          ? "grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))]"
+          : "grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))]"
+      }`}
+    >
       {metrics.map((m) => (
         <div key={m.label} className="min-w-0">
           <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant sm:text-[9.5px] sm:tracking-[0.12em]">
