@@ -51,7 +51,7 @@ import { getCurrentMarket } from "@/lib/market";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getNewsForTicker } from "@/lib/news";
 import { getLatestTechnicals } from "@/lib/technicals";
-import { currencySymbolFor } from "@/lib/utils";
+import { currencySymbolFor, decodeTextEntities } from "@/lib/utils";
 import {
   getDailyAnomalyForTicker,
   mergeAnomalyWithLatestPrice,
@@ -285,8 +285,9 @@ export async function StockPageStream({ params }: Props) {
     "";
   const displayStock = {
     ...stock,
-    sector: sectorLabel || stock.sector,
-    industry: industryLabel || stock.industry,
+    name: decodeTextEntities(stock.name),
+    sector: decodeTextEntities(sectorLabel || stock.sector || ""),
+    industry: decodeTextEntities(industryLabel || stock.industry || ""),
   };
   const betterSectorPeers =
     sectorSlug && typeof intelPro?.overall?.score === "number"
@@ -615,7 +616,7 @@ export async function StockPageStream({ params }: Props) {
         lockedCall={
           hasBriefText(intelligence) ? (
             <AiSynthesis intelligence={intelligence} />
-          ) : showAiPreparationState ? (
+          ) : showAiPreparationState || showAiStartCoverageState ? (
             <LockedAiBrief
               ticker={stock.ticker}
               instrumentId={stock.instrument_id}
