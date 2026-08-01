@@ -18,6 +18,14 @@ MARKET_TIMEZONES = {
     "IN": ZoneInfo("Asia/Kolkata"),
 }
 
+MARKET_PHASE_ORDER = {
+    "pre_open": 0,
+    "open_check": 1,
+    "mid_check": 2,
+    "close_check": 3,
+    "post_close": 4,
+}
+
 
 @dataclass(frozen=True)
 class PriceFreshnessPolicy:
@@ -93,7 +101,14 @@ def price_freshness_error(
     """Return a concrete rejection reason, or ``None`` for a fresh document."""
     payload = document or {}
     phase = str(payload.get("session_phase") or "").strip()
-    if phase != policy.required_phase:
+    required_rank = MARKET_PHASE_ORDER.get(policy.required_phase)
+    actual_rank = MARKET_PHASE_ORDER.get(phase)
+    phase_satisfies_requirement = phase == policy.required_phase or (
+        required_rank is not None
+        and actual_rank is not None
+        and actual_rank >= required_rank
+    )
+    if not phase_satisfies_requirement:
         return f"phase={phase or 'missing'}"
 
     captured_raw = str(payload.get("captured_at") or "").strip()

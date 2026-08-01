@@ -4,7 +4,7 @@ import sys
 import unittest
 from contextlib import ExitStack
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 from backend.cloudrun.jobs import tracked_news_prep_job, tracked_open_briefs_job
@@ -55,7 +55,51 @@ class TrackedBriefJobsTest(unittest.TestCase):
         self.assertIn("--price-trigger-phase", command)
         self.assertIn("--include-no-news", command)
         self.assertIn("--require-complete", command)
-        self.assertEqual(kwargs["timeout"], 480)
+        self.assertEqual(kwargs["timeout"], 2400)
+
+    def test_open_refreshes_stale_news_before_synthesis(self) -> None:
+        argv = [
+            tracked_open_briefs_job.__name__,
+            "--run-id", "test-run",
+            "--market", "US",
+            "--universe", "us_core_100",
+            "--shard-id", "001",
+            "--instrument-ids", "US_AAPL",
+        ]
+        market_day = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        store = MagicMock()
+        store.get_latest_prices.return_value = {
+            "US_AAPL": {
+                "session_phase": "open_check",
+                "captured_at": f"{market_day}T14:00:00+00:00",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        }
+        store.get_news_freshness_docs.side_effect = [
+            {"US_AAPL": {"last_discovery_at": "2020-01-01T00:00:00+00:00"}},
+            {"US_AAPL": {"last_discovery_at": "2999-01-01T00:00:00+00:00"}},
+        ]
+
+        with patch.object(sys, "argv", argv), patch.object(
+            tracked_open_briefs_job,
+            "TraceMoneyStore",
+            return_value=store,
+        ), patch.object(
+            tracked_open_briefs_job.subprocess,
+            "run",
+        ) as run, patch.object(
+            tracked_open_briefs_job,
+            "materialize_views",
+            return_value={},
+        ):
+            tracked_open_briefs_job.main()
+
+        refresh_cmd = run.call_args_list[0].args[0]
+        synthesis_cmd = run.call_args_list[1].args[0]
+        self.assertIn("--enrich-only", refresh_cmd)
+        self.assertNotIn("--synthesis-only", refresh_cmd)
+        self.assertIn("--synthesis-only", synthesis_cmd)
+        self.assertEqual(run.call_args_list[0].kwargs["timeout"], 900)
 
     def test_same_phase_price_from_yesterday_is_rejected(self) -> None:
         class Store:

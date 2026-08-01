@@ -4,10 +4,66 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 import math
+import os
+from pathlib import Path
+import shutil
+from threading import Lock
 import time
 from typing import Any
 
 import yfinance as yf
+from yfinance import cache as yf_cache
+
+from backend.price_pipeline_contract import is_current_market_timestamp
+
+
+_YFINANCE_CACHE_LOCK = Lock()
+_YFINANCE_CACHE_CONFIGURED = False
+
+
+def _configure_yfinance_cache() -> None:
+    """Keep Yahoo's optional SQLite caches out of threaded price workers.
+
+    yfinance stores timezone and cookie state in SQLite. Sharing those files
+    across overlapping systemd jobs can make a threaded ``yf.download`` fanout
+    fail hundreds of otherwise-valid symbols with ``unable to open database
+    file``. Disable those persistence-only caches for this short-lived process;
+    a process-local directory remains available for future cache types.
+    """
+    global _YFINANCE_CACHE_CONFIGURED
+    if _YFINANCE_CACHE_CONFIGURED:
+        return
+    with _YFINANCE_CACHE_LOCK:
+        if _YFINANCE_CACHE_CONFIGURED:
+            return
+        root = Path(os.getenv("TIKRR_YFINANCE_CACHE_ROOT", "/tmp/tikrr-yfinance-cache"))
+        root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        cache_dir = root / f"worker-{os.getpid()}"
+        cache_dir.mkdir(mode=0o700, exist_ok=True)
+        yf.set_tz_cache_location(str(cache_dir))
+
+        # These caches are only persistence optimizations. yfinance keeps the
+        # active cookie/crumb in memory and each Yahoo chart response carries
+        # its timezone. Disable SQLite access for this short-lived process so
+        # download threads cannot race through cache lookup or WAL handling.
+        # The process-local directory above remains a safe fallback for any
+        # future yfinance cache that does not expose the same dummy switch.
+        for cache in (yf_cache.get_tz_cache(), yf_cache.get_cookie_cache()):
+            if hasattr(cache, "dummy"):
+                cache.dummy = True
+
+        # Avoid leaving one tiny directory behind for every timer invocation.
+        # A full day is comfortably longer than any legitimate price worker.
+        cutoff = time.time() - 24 * 60 * 60
+        for candidate in root.glob("worker-*"):
+            if candidate == cache_dir:
+                continue
+            try:
+                if candidate.stat().st_mtime < cutoff:
+                    shutil.rmtree(candidate)
+            except OSError:
+                pass
+        _YFINANCE_CACHE_CONFIGURED = True
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -330,6 +386,7 @@ def _download_symbol_frame(frame: Any, symbol: str, *, single: bool) -> Any:
 def _batch_download_frames(symbols: list[str], *, period: str, interval: str, prepost: bool = False) -> dict[str, Any]:
     if not symbols:
         return {}
+    _configure_yfinance_cache()
     try:
         frame = yf.download(
             tickers=symbols,
@@ -337,7 +394,10 @@ def _batch_download_frames(symbols: list[str], *, period: str, interval: str, pr
             interval=interval,
             auto_adjust=False,
             group_by="ticker",
-            threads=True,
+            # yfinance's boolean mode expands to 2x CPU count. A fixed, small
+            # fanout keeps Yahoo requests fast without multiplying access to
+            # its shared in-process cookie/timezone SQLite handles.
+            threads=min(4, len(symbols)),
             progress=False,
             prepost=prepost,
         )
@@ -574,24 +634,50 @@ class YFinanceClient:
                 symbol_to_instruments.setdefault(yahoo_symbol_for(instrument), []).append(instrument)
             symbols = list(symbol_to_instruments)
             quote_rows = _batch_download_quote_only(symbols)
-            # Yahoo occasionally omits a handful of symbols from a large
-            # multi-ticker response. Retry only those symbols, still as one
-            # or two batched downloads. Never fall through to `.info` here:
-            # that defeats the price lane's bounded batch contract.
-            missing_symbols = [symbol for symbol in symbols if symbol not in quote_rows]
+            market_by_symbol = {
+                symbol: str(rows[0].get("market") or "US").upper()
+                for symbol, rows in symbol_to_instruments.items()
+            }
+
+            def current_session(symbol: str) -> bool:
+                row = quote_rows.get(symbol)
+                return bool(
+                    row
+                    and is_current_market_timestamp(
+                        row.get("captured_at"),
+                        market=market_by_symbol[symbol],
+                    )
+                )
+
+            # Yahoo can return a valid daily frame but fail the intraday frame
+            # for hundreds of symbols. Those rows used to count as resolved,
+            # so retries only covered completely missing symbols and the price
+            # worker later failed its session-freshness gate. Retry both
+            # missing *and stale-session* rows while keeping the bounded batch
+            # contract (never fall through to one `.info` call per ticker).
+            unresolved_symbols = [symbol for symbol in symbols if not current_session(symbol)]
             for attempt in range(self.max_retries):
-                if not missing_symbols:
+                if not unresolved_symbols:
                     break
                 if self.retry_backoff_s:
                     time.sleep(self.retry_backoff_s * (attempt + 1))
-                retry_rows = _batch_download_quote_only(missing_symbols)
-                quote_rows.update(retry_rows)
-                missing_symbols = [symbol for symbol in missing_symbols if symbol not in quote_rows]
-            if missing_symbols:
+                retry_rows = _batch_download_quote_only(unresolved_symbols)
+                for symbol, row in retry_rows.items():
+                    if is_current_market_timestamp(
+                        row.get("captured_at"),
+                        market=market_by_symbol[symbol],
+                    ):
+                        quote_rows[symbol] = row
+                unresolved_symbols = [symbol for symbol in unresolved_symbols if not current_session(symbol)]
+            if unresolved_symbols:
+                missing_count = sum(symbol not in quote_rows for symbol in unresolved_symbols)
+                stale_count = len(unresolved_symbols) - missing_count
                 print(
                     "[yfinance batch quote incomplete] "
                     f"requested={len(symbols)} resolved={len(quote_rows)} "
-                    f"missing={len(missing_symbols)} symbols={','.join(missing_symbols[:20])}"
+                    f"unresolved={len(unresolved_symbols)} missing={missing_count} "
+                    f"stale_session={stale_count} "
+                    f"symbols={','.join(unresolved_symbols[:20])}"
                 )
             rows: dict[str, dict[str, Any]] = {}
             for yahoo_symbol, matching_instruments in symbol_to_instruments.items():
