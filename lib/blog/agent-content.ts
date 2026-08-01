@@ -4,7 +4,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <p>The <a href="https://modelcontextprotocol.io/docs/getting-started/intro" rel="noopener noreferrer">Model Context Protocol</a>, usually shortened to MCP, is an open standard for connecting AI applications to external systems. An MCP server can expose a small set of tools with clear inputs and outputs. A compatible client can discover those tools, choose the right one for the question, and use the result in its answer.</p>
 
-<p>This guide explains the workflow using the read-only <a href="/agents">Stocksbrew agent connection</a> as a concrete example. It is written for individual investors and developers who want useful research automation without giving an agent trading access.</p>
+<p>This guide explains the workflow using the scoped <a href="/agents">Stocksbrew agent connection</a> as a concrete example. It is written for individual investors and developers who want useful research, Radar, and alert automation without giving an agent trading access.</p>
 
 <h2 id="what-mcp-changes">What MCP changes for stock research</h2>
 
@@ -35,11 +35,11 @@ export const agentBlogContent: Record<string, string> = {
 
 <p>If the client supports OAuth for remote MCP, it can open the Stocksbrew approval screen. If it expects a static Bearer credential, a Pro member can create a personal token from Profile.</p>
 
-<h3>2. Approve narrow read scopes</h3>
+<h3>2. Approve narrow scopes</h3>
 
-<p>The setup prompt asks for read-only stock access. Stocksbrew does not expose trading or account-write tools through this interface.</p>
+<p>The setup prompt asks for stock and market reads. Radar and alert permissions are separate and optional. Stocksbrew does not expose trading, brokerage, or money-movement tools.</p>
 
-<p>This separation matters. Reading a research workspace is a much smaller risk than allowing an agent to take financial actions. Even with read-only access, you should approve only clients you trust and revoke credentials that are exposed.</p>
+<p>This separation matters. Approve only clients you trust, grant the smallest useful scope set, require confirmation before Radar or alert changes, and revoke credentials that are exposed.</p>
 
 <h3>3. Ask for a research outcome</h3>
 
@@ -89,7 +89,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <h2 id="safety">What the agent should not be allowed to do</h2>
 
-<p>Research tools and action tools deserve different risk models. Stocksbrew's agent interface is deliberately read-only. It cannot place a trade, move money, or change an account.</p>
+<p>Research tools and workflow actions deserve different scopes. Stocksbrew can update Radar and alert rules with permission. It cannot place a trade, move money, or access a brokerage account.</p>
 
 <p>You should also keep a human review step between an agent answer and any financial decision. An external agent can combine Stocksbrew data with its own memory, prompts, and other tools. Stocksbrew does not control the resulting answer. Verify timestamps, assumptions, and primary sources before acting.</p>
 
@@ -109,7 +109,7 @@ export const agentBlogContent: Record<string, string> = {
   "stock-research-prompts-for-ai-agents": `
 <p>A broad prompt produces a broad answer. “Analyze this stock” gives an AI agent too much freedom to choose the time horizon, evidence, comparison set, and definition of risk. The result may sound polished while hiding the parts you actually needed to decide.</p>
 
-<p>Better stock-research prompts specify the job, the evidence to retrieve, and the shape of the answer. When the agent can use a read-only stock-market MCP server, it can retrieve current structured context instead of answering only from memory.</p>
+<p>Better stock-research prompts specify the job, the evidence to retrieve, and the shape of the answer. When the agent can use a scoped stock-market MCP server, it can retrieve current structured context instead of answering only from memory.</p>
 
 <p>Below are five reusable prompts for Claude Code, Cursor, Codex, or another tool-connected agent. They are designed around <a href="/agents">Stocksbrew for Agents</a>, but the prompt patterns work with any trustworthy research data source.</p>
 

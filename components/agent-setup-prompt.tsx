@@ -44,7 +44,7 @@ export function AgentSetupPrompt({
       </div>
       {compact ? (
         <p className="mt-3 font-mono text-[10px] leading-relaxed text-on-surface-variant">
-          Connect to stocksbrew.online/api/mcp with OAuth, then verify with NVDA.
+          Connect to stocksbrew.online/api/mcp with OAuth, then show my Radar and latest changes.
         </p>
       ) : (
         <pre className="mt-4 whitespace-pre-wrap font-mono text-[11px] leading-[1.75] text-on-surface-variant">

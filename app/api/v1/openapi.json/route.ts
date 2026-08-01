@@ -6,8 +6,8 @@ export async function GET() {
     openapi: "3.1.0",
     info: {
       title: "Stocksbrew Agent API",
-      version: "1.0.0",
-      description: "Read-only stock, market, and personal Radar intelligence for Stocksbrew Pro members.",
+      version: "1.1.0",
+      description: "Stock intelligence, Radar tracking, and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
     },
     servers: [{ url: `${base}/api/v1` }],
     security: [{ bearerAuth: [] }],
@@ -58,14 +58,66 @@ export async function GET() {
         get: {
           operationId: "getMyRadar",
           summary: "Get the authorized member's Radar",
+          parameters: [
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
+            { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+          ],
           responses: { "200": { description: "Personal Radar", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+        post: {
+          operationId: "addToRadar",
+          summary: "Add a stock to Radar and queue missing research",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["ticker"], properties: {
+              ticker: { type: "string" }, market: { type: "string", enum: ["US", "IN"], default: "US" }, position_type: { type: "string", enum: ["watchlist", "holding"], default: "watchlist" },
+            } } } },
+          },
+          responses: { "200": { description: "Radar mutation and research queue status", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+        delete: {
+          operationId: "removeFromRadar",
+          summary: "Remove a stock from Radar",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["ticker"], properties: { ticker: { type: "string" }, market: { type: "string", enum: ["US", "IN"], default: "US" } } } } },
+          },
+          responses: { "200": { description: "Removal status", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
       "/radar/changes": {
         get: {
           operationId: "getRadarChanges",
           summary: "Get current changes across the authorized member's Radar",
+          parameters: [{ name: "since", in: "query", description: "ISO cursor from the previous response", schema: { type: "string", format: "date-time" } }],
           responses: { "200": { description: "Radar changes", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/alerts": {
+        get: {
+          operationId: "getMyAlerts",
+          summary: "List active alerts",
+          parameters: [
+            { name: "ticker", in: "query", schema: { type: "string" } },
+            { name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } },
+            { name: "kind", in: "query", schema: { $ref: "#/components/schemas/AlertKind" } },
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
+          ],
+          responses: { "200": { description: "Active alerts", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+        post: {
+          operationId: "createAlert",
+          summary: "Create a price threshold email alert",
+          requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["ticker", "condition", "target_price"], properties: {
+            ticker: { type: "string" }, market: { type: "string", enum: ["US", "IN"], default: "US" }, kind: { type: "string", const: "price_threshold", default: "price_threshold" }, condition: { type: "string", enum: ["below", "above"] }, target_price: { type: "number", exclusiveMinimum: 0 }, note: { type: "string", maxLength: 240 },
+          } } } } },
+          responses: { "200": { description: "Created alert", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+        delete: {
+          operationId: "deleteAlert",
+          summary: "Deactivate an alert",
+          requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["alert_id"], properties: { alert_id: { type: "string" } } } } } },
+          responses: { "200": { description: "Deactivated alert", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
     },
@@ -82,10 +134,16 @@ export async function GET() {
                 "stocks:read": "Read stock intelligence",
                 "market:read": "Read market intelligence",
                 "radar:read": "Read the member's private Radar",
+                "radar:write": "Add or remove Radar stocks after the member instructs the agent",
+                "alerts:read": "Read active alerts",
+                "alerts:write": "Create or deactivate alerts after the member instructs the agent",
               },
             },
           },
         },
+      },
+      schemas: {
+        AlertKind: { type: "string", enum: ["price_threshold", "anomaly", "rsi_extreme", "earnings_24h", "directive_change", "news_velocity"] },
       },
     },
   }, { headers: { "Cache-Control": "public, max-age=300" } });

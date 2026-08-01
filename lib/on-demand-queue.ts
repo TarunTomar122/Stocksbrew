@@ -83,3 +83,20 @@ export async function maybeQueueOnDemandNews(uid: string, instrumentId: string):
   });
   return queued;
 }
+
+export async function getOnDemandNewsStatus(instrumentId: string): Promise<{
+  status: string;
+  requested_at: string | null;
+  updated_at: string | null;
+  completed_at: string | null;
+} | null> {
+  const snap = await adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId).get();
+  if (!snap.exists) return null;
+  const row = snap.data() || {};
+  return {
+    status: String(row.status || "queued"),
+    requested_at: typeof row.requested_at === "string" ? row.requested_at : null,
+    updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
+    completed_at: typeof row.completed_at === "string" ? row.completed_at : null,
+  };
+}

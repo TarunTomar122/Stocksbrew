@@ -53,13 +53,19 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     name: AGENT_MCP_SERVER_NAME,
     version: AGENT_MCP_SERVER_VERSION,
     title: "Stocksbrew for Agents",
-    description: "Read-only stock, market, and personal Radar intelligence for stocksbrew Pro members.",
+    description: "Stock research, Radar tracking, and alert tools for Stocksbrew Pro members.",
   });
 
   const readOnly = {
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: false,
+  } as const;
+  const write = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
     openWorldHint: false,
   } as const;
 
@@ -76,7 +82,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
 
   server.registerTool("get_stock_intelligence", {
     title: "Get stock intelligence",
-    description: "Get the current Stocksbrew call, zones, target context, drivers, risks, fundamentals, technical setup, and freshness for one stock.",
+    description: "Get the current Stocksbrew call, zones, target context, drivers, risks, fundamentals, technical setup, freshness, and research status for one stock. If a brief is missing, follow coverage.next_action and ask before adding the stock to Radar.",
     inputSchema: {
       ticker: z.string().min(1).max(20).describe("Ticker symbol or stocksbrew instrument ID"),
       market: z.enum(["US", "IN"]).default("US"),
@@ -105,16 +111,75 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
   server.registerTool("get_my_radar", {
     title: "Get my Radar",
     description: "Get the authorized Pro member's tracked stocks, current calls, target room, portfolio context, and Radar summary.",
-    inputSchema: {},
+    inputSchema: {
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).default(0),
+    },
     annotations: readOnly,
   }, toolHandler(principal, "get_my_radar"));
 
   server.registerTool("get_radar_changes", {
     title: "Get Radar changes",
     description: "Get fresh, quality-passed changes and upcoming events across the authorized member's Radar.",
-    inputSchema: {},
+    inputSchema: {
+      since: z.string().datetime().optional().describe("Only return attention items after this ISO timestamp. Use the returned cursor on the next poll."),
+    },
     annotations: readOnly,
   }, toolHandler(principal, "get_radar_changes"));
+
+  server.registerTool("add_to_radar", {
+    title: "Add stock to Radar",
+    description: "Add a stock to the member's Radar and queue missing AI research. This changes the member's account. Ask for confirmation before calling it.",
+    inputSchema: {
+      ticker: z.string().min(1).max(20),
+      market: z.enum(["US", "IN"]).default("US"),
+      position_type: z.enum(["watchlist", "holding"]).default("watchlist"),
+    },
+    annotations: write,
+  }, toolHandler(principal, "add_to_radar"));
+
+  server.registerTool("remove_from_radar", {
+    title: "Remove stock from Radar",
+    description: "Remove a stock and its holding context from the member's Radar. Ask for confirmation before calling it.",
+    inputSchema: {
+      ticker: z.string().min(1).max(20),
+      market: z.enum(["US", "IN"]).default("US"),
+    },
+    annotations: { ...write, destructiveHint: true, idempotentHint: true },
+  }, toolHandler(principal, "remove_from_radar"));
+
+  server.registerTool("get_my_alerts", {
+    title: "Get my alerts",
+    description: "List active Stocksbrew alerts, optionally filtered to one stock or alert kind.",
+    inputSchema: {
+      ticker: z.string().min(1).max(20).optional(),
+      market: z.enum(["US", "IN"]).default("US"),
+      kind: z.enum(["price_threshold", "anomaly", "rsi_extreme", "earnings_24h", "directive_change", "news_velocity"]).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_my_alerts"));
+
+  server.registerTool("create_alert", {
+    title: "Create stock alert",
+    description: "Create a price threshold email alert. Ask for confirmation before calling it. Use get_radar_changes for earnings, RSI, call, anomaly, and news updates.",
+    inputSchema: {
+      ticker: z.string().min(1).max(20),
+      market: z.enum(["US", "IN"]).default("US"),
+      kind: z.literal("price_threshold").default("price_threshold"),
+      condition: z.enum(["below", "above"]).optional(),
+      target_price: z.number().positive().optional(),
+      note: z.string().max(240).optional(),
+    },
+    annotations: write,
+  }, toolHandler(principal, "create_alert"));
+
+  server.registerTool("delete_alert", {
+    title: "Delete stock alert",
+    description: "Deactivate one alert owned by the member. Ask for confirmation before calling it.",
+    inputSchema: { alert_id: z.string().min(1).max(200) },
+    annotations: { ...write, destructiveHint: true, idempotentHint: true },
+  }, toolHandler(principal, "delete_alert"));
 
   return server;
 }

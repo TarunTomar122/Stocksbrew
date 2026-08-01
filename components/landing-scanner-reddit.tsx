@@ -42,13 +42,13 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-5 flex items-start gap-3">
-      <span className={`landing-section-icon landing-section-icon--${tone}`}>
+      <div className={`landing-section-icon landing-section-icon--${tone}`}>
         {tone === "reddit" ? (
           <RedditMark size={20} />
         ) : (
           <AnimatedIcon name={icon} size={20} className="text-[20px]" aria-hidden />
         )}
-      </span>
+      </div>
       <div className="min-w-0 pt-0.5">
         <p className={`landing-section-kicker ${tone === "reddit" ? "text-landing-reddit" : "text-landing-brand"}`}>
           {kicker}
@@ -150,10 +150,10 @@ export function LandingScannerReddit({
           ) : null}
 
           <footer className="flex flex-col gap-2 border-t border-outline-variant px-5 py-4 text-[12px] text-on-surface-variant sm:flex-row sm:items-center sm:justify-between md:px-6">
-            <p className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <AnimatedIcon name="lightbulb" size={16} className="text-[16px] text-on-surface-variant" />
               Stay informed. Daily market movers and what investors are talking about.
-            </p>
+            </div>
             {dataLabel ? <p className="shrink-0 sm:text-right">Data as of {dataLabel}</p> : null}
           </footer>
         </div>

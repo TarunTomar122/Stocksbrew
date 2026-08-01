@@ -10,6 +10,15 @@ import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
 import { getHomeView } from "@/lib/home-view";
 import { resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { filterSearchEntries, getSearchIndexForApi } from "@/lib/search";
+import { getOnDemandNewsStatus } from "@/lib/on-demand-queue";
+import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
+import {
+  createStockAlert,
+  deleteStockAlert,
+  isAlertKind,
+  listStockAlerts,
+  StockAlertError,
+} from "@/lib/stock-alerts";
 import {
   getInstrumentViewDoc,
   getStockFacts,
@@ -18,6 +27,7 @@ import {
   getStockSummary,
 } from "@/lib/stock";
 import { getRadarUserView, getWatchlistView } from "@/lib/watchlist-view";
+import { getUserDoc } from "@/lib/watchlist";
 
 export type AgentMarket = "US" | "IN";
 export type AgentToolName =
@@ -26,7 +36,12 @@ export type AgentToolName =
   | "compare_stocks"
   | "get_market_brief"
   | "get_my_radar"
-  | "get_radar_changes";
+  | "get_radar_changes"
+  | "add_to_radar"
+  | "remove_from_radar"
+  | "get_my_alerts"
+  | "create_alert"
+  | "delete_alert";
 
 export class AgentDataError extends Error {
   constructor(
@@ -74,6 +89,9 @@ function envelope<T extends Record<string, unknown>>(data: T, asOf?: string | nu
 
 function requiredScopeForTool(tool: AgentToolName): AgentScope {
   if (tool === "get_market_brief") return "market:read";
+  if (tool === "add_to_radar" || tool === "remove_from_radar") return "radar:write";
+  if (tool === "get_my_alerts") return "alerts:read";
+  if (tool === "create_alert" || tool === "delete_alert") return "alerts:write";
   if (tool === "get_my_radar" || tool === "get_radar_changes") return "radar:read";
   return "stocks:read";
 }
@@ -101,6 +119,7 @@ export async function searchStocks(input: {
 export async function getStockAgentIntelligence(input: {
   ticker: string;
   market?: AgentMarket;
+  uid?: string;
 }) {
   const market = input.market === "IN" ? "IN" : "US";
   const ticker = input.ticker.trim().toUpperCase();
@@ -108,16 +127,30 @@ export async function getStockAgentIntelligence(input: {
   const resolved = await resolveInstrumentByTicker(ticker, market).catch(() => null);
   if (!resolved) throw new AgentDataError(`${ticker} was not found in the ${market} catalog.`, "stock_not_found", 404);
 
-  const [summary, view, intelligence, intelPro, facts] = await Promise.all([
+  const [summary, view, intelligence, intelPro, facts, user, researchJob] = await Promise.all([
     getStockSummary(resolved.ticker, market).catch(() => null),
     getInstrumentViewDoc(resolved.instrument_id, market).catch(() => null),
     getStockIntelligenceDoc(resolved.instrument_id, market).catch(() => null),
     getStockIntelPro(resolved.instrument_id, market).catch(() => null),
     getStockFacts(resolved.instrument_id).catch(() => null),
+    input.uid ? getUserDoc(input.uid).catch(() => null) : null,
+    getOnDemandNewsStatus(resolved.instrument_id).catch(() => null),
   ]);
-  if (!summary && !intelligence && !intelPro) {
-    throw new AgentDataError(`Stocksbrew does not have enough current data for ${resolved.ticker}.`, "coverage_pending", 404);
-  }
+  const tracked = Boolean(user?.tracked_stocks?.includes(resolved.instrument_id));
+  const hasDetailedCall = Boolean(intelligence?.directive || intelligence?.directive_v2);
+  const hasBaseline = Boolean(summary || view || intelligence || intelPro || facts);
+  const jobStatus = researchJob?.status || null;
+  const researchStatus = hasDetailedCall
+    ? "ready"
+    : jobStatus === "queued" || jobStatus === "running"
+      ? jobStatus
+      : jobStatus === "no_articles" || jobStatus === "no_brief"
+        ? "no_sources"
+        : jobStatus === "failed"
+          ? "failed"
+          : hasBaseline
+            ? "baseline_only"
+            : "unavailable";
 
   const targetPrice = nullableNumber(facts?.analyst?.target_price ?? view?.analyst_consensus?.target_price);
   const currentPrice = nullableNumber(summary?.price);
@@ -191,8 +224,31 @@ export async function getStockAgentIntelligence(input: {
     },
     coverage: {
       type: intelligence?.coverage_type ?? null,
-      has_detailed_call: Boolean(intelligence?.directive || intelligence?.directive_v2),
+      status: researchStatus,
+      tracked_in_radar: tracked,
+      has_baseline_data: hasBaseline,
+      has_detailed_call: hasDetailedCall,
       has_pro_scores: Boolean(intelPro),
+      research_job: researchJob,
+      next_action: hasDetailedCall
+        ? { action: "answer", message: "Use the current Stocksbrew brief and cite its freshness." }
+        : !tracked
+          ? {
+              action: "ask_to_add_to_radar",
+              tool: "add_to_radar",
+              message: "Baseline data is available, but the AI brief is missing. Ask the user before adding this stock to Radar. Adding it queues research.",
+            }
+          : researchStatus === "queued" || researchStatus === "running"
+            ? {
+                action: "recheck_later",
+                tool: "get_stock_intelligence",
+                message: "Research is in progress. Keep the baseline answer clearly labeled and check again later.",
+              }
+            : {
+                action: "ask_to_refresh_research",
+                tool: "add_to_radar",
+                message: "Answer only from available market and fundamental data. Say that the detailed AI brief is missing, then ask before using add_to_radar to refresh its research queue.",
+              },
     },
   }, asOf);
 }
@@ -266,9 +322,11 @@ export async function getMarketAgentBrief(input: { market?: AgentMarket }) {
   }, asOf);
 }
 
-export async function getMyAgentRadar(uid: string) {
+export async function getMyAgentRadar(uid: string, input: { limit?: number; offset?: number } = {}) {
   const view = await getWatchlistView(uid);
   if (!view) return envelope({ tracked_count: 0, rows: [], brief: null, pulse: null }, null);
+  const limit = Math.min(100, Math.max(1, Math.floor(input.limit || 50)));
+  const offset = Math.max(0, Math.floor(input.offset || 0));
   const asOf = latestIso([view.updated_at, view.built_at, view.brief?.generated_at, view.today_setup?.generated_at]);
   return envelope({
     tracked_count: view.tracked_count,
@@ -281,7 +339,9 @@ export async function getMyAgentRadar(uid: string) {
       status: view.brief.status,
     } : null,
     today_setup: view.today_setup ?? null,
-    rows: (view.rows ?? []).slice(0, 50).map((row) => ({
+    returned_count: Math.min(limit, Math.max(0, (view.rows?.length || 0) - offset)),
+    next_offset: offset + limit < (view.rows?.length || 0) ? offset + limit : null,
+    rows: (view.rows ?? []).slice(offset, offset + limit).map((row) => ({
       instrument_id: row.instrument_id,
       ticker: row.ticker,
       name: row.instrument_name ?? row.ticker,
@@ -311,7 +371,7 @@ export async function getMyAgentRadar(uid: string) {
   }, asOf);
 }
 
-export async function getAgentRadarChanges(uid: string) {
+export async function getAgentRadarChanges(uid: string, input: { since?: string } = {}) {
   const view = await getRadarUserView(uid);
   if (!view) {
     return envelope({
@@ -319,17 +379,129 @@ export async function getAgentRadarChanges(uid: string) {
       body: "Stocksbrew has no fresh, quality-passed changes for this Radar yet.",
       attention_items: [],
       upcoming_events: [],
+      cursor: null,
     }, null);
   }
+  const sinceTime = input.since ? Date.parse(input.since) : NaN;
+  const attentionItems = Number.isFinite(sinceTime)
+    ? view.attention_items.filter((item) => Date.parse(item.occurred_at) > sinceTime)
+    : view.attention_items;
   return envelope({
     headline: view.narrative.headline,
     body: view.narrative.body,
-    attention_items: view.attention_items,
+    cursor: view.generated_at,
+    attention_items: attentionItems,
     upcoming_events: view.upcoming_events,
     quiet_summary: view.quiet_summary,
     source_versions: view.source_versions,
     generated_copy_status: view.generated_copy_status,
   }, view.as_of || view.generated_at);
+}
+
+async function resolveAgentStock(ticker: string, market: AgentMarket = "US") {
+  const normalized = ticker.trim().toUpperCase();
+  const resolved = normalized ? await resolveInstrumentByTicker(normalized, market).catch(() => null) : null;
+  if (!resolved) throw new AgentDataError(`${normalized || "That stock"} was not found in the ${market} catalog.`, "stock_not_found", 404);
+  return resolved;
+}
+
+export async function addAgentStockToRadar(uid: string, input: { ticker: string; market?: AgentMarket; positionType?: string }) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const stock = await resolveAgentStock(input.ticker, market);
+  try {
+    const result = await addRadarStock({
+      uid,
+      instrumentId: stock.instrument_id,
+      positionType: input.positionType === "holding" ? "holding" : "watchlist",
+      requestedBy: "agent",
+    });
+    return envelope({
+      instrument: stock,
+      position_type: input.positionType === "holding" ? "holding" : "watchlist",
+      ...result,
+      research_status: result.research_queued ? "queued" : "ready_or_already_queued",
+      next_action: {
+        tool: "get_stock_intelligence",
+        message: result.research_queued
+          ? "Research was queued. Check the stock again later."
+          : "The stock is on Radar. Read its current intelligence now.",
+      },
+    }, new Date().toISOString());
+  } catch (error) {
+    if (error instanceof Error && error.message === "profile_not_ready") {
+      throw new AgentDataError("The Stocksbrew profile is not ready.", "profile_not_ready", 409);
+    }
+    throw error;
+  }
+}
+
+export async function removeAgentStockFromRadar(uid: string, input: { ticker: string; market?: AgentMarket }) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const stock = await resolveAgentStock(input.ticker, market);
+  const result = await removeRadarStock({ uid, instrumentId: stock.instrument_id, requestedBy: "agent" });
+  return envelope({ instrument: stock, ...result }, new Date().toISOString());
+}
+
+export async function getMyAgentAlerts(uid: string, input: { ticker?: string; market?: AgentMarket; kind?: string; limit?: number }) {
+  if (input.kind && !isAlertKind(input.kind)) {
+    throw new AgentDataError("Unsupported alert kind.", "invalid_alert_kind");
+  }
+  const stock = input.ticker
+    ? await resolveAgentStock(input.ticker, input.market === "IN" ? "IN" : "US")
+    : null;
+  const alerts = await listStockAlerts(uid, {
+    instrumentId: stock?.instrument_id,
+    kind: input.kind,
+    limit: input.limit,
+  });
+  return envelope({ count: alerts.length, alerts }, new Date().toISOString());
+}
+
+export async function createAgentAlert(uid: string, input: {
+  ticker: string;
+  market?: AgentMarket;
+  kind?: string;
+  condition?: string;
+  targetPrice?: number;
+  note?: string;
+}) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const stock = await resolveAgentStock(input.ticker, market);
+  const user = await getUserDoc(uid).catch(() => null);
+  if (!user?.email) throw new AgentDataError("Add an email address to the Stocksbrew profile before creating alerts.", "email_required", 409);
+  const kind = input.kind || "price_threshold";
+  if (!isAlertKind(kind)) throw new AgentDataError("Unsupported alert kind.", "invalid_alert_kind");
+  if (kind !== "price_threshold") {
+    throw new AgentDataError(
+      "Agents can currently create price threshold alerts. Use get_radar_changes for earnings, RSI, call, anomaly, and news updates.",
+      "invalid_alert_kind",
+    );
+  }
+  try {
+    const created = await createStockAlert({
+      uid,
+      email: user.email,
+      instrumentId: stock.instrument_id,
+      ticker: stock.ticker,
+      kind,
+      condition: input.condition === "above" ? "above" : input.condition === "below" ? "below" : undefined,
+      targetPrice: input.targetPrice,
+      note: input.note,
+    });
+    return envelope({ instrument: stock, ...created, delivery: "email" }, new Date().toISOString());
+  } catch (error) {
+    if (error instanceof StockAlertError) throw new AgentDataError(error.message, error.code, error.status);
+    throw error;
+  }
+}
+
+export async function deleteAgentAlert(uid: string, alertId: string) {
+  try {
+    return envelope(await deleteStockAlert(uid, alertId), new Date().toISOString());
+  } catch (error) {
+    if (error instanceof StockAlertError) throw new AgentDataError(error.message, error.code, error.status);
+    throw error;
+  }
 }
 
 export async function executeAgentTool(
@@ -352,6 +524,7 @@ export async function executeAgentTool(
       data = await getStockAgentIntelligence({
         ticker: String(args.ticker || ""),
         market: args.market === "IN" ? "IN" : "US",
+        uid: principal.uid,
       });
       break;
     case "compare_stocks":
@@ -363,10 +536,47 @@ export async function executeAgentTool(
       data = await getMarketAgentBrief({ market: args.market === "IN" ? "IN" : "US" });
       break;
     case "get_my_radar":
-      data = await getMyAgentRadar(principal.uid);
+      data = await getMyAgentRadar(principal.uid, {
+        limit: typeof args.limit === "number" ? args.limit : undefined,
+        offset: typeof args.offset === "number" ? args.offset : undefined,
+      });
       break;
     case "get_radar_changes":
-      data = await getAgentRadarChanges(principal.uid);
+      data = await getAgentRadarChanges(principal.uid, { since: typeof args.since === "string" ? args.since : undefined });
+      break;
+    case "add_to_radar":
+      data = await addAgentStockToRadar(principal.uid, {
+        ticker: String(args.ticker || ""),
+        market: args.market === "IN" ? "IN" : "US",
+        positionType: String(args.position_type || "watchlist"),
+      });
+      break;
+    case "remove_from_radar":
+      data = await removeAgentStockFromRadar(principal.uid, {
+        ticker: String(args.ticker || ""),
+        market: args.market === "IN" ? "IN" : "US",
+      });
+      break;
+    case "get_my_alerts":
+      data = await getMyAgentAlerts(principal.uid, {
+        ticker: typeof args.ticker === "string" ? args.ticker : undefined,
+        market: args.market === "IN" ? "IN" : "US",
+        kind: typeof args.kind === "string" ? args.kind : undefined,
+        limit: typeof args.limit === "number" ? args.limit : undefined,
+      });
+      break;
+    case "create_alert":
+      data = await createAgentAlert(principal.uid, {
+        ticker: String(args.ticker || ""),
+        market: args.market === "IN" ? "IN" : "US",
+        kind: typeof args.kind === "string" ? args.kind : undefined,
+        condition: typeof args.condition === "string" ? args.condition : undefined,
+        targetPrice: typeof args.target_price === "number" ? args.target_price : undefined,
+        note: typeof args.note === "string" ? args.note : undefined,
+      });
+      break;
+    case "delete_alert":
+      data = await deleteAgentAlert(principal.uid, String(args.alert_id || ""));
       break;
     default:
       throw new AgentDataError("Unknown agent tool.", "unknown_tool", 404);

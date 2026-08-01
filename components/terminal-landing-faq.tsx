@@ -19,7 +19,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Can I use Stocksbrew in Claude Code, Cursor, or Codex?",
-    a: "Yes. Pro includes a read-only MCP server and REST API. A compatible agent can retrieve current Stocksbrew calls, targets, drivers, risks, and freshness. It cannot trade or change your account.",
+    a: "Yes. Pro includes MCP and REST access for current stock research, Radar, changes, and alerts. You choose narrow read and write scopes. Stocksbrew cannot place trades or move money.",
   },
   {
     q: "Is there a free trial?",

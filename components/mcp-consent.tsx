@@ -17,6 +17,9 @@ const SCOPE_COPY: Record<string, string> = {
   "stocks:read": "Read stock calls, targets, fundamentals, risks, and comparisons",
   "market:read": "Read the current Stocksbrew market brief and sector context",
   "radar:read": "Read your private Radar stocks, holdings context, and changes",
+  "radar:write": "Add or remove stocks from your Radar after you approve the action",
+  "alerts:read": "Read your active Stocksbrew alerts",
+  "alerts:write": "Create or remove alerts after you approve the action",
 };
 
 export function McpConsent({ clientName, scopes, authorizationParams, signedIn, subscribed }: Props) {
@@ -61,7 +64,7 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
       <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">Stocksbrew for Agents</p>
       <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface">Connect {clientName}</h1>
       <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
-        This client is asking to use your Stocksbrew Pro intelligence. It cannot trade, edit your Radar, or create alerts.
+        This client is asking to use your Stocksbrew Pro research workflow. Stocksbrew never gives it trading access.
       </p>
 
       <ul className="mt-5 space-y-2.5">
@@ -74,7 +77,7 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
       </ul>
 
       <p className="mt-4 text-[11px] leading-relaxed text-on-surface-variant">
-        Only approve clients you trust. You can revoke developer tokens from your profile. Agent access is informational only and counts toward your monthly allowance.
+        Only approve clients you trust. Radar and alert changes still require your instruction in the agent. You can revoke access from your profile.
       </p>
 
       {error ? <p className="mt-4 text-[12px] text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
