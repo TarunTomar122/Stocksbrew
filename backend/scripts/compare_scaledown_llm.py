@@ -283,19 +283,11 @@ def _scaledown_classify(text: str, labels: list[tuple[str, str]]) -> dict[str, A
 def _brief_ui_slice(brief: dict[str, Any] | None) -> dict[str, Any]:
     if not brief:
         return {"error": "no brief"}
-    directive = brief.get("directive") if isinstance(brief.get("directive"), dict) else {}
     return {
         "headline": brief.get("headline"),
         "thesis": brief.get("thesis"),
         "body": brief.get("body"),
         "setup_state": brief.get("setup_state"),
-        "directive": {
-            "text": directive.get("text"),
-            "stance": directive.get("stance"),
-            "trigger_type": directive.get("trigger_type"),
-            "trigger_value": directive.get("trigger_value"),
-            "confidence": directive.get("confidence"),
-        },
         "drivers_count": len(brief.get("drivers") or []),
         "catalyst_cards_count": len(brief.get("catalyst_cards") or []),
         "risk_cards_count": len(brief.get("risk_cards") or []),
@@ -476,7 +468,7 @@ def run_stock_brief_task(
     results["extract_only"] = {
         "latency_s": round(extract_s, 2),
         "fields": structured,
-        "note": "Partial replacement — no directive/drivers/catalyst_cards/risk_cards",
+        "note": "Partial replacement — no drivers/catalyst_cards/risk_cards",
     }
 
     summarize_out, summarize_s = _timed(
@@ -623,7 +615,7 @@ def _verdict(results: dict[str, Any]) -> list[str]:
         comp = (brief.get("compress_plus_openai") or {}).get("brief") or {}
         if base and comp and base != comp:
             lines.append(
-                "Stock brief: compress+OpenAI changed output vs baseline — review directive/stance parity."
+                "Stock brief: compress+OpenAI changed output vs baseline — review brief-content parity."
             )
         elif base and comp:
             lines.append("Stock brief: compress+OpenAI matched baseline shape; modest token savings only.")

@@ -12,12 +12,7 @@ class DirectiveV2Test(unittest.TestCase):
             "overall_label": "constructive",
             "overall_score": 72,
             "setup_state": "trend",
-            "directive": {
-                "stance": "watch",
-                "add_on": {"trigger_type": "price_below", "trigger_value": "96"},
-                "trim_on": {"trigger_type": "price_above", "trigger_value": "125"},
-                "breaks_if": {"trigger_type": "price_below", "trigger_value": "88"},
-            },
+            "price_context": {"recent_sessions": [{"close": 96}, {"close": 100}]},
             "visual_summary": {
                 "drivers": [
                     {"direction": "up", "strength": 4, "detail": "Demand is still improving."},
@@ -44,12 +39,6 @@ class DirectiveV2Test(unittest.TestCase):
             "overall_label": "cautious",
             "overall_score": 38,
             "setup_state": "exhaustion",
-            "directive": {
-                "stance": "accumulate",
-                "add_on": {"trigger_type": "price_below", "trigger_value": "95"},
-                "trim_on": {"trigger_type": "price_above", "trigger_value": "115"},
-                "breaks_if": {"trigger_type": "price_below", "trigger_value": "90"},
-            },
             "visual_summary": {
                 "drivers": [{"direction": "down", "strength": 5, "detail": "Momentum has cracked."}],
                 "risk_cards": [{"risk": "Breakdown", "detail": "Support already failed."}],
@@ -65,19 +54,13 @@ class DirectiveV2Test(unittest.TestCase):
             self.assertEqual(out["action"]["label"], "Do not add here")
         self.assertNotIn("Reassess", out["action"]["label"])
 
-    def test_analyst_target_overrides_stale_legacy_trim_zone(self) -> None:
+    def test_analyst_target_sets_the_trim_zone(self) -> None:
         doc = {
             "current_price": 352.83,
             "analyst_target": 559.02,
             "overall_label": "mixed",
             "overall_score": 59,
             "setup_state": "accumulation",
-            "directive": {
-                "stance": "watch",
-                "add_on": {"trigger_type": "price_above", "trigger_value": "360"},
-                "trim_on": {"trigger_type": "price_above", "trigger_value": "380"},
-                "breaks_if": {"trigger_type": "price_below", "trigger_value": "345"},
-            },
             "visual_summary": {
                 "drivers": [
                     {"direction": "down", "strength": 4, "detail": "Regulatory pressure is a near-term risk."},
@@ -101,7 +84,6 @@ class DirectiveV2Test(unittest.TestCase):
         out = build_directive_v2(doc)
 
         self.assertEqual(out["zones"]["trim_above"], 559.02)
-        self.assertNotEqual(out["zones"]["trim_above"], 380)
 
     def test_negative_anomaly_and_hard_news_lower_the_call(self) -> None:
         base = {
@@ -110,12 +92,6 @@ class DirectiveV2Test(unittest.TestCase):
             "overall_label": "constructive",
             "overall_score": 62,
             "setup_state": "accumulation",
-            "directive": {
-                "stance": "accumulate",
-                "add_on": {"trigger_type": "price_below", "trigger_value": "96"},
-                "trim_on": {"trigger_type": "price_above", "trigger_value": "130"},
-                "breaks_if": {"trigger_type": "price_below", "trigger_value": "90"},
-            },
             "visual_summary": {
                 "drivers": [{"direction": "up", "strength": 3, "detail": "Growth remains solid."}],
                 "risk_cards": [],
@@ -140,12 +116,6 @@ class DirectiveV2Test(unittest.TestCase):
             "overall_label": "constructive",
             "overall_score": 78,
             "setup_state": "trend",
-            "directive": {
-                "stance": "accumulate",
-                "add_on": {"trigger_type": "price_below", "trigger_value": "92"},
-                "trim_on": {"trigger_type": "price_above", "trigger_value": "120"},
-                "breaks_if": {"trigger_type": "price_below", "trigger_value": "85"},
-            },
             "visual_summary": {
                 "drivers": [{"direction": "up", "strength": 5, "detail": "Demand is accelerating."}],
                 "risk_cards": [],

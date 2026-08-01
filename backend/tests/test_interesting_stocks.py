@@ -15,10 +15,11 @@ def _intel_doc(stance: str = "accumulate", target: float = 110.0, break_price: f
         "instrument_id": "US_TEST",
         "ticker": "TEST",
         "current_price": 100.0,
-        "directive": {
+        "directive_v2": {
             "stance": stance,
-            "profit_on": {"trigger_type": "price_above", "trigger_value": target},
-            "breaks_if": {"trigger_type": "price_below", "trigger_value": break_price},
+            "action": {"label": "Accumulate setup", "summary": "The setup remains actionable."},
+            "zones": {"trim_above": target, "accumulate_below": break_price},
+            "setup": {"risk_reward": "favorable"},
         },
         "visual_summary": {"why_it_matters": "Clean pullback into support with improving sentiment."},
     }
@@ -55,10 +56,11 @@ def test_score_rejects_unfavorable_setup() -> None:
             "risk_cards": [{"detail": "risk one"}, {"detail": "risk two"}, {"detail": "risk three"}],
         },
         "news_digest": {"direction": "negative", "hard_catalyst": True},
-        "directive": {
+        "directive_v2": {
             "stance": "avoid",
-            "profit_on": {"trigger_type": "price_above", "trigger_value": 102.0},
-            "breaks_if": {"trigger_type": "price_below", "trigger_value": 98.0},
+            "action": {"label": "Avoid for now", "summary": "The setup is unfavorable."},
+            "zones": {"trim_above": 102.0, "accumulate_below": 98.0},
+            "setup": {"risk_reward": "unfavorable"},
         },
     }
     score, _tags, _setup, _headline, eligible = score_interesting_row(

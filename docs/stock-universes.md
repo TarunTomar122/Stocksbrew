@@ -22,7 +22,7 @@ paused and are not the production owner.
 | --- | --- | --- |
 | `search_catalog` | Everything users can search/request. This can grow toward ~2000 stocks without implying full refresh coverage. | `tm_search_index/US`, `tm_instruments` |
 | `coverage_catalog` | 500-ish stocks with slower baseline data, such as instruments, fundamentals, and slower price coverage. | Historical ID `us_core_155`; `tm_config/instrument_universe_state.US.universe_id` currently points here with 500 instruments |
-| `runtime_core` | 100-ish high-priority stocks used for the frequent product surfaces: homepage/dashboard rows, core price refreshes, movers/screens, and active US AI namespace. | Historical ID `us_core_100`; `tm_config/active_universes.US_universe` currently points here |
+| `runtime_core` | 60 popular stocks used for the frequent product surfaces and the base US AI cohort. | Historical ID `us_core_100`; `tm_config/active_universes.US_universe` currently points here |
 | `tracked_universe` | Dynamic union of user-tracked stocks. These get targeted news/AI/open briefs independent of whether they are in `runtime_core`. | `users/{uid}.tracked_stocks`, `tm_tracked_instruments`, Cloud Run tracked lanes |
 
 ## Current Verified Mapping
@@ -33,7 +33,11 @@ cohort counts are recorded separately in
 
 - `tm_config/active_universes.US_universe = us_core_100`
 - `backend/config/instrument_universe.json.markets.US.universes.us_core_100`
-  contains exactly 100 IDs.
+  contains exactly 60 IDs. The ID is retained because it is a Firestore
+  namespace, not a count contract.
+- `backend/config/instrument_universe.json.markets.US.universes.us_seo_100`
+  preserves the established 100 indexable stock pages independently of daily
+  runtime compute.
 - `backend/config/instrument_universe.json.markets.US.universes.us_core_155`
   contains about 500 IDs. The name is historical.
 - `tm_config/instrument_universe_state.US` says `universe_id = us_core_155`
@@ -52,6 +56,9 @@ cohort counts are recorded separately in
 - `runtime_core` should remain small enough for frequent refreshes.
 - `tracked_universe` should be driven from user profile data and tracked-stock
   counters, not from static universe names.
+- Pro tracked compute includes active paid and intentionally gifted premium
+  accounts. A cancellation scheduled for period end remains eligible until its
+  paid-through access actually expires; terminal statuses are excluded.
 - India can remain configured but should not be assumed fresh until the frontend
   is re-enabled and IN home/search views are rebuilt.
 

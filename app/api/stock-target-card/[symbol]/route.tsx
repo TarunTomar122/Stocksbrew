@@ -172,8 +172,7 @@ export async function GET(
   const up = dayPct >= 0;
   const dayColor = up ? GREEN : RED;
 
-  const directive: Directive | null =
-    normalizeDirectiveForUi(intel?.directive_v2 ?? null) ?? intel?.directive ?? null;
+  const directive: Directive | null = normalizeDirectiveForUi(intel?.directive_v2 ?? null);
   const stance = directive?.stance;
   const accPrice = directiveZonePrice(directive?.add_on);
   const trimPrice = directiveZonePrice(directive?.trim_on);

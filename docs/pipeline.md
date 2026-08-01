@@ -16,7 +16,9 @@ From `tm_config/active_universes`:
 Rules:
 
 - US display + materialized views use `US_universe`.
-- US AI briefs/news intelligence use `US_universe`, plus paid tracked stocks unioned at runtime.
+- US AI briefs/news intelligence use the 60-stock runtime membership in
+  `US_universe`, plus current Pro users' tracked stocks unioned and deduplicated
+  at runtime. Pro includes paid-through subscriptions and gifted premium.
 - No legacy `US`/`IN` flat fallback keys are used.
 
 ## Stage groups (high level)

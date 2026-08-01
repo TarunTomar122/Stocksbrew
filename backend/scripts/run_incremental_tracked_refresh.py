@@ -15,6 +15,7 @@ import sys
 import tempfile
 
 from backend.storage import TraceMoneyStore
+from backend.subscription_entitlement import has_current_pro_entitlement
 
 
 def _tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
@@ -22,7 +23,7 @@ def _tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for user in store.list_subscribed_users():
-        if not bool(user.get("is_subscribed")):
+        if not has_current_pro_entitlement(user):
             continue
         tracked = user.get("tracked_stocks") or []
         if not isinstance(tracked, list):

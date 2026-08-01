@@ -47,7 +47,7 @@ REASON_LLM_WORKERS = 8
 TAPE_EXPLAINER_PROMPT = """You explain a sharp stock move when no dated news item cleanly explains it.
 
 You receive exact current-session price data, recent completed sessions, the
-stock's latest directive/context, and market/sector relative performance.
+stock's latest action context, and market/sector relative performance.
 
 Write an honest tape read, not a made-up catalyst.
 
@@ -477,18 +477,23 @@ def _relative_tape_context(
 
 def _directive_context(intel_doc: dict[str, Any] | None) -> dict[str, Any]:
     intel = intel_doc or {}
-    directive = intel.get("directive_v2") or intel.get("directive")
+    directive = intel.get("directive_v2")
     if not isinstance(directive, dict):
         directive = {}
+    action = directive.get("action") if isinstance(directive.get("action"), dict) else {}
     return {
         "headline": str(intel.get("headline") or "")[:180],
         "thesis": str(intel.get("thesis") or "")[:240],
         "risk": str(intel.get("risk") or "")[:220],
         "setup_state": str(intel.get("setup_state") or "")[:60],
-        "directive": {
-            key: directive.get(key)
-            for key in ("stance", "text", "action_now", "rationale", "confidence")
-            if directive.get(key) not in (None, "")
+        "directive_v2": {
+            "stance": directive.get("stance"),
+            "action": {
+                "label": action.get("label"),
+                "summary": action.get("summary"),
+            },
+            "watch_out": directive.get("watch_out"),
+            "confidence": directive.get("confidence"),
         },
     }
 

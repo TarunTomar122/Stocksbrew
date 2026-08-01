@@ -155,7 +155,7 @@ export async function getStockAgentIntelligence(input: {
       headline: intelligence?.headline ?? null,
       thesis: intelligence?.thesis ?? intelligence?.body ?? null,
       setup_state: intelligence?.setup_state ?? null,
-      call: intelligence?.directive_v2 ?? intelligence?.directive ?? null,
+      call: intelligence?.directive_v2 ?? null,
       target_price: targetPrice,
       target_upside_pct: targetUpsidePct,
       drivers: intelligence?.visual_cards?.drivers ?? [],
@@ -191,7 +191,7 @@ export async function getStockAgentIntelligence(input: {
     },
     coverage: {
       type: intelligence?.coverage_type ?? null,
-      has_detailed_call: Boolean(intelligence?.directive || intelligence?.directive_v2),
+      has_detailed_call: Boolean(intelligence?.directive_v2),
       has_pro_scores: Boolean(intelPro),
     },
   }, asOf);

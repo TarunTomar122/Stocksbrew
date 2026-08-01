@@ -110,24 +110,22 @@ def session_move_stats(
 
 
 def risk_reward_ratio(intel_doc: dict[str, Any] | None, price: float | None) -> float | None:
-    """Upside to profit target vs downside to break level — same logic as stock page."""
+    """Upside to the v2 trim target vs downside to the v2 pullback zone."""
     if not intel_doc or not price or price <= 0:
         return None
 
-    directive = intel_doc.get("directive") if isinstance(intel_doc.get("directive"), dict) else {}
-    profit_zone = directive.get("profit_on") if isinstance(directive.get("profit_on"), dict) else {}
-    break_zone = directive.get("breaks_if") if isinstance(directive.get("breaks_if"), dict) else {}
-
-    target = _num(profit_zone.get("trigger_value")) if profit_zone.get("trigger_type") == "price_above" else None
-    break_price = _num(break_zone.get("trigger_value")) if break_zone.get("trigger_type") == "price_below" else None
+    directive = intel_doc.get("directive_v2") if isinstance(intel_doc.get("directive_v2"), dict) else {}
+    zones = directive.get("zones") if isinstance(directive.get("zones"), dict) else {}
+    target = _num(zones.get("trim_above"))
+    pullback = _num(zones.get("accumulate_below"))
 
     if target and target > price:
         upside_pct = ((target - price) / price) * 100.0
     else:
         upside_pct = None
 
-    if break_price and break_price < price:
-        risk_pct = ((price - break_price) / price) * 100.0
+    if pullback and pullback < price:
+        risk_pct = ((price - pullback) / price) * 100.0
     else:
         risk_pct = None
 
@@ -229,7 +227,12 @@ def score_interesting_row(
     action_label = "Review setup"
 
     if intel_doc:
-        directive_v2 = build_directive_v2(intel_doc)
+        stored_directive_v2 = intel_doc.get("directive_v2")
+        directive_v2 = (
+            stored_directive_v2
+            if isinstance(stored_directive_v2, dict)
+            else build_directive_v2(intel_doc)
+        )
         stance = str(directive_v2.get("stance") or "hold").lower()
         setup = directive_v2.get("setup") if isinstance(directive_v2.get("setup"), dict) else {}
         risk_reward_label = str(setup.get("risk_reward") or "balanced").lower()

@@ -16,18 +16,8 @@ from backend.stock_intelligence import (
 from backend.storage import TraceMoneyStore
 
 
-def _legacy_label(doc: dict[str, Any]) -> str:
-    directive = doc.get("directive") if isinstance(doc.get("directive"), dict) else {}
-    return str(directive.get("text") or directive.get("action_now") or "").strip()
-
-
-def _legacy_stance(doc: dict[str, Any]) -> str:
-    directive = doc.get("directive") if isinstance(doc.get("directive"), dict) else {}
-    return str(directive.get("stance") or "").strip()
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare stored directive v1 against shadow directive_v2")
+    parser = argparse.ArgumentParser(description="Compare stored directive_v2 against a fresh deterministic rebuild")
     parser.add_argument("--market", default="US")
     parser.add_argument("--universe", default="")
     parser.add_argument("--tickers", default="NVDA,MSFT,RKLB,AVGO,MSTR,OKLO")
@@ -87,12 +77,19 @@ def main() -> None:
         }
         if args.with_options and market == "US":
             doc["options_digest"] = option_digests.get(instrument_id)
-        v2 = build_directive_v2(doc, previous_v2=doc.get("directive_v2") if isinstance(doc.get("directive_v2"), dict) else None)
+        stored_v2 = doc.get("directive_v2") if isinstance(doc.get("directive_v2"), dict) else {}
+        v2 = build_directive_v2(doc, previous_v2=stored_v2 or None)
         rows.append({
             "ticker": ticker,
             "price": doc.get("current_price"),
-            "v1": {"stance": _legacy_stance(doc), "label": _legacy_label(doc)},
-            "v2": {
+            "stored": {
+                "stance": stored_v2.get("stance"),
+                "execution": stored_v2.get("execution"),
+                "label": (stored_v2.get("action") or {}).get("label"),
+                "confidence": stored_v2.get("confidence"),
+                "zones": stored_v2.get("zones"),
+            },
+            "rebuilt": {
                 "stance": v2.get("stance"),
                 "execution": v2.get("execution"),
                 "label": (v2.get("action") or {}).get("label"),
@@ -111,9 +108,9 @@ def main() -> None:
             continue
         print(
             f"{row['ticker']} @ {row.get('price')}: "
-            f"v1={row['v1']['stance']} / {row['v1']['label']}  ->  "
-            f"v2={row['v2']['stance']}:{row['v2']['execution']} / {row['v2']['label']} "
-            f"({row['v2']['confidence']}) zones={row['v2']['zones']}"
+            f"stored={row['stored']['stance']}:{row['stored']['execution']} / {row['stored']['label']}  ->  "
+            f"rebuilt={row['rebuilt']['stance']}:{row['rebuilt']['execution']} / {row['rebuilt']['label']} "
+            f"({row['rebuilt']['confidence']}) zones={row['rebuilt']['zones']}"
         )
 
 

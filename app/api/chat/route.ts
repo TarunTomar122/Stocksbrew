@@ -404,7 +404,7 @@ export async function POST(req: NextRequest) {
       thesis: intel?.thesis,
       catalyst: intel?.catalyst,
       risk: intel?.risk,
-      directive: intel?.directive,
+      directive: intel?.directive_v2,
       overall_score: intel?.overall_score ?? pro?.overall?.score,
       overall_label: intel?.overall_label ?? pro?.overall?.verdict,
       key_points: intel?.key_points,
