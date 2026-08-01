@@ -65,15 +65,25 @@ export default async function MarketDailyArchivePage() {
                 className={styles.editionCard}
                 key={edition.edition_date}
               >
-                {index === 0 ? <span className={styles.cardLatest}>Latest edition</span> : null}
-                <time className={styles.cardDate} dateTime={edition.edition_date}>
-                  {dateLabel(edition.edition_date)}
-                </time>
-                <h2 className={styles.cardHeadline}>{edition.headline}</h2>
-                <p className={styles.cardDek}>{edition.dek}</p>
-                <span className={styles.cardAction}>
-                  Read market view →
-                </span>
+                <div className={styles.cardImageWrap}>
+                  <img
+                    alt=""
+                    className={styles.cardImage}
+                    loading={index < 3 ? "eager" : "lazy"}
+                    src={`/api/market-daily-cover/${edition.edition_date}`}
+                  />
+                  {index === 0 ? <span className={styles.cardLatest}>Latest</span> : null}
+                </div>
+                <div className={styles.cardBody}>
+                  <time className={styles.cardDate} dateTime={edition.edition_date}>
+                    {dateLabel(edition.edition_date)}
+                  </time>
+                  <h2 className={styles.cardHeadline}>{edition.headline}</h2>
+                  <p className={styles.cardDek}>{edition.dek}</p>
+                  <span className={styles.cardAction}>
+                    Read market view →
+                  </span>
+                </div>
               </Link>
             ))}
           </section>
