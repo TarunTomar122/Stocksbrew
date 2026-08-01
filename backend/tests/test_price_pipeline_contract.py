@@ -40,6 +40,50 @@ def test_same_phase_document_from_yesterday_is_not_fresh() -> None:
     assert stale == ["US_STALE"]
 
 
+def test_later_same_day_phase_satisfies_open_requirement() -> None:
+    fresh, stale = partition_fresh_price_documents(
+        {
+            "US_NEWER": {
+                "session_phase": "mid_check",
+                "captured_at": "2026-07-30T15:00:00+00:00",
+                "updated_at": "2026-07-30T15:01:00+00:00",
+            }
+        },
+        ["US_NEWER"],
+        policy=PriceFreshnessPolicy(
+            required_phase="open_check",
+            max_age_hours=3,
+            market="US",
+        ),
+        now=datetime(2026, 7, 30, 15, 15, tzinfo=timezone.utc),
+    )
+
+    assert list(fresh) == ["US_NEWER"]
+    assert stale == []
+
+
+def test_earlier_phase_does_not_satisfy_open_requirement() -> None:
+    fresh, stale = partition_fresh_price_documents(
+        {
+            "US_EARLY": {
+                "session_phase": "pre_open",
+                "captured_at": "2026-07-30T12:00:00+00:00",
+                "updated_at": "2026-07-30T12:01:00+00:00",
+            }
+        },
+        ["US_EARLY"],
+        policy=PriceFreshnessPolicy(
+            required_phase="open_check",
+            max_age_hours=3,
+            market="US",
+        ),
+        now=NOW,
+    )
+
+    assert fresh == {}
+    assert stale == ["US_EARLY"]
+
+
 def test_yahoo_midnight_utc_daily_bar_is_the_market_date_label() -> None:
     fresh, stale = partition_fresh_price_documents(
         {

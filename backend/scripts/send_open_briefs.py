@@ -30,6 +30,10 @@ def main() -> None:
         dry_run=args.dry_run,
     )
     print(json.dumps({"market": args.market.upper(), **stats, "dry_run": args.dry_run}))
+    if not args.dry_run and (stats.get("failed", 0) or stats.get("skipped_no_snapshot", 0)):
+        # Successful recipients are protected by the per-day dedupe key, so a
+        # service retry can safely pick up only failed/unsent deliveries.
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

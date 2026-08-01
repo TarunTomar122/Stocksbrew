@@ -64,8 +64,8 @@ def main() -> None:
     parser.add_argument(
         "--barrier-timeout-seconds",
         type=int,
-        default=900,
-        help="Wait this long for the price/brief dependency record before failing closed.",
+        default=3600,
+        help="Wait up to one hour for the sequential price/brief dependency before failing closed.",
     )
     parser.add_argument(
         "--price-session-phase",
