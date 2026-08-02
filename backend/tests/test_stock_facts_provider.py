@@ -8,6 +8,8 @@ from backend.providers.stock_facts_provider import (
     _parse_stockanalysis_forecast,
     _parse_stockanalysis_metrics,
     _parse_stockanalysis_statistics,
+    _parse_finviz_snapshot,
+    _stockanalysis_soup,
     fetch_stock_facts,
 )
 
@@ -144,3 +146,12 @@ def test_fetch_stock_facts_keeps_each_extended_source_independent() -> None:
     assert result["source_status"]["errors"] == [
         "stockanalysis_metrics: temporarily unavailable"
     ]
+
+
+def test_share_class_symbols_use_each_providers_expected_slug() -> None:
+    with patch("backend.providers.stock_facts_provider._get_text", return_value="<html></html>") as get_text:
+        _stockanalysis_soup("BF.B", "financials/")
+        assert get_text.call_args.args[0] == "https://stockanalysis.com/stocks/bf.b/financials/"
+
+        _parse_finviz_snapshot("BF.B")
+        assert get_text.call_args.args[0] == "https://finviz.com/quote.ashx?t=BF-B&p=d"

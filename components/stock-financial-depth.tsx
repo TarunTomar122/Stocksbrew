@@ -267,7 +267,7 @@ export function StockFinancialDepth({ facts, currentPrice, currency = "$", ticke
   if (!history.length && !hasBalance && !hasRatios && !hasDividends && !hasMix && !hasAnalyst) return null;
 
   const maxCapital = Math.max(balance?.cash_and_investments ?? 0, balance?.total_debt ?? 0, 1);
-  const sourceSlug = ticker.toLowerCase().replace(".", "-");
+  const sourceSlug = ticker.toLowerCase();
 
   return (
     <section id="stock-financial-depth" className="flex flex-col gap-12 border-t border-outline-variant bg-transparent py-7 sm:py-9">

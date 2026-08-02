@@ -134,7 +134,9 @@ def _parse_millions(value: str | None) -> float | None:
 
 
 def _stockanalysis_soup(ticker: str, suffix: str) -> BeautifulSoup:
-    slug = ticker.lower().replace(".", "-")
+    # StockAnalysis keeps exchange-style dots for share classes (for example
+    # BF.B), unlike Yahoo and Finviz which use a hyphen.
+    slug = ticker.lower()
     return BeautifulSoup(
         _get_text(f"https://stockanalysis.com/stocks/{slug}/{suffix}"),
         "html.parser",
@@ -310,7 +312,8 @@ def _parse_stockanalysis_forecast(ticker: str) -> dict[str, Any]:
 
 
 def _parse_finviz_snapshot(ticker: str) -> dict[str, Any]:
-    html = _get_text(f"https://finviz.com/quote.ashx?t={ticker}&p=d")
+    finviz_ticker = ticker.replace(".", "-")
+    html = _get_text(f"https://finviz.com/quote.ashx?t={finviz_ticker}&p=d")
     rows = re.findall(
         r'<td[^>]*class="snapshot-td2[^>]*>(.*?)</td>\s*'
         r'<td[^>]*class="snapshot-td2[^>]*>(.*?)</td>',
