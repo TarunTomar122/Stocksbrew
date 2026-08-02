@@ -10,9 +10,8 @@ import {
   highlightCallText,
 } from "@/components/verdict-call-ui";
 import { LockedVerdictCall } from "@/components/locked-verdict-call";
-import { LockedRoomToTarget } from "@/components/locked-room-to-target";
 import { FundamentalsBreakdown } from "@/components/fundamentals-breakdown";
-import { StockFinancialDepth } from "@/components/stock-financial-depth";
+import { StockAnalystDepth, StockFinancialDepth } from "@/components/stock-financial-depth";
 import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
 import { TrackButton } from "@/components/track-button";
 import { StockShareCard } from "@/components/stock-share-card";
@@ -388,11 +387,13 @@ export function StockDetail(props: Props) {
       Object.values(facts?.balance ?? {}).some(n) ||
       Object.values(facts?.valuation ?? {}).some(n) ||
       Object.values(facts?.quality ?? {}).some(n) ||
-      facts?.dividends?.history?.length ||
       facts?.business_segments?.items?.length ||
-      facts?.geographic_mix?.items?.length ||
-      facts?.analyst_trend?.recommendation_trend?.length,
+      facts?.geographic_mix?.items?.length,
   );
+  const hasExtendedAnalyst = Boolean(
+    facts?.analyst_trend?.recommendation_trend?.length || facts?.analyst_trend?.target?.average,
+  );
+  const showBasicAnalyst = showAnalyst && !hasExtendedAnalyst;
 
   const hasRedditBuzz = hasRedditBuzzData(reddit);
 
@@ -568,8 +569,7 @@ export function StockDetail(props: Props) {
       finTiles.length > 0 ||
       hasFinancialDepth ||
       peerRows.length > 1 ||
-      showAnalyst ||
-      hasCrowdSignal,
+      (subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal)),
   );
   const hasSmartAlerts = directiveSmartAlerts.length > 0 || Boolean(earningsSmartAlertRail);
   const hasActivitySection = Boolean(recentNews?.length);
@@ -997,11 +997,12 @@ export function StockDetail(props: Props) {
             facts={facts ?? null}
             currentPrice={stock.price}
             currency={currency}
+            intelPro={intelPro}
             ticker={stock.ticker}
           />
         )}
 
-        {(showAnalyst || hasCrowdSignal) && (
+        {subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (
           <section className={`${STOCK_SECTION} py-7 sm:py-9`}>
             <div className="mb-5">
               <span className={TIER}>market view</span>
@@ -1010,75 +1011,70 @@ export function StockDetail(props: Props) {
               </h2>
             </div>
 
+            {hasExtendedAnalyst ? (
+              <div className="mb-9">
+                <StockAnalystDepth facts={facts ?? null} currentPrice={stock.price} currency={currency} />
+              </div>
+            ) : null}
+
             <div
               className={`grid gap-7 ${
-                showAnalyst && hasCrowdSignal && hasMarketReddit
+                showBasicAnalyst && hasCrowdSignal && hasMarketReddit
                   ? "lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/60"
-                  : showAnalyst && hasCrowdSignal
+                  : showBasicAnalyst && hasCrowdSignal
                     ? "lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/60"
                     : ""
               }`}
             >
               <div className={hasMarketReddit ? "flex min-w-0 flex-col divide-y divide-outline-variant/60" : "contents"}>
-              {showAnalyst && (
+              {showBasicAnalyst && (
                 <div className={`min-w-0 ${hasMarketReddit ? "pb-7" : "lg:pr-8"}`}>
                   <p className={`${RAIL_KICKER} mb-3`}>analyst consensus</p>
-                  {!subscribed ? (
-                    <LockedRoomToTarget
-                      ticker={stock.ticker}
-                      currentPriceLabel={money(stock.price)}
-                      analystCount={analyst?.analyst_count}
-                      ratingTotal={ratingTotal}
-                    />
-                  ) : (
+                  {ratingTotal > 0 && (
+                    <p className="text-[13px] text-on-surface-variant">
+                      {analyst?.analyst_count ?? ratingTotal} analysts ·{" "}
+                      <b style={{ color: "var(--signal-bullish)" }}>{buyPct}% Buy</b>
+                    </p>
+                  )}
+                  {n(target) && (
                     <>
-                      {ratingTotal > 0 && (
-                        <p className="text-[13px] text-on-surface-variant">
-                          {analyst?.analyst_count ?? ratingTotal} analysts ·{" "}
-                          <b style={{ color: "var(--signal-bullish)" }}>{buyPct}% Buy</b>
-                        </p>
-                      )}
-                      {n(target) && (
-                        <>
-                          <div className="mt-3 flex items-end gap-3">
-                            <div>
-                              <p className="font-mono text-[10px] text-on-surface-variant">now</p>
-                              <p className="text-[18px] font-extrabold tabular-nums text-on-surface">{money(stock.price)}</p>
-                            </div>
-                            <div className="flex-1 pb-1">
-                              <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
-                                <span
-                                  className="block h-full rounded-full"
-                                  style={{
-                                    width: `${analystBarPct}%`,
-                                    background: aboveTarget
-                                      ? "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 30%, transparent), var(--signal-bearish))"
-                                      : "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 30%, transparent), var(--signal-bullish))",
-                                  }}
-                                />
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-mono text-[10px] text-on-surface-variant">target</p>
-                              <p
-                                className="text-[18px] font-extrabold tabular-nums"
-                                style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
-                              >
-                                {levelMoney(target!)}
-                              </p>
-                            </div>
+                      <div className="mt-3 flex items-end gap-3">
+                        <div>
+                          <p className="font-mono text-[10px] text-on-surface-variant">now</p>
+                          <p className="text-[18px] font-extrabold tabular-nums text-on-surface">{money(stock.price)}</p>
+                        </div>
+                        <div className="flex-1 pb-1">
+                          <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{
+                                width: `${analystBarPct}%`,
+                                background: aboveTarget
+                                  ? "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 30%, transparent), var(--signal-bearish))"
+                                  : "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 30%, transparent), var(--signal-bullish))",
+                              }}
+                            />
                           </div>
-                          {n(targetGapPct) && (
-                            <p
-                              className="mt-2 text-right text-[13px] font-semibold"
-                              style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
-                            >
-                              {aboveTarget
-                                ? `${Math.abs(targetGapPct).toFixed(1)}% above target`
-                                : `${sign(targetGapPct)} upside`}
-                            </p>
-                          )}
-                        </>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-[10px] text-on-surface-variant">target</p>
+                          <p
+                            className="text-[18px] font-extrabold tabular-nums"
+                            style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
+                          >
+                            {levelMoney(target!)}
+                          </p>
+                        </div>
+                      </div>
+                      {n(targetGapPct) && (
+                        <p
+                          className="mt-2 text-right text-[13px] font-semibold"
+                          style={{ color: aboveTarget ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
+                        >
+                          {aboveTarget
+                            ? `${Math.abs(targetGapPct).toFixed(1)}% above target`
+                            : `${sign(targetGapPct)} upside`}
+                        </p>
                       )}
                     </>
                   )}
