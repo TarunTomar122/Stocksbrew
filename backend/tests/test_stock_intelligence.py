@@ -14,7 +14,6 @@ from backend.stock_intelligence import (
     _normalize_driver_cards,
     _normalize_risk_cards,
     _normalize_catalyst_cards,
-    _repair_directive,
     _stock_market_regime,
     _summarize_price_context,
     build_no_news_intelligence_doc,
@@ -36,18 +35,6 @@ class StockIntelligenceTest(unittest.TestCase):
             "drivers": [],
             "catalyst_cards": [],
             "risk_cards": [],
-            "directive": {
-                "text": "Hold and watch",
-                "action_now": "Hold and watch for a fresh catalyst.",
-                "stance": "hold",
-                "trigger_type": "new_catalyst",
-                "trigger_value": "company update",
-                "add_on": {"text": "No add trigger", "trigger_type": "none", "trigger_value": ""},
-                "trim_on": {"text": "No trim trigger", "trigger_type": "none", "trigger_value": ""},
-                "breaks_if": {"text": "Trend weakens", "trigger_type": "sentiment_flip", "trigger_value": "negative"},
-                "rationale": "There is no fresh company catalyst.",
-                "confidence": "low",
-            },
         }
         invalid = {"choices": [{"message": {"content": ""}}]}
         valid = {"choices": [{"message": {"content": json.dumps(valid_brief)}}]}
@@ -67,72 +54,6 @@ class StockIntelligenceTest(unittest.TestCase):
 
         self.assertEqual(result, valid_brief)
         self.assertEqual(completion.call_count, 4)
-
-    def test_repair_directive_preserves_now_call_and_derives_primary_zone(self) -> None:
-        directive = _repair_directive({
-            "text": "Accumulate on dips below 185",
-            "action_now": "Accumulate now",
-            "stance": "accumulate",
-            "trigger_type": "none",
-            "trigger_value": "",
-            "add_on": {
-                "text": "Add on pullbacks below $185",
-                "trigger_type": "price_below",
-                "trigger_value": "185",
-            },
-            "trim_on": {
-                "text": "Trim if it spikes above $230 without fresh guidance",
-                "trigger_type": "price_above",
-                "trigger_value": "230",
-            },
-            "breaks_if": {
-                "text": "Reassess if $175 breaks",
-                "trigger_type": "price_below",
-                "trigger_value": "175",
-            },
-            "rationale": "NVDA is still leading semis, but the best add zone is below spot.",
-            "confidence": "med",
-        })
-
-        self.assertEqual(directive["text"], "Accumulate now")
-        self.assertEqual(directive["action_now"], "Accumulate now")
-        self.assertEqual(directive["trigger_type"], "price_below")
-        self.assertEqual(directive["trigger_value"], "185")
-        self.assertEqual(directive["add_on"]["trigger_value"], "185")
-
-    def test_repair_directive_converts_breached_break_zone_to_reclaim_call(self) -> None:
-        directive = _repair_directive({
-            "text": "Accumulate now",
-            "action_now": "Price is near support at $366.57; accumulate on weakness below $370.",
-            "stance": "accumulate",
-            "trigger_type": "price_below",
-            "trigger_value": "370",
-            "add_on": {
-                "text": "Add on dips below $370",
-                "trigger_type": "price_below",
-                "trigger_value": "370",
-            },
-            "trim_on": {
-                "text": "Trim above recent highs near $380",
-                "trigger_type": "price_above",
-                "trigger_value": "380",
-            },
-            "breaks_if": {
-                "text": "Reassess if support at $366.57 breaks",
-                "trigger_type": "price_below",
-                "trigger_value": "366.57",
-            },
-            "confidence": "high",
-        }, current_price=365.46)
-
-        self.assertEqual(directive["text"], "Watch for reclaim")
-        self.assertEqual(directive["stance"], "watch")
-        self.assertEqual(directive["trigger_type"], "price_above")
-        self.assertEqual(directive["trigger_value"], "366.57")
-        self.assertEqual(directive["add_on"]["trigger_type"], "price_above")
-        self.assertEqual(directive["breaks_if"]["trigger_type"], "none")
-        self.assertNotIn("if support", directive["action_now"].lower())
-        self.assertEqual(directive["rationale"], directive["action_now"])
 
     def test_build_stock_intelligence_docs_normalizes_earnings_cards_even_with_risk_cards(self) -> None:
         instruments = [
@@ -214,7 +135,6 @@ class StockIntelligenceTest(unittest.TestCase):
                     "event": "Earnings Apr 22 AMC",
                     "detail": "Model used the wrong date.",
                     "window": "Apr 22",
-                    "expected_impact": 1,
                     "priced_in": "med",
                 }
             ],
@@ -224,7 +144,6 @@ class StockIntelligenceTest(unittest.TestCase):
                     "detail": "Crowded positioning raises downside if follow-through fades.",
                     "trigger": "multiple compression",
                     "severity": 3,
-                    "probability": 3,
                 }
             ],
         }
@@ -246,7 +165,7 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(cards[0]["event"], "Earnings setup")
         self.assertEqual(docs_payload[0]["visual_summary"]["catalyst_cards"], cards)
 
-    def test_build_stock_intelligence_docs_never_persists_completed_doc_without_directive(self) -> None:
+    def test_build_stock_intelligence_docs_persists_directive_v2_only(self) -> None:
         instruments = [
             {
                 "instrument_id": "US_NVDA",
@@ -320,10 +239,11 @@ class StockIntelligenceTest(unittest.TestCase):
         with patch("backend.stock_intelligence._llm_synthesize_brief", return_value=llm_brief):
             docs_payload = build_stock_intelligence_docs("US", "us_test_1", instruments, articles, store=Store())
 
-        directive = docs_payload[0]["directive"]
-        self.assertIsInstance(directive, dict)
-        self.assertTrue(directive["text"])
-        self.assertIn(directive["trigger_type"], {"price_below", "price_above", "new_catalyst", "none"})
+        self.assertNotIn("directive", docs_payload[0])
+        directive_v2 = docs_payload[0]["directive_v2"]
+        self.assertIsInstance(directive_v2, dict)
+        self.assertTrue(directive_v2["action"]["label"])
+        self.assertIsInstance(directive_v2["zones"], dict)
 
     def test_build_stock_intelligence_docs(self) -> None:
         instruments = [
@@ -552,7 +472,6 @@ class StockIntelligenceTest(unittest.TestCase):
                 "event": "Earnings Apr 22 AMC",
                 "detail": "The model should not invent this date.",
                 "window": "Apr 22",
-                "expected_impact": 1,
                 "priced_in": "med",
             }
         ]
@@ -570,7 +489,6 @@ class StockIntelligenceTest(unittest.TestCase):
                 "event": "Earnings Apr 22 AMC",
                 "detail": "Reported print from Apr 22 should not look upcoming.",
                 "window": "Apr 22",
-                "expected_impact": 1,
                 "priced_in": "med",
             }
         ]
@@ -590,7 +508,6 @@ class StockIntelligenceTest(unittest.TestCase):
                 "event": "Earnings setup",
                 "detail": "Earnings report on April 30th could reset sentiment.",
                 "window": "near-term",
-                "expected_impact": 1,
                 "priced_in": "med",
             }
         ]
@@ -628,7 +545,6 @@ class StockIntelligenceTest(unittest.TestCase):
                 "drivers": [{"label": "Growth", "detail": "Revenue growth is strong.", "direction": "up"}],
                 "catalyst_cards": [],
                 "risk_cards": [{"risk": "Execution", "detail": "Execution risk remains."}],
-                "directive": {"text": "Hold here", "stance": "hold"},
             },
         ):
             doc = build_no_news_intelligence_doc(
@@ -684,7 +600,7 @@ class StockIntelligenceTest(unittest.TestCase):
 
     def test_normalize_risk_cards_rejects_shorthand_without_expansion(self) -> None:
         out = _normalize_risk_cards(
-            [{"risk": "Valuation", "detail": "28.5 - weak", "severity": 4, "probability": 3}],
+            [{"risk": "Valuation", "detail": "28.5 - weak", "severity": 4}],
             limit=1,
         )
         self.assertEqual(len(out), 1)

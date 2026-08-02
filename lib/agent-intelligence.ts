@@ -137,7 +137,7 @@ export async function getStockAgentIntelligence(input: {
     getOnDemandNewsStatus(resolved.instrument_id).catch(() => null),
   ]);
   const tracked = Boolean(user?.tracked_stocks?.includes(resolved.instrument_id));
-  const hasDetailedCall = Boolean(intelligence?.directive || intelligence?.directive_v2);
+  const hasDetailedCall = Boolean(intelligence?.directive_v2);
   const hasBaseline = Boolean(summary || view || intelligence || intelPro || facts);
   const jobStatus = researchJob?.status || null;
   const researchStatus = hasDetailedCall
@@ -188,7 +188,7 @@ export async function getStockAgentIntelligence(input: {
       headline: intelligence?.headline ?? null,
       thesis: intelligence?.thesis ?? intelligence?.body ?? null,
       setup_state: intelligence?.setup_state ?? null,
-      call: intelligence?.directive_v2 ?? intelligence?.directive ?? null,
+      call: intelligence?.directive_v2 ?? null,
       target_price: targetPrice,
       target_upside_pct: targetUpsidePct,
       drivers: intelligence?.visual_cards?.drivers ?? [],

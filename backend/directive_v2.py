@@ -18,29 +18,11 @@ def _text(value: Any) -> str:
     return " ".join(str(value or "").split()).strip()
 
 
-def _zone(raw: Any) -> dict[str, Any]:
-    return raw if isinstance(raw, dict) else {}
-
-
-def _zone_price(raw: Any) -> float | None:
-    z = _zone(raw)
-    if z.get("trigger_type") not in ("price_below", "price_above"):
-        return None
-    price = _num(z.get("trigger_value"))
-    return price if price and price > 0 else None
-
-
 def _cards(doc: dict[str, Any]) -> dict[str, Any]:
     cards = doc.get("visual_cards") if isinstance(doc.get("visual_cards"), dict) else {}
     if cards:
         return cards
     return doc.get("visual_summary") if isinstance(doc.get("visual_summary"), dict) else {}
-
-
-def _legacy_stance(doc: dict[str, Any]) -> str:
-    directive = doc.get("directive") if isinstance(doc.get("directive"), dict) else {}
-    stance = _text(directive.get("stance")).lower()
-    return stance if stance in {"accumulate", "hold", "watch", "trim", "avoid"} else "hold"
 
 
 def _setup_state(doc: dict[str, Any]) -> str:
@@ -239,9 +221,6 @@ def _above_current(value: Any, current: float) -> float | None:
 
 
 def _zones(doc: dict[str, Any], current: float, stance: str, execution: str) -> dict[str, float]:
-    legacy = doc.get("directive") if isinstance(doc.get("directive"), dict) else {}
-    add = _zone_price(legacy.get("add_on"))
-    trim = _zone_price(legacy.get("trim_on"))
     target = _analyst_target(doc)
     support = _support_from_recent_sessions(doc, current)
     options = _options_digest(doc)
@@ -251,20 +230,17 @@ def _zones(doc: dict[str, Any], current: float, stance: str, execution: str) -> 
     upper_move = _above_current(options.get("upper_expected_move"), current)
     zones: dict[str, float] = {}
 
-    add_candidates = [value for value in (support, put_wall, lower_move, add) if value and value < current]
+    add_candidates = [value for value in (support, put_wall, lower_move) if value and value < current]
     if add_candidates:
         zones["accumulate_below"] = round(max(add_candidates), 2)
-    elif add and add < current:
-        zones["accumulate_below"] = round(add, 2)
     elif stance == "accumulate" and execution in {"now", "pullback"}:
         zones["accumulate_below"] = round(current * 0.97, 2)
 
     if execution == "breakout":
-        breakout = call_wall or (add if add and add > current else current * 1.03)
+        breakout = call_wall or current * 1.03
         zones["breakout_above"] = round(breakout, 2)
 
-    # Analyst target beats stale legacy trim levels. A trim level just 5-10%
-    # above spot is wrong when the structured target says the upside case is far larger.
+    # Prefer structured analyst and options levels over invented LLM price zones.
     if stance == "avoid":
         return zones
 
@@ -272,8 +248,6 @@ def _zones(doc: dict[str, Any], current: float, stance: str, execution: str) -> 
         zones["trim_above"] = round(target, 2)
         if call_wall and call_wall < target and call_wall >= current * 1.08:
             zones["near_term_resistance"] = round(call_wall, 2)
-    elif trim and trim > current:
-        zones["trim_above"] = round(trim, 2)
     elif stance in {"accumulate", "hold"}:
         zones["trim_above"] = round(current * 1.18, 2)
     if upper_move and "near_term_resistance" not in zones and upper_move >= current * 1.05:
@@ -314,7 +288,6 @@ def _news_catalyst_state(doc: dict[str, Any], fallback_score: float) -> str:
 
 def build_directive_v2(doc: dict[str, Any], previous_v2: dict[str, Any] | None = None) -> dict[str, Any]:
     current = _num(doc.get("current_price"))
-    legacy = doc.get("directive") if isinstance(doc.get("directive"), dict) else {}
     if not current or current <= 0:
         return {
             "version": VERSION,
@@ -335,8 +308,8 @@ def build_directive_v2(doc: dict[str, Any], previous_v2: dict[str, Any] | None =
             "evidence": _evidence_items(doc),
             "watch_out": "Wait for fresh price data before setting levels.",
             "invalidation": "Wait for fresh price data before setting levels.",
-            "changed_from_previous": _legacy_stance(doc) != "watch",
-            "change_reason": "Missing current price.",
+            "changed_from_previous": bool(previous_v2),
+            "change_reason": "Missing current price." if previous_v2 else "",
         }
 
     score = _score(doc)
@@ -386,9 +359,8 @@ def build_directive_v2(doc: dict[str, Any], previous_v2: dict[str, Any] | None =
     zones = _zones(doc, current, stance, execution)
     risk_reward = "favorable" if score >= 18 else "unfavorable" if score <= -18 else "balanced"
     watch_out = _watch_out(stance, execution)
-    legacy_stance = _legacy_stance(doc)
     prev_label = _text((previous_v2 or {}).get("action", {}).get("label") if isinstance((previous_v2 or {}).get("action"), dict) else "")
-    changed = bool(previous_v2 and prev_label and prev_label != label) or (not previous_v2 and legacy_stance != stance)
+    changed = bool(previous_v2 and prev_label and prev_label != label)
 
     return {
         "version": VERSION,

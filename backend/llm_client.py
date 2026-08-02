@@ -234,20 +234,30 @@ def post_chat_completion(
     messages: list[dict[str, Any]],
     model: str | None = None,
     temperature: float = 0.2,
+    reasoning_effort: str | None = None,
     response_format: dict[str, Any] | None = None,
     timeout: int = 45,
     stage: str = "chat",
     max_attempts: int = 6,
+    provider: str | None = None,
 ) -> dict[str, Any]:
     """POST to the configured brief/synthesis LLM with Cerebras throttle + 429 retry."""
-    api_key = require_llm_api_key()
-    url = llm_api_url()
+    resolved_provider = _resolve_llm_provider(provider)
+    api_key = require_llm_api_key(resolved_provider)
+    url = llm_api_url(resolved_provider)
     resolved_model = model or llm_model()
     payload: dict[str, Any] = {
         "model": resolved_model,
-        "temperature": temperature,
         "messages": messages,
     }
+    # GPT-5.6 Luna only accepts its default temperature. OpenRouter quietly
+    # tolerated our old 0.2 value, while the direct OpenAI API correctly
+    # rejects it, so keep temperature out of Luna requests entirely.
+    if not _is_luna_model(resolved_model):
+        payload["temperature"] = temperature
+    resolved_reasoning_effort = reasoning_effort or llm_reasoning_effort()
+    if resolved_reasoning_effort:
+        payload["reasoning_effort"] = resolved_reasoning_effort
     if response_format is not None:
         payload["response_format"] = response_format
 
@@ -258,7 +268,7 @@ def post_chat_completion(
             with _wall_timeout(timeout):
                 response = requests.post(
                     url,
-                    headers=llm_headers(api_key),
+                    headers=llm_headers(api_key, provider=resolved_provider),
                     json=payload,
                     timeout=timeout,
                 )
@@ -296,7 +306,7 @@ def post_chat_completion(
                 _record_cerebras_usage(int(total_tokens or 0))
                 log_llm_call(
                     stage=stage,
-                    provider=llm_provider(),
+                    provider=resolved_provider,
                     model=resolved_model,
                     input_tokens=usage.get("prompt_tokens"),
                     output_tokens=usage.get("completion_tokens"),
@@ -325,8 +335,24 @@ def post_chat_completion(
     raise RuntimeError("LLM request failed without an error")
 
 
-def llm_provider() -> str:
-    explicit = os.getenv("LLM_PROVIDER", "").strip().lower()
+def _is_luna_model(model: str) -> bool:
+    return model.strip().lower().split("/")[-1].startswith("gpt-5.6-luna")
+
+
+def llm_reasoning_effort() -> str | None:
+    raw = os.getenv("LLM_REASONING_EFFORT", "").strip().lower()
+    if not raw:
+        return None
+    valid = {"none", "minimal", "low", "medium", "high", "xhigh"}
+    if raw not in valid:
+        raise ValueError(
+            f"Unsupported LLM_REASONING_EFFORT={raw!r}; expected one of {sorted(valid)}"
+        )
+    return raw
+
+
+def _resolve_llm_provider(provider: str | None = None) -> str:
+    explicit = (provider or os.getenv("LLM_PROVIDER", "")).strip().lower()
     if explicit == "cerebras":
         logger.warning("Ignoring legacy LLM_PROVIDER=cerebras; using openrouter")
         return "openrouter"
@@ -337,6 +363,10 @@ def llm_provider() -> str:
     if os.getenv("OPENAI_API_KEY", "").strip():
         return "openai"
     return "openrouter"
+
+
+def llm_provider() -> str:
+    return _resolve_llm_provider()
 
 
 def llm_enrichment_provider() -> str:
@@ -354,12 +384,13 @@ def is_llm_brief_source(source: str | None) -> bool:
     return normalized in {LLM_BRIEF_SOURCE, "mimo"}
 
 
-def llm_api_key() -> str:
+def llm_api_key(provider: str | None = None) -> str:
     """Return server-side LLM API key for brief/synthesis calls."""
+    resolved_provider = _resolve_llm_provider(provider)
     explicit = os.getenv("LLM_API_KEY", "").strip()
-    if explicit:
+    if explicit and provider is None:
         return explicit
-    if llm_provider() == "openrouter":
+    if resolved_provider == "openrouter":
         return os.getenv("OPENROUTER_API_KEY", "").strip()
     return os.getenv("OPENAI_API_KEY", "").strip()
 
@@ -373,11 +404,12 @@ def llm_enrichment_api_key() -> str:
     return llm_api_key()
 
 
-def llm_api_url() -> str:
+def llm_api_url(provider: str | None = None) -> str:
+    resolved_provider = _resolve_llm_provider(provider)
     explicit = os.getenv("LLM_API_URL", "").strip()
-    if explicit:
+    if explicit and provider is None:
         return explicit
-    if llm_provider() == "openrouter":
+    if resolved_provider == "openrouter":
         return os.getenv("OPENROUTER_API_URL", "").strip() or OPENROUTER_API_URL
     return OPENAI_API_URL
 
@@ -410,10 +442,12 @@ def llm_enrichment_model(default: str | None = None) -> str:
     return llm_model(default)
 
 
-def require_llm_api_key() -> str:
-    api_key = llm_api_key()
+def require_llm_api_key(provider: str | None = None) -> str:
+    resolved_provider = _resolve_llm_provider(provider)
+    api_key = llm_api_key(resolved_provider)
     if not api_key:
-        raise ValueError("OPENROUTER_API_KEY (or explicit LLM_API_KEY) is required")
+        env_name = "OPENAI_API_KEY" if resolved_provider == "openai" else "OPENROUTER_API_KEY"
+        raise ValueError(f"{env_name} is required")
     return api_key
 
 
@@ -424,12 +458,12 @@ def require_llm_enrichment_api_key() -> str:
     return api_key
 
 
-def llm_headers(api_key: str) -> dict[str, str]:
+def llm_headers(api_key: str, *, provider: str | None = None) -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    if llm_provider() == "openrouter":
+    if _resolve_llm_provider(provider) == "openrouter":
         headers["HTTP-Referer"] = os.getenv("OPENROUTER_HTTP_REFERER", "https://tikrr.app").strip() or "https://tikrr.app"
         headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME", "tikrr-stock-briefs").strip() or "tikrr-stock-briefs"
     return headers

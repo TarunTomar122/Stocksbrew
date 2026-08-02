@@ -16,7 +16,14 @@ class _Store:
         return "us_core_100"
 
     def list_subscribed_users(self) -> list[dict]:
-        return [{"is_subscribed": True, "tracked_stocks": ["US_AAPL", "US_NVDA"]}]
+        return [
+            {
+                "is_subscribed": True,
+                "subscriptionId": "sub_active",
+                "subscriptionStatus": "active",
+                "tracked_stocks": ["US_AAPL", "US_NVDA"],
+            }
+        ]
 
 
 class TrackedIncrementalRefreshTests(unittest.TestCase):

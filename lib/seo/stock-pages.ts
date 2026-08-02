@@ -34,7 +34,10 @@ type CatalogShape = {
 
 const catalog = universeCatalog as CatalogShape;
 const usCatalog = catalog.markets?.US;
-const indexableIds = new Set(usCatalog?.universes?.us_core_100 ?? []);
+// SEO coverage is intentionally independent from the smaller runtime/AI core.
+// The legacy us_core_100 namespace now contains the 60-stock runtime cohort,
+// while these established pages remain indexable.
+const indexableIds = new Set(usCatalog?.universes?.us_seo_100 ?? []);
 
 export const SEO_STOCK_PAGES: SeoStockPage[] = (usCatalog?.instruments ?? [])
   .filter((row) => {

@@ -13,6 +13,7 @@ from backend.market_session_state import MarketSessionState
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
 from backend.storage import TraceMoneyStore
+from backend.subscription_entitlement import has_current_pro_entitlement
 
 from backend.cloudrun.orchestrator.local_api import LocalJobsClient
 from backend.cloudrun.orchestrator.run_api import RunJobsClient
@@ -41,7 +42,7 @@ def _tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for user in store.list_subscribed_users():
-        if not bool(user.get("is_subscribed")):
+        if not has_current_pro_entitlement(user):
             continue
         tracked = user.get("tracked_stocks") or []
         if not isinstance(tracked, list):

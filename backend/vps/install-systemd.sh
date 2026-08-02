@@ -82,10 +82,10 @@ write_pair preclose-news "Mon..Fri *-*-* 15:40:00 America/New_York" tracked_news
 # One dependency chain owns the publish order. A single large Yahoo batch
 # replaces ~20 sequential 25-stock price shards.
 write_pair open-price "Mon..Fri *-*-* 09:30:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-briefs.service" "1min"
-# Each shard can issue up to four model calls concurrently. Keep only three
-# shards in flight so transient provider latency does not turn into a
-# 48-request retry storm and exhaust the per-shard timeout.
-write_service open-briefs tracked_open_briefs "--session-phase open_check --shard-size 6 --max-parallel 3" "" "5min"
+# Brief synthesis is sequential inside each shard, so shard parallelism is the
+# actual model-call concurrency. Luna-low was validated at 8/8 simultaneous
+# production-shaped calls; four-stock shards keep the tail evenly balanced.
+write_service open-briefs tracked_open_briefs "--session-phase open_check --shard-size 4 --max-parallel 8" "" "5min"
 # Movers must be selected from a settled 20-minute tape, not the 09:30 quote
 # batch that fed the opening briefs. This second batch is cheap and chains
 # directly into anomaly research + the opening email.
@@ -101,7 +101,7 @@ write_pair intraday-price-hourly "Mon..Fri *-*-* 10..15:00:00 America/New_York" 
 # Closing price/read-model work feeds briefs, which feed the final anomaly
 # pass. They are separate products but no longer race each other.
 write_service close-anomalies open_anomalies "--price-session-phase post_close" "" "5min"
-write_service close-briefs tracked_open_briefs "--session-phase post_close --shard-size 6 --max-parallel 3" "tikrr-close-anomalies.service" "5min"
+write_service close-briefs tracked_open_briefs "--session-phase post_close --shard-size 4 --max-parallel 8" "tikrr-close-anomalies.service" "5min"
 write_pair postclose "Mon..Fri *-*-* 16:10:00 America/New_York" daily_postclose "" "tikrr-close-briefs.service" "1min"
 # Slow, non-critical discovery cards run outside the email critical path.
 write_pair market-discovery-open "Mon..Fri *-*-* 10:30:00 America/New_York" market_discovery

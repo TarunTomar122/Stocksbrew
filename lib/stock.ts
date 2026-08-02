@@ -61,7 +61,6 @@ export type StockIntelligenceDoc = {
     what_to_watch?: string;
   };
   visual_cards?: VisualCards;
-  directive?: Directive | null;
   directive_v2?: DirectiveV2 | null;
   key_points?: string[];
   data_quality?: DataQuality;
@@ -148,7 +147,6 @@ export type CatalystCard = {
   event: string;
   detail?: string;
   window?: string;
-  expected_impact?: number;
   priced_in?: string;
 };
 
@@ -166,7 +164,6 @@ export type RiskCard = {
   detail?: string;
   trigger?: string;
   severity?: number;
-  probability?: number;
   horizon?: string;
 };
 

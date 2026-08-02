@@ -101,6 +101,79 @@ class LlmClientProviderTest(unittest.TestCase):
 
         post.assert_called_once()
 
+    def test_luna_omits_temperature_and_sends_low_reasoning(self) -> None:
+        response = Mock()
+        response.status_code = 200
+        response.headers = {}
+        response.json.return_value = {
+            "choices": [{"message": {"content": '{"ok":true}'}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 2},
+        }
+        response.raise_for_status.return_value = None
+
+        env = {
+            "LLM_PROVIDER": "openai",
+            "OPENAI_API_KEY": "test-key",
+            "OPENAI_MODEL": "gpt-5.6-luna",
+            "LLM_REASONING_EFFORT": "low",
+        }
+        with patch.dict(os.environ, env, clear=True), patch(
+            "backend.llm_client.requests.post", return_value=response
+        ) as post:
+            post_chat_completion(messages=[{"role": "user", "content": "test"}])
+
+        request_payload = post.call_args.kwargs["json"]
+        self.assertNotIn("temperature", request_payload)
+        self.assertEqual(request_payload["reasoning_effort"], "low")
+
+    def test_non_luna_keeps_temperature(self) -> None:
+        response = Mock()
+        response.status_code = 200
+        response.headers = {}
+        response.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
+        response.raise_for_status.return_value = None
+
+        with patch.dict(
+            os.environ,
+            {
+                "LLM_PROVIDER": "openrouter",
+                "OPENROUTER_API_KEY": "test-key",
+                "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash",
+            },
+            clear=True,
+        ), patch("backend.llm_client.requests.post", return_value=response) as post:
+            post_chat_completion(
+                messages=[{"role": "user", "content": "test"}], temperature=0.3
+            )
+
+        self.assertEqual(post.call_args.kwargs["json"]["temperature"], 0.3)
+
+    def test_request_can_route_directly_to_openai_without_changing_global_provider(self) -> None:
+        response = Mock()
+        response.status_code = 200
+        response.headers = {}
+        response.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
+        response.raise_for_status.return_value = None
+
+        env = {
+            "LLM_PROVIDER": "openrouter",
+            "OPENROUTER_API_KEY": "router-key",
+            "OPENAI_API_KEY": "openai-key",
+        }
+        with patch.dict(os.environ, env, clear=True), patch(
+            "backend.llm_client.requests.post", return_value=response
+        ) as post:
+            post_chat_completion(
+                messages=[{"role": "user", "content": "test"}],
+                model="gpt-5.6-luna",
+                provider="openai",
+                reasoning_effort="low",
+            )
+
+        self.assertEqual(post.call_args.args[0], "https://api.openai.com/v1/chat/completions")
+        self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer openai-key")
+        self.assertNotIn("HTTP-Referer", post.call_args.kwargs["headers"])
+
 
 if __name__ == "__main__":
     unittest.main()

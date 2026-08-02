@@ -32,6 +32,21 @@ class InstrumentUniverseTest(unittest.TestCase):
     def test_coverage_universe_id(self) -> None:
         self.assertEqual(get_coverage_universe_id("US"), "us_core_155")
 
+    def test_runtime_core_is_the_60_stock_product_cohort(self) -> None:
+        runtime = list_instruments("US", "us_core_100")
+        self.assertEqual(len(runtime), 60)
+        self.assertEqual(len({row["instrument_id"] for row in runtime}), 60)
+        self.assertTrue(
+            {"AAPL", "AMZN", "GOOGL", "META", "MSFT", "NVDA", "TSLA"}.issubset(
+                {row["ticker"] for row in runtime}
+            )
+        )
+
+    def test_legacy_seo_cohort_stays_independent_from_runtime_compute(self) -> None:
+        seo = list_instruments("US", "us_seo_100")
+        self.assertEqual(len(seo), 100)
+        self.assertEqual(len({row["instrument_id"] for row in seo}), 100)
+
     def test_coverage_delta_excludes_runtime_core(self) -> None:
         runtime = list_instruments("US", "us_core_100")
         delta = list_coverage_delta_instrument_ids("US", "us_core_100")

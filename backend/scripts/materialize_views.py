@@ -9,6 +9,7 @@ from backend.price_history import latest_price_history
 from backend.sector_scraper import sector_tiles_for_market
 from backend.sector_slugs import resolve_sector_fields_from_row
 from backend.storage import TraceMoneyStore
+from backend.subscription_entitlement import has_current_pro_entitlement
 from backend.view_materializer import build_dashboard_view, build_instrument_view
 
 
@@ -43,7 +44,7 @@ def _paid_tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for user in store.list_subscribed_users():
-        if not bool(user.get("is_subscribed")):
+        if not has_current_pro_entitlement(user):
             continue
         tracked = user.get("tracked_stocks") or []
         if not isinstance(tracked, list):

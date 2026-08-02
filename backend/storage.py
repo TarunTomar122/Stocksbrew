@@ -1253,12 +1253,12 @@ class TraceMoneyStore:
             batch.commit()
 
     def append_directive_history(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
-        """Append each directive + the price it was issued at to an append-only
+        """Append each directive_v2 + the price it was issued at to an append-only
         history, so we can later score "stocksbrew said ACCUMULATE @ $X, now +Y%".
         Keyed by trading date so a same-day re-run is idempotent (one call/day/stock)."""
         market_up = str(market or "").strip().upper()
         for payload in docs_payload:
-            directive = payload.get("directive")
+            directive = payload.get("directive_v2")
             instrument_id = str(payload.get("instrument_id") or "").strip().upper()
             price_at_call = payload.get("current_price")
             if not (isinstance(directive, dict) and instrument_id and isinstance(price_at_call, (int, float))):
@@ -1266,17 +1266,30 @@ class TraceMoneyStore:
             stance = str(directive.get("stance") or "").strip().lower()
             if not stance:
                 continue
+            action = directive.get("action") if isinstance(directive.get("action"), dict) else {}
+            zones = directive.get("zones") if isinstance(directive.get("zones"), dict) else {}
+            trigger_type = "none"
+            trigger_value: Any = None
+            if stance in {"trim", "avoid"} and isinstance(zones.get("trim_above"), (int, float)):
+                trigger_type, trigger_value = "price_above", zones["trim_above"]
+            elif isinstance(zones.get("accumulate_below"), (int, float)):
+                trigger_type, trigger_value = "price_below", zones["accumulate_below"]
+            elif isinstance(zones.get("breakout_above"), (int, float)):
+                trigger_type, trigger_value = "price_above", zones["breakout_above"]
+            elif isinstance(zones.get("trim_above"), (int, float)):
+                trigger_type, trigger_value = "price_above", zones["trim_above"]
             generated_at = str(payload.get("generated_at") or datetime.now(timezone.utc).isoformat())
             date_key = generated_at[:10]  # YYYY-MM-DD
             self.db.collection("tm_directive_history").document(instrument_id).collection("calls").document(date_key).set({
                 "instrument_id": instrument_id,
                 "market": market_up,
                 "stance": stance,
-                "text": str(directive.get("text") or "").strip(),
-                "rationale": str(directive.get("rationale") or "").strip(),
+                "text": str(action.get("label") or "").strip(),
+                "rationale": str(action.get("summary") or directive.get("watch_out") or "").strip(),
                 "confidence": str(directive.get("confidence") or "").strip(),
-                "trigger_type": str(directive.get("trigger_type") or "").strip(),
-                "trigger_value": directive.get("trigger_value"),
+                "trigger_type": trigger_type,
+                "trigger_value": trigger_value,
+                "directive_version": str(directive.get("version") or "v2"),
                 "price_at_call": float(price_at_call),
                 "generated_at": generated_at,
             }, merge=True)
@@ -1727,6 +1740,9 @@ class TraceMoneyStore:
                 "email_alerts_enabled",
                 "email_digest_enabled",
                 "is_subscribed",
+                "subscriptionId",
+                "subscriptionStatus",
+                "cancelAtPeriodEnd",
             ])
             .stream()
         )

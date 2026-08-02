@@ -11,6 +11,7 @@ from backend.cloudrun.orchestrator.dispatch import (
     _price_core_ids,
     _run_sharded_lane,
     _run_single_job_lane,
+    _tracked_ids,
     _tracked_lane_extra_args,
 )
 from backend.cloudrun.orchestrator.local_api import LocalJobsClient
@@ -57,6 +58,38 @@ class DispatchUniverseScopeTest(unittest.TestCase):
                 _ai_brief_ids(store, "US", "us_core_100"),
                 ["US_AAPL", "US_NVDA", "US_SNDK"],
             )
+
+    def test_tracked_cohort_only_uses_active_paid_accounts(self) -> None:
+        class Store:
+            def list_subscribed_users(self):
+                return [
+                    {
+                        "is_subscribed": True,
+                        "subscriptionId": "sub_active",
+                        "subscriptionStatus": "active",
+                        "tracked_stocks": ["US_AAPL"],
+                    },
+                    {
+                        "is_subscribed": True,
+                        "subscriptionId": "sub_paid_through",
+                        "subscriptionStatus": "active",
+                        "cancelAtPeriodEnd": True,
+                        "tracked_stocks": ["US_NVDA"],
+                    },
+                    {
+                        "is_subscribed": True,
+                        "subscriptionStatus": "active",
+                        "tracked_stocks": ["US_SNDK"],
+                    },
+                    {
+                        "is_subscribed": True,
+                        "subscriptionId": "sub_expired",
+                        "subscriptionStatus": "expired",
+                        "tracked_stocks": ["US_RKLB"],
+                    },
+                ]
+
+        self.assertEqual(_tracked_ids(Store(), "US"), ["US_AAPL", "US_NVDA", "US_SNDK"])
 
     def test_price_cohort_ranks_the_broad_coverage_universe(self) -> None:
         class Store:

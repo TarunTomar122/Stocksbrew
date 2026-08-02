@@ -74,28 +74,11 @@ def _ui_view(
     if not brief:
         return {"error": "no brief generated"}
 
-    directive = brief.get("directive") if isinstance(brief.get("directive"), dict) else {}
-    alert: str | None = None
-    trigger_type = str(directive.get("trigger_type") or "")
-    trigger_value = str(directive.get("trigger_value") or "").strip()
-    if trigger_type in {"price_below", "price_above"} and trigger_value:
-        side = "below" if trigger_type == "price_below" else "above"
-        alert = f"Set alert: {side} ${trigger_value}"
-    elif trigger_type == "date" and trigger_value:
-        alert = f"Date trigger: {trigger_value}"
-
     catalyst_cards = brief.get("catalyst_cards") if isinstance(brief.get("catalyst_cards"), list) else []
     drivers = brief.get("drivers") if isinstance(brief.get("drivers"), list) else []
     risk_cards = brief.get("risk_cards") if isinstance(brief.get("risk_cards"), list) else []
 
     return {
-        "strategic_directive": {
-            "text": directive.get("text"),
-            "rationale": directive.get("rationale"),
-            "stance": directive.get("stance"),
-            "confidence": directive.get("confidence"),
-            "alert": alert,
-        },
         "news_signal": {
             "score": sentiment_score,
             "label": sentiment_label,
@@ -159,7 +142,6 @@ def _print_brief(label: str, brief: dict[str, Any] | None) -> None:
         "catalyst",
         "risk",
         "key_findings",
-        "directive",
     ):
         value = brief.get(key)
         if value:

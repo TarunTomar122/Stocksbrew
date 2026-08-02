@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
+import os
 import re
 from typing import Any
 
@@ -16,6 +17,7 @@ from backend.llm_client import (
     json_response_format,
     llm_api_key,
     llm_model,
+    llm_provider,
     parse_json_content,
     post_chat_completion,
     schema_system_prompt,
@@ -26,12 +28,20 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-07-02-stock-brief-v17-anomaly-alignment"
+STOCK_BRIEF_CACHE_VERSION = "2026-08-01-stock-brief-v18-directive-v2-only"
 DEFAULT_STOCK_BRIEF_MODEL = "deepseek/deepseek-v4-flash"
 
 
 def stock_brief_model() -> str:
-    return llm_model(DEFAULT_STOCK_BRIEF_MODEL)
+    return os.getenv("STOCK_BRIEF_MODEL", "").strip() or llm_model(DEFAULT_STOCK_BRIEF_MODEL)
+
+
+def stock_brief_provider() -> str:
+    return os.getenv("STOCK_BRIEF_PROVIDER", "").strip().lower() or llm_provider()
+
+
+def stock_brief_reasoning_effort() -> str | None:
+    return os.getenv("STOCK_BRIEF_REASONING_EFFORT", "").strip().lower() or None
 
 
 def _summarize_intel_pro(intel: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -429,30 +439,18 @@ Fields to write:
 - **catalyst_cards**: 1-3 objects with keys:
   - event: short event name (3-6 words). Example: "Foxconn revenue report"
   - detail: ONE sentence explaining why this matters for the stock. Example: "Foxconn is a key Nvidia supplier - strong revenue hints at AI server demand holding up through Q2."
-  - window, expected_impact (-2 to 2), priced_in ("low" | "med" | "high")
+  - window, priced_in ("low" | "med" | "high")
   - If a catalyst card is earnings-based, the only allowed date source is `earnings.event_date` from the payload, and only when `earnings.status` is "upcoming". In that case `window` must copy that exact future ISO date or a short label derived from it. Do not invent a different date, and do not use a reported/past earnings date as if it were upcoming.
   - If earnings are reported or missing, do not put a date in the catalyst card. Use a non-date window like "near-term", "week", or "quarter" instead.
 - **risk_cards**: 1-3 objects with keys:
   - risk: short risk name (3-6 words)
   - detail: ONE complete English sentence (12-25 words) explaining the downside scenario concretely. Same rule as drivers: full sentences only, never metric shorthand or scorecard fragments.
-  - trigger, severity (1-5), probability (1-5)
-
-- **directive**: ONE present-tense call plus optional future zones. Do not hide the main call behind a nearby price. Object with:
-  - text: the current call as a short imperative (under 8 words). Examples: "Accumulate now", "Hold here", "Watch for reclaim", "Trim strength", "Avoid for now". Do NOT put a price in `text`; prices belong in add_on/trim_on/breaks_if.
-  - action_now: same current call in plain English. It should answer "what do I do at the current price?" Write a complete useful sentence, 10-22 words. BAD: "Buy on dips", "Accumulate now". GOOD: "Hold at current price and add only if it pulls back near support."
-  - stance: one of ["accumulate", "trim", "watch", "avoid", "hold"]
-  - add_on: optional object for the buy/add zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
-  - trim_on: optional object for the sell/trim zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} if not useful.
-  - breaks_if: optional object for the invalidation/risk zone. Use {"text":"", "trigger_type":"none", "trigger_value":""} only when there is no real invalidation anchor. If price_context has recent closes below current price, a nearby support/reclaim level, a negative anomaly, or a clear risk_card trigger, provide a real breaks_if.
-  - trigger_type and trigger_value: backward-compatible PRIMARY smart trigger chosen from add_on/trim_on/breaks_if. Pick the most useful alert for the stance: accumulate -> add_on, trim -> trim_on, hold/watch -> breaks_if or add_on. If no useful alert exists, use "none" and "".
-  - Zone objects have keys: text, trigger_type, trigger_value. trigger_type is one of ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]. For price triggers, trigger_value is the numeric string only, no $ sign.
-  - rationale: ONE sentence connecting the current setup to the trigger - mention where price sits relative to the level when a price trigger is used.
-  - confidence: "low" | "med" | "high"
+  - trigger, severity (1-5)
 
 STYLE:
 - Conversational, sharp, zero filler
 - Short sentences mixed with longer ones
-- Keep user-facing fields naturally short through writing, not truncation: body 35-55 words, catalyst/risk/rationale one complete sentence each.
+- Keep user-facing fields naturally short through writing, not truncation: body 35-55 words and catalyst/risk one complete sentence each.
 - NO: "investors should monitor", "well-positioned", "could potentially", "it's worth noting"
 - If evidence is thin, say what the silence means - not just "limited coverage"
 - Do not repeat the same fact across headline/body/key_findings/thesis/drivers/catalyst/risk.
@@ -460,43 +458,19 @@ STYLE:
 
 FUNDAMENTALS - USE THEM:
 - The user payload includes a `fundamentals` block with four coverage-adjusted pillar scores (valuation, growth, quality, momentum - each 0-100), coverage/confidence fields, `standout_metrics` (score ≥ 75), `weak_metrics` (score ≤ 25), and quant-driven `catalysts`. Never describe an `insufficient data` pillar as strong or weak; treat its score as neutral uncertainty.
-- Let fundamentals shape the directive, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
+- Use fundamentals to explain the setup, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
 - A beaten-down name with strong growth and a Buy-tilted quant rank can be "accumulate on dips". A high-multiple winner with strong evidence can still be "accumulate" or "watch for breakout" if the setup remains constructive.
-- Use fundamentals to pick concrete trigger prices. If price is already above analyst target AND still showing strength, a conditional trim on further extension above $X can work. If price is below target or selling off, prefer watch/accumulate at support instead.
 - Drivers and risk_cards should weave fundamentals + news into full sentences a human would say aloud. BAD detail: "16% - strong pace, ahead of sector". GOOD detail: "Revenue is compounding 16% YoY, ahead of the sector, which keeps the growth story intact."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
 
 RISK APPETITE - OFFENSIVE, NOT TIMID:
 - Write like a sharp growth-oriented investor who is willing to lean in when the setup is asymmetric.
-- Do not default to caution just because valuation looks rich. Expensive stocks can still be buys if growth, estimate revisions, narrative strength, sector leadership, and price structure support it.
-- Prefer identifying the highest-upside actionable setup, not the most defensible neutral take.
-- When evidence is bullish but imperfect, it is acceptable to give an "accumulate" or "watch for breakout" stance rather than collapsing to "hold".
+- Do not default to caution just because valuation looks rich. Expensive stocks can still have constructive setups when growth, revisions, narrative strength, sector leadership, and price structure support them.
+- Prefer identifying the highest-upside evidence-backed setup, not the most defensible neutral take.
 - Momentum, narrative acceleration, estimate revisions, leadership within sector, and strong post-earnings reactions are valid reasons to stay constructive even when valuation is stretched.
-- "Trim" should be reserved for genuinely crowded or exhausted setups where upside looks capped relative to risk, not simply because a stock has already run.
 - Avoid sounding like a compliance officer or textbook value investor. Sound like a sharp operator deciding where capital should go next.
 - Still stay evidence-bound: no hype, no invented catalysts, no fake certainty.
-
-DIRECTIVE vs CURRENT PRICE - READ THIS FIRST:
-- The payload always includes `current_price`. It may also include `price_context` with `day_change_pct`, `recent_sessions`, MAs, RSI, and returns.
-- Before choosing stance or trigger, read where the stock trades NOW and what happened in `recent_sessions`.
-- The directive must make sense to someone looking at the live quote. If they would think "but it's already below/above that" - rewrite it.
-- Never describe a level as "support", "recent low", "resistance", "SMA", "moving average", or "52-week" unless that exact anchor is present in `price_context`. If only `ma_position.sma_20 = "below"` is present, you may say "below the 20-day average"; do not invent the average's dollar value.
-- Do not round a trigger into a different thesis. If `recent_sessions` supports $192.53, use 192.53 or a clearly rounded 193; do not turn it into an invented $195 support level unless $195 appears in the payload.
-- Decide the current call first, then the zones:
-  · If the setup is attractive at current price, write "Accumulate now" / "Hold here" and put better-entry prices in add_on.
-  · If price must reclaim or break a level first, write "Watch for reclaim" and put the level in add_on or breaks_if.
-  · If risk/reward is stretched, write "Trim strength" or "Do not add here" and put the sale zone in trim_on.
-- Never use "trim into strength" when the stock is not in strength today (negative `day_change_pct`, breaking recent highs, underperforming market/sector) unless the directive explicitly frames a future reclaim/bounce.
-
-DIRECTIVE STABILITY:
-- The payload may include `previous_directive`. Treat it as the default answer.
-- Keep the previous directive exactly unless new evidence changes the setup.
-- Do NOT move add/trim/break zones just because current_price moved.
-- Change the directive only if there is fresh company news, sector news, market news, competitor read-through, earnings/results/guidance, or price has crossed the prior add/trim/break zone.
-- If you keep the previous directive, keep `text`, `action_now`, `stance`, `add_on`, `trim_on`, `breaks_if`, `trigger_type`, and `trigger_value` unchanged. You may refresh rationale only if it still says the same thing more clearly.
-- If you change the directive, the rationale must name the evidence that changed.
-- If `previous_directive` already has usable `add_on`, `trim_on`, or `breaks_if` zones and no change trigger occurred, copy those zones rather than simplifying them away.
 
 BRIEF STABILITY:
 - The payload may include `previous_brief_summary`. Treat it as continuity context, not as fresh evidence.
@@ -504,42 +478,13 @@ BRIEF STABILITY:
 - Change them only when fresh news, price action, sector/market regime, earnings, or anomaly context changes the setup.
 - Do not copy stale facts blindly; if prior content conflicts with dated `recent_news` or `price_context`, trust the fresh payload.
 
-DIRECTIVE SELECTION PRIORITY:
-- First ask: is there a credible upside path with real evidence behind it?
-- If yes, prefer "accumulate" or "watch" over "hold".
-- Use "hold" only when upside and downside are genuinely balanced.
-- Use "avoid" only when the evidence is clearly deteriorating or the thesis is breaking.
-- Use "trim" when the stock looks overheated, consensus is too euphoric, or the next catalyst has poor risk/reward.
-- Do NOT default to "accumulate on dips" for every bullish setup. Choose the directive style that best matches the actual setup.
-- Prefer directives that contain a concrete price level when the payload supports one. Support, resistance, recent closes, moving averages, analyst targets, or well-supported trigger levels are all valid anchors.
-- "Hold" should usually still be actionable with a level, for example "Hold above $205" or "Hold unless $690 breaks".
-- "Watch" should usually still be actionable with a level, for example "Watch breakout above $230" or "Watch for support at $140".
-
-DIRECTIVE STYLE BY SETUP:
-- If `setup_state` is "accumulation": "accumulate on dips below X" is natural when support is clear.
-- If `setup_state` is "breakout": prefer "watch/add above X" or "watch for breakout above X" rather than a dip-buy directive.
-- If `setup_state` is "trend": prefer "hold", "stay long", "add on continuation", or "hold while X holds" when momentum is healthy, and include the level when possible.
-- If `setup_state` is "rotation": prefer directives that acknowledge leadership shifts, relative strength, or capital rotating into the group.
-- If `setup_state` is "exhaustion": prefer "trim", "avoid chasing", or "re-evaluate if X breaks" over fresh accumulation.
-- setup_state and directive must agree on the tape: do not pair a sharp down day or "exhaustion" with "trim into strength above" unless framing a bounce trade; for "rotation", say whether this name is leading or lagging.
-- If you choose a bullish stance, vary the directive wording so it reflects the setup instead of repeating the same template.
-- Avoid vague directives with no usable trigger when a concrete level is available in the payload.
-
-PRICE CONTEXT - USE IT FOR THE DIRECTIVE:
-- Read `price_context.current_price` and `recent_sessions` before writing the directive.
-- Pick trigger levels from real anchors: recent session highs/lows, nearby MAs, analyst target, obvious support/resistance from the last 5 closes.
-- Match stance to today's tape: big down day + breaking recent lows → prefer watch/accumulate below support, not trim into strength above resistance; strong up day + extended RSI → trim or watch exhaustion can be valid; coiled near support after pullback → accumulate below X or watch hold at X.
-- You may still avoid narrating price in `body`/`headline`. The directive is where the price level must be actionable and coherent with `current_price`.
-- Every price trigger must be directionally valid: `price_below` must be below current_price; `price_above` must be above current_price. If current_price has already crossed the level, rewrite the directive around reclaim/reset instead of keeping a stale trigger.
-- Prefer one primary add/hold/trim level and one risk/invalidation level over a naked "accumulate" call. Users set alerts from these zones.
-
 MARKET REGIME - USE IT:
 - The payload may include a `market_regime` block with a macro read (market_phase, risk_appetite, narrative, leadership, laggards, rotation_signal) and one relevant sector regime for the stock.
 - Use market regime to size conviction, not to override stock evidence blindly.
 - In risk-on tapes or leadership sectors, it is acceptable to lean more constructive when the stock evidence is already supportive.
-- In defensive tapes or a sector that is breaking down, require cleaner evidence before giving an aggressive bullish directive.
+- In defensive tapes or a sector that is breaking down, require cleaner evidence before describing the setup as strongly constructive.
 - If stock evidence and regime disagree, surface the tension explicitly. That tension is often the real insight.
-- Do NOT repeat regime labels verbatim. Interpret what they mean for this stock's setup and directive.
+- Do NOT repeat regime labels verbatim. Interpret what they mean for this stock's setup.
 
 RECENCY - THIS IS CRITICAL:
 - Today's date is in the payload as `today`. The payload includes `recent_news`: an array of the freshest articles, each with its own `date`, `title`, and `summary`.
@@ -554,14 +499,14 @@ ANOMALY ALIGNMENT:
 
 REDDIT BUZZ - USE AS A SENTIMENT SIGNAL, NOT FACT:
 - The payload may include `reddit_buzz` with retail `sentiment`, a `context` blurb, `mentions` count, and `catalysts`. This is crowd chatter, not verified reporting.
-- You may use it to color the overview ("retail buzz is spiking, leaning bullish") and to inform the directive's confidence. NEVER quote a Reddit claim as fact and NEVER invent a number or event from it. If it conflicts with the news, trust the news.
+- You may use it to color the overview ("retail buzz is spiking, leaning bullish"). NEVER quote a Reddit claim as fact and NEVER invent a number or event from it. If it conflicts with the news, trust the news.
 
 EARNINGS - RESPECT THE TIMING:
-- The payload may include an `earnings` block. Read its `status` and act accordingly. If there is NO `earnings` block, this stock is between prints - do NOT mention earnings at all, and do NOT write any "watch earnings" directive.
+- The payload may include an `earnings` block. Read its `status` and act accordingly. If there is NO `earnings` block, this stock is between prints - do NOT mention earnings at all.
 - status == "reported": earnings ALREADY happened on `event_date` (`days_since_report` days ago). NEVER frame earnings as upcoming or say "watch for earnings". If `reported_eps` is present it is the ACTUAL reported number - cite it (and `surprise_label`/`eps_surprise_pct` for the beat/miss vs estimate). If only `eps_estimate` is present, the actual result is not captured yet, so do NOT state a beat/miss or present the estimate as the result. If `reported_highlights` is present, ground your overview in those actuals (`reported_vs_expected`, `guidance_signal`, `price_reaction`, `what_changed`) - they are real reported results, not speculation.
-  - If `lead` is true (just reported, within ~5 days): the print is THE story. Lead the `body` overview with the result + guidance, and the `directive` must reflect a POST-earnings stance (e.g. "Hold through guidance digestion", "Trim into post-earnings strength", "Re-rate on raised guidance") - never a pre-earnings watch.
+  - If `lead` is true (just reported, within ~5 days): the print is THE story. Lead the `body` overview with the result + guidance and describe the post-earnings setup, never a pre-earnings watch.
   - If `lead` is false (reported but older): mention the result only as backdrop ("since its <month> beat...") and let current news lead the overview.
-- status == "upcoming": earnings reports in `days_until` days on `event_date`. You MAY frame it as a near-term catalyst and the directive may be a watch (e.g. "Watch earnings <date>"). Use the `event_date` exactly - never invent a different date.
+- status == "upcoming": earnings reports in `days_until` days on `event_date`. You MAY frame it as a near-term catalyst. Use the `event_date` exactly - never invent a different date.
 - Only the `earnings` block (and `recent_news`) may anchor an earnings reference. Never reuse an earnings date from anywhere else.
 - For catalyst_cards, earnings dates are even stricter: only an upcoming earnings block may supply a date, and the date must be copied exactly from `earnings.event_date`. If the payload does not have an upcoming earnings block, do not include an earnings date in any catalyst card.
 
@@ -633,10 +578,9 @@ STOCK_BRIEF_SCHEMA = {
                         "event": {"type": "string"},
                         "detail": {"type": "string"},
                         "window": {"type": "string"},
-                        "expected_impact": {"type": "number", "minimum": -2, "maximum": 2},
                         "priced_in": {"type": "string", "enum": ["low", "med", "high"]},
                     },
-                    "required": ["event", "detail", "window", "expected_impact", "priced_in"],
+                    "required": ["event", "detail", "window", "priced_in"],
                 },
             },
             "risk_cards": {
@@ -649,65 +593,9 @@ STOCK_BRIEF_SCHEMA = {
                         "detail": {"type": "string"},
                         "trigger": {"type": "string"},
                         "severity": {"type": "integer", "minimum": 1, "maximum": 5},
-                        "probability": {"type": "integer", "minimum": 1, "maximum": 5},
                     },
-                    "required": ["risk", "detail", "trigger", "severity", "probability"],
+                    "required": ["risk", "detail", "trigger", "severity"],
                 },
-            },
-            "directive": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "text": {"type": "string"},
-                    "action_now": {"type": "string"},
-                    "stance": {"type": "string", "enum": ["accumulate", "trim", "watch", "avoid", "hold"]},
-                    "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
-                    "trigger_value": {"type": "string"},
-                    "add_on": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "text": {"type": "string"},
-                            "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
-                            "trigger_value": {"type": "string"},
-                        },
-                        "required": ["text", "trigger_type", "trigger_value"],
-                    },
-                    "trim_on": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "text": {"type": "string"},
-                            "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
-                            "trigger_value": {"type": "string"},
-                        },
-                        "required": ["text", "trigger_type", "trigger_value"],
-                    },
-                    "breaks_if": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "text": {"type": "string"},
-                            "trigger_type": {"type": "string", "enum": ["price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"]},
-                            "trigger_value": {"type": "string"},
-                        },
-                        "required": ["text", "trigger_type", "trigger_value"],
-                    },
-                    "rationale": {"type": "string"},
-                    "confidence": {"type": "string", "enum": ["low", "med", "high"]},
-                },
-                "required": [
-                    "text",
-                    "action_now",
-                    "stance",
-                    "trigger_type",
-                    "trigger_value",
-                    "add_on",
-                    "trim_on",
-                    "breaks_if",
-                    "rationale",
-                    "confidence",
-                ],
             },
         },
         "required": [
@@ -721,7 +609,6 @@ STOCK_BRIEF_SCHEMA = {
             "drivers",
             "catalyst_cards",
             "risk_cards",
-            "directive",
         ],
         "additionalProperties": False,
     },
@@ -789,31 +676,6 @@ def _normalize_stock_brief_payload(payload: Any) -> Any:
     if not isinstance(payload, dict):
         return payload
 
-    directive = payload.get("directive")
-    if isinstance(directive, dict):
-        stance = str(directive.get("stance") or "").strip().lower()
-        zone_order = (
-            ("add_on", "breaks_if", "trim_on")
-            if stance == "accumulate"
-            else ("trim_on", "breaks_if", "add_on")
-            if stance == "trim"
-            else ("breaks_if", "add_on", "trim_on")
-        )
-        primary_type = "none"
-        primary_value = ""
-        for zone_name in zone_order:
-            zone = directive.get(zone_name)
-            if not isinstance(zone, dict):
-                continue
-            zone_type = str(zone.get("trigger_type") or "none").strip()
-            zone_value = str(zone.get("trigger_value") or "").strip()
-            if zone_type != "none" and zone_value:
-                primary_type = zone_type
-                primary_value = zone_value
-                break
-        directive.setdefault("trigger_type", primary_type)
-        directive.setdefault("trigger_value", primary_value)
-
     horizon_aliases = {
         "near-term": "today",
         "near term": "today",
@@ -858,11 +720,6 @@ def _validate_stock_brief_payload(payload: Any) -> dict[str, Any]:
     for field in ("headline", "body", "thesis"):
         if isinstance(payload.get(field), str) and not payload[field].strip():
             errors.append(f"$.{field} must not be empty")
-    directive = payload.get("directive")
-    if isinstance(directive, dict):
-        for field in ("text", "action_now", "rationale"):
-            if isinstance(directive.get(field), str) and not directive[field].strip():
-                errors.append(f"$.directive.{field} must not be empty")
 
     if errors:
         preview = "; ".join(errors[:8])
@@ -892,12 +749,12 @@ def _llm_synthesize_brief(
     reddit: dict[str, Any] | None = None,
     earnings: dict[str, Any] | None = None,
     anomaly_digest: dict[str, Any] | None = None,
-    previous_directive: dict[str, Any] | None = None,
     previous_brief_summary: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, Any] | None:
     """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
-    api_key = llm_api_key()
+    provider = stock_brief_provider()
+    api_key = llm_api_key(provider)
     if not api_key:
         return None
 
@@ -927,8 +784,6 @@ def _llm_synthesize_brief(
         payload["earnings"] = earnings
     if anomaly_digest:
         payload["anomaly_digest"] = anomaly_digest
-    if previous_directive:
-        payload["previous_directive"] = previous_directive
     if previous_brief_summary:
         payload["previous_brief_summary"] = previous_brief_summary
     if price_context:
@@ -940,7 +795,16 @@ def _llm_synthesize_brief(
     cache_key = None
     if store is not None:
         digest = hashlib.sha256(
-            json.dumps([STOCK_BRIEF_CACHE_VERSION, model, payload], sort_keys=True).encode()
+            json.dumps(
+                [
+                    STOCK_BRIEF_CACHE_VERSION,
+                    provider,
+                    model,
+                    stock_brief_reasoning_effort(),
+                    payload,
+                ],
+                sort_keys=True,
+            ).encode()
         ).hexdigest()
         cache_key = f"stock_brief_{digest}"
         try:
@@ -976,6 +840,8 @@ def _llm_synthesize_brief(
                 timeout=300,
                 stage="stock_brief",
                 max_attempts=3,
+                provider=provider,
+                reasoning_effort=stock_brief_reasoning_effort(),
             )
             content = body["choices"][0]["message"]["content"]
             try:
@@ -1076,7 +942,7 @@ Do not repeat the same fact across body/key_findings/thesis/drivers/catalyst/ris
 If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
 """
 
-NO_NEWS_BRIEF_CACHE_VERSION = "2026-04-21-no-news-brief-v4-native"
+NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-01-no-news-brief-v5-directive-v2-only"
 
 
 def _nn_to_float(value: Any) -> float | None:
@@ -1172,7 +1038,8 @@ def generate_no_news_brief(
     `avg_volume` is derived from `tm_price_snapshots` history in the caller so
     this function stays pure and testable.
     """
-    api_key = llm_api_key()
+    provider = stock_brief_provider()
+    api_key = llm_api_key(provider)
     if not api_key:
         return None
 
@@ -1219,7 +1086,16 @@ def generate_no_news_brief(
     cache_key = None
     if store is not None:
         digest = hashlib.sha256(
-            json.dumps([NO_NEWS_BRIEF_CACHE_VERSION, model, payload], sort_keys=True).encode()
+            json.dumps(
+                [
+                    NO_NEWS_BRIEF_CACHE_VERSION,
+                    provider,
+                    model,
+                    stock_brief_reasoning_effort(),
+                    payload,
+                ],
+                sort_keys=True,
+            ).encode()
         ).hexdigest()
         cache_key = f"no_news_brief_{digest}"
         try:
@@ -1244,6 +1120,8 @@ def generate_no_news_brief(
                 timeout=300,
                 stage="no_news_brief",
                 max_attempts=3,
+                provider=provider,
+                reasoning_effort=stock_brief_reasoning_effort(),
             )
             content = body["choices"][0]["message"]["content"]
             try:
@@ -1341,11 +1219,6 @@ def build_no_news_intelligence_doc(
     risk_cards = _normalize_risk_cards(raw_risk_cards, limit=3)
     if not risk_cards:
         risk_cards = _fundamental_risk_cards(_summarize_intel_pro(intel_pro_doc), limit=2)
-    raw_directive = brief.get("directive")
-    directive = None
-    if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
-        directive = _repair_directive(dict(raw_directive), current_price=current_price)
-
     def _mentions_wrong_ticker(value: str) -> bool:
         symbols = set(re.findall(r"\b[A-Z]{2,5}\b", str(value or "")))
         allowed = {ticker, "AI", "CEO", "CFO", "EPS", "ETF", "IPO", "Q1", "Q2", "Q3", "Q4", "TTM", "YoY"}
@@ -1416,7 +1289,6 @@ def build_no_news_intelligence_doc(
         "key_points": key_findings,
         "visual_summary": visual_cards,
         "visual_cards": visual_cards,
-        "directive": directive,
         "current_price": current_price,
         "fundamentals": _summarize_intel_pro(intel_pro_doc),
         "price_context": _summarize_price_context(latest_price_doc, technical_doc, history_points),
@@ -1505,7 +1377,7 @@ Each entry needs:
 
 MARKET REGIME - USE IT:
 - The payload may include a `market_regime` block with a `macro` read (market_phase, risk_appetite, narrative, leadership sectors, laggards, rotation_signal) and a `sectors` array with per-sector regime data (regime, conviction, narrative, invalidators, leadership_stocks).
-- Let the regime shape your narrative and signals. A stock in a "breaking_down" sector with a bullish directive should have lower conviction and acknowledge the sector headwind. A stock in a "momentum" or "expanding" sector can be leaned into more confidently.
+- Let the regime shape your narrative and signals. A stock in a "breaking_down" sector should have lower conviction and acknowledge the sector headwind. A stock in a "momentum" or "expanding" sector can be leaned into more confidently.
 - If rotation_signal is non-empty, surface it in the narrative or blind_spot — it's the kind of macro context users can't get from a stock screener.
 - Laggard sectors = blind spot candidates if the user has no exposure.
 - Do NOT just repeat the regime label verbatim. Interpret it. "Semis are in a confirmed momentum regime with 80% breadth" beats "regime: momentum".
@@ -2039,267 +1911,6 @@ def generate_sector_brief(
     except Exception as exc:
         logger.warning("Sector brief generation failed for %s: %s", sector_name, exc)
         return None
-
-
-def _repair_directive(directive: dict[str, Any], current_price: float | None = None) -> dict[str, Any]:
-    """Normalize directive copy and pick one primary smart-trigger zone."""
-    text = str(directive.get("text", ""))
-    trigger_type = str(directive.get("trigger_type", "none"))
-    trigger_value = str(directive.get("trigger_value", "")).strip()
-    zone_trigger_types = {"price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"}
-
-    def _has_past_date_hint(value: str) -> bool:
-        # Handles inline month-day hints like "Apr 29 earnings" and explicit
-        # ISO date mentions. If a date is in the past, the directive text
-        # should not keep implying it's upcoming.
-        today = datetime.now(timezone.utc).date()
-        iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", value)
-        if iso_match:
-            try:
-                return datetime.fromisoformat(iso_match.group(1)).date() < today
-            except Exception:
-                pass
-        month_day = re.search(
-            r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\s\-]+(\d{1,2})\b",
-            value.upper(),
-        )
-        if month_day:
-            month_map = {
-                "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
-                "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
-            }
-            try:
-                parsed = datetime(today.year, month_map[month_day.group(1)], int(month_day.group(2)), tzinfo=timezone.utc).date()
-                return parsed < today
-            except Exception:
-                return False
-        return False
-
-    def _repair_zone(raw: Any) -> dict[str, str]:
-        zone = raw if isinstance(raw, dict) else {}
-        zone_text = str(zone.get("text", "")).strip()
-        zone_type = str(zone.get("trigger_type", "none")).strip()
-        zone_value = str(zone.get("trigger_value", "")).strip()
-        if zone_type not in zone_trigger_types:
-            zone_type = "none"
-        price_match = re.search(r"\$(\d{1,7}(?:\.\d+)?)", zone_text)
-        if price_match:
-            lowered = zone_text.lower()
-            zone_type = "price_below" if any(
-                word in lowered for word in ("below", "under", "dip", "pullback", "support", "break", "lose", "lost")
-            ) else "price_above"
-            zone_value = price_match.group(1)
-        elif zone_type == "date":
-            today_iso = datetime.now(timezone.utc).date().isoformat()
-            if not zone_value or zone_value < today_iso:
-                zone_type = "none"
-                zone_value = ""
-        elif zone_type in ("sentiment_flip", "new_catalyst", "none"):
-            zone_value = ""
-        return {
-            "text": zone_text,
-            "trigger_type": zone_type,
-            "trigger_value": zone_value,
-        }
-
-    def _zone_price(zone: dict[str, str]) -> float | None:
-        if zone.get("trigger_type") not in ("price_below", "price_above"):
-            return None
-        try:
-            price = float(str(zone.get("trigger_value") or "").strip())
-        except Exception:
-            return None
-        return price if price > 0 else None
-
-    if _has_past_date_hint(text):
-        lower = text.lower()
-        if "earnings" in lower:
-            text = "Re-evaluate on next earnings guidance"
-        else:
-            text = re.sub(r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\s\-]+\d{1,2}\b", "", text, flags=re.IGNORECASE).strip(" ,.-")
-            if not text:
-                text = "Re-evaluate on next catalyst"
-        directive["text"] = text
-
-    action_now = str(directive.get("action_now", "")).strip() or text.strip()
-    if not text.strip() and action_now:
-        text = action_now
-    if not action_now:
-        action_now = text.strip()
-
-    add_on = _repair_zone(directive.get("add_on"))
-    trim_on = _repair_zone(directive.get("trim_on"))
-    breaks_if = _repair_zone(directive.get("breaks_if"))
-
-    break_price = _zone_price(breaks_if)
-    if current_price and break_price:
-        break_type = breaks_if["trigger_type"]
-        if break_type == "price_below" and current_price <= break_price:
-            text = "Watch for reclaim"
-            action_now = f"Price is below the prior support at ${break_price:g}; wait for a reclaim before adding."
-            directive["rationale"] = action_now
-            directive["stance"] = "watch"
-            add_on = {
-                "text": f"Add only after reclaiming ${break_price:g}",
-                "trigger_type": "price_above",
-                "trigger_value": f"{break_price:g}",
-            }
-            breaks_if = {"text": "", "trigger_type": "none", "trigger_value": ""}
-            trigger_type = "price_above"
-            trigger_value = f"{break_price:g}"
-        elif break_type == "price_above" and current_price >= break_price:
-            text = "Watch for reset"
-            action_now = f"Price is above the prior risk level at ${break_price:g}; wait for a reset before acting."
-            directive["rationale"] = action_now
-            directive["stance"] = "watch"
-            add_on = {
-                "text": f"Act only after resetting below ${break_price:g}",
-                "trigger_type": "price_below",
-                "trigger_value": f"{break_price:g}",
-            }
-            breaks_if = {"text": "", "trigger_type": "none", "trigger_value": ""}
-            trigger_type = "price_below"
-            trigger_value = f"{break_price:g}"
-
-    price_match = re.search(r"\$(\d{1,7}(?:\.\d+)?)", text)
-    if not price_match:
-        price_match = re.search(r"\b(?:below|above|under|over)\s+(\d{1,7}(?:\.\d+)?)\b", text, re.IGNORECASE)
-    if price_match:
-        price_str = price_match.group(1)
-        lowered = text.lower()
-        if trigger_type not in ("price_below", "price_above"):
-            trigger_type = "price_below" if any(
-                word in lowered for word in ("below", "under", "dip", "pullback")
-            ) else "price_above"
-        trigger_value = price_str
-        stance = str(directive.get("stance", "")).strip().lower()
-        text = {
-            "accumulate": "Accumulate now",
-            "hold": "Hold here",
-            "watch": "Watch setup",
-            "trim": "Trim strength",
-            "avoid": "Avoid for now",
-        }.get(stance, text.strip())
-    elif trigger_type == "date":
-        today_iso = datetime.now(timezone.utc).date().isoformat()
-        if not trigger_value or trigger_value < today_iso:
-            trigger_type = "none"
-            trigger_value = ""
-    elif trigger_type in ("sentiment_flip", "new_catalyst", "none"):
-        trigger_value = ""
-
-    if trigger_type not in ("price_below", "price_above", "date", "sentiment_flip", "new_catalyst", "none"):
-        trigger_type = "none"
-        trigger_value = ""
-
-    if trigger_type == "none":
-        stance = str(directive.get("stance", "")).strip().lower()
-        candidates = (
-            [add_on, breaks_if, trim_on]
-            if stance == "accumulate"
-            else [trim_on, breaks_if, add_on]
-            if stance == "trim"
-            else [breaks_if, add_on, trim_on]
-        )
-        primary = next(
-            (
-                zone for zone in candidates
-                if zone["trigger_type"] in ("price_below", "price_above", "date")
-                and zone["trigger_value"]
-            ),
-            None,
-        )
-        if primary:
-            trigger_type = primary["trigger_type"]
-            trigger_value = primary["trigger_value"]
-
-    directive["text"] = text.strip()
-    directive["action_now"] = action_now
-    directive["trigger_type"] = trigger_type
-    directive["trigger_value"] = trigger_value
-    directive["add_on"] = add_on
-    directive["trim_on"] = trim_on
-    directive["breaks_if"] = breaks_if
-    return directive
-
-
-def _deterministic_directive(
-    *,
-    sentiment_label: str,
-    current_price: float | None,
-    analyst_target: float | None,
-    price_context: dict[str, Any] | None,
-) -> dict[str, Any]:
-    if not current_price or current_price <= 0:
-        return {
-            "text": "Watch setup",
-            "action_now": "Keep this on watch until price and fresh evidence give a cleaner setup.",
-            "stance": "watch",
-            "trigger_type": "new_catalyst",
-            "trigger_value": "",
-            "add_on": {"text": "", "trigger_type": "none", "trigger_value": ""},
-            "trim_on": {"text": "", "trigger_type": "none", "trigger_value": ""},
-            "breaks_if": {"text": "", "trigger_type": "none", "trigger_value": ""},
-            "rationale": "No reliable live price was available for a price-based call.",
-            "confidence": "low",
-        }
-
-    label = str(sentiment_label or "").lower()
-    day_change = _nn_to_float((price_context or {}).get("day_change_pct")) or 0.0
-    upside = ((analyst_target - current_price) / current_price * 100) if analyst_target else None
-    constructive = label in {"bullish", "constructive"} or (upside is not None and upside >= 15)
-    add_price = round(current_price * (0.98 if day_change >= 0 else 0.97), 2)
-    break_price = round(current_price * 0.9, 2)
-
-    if constructive:
-        directive = {
-            "text": "Accumulate now",
-            "action_now": f"Current setup is constructive; add here and prefer pullbacks below ${add_price:g}.",
-            "stance": "accumulate",
-            "trigger_type": "price_below",
-            "trigger_value": f"{add_price:g}",
-            "add_on": {
-                "text": f"Add on pullbacks below ${add_price:g}",
-                "trigger_type": "price_below",
-                "trigger_value": f"{add_price:g}",
-            },
-            "trim_on": {
-                "text": f"Trim near analyst target ${analyst_target:g}" if analyst_target else "",
-                "trigger_type": "price_above" if analyst_target else "none",
-                "trigger_value": f"{analyst_target:g}" if analyst_target else "",
-            },
-            "breaks_if": {
-                "text": f"Reassess if price falls below ${break_price:g}",
-                "trigger_type": "price_below",
-                "trigger_value": f"{break_price:g}",
-            },
-            "rationale": "Constructive evidence and target upside support a starter/add call while keeping a clear risk level.",
-            "confidence": "med",
-        }
-    else:
-        reclaim_price = round(current_price * 1.03, 2)
-        directive = {
-            "text": "Watch for reclaim",
-            "action_now": f"Wait for strength above ${reclaim_price:g} before adding.",
-            "stance": "watch",
-            "trigger_type": "price_above",
-            "trigger_value": f"{reclaim_price:g}",
-            "add_on": {
-                "text": f"Add only after reclaiming ${reclaim_price:g}",
-                "trigger_type": "price_above",
-                "trigger_value": f"{reclaim_price:g}",
-            },
-            "trim_on": {"text": "", "trigger_type": "none", "trigger_value": ""},
-            "breaks_if": {
-                "text": f"Reassess if price falls below ${break_price:g}",
-                "trigger_type": "price_below",
-                "trigger_value": f"{break_price:g}",
-            },
-            "rationale": "Evidence is not strong enough for an add-now call, so the setup needs price confirmation.",
-            "confidence": "low",
-        }
-
-    return _repair_directive(directive, current_price=current_price)
 
 
 def _parse_window_date_iso(raw_window: str) -> str | None:
@@ -3128,7 +2739,6 @@ def _fundamental_risk_cards(fundamentals: dict[str, Any] | None, *, limit: int =
             "detail": detail,
             "trigger": "fundamental deterioration",
             "severity": 4,
-            "probability": 3,
         })
         if len(risks) >= limit:
             break
@@ -3211,7 +2821,6 @@ def _normalize_risk_cards(raw_cards: list[Any], *, limit: int = 3) -> list[dict[
             "detail": detail,
             "trigger": str(raw.get("trigger") or "headline deterioration").strip() or "headline deterioration",
             "severity": max(1, min(5, int(_to_float(raw.get("severity")) or 3))),
-            "probability": max(1, min(5, int(_to_float(raw.get("probability")) or 3))),
         })
         if len(normalized) >= limit:
             break
@@ -3234,7 +2843,6 @@ def _normalize_raw_catalyst_cards(raw_cards: list[Any], *, limit: int = 3) -> li
             "event": _short_card_label(event, fallback="Near-term catalyst"),
             "detail": detail,
             "window": str(raw.get("window") or "near-term").strip() or "near-term",
-            "expected_impact": max(-2, min(2, _to_float(raw.get("expected_impact")) or 0)),
             "priced_in": str(raw.get("priced_in") or "med").lower()
             if str(raw.get("priced_in") or "").lower() in {"low", "med", "high"}
             else "med",
@@ -3578,7 +3186,7 @@ def _load_reddit_by_ticker(store: Any, market: str) -> dict[str, dict[str, Any]]
 
 
 # Earnings relevance windows (calendar days), tuned with product input:
-# - LEAD: the print is THE story; overview + directive driven by results.
+# - LEAD: the print is THE story; overview and thesis driven by results.
 # - CONTEXT: earnings stays as backdrop context but news leads.
 # - PRE: start framing the next earnings as an upcoming catalyst.
 EARNINGS_LEAD_DAYS = 5
@@ -4044,7 +3652,7 @@ def build_stock_intelligence_docs(
             else "Only one source is backing this signal right now."
         )
 
-        # Get current price for directive generation
+        # Get current price for deterministic directive_v2 generation.
         latest_price_doc = latest_prices_by_id.get(instrument_id)
         latest_quote = (latest_price_doc or {}).get("quote", {})
         try:
@@ -4112,9 +3720,6 @@ def build_stock_intelligence_docs(
             anomaly_by_doc_id.get(f"{market.upper()}__{str(instrument['ticker']).upper()}")
         )
         prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id) if store else None
-        previous_directive = (prev_doc or {}).get("directive")
-        if not isinstance(previous_directive, dict) or not str(previous_directive.get("text", "")).strip():
-            previous_directive = None
         previous_brief_summary = _previous_brief_summary(prev_doc)
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
@@ -4140,7 +3745,6 @@ def build_stock_intelligence_docs(
             reddit=reddit_ctx,
             earnings=earnings_ctx,
             anomaly_digest=anomaly_digest,
-            previous_directive=previous_directive,
             previous_brief_summary=previous_brief_summary,
             store=store,
         )
@@ -4150,7 +3754,6 @@ def build_stock_intelligence_docs(
         drivers: list[dict[str, Any]] = []
         catalyst_cards: list[dict[str, Any]] = []
         risk_cards: list[dict[str, Any]] = []
-        directive: dict[str, Any] | None = None
         if llm_brief:
             headline = llm_brief.get("headline") or _build_headline(instrument, label, top_fact, top_title)
             body = llm_brief.get("body") or _build_body(
@@ -4169,9 +3772,6 @@ def build_stock_intelligence_docs(
             drivers = _normalize_driver_cards(raw_drivers, final_key_points, limit=4)
             catalyst_cards = _normalize_raw_catalyst_cards(raw_catalyst_cards, limit=3)
             risk_cards = _normalize_risk_cards(raw_risk_cards, limit=3)
-            raw_directive = llm_brief.get("directive")
-            if isinstance(raw_directive, dict) and str(raw_directive.get("text", "")).strip():
-                directive = _repair_directive(dict(raw_directive), current_price=current_price)
         else:
             headline = _build_headline(instrument, label, top_fact, top_title)
             body = _build_body(
@@ -4187,7 +3787,6 @@ def build_stock_intelligence_docs(
                 "event": catalyst,
                 "detail": f"Flagged in coverage with {label} tone; watch if follow-through materialises.",
                 "window": "near-term",
-                "expected_impact": 1 if label in ("bullish", "constructive") else -1 if label in ("bearish", "cautious") else 0,
                 "priced_in": "med",
             }] if catalyst else []
             risk_cards = [{
@@ -4195,7 +3794,6 @@ def build_stock_intelligence_docs(
                 "detail": "Watch for confirming or disconfirming signals in upcoming coverage.",
                 "trigger": "headline deterioration",
                 "severity": 3,
-                "probability": 3,
             }] if risk else []
 
         if not drivers:
@@ -4222,7 +3820,6 @@ def build_stock_intelligence_docs(
                 "event": catalyst,
                 "detail": f"Flagged in coverage with {label} tone; watch if follow-through materialises.",
                 "window": "near-term",
-                "expected_impact": 1 if label in ("bullish", "constructive") else -1 if label in ("bearish", "cautious") else 0,
                 "priced_in": "med",
             }]
         catalyst_cards = _normalize_catalyst_cards(catalyst_cards, earnings=earnings_ctx)
@@ -4240,7 +3837,6 @@ def build_stock_intelligence_docs(
                 "detail": "Watch for confirming or disconfirming signals in upcoming coverage.",
                 "trigger": "headline deterioration",
                 "severity": 3,
-                "probability": 3,
             }]
         if not risk_cards:
             risk_cards = _fundamental_risk_cards(fundamentals_block, limit=2)
@@ -4267,14 +3863,6 @@ def build_stock_intelligence_docs(
             )
         if thesis and _has_invalid_earnings_timing(thesis, earnings_ctx):
             thesis = headline
-
-        if directive is None:
-            directive = _deterministic_directive(
-                sentiment_label=label,
-                current_price=current_price,
-                analyst_target=analyst_target,
-                price_context=price_context,
-            )
 
         # Keep key points non-repetitive versus thesis/headline/body.
         dedupe_base = " ".join([thesis, headline, body]).lower()
@@ -4393,7 +3981,6 @@ def build_stock_intelligence_docs(
             "key_points": final_key_points,
             "visual_summary": visual_cards,
             "visual_cards": visual_cards,
-            "directive": directive,
             "current_price": current_price,
             "analyst_target": analyst_target,
             "fundamentals": fundamentals_block,

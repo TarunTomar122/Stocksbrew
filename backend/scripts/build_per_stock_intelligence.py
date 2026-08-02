@@ -35,6 +35,7 @@ from backend.scripts.materialize_views import materialize_views
 from backend.models import Article
 from backend.stock_intelligence import build_no_news_intelligence_doc, build_stock_intelligence_docs
 from backend.storage import TraceMoneyStore
+from backend.subscription_entitlement import has_current_pro_entitlement
 
 from datetime import datetime, timezone
 
@@ -42,12 +43,12 @@ logger = logging.getLogger(__name__)
 
 
 def _subscribed_tracked_ids(store: TraceMoneyStore, market: str) -> list[str]:
-    """Collect paid-user tracked instrument ids for a market (deduped, stable order)."""
+    """Collect current-Pro tracked instrument ids for a market (deduped, stable order)."""
     seen: set[str] = set()
     out: list[str] = []
     prefix = f"{market.upper()}_"
     for user in store.list_subscribed_users():
-        if not bool(user.get("is_subscribed")):
+        if not has_current_pro_entitlement(user):
             continue
         tracked = user.get("tracked_stocks") or []
         if not isinstance(tracked, list):
@@ -68,7 +69,7 @@ def _merge_with_paid_tracked(
     market: str,
     base_instruments: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], int, int]:
-    """Union(base universe, paid tracked) while preserving deterministic order."""
+    """Union(base universe, current-Pro tracked) in deterministic order."""
     tracked_ids = _subscribed_tracked_ids(store, market)
     base_ids = {
         str(instrument.get("instrument_id") or "").strip().upper()
@@ -94,7 +95,7 @@ def _merge_with_paid_tracked(
             missing.append(instrument_id)
     if missing:
         logger.warning(
-            "per_stock_intelligence missing instrument metadata for paid tracked ids market=%s missing=%s",
+            "per_stock_intelligence missing instrument metadata for Pro tracked ids market=%s missing=%s",
             market,
             ",".join(missing),
         )

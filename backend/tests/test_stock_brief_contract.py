@@ -15,11 +15,6 @@ from backend.stock_intelligence import (
 
 
 def _valid_brief() -> dict:
-    trigger = {
-        "text": "No secondary trigger",
-        "trigger_type": "none",
-        "trigger_value": "",
-    }
     return {
         "headline": "IBM revenue miss resets the setup",
         "body": "IBM's preliminary revenue missed expectations. The spending shift toward AI infrastructure now raises execution risk.",
@@ -44,21 +39,8 @@ def _valid_brief() -> dict:
                 "detail": "Preliminary revenue missed analyst expectations.",
                 "trigger": "another estimate reduction",
                 "severity": 5,
-                "probability": 3,
             }
         ],
-        "directive": {
-            "text": "Avoid adding until estimates reset",
-            "action_now": "Wait for revised estimates before adding exposure.",
-            "stance": "avoid",
-            "trigger_type": "new_catalyst",
-            "trigger_value": "estimate reset",
-            "add_on": dict(trigger),
-            "trim_on": dict(trigger),
-            "breaks_if": dict(trigger),
-            "rationale": "The revenue miss makes near-term execution the dominant signal.",
-            "confidence": "high",
-        },
     }
 
 
@@ -118,21 +100,12 @@ class StockBriefContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "echoed the schema envelope"):
             _validate_stock_brief_payload(schema_echo)
 
-    def test_validator_derives_legacy_primary_trigger_from_zone(self) -> None:
-        payload = _valid_brief()
-        payload["directive"].pop("trigger_type")
-        payload["directive"].pop("trigger_value")
-        payload["directive"]["stance"] = "accumulate"
-        payload["directive"]["add_on"] = {
-            "text": "Add below $90",
-            "trigger_type": "price_below",
-            "trigger_value": "90",
-        }
+    def test_schema_excludes_legacy_directive_and_dead_card_fields(self) -> None:
+        properties = STOCK_BRIEF_SCHEMA["schema"]["properties"]
 
-        result = _validate_stock_brief_payload(payload)
-
-        self.assertEqual(result["directive"]["trigger_type"], "price_below")
-        self.assertEqual(result["directive"]["trigger_value"], "90")
+        self.assertNotIn("directive", properties)
+        self.assertNotIn("expected_impact", properties["catalyst_cards"]["items"]["properties"])
+        self.assertNotIn("probability", properties["risk_cards"]["items"]["properties"])
 
     def test_validator_normalizes_harmless_enum_aliases(self) -> None:
         payload = _valid_brief()
@@ -141,7 +114,6 @@ class StockBriefContractTest(unittest.TestCase):
             "event": "Estimate reset",
             "detail": "Lower estimates could create a cleaner base for the next quarter.",
             "window": "quarter",
-            "expected_impact": 1,
             "priced_in": "medium",
         }]
 

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from backend.storage import _firestore_write_batches, _latest_price_write_payload
+from backend.storage import TraceMoneyStore, _firestore_write_batches, _latest_price_write_payload
 
 
 @dataclass
@@ -84,3 +84,58 @@ def test_first_quote_of_new_day_appends_history() -> None:
 
     assert len(payload["history_window"]) == 2
     assert payload["history_window_size"] == 2
+
+
+class _HistoryDocument:
+    def __init__(self, sink: dict) -> None:
+        self.sink = sink
+
+    def collection(self, _name: str) -> "_HistoryCollection":
+        return _HistoryCollection(self.sink)
+
+    def set(self, payload: dict, *, merge: bool = False) -> None:
+        self.sink.update({"payload": payload, "merge": merge})
+
+
+class _HistoryCollection:
+    def __init__(self, sink: dict) -> None:
+        self.sink = sink
+
+    def document(self, _document_id: str) -> _HistoryDocument:
+        return _HistoryDocument(self.sink)
+
+
+class _HistoryDatabase:
+    def __init__(self, sink: dict) -> None:
+        self.sink = sink
+
+    def collection(self, _name: str) -> _HistoryCollection:
+        return _HistoryCollection(self.sink)
+
+
+def test_directive_history_uses_directive_v2_action_and_zones() -> None:
+    saved: dict = {}
+    store = object.__new__(TraceMoneyStore)
+    store.db = _HistoryDatabase(saved)
+
+    store.append_directive_history(
+        "US",
+        [{
+            "instrument_id": "US_AAPL",
+            "current_price": 200.0,
+            "generated_at": "2026-08-01T14:00:00+00:00",
+            "directive_v2": {
+                "version": "v2-shadow-1",
+                "stance": "accumulate",
+                "confidence": "high",
+                "action": {"label": "Accumulate now", "summary": "The setup remains constructive."},
+                "zones": {"accumulate_below": 194.0, "trim_above": 225.0},
+            },
+        }],
+    )
+
+    assert saved["merge"] is True
+    assert saved["payload"]["text"] == "Accumulate now"
+    assert saved["payload"]["trigger_type"] == "price_below"
+    assert saved["payload"]["trigger_value"] == 194.0
+    assert saved["payload"]["directive_version"] == "v2-shadow-1"
