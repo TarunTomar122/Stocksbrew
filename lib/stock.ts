@@ -321,6 +321,69 @@ export type StockFacts = {
     eps_diluted?: number | null;
     source?: string;
   };
+  financial_history?: Array<{
+    period: string;
+    revenue?: number | null;
+    gross_profit?: number | null;
+    operating_income?: number | null;
+    net_income?: number | null;
+    eps_diluted?: number | null;
+    free_cash_flow?: number | null;
+    gross_margin_pct?: number | null;
+    operating_margin_pct?: number | null;
+    profit_margin_pct?: number | null;
+  }>;
+  balance?: {
+    cash_and_investments?: number | null;
+    total_debt?: number | null;
+    net_cash?: number | null;
+  };
+  valuation?: {
+    forward_pe?: number | null;
+    price_to_sales?: number | null;
+    price_to_fcf?: number | null;
+    ev_to_ebitda?: number | null;
+  };
+  quality?: {
+    roic_pct?: number | null;
+    roe_pct?: number | null;
+    debt_to_equity?: number | null;
+    current_ratio?: number | null;
+  };
+  dividends?: {
+    annual_dividend?: number | null;
+    yield_pct?: number | null;
+    payout_ratio_pct?: number | null;
+    growth_pct?: number | null;
+    growth_years?: number | null;
+    buyback_yield_pct?: number | null;
+    shareholder_yield_pct?: number | null;
+    next_ex_dividend_date?: string | null;
+    history?: Array<{
+      ex_date: string;
+      amount: number;
+      record_date?: string | null;
+      pay_date?: string | null;
+    }>;
+  };
+  business_segments?: StockRevenueMix | null;
+  geographic_mix?: StockRevenueMix | null;
+  analyst_trend?: {
+    target?: {
+      low?: number | null;
+      average?: number | null;
+      median?: number | null;
+      high?: number | null;
+    };
+    recommendation_trend?: Array<{
+      period: string;
+      strong_buy?: number | null;
+      buy?: number | null;
+      hold?: number | null;
+      sell?: number | null;
+      strong_sell?: number | null;
+    }>;
+  };
   institutions?: {
     ownership_pct?: number | null;
     total_value_label?: string;
@@ -334,6 +397,15 @@ export type StockFacts = {
     }>;
     source?: string;
   };
+};
+
+export type StockRevenueMix = {
+  period?: string | null;
+  items?: Array<{
+    name: string;
+    value: number;
+    share_pct: number;
+  }>;
 };
 
 export type OnDemandNewsJobDoc = {

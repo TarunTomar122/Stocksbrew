@@ -12,6 +12,7 @@ import {
 import { LockedVerdictCall } from "@/components/locked-verdict-call";
 import { LockedRoomToTarget } from "@/components/locked-room-to-target";
 import { FundamentalsBreakdown } from "@/components/fundamentals-breakdown";
+import { StockFinancialDepth } from "@/components/stock-financial-depth";
 import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
 import { TrackButton } from "@/components/track-button";
 import { StockShareCard } from "@/components/stock-share-card";
@@ -382,6 +383,16 @@ export function StockDetail(props: Props) {
   const fundamentalStats = stats.filter(
     (item) => item.k !== "Revenue" && item.k !== "Revenue growth",
   );
+  const hasFinancialDepth = Boolean(
+    facts?.financial_history?.length ||
+      Object.values(facts?.balance ?? {}).some(n) ||
+      Object.values(facts?.valuation ?? {}).some(n) ||
+      Object.values(facts?.quality ?? {}).some(n) ||
+      facts?.dividends?.history?.length ||
+      facts?.business_segments?.items?.length ||
+      facts?.geographic_mix?.items?.length ||
+      facts?.analyst_trend?.recommendation_trend?.length,
+  );
 
   const hasRedditBuzz = hasRedditBuzzData(reddit);
 
@@ -555,6 +566,7 @@ export function StockDetail(props: Props) {
       pillars ||
       fundamentalStats.length > 0 ||
       finTiles.length > 0 ||
+      hasFinancialDepth ||
       peerRows.length > 1 ||
       showAnalyst ||
       hasCrowdSignal,
@@ -978,6 +990,15 @@ export function StockDetail(props: Props) {
               )}
             </div>
           </section>
+        )}
+
+        {hasFinancialDepth && (
+          <StockFinancialDepth
+            facts={facts ?? null}
+            currentPrice={stock.price}
+            currency={currency}
+            ticker={stock.ticker}
+          />
         )}
 
         {(showAnalyst || hasCrowdSignal) && (

@@ -133,6 +133,182 @@ def _parse_millions(value: str | None) -> float | None:
     return round(parsed * 1_000_000.0, 4) if parsed is not None else None
 
 
+def _stockanalysis_soup(ticker: str, suffix: str) -> BeautifulSoup:
+    slug = ticker.lower().replace(".", "-")
+    return BeautifulSoup(
+        _get_text(f"https://stockanalysis.com/stocks/{slug}/{suffix}"),
+        "html.parser",
+    )
+
+
+def _table_heading(table: Any) -> str:
+    heading = table.find_previous(["h1", "h2", "h3"])
+    return _clean_cell(heading.get_text(" ", strip=True)) if heading else ""
+
+
+def _table_matrix(table: Any) -> list[list[str]]:
+    matrix: list[list[str]] = []
+    for tr in table.find_all("tr"):
+        cells = [
+            _clean_cell(cell.get_text(" ", strip=True))
+            for cell in tr.find_all(["th", "td"])
+        ]
+        if cells:
+            matrix.append(cells)
+    return matrix
+
+
+def _table_for_heading(soup: BeautifulSoup, heading: str) -> Any | None:
+    wanted = heading.strip().lower()
+    for table in soup.find_all("table"):
+        if _table_heading(table).strip().lower() == wanted:
+            return table
+    return None
+
+
+def _rows_by_label(table: Any | None) -> dict[str, list[str]]:
+    if table is None:
+        return {}
+    return {row[0]: row[1:] for row in _table_matrix(table) if len(row) > 1}
+
+
+def _row_values(rows: dict[str, list[str]], label: str) -> list[str]:
+    exact = rows.get(label)
+    if exact is not None:
+        return exact
+    prefix = f"{label} "
+    for key, values in rows.items():
+        if key.startswith(prefix):
+            return values
+    return []
+
+
+def _value_at(values: list[str], index: int, parser: Any) -> Any:
+    if index >= len(values):
+        return None
+    return parser(values[index])
+
+
+def _parse_stockanalysis_statistics(ticker: str) -> dict[str, Any]:
+    soup = _stockanalysis_soup(ticker, "statistics/")
+
+    def table_value(heading: str, label: str, parser: Any = _parse_number) -> Any:
+        rows = _rows_by_label(_table_for_heading(soup, heading))
+        values = _row_values(rows, label)
+        return parser(values[0]) if values else None
+
+    return {
+        "valuation": {
+            "forward_pe": table_value("Valuation Ratios", "Forward PE"),
+            "price_to_sales": table_value("Valuation Ratios", "PS Ratio"),
+            "price_to_fcf": table_value("Valuation Ratios", "P/FCF Ratio"),
+            "ev_to_ebitda": table_value("Enterprise Valuation", "EV / EBITDA"),
+        },
+        "quality": {
+            "roic_pct": table_value("Financial Efficiency", "Return on Invested Capital (ROIC)", _parse_percent),
+            "roe_pct": table_value("Financial Efficiency", "Return on Equity (ROE)", _parse_percent),
+            "debt_to_equity": table_value("Financial Position", "Debt / Equity"),
+            "current_ratio": table_value("Financial Position", "Current Ratio"),
+        },
+        "dividends": {
+            "annual_dividend": table_value("Dividends & Yields", "Dividend Per Share"),
+            "yield_pct": table_value("Dividends & Yields", "Dividend Yield", _parse_percent),
+            "payout_ratio_pct": table_value("Dividends & Yields", "Payout Ratio", _parse_percent),
+            "growth_pct": table_value("Dividends & Yields", "Dividend Growth (YoY)", _parse_percent),
+            "growth_years": table_value("Dividends & Yields", "Years of Dividend Growth"),
+            "buyback_yield_pct": table_value("Dividends & Yields", "Buyback Yield", _parse_percent),
+            "shareholder_yield_pct": table_value("Dividends & Yields", "Shareholder Yield", _parse_percent),
+            "next_ex_dividend_date": table_value("Important Dates", "Ex-Dividend Date", str),
+        },
+    }
+
+
+def _parse_stockanalysis_dividends(ticker: str) -> dict[str, Any]:
+    soup = _stockanalysis_soup(ticker, "dividend/")
+    table = _table_for_heading(soup, "Dividend History")
+    if table is None:
+        return {"history": []}
+    rows = _table_matrix(table)
+    history: list[dict[str, Any]] = []
+    for row in rows[1:13]:
+        if len(row) < 2:
+            continue
+        amount = _parse_number(row[1])
+        if not row[0] or amount is None:
+            continue
+        history.append({
+            "ex_date": row[0],
+            "amount": amount,
+            "record_date": row[2] if len(row) > 2 else None,
+            "pay_date": row[3] if len(row) > 3 else None,
+        })
+    return {"history": history}
+
+
+def _parse_mix_table(table: Any | None) -> dict[str, Any] | None:
+    if table is None:
+        return None
+    rows = _table_matrix(table)
+    if len(rows) < 2 or len(rows[0]) < 2:
+        return None
+    period = rows[0][1]
+    items: list[dict[str, Any]] = []
+    for row in rows[1:]:
+        if len(row) < 2:
+            continue
+        name = row[0].strip()
+        if not name or "growth" in name.lower() or name.lower() in {"total", "revenue (total)"}:
+            continue
+        value = _parse_number(row[1])
+        if value is None or value <= 0:
+            continue
+        items.append({"name": name, "value": value})
+    items = items[:10]
+    total = sum(float(item["value"]) for item in items)
+    if total <= 0:
+        return None
+    for item in items:
+        item["share_pct"] = round(float(item["value"]) / total * 100.0, 2)
+    return {"period": period, "items": items}
+
+
+def _parse_stockanalysis_metrics(ticker: str) -> dict[str, Any]:
+    soup = _stockanalysis_soup(ticker, "metrics/")
+    return {
+        "business_segments": _parse_mix_table(_table_for_heading(soup, "Revenue by Segment")),
+        "geographic_mix": _parse_mix_table(_table_for_heading(soup, "Revenue by Geography")),
+    }
+
+
+def _parse_stockanalysis_forecast(ticker: str) -> dict[str, Any]:
+    soup = _stockanalysis_soup(ticker, "forecast/")
+    target_rows = _rows_by_label(_table_for_heading(soup, "Price Target"))
+    prices = _row_values(target_rows, "Price")
+    target = {
+        "low": _value_at(prices, 0, _parse_number),
+        "average": _value_at(prices, 1, _parse_number),
+        "median": _value_at(prices, 2, _parse_number),
+        "high": _value_at(prices, 3, _parse_number),
+    }
+
+    trend_table = _table_for_heading(soup, "Recommendation Trends")
+    trend_rows = _table_matrix(trend_table) if trend_table is not None else []
+    trend: list[dict[str, Any]] = []
+    if trend_rows and len(trend_rows[0]) > 1:
+        periods = trend_rows[0][1:]
+        series = {row[0].strip().lower().replace(" ", "_"): row[1:] for row in trend_rows[1:] if len(row) > 1}
+        for index, period in enumerate(periods):
+            trend.append({
+                "period": period,
+                "strong_buy": _value_at(series.get("strong_buy", []), index, _parse_number),
+                "buy": _value_at(series.get("buy", []), index, _parse_number),
+                "hold": _value_at(series.get("hold", []), index, _parse_number),
+                "sell": _value_at(series.get("sell", []), index, _parse_number),
+                "strong_sell": _value_at(series.get("strong_sell", []), index, _parse_number),
+            })
+    return {"target": target, "recommendation_trend": trend[-12:]}
+
+
 def _parse_finviz_snapshot(ticker: str) -> dict[str, Any]:
     html = _get_text(f"https://finviz.com/quote.ashx?t={ticker}&p=d")
     rows = re.findall(
@@ -235,40 +411,70 @@ def _parse_nasdaq_institutions(ticker: str) -> dict[str, Any]:
 
 
 def _parse_stockanalysis_financials(ticker: str) -> dict[str, Any]:
-    slug = ticker.lower().replace(".", "-")
-    html = _get_text(f"https://stockanalysis.com/stocks/{slug}/financials/")
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
-    if not table:
+    soup = _stockanalysis_soup(ticker, "financials/")
+    profit_table = _table_for_heading(soup, "Revenue & Profits")
+    if profit_table is None:
         return {}
+    profit_rows = _rows_by_label(profit_table)
+    cash_rows = _rows_by_label(_table_for_heading(soup, "Cash & Debt"))
+    cashflow_rows = _rows_by_label(_table_for_heading(soup, "Cash Flow & CapEx"))
+    margin_rows = _rows_by_label(_table_for_heading(soup, "Margins"))
+    valuation_rows = _rows_by_label(_table_for_heading(soup, "Valuation"))
+    matrix = _table_matrix(profit_table)
+    fiscal_years = matrix[0][1:7] if matrix and matrix[0][0] == "Fiscal Year" else []
 
-    rows: dict[str, list[str]] = {}
-    fiscal_years: list[str] = []
-    for tr in table.find_all("tr"):
-        cells = [
-            cell.get_text(" ", strip=True)
-            for cell in tr.find_all(["th", "td"])
-        ]
-        if not cells:
-            continue
-        if cells[0] == "Fiscal Year":
-            fiscal_years = cells[1:6]
-            continue
-        rows[cells[0]] = cells[1:6]
+    revenue = _row_values(profit_rows, "Revenue")
+    revenue_growth = _row_values(profit_rows, "Revenue Growth")
+    gross_profit = _row_values(profit_rows, "Gross Profit")
+    operating_income = _row_values(profit_rows, "Operating Income")
+    net_income = _row_values(profit_rows, "Net Income")
+    eps = _row_values(profit_rows, "Earnings Per Share") or _row_values(profit_rows, "EPS (Diluted)")
+    free_cash_flow = _row_values(cashflow_rows, "Free Cash Flow")
+    gross_margin = _row_values(margin_rows, "Gross Margin")
+    operating_margin = _row_values(margin_rows, "Operating Margin")
+    profit_margin = _row_values(margin_rows, "Profit Margin")
 
-    def latest(label: str) -> str | None:
-        values = rows.get(label) or []
-        return values[0] if values else None
+    history: list[dict[str, Any]] = []
+    for index, period in enumerate(fiscal_years[:6]):
+        point = {
+            "period": period,
+            "revenue": _value_at(revenue, index, _parse_millions),
+            "gross_profit": _value_at(gross_profit, index, _parse_millions),
+            "operating_income": _value_at(operating_income, index, _parse_millions),
+            "net_income": _value_at(net_income, index, _parse_millions),
+            "eps_diluted": _value_at(eps, index, _parse_number),
+            "free_cash_flow": _value_at(free_cash_flow, index, _parse_millions),
+            "gross_margin_pct": _value_at(gross_margin, index, _parse_percent),
+            "operating_margin_pct": _value_at(operating_margin, index, _parse_percent),
+            "profit_margin_pct": _value_at(profit_margin, index, _parse_percent),
+        }
+        if any(value is not None for key, value in point.items() if key != "period"):
+            history.append(point)
 
+    latest = history[0] if history else {}
     return {
-        "fiscal_year": fiscal_years[0] if fiscal_years else None,
-        "revenue": _parse_millions(latest("Revenue")),
-        "revenue_growth_yoy_pct": _parse_percent(latest("Revenue Growth (YoY)")),
-        "gross_profit": _parse_millions(latest("Gross Profit")),
-        "operating_income": _parse_millions(latest("Operating Income")),
-        "net_income": _parse_millions(latest("Net Income")),
-        "eps_diluted": _parse_number(latest("EPS (Diluted)")),
-        "source": "stockanalysis",
+        "financials": {
+            "fiscal_year": fiscal_years[0] if fiscal_years else None,
+            "revenue": latest.get("revenue"),
+            "revenue_growth_yoy_pct": _value_at(revenue_growth, 0, _parse_percent),
+            "gross_profit": latest.get("gross_profit"),
+            "operating_income": latest.get("operating_income"),
+            "net_income": latest.get("net_income"),
+            "eps_diluted": latest.get("eps_diluted"),
+            "free_cash_flow": latest.get("free_cash_flow"),
+            "source": "stockanalysis",
+        },
+        "financial_history": history,
+        "balance": {
+            "cash_and_investments": _value_at(_row_values(cash_rows, "Cash & Investments"), 0, _parse_millions),
+            "total_debt": _value_at(_row_values(cash_rows, "Total Debt"), 0, _parse_millions),
+            "net_cash": _value_at(_row_values(cash_rows, "Net Cash (Debt)"), 0, _parse_millions),
+        },
+        "valuation": {
+            "forward_pe": _value_at(_row_values(valuation_rows, "Forward PE"), 0, _parse_number),
+            "price_to_sales": _value_at(_row_values(valuation_rows, "PS Ratio"), 0, _parse_number),
+            "price_to_fcf": _value_at(_row_values(valuation_rows, "P/FCF Ratio"), 0, _parse_number),
+        },
     }
 
 
@@ -452,12 +658,24 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
     analyst: dict[str, Any] = {}
     institutions: dict[str, Any] = {}
     financials: dict[str, Any] = {}
+    financial_history: list[dict[str, Any]] = []
+    balance: dict[str, Any] = {}
+    valuation: dict[str, Any] = {}
+    quality: dict[str, Any] = {}
+    dividends: dict[str, Any] = {}
+    business_segments: dict[str, Any] | None = None
+    geographic_mix: dict[str, Any] | None = None
+    analyst_trend: dict[str, Any] = {}
 
     for label, fn in (
         ("finviz", lambda: _parse_finviz_snapshot(ticker)),
         ("nasdaq_analyst", lambda: _parse_nasdaq_analyst(ticker)),
         ("nasdaq_institutions", lambda: _parse_nasdaq_institutions(ticker)),
         ("stockanalysis_financials", lambda: _parse_stockanalysis_financials(ticker)),
+        ("stockanalysis_statistics", lambda: _parse_stockanalysis_statistics(ticker)),
+        ("stockanalysis_dividends", lambda: _parse_stockanalysis_dividends(ticker)),
+        ("stockanalysis_metrics", lambda: _parse_stockanalysis_metrics(ticker)),
+        ("stockanalysis_forecast", lambda: _parse_stockanalysis_forecast(ticker)),
     ):
         try:
             result = fn()
@@ -471,7 +689,21 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
         elif label == "nasdaq_institutions":
             institutions = result
         elif label == "stockanalysis_financials":
-            financials = result
+            financials = result.get("financials") or {}
+            financial_history = result.get("financial_history") or []
+            balance = result.get("balance") or {}
+            valuation.update(result.get("valuation") or {})
+        elif label == "stockanalysis_statistics":
+            valuation.update({key: value for key, value in (result.get("valuation") or {}).items() if value is not None})
+            quality = result.get("quality") or {}
+            dividends.update(result.get("dividends") or {})
+        elif label == "stockanalysis_dividends":
+            dividends.update(result)
+        elif label == "stockanalysis_metrics":
+            business_segments = result.get("business_segments")
+            geographic_mix = result.get("geographic_mix")
+        elif label == "stockanalysis_forecast":
+            analyst_trend = result
 
     if not analyst and finviz.get("analyst_hint"):
         analyst = {
@@ -489,6 +721,14 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
         "analyst": analyst,
         "events": finviz.get("events") or [],
         "financials": financials,
+        "financial_history": financial_history,
+        "balance": balance,
+        "valuation": valuation,
+        "quality": quality,
+        "dividends": dividends,
+        "business_segments": business_segments,
+        "geographic_mix": geographic_mix,
+        "analyst_trend": analyst_trend,
         "institutions": institutions,
         "source_status": {
             "sources": ["finviz", "nasdaq", "stockanalysis"],
