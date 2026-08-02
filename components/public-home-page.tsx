@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { FeedbackWidget } from "@/components/feedback-widget";
-import { AgentAccessLandingStrip } from "@/components/agent-access-marketing";
+import { AgentAccessLandingSection } from "@/components/agent-access-marketing";
 import { LandingSimpleWay } from "@/components/landing-simple-way";
 import { TerminalLandingFaq } from "@/components/terminal-landing-faq";
 import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
@@ -51,8 +51,8 @@ export function PublicHomePage() {
         </Suspense>
 
         <TerminalLandingTestimonials />
+        <AgentAccessLandingSection />
         <TerminalLandingFaq />
-        <AgentAccessLandingStrip />
       </div>
 
       <FeedbackWidget />

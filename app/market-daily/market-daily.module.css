@@ -763,61 +763,90 @@
 
 .archiveGrid {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
-  padding-top: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding-top: 32px;
 }
 
 .editionCard {
-  grid-column: span 12;
   display: flex;
-  min-height: 196px;
   flex-direction: column;
-  justify-content: center;
-  padding: 26px 28px;
   border: 1px solid var(--rule);
-  border-radius: 14px;
-  background: var(--surface);
   color: var(--ink);
+  background: var(--panel);
+  overflow: hidden;
   text-decoration: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .editionCard:hover {
   border-color: var(--ink);
-  box-shadow: 0 8px 24px rgb(15 23 42 / 0.06);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
-.editionCard:first-child {
-  grid-column: span 12;
+.cardImageWrap {
+  position: relative;
+  height: 156px;
+  overflow: hidden;
+  background: var(--surface-container);
 }
 
-.cardDate {
+.cardImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 280ms ease;
+}
+
+.editionCard:hover .cardImage {
+  transform: scale(1.03);
+}
+
+.cardBody {
+  display: flex;
+  min-height: 232px;
+  flex: 1;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.cardLatest {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 8px;
+  border-radius: 999px;
   font-family: Satoshi, sans-serif;
   font-size: 10px;
   font-weight: 800;
-  color: var(--red);
+  color: var(--surface);
+  background: var(--ink);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.cardHeadline {
-  max-width: 780px;
-  margin: 10px 0 8px;
+.cardDate {
+  margin-bottom: 14px;
   font-family: Satoshi, sans-serif;
-  font-size: clamp(22px, 2.5vw, 30px);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.cardHeadline {
+  margin: 0 0 8px;
+  font-family: Satoshi, sans-serif;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.03em;
 }
 
-.editionCard:first-child .cardHeadline {
-  font-size: clamp(22px, 2.5vw, 30px);
-}
-
 .cardDek {
-  max-width: 720px;
   margin: 0;
   font-family: Satoshi, sans-serif;
   font-size: 15px;
@@ -826,8 +855,8 @@
 }
 
 .cardAction {
-  margin-top: 14px;
-  padding-top: 0;
+  margin-top: auto;
+  padding-top: 18px;
   font-family: Satoshi, sans-serif;
   font-size: 11px;
   font-weight: 800;
@@ -871,6 +900,10 @@
 
   .archiveHeader {
     grid-template-columns: 1fr;
+  }
+
+  .archiveGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .pulseGrid {
@@ -993,16 +1026,21 @@
     grid-column: 2;
   }
 
-  .editionCard,
-  .editionCard:first-child {
-    grid-column: span 12;
-    min-height: 0;
-    padding: 22px;
+  .archiveGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 
-  .editionCard:first-child .cardHeadline,
+  .cardImageWrap {
+    height: 180px;
+  }
+
+  .cardBody {
+    min-height: 0;
+  }
+
   .cardHeadline {
-    font-size: clamp(24px, 7vw, 32px);
+    font-size: 24px;
   }
 
   .editionNav {

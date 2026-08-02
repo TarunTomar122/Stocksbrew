@@ -329,7 +329,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="article-summary">
   <h2>Quick answer: five AI apps, five different jobs</h2>
   <ul>
-    <li><strong>Stocksbrew:</strong> current structured US-stock context, a clear call, Radar monitoring, and a read-only MCP/API connection for your own agent.</li>
+    <li><strong>Stocksbrew:</strong> current structured US-stock context, a clear call, Radar monitoring, and scoped MCP/API access for your own agent.</li>
     <li><strong>Barebone:</strong> mobile-first conversational research across fundamentals, technicals, ownership, sentiment, and portfolio context.</li>
     <li><strong>TrendSpider Sidekick:</strong> chart-aware AI for active investors, scanning, technical analysis, and platform automation.</li>
     <li><strong>Danelfin:</strong> daily quantitative AI scores and probability-oriented rankings.</li>
@@ -381,13 +381,13 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <h2 id="stocksbrew-ai">Stocksbrew: best for giving an agent a current US-stock record</h2>
 
-<p><a href="/agents">Stocksbrew for Agents</a> exposes a read-only research layer through MCP and a REST API. A compatible agent can search for a ticker, retrieve one stock's current intelligence, or compare a bounded list. The response includes a schema version, as-of timestamp, freshness status, and usage information.</p>
+<p><a href="/agents">Stocksbrew for Agents</a> exposes research, Radar, and alert tools through MCP and a REST API. A compatible agent can search for a ticker, retrieve current intelligence, track a stock with permission, read changes, and manage alert rules. The response includes a schema version, as-of timestamp, freshness status, and usage information.</p>
 
 <p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/radar">Radar</a> monitoring selected names. Pro is $9 per month and includes 500 combined agent calls per calendar month.</p>
 
 <p><strong>Best fit:</strong> someone who already uses an AI agent or wants a focused web workflow for US stocks and does not want to paste screenshots or manually restate current context.</p>
 
-<p><strong>Limitations:</strong> read-only; no trades; bounded usage; current US-equity focus; not a licensed redistribution feed; and not a substitute for checking an SEC filing.</p>
+<p><strong>Limitations:</strong> no trades or brokerage access; bounded usage; current US-equity focus; not a licensed redistribution feed; and not a substitute for checking an SEC filing.</p>
 
 <h2 id="barebone">Barebone: best mobile-first agentic research breadth</h2>
 
@@ -470,7 +470,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Give your AI a current stock record</h3>
-  <p>Connect a compatible agent to Stocksbrew's read-only MCP server, or use the same research workflow in the web app.</p>
+  <p>Connect a compatible agent to Stocksbrew through MCP, or use the same research and Radar workflow in the web app.</p>
   <a class="cta-button" href="/agents">Explore Stocksbrew for Agents →</a>
 </div>
 `,
@@ -743,7 +743,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <h2 id="stocksbrew-score">How Stocksbrew performs on this checklist</h2>
 
-<p>Stocksbrew's strengths are structured US-stock context, explicit freshness in agent responses, calls with drivers and risks, and Radar monitoring. It is inexpensive relative to large research terminals and supports read-only external-agent access.</p>
+<p>Stocksbrew's strengths are structured US-stock context, explicit freshness in agent responses, calls with drivers and risks, Radar monitoring, and scoped external-agent access.</p>
 
 <p>Its limitations should influence your score: it is US-focused, not a native mobile app, does not offer institutional-depth historical statements, is not a tick-by-tick charting platform, and cannot replace an SEC filing. Investors who need deep modeling or advanced technical work should pair it with TIKR, Stock Analysis, TradingView, Finviz, or EDGAR rather than pretend one product does everything.</p>
 

@@ -199,10 +199,10 @@ export function ProPlanPicker() {
             Start 3-day free trial
             <span aria-hidden>→</span>
           </Link>
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-on-surface-variant">
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-on-surface-variant">
             <AnimatedIcon name="lock" size={14} className="text-[14px]" />
             Secure checkout · cancel anytime
-          </p>
+          </div>
         </div>
       </div>
 

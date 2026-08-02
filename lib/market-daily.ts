@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import type { MarketDailyCoverImage } from "@/lib/market-daily-cover";
 
 export type MarketDailySource = {
   id: string;
@@ -65,6 +66,7 @@ export type MarketDailyEdition = {
   source_ids: string[];
   model: string;
   evidence_hash: string;
+  cover_image?: MarketDailyCoverImage | null;
   quality: {
     passed: boolean;
     score: number;
@@ -132,6 +134,25 @@ export type MarketDailyEdition = {
   };
 };
 
+function normalizeCoverImage(raw: unknown): MarketDailyCoverImage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const image = raw as Record<string, unknown>;
+  if (typeof image.url !== "string" || !image.url) return null;
+
+  return {
+    url: image.url,
+    alt: typeof image.alt === "string" ? image.alt : "",
+    sourceUrl:
+      typeof image.source_url === "string"
+        ? image.source_url
+        : typeof image.sourceUrl === "string"
+          ? image.sourceUrl
+          : undefined,
+    provider: "openverse",
+    license: "cc0",
+  };
+}
+
 function normalizeEdition(raw: Record<string, unknown>): MarketDailyEdition | null {
   if (raw.status !== "published" || raw.market !== "US") return null;
   if (!raw.edition_date || !raw.headline) return null;
@@ -152,7 +173,10 @@ function normalizeEdition(raw: Record<string, unknown>): MarketDailyEdition | nu
     );
   }
   if (!Array.isArray(raw.source_ids)) raw.source_ids = [];
-  return raw as unknown as MarketDailyEdition;
+  return {
+    ...raw,
+    cover_image: normalizeCoverImage(raw.cover_image),
+  } as unknown as MarketDailyEdition;
 }
 
 async function getMarketDailyEditionUncached(

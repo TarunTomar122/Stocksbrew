@@ -42,9 +42,9 @@ export function TerminalLandingTestimonials() {
         <div className="grid gap-4 md:grid-cols-3 md:items-stretch">
           {PROOF_CARDS.map((card) => (
             <article key={card.kicker} className="flex h-full flex-col rounded-2xl border border-outline-variant bg-surface p-5">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-low text-landing-brand">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-low text-landing-brand">
                 <AnimatedIcon name={card.icon} size={19} aria-hidden />
-              </span>
+              </div>
               <p className="mt-4 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
                 {card.kicker}
               </p>

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from backend.market_daily import latest_market_days, validate_article
+from backend.market_daily import latest_market_days, market_daily_cover_query, validate_article
 
 
 def evidence() -> dict:
@@ -106,4 +106,10 @@ class MarketDailyValidationTests(TestCase):
         self.assertEqual(
             latest_market_days(3, reference=date(2026, 8, 3)),
             ["2026-07-30", "2026-07-31", "2026-08-03"],
+        )
+
+    def test_cover_query_tracks_the_story_topic(self) -> None:
+        self.assertEqual(
+            market_daily_cover_query("AI spending hits chipmakers", "Data centers are in focus."),
+            "data center server rack",
         )

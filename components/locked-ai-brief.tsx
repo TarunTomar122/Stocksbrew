@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
@@ -187,18 +188,17 @@ function ProBriefPreparingState({
 }) {
   if (!isTracked) {
     return (
-      <section className="overflow-hidden rounded-3xl bg-surface p-5 md:p-6 flex flex-col gap-4">
-        <span className="inline-flex w-fit items-center gap-1.5 rounded-full tint-info px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#0052ff]">
-          <span aria-hidden>✨</span> Pro · AI tab
-        </span>
-        <h3 className="text-[20px] font-semibold text-on-surface tracking-[-0.02em]">
-          Start AI coverage for {ticker}
-        </h3>
-        <p className="text-[13px] text-on-surface-variant leading-relaxed max-w-[640px]">
-          Add this stock to Radar and our AI agent will start researching it immediately.
-          Your first brief appears here as soon as synthesis is ready.
-        </p>
-        <div className="pt-1">
+      <BriefPreparingPanel
+        tone="paused"
+        badge="AI brief pending"
+        title={`${ticker} is not in Radar yet`}
+        body="Add it to Radar to start fresh research. We collect the relevant sources, score the setup, then publish the brief here."
+        steps={[
+          { done: false, label: "Add to Radar" },
+          { done: false, label: "Sources analyzed" },
+          { done: false, label: "AI brief ready" },
+        ]}
+        action={
           <TrackButton
             ticker={ticker}
             instrumentId={instrumentId}
@@ -206,8 +206,9 @@ function ProBriefPreparingState({
             isSubscribed={isSubscribed}
             isTracked={false}
           />
-        </div>
-      </section>
+        }
+        footnote="Price, fundamentals, and technicals are already available on Overview."
+      />
     );
   }
 
@@ -314,6 +315,7 @@ function BriefPreparingPanel({
   title,
   body,
   steps,
+  action,
   footnote,
 }: {
   tone: BriefPanelTone;
@@ -321,6 +323,7 @@ function BriefPreparingPanel({
   title: string;
   body: string;
   steps: Array<{ done: boolean; label: string }>;
+  action?: ReactNode;
   footnote?: string;
 }) {
   const styles: Record<
@@ -371,6 +374,8 @@ function BriefPreparingPanel({
           <BriefStatusStep key={step.label} done={step.done} label={step.label} />
         ))}
       </div>
+
+      {action ? <div className="pt-1">{action}</div> : null}
 
       {footnote ? <p className={`text-[12px] leading-relaxed ${palette.footnote}`}>{footnote}</p> : null}
     </section>

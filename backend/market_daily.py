@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
+import requests
 import yfinance as yf
 
 from backend.instrument_universe import list_instruments
@@ -103,6 +104,14 @@ ARTICLE_COMPONENTS = (
     "{{PREMARKET_BOARD}}",
     "{{MOVER_CARDS}}",
     "{{ANOMALY_RAIL}}",
+)
+
+OPENVERSE_IMAGES_URL = "https://api.openverse.org/v1/images/"
+MARKET_DAILY_COVER_TOPICS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\b(ai|artificial intelligence|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b", re.I), "data center server rack"),
+    (re.compile(r"\b(oil|energy|crude|refinery|gas)\b", re.I), "oil refinery"),
+    (re.compile(r"\b(bank|rates?|treasury|fed|inflation|bond)\b", re.I), "financial district skyline"),
+    (re.compile(r"\b(earnings|revenue|profit|guidance|quarter)\b", re.I), "modern office building"),
 )
 
 ARTICLE_SCHEMA: dict[str, Any] = {
@@ -1277,6 +1286,51 @@ def public_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def market_daily_cover_query(headline: str, dek: str) -> str:
+    story = f"{headline} {dek}"
+    for pattern, query in MARKET_DAILY_COVER_TOPICS:
+        if pattern.search(story):
+            return query
+    return "stock exchange trading floor"
+
+
+def resolve_market_daily_cover(headline: str, dek: str) -> dict[str, str] | None:
+    """Resolve one CC0 cover at publish time; a cover outage must never block the letter."""
+    try:
+        response = requests.get(
+            OPENVERSE_IMAGES_URL,
+            params={
+                "q": market_daily_cover_query(headline, dek),
+                "license": "cc0",
+                "mature": "false",
+                "page_size": 1,
+            },
+            headers={"User-Agent": "stocksbrew-market-daily/1.0"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        results = response.json().get("results") or []
+        image = next(
+            (
+                item
+                for item in results
+                if isinstance(item, dict) and item.get("thumbnail") and item.get("license") == "cc0"
+            ),
+            None,
+        )
+        if not image:
+            return None
+        return {
+            "url": str(image["thumbnail"]),
+            "alt": str(image.get("title") or headline),
+            "source_url": str(image.get("foreign_landing_url") or ""),
+            "provider": "openverse",
+            "license": "cc0",
+        }
+    except (requests.RequestException, ValueError, TypeError):
+        return None
+
+
 def article_document(
     *,
     article: dict[str, Any],
@@ -1286,6 +1340,8 @@ def article_document(
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     now = generated_at or datetime.now(timezone.utc).isoformat()
+    headline = article["headline"]
+    dek = article["dek"]
     return {
         "market": "US",
         "edition_date": evidence["edition_date"],
@@ -1294,8 +1350,9 @@ def article_document(
         "published_at": now if status == "published" else None,
         "generated_at": now,
         "updated_at": now,
-        "headline": article["headline"],
-        "dek": article["dek"],
+        "headline": headline,
+        "dek": dek,
+        "cover_image": resolve_market_daily_cover(headline, dek),
         "thesis": article["thesis"],
         "article_markdown": article["article_markdown"],
         "source_ids": article["source_ids"],

@@ -56,10 +56,10 @@ export function TerminalLandingHeroCopy({
       <ul className={`mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 sm:mt-6 ${isLeftAligned ? "justify-start" : "justify-center"}`}>
         {FEATURES.map(({ label, icon }) => (
           <li key={label}>
-            <span className="inline-flex items-center gap-1.5 text-[12px] text-on-surface-variant sm:text-[13px]">
+            <div className="inline-flex items-center gap-1.5 text-[12px] text-on-surface-variant sm:text-[13px]">
               <AnimatedIcon name={icon} size={15} className="shrink-0 text-landing-brand" aria-hidden />
               {label}
-            </span>
+            </div>
           </li>
         ))}
       </ul>

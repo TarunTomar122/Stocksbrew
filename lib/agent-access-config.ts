@@ -1,8 +1,15 @@
-export const AGENT_ACCESS_VERSION = "2026-07-20";
+export const AGENT_ACCESS_VERSION = "2026-08-01";
 export const AGENT_MCP_SERVER_NAME = "stocksbrew";
-export const AGENT_MCP_SERVER_VERSION = "1.0.0";
+export const AGENT_MCP_SERVER_VERSION = "1.1.0";
 
-export const AGENT_SCOPES = ["stocks:read", "market:read", "radar:read"] as const;
+export const AGENT_SCOPES = [
+  "stocks:read",
+  "market:read",
+  "radar:read",
+  "radar:write",
+  "alerts:read",
+  "alerts:write",
+] as const;
 export type AgentScope = (typeof AGENT_SCOPES)[number];
 
 export const AGENT_MONTHLY_CALL_LIMIT = 500;

@@ -79,7 +79,7 @@ export default function TermsPage() {
       <section>
         <h2>Agent and developer access</h2>
         <p>
-          An active Pro subscription may include read-only access through our
+          An active Pro subscription may include scoped read and workflow access through our
           MCP server and developer API. This access is for your personal agents,
           scripts, and internal workflows. It does not include the right to
           bulk-download, mirror, redistribute, sublicense, resell, or use

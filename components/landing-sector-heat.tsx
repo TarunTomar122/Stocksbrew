@@ -47,9 +47,9 @@ export function LandingSectorHeat({
                   <div className="relative z-[1] flex flex-col p-4 pb-3">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span className="sector-heat-icon">
+                        <div className="sector-heat-icon">
                           <AnimatedIcon name={theme.icon} size={12} aria-hidden />
-                        </span>
+                        </div>
                         <span className="truncate text-[15px] font-bold text-on-surface">{s.label}</span>
                       </div>
                       <span
@@ -85,12 +85,12 @@ export function LandingSectorHeat({
           </div>
 
           <div className="sector-heat-cta mt-6">
-            <p className="flex items-center gap-2.5 text-[13px] leading-snug text-on-surface-variant">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface">
+            <div className="flex items-center gap-2.5 text-[13px] leading-snug text-on-surface-variant">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface">
                 <AnimatedIcon name="monitoring" size={18} className="text-landing-brand" aria-hidden />
-              </span>
+              </div>
               Market moves fast. StocksBrew Pro gives you the clarity to stay ahead.
-            </p>
+            </div>
             <Link href="/subscribe" className="landing-btn-primary shrink-0 px-5 py-2.5 text-sm">
               Explore StocksBrew Pro →
             </Link>
