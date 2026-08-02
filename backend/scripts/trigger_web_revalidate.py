@@ -12,7 +12,12 @@ def _paths() -> list[str]:
     return paths or ["/"]
 
 
-def trigger_web_revalidate(paths: list[str] | None = None, *, force: bool = False) -> bool:
+def trigger_web_revalidate(
+    paths: list[str] | None = None,
+    *,
+    force: bool = False,
+    notify_indexnow: bool = False,
+) -> bool:
     base = os.getenv("WEB_REVALIDATE_BASE_URL", "").strip().rstrip("/")
     token = os.getenv("WEB_REVALIDATE_TOKEN", "").strip()
     if not base or not token:
@@ -30,6 +35,20 @@ def trigger_web_revalidate(paths: list[str] | None = None, *, force: bool = Fals
         print(f"revalidate failed: {resp.status_code} {resp.text[:300]}")
         return False
     print(f"revalidate ok paths={','.join(resolved)} response={resp.text[:300]}")
+    if notify_indexnow:
+        indexable_paths = [
+            path for path in resolved if not path.endswith((".xml", ".txt"))
+        ]
+        indexnow_resp = requests.post(
+            f"{base}/api/seo/indexnow",
+            headers={"x-revalidate-token": token},
+            json={"urls": indexable_paths, "include_defaults": False},
+            timeout=20,
+        )
+        if indexnow_resp.status_code >= 300:
+            print(f"indexnow failed: {indexnow_resp.status_code} {indexnow_resp.text[:300]}")
+            return False
+        print(f"indexnow ok paths={','.join(indexable_paths)} response={indexnow_resp.text[:300]}")
     return True
 
 

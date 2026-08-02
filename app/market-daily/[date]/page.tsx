@@ -208,12 +208,12 @@ export default async function MarketDailyEditionPage({ params }: Props) {
     .map((id) => edition.sources.find((source) => source.id === id)?.url)
     .filter((source): source is string => Boolean(source));
   const anomalyTickers = edition.anomalies.unusual.slice(0, 5).map((move) => move.ticker);
-  const schema = {
-    "@context": "https://schema.org",
+  const articleSchema = {
     "@type": "NewsArticle",
     url,
     headline: edition.headline,
     description: edition.dek,
+    image: [edition.cover_image?.url || "https://www.stocksbrew.online/api/og"],
     datePublished: edition.published_at,
     dateModified: edition.updated_at,
     inLanguage: "en-US",
@@ -222,6 +222,7 @@ export default async function MarketDailyEditionPage({ params }: Props) {
     keywords: ["US stock market", "market analysis", "premarket", ...anomalyTickers],
     citation: citedSources,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    isAccessibleForFree: true,
     isPartOf: {
       "@type": "CreativeWorkSeries",
       name: "Market Daily",
@@ -235,12 +236,31 @@ export default async function MarketDailyEditionPage({ params }: Props) {
         tickerSymbol: ticker,
       })),
     ],
-    author: { "@type": "Organization", name: "Stocksbrew research desk" },
+    author: {
+      "@type": "Organization",
+      name: "Stocksbrew research desk",
+      url: "https://www.stocksbrew.online/editorial-policy",
+    },
     publisher: {
       "@type": "Organization",
+      "@id": "https://www.stocksbrew.online/#organization",
       name: "stocksbrew",
       url: "https://www.stocksbrew.online",
     },
+  };
+  const schema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      articleSchema,
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://www.stocksbrew.online" },
+          { "@type": "ListItem", position: 2, name: "Market Daily", item: "https://www.stocksbrew.online/market-daily" },
+          { "@type": "ListItem", position: 3, name: edition.headline, item: url },
+        ],
+      },
+    ],
   };
 
   return (

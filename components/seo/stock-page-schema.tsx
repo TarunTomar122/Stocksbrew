@@ -21,6 +21,7 @@ export function StockPageSchema({
 }: Props) {
   const url = `${BASE}/stock/${ticker}`;
   const companyId = `${url}#company`;
+  const pageId = `${url}#webpage`;
   const company = {
     "@context": "https://schema.org",
     "@type": "Corporation",
@@ -29,6 +30,7 @@ export function StockPageSchema({
     tickerSymbol: exchange ? `${exchange}:${ticker}` : ticker,
     description,
     url,
+    mainEntityOfPage: { "@id": pageId },
     ...(sector || industry
       ? {
           knowsAbout: [sector, industry].filter(Boolean),
@@ -38,15 +40,14 @@ export function StockPageSchema({
   const page = {
     "@context": "https://schema.org",
     "@type": "WebPage",
+    "@id": pageId,
     name: `${name} (${ticker}) Stock Analysis`,
     description,
     url,
     mainEntity: { "@id": companyId },
-    isPartOf: {
-      "@type": "WebSite",
-      name: "stocksbrew",
-      url: BASE,
-    },
+    inLanguage: "en-US",
+    isPartOf: { "@id": `${BASE}/#website` },
+    publisher: { "@id": `${BASE}/#organization` },
     ...(updatedAt ? { dateModified: updatedAt } : {}),
   };
   const breadcrumb = {

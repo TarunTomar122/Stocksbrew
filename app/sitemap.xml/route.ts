@@ -80,7 +80,7 @@ export async function GET() {
       entries.push(
         url(
           `/market-daily/${edition.edition_date}`,
-          edition.updated_at?.slice(0, 10) || edition.edition_date,
+          edition.updated_at || edition.edition_date,
         ),
       );
     }
@@ -94,7 +94,7 @@ export async function GET() {
     entries.push(
       url(
         `/stock/${encodeURIComponent(stock.ticker)}`,
-        stock.updatedAt?.slice(0, 10),
+        stock.updatedAt,
       ),
     );
   }

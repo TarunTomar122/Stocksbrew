@@ -10,10 +10,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const extra = Array.isArray((body as { urls?: unknown }).urls)
-    ? (body as { urls: string[] }).urls.filter((u) => typeof u === "string")
+  const payload = body as { urls?: unknown; include_defaults?: unknown };
+  const extra = Array.isArray(payload.urls)
+    ? (payload.urls as string[]).filter((u) => typeof u === "string")
     : [];
-  const urls = [...SEO_PRIORITY_URLS, ...extra];
+  const urls = payload.include_defaults === false ? extra : [...SEO_PRIORITY_URLS, ...extra];
   const result = await submitIndexNow(urls);
 
   return NextResponse.json({

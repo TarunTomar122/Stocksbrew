@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_PATHS = ["/"];
-const ALLOWED_PATHS = new Set(["/", "/radar", "/watchlist", "/heat", "/news", "/screens", "/pulse", "/premarket", "/anomalies", "/resources", "/compare", "/market-daily", "/sitemap.xml"]);
+const ALLOWED_PATHS = new Set(["/", "/radar", "/watchlist", "/heat", "/news", "/screens", "/pulse", "/premarket", "/anomalies", "/resources", "/compare", "/market-daily", "/sitemap.xml", "/feed.xml", "/llms.txt"]);
 const DEDUPE_MS = 60_000;
 
 const revalidateState = globalThis as typeof globalThis & {

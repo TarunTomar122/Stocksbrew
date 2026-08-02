@@ -1,6 +1,7 @@
 import { indexableBlogPosts } from "@/lib/blog-data";
+import { listMarketDailyEditions } from "@/lib/market-daily";
 
-export const revalidate = 86400;
+export const revalidate = 300;
 
 const BASE = "https://www.stocksbrew.online";
 
@@ -13,17 +14,43 @@ function xml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-export function GET() {
-  const items = indexableBlogPosts
-    .map((post) => {
-      const link = `${BASE}/blog/${post.slug}`;
+type FeedItem = {
+  title: string;
+  link: string;
+  description: string;
+  publishedAt: string;
+  category: string;
+};
+
+export async function GET() {
+  const dailyEditions = await listMarketDailyEditions(30).catch(() => []);
+  const feedItems: FeedItem[] = [
+    ...dailyEditions.map((edition) => ({
+      title: edition.headline,
+      link: `${BASE}/market-daily/${edition.edition_date}`,
+      description: edition.dek,
+      publishedAt: edition.published_at || `${edition.edition_date}T12:00:00Z`,
+      category: "Market Daily",
+    })),
+    ...indexableBlogPosts.map((post) => ({
+      title: post.title,
+      link: `${BASE}/blog/${post.slug}`,
+      description: post.description,
+      publishedAt: `${post.date}T12:00:00Z`,
+      category: post.category,
+    })),
+  ].sort(
+    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+  );
+  const items = feedItems
+    .map((item) => {
       return `  <item>
-    <title>${xml(post.title)}</title>
-    <link>${link}</link>
-    <guid isPermaLink="true">${link}</guid>
-    <description>${xml(post.description)}</description>
-    <pubDate>${new Date(`${post.date}T12:00:00Z`).toUTCString()}</pubDate>
-    <category>${xml(post.category)}</category>
+    <title>${xml(item.title)}</title>
+    <link>${item.link}</link>
+    <guid isPermaLink="true">${item.link}</guid>
+    <description>${xml(item.description)}</description>
+    <pubDate>${new Date(item.publishedAt).toUTCString()}</pubDate>
+    <category>${xml(item.category)}</category>
   </item>`;
     })
     .join("\n");
@@ -31,9 +58,9 @@ export function GET() {
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
 <channel>
-  <title>stocksbrew Blog</title>
-  <link>${BASE}/blog</link>
-  <description>Evidence-first stock research workflows, watchlist monitoring, and tool comparisons.</description>
+  <title>stocksbrew research</title>
+  <link>${BASE}</link>
+  <description>Source-linked US market analysis, stock research, and evidence-first investing guides.</description>
   <language>en-us</language>
 ${items}
 </channel>

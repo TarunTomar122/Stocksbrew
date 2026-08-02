@@ -36,9 +36,12 @@ export function ArticleSchema({
     },
     publisher: {
       "@type": "Organization",
+      "@id": `${BASE}/#organization`,
       name: "stocksbrew",
       url: BASE,
     },
+    isPartOf: { "@id": `${BASE}/#website` },
+    inLanguage: "en-US",
     datePublished,
     dateModified: dateModified ?? datePublished,
     isAccessibleForFree: true,

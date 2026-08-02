@@ -60,8 +60,15 @@ def _run_one(
             )
         save_article(store, document)
         trigger_web_revalidate(
-            ["/market-daily", f"/market-daily/{edition_date}", "/sitemap.xml"],
+            [
+                "/market-daily",
+                f"/market-daily/{edition_date}",
+                "/sitemap.xml",
+                "/feed.xml",
+                "/llms.txt",
+            ],
             force=True,
+            notify_indexnow=True,
         )
     elif save_draft:
         store.save_market_daily_draft(document)
@@ -84,8 +91,15 @@ def _promote_draft(store: TraceMoneyStore, edition_date: str) -> dict[str, Any]:
     )
     save_article(store, document)
     trigger_web_revalidate(
-        ["/market-daily", f"/market-daily/{edition_date}", "/sitemap.xml"],
+        [
+            "/market-daily",
+            f"/market-daily/{edition_date}",
+            "/sitemap.xml",
+            "/feed.xml",
+            "/llms.txt",
+        ],
         force=True,
+        notify_indexnow=True,
     )
     return document
 
