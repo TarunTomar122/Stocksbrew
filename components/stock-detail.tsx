@@ -1019,14 +1019,14 @@ export function StockDetail(props: Props) {
 
             <div
               className={`grid gap-7 ${
-                showBasicAnalyst && hasCrowdSignal && hasMarketReddit
+                hasCrowdSignal && hasMarketReddit
                   ? "lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/60"
                   : showBasicAnalyst && hasCrowdSignal
                     ? "lg:grid-cols-2 lg:divide-x lg:divide-outline-variant/60"
                     : ""
               }`}
             >
-              <div className={hasMarketReddit ? "flex min-w-0 flex-col divide-y divide-outline-variant/60" : "contents"}>
+              <div className={hasMarketReddit && showBasicAnalyst ? "flex min-w-0 flex-col divide-y divide-outline-variant/60" : hasMarketReddit ? "min-w-0 lg:pr-8" : "contents"}>
               {showBasicAnalyst && (
                 <div className={`min-w-0 ${hasMarketReddit ? "pb-7" : "lg:pr-8"}`}>
                   <p className={`${RAIL_KICKER} mb-3`}>analyst consensus</p>
@@ -1082,7 +1082,7 @@ export function StockDetail(props: Props) {
               )}
 
               {hasCrowdSignal && (
-                <div className={`min-w-0 ${hasMarketReddit ? "pt-7" : "lg:pl-8"}`}>
+                <div className={`min-w-0 ${hasMarketReddit && showBasicAnalyst ? "pt-7" : !hasMarketReddit && showBasicAnalyst ? "lg:pl-8" : ""}`}>
                   <p className={`${RAIL_KICKER} mb-3`}>crowd signal</p>
                   <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
                     <CrowdRing score={crowdScore} />

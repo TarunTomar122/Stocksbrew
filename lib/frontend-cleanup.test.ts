@@ -97,9 +97,10 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
     expect(detail).toContain("const levelMoney");
     expect(detail).toContain("style={{ color: scoreToneColor(hasReliableOverall");
     expect(detail).toContain("Street expectations and crowd signal");
+    expect(detail).toContain("hasCrowdSignal && hasMarketReddit");
     expect(detail).toContain('const showPeerRevenueGrowth = peerRows.some((peer) => peer.revGrowth !== "-");');
     expect(detail).toContain('{showPeerRevenueGrowth ? "rev growth" : "price"}');
-    expect(detail).toContain('hasMarketReddit ? "flex min-w-0 flex-col divide-y');
+    expect(detail).toContain('hasMarketReddit && showBasicAnalyst ? "flex min-w-0 flex-col divide-y');
     expect(detail.indexOf("Street expectations and crowd signal")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
     expect(reddit).toContain('<section className="min-w-0">');
     expect(reddit).toContain("max-w-[65ch]");
