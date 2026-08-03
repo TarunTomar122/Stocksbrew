@@ -188,16 +188,8 @@ function ProBriefPreparingState({
 }) {
   if (!isTracked) {
     return (
-      <BriefPreparingPanel
-        tone="paused"
-        badge="AI brief pending"
-        title={`${ticker} is not in Radar yet`}
-        body="Add it to Radar to start fresh research. We collect the relevant sources, score the setup, then publish the brief here."
-        steps={[
-          { done: false, label: "Add to Radar" },
-          { done: false, label: "Sources analyzed" },
-          { done: false, label: "AI brief ready" },
-        ]}
+      <RadarBriefInvitation
+        ticker={ticker}
         action={
           <TrackButton
             ticker={ticker}
@@ -207,7 +199,6 @@ function ProBriefPreparingState({
             isTracked={false}
           />
         }
-        footnote="Price, fundamentals, and technicals are already available on Overview."
       />
     );
   }
@@ -259,22 +250,115 @@ function ProBriefPreparingState({
   return (
     <BriefPreparingPanel
       tone="working"
-      badge={isRunningLike ? "Research in progress" : "Queued"}
-      title={`Researching ${ticker} now`}
-      body="We are collecting fresh sources, scoring the setup, and generating your first brief. This tab updates automatically once it is ready."
+      badge={isRunningLike ? "Live research desk" : "In the research queue"}
+      title={`${ticker} is being built into a real brief`}
+      body="We are checking what changed, testing it against the numbers, and writing the call. The finished brief will replace this automatically."
       steps={[
         { done: true, label: "In your Radar" },
-        { done: normalizedStatus === "running" || normalizedStatus === "retry", label: "Sources collecting" },
-        { done: false, label: "AI brief ready" },
+        { done: false, label: "Evidence pass" },
+        { done: false, label: "Editorial synthesis" },
       ]}
       footnote={
         normalizedStatus === "running"
-          ? "Running on-demand synthesis now."
+          ? "Usually ready within 10–15 minutes. You can leave this page."
           : normalizedStatus === "retry"
-          ? "Retrying with a broader source pass."
-          : "Queued for on-demand synthesis."
+          ? "The first source pass was thin, so we widened the search."
+          : "Queued behind the names already on the research desk."
       }
     />
+  );
+}
+
+function RadarBriefInvitation({
+  ticker,
+  action,
+}: {
+  ticker: string;
+  action: ReactNode;
+}) {
+  const additions = [
+    {
+      number: "01",
+      title: "A morning stance",
+      detail: "A clear bullish, mixed, or bearish read when the evidence changes.",
+    },
+    {
+      number: "02",
+      title: "The reason behind the move",
+      detail: "News and price action translated into what actually matters for the stock.",
+    },
+    {
+      number: "03",
+      title: "Catalysts and risks",
+      detail: "The dates, pressure points, and invalidation signals worth watching next.",
+    },
+  ];
+
+  return (
+    <section className="relative overflow-hidden border-y border-outline-variant bg-surface">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-2 top-2 select-none font-mono text-[88px] font-bold leading-none tracking-[-0.08em] text-on-surface opacity-[0.035] sm:text-[124px]"
+      >
+        {ticker}
+      </span>
+
+      <div className="relative grid lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+        <div className="flex flex-col justify-between gap-8 px-5 py-7 sm:px-7 sm:py-9 lg:min-h-[330px] lg:px-9">
+          <div className="max-w-[650px]">
+            <div className="mb-5 flex items-center gap-3 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-on-surface-variant">
+              <span className="h-px w-8 bg-on-surface" aria-hidden />
+              The missing layer
+            </div>
+            <h3 className="max-w-[620px] text-[28px] font-semibold leading-[1.08] tracking-[-0.045em] text-on-surface sm:text-[34px]">
+              {ticker} has the numbers. Radar adds the judgment.
+            </h3>
+            <p className="mt-4 max-w-[560px] text-[14px] leading-7 text-on-surface-variant">
+              Price, fundamentals, technicals, and Wall Street data are already live below.
+              Add {ticker} once and we will build the first evidence-backed brief for your Radar.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="w-fit">{action}</div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+              First read usually takes 10–15 min
+            </span>
+          </div>
+        </div>
+
+        <div className="border-t border-outline-variant bg-surface-container-low px-5 py-7 sm:px-7 lg:border-l lg:border-t-0 lg:px-8 lg:py-9">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-on-surface-variant">
+            What switches on
+          </p>
+          <div className="mt-4 divide-y divide-outline-variant">
+            {additions.map((item) => (
+              <div key={item.number} className="grid grid-cols-[38px_1fr] gap-3 py-4 first:pt-2 last:pb-0">
+                <span className="pt-0.5 font-mono text-[10px] font-semibold text-primary">
+                  {item.number}
+                </span>
+                <div>
+                  <p className="text-[14px] font-semibold tracking-[-0.01em] text-on-surface">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-5 text-on-surface-variant">
+                    {item.detail}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="relative flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-outline-variant px-5 py-3 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant sm:px-7 lg:px-9">
+        <span className="font-semibold text-on-surface">Already live</span>
+        <span>Price position</span>
+        <span>Financial depth</span>
+        <span>Street targets</span>
+        <span className="ml-auto hidden text-primary sm:inline">Radar adds the daily call →</span>
+      </div>
+    </section>
   );
 }
 
@@ -328,72 +412,102 @@ function BriefPreparingPanel({
 }) {
   const styles: Record<
     BriefPanelTone,
-    { shell: string; badge: string; body: string; footnote: string }
+    { accent: string; badge: string; footnote: string }
   > = {
     paused: {
-      shell: "tint-info",
-      badge: "text-[#3b82f6]",
-      body: "text-[#3b82f6]",
+      accent: "var(--signal-neutral)",
+      badge: "text-on-surface-variant",
       footnote: "text-on-surface-variant",
     },
     working: {
-      shell: "tint-warn",
-      badge: "text-[#f59e0b]",
-      body: "text-[#f59e0b]",
-      footnote: "text-[#f59e0b]/80",
+      accent: "var(--primary)",
+      badge: "text-primary",
+      footnote: "text-on-surface-variant",
     },
     ready: {
-      shell: "tint-bull",
-      badge: "text-[#10b981]",
-      body: "text-[#10b981]",
-      footnote: "text-[#10b981]/80",
+      accent: "var(--signal-bullish)",
+      badge: "text-[var(--signal-bullish)]",
+      footnote: "text-on-surface-variant",
     },
     failed: {
-      shell: "tint-bear",
-      badge: "text-[#ef4444]",
-      body: "text-[#ef4444]",
-      footnote: "text-[#f59e0b]",
+      accent: "var(--signal-bearish)",
+      badge: "text-[var(--signal-bearish)]",
+      footnote: "text-on-surface-variant",
     },
   };
   const palette = styles[tone];
+  const isWorking = tone === "working";
 
   return (
-    <section className={`overflow-hidden rounded-3xl p-5 md:p-6 flex flex-col gap-5 ${palette.shell}`}>
-      <div className="flex flex-col gap-2 max-w-[680px]">
-        <span
-          className={`inline-flex w-fit items-center rounded-full bg-surface px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${palette.badge}`}
-        >
-          {badge}
-        </span>
-        <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface">{title}</h3>
-        <p className={`text-[13px] leading-relaxed ${palette.body}`}>{body}</p>
+    <section
+      className="relative overflow-hidden border-y border-outline-variant bg-surface"
+      aria-live={isWorking ? "polite" : undefined}
+    >
+      {isWorking ? <div className="brief-research-scan" aria-hidden /> : null}
+      <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-9">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="max-w-[680px]">
+            <div className={`flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] ${palette.badge}`}>
+              {isWorking ? <span className="brief-research-pulse" aria-hidden /> : <span className="h-2 w-2 rounded-full" style={{ background: palette.accent }} aria-hidden />}
+              {badge}
+            </div>
+            <h3 className="mt-3 text-[24px] font-semibold leading-tight tracking-[-0.035em] text-on-surface sm:text-[28px]">
+              {title}
+            </h3>
+            <p className="mt-3 max-w-[620px] text-[13px] leading-6 text-on-surface-variant">
+              {body}
+            </p>
+          </div>
+          {footnote ? (
+            <p className={`max-w-[280px] border-l-2 pl-3 font-mono text-[10px] leading-5 uppercase tracking-[0.06em] ${palette.footnote}`} style={{ borderColor: palette.accent }}>
+              {footnote}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-7 grid border-y border-outline-variant sm:grid-cols-3">
+          {steps.map((step, index) => (
+            <BriefStatusStep
+              key={step.label}
+              done={step.done}
+              label={step.label}
+              index={index}
+              active={isWorking && !step.done && (index === 1 || steps[index - 1]?.done)}
+              accent={palette.accent}
+            />
+          ))}
+        </div>
+
+        {action ? <div className="mt-6 w-fit">{action}</div> : null}
       </div>
-
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-        {steps.map((step) => (
-          <BriefStatusStep key={step.label} done={step.done} label={step.label} />
-        ))}
-      </div>
-
-      {action ? <div className="pt-1">{action}</div> : null}
-
-      {footnote ? <p className={`text-[12px] leading-relaxed ${palette.footnote}`}>{footnote}</p> : null}
     </section>
   );
 }
 
-function BriefStatusStep({ done, label }: { done: boolean; label: string }) {
+function BriefStatusStep({
+  done,
+  label,
+  index,
+  active,
+  accent,
+}: {
+  done: boolean;
+  label: string;
+  index: number;
+  active: boolean;
+  accent: string;
+}) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-surface px-3 py-2.5">
-      <span
-        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${
-          done ? "bg-[#10b981] text-white" : "bg-surface-container text-on-surface-variant"
-        }`}
-        aria-hidden
-      >
-        {done ? "✓" : "•"}
+    <div className="flex min-h-[76px] items-center gap-3 border-outline-variant px-1 py-4 sm:border-r sm:px-4 sm:last:border-r-0">
+      <span className="font-mono text-[10px] font-semibold tabular-nums text-on-surface-variant" aria-hidden>
+        0{index + 1}
       </span>
-      <span className="text-[12px] font-semibold text-on-surface">{label}</span>
+      <div className="min-w-0">
+        <p className="text-[12px] font-semibold text-on-surface">{label}</p>
+        <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em]" style={{ color: done || active ? accent : "var(--on-surface-variant)" }}>
+          {done ? "complete" : active ? "working now" : "up next"}
+        </p>
+      </div>
     </div>
   );
 }

@@ -1359,6 +1359,48 @@ html:not(.dark):has(.landing-page) body {
   .rn-pulse::before, .rn-bone::after { animation: none; }
 }
 
+/* Stock research desk: one quiet sweep and a live dot, never a loading carnival. */
+.brief-research-scan {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--primary) 5%, transparent), transparent);
+  animation: brief-research-scan 4.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.brief-research-pulse {
+  position: relative;
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--primary);
+}
+.brief-research-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: inherit;
+  animation: brief-research-pulse 1.8s ease-out infinite;
+}
+@keyframes brief-research-scan {
+  0%, 12% { transform: translateX(-110%); opacity: 0; }
+  30% { opacity: 1; }
+  72%, 100% { transform: translateX(460%); opacity: 0; }
+}
+@keyframes brief-research-pulse {
+  0% { transform: scale(0.72); opacity: 0.8; }
+  75%, 100% { transform: scale(1.8); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brief-research-scan,
+  .brief-research-pulse::after {
+    animation: none;
+  }
+}
+
 /* Status tints that adapt to theme (faint signal color over the surface). */
 .tint-bull  { background: color-mix(in srgb, var(--signal-bullish) 12%, var(--surface)); }
 .tint-bear  { background: color-mix(in srgb, var(--signal-bearish) 12%, var(--surface)); }
