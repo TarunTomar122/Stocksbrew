@@ -34,6 +34,63 @@ def _serialize(obj: Any) -> Any:
     return obj
 
 
+_STOCK_FACTS_KEEP_ON_EMPTY = {
+    "financials",
+    "financial_history",
+    "balance",
+    "valuation",
+    "quality",
+    "dividends",
+    "business_segments",
+    "geographic_mix",
+    "analyst_trend",
+    "institutions",
+}
+_STOCK_FACTS_METADATA_KEYS = {
+    "source",
+    "provider",
+    "captured_at",
+    "updated_at",
+    "period",
+    "fiscal_year",
+    "label",
+}
+
+
+def _has_material_stock_fact(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, dict):
+        return any(
+            key not in _STOCK_FACTS_METADATA_KEYS and _has_material_stock_fact(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple, set)):
+        return any(_has_material_stock_fact(item) for item in value)
+    if isinstance(value, str):
+        return bool(value.strip())
+    return True
+
+
+def _stock_facts_write_payload(payload: dict[str, Any], *, updated_at: str) -> dict[str, Any]:
+    """Keep a partial source outage from blanking previously good research data.
+
+    Firestore writes use merge semantics, so omitting an empty extended section
+    preserves the last successful value. Fresh non-empty sections still replace
+    their previous value normally.
+    """
+    serialized = _serialize(payload)
+    write_payload = {
+        key: value
+        for key, value in serialized.items()
+        if key not in _STOCK_FACTS_KEEP_ON_EMPTY or _has_material_stock_fact(value)
+    }
+    if _has_material_stock_fact(serialized.get("financial_history")):
+        write_payload["financial_depth_updated_at"] = updated_at
+    write_payload["updated_at"] = updated_at
+    return write_payload
+
+
 def _firestore_write_batches(
     writes: list[tuple[Any, dict[str, Any]]],
     *,
@@ -594,10 +651,11 @@ class TraceMoneyStore:
 
     def save_stock_facts(self, payload: dict[str, Any]) -> None:
         instrument_id = payload["instrument_id"]
-        self.db.collection("tm_stock_facts").document(instrument_id).set({
-            **_serialize(payload),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, merge=True)
+        updated_at = datetime.now(timezone.utc).isoformat()
+        self.db.collection("tm_stock_facts").document(instrument_id).set(
+            _stock_facts_write_payload(payload, updated_at=updated_at),
+            merge=True,
+        )
 
     def get_stock_facts_batch(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
         rows: dict[str, dict[str, Any]] = {}

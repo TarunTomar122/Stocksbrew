@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 
-from backend.storage import TraceMoneyStore, _firestore_write_batches, _latest_price_write_payload
+from backend.storage import (
+    TraceMoneyStore,
+    _firestore_write_batches,
+    _latest_price_write_payload,
+    _stock_facts_write_payload,
+)
 
 
 @dataclass
@@ -84,6 +89,47 @@ def test_first_quote_of_new_day_appends_history() -> None:
 
     assert len(payload["history_window"]) == 2
     assert payload["history_window_size"] == 2
+
+
+def test_empty_financial_depth_sections_are_omitted_from_merge_writes() -> None:
+    payload = _stock_facts_write_payload(
+        {
+            "instrument_id": "US_AAPL",
+            "financials": {"source": "stockanalysis", "fiscal_year": "TTM"},
+            "financial_history": [{"period": "TTM", "revenue": None}],
+            "balance": {},
+            "valuation": {"forward_pe": None},
+            "quality": {"roic_pct": None},
+            "business_segments": None,
+            "source_status": {"errors": ["stockanalysis: temporary failure"]},
+        },
+        updated_at="2026-08-03T00:00:00+00:00",
+    )
+
+    assert payload["instrument_id"] == "US_AAPL"
+    assert payload["source_status"]["errors"]
+    assert payload["updated_at"] == "2026-08-03T00:00:00+00:00"
+    assert "financial_history" not in payload
+    assert "balance" not in payload
+    assert "valuation" not in payload
+    assert "quality" not in payload
+    assert "business_segments" not in payload
+    assert "financial_depth_updated_at" not in payload
+
+
+def test_successful_financial_depth_sections_replace_old_values() -> None:
+    payload = _stock_facts_write_payload(
+        {
+            "instrument_id": "US_AAPL",
+            "financial_history": [{"period": "TTM", "revenue": 100}],
+            "valuation": {"forward_pe": 24.5},
+        },
+        updated_at="2026-08-03T00:00:00+00:00",
+    )
+
+    assert payload["financial_history"][0]["revenue"] == 100
+    assert payload["valuation"]["forward_pe"] == 24.5
+    assert payload["financial_depth_updated_at"] == "2026-08-03T00:00:00+00:00"
 
 
 class _HistoryDocument:

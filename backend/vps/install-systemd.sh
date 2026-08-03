@@ -110,7 +110,7 @@ write_pair earnings-intel "Mon..Fri *-*-* 22:00:00" earnings_intel "--recent-day
 write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--upcoming-days 7 --max-events 200"
 write_pair on-demand-news "Mon..Fri *-*-* 00,04,08,12,16,20:00:00" on_demand_news "--limit 6 --per-stock-cap 6"
 write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
-write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--limit 0 --max-workers 4"
+write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--universe us_core_155 --limit 0 --max-workers 4"
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
 # 08:30 UTC is 2:00 PM IST year-round.
