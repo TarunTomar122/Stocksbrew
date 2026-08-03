@@ -30,6 +30,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const STOCK_ANALYSIS_GUIDE_SLUGS = new Set([
+  "best-stock-research-websites-2026",
+  "best-stock-watchlist-apps-2026",
+  "best-stock-news-apps-2026",
   "best-stock-analysis-apps-2026",
   "us-stock-market-analysis-daily-workflow-2026",
   "ai-stock-analysis-comparison",
