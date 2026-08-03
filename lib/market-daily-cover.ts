@@ -22,6 +22,8 @@ const COVER_TOPICS: Array<{ test: RegExp; topic: string; queries: string[] }> = 
       "computer circuit board",
       "technology laboratory",
       "silicon wafer",
+      "microchip",
+      "electronics factory",
     ],
   },
   {
@@ -62,7 +64,11 @@ export function marketDailyCoverQuery(headline: string, dek: string, editionDate
   const match = COVER_TOPICS.find(({ test }) => test.test(story));
   if (match) {
     if (!editionDate) return match.queries[0];
-    return match.queries[marketDailyCoverIndex(editionDate, match.topic, match.queries.length)];
+    const parsedDate = Date.parse(`${editionDate}T00:00:00Z`);
+    const subjectIndex = Number.isFinite(parsedDate)
+      ? Math.floor(parsedDate / 86_400_000) % match.queries.length
+      : marketDailyCoverIndex(editionDate, match.topic, match.queries.length);
+    return match.queries[subjectIndex];
   }
   if (!editionDate) return DEFAULT_COVER_QUERIES[0];
   return DEFAULT_COVER_QUERIES[

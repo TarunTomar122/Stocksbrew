@@ -117,6 +117,8 @@ MARKET_DAILY_COVER_TOPICS: tuple[tuple[re.Pattern[str], str, tuple[str, ...]], .
             "computer circuit board",
             "technology laboratory",
             "silicon wafer",
+            "microchip",
+            "electronics factory",
         ),
     ),
     (
@@ -1322,7 +1324,11 @@ def market_daily_cover_query(headline: str, dek: str, edition_date: str = "") ->
         if pattern.search(story):
             if not edition_date:
                 return queries[0]
-            return queries[market_daily_cover_index(edition_date, topic, len(queries))]
+            try:
+                subject_index = date.fromisoformat(edition_date).toordinal() % len(queries)
+            except ValueError:
+                subject_index = market_daily_cover_index(edition_date, topic, len(queries))
+            return queries[subject_index]
     if not edition_date:
         return DEFAULT_COVER_QUERIES[0]
     return DEFAULT_COVER_QUERIES[
