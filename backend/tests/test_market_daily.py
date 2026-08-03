@@ -116,11 +116,11 @@ class MarketDailyValidationTests(TestCase):
     def test_cover_query_tracks_the_story_topic(self) -> None:
         self.assertEqual(
             market_daily_cover_query("AI spending hits chipmakers", "Data centers are in focus."),
-            "data center server rack",
+            "server room",
         )
 
     def test_cover_index_varies_by_edition_and_is_stable(self) -> None:
-        query = "data center server rack"
+        query = "server room"
         first = market_daily_cover_index("2026-07-28", query, 20)
         self.assertEqual(first, market_daily_cover_index("2026-07-28", query, 20))
         self.assertNotEqual(first, market_daily_cover_index("2026-07-29", query, 20))

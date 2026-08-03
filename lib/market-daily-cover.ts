@@ -17,11 +17,11 @@ const COVER_TOPICS: Array<{ test: RegExp; topic: string; queries: string[] }> = 
     test: /\b(ai|artificial intelligence|tech|technology|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b/i,
     topic: "ai",
     queries: [
-      "data center server rack",
-      "semiconductor manufacturing clean room",
-      "computer circuit board close up",
-      "technology research laboratory",
-      "microchip wafer",
+      "server room",
+      "semiconductor factory",
+      "computer circuit board",
+      "technology laboratory",
+      "silicon wafer",
     ],
   },
   {
@@ -83,8 +83,10 @@ const fetchCover = unstable_cache(
         headers: { "User-Agent": "stocksbrew-market-daily/1.0" },
         next: { revalidate: 60 * 60 * 24 * 90, tags: [`market-daily-cover-${editionDate}`] },
       },
-    ).catch(() => null);
-    if (!response?.ok) return null;
+    );
+    if (!response.ok) {
+      throw new Error(`Openverse cover lookup failed (${response.status})`);
+    }
 
     const payload = (await response.json().catch(() => null)) as {
       results?: Array<{ thumbnail?: string; title?: string; foreign_landing_url?: string; license?: string }>;
@@ -94,7 +96,9 @@ const fetchCover = unstable_cache(
       (result) => result.thumbnail && result.license === "cc0",
     ) ?? [];
     const image = eligible[marketDailyCoverIndex(editionDate, query, eligible.length)];
-    if (!image?.thumbnail) return null;
+    if (!image?.thumbnail) {
+      throw new Error("Openverse cover lookup returned no eligible CC0 images");
+    }
 
     return {
       url: image.thumbnail,
@@ -104,12 +108,12 @@ const fetchCover = unstable_cache(
       license: "cc0",
     };
   },
-  ["market-daily-cover-v2"],
+  ["market-daily-cover-v3"],
   { revalidate: 60 * 60 * 24 * 90 },
 );
 
 export async function getMarketDailyEditionCover(
   edition: Pick<MarketDailyEdition, "edition_date" | "headline" | "dek" | "cover_image">,
 ): Promise<MarketDailyCoverImage | null> {
-  return edition.cover_image ?? fetchCover(edition.edition_date, edition.headline, edition.dek);
+  return edition.cover_image ?? fetchCover(edition.edition_date, edition.headline, edition.dek).catch(() => null);
 }

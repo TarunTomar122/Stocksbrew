@@ -112,11 +112,11 @@ MARKET_DAILY_COVER_TOPICS: tuple[tuple[re.Pattern[str], str, tuple[str, ...]], .
         re.compile(r"\b(ai|artificial intelligence|tech|technology|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b", re.I),
         "ai",
         (
-            "data center server rack",
-            "semiconductor manufacturing clean room",
-            "computer circuit board close up",
-            "technology research laboratory",
-            "microchip wafer",
+            "server room",
+            "semiconductor factory",
+            "computer circuit board",
+            "technology laboratory",
+            "silicon wafer",
         ),
     ),
     (
