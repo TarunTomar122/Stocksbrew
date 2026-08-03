@@ -271,7 +271,7 @@ def _llm_classify_sector(signals: dict[str, Any], model_name: str) -> dict[str, 
         headers=llm_headers(api_key),
         json={
             "model": model_name,
-            "temperature": 0.2,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",
@@ -308,7 +308,7 @@ def _llm_classify_macro(sector_regimes: list[dict[str, Any]], model_name: str) -
         headers=llm_headers(api_key),
         json={
             "model": model_name,
-            "temperature": 0.2,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",

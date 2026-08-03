@@ -2231,7 +2231,7 @@ Rules:
       headers: llmHeaders(apiKey),
       body: JSON.stringify({
         model,
-        temperature: 0.3,
+        reasoning_effort: "low",
         max_completion_tokens: 700,
         response_format: { type: "json_object" },
         messages: [

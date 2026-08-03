@@ -213,7 +213,7 @@ def _llm_weekly_stories(candidates: list[dict[str, Any]]) -> dict[str, Any]:
             headers=llm_headers(api_key),
             json={
                 "model": llm_model(default_llm_model()),
-                "temperature": 0.2,
+                "reasoning_effort": "low",
                 "messages": [
                     {"role": "system", "content": schema_system_prompt(STORIES_PROMPT, STORIES_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},

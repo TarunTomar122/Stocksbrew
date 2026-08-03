@@ -113,12 +113,11 @@ write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
 write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--universe us_core_155 --limit 0 --max-workers 4"
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
+# Market Daily starts only after that fresh evidence is ready. Both services
+# retry transient failures, and the publisher skips duplicate market sessions.
 # 08:30 UTC is 2:00 PM IST year-round.
-write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline
-# Market Daily remains approval-gated. Install a manual service, never an
-# automatic timer, so an infrastructure refresh cannot publish a new edition
-# without the user's explicit go-ahead.
-write_service market-daily market_daily
+write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline "" "tikrr-market-daily.service" "5min"
+write_service market-daily market_daily "" "" "10min"
 # The opening email is sent inside the anomaly worker immediately after the
 # mover snapshot and its evidence-backed reasons have been written. It must
 # not wait for optional heat/divergence/sentiment read models.
@@ -140,11 +139,11 @@ for name in open-briefs open-anomalies open-email; do
   systemctl disable --now "tikrr-${name}.timer" >/dev/null 2>&1 || true
   rm -f "${UNIT_DIR}/tikrr-${name}.timer"
 done
-# Editorial publication requires explicit approval. Remove any timer left by
-# an older installer while keeping the manual market-daily service available.
+# Market Daily is chained to the premarket service, so remove any independent
+# timer left by an older installer to prevent duplicate publication attempts.
 systemctl disable --now tikrr-market-daily.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-market-daily.timer"
-# Retired: intraday tracked-news polling repeatedly regenerated DeepSeek
+# Retired: intraday tracked-news polling repeatedly regenerated AI
 # briefs. Price lanes own quote freshness; brief synthesis runs only at the
 # dependency-chained open and close checkpoints.
 for name in tracked-refresh-t6 tracked-refresh-t2 tracked-refresh-pre tracked-refresh-intraday tracked-refresh-close; do

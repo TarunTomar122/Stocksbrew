@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from backend.llm_client import (
-    OPENROUTER_API_URL,
+    OPENAI_API_URL,
     llm_api_key,
     llm_api_url,
     llm_headers,
@@ -37,53 +37,56 @@ class LlmClientProviderTest(unittest.TestCase):
                 offenders.append(str(path.relative_to(backend_root)))
         self.assertEqual(offenders, [])
 
-    def test_legacy_cerebras_provider_is_migrated_to_openrouter(self) -> None:
+    def test_legacy_cerebras_provider_is_migrated_to_openai(self) -> None:
         with patch.dict(os.environ, {"LLM_PROVIDER": "cerebras"}, clear=True):
-            self.assertEqual(llm_provider(), "openrouter")
-            self.assertEqual(llm_api_url(), OPENROUTER_API_URL)
+            self.assertEqual(llm_provider(), "openai")
+            self.assertEqual(llm_api_url(), OPENAI_API_URL)
 
-    def test_explicit_llm_env_overrides_provider(self) -> None:
+    def test_legacy_generic_router_env_cannot_override_openai(self) -> None:
         env = {
             "LLM_PROVIDER": "openrouter",
             "LLM_API_KEY": "explicit-key",
             "LLM_API_URL": "https://example.test/v1/chat/completions",
-            "LLM_MODEL": "custom-model",
+            "LLM_MODEL": "qwen/qwen-2.5-7b-instruct",
+            "OPENAI_API_KEY": "openai-key",
         }
 
         with patch.dict(os.environ, env, clear=True):
-            self.assertEqual(llm_api_key(), "explicit-key")
-            self.assertEqual(llm_api_url(), "https://example.test/v1/chat/completions")
-            self.assertEqual(llm_model(), "custom-model")
+            self.assertEqual(llm_provider(), "openai")
+            self.assertEqual(llm_api_key(), "openai-key")
+            self.assertEqual(llm_api_url(), OPENAI_API_URL)
+            self.assertEqual(llm_model(), "gpt-5.6-luna")
 
-    def test_openrouter_provider_uses_openrouter_env(self) -> None:
+    def test_openrouter_env_is_ignored(self) -> None:
         env = {
             "LLM_PROVIDER": "openrouter",
             "OPENROUTER_API_KEY": "openrouter-key",
-            "OPENROUTER_MODEL": "openrouter/model",
+            "OPENROUTER_MODEL": "qwen/qwen-2.5-7b-instruct",
             "OPENROUTER_API_URL": "https://openrouter.test/api/v1/chat/completions",
+            "OPENAI_API_KEY": "openai-key",
         }
 
         with patch.dict(os.environ, env, clear=True):
-            self.assertEqual(llm_provider(), "openrouter")
-            self.assertEqual(llm_api_key(), "openrouter-key")
-            self.assertEqual(llm_api_url(), "https://openrouter.test/api/v1/chat/completions")
-            self.assertEqual(llm_model(), "openrouter/model")
-            self.assertIn("HTTP-Referer", llm_headers("openrouter-key"))
+            self.assertEqual(llm_provider(), "openai")
+            self.assertEqual(llm_api_key(), "openai-key")
+            self.assertEqual(llm_api_url(), OPENAI_API_URL)
+            self.assertEqual(llm_model(), "gpt-5.6-luna")
+            self.assertNotIn("HTTP-Referer", llm_headers("openai-key"))
 
-    def test_openrouter_key_auto_selects_openrouter(self) -> None:
+    def test_openrouter_key_does_not_auto_select_openrouter(self) -> None:
         env = {"OPENROUTER_API_KEY": "openrouter-key"}
 
         with patch.dict(os.environ, env, clear=True):
-            self.assertEqual(llm_provider(), "openrouter")
-            self.assertEqual(llm_api_key(), "openrouter-key")
-            self.assertEqual(llm_api_url(), OPENROUTER_API_URL)
-            self.assertEqual(llm_model(), "deepseek/deepseek-v4-flash")
+            self.assertEqual(llm_provider(), "openai")
+            self.assertEqual(llm_api_key(), "")
+            self.assertEqual(llm_api_url(), OPENAI_API_URL)
+            self.assertEqual(llm_model(), "gpt-5.6-luna")
 
-    def test_no_provider_env_defaults_to_openrouter(self) -> None:
+    def test_no_provider_env_defaults_to_openai_luna(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(llm_provider(), "openrouter")
-            self.assertEqual(llm_api_url(), OPENROUTER_API_URL)
-            self.assertEqual(llm_model(), "deepseek/deepseek-v4-flash")
+            self.assertEqual(llm_provider(), "openai")
+            self.assertEqual(llm_api_url(), OPENAI_API_URL)
+            self.assertEqual(llm_model(), "gpt-5.6-luna")
 
     def test_non_retryable_error_fails_immediately(self) -> None:
         response = Mock()
@@ -93,7 +96,7 @@ class LlmClientProviderTest(unittest.TestCase):
 
         with patch.dict(
             os.environ,
-            {"LLM_PROVIDER": "openrouter", "OPENROUTER_API_KEY": "test-key"},
+            {"LLM_PROVIDER": "openrouter", "OPENAI_API_KEY": "test-key"},
             clear=True,
         ), patch("backend.llm_client.requests.post", return_value=response) as post:
             with self.assertRaises(requests.HTTPError):
@@ -136,9 +139,9 @@ class LlmClientProviderTest(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "LLM_PROVIDER": "openrouter",
-                "OPENROUTER_API_KEY": "test-key",
-                "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash",
+                "LLM_PROVIDER": "openai",
+                "OPENAI_API_KEY": "test-key",
+                "OPENAI_MODEL": "gpt-4.1-mini",
             },
             clear=True,
         ), patch("backend.llm_client.requests.post", return_value=response) as post:
@@ -155,11 +158,7 @@ class LlmClientProviderTest(unittest.TestCase):
         response.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
         response.raise_for_status.return_value = None
 
-        env = {
-            "LLM_PROVIDER": "openrouter",
-            "OPENROUTER_API_KEY": "router-key",
-            "OPENAI_API_KEY": "openai-key",
-        }
+        env = {"LLM_PROVIDER": "openrouter", "OPENAI_API_KEY": "openai-key"}
         with patch.dict(os.environ, env, clear=True), patch(
             "backend.llm_client.requests.post", return_value=response
         ) as post:

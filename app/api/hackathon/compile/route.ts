@@ -6,8 +6,8 @@ import type { ThesisDraft } from "@/hackathon/types";
 
 export const maxDuration = 30;
 const LLM_COMPILE_TIMEOUT_MS = 12_000;
-const OPENROUTER_MODEL = "qwen/qwen3.5-flash-02-23";
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENAI_MODEL = "gpt-5.6-luna";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 interface CompileResponse {
   thesis: ThesisDraft;
@@ -100,26 +100,24 @@ function extractJson(text: string): string {
   return trimmed;
 }
 
-async function callOpenRouter(rawText: string, title?: string) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+async function callOpenAI(rawText: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY not configured");
+    throw new Error("OPENAI_API_KEY not configured");
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(new Error("LLM compile timed out")), LLM_COMPILE_TIMEOUT_MS);
 
   try {
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(OPENAI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": title || "Hackathon Thesis Compiler",
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: OPENAI_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -127,7 +125,7 @@ async function callOpenRouter(rawText: string, title?: string) {
             content: `Compile this thesis into the structured JSON format:\n\n${rawText}`,
           },
         ],
-        temperature: 0.3,
+        reasoning_effort: "low",
       }),
       signal: controller.signal,
     });
@@ -136,8 +134,8 @@ async function callOpenRouter(rawText: string, title?: string) {
     if (!response.ok) {
       const message =
         payload && typeof payload === "object" && "error" in payload
-          ? String((payload as { error?: { message?: string } }).error?.message || "OpenRouter request failed")
-          : `OpenRouter request failed (${response.status})`;
+          ? String((payload as { error?: { message?: string } }).error?.message || "OpenAI request failed")
+          : `OpenAI request failed (${response.status})`;
       throw new Error(message);
     }
 
@@ -151,7 +149,7 @@ async function callOpenRouter(rawText: string, title?: string) {
         : "";
 
     if (!llmText.trim()) {
-      throw new Error("OpenRouter returned an empty completion");
+      throw new Error("OpenAI returned an empty completion");
     }
 
     return llmText;
@@ -193,13 +191,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       const fallback = compileThesis(rawText, title);
-      return buildResponse(fallback, "fallback", "OPENROUTER_API_KEY not configured");
+      return buildResponse(fallback, "fallback", "OPENAI_API_KEY not configured");
     }
 
     try {
-      const llmText = await callOpenRouter(rawText, title);
+      const llmText = await callOpenAI(rawText);
 
       const jsonStr = extractJson(llmText);
       const parsed = JSON.parse(jsonStr);

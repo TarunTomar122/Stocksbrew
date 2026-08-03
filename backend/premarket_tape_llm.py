@@ -108,7 +108,7 @@ def _llm_batch_lines(items: list[dict[str, Any]]) -> dict[str, str]:
             headers=llm_headers(api_key),
             json={
                 "model": llm_model(default_llm_model()),
-                "temperature": 0.1,
+                "reasoning_effort": "low",
                 "messages": [
                     {"role": "system", "content": schema_system_prompt(TAPE_PROMPT, TAPE_SCHEMA)},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},

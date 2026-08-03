@@ -168,7 +168,7 @@ def test_llm_narrative_accepts_short_fact_only_copy() -> None:
         )
     assert narrative["headline"] == "AAPL needs a closer look"
     assert status == "generated"
-    assert post.call_args.kwargs["model"] == "deepseek/deepseek-v4-flash"
+    assert post.call_args.kwargs["model"] == "gpt-5.6-luna"
 
 
 def test_materialized_contracts_match_json_schemas() -> None:

@@ -29,7 +29,7 @@ from backend.instrument_universe import list_instruments
 from backend.storage import TraceMoneyStore
 
 
-OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+OPENAI_DEFAULT_MODEL = "gpt-5.6-luna"
 
 GROUNDING_CONTRACT = """NON-NEGOTIABLE GROUNDING RULES (read payload.timing and payload.reported_actuals first):
 
@@ -476,7 +476,7 @@ def _llm_synthesize(payload: dict[str, Any], model_name: str, prompt_variant: st
         headers=llm_headers(api_key),
         json={
             "model": model_name,
-            "temperature": 0.2,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",

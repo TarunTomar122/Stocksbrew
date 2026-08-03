@@ -28,25 +28,10 @@ const MARKET = "US";
 const TOP_N = 8;
 const MIN_ABS_CHANGE_PCT = 2.0;
 
-// LLM config - reads from env, falls back to OpenAI only when Cerebras is not configured.
-const LLM_PROVIDER = (process.env.LLM_PROVIDER || "").trim().toLowerCase();
-const HAS_CEREBRAS = Boolean((process.env.CEREBRAS_API_KEY || "").trim());
-const HAS_OPENAI = Boolean((process.env.OPENAI_API_KEY || "").trim());
-const USE_CEREBRAS = LLM_PROVIDER === "cerebras" || (!LLM_PROVIDER && HAS_CEREBRAS && !HAS_OPENAI);
-const LLM_API_URL =
-  process.env.LLM_API_URL ||
-  process.env.MIMO_API_URL ||
-  (USE_CEREBRAS ? process.env.CEREBRAS_API_URL || "https://api.cerebras.ai/v1/chat/completions" : "https://api.openai.com/v1/chat/completions");
-const LLM_API_KEY =
-  process.env.LLM_API_KEY ||
-  (USE_CEREBRAS ? process.env.CEREBRAS_API_KEY : process.env.OPENAI_API_KEY) ||
-  process.env.MIMO_API_KEY ||
-  "";
-const LLM_MODEL =
-  process.env.LLM_MODEL ||
-  process.env.MIMO_MODEL ||
-  process.env.TRACE_MONEY_LLM_MODEL ||
-  (USE_CEREBRAS ? process.env.CEREBRAS_MODEL || "gpt-oss-120b" : process.env.OPENAI_MODEL || "deepseek/deepseek-v4-flash");
+// Cheap high-volume work stays on direct OpenAI Luna with low reasoning.
+const LLM_API_URL = "https://api.openai.com/v1/chat/completions";
+const LLM_API_KEY = process.env.OPENAI_API_KEY || "";
+const LLM_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 
 // ─── LLM Enrichment ──────────────────────────────────────────────────────────
 
@@ -59,7 +44,7 @@ function callLLM(systemPrompt, userPrompt) {
     const url = new URL(LLM_API_URL);
     const body = JSON.stringify({
       model: LLM_MODEL,
-      temperature: 0.3,
+      reasoning_effort: "low",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -156,7 +141,7 @@ async function main() {
   console.log(`[anomaly-scanner] running at ${now.toISOString()}\n`);
 
   if (!llmAvailable()) {
-    console.warn("⚠ No LLM API key found (set LLM_API_KEY, CEREBRAS_API_KEY, OPENAI_API_KEY, or MIMO_API_KEY). LLM enrichment disabled.\n");
+    console.warn("⚠ OPENAI_API_KEY is missing. LLM enrichment disabled.\n");
   } else {
     console.log(`LLM: ${LLM_MODEL} @ ${LLM_API_URL}\n`);
   }

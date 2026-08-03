@@ -32,7 +32,7 @@ from backend.stock_intelligence import build_no_news_intelligence_doc
 from backend.storage import TraceMoneyStore
 
 
-OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+OPENAI_DEFAULT_MODEL = "gpt-5.6-luna"
 MIN_EXPLAIN_MOVE_PCT = 2.0
 ANOMALY_REVALIDATE_PATHS = ["/", "/pulse", "/anomalies", "/radar"]
 ANOMALY_INTELLIGENCE_MAX_AGE_HOURS = max(

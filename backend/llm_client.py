@@ -1,14 +1,12 @@
 """Shared chat-completions helpers for backend LLM calls."""
 from __future__ import annotations
 
-import fcntl
 import json
 import logging
 import os
 import signal
 import threading
 import time
-from pathlib import Path
 from typing import Any
 
 import requests
@@ -20,12 +18,8 @@ load_backend_env()
 logger = logging.getLogger(__name__)
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_OPENAI_MODEL = "deepseek/deepseek-v4-flash"
-CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
-CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_ENRICHMENT_MODEL = "qwen/qwen-2.5-7b-instruct"
-DEFAULT_OPENROUTER_MODEL = DEFAULT_OPENAI_MODEL
+DEFAULT_OPENAI_MODEL = "gpt-5.6-luna"
+DEFAULT_ENRICHMENT_MODEL = DEFAULT_OPENAI_MODEL
 LLM_BRIEF_SOURCE = "llm"
 
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
@@ -59,176 +53,6 @@ class _wall_timeout:
         signal.signal(signal.SIGALRM, self.previous_handler)
 
 
-def _cerebras_throttle_state_path() -> Path:
-    raw = os.getenv("CEREBRAS_THROTTLE_STATE_PATH", "").strip()
-    if raw:
-        return Path(raw)
-    return Path("/tmp/tikrr_cerebras_throttle.json")
-
-
-def _read_cerebras_throttle_state() -> tuple[list[float], list[list[float | int]]]:
-    path = _cerebras_throttle_state_path()
-    if not path.exists():
-        return [], []
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return [], []
-    if not isinstance(payload, dict):
-        return [], []
-    req_times = payload.get("request_times")
-    token_times = payload.get("token_times")
-    if not isinstance(req_times, list) or not isinstance(token_times, list):
-        return [], []
-    clean_req = [float(value) for value in req_times if isinstance(value, (int, float))]
-    clean_tokens: list[list[float | int]] = []
-    for row in token_times:
-        if (
-            isinstance(row, list)
-            and len(row) == 2
-            and isinstance(row[0], (int, float))
-            and isinstance(row[1], int)
-        ):
-            clean_tokens.append([float(row[0]), int(row[1])])
-    return clean_req, clean_tokens
-
-
-def _write_cerebras_throttle_state(
-    request_times: list[float],
-    token_times: list[tuple[float, int]],
-) -> None:
-    path = _cerebras_throttle_state_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "request_times": request_times[-2000:],
-        "token_times": [[ts, tokens] for ts, tokens in token_times[-2000:]],
-    }
-    path.write_text(json.dumps(payload), encoding="utf-8")
-
-
-def _prune_cerebras_state(
-    request_times: list[float],
-    token_times: list[tuple[float, int]],
-    now: float,
-) -> tuple[list[float], list[tuple[float, int]]]:
-    req = [ts for ts in request_times if now - ts <= 60.0]
-    tok = [(ts, tokens) for ts, tokens in token_times if now - ts <= 60.0]
-    return req, tok
-
-
-def _env_int(name: str, default: int) -> int:
-    raw = os.getenv(name, "").strip()
-    if not raw:
-        return default
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return default
-
-
-def cerebras_rpm_limit() -> int:
-    """Stay under Cerebras production RPM (default 800 of 1000)."""
-    return _env_int("CEREBRAS_RPM_LIMIT", 800)
-
-
-def cerebras_tpm_limit() -> int:
-    """Stay under Cerebras production TPM (default 800k of 1M)."""
-    return _env_int("CEREBRAS_TPM_LIMIT", 800_000)
-
-
-def cerebras_min_interval_s() -> float:
-    rpm = cerebras_rpm_limit()
-    # Cerebras spreads RPM evenly (60 RPM → 1 req/sec). Match that spacing.
-    return max(0.05, 60.0 / float(rpm))
-
-
-def cerebras_rps_limit() -> int:
-    """Max requests in any 1-second window (Cerebras short-interval enforcement)."""
-    return max(1, (cerebras_rpm_limit() + 59) // 60)
-
-
-def _estimate_tokens(payload: dict[str, Any]) -> int:
-    try:
-        return max(1, len(json.dumps(payload, ensure_ascii=True)) // 4)
-    except Exception:
-        return 1
-
-
-def _throttle_cerebras(estimated_tokens: int) -> None:
-    if llm_provider() != "cerebras":
-        return
-    rpm = cerebras_rpm_limit()
-    tpm = cerebras_tpm_limit()
-    rps = cerebras_rps_limit()
-    min_interval = cerebras_min_interval_s()
-    state_path = _cerebras_throttle_state_path()
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-
-    while True:
-        now = time.monotonic()
-        with open(state_path, "a+", encoding="utf-8") as handle:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-            try:
-                req_times, token_rows = _read_cerebras_throttle_state()
-                token_times = [(float(ts), int(tokens)) for ts, tokens in token_rows]
-                req_times, token_times = _prune_cerebras_state(req_times, token_times, now)
-
-                req_count = len(req_times)
-                sec_count = len([ts for ts in req_times if now - ts <= 1.0])
-                token_count = sum(tokens for _, tokens in token_times)
-                last_at = req_times[-1] if req_times else 0.0
-                interval_ok = (now - last_at) >= min_interval
-                rpm_ok = req_count < rpm
-                rps_ok = sec_count < rps
-                tpm_ok = (token_count + estimated_tokens) <= tpm
-
-                if interval_ok and rpm_ok and rps_ok and tpm_ok:
-                    req_times.append(now)
-                    token_times.append((now, estimated_tokens))
-                    _write_cerebras_throttle_state(req_times, token_times)
-                    return
-
-                sleep_s = min_interval
-                if not interval_ok:
-                    sleep_s = max(sleep_s, min_interval - (now - last_at))
-                if not rpm_ok and req_times:
-                    sleep_s = max(sleep_s, 60.0 - (now - req_times[0]) + 0.05)
-                if not rps_ok and req_times:
-                    recent = [ts for ts in req_times if now - ts <= 1.0]
-                    if recent:
-                        sleep_s = max(sleep_s, 1.0 - (now - recent[0]) + 0.05)
-                if not tpm_ok and token_times:
-                    sleep_s = max(sleep_s, 60.0 - (now - token_times[0][0]) + 0.05)
-            finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-        time.sleep(min(max(sleep_s, 0.05), 5.0))
-
-
-def _record_cerebras_usage(actual_tokens: int) -> None:
-    if llm_provider() != "cerebras" or actual_tokens <= 0:
-        return
-    now = time.monotonic()
-    state_path = _cerebras_throttle_state_path()
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(state_path, "a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            req_times, token_rows = _read_cerebras_throttle_state()
-            token_times = [(float(ts), int(tokens)) for ts, tokens in token_rows]
-            req_times, token_times = _prune_cerebras_state(req_times, token_times, now)
-            if token_times:
-                ts, est = token_times[-1]
-                if now - ts < 1.0:
-                    token_times[-1] = (ts, max(est, actual_tokens))
-                else:
-                    token_times.append((now, actual_tokens))
-            else:
-                token_times.append((now, actual_tokens))
-            _write_cerebras_throttle_state(req_times, token_times)
-        finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-
-
 def post_chat_completion(
     *,
     messages: list[dict[str, Any]],
@@ -241,21 +65,23 @@ def post_chat_completion(
     max_attempts: int = 6,
     provider: str | None = None,
 ) -> dict[str, Any]:
-    """POST to the configured brief/synthesis LLM with Cerebras throttle + 429 retry."""
+    """POST to direct OpenAI with retry handling for transient failures."""
     resolved_provider = _resolve_llm_provider(provider)
     api_key = require_llm_api_key(resolved_provider)
     url = llm_api_url(resolved_provider)
-    resolved_model = model or llm_model()
+    resolved_model = _direct_openai_model(model or llm_model())
     payload: dict[str, Any] = {
         "model": resolved_model,
         "messages": messages,
     }
-    # GPT-5.6 Luna only accepts its default temperature. OpenRouter quietly
-    # tolerated our old 0.2 value, while the direct OpenAI API correctly
-    # rejects it, so keep temperature out of Luna requests entirely.
-    if not _is_luna_model(resolved_model):
+    # Current GPT-5 models accept only their default temperature on the direct
+    # OpenAI API. OpenRouter may quietly tolerate a custom value, so omit it
+    # consistently when these models are routed directly.
+    if not _uses_default_temperature(resolved_model):
         payload["temperature"] = temperature
     resolved_reasoning_effort = reasoning_effort or llm_reasoning_effort()
+    if not resolved_reasoning_effort and "luna" in resolved_model.lower():
+        resolved_reasoning_effort = "low"
     if resolved_reasoning_effort:
         payload["reasoning_effort"] = resolved_reasoning_effort
     if response_format is not None:
@@ -263,7 +89,6 @@ def post_chat_completion(
 
     last_error: Exception | None = None
     for attempt in range(1, max_attempts + 1):
-        _throttle_cerebras(_estimate_tokens(payload))
         try:
             with _wall_timeout(timeout):
                 response = requests.post(
@@ -303,7 +128,6 @@ def post_chat_completion(
                     prompt = usage.get("prompt_tokens") or 0
                     completion = usage.get("completion_tokens") or 0
                     total_tokens = int(prompt) + int(completion)
-                _record_cerebras_usage(int(total_tokens or 0))
                 log_llm_call(
                     stage=stage,
                     provider=resolved_provider,
@@ -335,8 +159,19 @@ def post_chat_completion(
     raise RuntimeError("LLM request failed without an error")
 
 
-def _is_luna_model(model: str) -> bool:
-    return model.strip().lower().split("/")[-1].startswith("gpt-5.6-luna")
+def _uses_default_temperature(model: str) -> bool:
+    return model.strip().lower().split("/")[-1].startswith("gpt-5")
+
+
+def _direct_openai_model(model: str) -> str:
+    """Normalize stale router model names before calling OpenAI directly."""
+    normalized = model.strip()
+    if normalized.lower().startswith("openai/"):
+        return normalized.split("/", 1)[1]
+    if "/" in normalized or normalized.lower().startswith("gpt-oss"):
+        logger.warning("Ignoring legacy third-party model %s; using %s", normalized, DEFAULT_OPENAI_MODEL)
+        return DEFAULT_OPENAI_MODEL
+    return normalized or DEFAULT_OPENAI_MODEL
 
 
 def llm_reasoning_effort() -> str | None:
@@ -353,16 +188,9 @@ def llm_reasoning_effort() -> str | None:
 
 def _resolve_llm_provider(provider: str | None = None) -> str:
     explicit = (provider or os.getenv("LLM_PROVIDER", "")).strip().lower()
-    if explicit == "cerebras":
-        logger.warning("Ignoring legacy LLM_PROVIDER=cerebras; using openrouter")
-        return "openrouter"
-    if explicit in {"openai", "openrouter"}:
-        return explicit
-    if os.getenv("OPENROUTER_API_KEY", "").strip():
-        return "openrouter"
-    if os.getenv("OPENAI_API_KEY", "").strip():
-        return "openai"
-    return "openrouter"
+    if explicit and explicit != "openai":
+        logger.warning("Ignoring legacy LLM provider %s; using direct OpenAI", explicit)
+    return "openai"
 
 
 def llm_provider() -> str:
@@ -371,12 +199,9 @@ def llm_provider() -> str:
 
 def llm_enrichment_provider() -> str:
     explicit = os.getenv("LLM_ENRICHMENT_PROVIDER", "").strip().lower()
-    if explicit == "cerebras":
-        logger.warning("Ignoring legacy LLM_ENRICHMENT_PROVIDER=cerebras; using openrouter")
-        return "openrouter"
-    if explicit in {"openai", "openrouter"}:
-        return explicit
-    return "openrouter"
+    if explicit and explicit != "openai":
+        logger.warning("Ignoring legacy enrichment provider %s; using direct OpenAI", explicit)
+    return "openai"
 
 
 def is_llm_brief_source(source: str | None) -> bool:
@@ -386,75 +211,49 @@ def is_llm_brief_source(source: str | None) -> bool:
 
 def llm_api_key(provider: str | None = None) -> str:
     """Return server-side LLM API key for brief/synthesis calls."""
-    resolved_provider = _resolve_llm_provider(provider)
-    explicit = os.getenv("LLM_API_KEY", "").strip()
-    if explicit and provider is None:
-        return explicit
-    if resolved_provider == "openrouter":
-        return os.getenv("OPENROUTER_API_KEY", "").strip()
+    _resolve_llm_provider(provider)
     return os.getenv("OPENAI_API_KEY", "").strip()
 
 
 def llm_enrichment_api_key() -> str:
-    explicit = os.getenv("LLM_ENRICHMENT_API_KEY", "").strip()
-    if explicit:
-        return explicit
-    if llm_enrichment_provider() == "openrouter":
-        return os.getenv("OPENROUTER_API_KEY", "").strip()
-    return llm_api_key()
+    return os.getenv("OPENAI_API_KEY", "").strip()
 
 
 def llm_api_url(provider: str | None = None) -> str:
-    resolved_provider = _resolve_llm_provider(provider)
-    explicit = os.getenv("LLM_API_URL", "").strip()
-    if explicit and provider is None:
-        return explicit
-    if resolved_provider == "openrouter":
-        return os.getenv("OPENROUTER_API_URL", "").strip() or OPENROUTER_API_URL
+    _resolve_llm_provider(provider)
     return OPENAI_API_URL
 
 
 def llm_enrichment_api_url() -> str:
-    explicit = os.getenv("LLM_ENRICHMENT_API_URL", "").strip()
-    if explicit:
-        return explicit
-    if llm_enrichment_provider() == "openrouter":
-        return os.getenv("OPENROUTER_API_URL", "").strip() or OPENROUTER_API_URL
-    return llm_api_url()
+    return OPENAI_API_URL
 
 
 def llm_model(default: str | None = None) -> str:
     """Return model name used for brief/synthesis cache keys and API calls."""
     explicit = os.getenv("LLM_MODEL", "").strip()
     if explicit:
-        return explicit
-    if llm_provider() == "openrouter":
-        return os.getenv("OPENROUTER_MODEL", "").strip() or default or DEFAULT_OPENROUTER_MODEL
-    return os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL
+        return _direct_openai_model(explicit)
+    return _direct_openai_model(os.getenv("OPENAI_MODEL", "").strip() or default or DEFAULT_OPENAI_MODEL)
 
 
 def llm_enrichment_model(default: str | None = None) -> str:
     explicit = os.getenv("LLM_ENRICHMENT_MODEL", "").strip()
     if explicit:
-        return explicit
-    if llm_enrichment_provider() == "openrouter":
-        return default or DEFAULT_ENRICHMENT_MODEL
-    return llm_model(default)
+        return _direct_openai_model(explicit)
+    return _direct_openai_model(default or DEFAULT_ENRICHMENT_MODEL)
 
 
 def require_llm_api_key(provider: str | None = None) -> str:
-    resolved_provider = _resolve_llm_provider(provider)
-    api_key = llm_api_key(resolved_provider)
+    api_key = llm_api_key(provider)
     if not api_key:
-        env_name = "OPENAI_API_KEY" if resolved_provider == "openai" else "OPENROUTER_API_KEY"
-        raise ValueError(f"{env_name} is required")
+        raise ValueError("OPENAI_API_KEY is required")
     return api_key
 
 
 def require_llm_enrichment_api_key() -> str:
     api_key = llm_enrichment_api_key()
     if not api_key:
-        raise ValueError("OPENROUTER_API_KEY or LLM_ENRICHMENT_API_KEY is required for article enrichment")
+        raise ValueError("OPENAI_API_KEY is required for article enrichment")
     return api_key
 
 
@@ -463,18 +262,12 @@ def llm_headers(api_key: str, *, provider: str | None = None) -> dict[str, str]:
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    if _resolve_llm_provider(provider) == "openrouter":
-        headers["HTTP-Referer"] = os.getenv("OPENROUTER_HTTP_REFERER", "https://tikrr.app").strip() or "https://tikrr.app"
-        headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME", "tikrr-stock-briefs").strip() or "tikrr-stock-briefs"
+    _resolve_llm_provider(provider)
     return headers
 
 
 def llm_enrichment_headers(api_key: str) -> dict[str, str]:
-    headers = llm_headers(api_key)
-    if llm_enrichment_provider() == "openrouter":
-        headers["HTTP-Referer"] = os.getenv("OPENROUTER_HTTP_REFERER", "https://tikrr.app").strip() or "https://tikrr.app"
-        headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME", "tikrr-article-enrichment").strip() or "tikrr-article-enrichment"
-    return headers
+    return llm_headers(api_key, provider="openai")
 
 
 def json_response_format() -> dict[str, str]:

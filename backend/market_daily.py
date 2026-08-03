@@ -29,7 +29,7 @@ from backend.url_extractor import ExtractedArticle, extract_urls, search_firecra
 
 NEW_YORK = ZoneInfo("America/New_York")
 IST = ZoneInfo("Asia/Kolkata")
-DEFAULT_WRITER_MODEL = "openai/gpt-5.5"
+DEFAULT_WRITER_MODEL = "gpt-5.5"
 RESEARCH_VERSION = 7
 
 MARKET_SERIES: tuple[tuple[str, str, str], ...] = (
@@ -107,11 +107,39 @@ ARTICLE_COMPONENTS = (
 )
 
 OPENVERSE_IMAGES_URL = "https://api.openverse.org/v1/images/"
-MARKET_DAILY_COVER_TOPICS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"\b(ai|artificial intelligence|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b", re.I), "data center server rack"),
-    (re.compile(r"\b(oil|energy|crude|refinery|gas)\b", re.I), "oil refinery"),
-    (re.compile(r"\b(bank|rates?|treasury|fed|inflation|bond)\b", re.I), "financial district skyline"),
-    (re.compile(r"\b(earnings|revenue|profit|guidance|quarter)\b", re.I), "modern office building"),
+MARKET_DAILY_COVER_TOPICS: tuple[tuple[re.Pattern[str], str, tuple[str, ...]], ...] = (
+    (
+        re.compile(r"\b(ai|artificial intelligence|tech|technology|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b", re.I),
+        "ai",
+        (
+            "data center server rack",
+            "semiconductor manufacturing clean room",
+            "computer circuit board close up",
+            "technology research laboratory",
+            "microchip wafer",
+        ),
+    ),
+    (
+        re.compile(r"\b(oil|energy|crude|refinery|gas)\b", re.I),
+        "energy",
+        ("oil refinery", "oil pumpjack", "crude oil tanker", "natural gas pipeline"),
+    ),
+    (
+        re.compile(r"\b(bank|rates?|treasury|fed|inflation|bond)\b", re.I),
+        "rates",
+        ("financial district skyline", "bank building", "US Treasury building", "bond certificate"),
+    ),
+    (
+        re.compile(r"\b(earnings|revenue|profit|guidance|quarter)\b", re.I),
+        "earnings",
+        ("modern office building", "corporate headquarters", "business meeting", "factory production line"),
+    ),
+)
+DEFAULT_COVER_QUERIES = (
+    "stock exchange trading floor",
+    "wall street street sign",
+    "new york financial district",
+    "stock market display",
 )
 
 ARTICLE_SCHEMA: dict[str, Any] = {
@@ -925,6 +953,7 @@ def build_evidence_pack(
     *,
     edition_date: str | date,
     with_research: bool = True,
+    tape: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     edition = _iso_date(edition_date)
     today_et = datetime.now(NEW_YORK).date()
@@ -953,7 +982,7 @@ def build_evidence_pack(
                     flush=True,
                 )
                 return cached_data
-    tape = build_market_tape(edition)
+    tape = tape or build_market_tape(edition)
     premarket = build_premarket_evidence(store, edition)
     anomalies = build_anomaly_evidence(store, tape["previous_session_date"])
     evidence: dict[str, Any] = {
@@ -1138,6 +1167,7 @@ def _writer_input(evidence: dict[str, Any]) -> dict[str, Any]:
 def generate_article(evidence: dict[str, Any], *, model: str = DEFAULT_WRITER_MODEL) -> dict[str, Any]:
     body = post_chat_completion(
         model=model,
+        provider="openai",
         stage="market_daily_writer",
         temperature=0.72,
         timeout=180,
@@ -1286,40 +1316,59 @@ def public_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def market_daily_cover_query(headline: str, dek: str) -> str:
+def market_daily_cover_query(headline: str, dek: str, edition_date: str = "") -> str:
     story = f"{headline} {dek}"
-    for pattern, query in MARKET_DAILY_COVER_TOPICS:
+    for pattern, topic, queries in MARKET_DAILY_COVER_TOPICS:
         if pattern.search(story):
-            return query
-    return "stock exchange trading floor"
+            if not edition_date:
+                return queries[0]
+            return queries[market_daily_cover_index(edition_date, topic, len(queries))]
+    if not edition_date:
+        return DEFAULT_COVER_QUERIES[0]
+    return DEFAULT_COVER_QUERIES[
+        market_daily_cover_index(edition_date, "market", len(DEFAULT_COVER_QUERIES))
+    ]
 
 
-def resolve_market_daily_cover(headline: str, dek: str) -> dict[str, str] | None:
-    """Resolve one CC0 cover at publish time; a cover outage must never block the letter."""
+def market_daily_cover_index(edition_date: str, query: str, result_count: int) -> int:
+    """Choose a stable result per edition instead of reusing the first image."""
+    if result_count <= 0:
+        return 0
+    value = 0
+    for character in f"{edition_date}:{query}":
+        value = ((value * 31) + ord(character)) & 0xFFFFFFFF
+    return value % result_count
+
+
+def resolve_market_daily_cover(
+    headline: str,
+    dek: str,
+    edition_date: str,
+) -> dict[str, str] | None:
+    """Resolve one varied CC0 cover; a cover outage must never block the letter."""
+    query = market_daily_cover_query(headline, dek, edition_date)
     try:
         response = requests.get(
             OPENVERSE_IMAGES_URL,
             params={
-                "q": market_daily_cover_query(headline, dek),
+                "q": query,
                 "license": "cc0",
                 "mature": "false",
-                "page_size": 1,
+                "page_size": 20,
             },
             headers={"User-Agent": "stocksbrew-market-daily/1.0"},
             timeout=10,
         )
         response.raise_for_status()
         results = response.json().get("results") or []
-        image = next(
-            (
-                item
-                for item in results
-                if isinstance(item, dict) and item.get("thumbnail") and item.get("license") == "cc0"
-            ),
-            None,
-        )
-        if not image:
+        eligible = [
+            item
+            for item in results
+            if isinstance(item, dict) and item.get("thumbnail") and item.get("license") == "cc0"
+        ]
+        if not eligible:
             return None
+        image = eligible[market_daily_cover_index(edition_date, query, len(eligible))]
         return {
             "url": str(image["thumbnail"]),
             "alt": str(image.get("title") or headline),
@@ -1352,7 +1401,11 @@ def article_document(
         "updated_at": now,
         "headline": headline,
         "dek": dek,
-        "cover_image": resolve_market_daily_cover(headline, dek),
+        "cover_image": resolve_market_daily_cover(
+            headline,
+            dek,
+            str(evidence["edition_date"]),
+        ),
         "thesis": article["thesis"],
         "article_markdown": article["article_markdown"],
         "source_ids": article["source_ids"],

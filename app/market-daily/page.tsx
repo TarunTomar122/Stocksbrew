@@ -70,7 +70,7 @@ export default async function MarketDailyArchivePage() {
                     alt=""
                     className={styles.cardImage}
                     loading={index < 3 ? "eager" : "lazy"}
-                    src={`/api/market-daily-cover/${edition.edition_date}`}
+                    src={`/api/market-daily-cover/${edition.edition_date}?v=2`}
                   />
                   {index === 0 ? <span className={styles.cardLatest}>Latest</span> : null}
                 </div>

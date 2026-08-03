@@ -29,7 +29,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 logger = logging.getLogger(__name__)
 
 STOCK_BRIEF_CACHE_VERSION = "2026-08-01-stock-brief-v18-directive-v2-only"
-DEFAULT_STOCK_BRIEF_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
 def stock_brief_model() -> str:

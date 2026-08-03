@@ -221,8 +221,7 @@ async function callLlm(payload: Dict): Promise<Dict | null> {
     headers: llmHeaders(apiKey),
     body: JSON.stringify({
       model: llmModel(),
-      temperature: 0.25,
-      top_p: 0.9,
+      reasoning_effort: "low",
       max_completion_tokens: 1200,
       response_format: { type: "json_object" },
       messages: [

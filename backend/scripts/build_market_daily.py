@@ -11,6 +11,7 @@ from backend.market_daily import (
     DEFAULT_WRITER_MODEL,
     article_document,
     build_evidence_pack,
+    build_market_tape,
     generate_validated_article,
     latest_market_days,
     save_article,
@@ -28,6 +29,7 @@ def _summary(document: dict[str, Any]) -> dict[str, Any]:
         "quality": document.get("quality"),
         "source_count": len(document.get("sources") or []),
         "evidence_hash": document.get("evidence_hash"),
+        "skip_reason": document.get("skip_reason"),
     }
 
 
@@ -40,10 +42,31 @@ def _run_one(
     save_draft: bool,
     with_research: bool,
 ) -> dict[str, Any]:
+    if publish:
+        existing = store.get_market_daily("US", edition_date)
+        if existing:
+            return {**existing, "skip_reason": "already_published"}
+
+    tape = build_market_tape(edition_date)
+    if publish:
+        latest = store.get_market_daily("US")
+        if (
+            latest
+            and latest.get("edition_date") != edition_date
+            and latest.get("previous_session_date") == tape.get("previous_session_date")
+        ):
+            return {
+                "edition_date": edition_date,
+                "status": "skipped",
+                "skip_reason": "no_new_market_session",
+                "previous_session_date": tape.get("previous_session_date"),
+            }
+
     evidence = build_evidence_pack(
         store,
         edition_date=edition_date,
         with_research=with_research,
+        tape=tape,
     )
     article, validation = generate_validated_article(evidence, model=model)
     document = article_document(

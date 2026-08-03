@@ -5,9 +5,9 @@ import { llmApiKey, llmApiUrl, llmModel, llmProvider } from "@/lib/server-llm";
 const ORIGINAL_ENV = { ...process.env };
 const LLM_ENV_KEYS = [
   "LLM_PROVIDER",
-  "LLM_API_KEY",
-  "LLM_API_URL",
   "LLM_MODEL",
+  "OPENROUTER_API_KEY",
+  "OPENROUTER_MODEL",
   "CEREBRAS_API_KEY",
   "CEREBRAS_API_URL",
   "CEREBRAS_MODEL",
@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("server LLM provider", () => {
-  it("uses Cerebras when LLM_PROVIDER is cerebras", () => {
+  it("ignores a legacy Cerebras provider and uses direct OpenAI", () => {
     setLlmEnv({
       LLM_PROVIDER: "cerebras",
       CEREBRAS_API_KEY: "cerebras-key",
@@ -41,33 +41,33 @@ describe("server LLM provider", () => {
       OPENAI_API_KEY: "openai-key",
     });
 
-    expect(llmProvider()).toBe("cerebras");
-    expect(llmApiKey()).toBe("cerebras-key");
-    expect(llmApiUrl()).toBe("https://api.cerebras.ai/v1/chat/completions");
-    expect(llmModel()).toBe("gpt-oss-120b");
+    expect(llmProvider()).toBe("openai");
+    expect(llmApiKey()).toBe("openai-key");
+    expect(llmApiUrl()).toBe("https://api.openai.com/v1/chat/completions");
+    expect(llmModel()).toBe("gpt-5.6-luna");
   });
 
-  it("auto-selects Cerebras when only CEREBRAS_API_KEY is present", () => {
+  it("does not fall back to a third-party key", () => {
     setLlmEnv({
       CEREBRAS_API_KEY: "cerebras-key",
     });
 
-    expect(llmProvider()).toBe("cerebras");
-    expect(llmApiKey()).toBe("cerebras-key");
-    expect(llmModel()).toBe("gpt-oss-120b");
+    expect(llmProvider()).toBe("openai");
+    expect(llmApiKey()).toBe("");
+    expect(llmModel()).toBe("gpt-5.6-luna");
   });
 
-  it("lets explicit LLM_* env override provider defaults", () => {
+  it("normalizes stale router model names to Luna", () => {
     setLlmEnv({
-      LLM_PROVIDER: "cerebras",
-      LLM_API_KEY: "explicit-key",
-      LLM_API_URL: "https://example.test/v1/chat/completions",
-      LLM_MODEL: "custom-model",
-      CEREBRAS_API_KEY: "cerebras-key",
+      LLM_PROVIDER: "openrouter",
+      LLM_MODEL: "qwen/qwen-2.5-7b-instruct",
+      OPENROUTER_API_KEY: "router-key",
+      OPENAI_API_KEY: "openai-key",
     });
 
-    expect(llmApiKey()).toBe("explicit-key");
-    expect(llmApiUrl()).toBe("https://example.test/v1/chat/completions");
-    expect(llmModel()).toBe("custom-model");
+    expect(llmProvider()).toBe("openai");
+    expect(llmApiKey()).toBe("openai-key");
+    expect(llmApiUrl()).toBe("https://api.openai.com/v1/chat/completions");
+    expect(llmModel()).toBe("gpt-5.6-luna");
   });
 });

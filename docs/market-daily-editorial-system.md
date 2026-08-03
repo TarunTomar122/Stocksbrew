@@ -102,7 +102,7 @@ An unsupported explanation is written as unresolved. That is a useful result.
 
 ## Generation and publication
 
-The full evidence pack goes to one OpenRouter writer call using GPT-5.5. There
+The full evidence pack goes to one direct OpenAI writer call using GPT-5.5. There
 is no reviewer model, repair call, fallback-model carousel, or deterministic
 attempt to score whether prose feels human. The prompt owns style and length.
 
@@ -114,7 +114,13 @@ model call.
 
 Every published document stores its model, evidence hash, sources, operational
 validation result, word count, generation time, data components, and correction
-status.
+status. On weekdays, publication runs after the 2 PM IST premarket pipeline has
+completed successfully. Transient failures retry automatically. Idempotency and
+previous-session checks prevent duplicate editions on reruns and market holidays.
+
+Each archive card uses a deterministic, date-specific CC0 cover selected from a
+larger topic-matched result set. Consecutive editions therefore do not all reuse
+the first image returned by the provider.
 
 ## Corrections
 

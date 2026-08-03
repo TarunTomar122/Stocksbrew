@@ -58,10 +58,11 @@ TIKRR_REPO_DIR=/opt/tikrr
 TIKRR_LOCK_DIR=/tmp/tikrr-locks
 GOOGLE_CLOUD_PROJECT=tikrr-496409
 GOOGLE_APPLICATION_CREDENTIALS=/etc/tikrr/firebase-service-account.json
-LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=...
-OPENROUTER_MODEL=deepseek/deepseek-v4-flash
+LLM_PROVIDER=openai
 OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.6-luna
+LLM_ENRICHMENT_PROVIDER=openai
+LLM_ENRICHMENT_MODEL=gpt-5.6-luna
 STOCK_BRIEF_PROVIDER=openai
 STOCK_BRIEF_MODEL=gpt-5.6-luna
 STOCK_BRIEF_REASONING_EFFORT=low
@@ -106,7 +107,7 @@ ssh ubuntu@144.217.6.112 'nano /etc/tikrr/backend.env'
 Fill:
 
 ```bash
-OPENROUTER_API_KEY=...
+OPENAI_API_KEY=...
 SEC_USER_AGENT=Stocksbrew Radar your-real-contact@example.com
 CONTEXT_DEV_API_KEY=...
 CONTEXT_API_KEY=...

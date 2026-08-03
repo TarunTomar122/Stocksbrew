@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from backend.market_daily import latest_market_days, market_daily_cover_query, validate_article
+from backend.market_daily import (
+    latest_market_days,
+    market_daily_cover_index,
+    market_daily_cover_query,
+    validate_article,
+)
 
 
 def evidence() -> dict:
@@ -113,3 +118,22 @@ class MarketDailyValidationTests(TestCase):
             market_daily_cover_query("AI spending hits chipmakers", "Data centers are in focus."),
             "data center server rack",
         )
+
+    def test_cover_index_varies_by_edition_and_is_stable(self) -> None:
+        query = "data center server rack"
+        first = market_daily_cover_index("2026-07-28", query, 20)
+        self.assertEqual(first, market_daily_cover_index("2026-07-28", query, 20))
+        self.assertNotEqual(first, market_daily_cover_index("2026-07-29", query, 20))
+
+    def test_cover_query_varies_the_visual_subject_by_edition(self) -> None:
+        first = market_daily_cover_query(
+            "AI spending hits chipmakers",
+            "Data centers are in focus.",
+            "2026-07-28",
+        )
+        second = market_daily_cover_query(
+            "AI spending hits chipmakers",
+            "Data centers are in focus.",
+            "2026-07-29",
+        )
+        self.assertNotEqual(first, second)

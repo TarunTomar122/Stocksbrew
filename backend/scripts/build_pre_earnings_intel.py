@@ -252,7 +252,7 @@ def _llm_synthesize(payload: dict[str, Any], model_name: str) -> dict[str, Any]:
         headers=llm_headers(api_key),
         json={
             "model": model_name,
-            "temperature": 0.25,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",

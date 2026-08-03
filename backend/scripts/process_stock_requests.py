@@ -54,7 +54,7 @@ SUFFIX_RE = re.compile(
 )
 PUNCT_RE = re.compile(r"[^a-z0-9\s]")
 SPACE_RE = re.compile(r"\s+")
-OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+OPENAI_DEFAULT_MODEL = "gpt-5.6-luna"
 STALE_RUNNING_TTL_MINUTES = 20
 # `needs_confirmation` is a terminal human-input state. Re-running the same
 # ambiguous/junk query every 30 minutes burns provider and model capacity and
@@ -255,7 +255,7 @@ def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
         headers=llm_headers(api_key),
         json={
             "model": model,
-            "temperature": 0.0,
+            "reasoning_effort": "low",
             "messages": [
                 {"role": "system", "content": schema_system_prompt(SYMBOL_HINT_PROMPT, {"type": "object"})},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},

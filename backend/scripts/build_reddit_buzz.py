@@ -37,7 +37,7 @@ DEFAULT_SUBREDDITS = [
     "ETFs",
     "pennystocks",
 ]
-OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+OPENAI_DEFAULT_MODEL = "gpt-5.6-luna"
 DEFAULT_SUBREDDIT_BATCH_SIZE = 4
 DEFAULT_CACHE_HOURS = 120
 MIN_PUBLISH_POST_COUNT = 40
@@ -640,7 +640,7 @@ def _llm_extract(
         headers=llm_headers(api_key),
         json={
             "model": model,
-            "temperature": 0.2,
+            "reasoning_effort": "low",
             "messages": [
                 {"role": "system", "content": schema_system_prompt(TICKER_EXTRACTION_PROMPT, {"type": "object"})},
                 {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},

@@ -454,7 +454,8 @@ ${JSON.stringify(stockIntelPayload)}`;
 
   try {
     const result = streamText({
-      model: chatProvider(llmModel("qwen/qwen3.5-flash-02-23")),
+      model: chatProvider(llmModel("gpt-5.6-luna")),
+      providerOptions: { openai: { reasoningEffort: "low" } },
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
     });

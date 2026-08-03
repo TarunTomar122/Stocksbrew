@@ -61,16 +61,16 @@ class _Store:
 class StockBriefContractTest(unittest.TestCase):
     def test_stock_brief_uses_shared_deepseek_model_by_default(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
-            self.assertEqual(stock_brief_model(), "deepseek/deepseek-v4-flash")
+            self.assertEqual(stock_brief_model(), "gpt-5.6-luna")
         with patch.dict(
             "os.environ",
             {
-                "LLM_PROVIDER": "openrouter",
-                "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash",
+                "LLM_PROVIDER": "openai",
+                "OPENAI_MODEL": "gpt-5.6-luna",
             },
             clear=True,
         ):
-            self.assertEqual(stock_brief_model(), "deepseek/deepseek-v4-flash")
+            self.assertEqual(stock_brief_model(), "gpt-5.6-luna")
 
     def test_sentence_cleaner_preserves_hyphenated_finance_terms(self) -> None:
         self.assertEqual(_clean_sentence("Valuation re-rating"), "Valuation re-rating")

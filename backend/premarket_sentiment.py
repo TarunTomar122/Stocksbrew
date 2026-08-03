@@ -484,7 +484,7 @@ def llm_synthesis(payload: dict[str, Any]) -> tuple[str, list[dict[str, str]], s
                 {"role": "system", "content": schema_system_prompt(OPENING_PROMPT, OPENING_SCHEMA)},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
             ],
-            model=llm_model("deepseek/deepseek-v4-flash"),
+            model=llm_model("gpt-5.6-luna"),
             temperature=0.15,
             response_format=json_response_format(),
             timeout=45,
@@ -504,7 +504,7 @@ def llm_synthesis(payload: dict[str, Any]) -> tuple[str, list[dict[str, str]], s
                 drivers.append({"title": title, "detail": detail, "tone": tone})
             if len(drivers) >= 3:
                 break
-        return summary, drivers, llm_model("deepseek/deepseek-v4-flash")
+        return summary, drivers, llm_model("gpt-5.6-luna")
     except Exception as exc:
         print(f"[warn] opening-sentiment LLM synthesis failed: {exc}")
         return "", [], "rules"

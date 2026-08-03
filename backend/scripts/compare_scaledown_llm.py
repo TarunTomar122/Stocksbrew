@@ -208,7 +208,7 @@ def _openai_stock_brief(
         headers=llm_headers(api_key),
         json={
             "model": model,
-            "temperature": 0.2,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",
@@ -313,7 +313,7 @@ def _openai_reddit_extract(post_blob: str) -> dict[str, Any] | None:
         headers=llm_headers(api_key),
         json={
             "model": llm_model(),
-            "temperature": 0.2,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",

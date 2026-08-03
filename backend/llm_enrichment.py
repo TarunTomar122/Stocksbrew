@@ -337,7 +337,7 @@ class OpenAIArticleEnricher:
 
     def enrich_articles(self, articles: list[Article]) -> list[Article]:
         if not self.enabled:
-            raise ValueError("OPENROUTER_API_KEY or LLM_ENRICHMENT_API_KEY is required for article enrichment")
+            raise ValueError("OPENAI_API_KEY is required for article enrichment")
         self._ensure_store()
         enriched: list[Article | None] = [None] * len(articles)
         pending_prepare: list[tuple[int, Article, str]] = []
@@ -465,7 +465,7 @@ class OpenAIArticleEnricher:
     def _request_payload(self, article: Article, repair: bool = False) -> dict[str, Any]:
         return {
             "model": self.model,
-            "temperature": 0.1,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",

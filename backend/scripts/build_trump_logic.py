@@ -21,7 +21,7 @@ from backend.llm_client import (
 from backend.storage import TraceMoneyStore
 from backend.truth_social_client import fetch_trump_truth_posts
 
-OPENAI_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+OPENAI_DEFAULT_MODEL = "gpt-5.6-luna"
 DEFAULT_BATCH_SIZE = 50
 DEFAULT_INCREMENTAL_FETCH_DAYS = 5
 
@@ -221,7 +221,7 @@ def _llm_scan_batch(
         headers=llm_headers(api_key),
         json={
             "model": model,
-            "temperature": 0.1,
+            "reasoning_effort": "low",
             "messages": [
                 {
                     "role": "system",

@@ -12,26 +12,72 @@ export type MarketDailyCoverImage = {
 
 const OPENVERSE_IMAGES_URL = "https://api.openverse.org/v1/images/";
 
-const COVER_TOPICS: Array<{ test: RegExp; query: string }> = [
-  { test: /\b(ai|artificial intelligence|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b/i, query: "data center server rack" },
-  { test: /\b(oil|energy|crude|refinery|gas)\b/i, query: "oil refinery" },
-  { test: /\b(bank|rates?|treasury|fed|inflation|bond)\b/i, query: "financial district skyline" },
-  { test: /\b(earnings|revenue|profit|guidance|quarter)\b/i, query: "modern office building" },
+const COVER_TOPICS: Array<{ test: RegExp; topic: string; queries: string[] }> = [
+  {
+    test: /\b(ai|artificial intelligence|tech|technology|chip|semiconductor|data cent(?:er|re)|nvidia|software)\b/i,
+    topic: "ai",
+    queries: [
+      "data center server rack",
+      "semiconductor manufacturing clean room",
+      "computer circuit board close up",
+      "technology research laboratory",
+      "microchip wafer",
+    ],
+  },
+  {
+    test: /\b(oil|energy|crude|refinery|gas)\b/i,
+    topic: "energy",
+    queries: ["oil refinery", "oil pumpjack", "crude oil tanker", "natural gas pipeline"],
+  },
+  {
+    test: /\b(bank|rates?|treasury|fed|inflation|bond)\b/i,
+    topic: "rates",
+    queries: ["financial district skyline", "bank building", "US Treasury building", "bond certificate"],
+  },
+  {
+    test: /\b(earnings|revenue|profit|guidance|quarter)\b/i,
+    topic: "earnings",
+    queries: ["modern office building", "corporate headquarters", "business meeting", "factory production line"],
+  },
 ];
 
-export function marketDailyCoverQuery(headline: string, dek: string): string {
+const DEFAULT_COVER_QUERIES = [
+  "stock exchange trading floor",
+  "wall street street sign",
+  "new york financial district",
+  "stock market display",
+];
+
+export function marketDailyCoverIndex(editionDate: string, query: string, resultCount: number): number {
+  if (resultCount <= 0) return 0;
+  let value = 0;
+  for (const character of `${editionDate}:${query}`) {
+    value = (Math.imul(value, 31) + character.charCodeAt(0)) >>> 0;
+  }
+  return value % resultCount;
+}
+
+export function marketDailyCoverQuery(headline: string, dek: string, editionDate = ""): string {
   const story = `${headline} ${dek}`;
-  return COVER_TOPICS.find(({ test }) => test.test(story))?.query ?? "stock exchange trading floor";
+  const match = COVER_TOPICS.find(({ test }) => test.test(story));
+  if (match) {
+    if (!editionDate) return match.queries[0];
+    return match.queries[marketDailyCoverIndex(editionDate, match.topic, match.queries.length)];
+  }
+  if (!editionDate) return DEFAULT_COVER_QUERIES[0];
+  return DEFAULT_COVER_QUERIES[
+    marketDailyCoverIndex(editionDate, "market", DEFAULT_COVER_QUERIES.length)
+  ];
 }
 
 const fetchCover = unstable_cache(
   async (editionDate: string, headline: string, dek: string): Promise<MarketDailyCoverImage | null> => {
     const response = await fetch(
       `${OPENVERSE_IMAGES_URL}?${new URLSearchParams({
-        q: marketDailyCoverQuery(headline, dek),
+        q: marketDailyCoverQuery(headline, dek, editionDate),
         license: "cc0",
         mature: "false",
-        page_size: "1",
+        page_size: "20",
       })}`,
       {
         headers: { "User-Agent": "stocksbrew-market-daily/1.0" },
@@ -43,7 +89,11 @@ const fetchCover = unstable_cache(
     const payload = (await response.json().catch(() => null)) as {
       results?: Array<{ thumbnail?: string; title?: string; foreign_landing_url?: string; license?: string }>;
     } | null;
-    const image = payload?.results?.find((result) => result.thumbnail && result.license === "cc0");
+    const query = marketDailyCoverQuery(headline, dek, editionDate);
+    const eligible = payload?.results?.filter(
+      (result) => result.thumbnail && result.license === "cc0",
+    ) ?? [];
+    const image = eligible[marketDailyCoverIndex(editionDate, query, eligible.length)];
     if (!image?.thumbnail) return null;
 
     return {
@@ -54,7 +104,7 @@ const fetchCover = unstable_cache(
       license: "cc0",
     };
   },
-  ["market-daily-cover"],
+  ["market-daily-cover-v2"],
   { revalidate: 60 * 60 * 24 * 90 },
 );
 
