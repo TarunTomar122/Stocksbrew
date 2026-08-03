@@ -40,8 +40,9 @@ class PremarketBriefTemplateTests(unittest.TestCase):
             premarket_context={
                 "by_ticker": {
                     "NVDA": {
-                        "headline": "Micron earnings lift chip complex",
-                        "tape_line": "Chip stocks are moving after Micron posted strong earnings.",
+                        "headline": "Nvidia launches its next data-center platform",
+                        "why": "Nvidia's new platform expands its enterprise AI offering.",
+                        "tape_line": "Nvidia launched a new data-center platform aimed at expanding enterprise AI demand.",
                         "source": "IBD",
                     },
                 }
@@ -57,7 +58,7 @@ class PremarketBriefTemplateTests(unittest.TestCase):
         self.assertIn("Top gainers", html)
         self.assertIn("Top losers", html)
         self.assertIn("Sectors pre-market", html)
-        self.assertIn("Chip stocks are moving after Micron posted strong earnings.", html)
+        self.assertIn("Nvidia launched a new data-center platform", html)
         self.assertNotIn("action_now", html.lower())
         self.assertNotIn("trim", html.lower())
 

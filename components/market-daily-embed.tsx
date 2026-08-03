@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   Legend,
   Line,
@@ -180,7 +181,20 @@ function SectorChart({ edition }: { edition: MarketDailyEdition }) {
               contentStyle={{ background: "var(--inverse-surface)", border: 0, color: "var(--inverse-on-surface)", borderRadius: 2 }}
               itemStyle={{ color: "var(--inverse-on-surface)" }}
             />
-            <Bar dataKey="value" fill="var(--primary)" radius={[0, 2, 2, 0]} />
+            <Bar dataKey="value" radius={2}>
+              {data.map((row) => (
+                <Cell
+                  key={row.label}
+                  fill={
+                    Number(row.value) > 0
+                      ? "var(--signal-bullish)"
+                      : Number(row.value) < 0
+                        ? "var(--signal-bearish)"
+                        : "var(--signal-neutral)"
+                  }
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -316,7 +316,7 @@ def summarize_news(
         row = raw if isinstance(raw, dict) else {}
         detail = _clip(row.get("why") or row.get("headline"), 170)
         tape_line = _clip(row.get("tape_line"), 170)
-        if not detail and not tape_line:
+        if not tape_line:
             continue
         symbol = str(ticker or "").upper()
         rows.append({

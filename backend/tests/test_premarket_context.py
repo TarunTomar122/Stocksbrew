@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from backend.models import Article
-from backend.premarket_intel import subscriber_book_mover_tickers
+from backend.premarket_intel import context_row_matches_ticker, subscriber_book_mover_tickers
 from backend.scripts.build_premarket_context import build_context_for_movers
 
 
@@ -42,6 +42,51 @@ def _article(ticker: str) -> Article:
 
 
 class PremarketContextTests(unittest.TestCase):
+    def test_context_relevance_rejects_wrong_company_and_ambiguous_ticker_matches(self) -> None:
+        self.assertFalse(
+            context_row_matches_ticker(
+                {"headline": "Amgen reports earnings tomorrow", "why": "Analysts expect modest growth."},
+                "PLTR",
+                "Palantir Technologies",
+            )
+        )
+        self.assertFalse(
+            context_row_matches_ticker(
+                {"headline": "Amundi raises its Dollar General stake", "why": "The DG position increased."},
+                "MU",
+                "Micron Technology",
+            )
+        )
+        self.assertFalse(
+            context_row_matches_ticker(
+                {"headline": "What investors should watch now", "why": "A broad market outlook."},
+                "NOW",
+                "ServiceNow",
+            )
+        )
+        self.assertTrue(
+            context_row_matches_ticker(
+                {"headline": "ServiceNow partners with Boomi", "why": "The workflow program expands."},
+                "NOW",
+                "ServiceNow",
+            )
+        )
+
+    def test_article_metadata_cannot_override_wrong_company_text(self) -> None:
+        article = _article("PLTR")
+        article.title = "Amgen reports earnings tomorrow"
+        article.summary = "Analysts expect slower Amgen revenue growth."
+
+        from backend.premarket_intel import pick_best_article
+
+        self.assertIsNone(
+            pick_best_article(
+                [article],
+                "PLTR",
+                company_name="Palantir Technologies",
+            )
+        )
+
     def test_subscriber_book_candidates_match_each_users_top_email_rows(self) -> None:
         store = MagicMock()
         store.list_subscribed_users.return_value = [

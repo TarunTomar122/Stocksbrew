@@ -65,13 +65,7 @@ export default async function MarketDailyArchivePage() {
                 className={styles.editionCard}
                 key={edition.edition_date}
               >
-                <div className={styles.cardImageWrap}>
-                  <img
-                    alt=""
-                    className={styles.cardImage}
-                    loading={index < 3 ? "eager" : "lazy"}
-                    src={`/api/market-daily-cover/${edition.edition_date}?v=3`}
-                  />
+                <div className={styles.cardImageWrap} aria-hidden="true">
                   {index === 0 ? <span className={styles.cardLatest}>Latest</span> : null}
                 </div>
                 <div className={styles.cardBody}>

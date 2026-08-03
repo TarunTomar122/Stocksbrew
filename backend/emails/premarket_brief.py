@@ -8,7 +8,7 @@ from backend.email_content import clean_optional_email_text
 from backend.emails._assets import logo_img
 from backend.emails._shell import email_shell
 from backend.emails.price_alert import _fmt_price, quote_ticker
-from backend.premarket_intel import PREMARKET_GAP_THRESHOLD
+from backend.premarket_intel import PREMARKET_GAP_THRESHOLD, context_row_matches_ticker
 
 DIGEST_WIDTH = 640
 DIGEST_FOOTER = (
@@ -28,11 +28,7 @@ def _gap_arrow(gap: float) -> str:
 
 
 def _context_tape_line(ctx: dict[str, Any]) -> str:
-    for key in ("tape_line", "why", "headline"):
-        text = clean_optional_email_text(ctx.get(key), max_chars=220)
-        if text:
-            return text
-    return ""
+    return clean_optional_email_text(ctx.get("tape_line"), max_chars=220)
 
 
 def _table_header(cells: list[tuple[str, str]]) -> str:
@@ -93,6 +89,7 @@ def _news_section_rows(
     tickers: list[str],
     context_by_ticker: dict[str, dict[str, Any]],
     overnight_by_ticker: dict[str, dict[str, Any]],
+    company_by_ticker: dict[str, str],
 ) -> str:
     items: list[str] = []
     seen: set[str] = set()
@@ -103,6 +100,12 @@ def _news_section_rows(
         tape_line = ""
         for ctx in (context_by_ticker.get(sym), overnight_by_ticker.get(sym)):
             if isinstance(ctx, dict):
+                if not context_row_matches_ticker(
+                    ctx,
+                    sym,
+                    company_by_ticker.get(sym, ""),
+                ):
+                    continue
                 tape_line = _context_tape_line(ctx)
             if tape_line:
                 break
@@ -179,7 +182,23 @@ def build_premarket_brief_email(
         for row, _, _ in book_hits[:8]
         if str(row.get("ticker") or "").strip()
     ]
-    news_rows = _news_section_rows(news_tickers, context_by_ticker, overnight_by_ticker)
+    company_by_ticker = {
+        str(row.get("ticker") or "").strip().upper(): str(
+            row.get("instrument_name")
+            or row.get("name")
+            or row.get("display_name")
+            or row.get("ticker")
+            or ""
+        ).strip()
+        for row in rows
+        if str(row.get("ticker") or "").strip()
+    }
+    news_rows = _news_section_rows(
+        news_tickers,
+        context_by_ticker,
+        overnight_by_ticker,
+        company_by_ticker,
+    )
 
     if book_hits:
         top_ticker, _top_hit, top_gap = book_hits[0]

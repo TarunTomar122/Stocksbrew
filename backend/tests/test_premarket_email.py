@@ -50,10 +50,18 @@ class PremarketEmailIntelTests(unittest.TestCase):
     def test_load_premarket_intel_for_book_merges_context_and_overnight(self) -> None:
         store = MagicMock()
         store.get_premarket_context.return_value = {
-            "by_ticker": {"NVDA": {"headline": "Nvidia gaps on earnings"}},
+            "by_ticker": {
+                "NVDA": {
+                    "headline": "Nvidia gaps on earnings",
+                    "tape_line": "Nvidia shares are moving after its earnings report.",
+                }
+            },
         }
         store.get_active_ai_universe.return_value = "us_ai_launch"
-        rows = [{"ticker": "AAPL"}, {"ticker": "NVDA"}]
+        rows = [
+            {"ticker": "AAPL", "instrument_name": "Apple"},
+            {"ticker": "NVDA", "instrument_name": "Nvidia"},
+        ]
 
         with patch("backend.premarket_email.overnight_headlines_by_ticker") as overnight, patch(
             "backend.premarket_tape_llm.enrich_context_with_tape_lines"
@@ -81,14 +89,19 @@ class PremarketEmailIntelTests(unittest.TestCase):
             universe_id="us_ai_launch",
             tickers=["AAPL"],
             lookback_hours=14,
-            company_by_ticker={"AAPL": "AAPL", "NVDA": "NVDA"},
+            company_by_ticker={"AAPL": "Apple", "NVDA": "Nvidia"},
             gap_by_ticker={"AAPL": 1.5, "NVDA": 3.0},
         )
 
     def test_load_premarket_intel_avoids_overnight_reads_when_context_covers_email_rows(self) -> None:
         store = MagicMock()
         store.get_premarket_context.return_value = {
-            "by_ticker": {"NVDA": {"headline": "Nvidia gaps on earnings"}},
+            "by_ticker": {
+                "NVDA": {
+                    "headline": "Nvidia gaps on earnings",
+                    "tape_line": "Nvidia shares are moving after its earnings report.",
+                }
+            },
         }
         store.get_active_ai_universe.return_value = "us_ai_launch"
 
@@ -98,7 +111,10 @@ class PremarketEmailIntelTests(unittest.TestCase):
             _context, headlines = load_premarket_intel_for_book(
                 store,
                 market="US",
-                rows=[{"ticker": "NVDA"}, {"ticker": "AAPL"}],
+                rows=[
+                    {"ticker": "NVDA", "instrument_name": "Nvidia"},
+                    {"ticker": "AAPL", "instrument_name": "Apple"},
+                ],
                 premarket={
                     "by_ticker": {
                         "NVDA": {"pre_market_change_pct": 3.0},

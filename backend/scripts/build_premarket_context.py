@@ -78,6 +78,13 @@ def build_context_for_movers(
         return payload
 
     instruments = _instruments_for_tickers(market, tickers)
+    company_by_ticker = {
+        str(inst.get("ticker") or "").strip().upper(): str(
+            inst.get("name") or inst.get("ticker") or ""
+        ).strip()
+        for inst in instruments
+        if str(inst.get("ticker") or "").strip()
+    }
     batch_started = time.perf_counter()
     av_articles = fetch_av_news_for_tickers(
         tickers,
@@ -86,7 +93,15 @@ def build_context_for_movers(
     )
     batch_elapsed = round(time.perf_counter() - batch_started, 2)
 
-    batch_covered = {ticker for ticker in tickers if pick_best_article(av_articles, ticker) is not None}
+    batch_covered = {
+        ticker
+        for ticker in tickers
+        if pick_best_article(
+            av_articles,
+            ticker,
+            company_name=company_by_ticker.get(ticker, ""),
+        ) is not None
+    }
     fallback_tickers = [ticker for ticker in tickers if ticker not in batch_covered]
     fallback_started = time.perf_counter()
     finnhub_articles = (
@@ -106,23 +121,24 @@ def build_context_for_movers(
 
     by_ticker: dict[str, dict[str, Any]] = {}
     for ticker in tickers:
-        article = pick_best_article(articles, ticker)
+        company_name = company_by_ticker.get(ticker, "")
+        article = pick_best_article(articles, ticker, company_name=company_name)
         if article is not None:
-            by_ticker[ticker] = article_to_context_row(article)
+            by_ticker[ticker] = article_to_context_row(
+                article,
+                ticker=ticker,
+                company_name=company_name,
+            )
             continue
-        enrichment = pick_best_enrichment(enrichments, ticker, cutoff=cutoff)
+        enrichment = pick_best_enrichment(
+            enrichments,
+            ticker,
+            cutoff=cutoff,
+            company_name=company_name,
+        )
         if enrichment:
             by_ticker[ticker] = enrichment
 
-    # Missing context is represented by absence.  Email renderers can then try
-    # another source or omit the item instead of shipping a no-data placeholder.
-    no_catalyst_tickers = [ticker for ticker in tickers if ticker not in by_ticker]
-
-    company_by_ticker = {
-        str(inst.get("ticker") or "").strip().upper(): str(inst.get("name") or inst.get("ticker") or "").strip()
-        for inst in instruments
-        if str(inst.get("ticker") or "").strip()
-    }
     gap_by_ticker: dict[str, float] = {}
     for row in list(premarket.get("gappers_up") or []) + list(premarket.get("gappers_down") or []):
         sym = str(row.get("ticker") or "").strip().upper()
@@ -143,6 +159,12 @@ def build_context_for_movers(
         gap_by_ticker=gap_by_ticker,
     )
     tape_elapsed = round(time.perf_counter() - tape_started, 2)
+    by_ticker = {
+        ticker: row
+        for ticker, row in by_ticker.items()
+        if bool(row.get("relevance_verified"))
+    }
+    no_catalyst_tickers = [ticker for ticker in tickers if ticker not in by_ticker]
 
     payload = {
         "market": market,

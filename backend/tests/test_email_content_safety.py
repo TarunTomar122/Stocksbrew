@@ -34,16 +34,25 @@ class EmailContentSafetyTests(unittest.TestCase):
         _, html = build_premarket_brief_email(
             first_name="Arun",
             premarket=premarket,
-            rows=[{"ticker": "SMCI"}, {"ticker": "DELL"}, {"ticker": "COHR"}],
+            rows=[
+                {"ticker": "SMCI", "instrument_name": "Super Micro Computer"},
+                {"ticker": "DELL", "instrument_name": "Dell Technologies"},
+                {"ticker": "COHR", "instrument_name": "Coherent"},
+            ],
             premarket_context={
                 "by_ticker": {
-                    "SMCI": {"tape_line": "Super Micro raised its quarterly revenue outlook."},
-                    "DELL": {"tape_line": MISSING_CATALYST},
-                    "COHR": {"tape_line": MISSING_CATALYST},
+                    "SMCI": {
+                        "headline": "Super Micro raises quarterly revenue outlook",
+                        "tape_line": "Super Micro raised its quarterly revenue outlook.",
+                    },
+                    "COHR": {"headline": "Coherent has no confirmed catalyst", "tape_line": MISSING_CATALYST},
                 }
             },
             overnight_headlines={
-                "DELL": {"tape_line": "Dell announced a new enterprise AI infrastructure contract."},
+                "DELL": {
+                    "headline": "Dell wins enterprise AI infrastructure contract",
+                    "tape_line": "Dell announced a new enterprise AI infrastructure contract.",
+                },
             },
         )
 

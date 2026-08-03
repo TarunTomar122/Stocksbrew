@@ -23,7 +23,7 @@ from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
 
-CACHE_VERSION = "premarket-tape-v2"
+CACHE_VERSION = "premarket-tape-v3"
 BATCH_SIZE = 40
 MAX_TAPE_WORDS = 28
 
@@ -36,6 +36,8 @@ TAPE_PROMPT = (
     "- No clickbait, no SEO phrasing, no 'here's why', no emojis.\n"
     "- Do not mention the publisher/source name.\n"
     "- If the input is vague, unrelated, or has no concrete event, return an empty tape_line for that ticker.\n"
+    "- Treat the ticker/company mapping as a claim to verify, not as truth. The raw text must name that ticker or company.\n"
+    "- If the raw text names a different company and not the requested one, return an empty tape_line.\n"
     "- Use the gap direction only when it helps explain the move.\n"
 )
 
@@ -150,12 +152,19 @@ def enrich_context_with_tape_lines(
     company_by_ticker = company_by_ticker or {}
     gap_by_ticker = gap_by_ticker or {}
     pending: list[dict[str, Any]] = []
-    cached: dict[str, str] = {}
+
+    from backend.premarket_intel import context_row_matches_ticker
 
     for ticker, row in by_ticker.items():
         sym = str(ticker or "").strip().upper()
         if not sym or not isinstance(row, dict):
             continue
+        company_name = company_by_ticker.get(sym) or str(row.get("company") or "")
+        if not context_row_matches_ticker(row, sym, company_name):
+            row.pop("tape_line", None)
+            row["relevance_verified"] = False
+            continue
+        row["relevance_verified"] = True
         if row.get("tape_line") and not force:
             continue
 
@@ -175,7 +184,7 @@ def enrich_context_with_tape_lines(
 
         pending.append({
             "ticker": sym,
-            "company": company_by_ticker.get(sym) or sym,
+            "company": company_name or sym,
             "gap_pct": gap_by_ticker.get(sym),
             "raw_headline": raw_headline,
             "raw_detail": raw_detail,
@@ -207,14 +216,3 @@ def enrich_context_with_tape_lines(
                         "model": llm_model(default_llm_model()),
                     },
                 )
-
-    for ticker, row in by_ticker.items():
-        sym = str(ticker or "").strip().upper()
-        if not sym or not isinstance(row, dict) or row.get("tape_line"):
-            continue
-        raw_headline = str(row.get("headline") or "").strip()
-        raw_detail = str(row.get("why") or "").strip()
-        if raw_headline or raw_detail:
-            line = _fallback_tape_line(raw_headline, raw_detail)
-            if line:
-                row["tape_line"] = line

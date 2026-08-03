@@ -65,6 +65,19 @@ function pct(value: number) {
   return <span className="font-mono font-semibold tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>{up ? "▲" : "▼"} {Math.abs(value).toFixed(2)}%</span>;
 }
 
+function openingDate(report: OpeningReport | null, movers: PremarketMovers | null) {
+  const raw = movers?.date || report?.generated_at;
+  if (!raw) return null;
+  const date = new Date(raw.length === 10 ? `${raw}T12:00:00-04:00` : raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York",
+  });
+}
+
 function MarketContext({ sectors, reddit }: { sectors: SectorCard[]; reddit: RedditPick[] }) {
   const rankedSectors = [...sectors].sort((a, b) => b.avg - a.avg).slice(0, 5);
   const crowd = reddit[0];
@@ -113,12 +126,16 @@ function OpeningSetup({ report, movers, marketPhase, marketRisk }: { report: Ope
     .sort((left, right) => Math.abs(right.pre_market_change_pct) - Math.abs(left.pre_market_change_pct))
     .slice(0, 5);
   const toneColor = report?.direction === "positive" ? "var(--signal-bullish)" : report?.direction === "negative" ? "var(--signal-bearish)" : "var(--on-surface)";
+  const setupDate = openingDate(report, movers);
 
   return (
     <section className="border-b border-outline-variant pb-8">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.85fr)] lg:divide-x lg:divide-outline-variant">
         <div className="lg:pr-8">
-          <p className="landing-section-kicker text-landing-brand">Opening setup</p>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <p className="landing-section-kicker text-landing-brand">Opening setup</p>
+            {setupDate ? <time className="font-mono text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">· {setupDate}</time> : null}
+          </div>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 className="text-xl font-bold tracking-tight" style={{ color: toneColor }}>{report?.label ?? "Pre-market activity"}</h2>
             {report ? <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-on-surface-variant">{report.confidence} confidence</span> : null}

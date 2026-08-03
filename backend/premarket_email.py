@@ -9,7 +9,11 @@ from backend.email import send_email
 from backend.email_content import clean_optional_email_text
 from backend.email_runtime import load_recent_send_index, log_email_send
 from backend.emails.premarket_brief import build_premarket_brief_for_user
-from backend.premarket_intel import PREMARKET_GAP_THRESHOLD, overnight_headlines_by_ticker
+from backend.premarket_intel import (
+    PREMARKET_GAP_THRESHOLD,
+    context_row_matches_ticker,
+    overnight_headlines_by_ticker,
+)
 from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
@@ -105,7 +109,12 @@ def _company_by_ticker(rows: list[dict[str, Any]]) -> dict[str, str]:
         ticker = str(row.get("ticker") or "").strip().upper()
         if not ticker:
             continue
-        out[ticker] = str(row.get("name") or row.get("display_name") or ticker).strip()
+        out[ticker] = str(
+            row.get("instrument_name")
+            or row.get("name")
+            or row.get("display_name")
+            or ticker
+        ).strip()
     return out
 
 
@@ -128,6 +137,7 @@ def _missing_book_news_tickers(
 ) -> list[str]:
     by_ticker = (premarket or {}).get("by_ticker") or {}
     context_by_ticker = (premarket_context or {}).get("by_ticker") or {}
+    company_by_ticker = _company_by_ticker(rows)
     hits: list[tuple[float, str]] = []
     for row in rows:
         ticker = str(row.get("ticker") or "").strip().upper()
@@ -144,10 +154,13 @@ def _missing_book_news_tickers(
         row = context_by_ticker.get(ticker)
         if not isinstance(row, dict):
             return False
-        return any(
-            clean_optional_email_text(row.get(key))
-            for key in ("tape_line", "why", "headline")
-        )
+        if not context_row_matches_ticker(
+            row,
+            ticker,
+            company_by_ticker.get(ticker, ""),
+        ):
+            return False
+        return bool(clean_optional_email_text(row.get("tape_line")))
 
     return [
         ticker

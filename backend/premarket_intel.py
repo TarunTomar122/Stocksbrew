@@ -15,6 +15,38 @@ CONTEXT_MOVER_LIMIT = 15
 EMAIL_CONTEXT_PER_USER_LIMIT = 8
 EMAIL_CONTEXT_TICKER_LIMIT = 40
 
+_AMBIGUOUS_TICKERS = {
+    "A",
+    "AI",
+    "ALL",
+    "ARE",
+    "CAR",
+    "FOR",
+    "IT",
+    "NOW",
+    "ON",
+    "OPEN",
+    "SO",
+}
+_COMPANY_NOISE_WORDS = {
+    "adr",
+    "class",
+    "company",
+    "corp",
+    "corporation",
+    "group",
+    "holding",
+    "holdings",
+    "inc",
+    "incorporated",
+    "limited",
+    "ltd",
+    "plc",
+    "sponsored",
+    "technologies",
+    "technology",
+}
+
 
 def parse_iso(value: Any) -> datetime | None:
     s = str(value or "").strip()
@@ -132,10 +164,70 @@ def subscriber_book_mover_tickers(
     return [ticker for ticker, _gap in ordered[: max(0, limit)]]
 
 
-def _article_mentions_ticker(article: Article, ticker: str) -> bool:
+def _company_reference_terms(company_name: str) -> list[str]:
+    terms = [
+        token.lower()
+        for token in re.findall(r"[A-Za-z0-9]+", str(company_name or ""))
+        if token.lower() not in _COMPANY_NOISE_WORDS
+    ]
+    return [term for term in terms if len(term) >= 4 or any(char.isdigit() for char in term)]
+
+
+def context_row_matches_ticker(
+    row: dict[str, Any],
+    ticker: str,
+    company_name: str = "",
+) -> bool:
+    """Require visible evidence that a context row is about the claimed stock.
+
+    Some company-news APIs occasionally return market-wide or wrong-company
+    stories for a symbol. Email is a trust-sensitive surface, so metadata alone
+    is not enough: the raw headline/detail must name the ticker or company.
+    """
+    if not isinstance(row, dict):
+        return False
+    sym = str(ticker or "").strip().upper()
+    if not sym:
+        return False
+    raw_text = " ".join(
+        str(row.get(key) or "")
+        for key in ("headline", "why", "summary", "article_overview", "body_text")
+    )
+    if not raw_text.strip():
+        return False
+
+    if sym not in _AMBIGUOUS_TICKERS:
+        symbol_pattern = re.compile(rf"(?<![A-Z0-9]){re.escape(sym)}(?![A-Z0-9])")
+        if symbol_pattern.search(raw_text):
+            return True
+
+    lowered = raw_text.lower()
+    for term in _company_reference_terms(company_name):
+        if re.search(rf"\b{re.escape(term)}\b", lowered):
+            return True
+    return False
+
+
+def _article_mentions_ticker(
+    article: Article,
+    ticker: str,
+    *,
+    company_name: str = "",
+) -> bool:
     sym = ticker.upper()
-    if sym in str(article.title or "").upper():
+    article_row = {
+        "headline": article.title,
+        "why": article.summary,
+        "body_text": article.body_text,
+    }
+    if context_row_matches_ticker(article_row, sym, company_name):
         return True
+    if company_name:
+        return False
+    # Finnhub's company-news endpoint can return generic or wrong-company
+    # stories. Its requested symbol is therefore not proof of relevance.
+    if str(article.source_id or "").strip().lower() == "finnhub":
+        return False
     focus = str(getattr(article, "focus_ticker", "") or "").strip().upper()
     if focus == sym:
         return True
@@ -147,14 +239,20 @@ def _article_mentions_ticker(article: Article, ticker: str) -> bool:
     return bool(pattern.search(blob))
 
 
-def score_article_for_ticker(article: Article, ticker: str, *, now: datetime | None = None) -> float:
+def score_article_for_ticker(
+    article: Article,
+    ticker: str,
+    *,
+    company_name: str = "",
+    now: datetime | None = None,
+) -> float:
     now = now or datetime.now(timezone.utc)
     sym = ticker.upper()
     score = 0.0
     title = str(article.title or "")
     if sym in title.upper():
         score += 12.0
-    if _article_mentions_ticker(article, sym):
+    if _article_mentions_ticker(article, sym, company_name=company_name):
         score += 4.0
     published = parse_iso(article.published_at)
     if published:
@@ -171,15 +269,36 @@ def score_article_for_ticker(article: Article, ticker: str, *, now: datetime | N
     return score
 
 
-def pick_best_article(articles: list[Article], ticker: str) -> Article | None:
-    matches = [article for article in articles if _article_mentions_ticker(article, ticker)]
+def pick_best_article(
+    articles: list[Article],
+    ticker: str,
+    *,
+    company_name: str = "",
+) -> Article | None:
+    matches = [
+        article
+        for article in articles
+        if _article_mentions_ticker(article, ticker, company_name=company_name)
+    ]
     if not matches:
         return None
-    matches.sort(key=lambda article: score_article_for_ticker(article, ticker), reverse=True)
+    matches.sort(
+        key=lambda article: score_article_for_ticker(
+            article,
+            ticker,
+            company_name=company_name,
+        ),
+        reverse=True,
+    )
     return matches[0]
 
 
-def article_to_context_row(article: Article) -> dict[str, Any]:
+def article_to_context_row(
+    article: Article,
+    *,
+    ticker: str = "",
+    company_name: str = "",
+) -> dict[str, Any]:
     why = (
         str(getattr(article, "article_overview", "") or "").strip()
         or str(article.summary or "").strip()
@@ -187,13 +306,18 @@ def article_to_context_row(article: Article) -> dict[str, Any]:
     )
     if len(why) > 180:
         why = why[:177].rstrip() + "..."
-    return {
+    row = {
         "headline": str(article.title or "").strip()[:200],
         "why": why,
         "source": str(article.source_name or "").strip()[:80],
         "published_at": str(article.published_at or ""),
         "url": str(article.url or "").strip(),
     }
+    if ticker:
+        row["ticker"] = ticker.upper()
+        row["company"] = company_name
+        row["relevance_verified"] = context_row_matches_ticker(row, ticker, company_name)
+    return row
 
 
 def _entity_mention_for_ticker(row: dict[str, Any], ticker: str) -> dict[str, Any] | None:
@@ -206,8 +330,15 @@ def _entity_mention_for_ticker(row: dict[str, Any], ticker: str) -> dict[str, An
     return None
 
 
-def enrichment_row_for_ticker(row: dict[str, Any], ticker: str) -> bool:
+def enrichment_row_for_ticker(
+    row: dict[str, Any],
+    ticker: str,
+    *,
+    company_name: str = "",
+) -> bool:
     sym = ticker.upper()
+    if company_name and not context_row_matches_ticker(row, sym, company_name):
+        return False
     for mention in row.get("entity_mentions") or []:
         if not isinstance(mention, dict):
             continue
@@ -225,12 +356,13 @@ def pick_best_enrichment(
     ticker: str,
     *,
     cutoff: datetime | None = None,
+    company_name: str = "",
 ) -> dict[str, Any] | None:
     sym = ticker.upper()
     candidates: list[tuple[float, dict[str, Any]]] = []
     now = datetime.now(timezone.utc)
     for row in enrichments:
-        if not enrichment_row_for_ticker(row, sym):
+        if not enrichment_row_for_ticker(row, sym, company_name=company_name):
             continue
         published = parse_iso(row.get("published_at"))
         if cutoff and published:
@@ -265,13 +397,21 @@ def pick_best_enrichment(
         )
     if len(why) > 180:
         why = why[:177].rstrip() + "..."
-    return {
+    context_row = {
         "headline": str(best.get("title") or "").strip()[:200],
         "why": why,
         "source": str(best.get("source_name") or "").strip()[:80],
         "published_at": str(best.get("published_at") or ""),
         "url": str(best.get("url") or "").strip(),
+        "ticker": sym,
+        "company": company_name,
     }
+    context_row["relevance_verified"] = context_row_matches_ticker(
+        context_row,
+        sym,
+        company_name,
+    )
+    return context_row
 
 
 def overnight_headlines_by_ticker(
@@ -290,7 +430,12 @@ def overnight_headlines_by_ticker(
     enrichments = store.list_article_enrichments(market, universe_id, limit=400)
     out: dict[str, dict[str, Any]] = {}
     for ticker in tickers:
-        row = pick_best_enrichment(enrichments, ticker, cutoff=cutoff)
+        row = pick_best_enrichment(
+            enrichments,
+            ticker,
+            cutoff=cutoff,
+            company_name=(company_by_ticker or {}).get(ticker.upper(), ""),
+        )
         if row and row.get("headline"):
             out[ticker.upper()] = row
     if out:
