@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getMarketDailyEditionCover } from "@/lib/market-daily-cover";
-import { getMarketDailyEdition } from "@/lib/market-daily";
+import { getMarketDailyEditionFresh } from "@/lib/market-daily";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: { params: { date: strin
     return new NextResponse(null, { status: 404 });
   }
 
-  const edition = await getMarketDailyEdition(params.date).catch(() => null);
+  const edition = await getMarketDailyEditionFresh(params.date).catch(() => null);
   if (!edition) return new NextResponse(null, { status: 404 });
 
   const image = await getMarketDailyEditionCover(edition);

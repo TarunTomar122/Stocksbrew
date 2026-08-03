@@ -188,6 +188,12 @@ async function getMarketDailyEditionUncached(
   return normalizeEdition((doc.data() || {}) as Record<string, unknown>);
 }
 
+export function getMarketDailyEditionFresh(
+  editionDate = "latest",
+): Promise<MarketDailyEdition | null> {
+  return getMarketDailyEditionUncached(editionDate);
+}
+
 export function getMarketDailyEdition(
   editionDate = "latest",
 ): Promise<MarketDailyEdition | null> {
