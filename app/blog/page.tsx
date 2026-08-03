@@ -45,6 +45,9 @@ const RESEARCH_CLUSTERS = [
     description: "Fundamentals, analyst context, and a repeatable decision framework.",
     links: [
       ["Fundamental stock analysis", "/blog/fundamental-stock-analysis-framework"],
+      ["What is a good P/E ratio?", "/blog/what-is-a-good-pe-ratio"],
+      ["Free cash flow vs net income", "/blog/free-cash-flow-vs-net-income"],
+      ["Profit margins explained", "/blog/gross-margin-vs-operating-margin-vs-net-margin"],
       ["Analyst ratings & targets", "/blog/analyst-ratings-price-targets-explained"],
       ["Browse US stocks", "/stocks"],
     ],

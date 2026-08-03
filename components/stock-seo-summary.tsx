@@ -121,6 +121,15 @@ export function StockSeoSummary({
             <Link href="/blog/fundamental-stock-analysis-framework" className="font-semibold text-landing-brand hover:underline">
               Fundamental analysis guide
             </Link>
+            <Link href="/blog/what-is-a-good-pe-ratio" className="font-semibold text-landing-brand hover:underline">
+              P/E ratio guide
+            </Link>
+            <Link href="/blog/free-cash-flow-vs-net-income" className="font-semibold text-landing-brand hover:underline">
+              Free cash flow vs net income
+            </Link>
+            <Link href="/blog/gross-margin-vs-operating-margin-vs-net-margin" className="font-semibold text-landing-brand hover:underline">
+              Profit margins explained
+            </Link>
           </div>
         </div>
       </section>

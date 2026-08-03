@@ -13,6 +13,105 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "what-is-a-good-pe-ratio",
+    title: "What Is a Good P/E Ratio? A Useful Answer for Real Stocks",
+    seoTitle: "What Is a Good P/E Ratio? A Practical Guide",
+    description:
+      "Learn what makes a P/E ratio high or low, how sector, growth, earnings quality, and interest rates change the answer, and when P/E becomes misleading.",
+    category: "guides",
+    tags: ["good-PE-ratio", "price-to-earnings", "stock-valuation", "forward-PE", "fundamental-analysis"],
+    date: "2026-08-03",
+    readTime: "15 min read",
+    faqs: [
+      {
+        question: "What is considered a good P/E ratio?",
+        answer:
+          "A good P/E ratio is one that is reasonable for the company's growth, earnings quality, financial risk, and closest peers. A lower P/E is not automatically better, and the same multiple can mean very different things in different industries.",
+      },
+      {
+        question: "Is a P/E ratio of 20 high or low?",
+        answer:
+          "A P/E of 20 means investors are paying $20 for each $1 of annual earnings. Whether that is high or low depends on expected growth, the durability of those earnings, the company's balance sheet, interest rates, and the valuation of comparable businesses.",
+      },
+      {
+        question: "Should I use trailing P/E or forward P/E?",
+        answer:
+          "Use both. Trailing P/E is based on reported earnings but may describe the past. Forward P/E reflects expected earnings but depends on estimates that can change. The gap between them is often more informative than either ratio alone.",
+      },
+      {
+        question: "Why does a stock have no P/E ratio?",
+        answer:
+          "P/E is generally not meaningful when earnings are zero or negative. In that case, investors may examine revenue, gross margin, cash burn, free cash flow, the balance sheet, and a valuation measure suited to the business.",
+      },
+    ],
+  },
+  {
+    slug: "free-cash-flow-vs-net-income",
+    title: "Free Cash Flow vs Net Income: Where Did the Cash Actually Go?",
+    seoTitle: "Free Cash Flow vs Net Income: Key Differences",
+    description:
+      "Understand free cash flow vs net income, why they diverge, how to test earnings quality, and which metric matters for different kinds of companies.",
+    category: "guides",
+    tags: ["free-cash-flow", "net-income", "cash-flow-statement", "earnings-quality", "stock-analysis"],
+    date: "2026-08-03",
+    readTime: "14 min read",
+    faqs: [
+      {
+        question: "Is free cash flow the same as net income?",
+        answer:
+          "No. Net income is accounting profit after recognized expenses. Free cash flow usually means operating cash flow minus capital expenditures. The two differ because of non-cash expenses, working capital, capital spending, and timing.",
+      },
+      {
+        question: "Is free cash flow more important than net income?",
+        answer:
+          "Neither metric wins in every situation. Net income helps measure profitability, while free cash flow shows cash remaining after operating needs and capital spending. Investors get a better view by reconciling the two over several periods.",
+      },
+      {
+        question: "Can a profitable company have negative free cash flow?",
+        answer:
+          "Yes. A profitable company can spend heavily on equipment, build inventory, extend customer credit, or make other investments that consume cash. The key question is whether the cash use is temporary and productive or a recurring weakness.",
+      },
+      {
+        question: "How do you calculate free cash flow?",
+        answer:
+          "A common investor calculation is cash flow from operating activities minus purchases of property, plant, and equipment. Definitions vary, so use the same formula when comparing periods or companies.",
+      },
+    ],
+  },
+  {
+    slug: "gross-margin-vs-operating-margin-vs-net-margin",
+    title: "Gross Margin vs Operating Margin vs Net Margin: Read the Whole Business",
+    seoTitle: "Gross vs Operating vs Net Profit Margin",
+    description:
+      "See how gross, operating, and net profit margins differ, what changes in each margin reveal, and how to compare margins without using bad benchmarks.",
+    category: "guides",
+    tags: ["gross-margin", "operating-margin", "net-profit-margin", "profitability", "financial-statements"],
+    date: "2026-08-03",
+    readTime: "14 min read",
+    faqs: [
+      {
+        question: "What is the difference between gross margin and operating margin?",
+        answer:
+          "Gross margin subtracts the direct cost of producing goods or services from revenue. Operating margin also subtracts operating expenses such as research, sales, and administration, so it shows more of the cost required to run the business.",
+      },
+      {
+        question: "What is the difference between operating margin and net margin?",
+        answer:
+          "Operating margin focuses on profit from operations before interest and taxes. Net margin includes interest, taxes, and non-operating items and shows the portion of revenue that became net income.",
+      },
+      {
+        question: "What is a good profit margin for a company?",
+        answer:
+          "A useful margin is strong relative to the company's own history and genuinely comparable peers. Normal margins differ sharply across software, retail, banking, manufacturing, and commodity businesses, so one universal benchmark is misleading.",
+      },
+      {
+        question: "Why can gross margin rise while net margin falls?",
+        answer:
+          "Product economics may improve while research, sales, administration, interest, taxes, restructuring, or other expenses rise faster. Comparing all three margins shows where the extra revenue was absorbed.",
+      },
+    ],
+  },
+  {
     slug: "semiconductor-stocks-analysis-guide",
     title: "Semiconductor Stocks: How to Analyze the AI Chip Value Chain",
     seoTitle: "How to Analyze Semiconductor Stocks",
