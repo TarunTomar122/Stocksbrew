@@ -67,6 +67,11 @@ def main() -> None:
         help="Include tm_config/price_core_overrides tickers in addition to the base universe",
     )
     parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids for subset sync")
+    parser.add_argument(
+        "--missing-financial-depth-only",
+        action="store_true",
+        help="Only fetch instruments whose saved facts have no financial history",
+    )
     parser.add_argument("--print-json", action="store_true")
     args = parser.parse_args()
 
@@ -105,6 +110,23 @@ def main() -> None:
             added += 1
         if added > 0:
             print(f"Included {added} price-core override instruments for {args.market}.")
+    if args.missing_financial_depth_only:
+        instrument_ids = [
+            str(instrument.get("instrument_id") or "")
+            for instrument in instruments
+            if instrument.get("instrument_id")
+        ]
+        saved_facts = store.get_stock_facts_batch(instrument_ids)
+        instruments = [
+            instrument
+            for instrument in instruments
+            if not (
+                saved_facts.get(str(instrument.get("instrument_id") or ""), {}).get(
+                    "financial_history"
+                )
+            )
+        ]
+        print(f"Retrying {len(instruments)} instruments missing financial depth.")
     if args.limit > 0:
         instruments = instruments[:args.limit]
     docs: list[dict] = []

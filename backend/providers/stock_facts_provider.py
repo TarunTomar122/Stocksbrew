@@ -1,7 +1,10 @@
 """Free-source stock facts for the stock detail page."""
 from __future__ import annotations
 
+import os
 import re
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from html import unescape
 from typing import Any
@@ -18,6 +21,20 @@ USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 )
+STOCKANALYSIS_USER_AGENT = os.getenv(
+    "STOCKANALYSIS_USER_AGENT",
+    "Stocksbrew/1.0 contact@stocksbrew.online",
+)
+STOCKANALYSIS_MIN_INTERVAL_SECONDS = max(
+    0.0,
+    float(os.getenv("STOCKANALYSIS_MIN_INTERVAL_SECONDS", "1.0")),
+)
+STOCKANALYSIS_MAX_ATTEMPTS = max(
+    1,
+    int(os.getenv("STOCKANALYSIS_MAX_ATTEMPTS", "5")),
+)
+_stockanalysis_rate_lock = threading.Lock()
+_stockanalysis_next_request_at = 0.0
 
 
 def _headers(accept: str = "text/html,application/json") -> dict[str, str]:
@@ -45,6 +62,55 @@ def _get_json(url: str) -> dict[str, Any]:
     payload = response.json()
     data = payload.get("data") if isinstance(payload, dict) else {}
     return data if isinstance(data, dict) else {}
+
+
+def _reserve_stockanalysis_request(*, cooldown_seconds: float = 0.0) -> None:
+    """Serialize StockAnalysis traffic across workers and honor shared cooldowns."""
+    global _stockanalysis_next_request_at
+
+    with _stockanalysis_rate_lock:
+        now = time.monotonic()
+        if cooldown_seconds > 0:
+            _stockanalysis_next_request_at = max(
+                _stockanalysis_next_request_at,
+                now + cooldown_seconds,
+            )
+            return
+        request_at = max(now, _stockanalysis_next_request_at)
+        _stockanalysis_next_request_at = (
+            request_at + STOCKANALYSIS_MIN_INTERVAL_SECONDS
+        )
+    wait_seconds = request_at - now
+    if wait_seconds > 0:
+        time.sleep(wait_seconds)
+
+
+def _get_stockanalysis_text(url: str) -> str:
+    """Fetch one source page without turning a large weekly run into a 429 storm."""
+    for attempt in range(STOCKANALYSIS_MAX_ATTEMPTS):
+        _reserve_stockanalysis_request()
+        response = requests.get(
+            url,
+            headers={
+                **_headers(),
+                "User-Agent": STOCKANALYSIS_USER_AGENT,
+            },
+            timeout=25,
+        )
+        if response.status_code != 429:
+            response.raise_for_status()
+            return response.text
+
+        if attempt + 1 >= STOCKANALYSIS_MAX_ATTEMPTS:
+            response.raise_for_status()
+        retry_after = response.headers.get("Retry-After", "").strip()
+        try:
+            cooldown_seconds = max(1.0, float(retry_after))
+        except ValueError:
+            cooldown_seconds = min(60.0, 10.0 * (2**attempt))
+        _reserve_stockanalysis_request(cooldown_seconds=cooldown_seconds)
+
+    raise RuntimeError("StockAnalysis request attempts exhausted")
 
 
 def _clean_cell(value: str) -> str:
@@ -138,7 +204,7 @@ def _stockanalysis_soup(ticker: str, suffix: str) -> BeautifulSoup:
     # BF.B), unlike Yahoo and Finviz which use a hyphen.
     slug = ticker.lower()
     return BeautifulSoup(
-        _get_text(f"https://stockanalysis.com/stocks/{slug}/{suffix}"),
+        _get_stockanalysis_text(f"https://stockanalysis.com/stocks/{slug}/{suffix}"),
         "html.parser",
     )
 

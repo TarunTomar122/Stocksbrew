@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from backend.providers.stock_facts_provider import (
     _parse_stockanalysis_dividends,
@@ -9,9 +9,30 @@ from backend.providers.stock_facts_provider import (
     _parse_stockanalysis_metrics,
     _parse_stockanalysis_statistics,
     _parse_finviz_snapshot,
+    _get_stockanalysis_text,
     _stockanalysis_soup,
     fetch_stock_facts,
 )
+
+
+def test_stockanalysis_request_retries_429_after_shared_cooldown() -> None:
+    limited = Mock(status_code=429, headers={"Retry-After": "2"})
+    limited.raise_for_status.side_effect = RuntimeError("rate limited")
+    success = Mock(status_code=200, text="ok")
+
+    with (
+        patch(
+            "backend.providers.stock_facts_provider.requests.get",
+            side_effect=[limited, success],
+        ) as request,
+        patch(
+            "backend.providers.stock_facts_provider._reserve_stockanalysis_request"
+        ) as reserve,
+    ):
+        assert _get_stockanalysis_text("https://stockanalysis.com/stocks/aapl/") == "ok"
+
+    assert request.call_count == 2
+    reserve.assert_any_call(cooldown_seconds=2.0)
 
 
 def _table(heading: str, rows: list[list[str]]) -> str:
@@ -57,7 +78,7 @@ def test_financial_history_and_balance_are_parsed_from_named_tables() -> None:
         ]),
     ])
 
-    with patch("backend.providers.stock_facts_provider._get_text", return_value=html):
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=html):
         result = _parse_stockanalysis_financials("AAPL")
 
     assert result["financials"]["revenue"] == 466_823_000_000
@@ -93,13 +114,13 @@ def test_statistics_dividends_mix_and_forecast_are_nullable_and_structured() -> 
         _table("Recommendation Trends", [["Rating", "Jun '26", "Jul '26"], ["Strong Buy", "22", "22"], ["Buy", "6", "6"], ["Hold", "16", "14"], ["Sell", "2", "2"], ["Strong Sell", "1", "2"]]),
     ])
 
-    with patch("backend.providers.stock_facts_provider._get_text", return_value=statistics_html):
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=statistics_html):
         statistics = _parse_stockanalysis_statistics("AAPL")
-    with patch("backend.providers.stock_facts_provider._get_text", return_value=dividend_html):
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=dividend_html):
         dividends = _parse_stockanalysis_dividends("AAPL")
-    with patch("backend.providers.stock_facts_provider._get_text", return_value=metrics_html):
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=metrics_html):
         metrics = _parse_stockanalysis_metrics("AAPL")
-    with patch("backend.providers.stock_facts_provider._get_text", return_value=forecast_html):
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=forecast_html):
         forecast = _parse_stockanalysis_forecast("AAPL")
 
     assert statistics["valuation"]["ev_to_ebitda"] == 26.47
@@ -149,9 +170,16 @@ def test_fetch_stock_facts_keeps_each_extended_source_independent() -> None:
 
 
 def test_share_class_symbols_use_each_providers_expected_slug() -> None:
-    with patch("backend.providers.stock_facts_provider._get_text", return_value="<html></html>") as get_text:
+    with patch(
+        "backend.providers.stock_facts_provider._get_stockanalysis_text",
+        return_value="<html></html>",
+    ) as get_text:
         _stockanalysis_soup("BF.B", "financials/")
         assert get_text.call_args.args[0] == "https://stockanalysis.com/stocks/bf.b/financials/"
 
+    with patch(
+        "backend.providers.stock_facts_provider._get_text",
+        return_value="<html></html>",
+    ) as get_text:
         _parse_finviz_snapshot("BF.B")
         assert get_text.call_args.args[0] == "https://finviz.com/quote.ashx?t=BF-B&p=d"
