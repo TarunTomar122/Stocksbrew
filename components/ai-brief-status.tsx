@@ -35,17 +35,17 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
   const noMajorNews = mode === "no_major_news";
   const priceStale = mode === "price_stale";
 
-  const eyebrow = priceStale ? "Price context changed" : noMajorNews ? "Fundamentals brief" : "Live research desk";
+  const eyebrow = priceStale ? "Price context changed" : noMajorNews ? "Fundamentals brief" : "AI research in progress";
   const subtitle = priceStale
     ? "The old trigger levels are hidden while the price context is rebuilt"
     : noMajorNews
     ? "No major stock-specific news today. The underlying business read is still current."
-    : "Recent sources, company numbers, and price context are being turned into one publishable call.";
+    : "We are reading the latest sources and will publish the AI brief here automatically.";
   const title = priceStale
     ? `${ticker} needs a fresh set of levels`
     : noMajorNews
     ? `${ticker}, without forcing a news story`
-    : `${ticker} is on the research desk`;
+    : `Researching ${ticker}`;
 
   const accent = priceStale
     ? "var(--signal-neutral)"
@@ -65,9 +65,9 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
           { done: false, active: false, label: "Watching for change" },
         ]
       : [
-          { done: true, active: false, label: "Radar linked" },
-          { done: false, active: true, label: "Evidence pass" },
-          { done: false, active: false, label: "Publish the call" },
+          { done: true, active: false, label: "Tracked" },
+          { done: false, active: true, label: "Researching" },
+          { done: false, active: false, label: "AI brief" },
         ];
 
   return (
@@ -121,7 +121,6 @@ export function AiBriefStatus({ ticker, generatedAt, mode = "researching", brief
           <div className="shrink-0 border-l-2 pl-3 font-mono text-[10px] uppercase leading-5 tracking-[0.06em] text-on-surface-variant" style={{ borderColor: accent }}>
             {mode === "researching" ? (
               <>
-                <p className="font-semibold text-on-surface">Publishes automatically</p>
                 <p>Usually 10–15 minutes</p>
               </>
             ) : (relative || timestamp) ? (

@@ -8,6 +8,30 @@ from backend.instrument_universe import get_coverage_universe_id, list_instrumen
 from backend.storage import TraceMoneyStore
 
 
+def _is_financial_depth_candidate(instrument: dict) -> bool:
+    """Return whether a catalogue row represents an operating company."""
+    instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+    ticker = str(instrument.get("ticker") or "").strip().upper()
+    kind = str(instrument.get("type") or "").strip().lower()
+    support_tier = str(instrument.get("support_tier") or "").strip().lower()
+    status = str(instrument.get("status") or "active").strip().lower()
+    name = str(instrument.get("name") or "").strip().upper()
+    if not instrument_id or not ticker or status != "active":
+        return False
+    if kind in {"macro", "index", "etf", "fund"} or support_tier == "macro":
+        return False
+    if instrument_id.startswith(("US_IDX_", "US_MAC_")):
+        return False
+    if (
+        " ETF" in name
+        or " ETN" in name
+        or " EXCHANGE-TRADED FUND" in name
+        or name == "INVESCO QQQ TRUST"
+    ):
+        return False
+    return True
+
+
 def _price_cohort_ids(store: TraceMoneyStore, market: str, universe_id: str) -> list[str]:
     ids: list[str] = []
     seen: set[str] = set()
@@ -34,6 +58,15 @@ def _price_cohort_ids(store: TraceMoneyStore, market: str, universe_id: str) -> 
     for raw in raw_overrides:
         instrument_id = str(raw or "").strip().upper()
         if instrument_id and instrument_id in valid_override_ids and instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
+    # Financial depth serves every public stock page. Searchable companies
+    # outside the runtime/core cohorts must still join the weekly refresh.
+    for instrument in store.list_instruments(market):
+        if not _is_financial_depth_candidate(instrument):
+            continue
+        instrument_id = str(instrument.get("instrument_id") or "").strip().upper()
+        if instrument_id not in seen:
             seen.add(instrument_id)
             ids.append(instrument_id)
     return ids

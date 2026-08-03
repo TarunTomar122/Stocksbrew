@@ -65,6 +65,8 @@ type Props = {
   variant?: Variant;
   /** When tracked, render a static label instead of a button (no accidental remove). */
   trackedAsBadge?: boolean;
+  /** Optional copy for a signed-in stock that is not tracked yet. */
+  untrackedLabel?: string;
 };
 
 // Single source of truth for the radar / sign-in / subscribe flow used by every
@@ -79,6 +81,7 @@ export function TrackButton({
   trackedCount,
   variant = "pill",
   trackedAsBadge = false,
+  untrackedLabel,
 }: Props) {
   const router = useRouter();
   const { user, loading } = useUser();
@@ -326,7 +329,7 @@ export function TrackButton({
           ? "Adding…"
           : localTracked
             ? "In Radar ✓"
-            : variant === "compact" ? "Add to Radar" : `Add ${ticker} to Radar`;
+            : untrackedLabel ?? (variant === "compact" ? "Add to Radar" : `Add ${ticker} to Radar`);
 
   return (
     <>

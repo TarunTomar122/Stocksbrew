@@ -544,6 +544,8 @@ export async function StockPageStream({ params }: Props) {
       <LockedAiBrief
         ticker={stock.ticker}
         instrumentId={stock.instrument_id}
+        currentPrice={stock.price}
+        currency={currency}
         isSubscribed={subscribed}
         isTracked={isTracked}
         onDemandStatus={resolvedOnDemandStatus}
@@ -620,6 +622,8 @@ export async function StockPageStream({ params }: Props) {
             <LockedAiBrief
               ticker={stock.ticker}
               instrumentId={stock.instrument_id}
+              currentPrice={stock.price}
+              currency={currency}
               isSubscribed={subscribed}
               isTracked={isTracked}
               onDemandStatus={resolvedOnDemandStatus}

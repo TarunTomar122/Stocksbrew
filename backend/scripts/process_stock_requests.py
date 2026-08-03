@@ -42,6 +42,7 @@ from backend.llm_client import (
 )
 from backend.market_strategy import normalize_ticker_entry
 from backend.price_utils import has_valid_quote_change, normalize_quote_change
+from backend.providers.stock_facts_provider import fetch_stock_facts
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.scripts.materialize_views import materialize_views
 from backend.storage import TraceMoneyStore
@@ -506,6 +507,13 @@ def _sync_price_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> N
     )
 
 
+def _sync_financial_depth_for_one(store: TraceMoneyStore, instrument: dict[str, Any]) -> None:
+    """Give a newly requested US stock a complete page on its first run."""
+    if str(instrument.get("market") or "US").upper() != "US":
+        return
+    store.save_stock_facts(fetch_stock_facts(instrument))
+
+
 def _upsert_search_index_entry(store: TraceMoneyStore, instrument: dict[str, Any]) -> None:
     market = str(instrument.get("market") or "US").upper()
     instrument_id = str(instrument.get("instrument_id") or "").upper()
@@ -800,6 +808,12 @@ def _process_one_request(
         with promote_lock:
             _promote_instrument(store, instrument)
         _sync_price_for_one(store, instrument)
+        try:
+            _sync_financial_depth_for_one(store, instrument)
+        except Exception as exc:
+            # Keep request fulfilment alive during a source outage. The weekly
+            # full-catalogue sync is the durable retry path.
+            print(f"  [warn] {instrument.get('instrument_id')}: financial_depth: {exc}")
         _upsert_search_index_entry(store, instrument)
         _backfill_single_instrument(store, instrument)
         _queue_news_job(store, instrument)
