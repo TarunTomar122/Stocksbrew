@@ -11,6 +11,8 @@ const SITE_HOST = "www.stocksbrew.online";
 const SITE_ORIGIN = `https://${SITE_HOST}`;
 
 const PRIORITY_PATHS = [
+  "/",
+  "/blog",
   "/stocks",
   "/sectors",
   "/pulse",
@@ -40,14 +42,13 @@ const PRIORITY_PATHS = [
   "/editorial-policy",
   "/should-i-buy",
   "/blog/stock-research-checklist-evidence-first",
-  "/blog/buy-hold-sell-signals-explained",
   "/blog/watchlist-vs-portfolio-tracker",
   "/blog/earnings-season-watchlist-playbook",
-  "/blog/stock-market-information-overload",
-  "/blog/portfolio-health-check-guide",
+  "/blog/track-stock-news-for-your-portfolio",
   "/blog/finviz-vs-tradingview-vs-stocksbrew",
   "/heat",
-  "/blog/how-to-use-stock-alerts-effectively",
+  "/blog/best-stock-watchlist-apps-2026",
+  "/blog/best-stock-news-apps-2026",
   "/compare/stocksbrew-vs-finviz",
   "/compare/stocksbrew-vs-tradingview",
   "/compare/stocksbrew-vs-yahoo-finance",
