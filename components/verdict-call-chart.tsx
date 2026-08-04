@@ -88,7 +88,6 @@ function ReturnsRow({
               </div>
             </div>
           </div>
-          <p className="mt-2 text-[9.5px] text-on-surface-variant">{technicalLevels?.source} · {technicalLevels?.as_of}</p>
         </div>
       ) : null}
     </div>

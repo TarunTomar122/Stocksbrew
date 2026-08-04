@@ -184,5 +184,17 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(chart).toContain("Nearest support");
     expect(chart).toContain("Nearest resistance");
     expect(chart).toContain("technicalLevels?.source");
+    expect(chart).not.toContain("{technicalLevels?.source} · {technicalLevels?.as_of}");
+  });
+
+  it("uses distinct financial-series colors and reserves red for losses", () => {
+    const depth = source("components/stock-financial-depth.tsx");
+
+    expect(depth).toContain('gross: "#2563eb"');
+    expect(depth).toContain('operating: "#d97706"');
+    expect(depth).toContain('net: "#059669"');
+    expect(depth).toContain('negative: "#dc2626"');
+    expect(depth).not.toContain('color: "#34d399"');
+    expect(depth).not.toContain('color: "#047857"');
   });
 });

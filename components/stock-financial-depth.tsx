@@ -37,6 +37,16 @@ const CHART_MODES: Array<{ key: ChartMode; label: string }> = [
   { key: "margins", label: "Margins" },
 ];
 
+// Financial measures are separate categories, so use distinct hues instead of
+// an ordered single-color scale. Red stays reserved for values below zero.
+const FINANCIAL_CHART_COLORS = {
+  revenue: "#2563eb",
+  gross: "#2563eb",
+  operating: "#d97706",
+  net: "#059669",
+  negative: "#dc2626",
+} as const;
+
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -60,22 +70,22 @@ function pct(value?: number | null): string {
 
 function chartSeries(mode: ChartMode, history: NonNullable<StockFacts["financial_history"]>): Series[] {
   if (mode === "revenue") {
-    return [{ key: "revenue", label: "Revenue", color: "#10b981", values: history.map((row) => row.revenue ?? null) }];
+    return [{ key: "revenue", label: "Revenue", color: FINANCIAL_CHART_COLORS.revenue, values: history.map((row) => row.revenue ?? null) }];
   }
   if (mode === "profit") {
     return [
-      { key: "grossProfit", label: "Gross profit", color: "#34d399", values: history.map((row) => row.gross_profit ?? null) },
-      { key: "operatingIncome", label: "Operating income", color: "#10b981", values: history.map((row) => row.operating_income ?? null) },
-      { key: "netIncome", label: "Net income", color: "#047857", values: history.map((row) => row.net_income ?? null) },
+      { key: "grossProfit", label: "Gross profit", color: FINANCIAL_CHART_COLORS.gross, values: history.map((row) => row.gross_profit ?? null) },
+      { key: "operatingIncome", label: "Operating income", color: FINANCIAL_CHART_COLORS.operating, values: history.map((row) => row.operating_income ?? null) },
+      { key: "netIncome", label: "Net income", color: FINANCIAL_CHART_COLORS.net, values: history.map((row) => row.net_income ?? null) },
     ];
   }
   if (mode === "fcf") {
-    return [{ key: "freeCashFlow", label: "Free cash flow", color: "#10b981", values: history.map((row) => row.free_cash_flow ?? null) }];
+    return [{ key: "freeCashFlow", label: "Free cash flow", color: FINANCIAL_CHART_COLORS.net, values: history.map((row) => row.free_cash_flow ?? null) }];
   }
   return [
-    { key: "grossMargin", label: "Gross margin", color: "#34d399", values: history.map((row) => row.gross_margin_pct ?? null) },
-    { key: "operatingMargin", label: "Operating margin", color: "#10b981", values: history.map((row) => row.operating_margin_pct ?? null) },
-    { key: "profitMargin", label: "Profit margin", color: "#047857", values: history.map((row) => row.profit_margin_pct ?? null) },
+    { key: "grossMargin", label: "Gross margin", color: FINANCIAL_CHART_COLORS.gross, values: history.map((row) => row.gross_margin_pct ?? null) },
+    { key: "operatingMargin", label: "Operating margin", color: FINANCIAL_CHART_COLORS.operating, values: history.map((row) => row.operating_margin_pct ?? null) },
+    { key: "profitMargin", label: "Profit margin", color: FINANCIAL_CHART_COLORS.net, values: history.map((row) => row.profit_margin_pct ?? null) },
   ];
 }
 
@@ -132,7 +142,7 @@ function FinancialChart({
               <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56}>
                 {data.map((row, index) => {
                   const value = row[item.key];
-                  const fill = typeof value === "number" && value < 0 ? "#ef4444" : item.color;
+                  const fill = typeof value === "number" && value < 0 ? FINANCIAL_CHART_COLORS.negative : item.color;
                   return <Cell key={`${item.key}-${index}`} fill={fill} />;
                 })}
               </Bar>
