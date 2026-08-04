@@ -26,6 +26,7 @@ import { TierCTA } from "@/components/tier-cta";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
+import { OnDemandResearchRefresh } from "@/components/on-demand-research-refresh";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
 import { getInstrument, getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
@@ -232,9 +233,7 @@ export async function StockPageStream({ params }: Props) {
     recentNews,
     premarketDoc,
   ] = await Promise.all([
-    shouldLoadAI
-      ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
-      : Promise.resolve(null),
+    getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null),
     shouldLoadAI
       ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
@@ -247,7 +246,7 @@ export async function StockPageStream({ params }: Props) {
     getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
     getRedditContextForTicker(market, stock.ticker).catch(() => null),
-    subscribed ? getOnDemandNewsJob(stock.instrument_id).catch(() => null) : Promise.resolve(null),
+    getOnDemandNewsJob(stock.instrument_id).catch(() => null),
     subscribed
       ? getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null)
       : Promise.resolve(null),
@@ -335,6 +334,12 @@ export async function StockPageStream({ params }: Props) {
     : null;
 
   const resolvedOnDemandStatus = onDemandJob?.status;
+  const publicResearchText = String(
+    intelligence?.visual_summary?.what_changed ||
+      intelligence?.today_brief ||
+      intelligence?.headline ||
+      "",
+  ).trim();
   const showAiPreparationState =
     subscribed &&
     isTracked &&
@@ -564,6 +569,7 @@ export async function StockPageStream({ params }: Props) {
   return (
     <main className="flex min-w-0 w-full flex-grow flex-col bg-surface">
       <StockViewTracker ticker={displayStock.ticker} instrumentId={displayStock.instrument_id} market={market} />
+      <OnDemandResearchRefresh status={resolvedOnDemandStatus} />
       <PriorityStockModal
         open={showPriorityNotice}
         instrumentId={displayStock.instrument_id}
@@ -573,9 +579,9 @@ export async function StockPageStream({ params }: Props) {
         stock={displayStock}
         market={market}
         currency={currency}
-        directive={normalizedDirective}
-        setupState={intelligence?.setup_state}
-        visual={intelligence?.visual_summary}
+        directive={subscribed ? normalizedDirective : null}
+        setupState={subscribed ? intelligence?.setup_state : null}
+        visual={subscribed ? intelligence?.visual_summary : null}
         overview={displayAnomaly ? (anomalyDetail(displayAnomaly) ?? undefined) : undefined}
         overviewHeadline={displayAnomaly ? anomalyHeadline(displayAnomaly) : undefined}
         preEarnings={activePreEarningsIntel ?? undefined}
@@ -592,7 +598,7 @@ export async function StockPageStream({ params }: Props) {
         sma50={sma50}
         sma200={sma200}
         earnings={earningsIntel}
-        cards={intelligence?.visual_cards}
+        cards={subscribed ? intelligence?.visual_cards : null}
         sentiment={instrumentView?.sentiment_breakdown}
         timeline={hasAI ? instrumentView?.timeline : null}
         peers={instrumentView?.related_tickers}
@@ -615,6 +621,11 @@ export async function StockPageStream({ params }: Props) {
         tier={tier}
         premarketQuote={premarketQuote}
         updatedLabel={stock.captured_at ? `updated ${formatRelative(stock.captured_at)}` : undefined}
+        researchPulse={{
+          text: publicResearchText || undefined,
+          generatedAt: intelligence?.generated_at,
+          status: resolvedOnDemandStatus,
+        }}
         lockedCall={
           hasBriefText(intelligence) ? (
             <AiSynthesis intelligence={intelligence} />

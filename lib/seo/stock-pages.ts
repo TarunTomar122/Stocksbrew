@@ -20,6 +20,8 @@ type CatalogInstrument = {
   industry?: string;
   description?: string;
   status?: string;
+  type?: string;
+  support_tier?: string;
   updated_at?: string;
 };
 
@@ -34,17 +36,21 @@ type CatalogShape = {
 
 const catalog = universeCatalog as CatalogShape;
 const usCatalog = catalog.markets?.US;
-// SEO coverage is intentionally independent from the smaller runtime/AI core.
-// The legacy us_core_100 namespace now contains the 60-stock runtime cohort,
-// while these established pages remain indexable.
-const indexableIds = new Set(usCatalog?.universes?.us_seo_100 ?? []);
+// Page completeness and indexability follow the broad company catalogue, not
+// the smaller runtime/AI cohort. The runtime cohort controls frequent compute;
+// it must never turn a valid long-tail company route into a thin/noindex page.
+const coverageIds = new Set(usCatalog?.universes?.us_core_155 ?? []);
 
 export const SEO_STOCK_PAGES: SeoStockPage[] = (usCatalog?.instruments ?? [])
   .filter((row) => {
     const instrumentId = String(row.instrument_id || "").toUpperCase();
+    const type = String(row.type || "").toLowerCase();
+    const supportTier = String(row.support_tier || "").toLowerCase();
     return Boolean(
       instrumentId &&
-        indexableIds.has(instrumentId) &&
+        coverageIds.has(instrumentId) &&
+        type !== "macro" &&
+        supportTier !== "macro" &&
         row.status !== "inactive" &&
         row.ticker &&
         row.name,

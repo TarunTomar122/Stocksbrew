@@ -2147,6 +2147,23 @@ class TraceMoneyStore:
             out.append(iid)
         return out
 
+    def save_search_heat_cohort(self, market: str, rows: list[dict[str, Any]]) -> None:
+        market_key = str(market).upper()
+        now = datetime.now(timezone.utc)
+        self.db.collection("tm_config").document("search_heat_cohort").set(
+            {
+                market_key: _serialize(rows),
+                f"{market_key}_instrument_ids": [
+                    str(row.get("instrument_id") or "").strip().upper()
+                    for row in rows
+                    if str(row.get("instrument_id") or "").strip()
+                ],
+                "updated_at": now.isoformat(),
+                "expires_at": (now + timedelta(hours=30)).isoformat(),
+            },
+            merge=True,
+        )
+
     def save_price_refresh_status(self, market: str, payload: dict[str, Any]) -> None:
         market_key = str(market).upper()
         self.db.collection("tm_price_refresh_status").document(market_key).set({

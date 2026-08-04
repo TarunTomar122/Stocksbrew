@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 type Props = {
   ticker: string;
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function StockViewTracker({ ticker, instrumentId, market }: Props) {
+  const router = useRouter();
   useEffect(() => {
     const storageKey = `tikrr_stock_view:${instrumentId}`;
     const anonKey = "tikrr_anon_id";
@@ -17,7 +19,6 @@ export function StockViewTracker({ ticker, instrumentId, market }: Props) {
     try {
       const last = Number(window.localStorage.getItem(storageKey) || "0");
       if (Number.isFinite(last) && Date.now() - last < throttleMs) return;
-      window.localStorage.setItem(storageKey, String(Date.now()));
       anonId = window.localStorage.getItem(anonKey) || "";
       if (!anonId) {
         anonId = window.crypto?.randomUUID?.() || `${Date.now()}_${Math.random()}`;
@@ -32,13 +33,32 @@ export function StockViewTracker({ ticker, instrumentId, market }: Props) {
       market,
       anon_id: anonId || undefined,
     };
-    fetch("/api/stock-view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      keepalive: true,
-    }).catch(() => undefined);
-  }, [ticker, instrumentId, market]);
+    // A short visible-page dwell filters accidental bounces, link previews,
+    // and most non-browser crawlers before demand can spend research budget.
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        window.localStorage.setItem(storageKey, String(Date.now()));
+      } catch {
+        // The server still buckets and rate-limits storage-disabled browsers.
+      }
+      fetch("/api/stock-view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      })
+        .then((response) => response.json().catch(() => ({})))
+        .then((body) => {
+          if (body?.research_queued) {
+            window.setTimeout(() => router.refresh(), 2_000);
+          }
+        })
+        .catch(() => undefined);
+    }, 4_000);
+
+    return () => window.clearTimeout(timer);
+  }, [ticker, instrumentId, market, router]);
 
   return null;
 }

@@ -5,6 +5,7 @@ import { USE_CASES } from "@/lib/use-cases-data";
 import { SEO_STOCK_PAGES } from "@/lib/seo/stock-pages";
 import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
 import { listMarketDailyEditions } from "@/lib/market-daily";
+import { getSearchIndexForApi } from "@/lib/search";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -88,8 +89,8 @@ export async function GET() {
     /* Firestore may be unreachable */
   }
 
-  // Only the curated US core universe is indexable. Unknown and long-tail
-  // ticker routes remain crawlable for shared links but retain noindex.
+  // Every supported company page is indexable. Runtime/AI cohort membership
+  // controls refresh spend, not whether a valid stock page can earn traffic.
   for (const stock of SEO_STOCK_PAGES) {
     entries.push(
       url(
@@ -97,6 +98,21 @@ export async function GET() {
         stock.updatedAt,
       ),
     );
+  }
+
+  // The Firestore search catalogue can be ahead of the checked-in coverage
+  // file after a user-requested ticker is fulfilled. Include those real stock
+  // routes on the next daily sitemap render without waiting for a deployment.
+  try {
+    const known = new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker));
+    const liveCatalog = await getSearchIndexForApi("US");
+    for (const stock of liveCatalog) {
+      if (!stock.ticker || known.has(stock.ticker)) continue;
+      known.add(stock.ticker);
+      entries.push(url(`/stock/${encodeURIComponent(stock.ticker)}`));
+    }
+  } catch {
+    /* Static company catalogue remains available. */
   }
 
   // Deterministic editorial sector slugs. Firestore-generated IDs can be stale

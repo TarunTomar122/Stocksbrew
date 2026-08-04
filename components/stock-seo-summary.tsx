@@ -40,6 +40,8 @@ export function StockSeoSummary({
   const marketCap = facts?.quick_stats?.market_cap ?? fundamentals?.market_cap;
   const pe = facts?.quick_stats?.pe_ttm ?? fundamentals?.pe_ttm;
   const revenueGrowth = facts?.financials?.revenue_growth_yoy_pct;
+  const revenue = facts?.financials?.revenue;
+  const netIncome = facts?.financials?.net_income;
   const captured = stock.captured_at
     ? new Date(stock.captured_at).toLocaleString("en-US", {
         month: "short",
@@ -58,6 +60,16 @@ export function StockSeoSummary({
     ["Revenue growth", pct(revenueGrowth)],
     ["Industry", stock.industry || stock.sector || null],
   ].filter((row): row is [string, string] => Boolean(row[1]));
+  const companyDescription = String(stock.description || "").replace(/\s+/g, " ").trim();
+  const snapshotSentences = [
+    `${stock.ticker} was ${pct(stock.day_change_pct) ?? "unchanged"} in the latest available session at ${currency}${stock.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+    typeof marketCap === "number"
+      ? `Its reported market value was ${compactMoney(marketCap, currency)}${typeof pe === "number" && Number.isFinite(pe) ? ` with a trailing P/E of ${pe.toFixed(1)}` : ""}.`
+      : null,
+    typeof revenue === "number"
+      ? `Latest reported revenue was ${compactMoney(revenue, currency)}${typeof revenueGrowth === "number" ? `, changing ${pct(revenueGrowth)} year over year` : ""}${typeof netIncome === "number" ? `, with ${compactMoney(netIncome, currency)} in net income` : ""}.`
+      : null,
+  ].filter((sentence): sentence is string => Boolean(sentence));
 
   return (
     <>
@@ -81,10 +93,10 @@ export function StockSeoSummary({
                 About {stock.name} ({stock.ticker}) stock
               </h2>
               <p className="mt-3 max-w-3xl text-[15px] leading-7 text-on-surface-variant">
-                {stock.name} trades{stock.exchange ? ` on ${stock.exchange}` : " in the US market"} under the ticker{" "}
-                {stock.ticker}. This page brings the latest available price, returns, valuation, growth,
-                analyst context, earnings dates, and relevant headlines into one research view. Use the timestamp
-                to distinguish current market data from slower-moving fundamentals.
+                {companyDescription
+                  ? `${companyDescription.slice(0, 360)}${companyDescription.length > 360 ? "…" : ""} `
+                  : `${stock.name} trades${stock.exchange ? ` on ${stock.exchange}` : " in the US market"} under the ticker ${stock.ticker}. `}
+                {snapshotSentences.join(" ")}
               </p>
               {captured ? (
                 <p className="mt-3 text-[12px] text-on-surface-variant">Market snapshot updated {captured}.</p>

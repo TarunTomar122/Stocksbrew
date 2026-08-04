@@ -507,7 +507,12 @@ class OpenAIArticleEnricher:
                     model=self.model,
                     input_tokens=usage.get("prompt_tokens"),
                     output_tokens=usage.get("completion_tokens"),
-                    cache_hit=False,
+                    cache_hit=bool(
+                        ((usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+                    ),
+                    cached_input_tokens=(
+                        (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
+                    ),
                     cost_usd=usage.get("cost"),
                     extra=f"url={article.url}",
                 )

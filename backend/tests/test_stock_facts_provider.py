@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from backend.providers.stock_facts_provider import (
+    _build_yahoo_financial_depth,
     _parse_stockanalysis_dividends,
     _parse_stockanalysis_financials,
     _parse_stockanalysis_forecast,
@@ -13,6 +14,8 @@ from backend.providers.stock_facts_provider import (
     _stockanalysis_soup,
     fetch_stock_facts,
 )
+
+import pandas as pd
 
 
 def test_stockanalysis_request_retries_429_after_shared_cooldown() -> None:
@@ -183,3 +186,75 @@ def test_share_class_symbols_use_each_providers_expected_slug() -> None:
     ) as get_text:
         _parse_finviz_snapshot("BF.B")
         assert get_text.call_args.args[0] == "https://finviz.com/quote.ashx?t=BF-B&p=d"
+
+
+def test_yahoo_depth_fallback_normalizes_financials_and_ratios() -> None:
+    periods = [pd.Timestamp("2025-12-31"), pd.Timestamp("2024-12-31")]
+    income = pd.DataFrame(
+        {
+            periods[0]: [120.0, 60.0, 30.0, 24.0, 2.4],
+            periods[1]: [100.0, 45.0, 20.0, 15.0, 1.5],
+        },
+        index=["Total Revenue", "Gross Profit", "Operating Income", "Net Income", "Diluted EPS"],
+    )
+    cashflow = pd.DataFrame(
+        {periods[0]: [18.0], periods[1]: [12.0]},
+        index=["Free Cash Flow"],
+    )
+    balance = pd.DataFrame(
+        {periods[0]: [50.0, 30.0]},
+        index=["Cash And Cash Equivalents", "Total Debt"],
+    )
+
+    result = _build_yahoo_financial_depth(
+        info={
+            "marketCap": 360.0,
+            "freeCashflow": 18.0,
+            "forwardPE": 18.0,
+            "priceToSalesTrailing12Months": 3.0,
+            "enterpriseToEbitda": 12.0,
+            "returnOnEquity": 0.24,
+            "debtToEquity": 78.0,
+            "currentRatio": 1.4,
+        },
+        income=income,
+        cashflow=cashflow,
+        balance_sheet=balance,
+        price_targets={"low": 80, "mean": 100, "median": 102, "high": 125},
+    )
+
+    assert [row["period"] for row in result["financial_history"]] == ["2024", "2025"]
+    assert result["financial_history"][-1]["gross_margin_pct"] == 50.0
+    assert result["balance"]["net_cash"] == 20.0
+    assert result["valuation"]["price_to_fcf"] == 20.0
+    assert result["quality"]["roe_pct"] == 24.0
+    assert result["quality"]["debt_to_equity"] == 0.78
+    assert result["analyst_trend"]["target"]["average"] == 100.0
+
+
+def test_fetch_stock_facts_uses_yahoo_only_for_missing_depth_sections() -> None:
+    instrument = {"instrument_id": "US_NOK", "market": "US", "ticker": "NOK"}
+    yahoo = {
+        "financials": {"revenue": 90, "source": "yfinance"},
+        "financial_history": [{"period": "2025", "revenue": 90}],
+        "balance": {"net_cash": 10},
+        "valuation": {"forward_pe": 14},
+        "quality": {"roe_pct": 12},
+        "analyst_trend": {"target": {"average": 8}, "recommendation_trend": []},
+    }
+    with (
+        patch("backend.providers.stock_facts_provider._parse_finviz_snapshot", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_nasdaq_analyst", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_nasdaq_institutions", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_financials", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_statistics", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_dividends", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_metrics", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_forecast", return_value={}),
+        patch("backend.providers.stock_facts_provider._fetch_yahoo_financial_depth", return_value=yahoo),
+    ):
+        result = fetch_stock_facts(instrument)
+
+    assert result["financial_history"] == yahoo["financial_history"]
+    assert result["balance"]["net_cash"] == 10
+    assert result["source_status"]["sources"][-1] == "yfinance"

@@ -142,6 +142,7 @@ type Props = {
   tier: "ai_launch" | "ai_personal" | "free";
   premarketQuote?: LivePremarketQuote | null;
   updatedLabel?: string;
+  researchPulse?: { text?: string; generatedAt?: string; status?: string | null } | null;
   lockedCall: ReactNode;
 };
 
@@ -208,8 +209,78 @@ function scoreToneColor(score: number | null): string {
   return "var(--signal-bearish)";
 }
 
+function compactResearchText(value?: string): string | null {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return text.length <= 240 ? text : `${text.slice(0, 237).trimEnd()}…`;
+}
+
+function LongTailResearchCard({
+  ticker,
+  instrumentId,
+  currentPrice,
+  currency,
+  pulse,
+  isSubscribed,
+  isTracked,
+}: {
+  ticker: string;
+  instrumentId: string;
+  currentPrice: number;
+  currency: string;
+  pulse?: { text?: string; generatedAt?: string; status?: string | null } | null;
+  isSubscribed: boolean;
+  isTracked: boolean;
+}) {
+  const status = String(pulse?.status || "").toLowerCase();
+  const working = status === "queued" || status === "running" || status === "retry";
+  const researchText = compactResearchText(pulse?.text);
+  const refreshed = pulse?.generatedAt
+    ? new Date(pulse.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : null;
+
+  return (
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 max-w-3xl">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+          AI research · {currency}{currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+        <h2 className="mt-2 text-[22px] font-extrabold tracking-tight text-on-surface sm:text-[26px]">
+          {working
+            ? `Researching ${ticker}’s latest setup`
+            : researchText
+              ? `${ticker}, researched`
+              : `Track ${ticker} for continuous AI research`}
+        </h2>
+        {researchText ? (
+          <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">{researchText}</p>
+        ) : working ? (
+          <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
+            The financial page is ready. Fresh news research is running now.
+          </p>
+        ) : null}
+        {refreshed && researchText ? (
+          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-on-surface-variant">
+            refreshed {refreshed}
+          </p>
+        ) : null}
+      </div>
+      <div className="shrink-0">
+        <TrackButton
+          ticker={ticker}
+          instrumentId={instrumentId}
+          tier="free"
+          isSubscribed={isSubscribed}
+          isTracked={isTracked}
+          untrackedLabel={`Track ${ticker}`}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function StockDetail(props: Props) {
-  const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, lockedCall } = props;
+  const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, researchPulse, lockedCall } = props;
 
   const money = (v: number) => `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const levelMoney = (v: number) => `${currency}${Math.round(v).toLocaleString()}`;
@@ -366,8 +437,11 @@ export function StockDetail(props: Props) {
 
   const hist = (priceHistory ?? []).filter((p) => n(p.close));
   const hasChart = hist.length >= 5;
-  const showLockedVerdict = !subscribed;
-  const showVerdict = Boolean((subscribed && (directive?.text || lockedCall)) || showLockedVerdict);
+  const showLongTailResearch = !subscribed && tier === "free";
+  const showLockedVerdict = !subscribed && !showLongTailResearch;
+  const showVerdict = Boolean(
+    (subscribed && (directive?.text || lockedCall)) || showLockedVerdict || showLongTailResearch,
+  );
 
   const finTiles = (
     [
@@ -843,6 +917,16 @@ export function StockDetail(props: Props) {
               )}
 
             </div>
+          ) : showLongTailResearch ? (
+            <LongTailResearchCard
+              ticker={stock.ticker}
+              instrumentId={stock.instrument_id}
+              currentPrice={stock.price}
+              currency={currency}
+              pulse={researchPulse}
+              isSubscribed={subscribed}
+              isTracked={isTracked}
+            />
           ) : showLockedVerdict ? (
             <div>
               <LockedVerdictCall
@@ -979,6 +1063,11 @@ export function StockDetail(props: Props) {
                       </div>
                     </div>
                   )}
+                  {!hasFinancialDepth ? (
+                    <p className="mt-6 border-t border-outline-variant pt-4 text-[11px] leading-relaxed text-on-surface-variant">
+                      Five-year statements are not available from the current sources yet. Missing figures are left blank, never estimated.
+                    </p>
+                  ) : null}
                   </>
                 )}
               </aside>

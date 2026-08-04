@@ -9,6 +9,8 @@ from backend.cloudrun.orchestrator.dispatch import (
     _ai_brief_ids,
     _lane_universe_id,
     _price_core_ids,
+    _search_heat_ids,
+    _search_heat_valid_ids,
     _run_sharded_lane,
     _run_single_job_lane,
     _tracked_ids,
@@ -27,6 +29,21 @@ class _StubStore:
 
 
 class DispatchUniverseScopeTest(unittest.TestCase):
+    def test_search_heat_accepts_any_active_live_catalog_stock(self) -> None:
+        class Store:
+            def list_instruments(self, market):
+                self.market = market
+                return [
+                    {"instrument_id": "US_AAPL", "status": "active"},
+                    {"instrument_id": "US_NOK"},
+                    {"instrument_id": "US_DEAD", "status": "inactive"},
+                ]
+
+        self.assertEqual(
+            _search_heat_valid_ids(Store(), "US"),
+            {"US_AAPL", "US_NOK"},
+        )
+
     def test_pre_earnings_intel_does_not_inherit_runtime_universe(self) -> None:
         store = _StubStore("us_core_100")
         self.assertEqual(_lane_universe_id(store, "US", "pre_earnings_intel", None), "")
@@ -53,10 +70,13 @@ class DispatchUniverseScopeTest(unittest.TestCase):
         ), patch(
             "backend.cloudrun.orchestrator.dispatch._tracked_ids",
             return_value=["US_NVDA", "US_SNDK"],
+        ), patch(
+            "backend.cloudrun.orchestrator.dispatch._search_heat_ids",
+            return_value=["US_SNDK", "US_NOK"],
         ):
             self.assertEqual(
                 _ai_brief_ids(store, "US", "us_core_100"),
-                ["US_AAPL", "US_NVDA", "US_SNDK"],
+                ["US_AAPL", "US_NVDA", "US_SNDK", "US_NOK"],
             )
 
     def test_tracked_cohort_only_uses_active_paid_accounts(self) -> None:

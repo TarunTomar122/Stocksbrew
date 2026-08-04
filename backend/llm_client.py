@@ -7,6 +7,7 @@ import os
 import signal
 import threading
 import time
+from contextvars import ContextVar, Token
 from typing import Any
 
 import requests
@@ -23,6 +24,20 @@ DEFAULT_ENRICHMENT_MODEL = DEFAULT_OPENAI_MODEL
 LLM_BRIEF_SOURCE = "llm"
 
 RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
+
+# Standard short-context prices per 1M tokens. Keep this deliberately small:
+# these are the models used by the product, and unknown models remain
+# measurable without pretending that we know their price.
+# https://developers.openai.com/api/docs/pricing
+_OPENAI_STANDARD_TOKEN_PRICES: dict[str, tuple[float, float, float]] = {
+    "gpt-5.6-luna": (0.20, 0.02, 1.20),
+    "gpt-5.4-nano": (0.20, 0.02, 1.25),
+    "gpt-5-nano": (0.05, 0.005, 0.40),
+}
+_llm_usage_collector: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "llm_usage_collector",
+    default=None,
+)
 
 
 class LLMWallTimeout(TimeoutError):
@@ -134,7 +149,12 @@ def post_chat_completion(
                     model=resolved_model,
                     input_tokens=usage.get("prompt_tokens"),
                     output_tokens=usage.get("completion_tokens"),
-                    cache_hit=False,
+                    cache_hit=bool(
+                        ((usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+                    ),
+                    cached_input_tokens=(
+                        (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
+                    ),
                 )
             return body
         except requests.RequestException as error:
@@ -334,17 +354,108 @@ def log_llm_call(
     input_tokens: int | None,
     output_tokens: int | None,
     cache_hit: bool,
+    cached_input_tokens: int | None = None,
     cost_usd: float | None = None,
     extra: str = "",
 ) -> None:
+    estimated_cost = estimate_llm_cost_usd(
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cached_input_tokens=cached_input_tokens,
+        provider_cost_usd=cost_usd,
+    )
+    collector = _llm_usage_collector.get()
+    if collector is not None:
+        collector.append({
+            "stage": stage,
+            "provider": provider,
+            "model": model,
+            "input_tokens": _nonnegative_int(input_tokens),
+            "cached_input_tokens": _nonnegative_int(cached_input_tokens),
+            "output_tokens": _nonnegative_int(output_tokens),
+            "cache_hit": bool(cache_hit),
+            "estimated_cost_usd": estimated_cost,
+            "cost_known": estimated_cost is not None,
+        })
     logger.info(
-        "llm_call stage=%s provider=%s model=%s input_tokens=%s output_tokens=%s cache_hit=%s cost_usd=%s%s",
+        "llm_call stage=%s provider=%s model=%s input_tokens=%s cached_input_tokens=%s output_tokens=%s cache_hit=%s cost_usd=%s%s",
         stage,
         provider,
         model,
         input_tokens if input_tokens is not None else "",
+        cached_input_tokens if cached_input_tokens is not None else "",
         output_tokens if output_tokens is not None else "",
         cache_hit,
-        cost_usd if cost_usd is not None else "",
+        estimated_cost if estimated_cost is not None else "",
         f" {extra}" if extra else "",
     )
+
+
+def _nonnegative_int(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def estimate_llm_cost_usd(
+    *,
+    model: str,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    cached_input_tokens: int | None = None,
+    provider_cost_usd: float | None = None,
+) -> float | None:
+    """Estimate one direct-OpenAI call without inventing unknown pricing."""
+    if provider_cost_usd is not None:
+        try:
+            return round(max(0.0, float(provider_cost_usd)), 8)
+        except (TypeError, ValueError):
+            pass
+    normalized_model = _direct_openai_model(model).lower()
+    prices = _OPENAI_STANDARD_TOKEN_PRICES.get(normalized_model)
+    if prices is None:
+        return None
+    input_price, cached_price, output_price = prices
+    total_input = _nonnegative_int(input_tokens)
+    cached_input = min(total_input, _nonnegative_int(cached_input_tokens))
+    uncached_input = total_input - cached_input
+    output = _nonnegative_int(output_tokens)
+    cost = (
+        (uncached_input * input_price)
+        + (cached_input * cached_price)
+        + (output * output_price)
+    ) / 1_000_000
+    return round(cost, 8)
+
+
+def begin_llm_usage_collection() -> tuple[list[dict[str, Any]], Token]:
+    records: list[dict[str, Any]] = []
+    return records, _llm_usage_collector.set(records)
+
+
+def end_llm_usage_collection(token: Token) -> None:
+    _llm_usage_collector.reset(token)
+
+
+def summarize_llm_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
+    priced = [row for row in records if row.get("cost_known")]
+    models = sorted({str(row.get("model") or "") for row in records if row.get("model")})
+    stages = sorted({str(row.get("stage") or "") for row in records if row.get("stage")})
+    return {
+        "calls": len(records),
+        "cache_hits": sum(1 for row in records if row.get("cache_hit")),
+        "input_tokens": sum(_nonnegative_int(row.get("input_tokens")) for row in records),
+        "cached_input_tokens": sum(
+            _nonnegative_int(row.get("cached_input_tokens")) for row in records
+        ),
+        "output_tokens": sum(_nonnegative_int(row.get("output_tokens")) for row in records),
+        "estimated_cost_usd": round(
+            sum(float(row.get("estimated_cost_usd") or 0.0) for row in priced),
+            8,
+        ),
+        "cost_complete": len(priced) == len(records),
+        "models": models,
+        "stages": stages,
+    }

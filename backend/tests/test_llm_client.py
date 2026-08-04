@@ -7,16 +7,66 @@ import requests
 
 from backend.llm_client import (
     OPENAI_API_URL,
+    begin_llm_usage_collection,
+    end_llm_usage_collection,
+    estimate_llm_cost_usd,
     llm_api_key,
     llm_api_url,
     llm_headers,
     llm_model,
     llm_provider,
     post_chat_completion,
+    summarize_llm_usage,
 )
 
 
 class LlmClientProviderTest(unittest.TestCase):
+    def test_luna_cost_estimate_uses_official_cached_and_output_rates(self) -> None:
+        self.assertEqual(
+            estimate_llm_cost_usd(
+                model="gpt-5.6-luna",
+                input_tokens=1_000_000,
+                cached_input_tokens=250_000,
+                output_tokens=100_000,
+            ),
+            0.275,
+        )
+        self.assertIsNone(
+            estimate_llm_cost_usd(
+                model="unknown-model",
+                input_tokens=1_000,
+                output_tokens=100,
+            )
+        )
+
+    def test_request_usage_is_collectable_per_worker(self) -> None:
+        response = Mock()
+        response.status_code = 200
+        response.headers = {}
+        response.json.return_value = {
+            "choices": [{"message": {"content": '{"ok":true}'}}],
+            "usage": {
+                "prompt_tokens": 1_000,
+                "completion_tokens": 200,
+                "prompt_tokens_details": {"cached_tokens": 500},
+            },
+        }
+        response.raise_for_status.return_value = None
+        records, token = begin_llm_usage_collection()
+        try:
+            with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+                "backend.llm_client.requests.post", return_value=response
+            ):
+                post_chat_completion(messages=[{"role": "user", "content": "test"}])
+        finally:
+            end_llm_usage_collection(token)
+
+        summary = summarize_llm_usage(records)
+        self.assertEqual(summary["calls"], 1)
+        self.assertEqual(summary["cached_input_tokens"], 500)
+        self.assertTrue(summary["cost_complete"])
+        self.assertGreater(summary["estimated_cost_usd"], 0)
+
     def test_backend_does_not_pin_gpt4_models(self) -> None:
         backend_root = Path(__file__).parents[1]
         forbidden = "gpt" + "-4o"

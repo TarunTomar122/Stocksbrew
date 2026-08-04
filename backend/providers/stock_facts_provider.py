@@ -586,6 +586,204 @@ def _fetch_yahoo_info(instrument: dict[str, Any]) -> dict[str, Any]:
         return {}
 
 
+def _finite_number(value: Any) -> float | None:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed != parsed or parsed in {float("inf"), float("-inf")}:
+        return None
+    return parsed
+
+
+def _frame_value(frame: Any, row_name: str, column: Any) -> float | None:
+    try:
+        return _finite_number(frame.loc[row_name, column])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _first_frame_value(frame: Any, row_names: tuple[str, ...], column: Any) -> float | None:
+    for row_name in row_names:
+        value = _frame_value(frame, row_name, column)
+        if value is not None:
+            return value
+    return None
+
+
+def _yahoo_period_label(column: Any) -> str:
+    if hasattr(column, "year"):
+        return str(column.year)
+    text = str(column or "").strip()
+    return text[:4] if len(text) >= 4 and text[:4].isdigit() else text
+
+
+def _build_yahoo_financial_depth(
+    *,
+    info: dict[str, Any],
+    income: Any,
+    cashflow: Any,
+    balance_sheet: Any,
+    recommendations: Any = None,
+    price_targets: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Normalize yfinance into the existing source-neutral facts contract."""
+    columns = []
+    try:
+        columns = sorted(list(income.columns), reverse=True)[:5]
+    except (AttributeError, TypeError):
+        columns = []
+
+    history: list[dict[str, Any]] = []
+    for column in reversed(columns):
+        revenue = _first_frame_value(income, ("Total Revenue", "Operating Revenue"), column)
+        gross_profit = _frame_value(income, "Gross Profit", column)
+        operating_income = _frame_value(income, "Operating Income", column)
+        net_income = _first_frame_value(
+            income,
+            ("Net Income", "Net Income Common Stockholders"),
+            column,
+        )
+        eps = _first_frame_value(income, ("Diluted EPS", "Basic EPS"), column)
+        free_cash_flow = _frame_value(cashflow, "Free Cash Flow", column)
+        if free_cash_flow is None:
+            operating_cash = _first_frame_value(
+                cashflow,
+                ("Operating Cash Flow", "Total Cash From Operating Activities"),
+                column,
+            )
+            capex = _first_frame_value(
+                cashflow,
+                ("Capital Expenditure", "Capital Expenditures"),
+                column,
+            )
+            if operating_cash is not None and capex is not None:
+                free_cash_flow = operating_cash + capex if capex < 0 else operating_cash - capex
+        row = {
+            "period": _yahoo_period_label(column),
+            "revenue": revenue,
+            "gross_profit": gross_profit,
+            "operating_income": operating_income,
+            "net_income": net_income,
+            "eps_diluted": eps,
+            "free_cash_flow": free_cash_flow,
+            "gross_margin_pct": round(gross_profit / revenue * 100, 4)
+            if revenue and gross_profit is not None
+            else None,
+            "operating_margin_pct": round(operating_income / revenue * 100, 4)
+            if revenue and operating_income is not None
+            else None,
+            "profit_margin_pct": round(net_income / revenue * 100, 4)
+            if revenue and net_income is not None
+            else None,
+        }
+        if any(value is not None for key, value in row.items() if key != "period"):
+            history.append(row)
+
+    balance_columns = []
+    try:
+        balance_columns = list(balance_sheet.columns)
+    except (AttributeError, TypeError):
+        pass
+    latest_balance_column = balance_columns[0] if balance_columns else None
+    cash = (
+        _first_frame_value(
+            balance_sheet,
+            (
+                "Cash Cash Equivalents And Short Term Investments",
+                "Cash And Cash Equivalents",
+                "Cash",
+            ),
+            latest_balance_column,
+        )
+        if latest_balance_column is not None
+        else None
+    )
+    debt = (
+        _first_frame_value(balance_sheet, ("Total Debt", "Long Term Debt"), latest_balance_column)
+        if latest_balance_column is not None
+        else None
+    )
+
+    market_cap = _finite_number(info.get("marketCap"))
+    free_cash_flow_ttm = _finite_number(info.get("freeCashflow"))
+    price_to_fcf = (
+        market_cap / free_cash_flow_ttm
+        if market_cap and free_cash_flow_ttm and free_cash_flow_ttm > 0
+        else None
+    )
+    debt_to_equity = _finite_number(info.get("debtToEquity"))
+    if debt_to_equity is not None and debt_to_equity > 10:
+        debt_to_equity /= 100.0
+
+    target = price_targets or {}
+    recommendation_trend: list[dict[str, Any]] = []
+    try:
+        for period, row in recommendations.tail(6).iterrows():
+            recommendation_trend.append(
+                {
+                    "period": str(period),
+                    "strong_buy": int(row.get("strongBuy") or 0),
+                    "buy": int(row.get("buy") or 0),
+                    "hold": int(row.get("hold") or 0),
+                    "sell": int(row.get("sell") or 0),
+                    "strong_sell": int(row.get("strongSell") or 0),
+                }
+            )
+    except (AttributeError, TypeError, ValueError):
+        recommendation_trend = []
+
+    return {
+        "financial_history": history,
+        "financials": {
+            **(history[-1] if history else {}),
+            "source": "yfinance",
+        },
+        "balance": {
+            "cash_and_investments": cash,
+            "total_debt": debt,
+            "net_cash": cash - debt if cash is not None and debt is not None else None,
+        },
+        "valuation": {
+            "forward_pe": _finite_number(info.get("forwardPE")),
+            "price_to_sales": _finite_number(info.get("priceToSalesTrailing12Months")),
+            "price_to_fcf": round(price_to_fcf, 4) if price_to_fcf is not None else None,
+            "ev_to_ebitda": _finite_number(info.get("enterpriseToEbitda")),
+        },
+        "quality": {
+            "roic_pct": None,
+            "roe_pct": (
+                round(float(info["returnOnEquity"]) * 100, 4)
+                if _finite_number(info.get("returnOnEquity")) is not None
+                else None
+            ),
+            "debt_to_equity": debt_to_equity,
+            "current_ratio": _finite_number(info.get("currentRatio")),
+        },
+        "analyst_trend": {
+            "target": {
+                "low": _finite_number(target.get("low")),
+                "average": _finite_number(target.get("mean")),
+                "median": _finite_number(target.get("median")),
+                "high": _finite_number(target.get("high")),
+            },
+            "recommendation_trend": recommendation_trend,
+        },
+    }
+
+
+def _fetch_yahoo_financial_depth(instrument: dict[str, Any]) -> dict[str, Any]:
+    ticker = yf.Ticker(yahoo_symbol_for(instrument))
+    return _build_yahoo_financial_depth(
+        info=ticker.info or {},
+        income=ticker.income_stmt,
+        cashflow=ticker.cashflow,
+        balance_sheet=ticker.balance_sheet,
+        recommendations=ticker.recommendations_summary,
+        price_targets=ticker.analyst_price_targets or {},
+    )
+
+
 def _analyst_label(buy_pct: float | None, target_price: float | None, current_price: float | None) -> str:
     if buy_pct is not None:
         if buy_pct >= 65:
@@ -735,6 +933,7 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
     business_segments: dict[str, Any] | None = None
     geographic_mix: dict[str, Any] | None = None
     analyst_trend: dict[str, Any] = {}
+    used_yahoo_depth = False
 
     for label, fn in (
         ("finviz", lambda: _parse_finviz_snapshot(ticker)),
@@ -774,6 +973,33 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
         elif label == "stockanalysis_forecast":
             analyst_trend = result
 
+    # StockAnalysis has the best presentation-oriented tables, but ADRs and
+    # newly listed companies can be absent or temporarily blocked. Fill only
+    # missing sections from Yahoo so a source outage cannot erase good saved
+    # data or fabricate unsupported business/geographic mixes.
+    if not financial_history or not balance or not valuation or not quality:
+        try:
+            yahoo_depth = _fetch_yahoo_financial_depth(instrument)
+            used_yahoo_depth = True
+        except Exception as exc:
+            errors.append(f"yfinance_depth: {exc}")
+            yahoo_depth = {}
+        if not financial_history:
+            financial_history = yahoo_depth.get("financial_history") or []
+        if not financials:
+            financials = yahoo_depth.get("financials") or {}
+        for key, value in (yahoo_depth.get("balance") or {}).items():
+            if value is not None:
+                balance.setdefault(key, value)
+        for key, value in (yahoo_depth.get("valuation") or {}).items():
+            if value is not None:
+                valuation.setdefault(key, value)
+        for key, value in (yahoo_depth.get("quality") or {}).items():
+            if value is not None:
+                quality.setdefault(key, value)
+        if not analyst_trend:
+            analyst_trend = yahoo_depth.get("analyst_trend") or {}
+
     if not analyst and finviz.get("analyst_hint"):
         analyst = {
             "target_price": finviz["analyst_hint"].get("target_price"),
@@ -800,7 +1026,12 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
         "analyst_trend": analyst_trend,
         "institutions": institutions,
         "source_status": {
-            "sources": ["finviz", "nasdaq", "stockanalysis"],
+            "sources": [
+                "finviz",
+                "nasdaq",
+                "stockanalysis",
+                *(["yfinance"] if used_yahoo_depth else []),
+            ],
             "errors": errors,
         },
     }

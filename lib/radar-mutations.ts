@@ -90,7 +90,9 @@ export async function addRadarStock(input: {
     });
   });
 
-  const researchQueued = await maybeQueueOnDemandNews(input.uid, input.instrumentId).catch(() => false);
+  const researchQueued = await maybeQueueOnDemandNews(input.uid, input.instrumentId, {
+    source: "radar_track",
+  }).catch(() => false);
   await queueWatchlistRefresh(input.uid, sourceVersion, input.requestedBy || "agent").catch(() => undefined);
   return { already_tracked: alreadyTracked, research_queued: researchQueued, source_version: sourceVersion };
 }

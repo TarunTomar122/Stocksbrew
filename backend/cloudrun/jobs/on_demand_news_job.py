@@ -14,6 +14,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("--per-stock-cap", type=int, default=6)
     parser.add_argument("--broad-cap", type=int, default=0)
+    parser.add_argument("--max-workers", type=int, default=2)
     args = parser.parse_args()
 
     cmd = [
@@ -26,6 +27,8 @@ def main() -> None:
         str(max(1, args.per_stock_cap)),
         "--broad-cap",
         str(max(0, args.broad_cap)),
+        "--max-workers",
+        str(max(1, args.max_workers)),
     ]
     print(
         {

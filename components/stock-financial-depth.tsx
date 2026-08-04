@@ -337,6 +337,9 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
 
   const maxCapital = Math.max(balance?.cash_and_investments ?? 0, balance?.total_debt ?? 0, 1);
   const sourceSlug = ticker.toLowerCase();
+  const sources = new Set((facts?.source_status?.sources ?? []).map((source) => source.toLowerCase()));
+  const usesStockAnalysis = sources.has("stockanalysis") || sources.size === 0;
+  const usesYahoo = sources.has("yfinance");
   const forwardPeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Forward P/E"])) ?? bandGuidance(valuation?.forward_pe, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Below 20x forward earnings", yellowCopy: "A moderate earnings multiple", redCopy: "Above 35x forward earnings" });
   const priceSalesGuidance = bandGuidance(valuation?.price_to_sales, { green: 3, yellow: 8, lowerIsBetter: true, greenCopy: "Under 3x annual sales", yellowCopy: "Between 3x and 8x sales", redCopy: "Above 8x annual sales" });
   const priceFcfGuidance = bandGuidance(valuation?.price_to_fcf, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Under 20x free cash flow", yellowCopy: "Between 20x and 35x free cash flow", redCopy: "Above 35x free cash flow" });
@@ -348,6 +351,11 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
 
   return (
     <section id="stock-financial-depth" className="flex flex-col gap-12 border-t border-outline-variant bg-transparent py-7 sm:py-9">
+      {history.length <= 1 ? (
+        <p className="border-b border-[#eceff3] pb-4 text-[11px] leading-relaxed text-[#6b7280]">
+          Five-year statements are not available from our current sources yet. Missing figures stay blank.
+        </p>
+      ) : null}
       {history.length > 1 ? (
         <section>
           <div className="flex flex-col gap-4 border-b border-[#111827] pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -422,7 +430,15 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
       {hasMix ? <section className="grid gap-10 lg:grid-cols-2 lg:gap-14"><MixBreakdown title="Business mix" mix={facts?.business_segments} currency={currency} /><MixBreakdown title="Geographic mix" mix={facts?.geographic_mix} currency={currency} /></section> : null}
 
       <p className="border-t border-[#eceff3] pt-4 text-[10px] leading-relaxed text-[#9ca3af]">
-        Selected financial data sourced from <a className="underline decoration-[#c4b5fd] underline-offset-2 hover:text-[#6d28d9]" href={`https://stockanalysis.com/stocks/${sourceSlug}/`} target="_blank" rel="noreferrer">StockAnalysis</a> and refreshed weekly. Figures may be delayed and are for research context, not investment advice.
+        Selected financial data sourced from{" "}
+        {usesStockAnalysis ? (
+          <a className="underline decoration-[#c4b5fd] underline-offset-2 hover:text-[#6d28d9]" href={`https://stockanalysis.com/stocks/${sourceSlug}/`} target="_blank" rel="noreferrer">StockAnalysis</a>
+        ) : null}
+        {usesStockAnalysis && usesYahoo ? " and " : null}
+        {usesYahoo ? (
+          <a className="underline decoration-[#c4b5fd] underline-offset-2 hover:text-[#6d28d9]" href={`https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}/financials/`} target="_blank" rel="noreferrer">Yahoo Finance</a>
+        ) : null}
+        {" "}and refreshed weekly. Figures may be delayed and are for research context, not investment advice.
       </p>
     </section>
   );

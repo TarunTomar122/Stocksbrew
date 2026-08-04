@@ -244,7 +244,9 @@ export async function POST(req: NextRequest) {
 
   let queuedOnDemandCount = 0;
   for (const instrumentId of addedIds) {
-    const queued = await maybeQueueOnDemandNews(session.uid, instrumentId).catch(() => false);
+    const queued = await maybeQueueOnDemandNews(session.uid, instrumentId, {
+      source: "watchlist_batch",
+    }).catch(() => false);
     if (queued) queuedOnDemandCount += 1;
   }
 

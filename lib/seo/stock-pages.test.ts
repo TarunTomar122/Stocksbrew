@@ -8,9 +8,10 @@ import {
 } from "@/lib/seo/stock-pages";
 
 describe("indexable US stock pages", () => {
-  it("contains exactly the curated core 100 without duplicate tickers", () => {
-    expect(SEO_STOCK_PAGES).toHaveLength(100);
-    expect(new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker)).size).toBe(100);
+  it("covers the broad US company catalogue without duplicate tickers", () => {
+    expect(SEO_STOCK_PAGES).toHaveLength(501);
+    expect(new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker)).size).toBe(501);
+    expect(SEO_STOCK_PAGES.every((stock) => stock.instrumentId.startsWith("US_"))).toBe(true);
   });
 
   it("contains the high-intent featured companies with unique metadata", () => {
@@ -24,5 +25,11 @@ describe("indexable US stock pages", () => {
 
   it("does not treat an arbitrary ticker route as indexable", () => {
     expect(getSeoStockPage("NOTAREALTICKER")).toBeNull();
+  });
+
+  it("indexes supported long-tail companies but excludes macro symbols", () => {
+    expect(getSeoStockPage("HDB")?.name).toContain("HDFC");
+    expect(getSeoStockPage("ASO")?.name).toContain("Academy");
+    expect(getSeoStockPage("SPX")).toBeNull();
   });
 });

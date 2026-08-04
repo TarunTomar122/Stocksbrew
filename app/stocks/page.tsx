@@ -7,11 +7,12 @@ import {
   SEO_STOCK_PAGES,
   type SeoStockPage,
 } from "@/lib/seo/stock-pages";
+import { getSearchIndexForApi } from "@/lib/search";
 
 export const metadata: Metadata = {
   title: "US Stocks: Analysis & Research",
   description:
-    "Browse current stock analysis for 100 widely followed US companies. Find prices, valuation, growth, earnings, analyst context, risks, and recent news by ticker.",
+    "Browse current stock analysis for hundreds of US companies. Find prices, valuation, growth, earnings, analyst context, risks, and recent news by ticker.",
   keywords: [
     "US stocks",
     "US stock analysis",
@@ -23,14 +24,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "US Stocks: Analysis & Research · stocksbrew",
     description:
-      "Browse company-specific analysis for 100 widely followed US stocks, organized by sector and ticker.",
+      "Browse company-specific analysis for hundreds of US stocks, organized by sector and ticker.",
     url: "https://www.stocksbrew.online/stocks",
   },
   twitter: {
     card: "summary_large_image",
     title: "US Stocks: Analysis & Research · stocksbrew",
     description:
-      "Browse company-specific analysis for 100 widely followed US stocks, organized by sector and ticker.",
+      "Browse company-specific analysis for hundreds of US stocks, organized by sector and ticker.",
   },
 };
 
@@ -38,18 +39,32 @@ const featured = FEATURED_STOCK_TICKERS
   .map((ticker) => SEO_STOCK_PAGES.find((stock) => stock.ticker === ticker))
   .filter((stock): stock is SeoStockPage => Boolean(stock));
 
-const bySector = [...SEO_STOCK_PAGES.reduce((map, stock) => {
-  const label = stock.sector || "Other";
-  const rows = map.get(label) ?? [];
-  rows.push(stock);
-  map.set(label, rows);
-  return map;
-}, new Map<string, SeoStockPage[]>())].sort(([a], [b]) => a.localeCompare(b));
+export default async function StocksDirectoryPage() {
+  const staticTickers = new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker));
+  const liveRows = await getSearchIndexForApi("US").catch(() => []);
+  const dynamicRows: SeoStockPage[] = liveRows
+    .filter((row) => !staticTickers.has(row.ticker))
+    .map((row) => ({
+      instrumentId: row.instrument_id,
+      ticker: row.ticker,
+      name: row.name,
+      exchange: "",
+      sector: "More US stocks",
+      industry: "",
+      description: "",
+    }));
+  const directoryStocks = [...SEO_STOCK_PAGES, ...dynamicRows];
+  const bySector = [...directoryStocks.reduce((map, stock) => {
+    const label = stock.sector || "Other";
+    const rows = map.get(label) ?? [];
+    rows.push(stock);
+    map.set(label, rows);
+    return map;
+  }, new Map<string, SeoStockPage[]>())].sort(([a], [b]) => a.localeCompare(b));
 
-export default function StocksDirectoryPage() {
   return (
     <main className="flex-grow">
-      <StockDirectorySchema stocks={SEO_STOCK_PAGES} />
+      <StockDirectorySchema stocks={directoryStocks} />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-12 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <header className="max-w-4xl">
           <nav aria-label="Breadcrumb" className="text-[12px] text-on-surface-variant">
@@ -66,7 +81,7 @@ export default function StocksDirectoryPage() {
           <p className="mt-5 max-w-3xl text-[16px] leading-7 text-on-surface-variant">
             Open a company page for the latest available price, returns, valuation, growth,
             analyst context, earnings, risks, and recent headlines. This directory focuses on
-            100 widely followed US-listed companies with enough data for a useful research page.
+            hundreds of supported US-listed companies with data for a useful research page.
           </p>
         </header>
 

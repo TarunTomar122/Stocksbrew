@@ -397,6 +397,10 @@ export type StockFacts = {
     }>;
     source?: string;
   };
+  source_status?: {
+    sources?: string[];
+    errors?: string[];
+  };
 };
 
 export type StockRevenueMix = {

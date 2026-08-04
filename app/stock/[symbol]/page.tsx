@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockPageSkeleton } from "@/components/page-stream-skeletons";
-import { normalizeStockSymbolParam } from "@/lib/stock";
+import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
 import { getSeoStockPage, stockSeoDescription } from "@/lib/seo/stock-pages";
 
 export const revalidate = 60;
@@ -20,27 +20,40 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
   const profile = getSeoStockPage(upper);
-  const title = profile
-    ? `${profile.name} (${upper}) Stock Analysis`
+  // Fulfilled/search-catalog stocks can exist in Firestore before the checked-
+  // in 500-company catalogue is refreshed. Resolve those real pages here so a
+  // valid long-tail stock such as NOK is not left noindex until the next code
+  // deployment.
+  const live = profile
+    ? null
+    : await getStockSummary(upper, "US").catch(() => null);
+  const identity = profile ?? live;
+  const title = identity
+    ? `${identity.name} (${upper}) Stock Analysis`
     : `${upper} Stock Analysis & Research`;
-  const description = profile
-    ? stockSeoDescription(profile)
+  const description = identity
+    ? stockSeoDescription({
+        name: identity.name,
+        ticker: upper,
+        sector: identity.sector || "",
+        industry: identity.industry || "",
+      })
     : `${upper} stock price, fundamentals, earnings, analyst context, risks, and recent news in one research view.`;
   return {
     title,
     description,
-    keywords: profile
+    keywords: identity
       ? [
           `${upper} stock analysis`,
-          `${profile.name} stock`,
+          `${identity.name} stock`,
           `${upper} earnings`,
           `${upper} stock price`,
-          profile.industry,
-          profile.sector,
-        ].filter(Boolean)
+          identity.industry,
+          identity.sector,
+        ].filter((value): value is string => Boolean(value))
       : undefined,
     alternates: { canonical: `/stock/${upper}` },
-    robots: { index: Boolean(profile), follow: true },
+    robots: { index: Boolean(identity), follow: true },
     openGraph: {
       title: `${title} · stocksbrew`,
       description,

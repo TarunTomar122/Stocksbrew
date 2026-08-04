@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import os
 import subprocess
 import sys
@@ -12,6 +12,7 @@ from backend.instrument_universe import get_coverage_universe_id, list_instrumen
 from backend.market_session_state import MarketSessionState
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
+from backend.search_heat import rank_search_heat_rows
 from backend.storage import TraceMoneyStore
 from backend.subscription_entitlement import has_current_pro_entitlement
 
@@ -61,7 +62,7 @@ def _ai_brief_ids(
     market: str,
     universe_id: str,
 ) -> list[str]:
-    """Active AI universe plus every Pro-tracked stock, deduped."""
+    """Runtime core plus active-Pro Radar and genuine search demand."""
     ids: list[str] = []
     seen: set[str] = set()
     for instrument in list_instruments(market, universe_id):
@@ -73,7 +74,53 @@ def _ai_brief_ids(
         if instrument_id not in seen:
             seen.add(instrument_id)
             ids.append(instrument_id)
+    for instrument_id in _search_heat_ids(store, market):
+        if instrument_id not in seen:
+            seen.add(instrument_id)
+            ids.append(instrument_id)
     return ids
+
+
+def _search_heat_ids(
+    store: TraceMoneyStore,
+    market: str,
+    *,
+    now: datetime | None = None,
+    cap: int = 20,
+) -> list[str]:
+    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    cutoff = (current - timedelta(hours=72)).isoformat()
+    valid_ids = _search_heat_valid_ids(store, market)
+    docs = (
+        store.db.collection("tm_stock_views")
+        .where("created_at", ">=", cutoff)
+        .select(["instrument_id", "ticker", "market", "uid", "anon_id", "created_at", "updated_at"])
+        .stream()
+    )
+    rows = [doc.to_dict() or {} for doc in docs]
+    ranked = rank_search_heat_rows(
+        rows,
+        market=market,
+        valid_ids=valid_ids,
+        now=current,
+        cap=cap,
+    )
+    try:
+        store.save_search_heat_cohort(market, ranked)
+    except Exception:
+        # Cohort persistence is observability only; selection remains usable.
+        pass
+    return [str(row["instrument_id"]) for row in ranked]
+
+
+def _search_heat_valid_ids(store: TraceMoneyStore, market: str) -> set[str]:
+    """The live catalog, not the checked-in SEO set, defines valid demand."""
+    return {
+        str(row.get("instrument_id") or "").strip().upper()
+        for row in store.list_instruments(market)
+        if str(row.get("instrument_id") or "").strip()
+        and str(row.get("status") or "active").strip().lower() != "inactive"
+    }
 
 
 def _resolve_universe(store: TraceMoneyStore, market: str, explicit: str | None) -> str:
@@ -666,6 +713,8 @@ def main() -> None:
                 str(args.per_stock_cap),
                 "--broad-cap",
                 str(args.on_demand_broad_cap),
+                "--max-workers",
+                str(max(1, args.max_workers)),
             ]
         elif args.lane == "stock_requests":
             single_extra_args = ["--limit", str(max(1, args.limit))]
