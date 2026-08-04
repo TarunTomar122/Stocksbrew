@@ -108,7 +108,9 @@ write_pair market-discovery-open "Mon..Fri *-*-* 10:30:00 America/New_York" mark
 write_pair market-discovery-close "Mon..Fri *-*-* 17:00:00 America/New_York" market_discovery
 write_pair earnings-intel "Mon..Fri *-*-* 22:00:00" earnings_intel "--recent-days 3 --max-events 30"
 write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--upcoming-days 7 --max-events 200"
-write_pair on-demand-news "*-*-* *:00/5:00" on_demand_news "--limit 12 --per-stock-cap 6 --max-workers 2" "" "5min"
+# The timer itself is the retry loop. Do not add Restart=/StartLimit to this
+# five-minute oneshot or successful empty polls eventually hit the burst cap.
+write_pair on-demand-news "*-*-* *:00/5:00" on_demand_news "--limit 12 --per-stock-cap 6 --max-workers 2"
 write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
 write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--universe us_core_155 --limit 0 --max-workers 4"
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
