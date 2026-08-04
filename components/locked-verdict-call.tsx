@@ -9,6 +9,7 @@ import { signInWithGoogle } from "@/lib/sign-in";
 import { trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
 import type { StockReturns } from "@/lib/chart-range";
 import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
+import type { StockTechnicalLevels } from "@/lib/technicals";
 
 const KICK = "font-mono text-[11px] uppercase tracking-[0.13em] text-on-surface-variant";
 
@@ -82,12 +83,14 @@ function MaskedCall() {
 }
 
 function VerdictUnlockCard({
+  ticker,
   signedIn,
   hasTrial,
   onSignIn,
   onGetPro,
   error,
 }: {
+  ticker: string;
   signedIn: boolean;
   hasTrial: boolean;
   onSignIn: () => void;
@@ -95,11 +98,7 @@ function VerdictUnlockCard({
   error: string | null;
 }) {
   const onClick = signedIn ? onGetPro : onSignIn;
-  const label = hasTrial
-    ? "Start your 3-day free trial"
-    : signedIn
-      ? `Unlock Pro · ${US_PRO_MONTHLY_MO}`
-      : "Start your 3-day free trial";
+  const label = signedIn ? "Unlock full research" : "See the full research";
   const subtext = hasTrial
     ? `Free for 3 days, then ${US_PRO_MONTHLY_MO}. Cancel anytime.`
     : signedIn
@@ -107,24 +106,27 @@ function VerdictUnlockCard({
       : `${US_PRO_MONTHLY_MO} · Cancel anytime.`;
 
   return (
-    <div className="mx-auto flex max-w-[22rem] flex-col items-center text-center">
-      <span className="grid h-9 w-9 place-items-center rounded-full border border-outline-variant bg-surface">
-        <LockIcon />
-      </span>
-      <p className="mt-2 text-[16px] font-extrabold tracking-[-0.015em] text-on-surface">
-        Our call, levels and risk
-      </p>
-      <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-        Unlock the stance, entry zone, target, drivers and alerts.
-      </p>
+    <div className="mx-auto w-full max-w-[24rem] text-left">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-8 w-8 place-items-center rounded-full border border-outline-variant bg-surface"><LockIcon /></span>
+        <p className="text-[17px] font-extrabold tracking-[-0.015em] text-on-surface">See the full {ticker} research</p>
+      </div>
+      <ul className="mt-4 space-y-2 text-[12.5px] text-on-surface/85">
+        {["Buy, hold or avoid view", "Entry, target and exit prices", "News, earnings and price alerts"].map((item) => (
+          <li key={item} className="flex items-center gap-2">
+            <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--signal-bullish)_13%,transparent)] text-[10px] font-bold text-[var(--signal-bullish)]">✓</span>
+            {item}
+          </li>
+        ))}
+      </ul>
       <button
         type="button"
         onClick={() => onClick()}
-        className="mt-3 inline-flex min-h-14 items-center justify-center rounded-lg bg-primary px-5 py-3 text-[13px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
+        className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-lg bg-primary px-5 py-3 text-[13px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
       >
         {label}
       </button>
-      <p className="mt-2 text-[10.5px] text-on-surface-variant">{subtext}</p>
+      <p className="mt-2 text-center text-[10.5px] text-on-surface-variant">{subtext}</p>
       {error ? (
         <p className="mt-2 text-[12px] font-medium text-[#ef4444]">{error}</p>
       ) : null}
@@ -186,6 +188,7 @@ export function LockedVerdictCall({
   returns,
   currency,
   currentPrice,
+  technicalLevels,
   overviewHeadline,
   fundamentalsScore,
   preEarningsDays,
@@ -196,6 +199,7 @@ export function LockedVerdictCall({
   returns?: StockReturns | null;
   currency: string;
   currentPrice: number;
+  technicalLevels?: StockTechnicalLevels | null;
   overviewHeadline?: string;
   fundamentalsScore?: number | null;
   preEarningsDays?: number | null;
@@ -244,6 +248,7 @@ export function LockedVerdictCall({
         </div>
         <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--surface)_86%,transparent)_0%,color-mix(in_srgb,var(--surface)_68%,transparent)_58%,color-mix(in_srgb,var(--surface-container-low)_42%,transparent)_100%)] p-5">
           <VerdictUnlockCard
+            ticker={ticker}
             signedIn={signedIn}
             hasTrial={hasTrial}
             onSignIn={handleSignIn}
@@ -264,6 +269,7 @@ export function LockedVerdictCall({
       zones={[]}
       lineColor="var(--on-surface-variant)"
       currentPrice={currentPrice}
+      technicalLevels={technicalLevels}
     />
   );
 }

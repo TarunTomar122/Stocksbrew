@@ -153,6 +153,16 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(page).toContain("buildDecisionCards(rows, activeRadarUserView).slice(0, 3)");
   });
 
+  it("keeps Watchlist discovery as one deduplicated list", () => {
+    const ideas = source("components/radar-next/ideas.tsx");
+
+    expect(ideas).toContain("[...unusual, ...fits, ...top]");
+    expect(ideas).toContain("seen.has(key)");
+    expect(ideas).not.toContain('role="tablist"');
+    expect(ideas).not.toContain("Fits your book");
+    expect(ideas).not.toContain("Top rated");
+  });
+
   it("lets free and Pro members generate missing stock analysis", () => {
     const lockedBrief = source("components/locked-ai-brief.tsx");
     const detail = source("components/stock-detail.tsx");
@@ -164,12 +174,15 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(detail).toContain('untrackedLabel="Generate analysis"');
   });
 
-  it("shows recent support and resistance on stock pages", () => {
+  it("only shows provider-backed support and resistance beside returns", () => {
     const detail = source("components/stock-detail.tsx");
+    const chart = source("components/verdict-call-chart.tsx");
 
-    expect(detail).toContain("findNearestTechnicalLevels(hist, stock.price)");
-    expect(detail).toContain("Nearest support");
-    expect(detail).toContain("Nearest resistance");
-    expect(detail).toContain("From recent closing-price reversals.");
+    expect(detail).not.toContain("findNearestTechnicalLevels");
+    expect(detail).toContain("technicalLevels?.source");
+    expect(detail).toContain("technicalLevels?.as_of");
+    expect(chart).toContain("Nearest support");
+    expect(chart).toContain("Nearest resistance");
+    expect(chart).toContain("technicalLevels?.source");
   });
 });

@@ -22,6 +22,16 @@ export type DistanceSignals = {
   from_52w_low_pct?: number | null;
 };
 
+export type StockTechnicalLevels = {
+  support?: number | null;
+  resistance?: number | null;
+  support_label?: string | null;
+  resistance_label?: string | null;
+  method?: string;
+  source?: string;
+  as_of?: string;
+};
+
 export type StockTechnicals = {
   instrument_id: string;
   ticker?: string;
@@ -30,6 +40,8 @@ export type StockTechnicals = {
   rsi_14?: RsiSignal;
   moving_averages?: MovingAverages;
   distance?: DistanceSignals;
+  /** Provider-published levels only. Never inferred in the browser. */
+  levels?: StockTechnicalLevels;
 };
 
 function formatDate(d: Date): string {

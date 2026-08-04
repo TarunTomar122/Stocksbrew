@@ -594,6 +594,7 @@ export async function StockPageStream({ params }: Props) {
         fundamentals={fundamentals}
         rsi={rsiValue ?? rsi ?? null}
         rsiState={technicals?.rsi_14?.state}
+        technicalLevels={technicals?.levels}
         priceHistory={priceHistory}
         sma50={sma50}
         sma200={sma200}

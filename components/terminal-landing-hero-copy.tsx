@@ -26,7 +26,6 @@ export function TerminalLandingHeroCopy({
 
   return (
     <div className={`mx-auto flex w-full max-w-3xl flex-col ${isLeftAligned ? "items-start text-left lg:mx-0" : "items-center text-center"}`}>
-      <p className="landing-section-kicker text-landing-brand">StocksBrew</p>
       <h1 className="font-display text-[1.85rem] font-extrabold leading-[1.1] tracking-tight text-on-surface sm:text-4xl sm:leading-[1.08] lg:text-[3.25rem]">
         {HERO_HEADLINE}
       </h1>

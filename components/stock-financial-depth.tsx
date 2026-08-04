@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   Line,
   LineChart,
@@ -59,22 +60,22 @@ function pct(value?: number | null): string {
 
 function chartSeries(mode: ChartMode, history: NonNullable<StockFacts["financial_history"]>): Series[] {
   if (mode === "revenue") {
-    return [{ key: "revenue", label: "Revenue", color: "#7c3aed", values: history.map((row) => row.revenue ?? null) }];
+    return [{ key: "revenue", label: "Revenue", color: "#10b981", values: history.map((row) => row.revenue ?? null) }];
   }
   if (mode === "profit") {
     return [
-      { key: "grossProfit", label: "Gross profit", color: "#7c3aed", values: history.map((row) => row.gross_profit ?? null) },
-      { key: "operatingIncome", label: "Operating income", color: "#111827", values: history.map((row) => row.operating_income ?? null) },
-      { key: "netIncome", label: "Net income", color: "#10b981", values: history.map((row) => row.net_income ?? null) },
+      { key: "grossProfit", label: "Gross profit", color: "#34d399", values: history.map((row) => row.gross_profit ?? null) },
+      { key: "operatingIncome", label: "Operating income", color: "#10b981", values: history.map((row) => row.operating_income ?? null) },
+      { key: "netIncome", label: "Net income", color: "#047857", values: history.map((row) => row.net_income ?? null) },
     ];
   }
   if (mode === "fcf") {
-    return [{ key: "freeCashFlow", label: "Free cash flow", color: "#7c3aed", values: history.map((row) => row.free_cash_flow ?? null) }];
+    return [{ key: "freeCashFlow", label: "Free cash flow", color: "#10b981", values: history.map((row) => row.free_cash_flow ?? null) }];
   }
   return [
-    { key: "grossMargin", label: "Gross margin", color: "#7c3aed", values: history.map((row) => row.gross_margin_pct ?? null) },
-    { key: "operatingMargin", label: "Operating margin", color: "#111827", values: history.map((row) => row.operating_margin_pct ?? null) },
-    { key: "profitMargin", label: "Profit margin", color: "#10b981", values: history.map((row) => row.profit_margin_pct ?? null) },
+    { key: "grossMargin", label: "Gross margin", color: "#34d399", values: history.map((row) => row.gross_margin_pct ?? null) },
+    { key: "operatingMargin", label: "Operating margin", color: "#10b981", values: history.map((row) => row.operating_margin_pct ?? null) },
+    { key: "profitMargin", label: "Profit margin", color: "#047857", values: history.map((row) => row.profit_margin_pct ?? null) },
   ];
 }
 
@@ -127,7 +128,15 @@ function FinancialChart({
         ) : (
           <BarChart {...common} barGap={3}>
             {axes}
-            {series.map((item) => <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56} />)}
+            {series.map((item) => (
+              <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56}>
+                {data.map((row, index) => {
+                  const value = row[item.key];
+                  const fill = typeof value === "number" && value < 0 ? "#ef4444" : item.color;
+                  return <Cell key={`${item.key}-${index}`} fill={fill} />;
+                })}
+              </Bar>
+            ))}
           </BarChart>
         )}
       </ResponsiveContainer>
@@ -236,33 +245,37 @@ function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; cur
   const median = target?.median;
   const high = target?.high;
   if (![low, average, high].every(finite)) return null;
-  const values = [low!, average!, high!, currentPrice].filter(finite);
-  const floor = Math.min(...values);
-  const ceiling = Math.max(...values);
-  const span = Math.max(1, ceiling - floor);
-  const position = (value: number) => ((value - floor) / span) * 100;
+  const averageMove = finite(currentPrice) && currentPrice !== 0
+    ? ((average! - currentPrice) / currentPrice) * 100
+    : null;
+  const averageAbove = finite(averageMove) && averageMove >= 0;
 
   return (
-    <div className="pt-2">
-      <div className="relative h-12">
-        <div className="absolute left-0 right-0 top-5 h-1 rounded-full bg-[#e5e7eb]" />
-        <div className="absolute top-5 h-1 rounded-full bg-[#ddd6fe]" style={{ left: `${position(low!)}%`, right: `${100 - position(high!)}%` }} />
-        {finite(currentPrice) ? (
-          <div className="group absolute top-1 -translate-x-1/2" style={{ left: `${position(currentPrice)}%` }} tabIndex={0}>
-            <span className="block whitespace-nowrap rounded bg-[#111827] px-2 py-1 text-[10px] font-semibold text-white transition-transform group-hover:-translate-y-0.5 group-focus:-translate-y-0.5">Now {compactMoney(currentPrice, currency)}</span>
-            <span className="mx-auto block h-5 w-px bg-[#111827]" />
+    <div className="pt-4">
+      <div className="grid overflow-hidden rounded-xl border border-[#e5e7eb] bg-[#f8fafc] sm:grid-cols-2">
+        <div className="p-4 sm:p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Current price</p>
+          <p className="mt-1 text-[24px] font-bold tabular-nums text-[#111827]">
+            {finite(currentPrice) ? compactMoney(currentPrice, currency) : "-"}
+          </p>
+        </div>
+        <div className="border-t border-[#e5e7eb] p-4 sm:border-l sm:border-t-0 sm:p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Average analyst target</p>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <p className="text-[24px] font-bold tabular-nums text-[#111827]">{compactMoney(average, currency)}</p>
+            {finite(averageMove) ? (
+              <span className="text-[12px] font-semibold tabular-nums" style={{ color: averageAbove ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+                {averageAbove ? "+" : ""}{averageMove.toFixed(1)}% from now
+              </span>
+            ) : null}
           </div>
-        ) : null}
-        <span className="group absolute top-3 h-5 w-2 -translate-x-1/2 cursor-help" style={{ left: `${position(average!)}%` }} tabIndex={0}>
-          <span className="mx-auto block h-5 w-0.5 bg-[#7c3aed] transition-transform group-hover:scale-y-125 group-focus:scale-y-125" />
-          <span role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#111827] px-2 py-1 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100">Average target {compactMoney(average, currency)}</span>
-        </span>
+        </div>
       </div>
-      <div className="grid grid-cols-4 gap-3 text-[11px]">
-        <div><span className="block text-[#9ca3af]">Low</span><b>{compactMoney(low, currency)}</b></div>
-        <div><span className="block text-[#9ca3af]">Average</span><b className="text-[#7c3aed]">{compactMoney(average, currency)}</b></div>
-        <div><span className="block text-[#9ca3af]">Median</span><b>{compactMoney(median, currency)}</b></div>
-        <div className="text-right"><span className="block text-[#9ca3af]">High</span><b>{compactMoney(high, currency)}</b></div>
+      <p className="mt-4 text-[11px] font-semibold text-[#374151]">Analyst target range</p>
+      <div className="mt-2 grid grid-cols-3 divide-x divide-[#e5e7eb] rounded-lg border border-[#e5e7eb] bg-white text-[11px]">
+        <div className="px-3 py-3"><span className="block text-[#9ca3af]">Low</span><b className="mt-0.5 block tabular-nums">{compactMoney(low, currency)}</b></div>
+        <div className="px-3 py-3 text-center"><span className="block text-[#9ca3af]">Median</span><b className="mt-0.5 block tabular-nums">{compactMoney(median, currency)}</b></div>
+        <div className="px-3 py-3 text-right"><span className="block text-[#9ca3af]">High</span><b className="mt-0.5 block tabular-nums">{compactMoney(high, currency)}</b></div>
       </div>
     </div>
   );
@@ -314,7 +327,7 @@ export function StockAnalystDepth({ facts, currentPrice, currency = "$" }: Pick<
   return (
     <div className="min-w-0">
       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Wall Street</p>
-      <h3 className="border-b border-[#111827] pb-3 text-[19px] font-semibold text-[#111827]">Target range and conviction</h3>
+      <h3 className="border-b border-[#111827] pb-3 text-[19px] font-semibold text-[#111827]">Analyst targets and ratings</h3>
       <TargetRange facts={facts} currentPrice={currentPrice} currency={currency} />
       <AnalystTrend facts={facts} />
     </div>

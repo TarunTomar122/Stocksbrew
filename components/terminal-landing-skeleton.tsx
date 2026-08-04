@@ -21,7 +21,6 @@ export function LandingHeroSkeleton() {
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-12">
       <div className="lg:pb-5">
-        <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-primary">Stocksbrew</p>
         <h1 className="max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-0.045em] text-on-surface sm:text-5xl lg:text-[3.75rem]">
           Analyse and track US stocks
         </h1>

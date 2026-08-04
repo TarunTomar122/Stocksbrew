@@ -29,7 +29,6 @@ type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; 
 // Primary nav: market context, social attention, then the user's Watchlist.
 const NAV_ITEMS: NavItem[] = [
   { href: "/pulse",     label: "Market",  icon: "monitoring" },
-  { href: "/market-daily", label: "Daily", icon: "newspaper" },
   { href: "/social",    label: "Social", icon: "forum" },
   { href: "/watchlist", label: "Watchlist", icon: "radar" },
 ];

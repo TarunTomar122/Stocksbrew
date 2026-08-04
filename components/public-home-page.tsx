@@ -2,18 +2,21 @@ import { Suspense } from "react";
 
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { LandingSimpleWay } from "@/components/landing-simple-way";
+import { HomeMarketDaily, HomeMarketDailySkeleton } from "@/components/home-market-daily";
 import { TerminalLandingFaq } from "@/components/terminal-landing-faq";
 import { TerminalLandingTestimonials } from "@/components/terminal-landing-testimonials";
 import {
   LandingHeroSkeleton,
   LandingPricingSkeleton,
   LandingScannerRedditSkeleton,
+  LandingSectorHeatSkeleton,
   LandingTapeSkeleton,
 } from "@/components/terminal-landing-skeleton";
 import {
   LandingHeroStream,
   LandingProSectionStream,
   LandingScannerRedditStream,
+  LandingSectorHeatStream,
   LandingTapeStream,
 } from "@/components/terminal-landing-streams";
 
@@ -39,11 +42,18 @@ export function PublicHomePage() {
           <LandingScannerRedditStream />
         </Suspense>
 
+        <Suspense fallback={<LandingSectorHeatSkeleton />}>
+          <LandingSectorHeatStream />
+        </Suspense>
+
         <Suspense fallback={<LandingPricingSkeleton />}>
           <LandingProSectionStream />
         </Suspense>
 
         <TerminalLandingTestimonials />
+        <Suspense fallback={<HomeMarketDailySkeleton />}>
+          <HomeMarketDaily />
+        </Suspense>
         <TerminalLandingFaq />
       </div>
 

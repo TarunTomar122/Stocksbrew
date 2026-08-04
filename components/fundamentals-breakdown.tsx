@@ -257,7 +257,7 @@ export function FundamentalsBreakdown({
       )}
 
       {!isSubscribed && (
-        <div className="relative mt-6 min-h-[15rem] overflow-hidden rounded-lg bg-surface-container-low">
+        <div className="relative mt-6 min-h-[17rem] overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-low">
           <div aria-hidden className="pointer-events-none select-none space-y-5 p-5 blur-[6px]">
             <div className="flex items-start justify-between gap-5">
               <div className="space-y-2">
@@ -278,14 +278,27 @@ export function FundamentalsBreakdown({
               ))}
             </div>
           </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-surface/20 px-4">
-            <FeedUnlockBar
-              surface="stock_tab"
-              compact
-              signedOutLabel="Start your 3-day free trial"
-              signedInLabel="Unlock fundamental detail"
-              buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary !text-on-primary !shadow-none"
-            />
+          <div className="absolute inset-0 flex items-center justify-center bg-surface/45 px-5 py-6 backdrop-blur-[2px]">
+            <div className="w-full max-w-[29rem] rounded-2xl border border-outline-variant bg-surface p-5 shadow-[0_18px_50px_rgba(17,24,39,0.10)] sm:p-6">
+              <p className="text-[18px] font-extrabold tracking-[-0.02em] text-on-surface">See the full financial picture</p>
+              <ul className="mt-3 grid gap-2 text-[12.5px] text-on-surface/85 sm:grid-cols-2">
+                {["5 years of revenue, profit and cash flow", "Valuation and balance-sheet checks", "Business and geographic mix", "Analyst targets and recommendation trend"].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-0.5 text-[var(--signal-bullish)]">✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <FeedUnlockBar
+                surface="stock_tab"
+                compact
+                className="mt-4 !justify-start !p-0"
+                signedOutLabel="See full financials"
+                signedInLabel="Unlock full financials"
+                buttonClassName="!min-h-11 !w-full !rounded-lg !border-primary !bg-none !bg-primary !px-5 !py-3 !text-[13px] !text-on-primary !shadow-none"
+              />
+              <p className="mt-2 text-center text-[10.5px] text-on-surface-variant">Free for 3 days, then $9/mo. Cancel anytime.</p>
+            </div>
           </div>
         </div>
       )}

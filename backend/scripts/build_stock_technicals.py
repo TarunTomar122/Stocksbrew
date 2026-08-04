@@ -15,6 +15,7 @@ from typing import Any
 from backend.instrument_universe import list_instruments
 from backend.landing_metrics import build_stock_technical_doc
 from backend.providers.finviz_provider import fetch_finviz_technicals_batch
+from backend.providers.tradingview_pivots import fetch_tradingview_pivots_batch
 from backend.storage import TraceMoneyStore
 
 
@@ -114,6 +115,11 @@ def main() -> None:
         default=3,
         help="Concurrent HTTP workers for Finviz scrape (Finviz 429s aggressive bursts; 3 is the sweet spot)",
     )
+    parser.add_argument(
+        "--no-pivots",
+        action="store_true",
+        help="Skip the batched TradingView monthly-pivot request",
+    )
     parser.add_argument("--print-json", action="store_true")
     parser.add_argument("--instrument-ids", default=None, help="Comma-separated instrument ids for subset technical build")
     args = parser.parse_args()
@@ -136,6 +142,20 @@ def main() -> None:
         print(f"  Finviz RSI resolved: {ok}/{len(tickers)}{f' ({fail} failed)' if fail else ''}")
 
     as_of_date = args.as_of_date or datetime.now(timezone.utc).date().isoformat()
+    pivot_map: dict[str, dict[str, Any]] = {}
+    if not args.no_pivots and args.market == "US":
+        tickers = [str(inst.get("ticker") or "").upper() for inst in instruments if inst.get("ticker")]
+        current_prices = {
+            str(inst.get("ticker") or "").upper(): float((latest_prices.get(inst["instrument_id"]) or {}).get("quote", {}).get("current") or 0)
+            for inst in instruments
+            if inst.get("ticker")
+        }
+        try:
+            pivot_map = fetch_tradingview_pivots_batch(tickers, current_prices, as_of=as_of_date)
+            print(f"TradingView monthly pivots resolved: {len(pivot_map)}/{len(tickers)}")
+        except Exception as exc:
+            print(f"TradingView monthly pivots unavailable; continuing without levels: {exc}")
+
     docs_payload = []
     rsi_ok = 0
     for instrument in instruments:
@@ -154,6 +174,8 @@ def main() -> None:
         # Override RSI with Finviz's pre-computed value when available.
         ticker = str(instrument.get("ticker", "")).upper()
         doc = _apply_finviz_rsi(doc, finviz_map.get(ticker))
+        if ticker in pivot_map:
+            doc["levels"] = pivot_map[ticker]
 
         if (doc.get("rsi_14") or {}).get("value") is not None:
             rsi_ok += 1
@@ -172,6 +194,8 @@ def main() -> None:
             "history_limit": int(args.history_limit),
             "finviz_enabled": bool(not args.no_finviz and args.market == "US"),
             "rsi_resolved": rsi_ok,
+            "pivots_enabled": bool(not args.no_pivots and args.market == "US"),
+            "pivots_resolved": len(pivot_map),
         },
     )
 

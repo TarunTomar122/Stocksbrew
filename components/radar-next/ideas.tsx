@@ -1,10 +1,7 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
-import type { IdeaCard, IdeaLens } from "@/components/radar-next/types";
+import type { IdeaCard } from "@/components/radar-next/types";
 
 function scoreColor(value: number | null): string {
   if (value === null) return "var(--rn-muted)";
@@ -31,12 +28,6 @@ function changeText(value: number | null): string {
   if (value === null) return "–";
   return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
 }
-
-const LENSES: Array<{ id: IdeaLens; label: string }> = [
-  { id: "unusual", label: "New today" },
-  { id: "fits", label: "Fits your book" },
-  { id: "top", label: "Top rated" },
-];
 
 function IdeaRow({ idea }: { idea: IdeaCard }) {
   const moveColor =
@@ -90,39 +81,23 @@ export function Ideas({
   top: IdeaCard[];
   unusual: IdeaCard[];
 }) {
-  const byLens: Record<IdeaLens, IdeaCard[]> = { fits, top, unusual };
-  const available = LENSES.filter((lens) => byLens[lens.id].length > 0);
-  const [lens, setLens] = useState<IdeaLens>(available.find((item) => item.id === "unusual")?.id ?? available[0]?.id ?? "fits");
-
-  if (available.length === 0) return null;
-  const ideas = byLens[lens] ?? [];
+  const seen = new Set<string>();
+  const ideas = [...unusual, ...fits, ...top].filter((idea) => {
+    const key = `${idea.market}:${idea.ticker}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (ideas.length === 0) return null;
 
   return (
     <section aria-labelledby="rn-ideas">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-3">
         <div>
           <span className="rn-kick">Discovery</span>
           <h2 id="rn-ideas" className="mt-1 text-[22px] font-bold tracking-[-0.025em] text-[var(--rn-ink)] sm:text-[26px]">
             Ideas to explore
           </h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Watchlist idea lens">
-          {available.map((item) => {
-            const active = lens === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setLens(item.id)}
-                className="rounded-full px-3 py-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-wide transition-colors"
-                style={active ? { color: "var(--rn-ink)", background: "var(--rn-card-2)", boxShadow: "inset 0 0 0 1px var(--rn-line)" } : { color: "var(--rn-muted)" }}
-              >
-                {item.label}
-              </button>
-            );
-          })}
         </div>
       </div>
 

@@ -17,9 +17,9 @@ describe("product language", () => {
     expect(source("components/terminal-landing-hero-copy.tsx")).toContain("HERO_SUBHEAD");
   });
 
-  it("keeps technical agent positioning off the main homepage", () => {
+  it("keeps technical agent positioning off the homepage and the market snapshot on it", () => {
     const home = source("components/public-home-page.tsx");
     expect(home).not.toContain("AgentAccessLandingSection");
-    expect(home).not.toContain("LandingSectorHeatStream");
+    expect(home).toContain("LandingSectorHeatStream");
   });
 });

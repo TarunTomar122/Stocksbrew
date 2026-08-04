@@ -4,6 +4,7 @@ import { useMemo, type ReactNode } from "react";
 
 import { PriceChart, type PriceChartZone } from "@/components/price-chart";
 import { sliceChartRange, type StockReturns } from "@/lib/chart-range";
+import type { StockTechnicalLevels } from "@/lib/technicals";
 
 type Point = { date: string; close: number };
 
@@ -15,19 +16,36 @@ const RETURN_ROWS: Array<{ label: string; key: keyof StockReturns }> = [
 
 function ReturnsRow({
   returns,
+  technicalLevels,
+  currency,
+  currentPrice,
 }: {
   returns?: StockReturns | null;
+  technicalLevels?: StockTechnicalLevels | null;
+  currency: string;
+  currentPrice: number;
 }) {
   const items = RETURN_ROWS.map(({ label, key }) => ({
     label,
     value: returns?.[key],
   })).filter((row): row is { label: string; value: number } => typeof row.value === "number" && Number.isFinite(row.value));
 
-  if (!items.length) return null;
+  const support = technicalLevels?.support;
+  const resistance = technicalLevels?.resistance;
+  const hasLevels = Boolean(
+    technicalLevels?.source &&
+      technicalLevels?.as_of &&
+      ([support, resistance].some((value) => typeof value === "number" && Number.isFinite(value))),
+  );
+  if (!items.length && !hasLevels) return null;
+
+  const money = (value: number) =>
+    `${currency}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const distance = (value: number) => `${Math.abs(((value - currentPrice) / currentPrice) * 100).toFixed(1)}%`;
 
   return (
     <div className="mt-9 border-t border-outline-variant/40 pt-5">
-      <div
+      {items.length ? <div
         className="grid divide-x divide-outline-variant/35"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
@@ -51,7 +69,28 @@ function ReturnsRow({
             </div>
           );
         })}
-      </div>
+      </div> : null}
+      {hasLevels ? (
+        <div className={`${items.length ? "mt-5 border-t border-outline-variant/40 pt-4" : ""}`}>
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Nearest support{technicalLevels?.support_label ? ` · ${technicalLevels.support_label}` : ""}</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <p className="text-[17px] font-bold tabular-nums text-[var(--signal-bullish)]">{typeof support === "number" ? money(support) : "—"}</p>
+                {typeof support === "number" ? <span className="text-[10px] text-on-surface-variant">{distance(support)} below</span> : null}
+              </div>
+            </div>
+            <div className="border-l border-outline-variant/40 pl-5">
+              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Nearest resistance{technicalLevels?.resistance_label ? ` · ${technicalLevels.resistance_label}` : ""}</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <p className="text-[17px] font-bold tabular-nums text-[var(--signal-bearish)]">{typeof resistance === "number" ? money(resistance) : "—"}</p>
+                {typeof resistance === "number" ? <span className="text-[10px] text-on-surface-variant">{distance(resistance)} above</span> : null}
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-[9.5px] text-on-surface-variant">{technicalLevels?.source} · {technicalLevels?.as_of}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -64,6 +103,7 @@ export function VerdictCallChart({
   zones,
   lineColor,
   currentPrice,
+  technicalLevels,
   zoneHint,
   columnsAt = "lg",
 }: {
@@ -74,6 +114,7 @@ export function VerdictCallChart({
   zones: PriceChartZone[];
   lineColor: string;
   currentPrice: number;
+  technicalLevels?: StockTechnicalLevels | null;
   zoneHint?: { label: string; color: string } | null;
   columnsAt?: "md" | "lg";
 }) {
@@ -90,7 +131,7 @@ export function VerdictCallChart({
     <div className={`grid gap-5 ${gridCols} ${gridStretch} ${gridGap}`}>
       <div className="flex min-w-0 flex-col">
         {callSlot}
-        <ReturnsRow returns={returns} />
+        <ReturnsRow returns={returns} technicalLevels={technicalLevels} currency={currency} currentPrice={currentPrice} />
       </div>
 
       {hasChart && (
