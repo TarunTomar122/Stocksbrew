@@ -7,6 +7,7 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from dataclasses import replace
 from typing import Any
 from urllib.parse import urlparse
@@ -418,7 +419,12 @@ class OpenAIArticleEnricher:
         if pending:
             with ThreadPoolExecutor(max_workers=min(self.max_workers, len(pending))) as executor:
                 future_map = {
-                    executor.submit(self._enrich_article, article, cache_key): (index, article, cache_key)
+                    executor.submit(
+                        copy_context().run,
+                        self._enrich_article,
+                        article,
+                        cache_key,
+                    ): (index, article, cache_key)
                     for index, article, cache_key in pending
                 }
                 for future in as_completed(future_map):
