@@ -16,8 +16,8 @@ type Props = {
 const SCOPE_COPY: Record<string, string> = {
   "stocks:read": "Read stock calls, targets, fundamentals, risks, and comparisons",
   "market:read": "Read the current Stocksbrew market brief and sector context",
-  "radar:read": "Read your private Radar stocks, holdings context, and changes",
-  "radar:write": "Add or remove stocks from your Radar after you approve the action",
+  "radar:read": "Read your private Watchlist stocks, holdings context and changes",
+  "radar:write": "Add or remove stocks from your Watchlist after you approve the action",
   "alerts:read": "Read your active Stocksbrew alerts",
   "alerts:write": "Create or remove alerts after you approve the action",
 };
@@ -77,7 +77,7 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
       </ul>
 
       <p className="mt-4 text-[11px] leading-relaxed text-on-surface-variant">
-        Only approve clients you trust. Radar and alert changes still require your instruction in the agent. You can revoke access from your profile.
+        Only approve clients you trust. Watchlist and alert changes still require your instruction in the agent. You can revoke access from your profile.
       </p>
 
       {error ? <p className="mt-4 text-[12px] text-red-600 dark:text-red-400" role="alert">{error}</p> : null}

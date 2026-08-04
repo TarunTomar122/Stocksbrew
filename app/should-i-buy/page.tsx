@@ -11,19 +11,19 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 export const metadata: Metadata = {
   title: "Free Should I Buy Stock Checker",
   description:
-    "Free AI scorecard for any US stock. Valuation, growth, quality, and momentum scores with a clear buy/hold/avoid signal. Add to Radar for ongoing briefs.",
+    "Check any US stock across valuation, growth, quality and momentum. See the current call, then add it to Watchlist for ongoing research.",
   alternates: { canonical: "/should-i-buy" },
   openGraph: {
     title: "Free Should I Buy Stock Checker · stocksbrew",
     description:
-      "Enter any US ticker and get a data-driven buy/hold/avoid signal. Free tool tied to Radar alerts.",
+      "Enter any US ticker for valuation, growth, quality, momentum and the current call. Add it to Watchlist for alerts.",
     url: "https://www.stocksbrew.online/should-i-buy",
   },
   twitter: {
     card: "summary_large_image",
     title: "Free Should I Buy Stock Checker · stocksbrew",
     description:
-      "Enter any US ticker and get a data-driven buy/hold/avoid signal. Free tool tied to Radar alerts.",
+      "Enter any US ticker for valuation, growth, quality, momentum and the current call. Add it to Watchlist for alerts.",
   },
 };
 

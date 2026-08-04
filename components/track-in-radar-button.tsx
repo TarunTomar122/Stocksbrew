@@ -181,9 +181,9 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M2.5 7l3 3 6-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Added to Radar. Open it →
+          Added to Watchlist. Open it →
         </button>
-        <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
+        <RadarAsyncModal open={modalOpen} title="Adding stocks to Watchlist" subtitle="Saved. We’re refreshing their research now." status={modalStatus} />
       </>
     );
   }
@@ -198,10 +198,10 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
           <span className="text-[15px] mt-0.5">⚡</span>
           <div className="flex flex-col gap-1">
             <p className="text-[13px] font-semibold text-[#92400e]">
-              {addedCount} stock{addedCount !== 1 ? "s" : ""} added to Radar
+              {addedCount} stock{addedCount !== 1 ? "s" : ""} added to Watchlist
             </p>
             <p className="text-[12px] text-[#b45309] leading-relaxed">
-              Free Radar tracks up to {result.limitAt} stocks. Upgrade to Pro to add your full portfolio. {result.skipped.length} more waiting.
+              Free Watchlist tracks up to {result.limitAt} stocks. Upgrade to Pro to add your full portfolio. {result.skipped.length} more waiting.
             </p>
             <div className="flex items-center gap-2 mt-1">
               <ProCtaLink href="/subscribe" size="sm" showStar className="h-8 px-4 text-[12px]">
@@ -211,21 +211,21 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
                 onClick={() => router.push("/watchlist")}
                 className="text-[12px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors"
               >
-                Open Radar →
+                Open Watchlist →
               </button>
             </div>
           </div>
         </div>
         </div>
-        <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
+        <RadarAsyncModal open={modalOpen} title="Adding stocks to Watchlist" subtitle="Saved. We’re refreshing their research now." status={modalStatus} />
       </>
     );
   }
 
   const buttonLabel = (() => {
-    if (state === "busy") return "Adding to Radar…";
-    if (!user) return label ?? `Sign in & track ${instrumentIds.length} stock${instrumentIds.length !== 1 ? "s" : ""} in Radar`;
-    return label ?? `Track ${instrumentIds.length} stock${instrumentIds.length !== 1 ? "s" : ""} in your Radar`;
+    if (state === "busy") return "Adding to Watchlist…";
+    if (!user) return label ?? `Sign in & add ${instrumentIds.length} stock${instrumentIds.length !== 1 ? "s" : ""} to Watchlist`;
+    return label ?? `Add ${instrumentIds.length} stock${instrumentIds.length !== 1 ? "s" : ""} to your Watchlist`;
   })();
 
   return (
@@ -246,7 +246,7 @@ export function TrackInRadarButton({ instrumentIds, positionType = "watchlist", 
         )}
         {buttonLabel}
       </button>
-      <RadarAsyncModal open={modalOpen} title="Adding stocks to Radar" subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
+      <RadarAsyncModal open={modalOpen} title="Adding stocks to Watchlist" subtitle="Saved. We’re refreshing their research now." status={modalStatus} />
     </>
   );
 }

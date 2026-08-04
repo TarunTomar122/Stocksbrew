@@ -61,7 +61,7 @@ const jsonLd = {
       operatingSystem: "All",
       featureList: [
         "US stock financials, news, and market context",
-        "Radar tracking and material-change alerts",
+        "Watchlist tracking and alerts for important changes",
         "AI research briefs for tracked stocks",
         "Structured stock data for connected AI tools",
       ],
@@ -98,7 +98,7 @@ export const metadata: Metadata = {
     "stock watchlist app",
     "stock news alerts",
     "stock financials",
-    "Radar stock tracking",
+    "Stock Watchlist tracking",
     "stock analysis",
     "AI briefs",
     "portfolio tracking",

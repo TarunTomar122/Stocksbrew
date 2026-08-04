@@ -6,7 +6,7 @@ import { AGENT_MONTHLY_CALL_LIMIT, AGENT_PER_MINUTE_CALL_LIMIT, publicAppUrl } f
 
 export const metadata: Metadata = {
   title: "Stocksbrew MCP Server and Stock API for AI Agents",
-  description: "Connect Claude Code, Hermes, OpenClaw, or your own agent to stock research, Radar, changes, and alerts through MCP or REST.",
+  description: "Connect Claude Code, Hermes, OpenClaw or your own agent to stock research, Watchlist changes and alerts through MCP or REST.",
   keywords: ["stock market MCP server", "Hermes stock market data", "OpenClaw stock alerts", "AI agent stock API", "MCP finance"],
   alternates: { canonical: "/developers" },
 };
@@ -16,8 +16,8 @@ const TOOLS = [
   ["get_stock_intelligence", "stocks:read", "Read baseline data, detailed research when available, freshness, and the next action."],
   ["compare_stocks", "stocks:read", "Compare two to five stocks."],
   ["get_market_brief", "market:read", "Read the current market, sectors, and movers."],
-  ["get_my_radar", "radar:read", "Read the authorized member's Radar."],
-  ["get_radar_changes", "radar:read", "Read unseen Radar changes from an optional cursor."],
+  ["get_my_radar", "radar:read", "Read the authorized member's Watchlist."],
+  ["get_radar_changes", "radar:read", "Read unseen Watchlist changes from an optional cursor."],
   ["add_to_radar", "radar:write", "Track a stock and queue or refresh missing research."],
   ["remove_from_radar", "radar:write", "Stop tracking a stock."],
   ["get_my_alerts", "alerts:read", "Read active alert rules."],
@@ -30,9 +30,9 @@ const ENDPOINTS = [
   ["GET", "/stocks/CCL", "Read stock intelligence and research state"],
   ["POST", "/compare", "Compare stocks"],
   ["GET", "/market", "Read market context"],
-  ["GET", "/radar?limit=50&offset=0", "Read Radar"],
-  ["POST", "/radar", "Add to Radar"],
-  ["DELETE", "/radar", "Remove from Radar"],
+  ["GET", "/radar?limit=50&offset=0", "Read Watchlist"],
+  ["POST", "/radar", "Add to Watchlist"],
+  ["DELETE", "/radar", "Remove from Watchlist"],
   ["GET", "/radar/changes?since=<cursor>", "Read changes"],
   ["GET", "/alerts?ticker=NVDA", "Read alert rules"],
   ["POST", "/alerts", "Create a price alert"],
@@ -100,7 +100,7 @@ Content-Type: application/json
       <article className="mx-auto min-w-0 max-w-[920px] border-x border-outline-variant bg-surface">
         <header id="overview" className="px-5 py-10 sm:px-10 sm:py-14 lg:px-12">
           <Label>Agent API</Label>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-on-surface sm:text-[2.75rem]">Research, Radar, and alerts for your agent</h1>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-on-surface sm:text-[2.75rem]">Stock research, Watchlist and alerts for your agent</h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-on-surface-variant">
             Connect Claude Code, Hermes, OpenClaw, or your own client through remote MCP with OAuth. Scripts can use the matching REST API with a personal token.
           </p>
@@ -119,12 +119,12 @@ Content-Type: application/json
           <ol className="mt-7 divide-y divide-outline-variant border-y border-outline-variant text-[12px]">
             <li className="py-3"><strong>1. Connect.</strong> Add <code>{mcpUrl}</code> as a remote MCP server.</li>
             <li className="py-3"><strong>2. Approve.</strong> Sign in and choose only the permissions the agent needs.</li>
-            <li className="py-3"><strong>3. Verify.</strong> Ask: “Show my Radar and explain anything that changed today.”</li>
+            <li className="py-3"><strong>3. Verify.</strong> Ask: “Show my Watchlist and explain anything that changed today.”</li>
           </ol>
         </Section>
 
         <Section id="clients" label="Client setup" title="Claude Code, Hermes, OpenClaw, and REST">
-          <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">OAuth-capable clients open the Stocksbrew approval screen. Reconnect an older client if it needs Radar or alert write scopes.</p>
+          <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">OAuth-capable clients open the Stocksbrew approval screen. Reconnect an older client if it needs Watchlist or alert write scopes.</p>
           <Code label="Claude Code">{`claude mcp add --transport http stocksbrew ${mcpUrl}`}</Code>
           <Code label="Hermes MCP configuration">{`{
   "mcpServers": {
@@ -142,8 +142,8 @@ openclaw mcp doctor stocksbrew --probe`}</Code>
           <div className="mt-6 divide-y divide-outline-variant border-y border-outline-variant text-[12px]">
             <div className="py-4"><strong>Answer about any covered stock.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_stock_intelligence</code>. Baseline data remains available when the detailed brief is missing.</p></div>
             <div className="py-4"><strong>Queue missing research.</strong><p className="mt-1 text-on-surface-variant">Read <code>coverage.next_action</code>, ask the user, then call <code>add_to_radar</code>. Recheck the same stock later.</p></div>
-            <div className="py-4"><strong>Report only new Radar changes.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_radar_changes</code> with the last cursor. Save the returned cursor only after delivery succeeds.</p></div>
-            <div className="py-4"><strong>Create or review price alerts.</strong><p className="mt-1 text-on-surface-variant">Ask before any write, then use the alert tools. Earnings, RSI, call, anomaly, and news updates come through Radar changes.</p></div>
+            <div className="py-4"><strong>Report only new Watchlist changes.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_radar_changes</code> with the last cursor. Save the returned cursor only after delivery succeeds.</p></div>
+            <div className="py-4"><strong>Create or review price alerts.</strong><p className="mt-1 text-on-surface-variant">Ask before any write, then use the alert tools. Earnings, RSI, call, anomaly and news updates come through Watchlist changes.</p></div>
           </div>
           <Code label="Missing research response">{baseline}</Code>
           <Code label="Create a price alert over REST">{alert}</Code>
@@ -151,9 +151,9 @@ openclaw mcp doctor stocksbrew --probe`}</Code>
 
         <Section id="channels" label="Chat delivery" title="Telegram, WhatsApp, and Discord">
           <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">
-            Hermes or OpenClaw owns the chat connection and schedule. Stocksbrew supplies research and Radar changes. Ask your agent to poll changes, message only when something important changed, and retain the cursor after a successful send.
+            Hermes or OpenClaw owns the chat connection and schedule. Stocksbrew supplies research and Watchlist changes. Ask your agent to poll changes, message only when something important changed and retain the cursor after a successful send.
           </p>
-          <Code label="Scheduled agent instruction">{`Check my Stocksbrew Radar every morning.
+          <Code label="Scheduled agent instruction">{`Check my Stocksbrew Watchlist every morning.
 Message me only when earnings, a directive, a risk, or a tracked price level changed.
 Keep the returned cursor for the next check.`}</Code>
         </Section>
@@ -181,7 +181,7 @@ Keep the returned cursor for the next check.`}</Code>
         <Section id="auth" label="Authentication and scopes" title="Grant the smallest useful permission set">
           <dl className="mt-6 divide-y divide-outline-variant border-y border-outline-variant text-[12px]">
             <div className="py-4"><dt className="font-bold">Research</dt><dd className="mt-1 font-mono text-[10px] text-on-surface-variant">stocks:read · market:read</dd></div>
-            <div className="py-4"><dt className="font-bold">Radar companion</dt><dd className="mt-1 font-mono text-[10px] text-on-surface-variant">+ radar:read</dd></div>
+            <div className="py-4"><dt className="font-bold">Watchlist companion</dt><dd className="mt-1 font-mono text-[10px] text-on-surface-variant">+ radar:read</dd></div>
             <div className="py-4"><dt className="font-bold">Full assistant</dt><dd className="mt-1 font-mono text-[10px] text-on-surface-variant">+ radar:write · alerts:read · alerts:write</dd></div>
           </dl>
           <p className="mt-4 text-[12px] text-on-surface-variant">Mutating tools are marked as writes. Clients should confirm before calling them. Remove and delete operations are also marked destructive.</p>

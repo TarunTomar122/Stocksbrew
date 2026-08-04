@@ -9,7 +9,7 @@ export const agentWorkflowBlogContent: Record<string, string> = {
   <li>Answer questions about any supported US ticker using available price, fundamentals, technicals, scores, and market context.</li>
   <li>Read the detailed Stocksbrew call, target, drivers, and risks when research exists.</li>
   <li>Explain that a detailed brief is missing without pretending that baseline data is a completed brief.</li>
-  <li>Ask before adding a stock to Radar, then queue or refresh research through the same action.</li>
+  <li>Ask before adding a stock to Watchlist, then queue or refresh research through the same action.</li>
   <li>Read holdings and watched stocks, review changes since a saved cursor, and create or deactivate alert rules.</li>
 </ul>
 
@@ -30,21 +30,21 @@ export const agentWorkflowBlogContent: Record<string, string> = {
 <p>Restart or reload Hermes after saving the MCP configuration, then complete the browser approval flow. Product versions can differ, so check the current <a href="https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/mcp.md" rel="noopener noreferrer">Hermes MCP documentation</a> if the settings shape in your installed release is different.</p>
 
 <h3>Verify the connection</h3>
-<blockquote>Show my Stocksbrew Radar. Then explain anything that changed today. Include the response timestamp and freshness.</blockquote>
+<blockquote>Show my Stocksbrew Watchlist. Then explain anything that changed today. Include the response timestamp and freshness.</blockquote>
 
-<p>A successful answer proves more than tool discovery. It verifies authentication, the <code>radar:read</code> scope, and access to the current member's Radar. If Hermes lists tools but cannot call them, reconnect and inspect the OAuth scopes granted to the client.</p>
+<p>A successful answer proves more than tool discovery. It verifies authentication, the <code>radar:read</code> scope, and access to the current member's Watchlist. If Hermes lists tools but cannot call them, reconnect and inspect the OAuth scopes granted to the client.</p>
 
 <h2 id="permissions">Choose the smallest permission set</h2>
 <p>Start with the job, then grant the scopes needed for it:</p>
 <ul>
   <li><strong>Research only:</strong> <code>stocks:read</code> and <code>market:read</code>.</li>
-  <li><strong>Radar companion:</strong> add <code>radar:read</code>.</li>
+  <li><strong>Watchlist companion:</strong> add <code>radar:read</code>.</li>
   <li><strong>Full research assistant:</strong> add <code>radar:write</code>, <code>alerts:read</code>, and <code>alerts:write</code>.</li>
 </ul>
 
 <p>Old personal tokens and old OAuth grants may contain only the original read scopes. Reconnect Hermes or issue a new token before expecting write tools to appear.</p>
 
-<h2 id="any-stock">Ask Hermes about a stock outside Radar</h2>
+<h2 id="any-stock">Ask Hermes about a stock outside Watchlist</h2>
 <p>A stock should not need to be in a watchlist before an agent can say anything useful. The stock intelligence tool first returns the available baseline record. It also returns a <code>coverage</code> object that distinguishes the factual state of generated research.</p>
 
 <pre><code>{
@@ -64,9 +64,9 @@ export const agentWorkflowBlogContent: Record<string, string> = {
 
 <p>The response lets Hermes answer the immediate question with honest limits. It can discuss current price position and available metrics, then ask whether the user wants a deeper brief.</p>
 
-<blockquote><strong>User:</strong> What do we know about CCL?<br/><br/><strong>Hermes:</strong> CCL is trading at $27.81. Stocksbrew has baseline price, technical, and fundamental context, but the detailed research brief is missing. Want me to add CCL to Radar and queue the brief?</blockquote>
+<blockquote><strong>User:</strong> What do we know about CCL?<br/><br/><strong>Hermes:</strong> CCL is trading at $27.81. Stocksbrew has baseline price, technical, and fundamental context, but the detailed research brief is missing. Want me to add CCL to Watchlist and queue the brief?</blockquote>
 
-<p>After the user says yes, Hermes calls <code>add_to_radar</code>. The action is idempotent. If the ticker is already tracked but research is missing or failed, the same call can request a refresh without creating a duplicate Radar row.</p>
+<p>After the user says yes, Hermes calls <code>add_to_radar</code>. The action is idempotent. If the ticker is already tracked but research is missing or failed, the same call can request a refresh without creating a duplicate Watchlist row.</p>
 
 <h2 id="research-state">Handle queued, running, and failed research</h2>
 <p>Generated research is asynchronous. Hermes should read the state instead of promising that a brief exists immediately. Stable states include <code>ready</code>, <code>queued</code>, <code>running</code>, <code>baseline_only</code>, <code>no_sources</code>, <code>failed</code>, and <code>unavailable</code>.</p>
@@ -80,10 +80,10 @@ export const agentWorkflowBlogContent: Record<string, string> = {
 
 <p>This prevents the worst agent failure mode in financial research: converting missing data into confident prose.</p>
 
-<h2 id="radar">Turn Radar into a daily research checkpoint</h2>
+<h2 id="radar">Turn Watchlist into a daily research checkpoint</h2>
 <p><code>get_my_radar</code> returns tracked stocks. <code>get_radar_changes</code> is the better tool for a recurring check because it accepts a cursor and returns only newer attention items.</p>
 
-<blockquote>Every weekday before the open, check my Stocksbrew Radar using the saved cursor. Summarize only new earnings, directive changes, risk changes, and tracked price levels. Save the new cursor only after the summary succeeds.</blockquote>
+<blockquote>Every weekday before the open, check my Stocksbrew Watchlist using the saved cursor. Summarize only new earnings, directive changes, risk changes, and tracked price levels. Save the new cursor only after the summary succeeds.</blockquote>
 
 <p>Cursor handling matters. Save the returned cursor after delivery, not before. If sending fails, keeping the old cursor allows the next run to see the same items again. Stable item IDs let the agent deduplicate changes that share a timestamp.</p>
 
@@ -106,17 +106,17 @@ export const agentWorkflowBlogContent: Record<string, string> = {
 <ul>
   <li>Confirm the endpoint is exactly <code>https://www.stocksbrew.online/api/mcp</code>.</li>
   <li>Confirm the installed Hermes version supports remote MCP and OAuth.</li>
-  <li>Reconnect if new Radar or alert tools are absent from an older grant.</li>
+  <li>Reconnect if new Watchlist or alert tools are absent from an older grant.</li>
   <li>Check whether the Pro subscription is active.</li>
   <li>Respect HTTP 429 and the returned retry delay.</li>
   <li>Keep baseline data and generated research clearly separated in the answer.</li>
 </ul>
 
-<div class="cta-section"><h3>Connect Hermes to current stock research</h3><p>Stocksbrew Pro includes stock intelligence, Radar, changes, and alerts through MCP or REST.</p><a class="cta-button" href="/agents">See Stocksbrew for Agents →</a></div>
+<div class="cta-section"><h3>Connect Hermes to current stock research</h3><p>Stocksbrew Pro includes stock intelligence, Watchlist, changes, and alerts through MCP or REST.</p><a class="cta-button" href="/agents">See Stocksbrew for Agents →</a></div>
 `,
 
   "openclaw-stock-alerts-telegram-whatsapp-discord": `
-<p>OpenClaw can connect an AI agent to Telegram, WhatsApp, Discord, and other channels. Stocksbrew can supply the stock research behind those conversations through MCP. The useful architecture is simple: OpenClaw owns the channel and schedule, while Stocksbrew owns the research, Radar state, change cursor, and alert rules.</p>
+<p>OpenClaw can connect an AI agent to Telegram, WhatsApp, Discord, and other channels. Stocksbrew can supply the stock research behind those conversations through MCP. The useful architecture is simple: OpenClaw owns the channel and schedule, while Stocksbrew owns the research, Watchlist state, change cursor, and alert rules.</p>
 
 <p>This separation keeps channel credentials out of Stocksbrew and keeps financial permissions narrow. The agent can read research and manage a watchlist without receiving a brokerage connection or any ability to trade.</p>
 
@@ -127,7 +127,7 @@ export const agentWorkflowBlogContent: Record<string, string> = {
               ↓
         Stocksbrew MCP
               ↓
- Research, Radar, changes, alerts</code></pre>
+ Research, Watchlist, changes, alerts</code></pre>
 
 <p>Stocksbrew does not directly send Telegram, WhatsApp, or Discord messages. OpenClaw routes the result through the channels you configure. Current Stocksbrew alert rules deliver by email. Chat updates come from a scheduled OpenClaw job that polls <code>get_radar_changes</code>.</p>
 
@@ -141,10 +141,10 @@ export const agentWorkflowBlogContent: Record<string, string> = {
 openclaw mcp login stocksbrew
 openclaw mcp doctor stocksbrew --probe</code></pre>
 
-<p>During approval, choose the smallest useful scopes. A read-only morning summary needs stock, market, and Radar reads. Adding stocks or managing alert rules requires the corresponding write scopes.</p>
+<p>During approval, choose the smallest useful scopes. A read-only morning summary needs stock, market, and Watchlist reads. Adding stocks or managing alert rules requires the corresponding write scopes.</p>
 
 <h3>Connection verification prompt</h3>
-<blockquote>Show my Stocksbrew Radar and explain anything that changed today. Include the response timestamp and keep the returned cursor for the next check.</blockquote>
+<blockquote>Show my Stocksbrew Watchlist and explain anything that changed today. Include the response timestamp and keep the returned cursor for the next check.</blockquote>
 
 <h2 id="channel">Connect your chat channel</h2>
 <p>OpenClaw supports channel-specific configuration. Follow its current setup for Telegram, WhatsApp, or Discord, then send a test message through that channel before adding the scheduled stock job. This verifies the outbound route independently from the financial data connection.</p>
@@ -155,14 +155,14 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
   <li>OpenClaw can deliver a plain test message to the selected channel.</li>
 </ol>
 
-<p>Only after both work should you schedule a combined Radar check. That makes failures easier to diagnose.</p>
+<p>Only after both work should you schedule a combined Watchlist check. That makes failures easier to diagnose.</p>
 
-<h2 id="schedule">Schedule a useful Radar update</h2>
-<blockquote>Check my Stocksbrew Radar every weekday before the US market opens. Use the saved cursor. Message me only when earnings, a directive, a risk, or a tracked price level changed. Keep the message under 10 lines. Save the new cursor only after the message is delivered.</blockquote>
+<h2 id="schedule">Schedule a useful Watchlist update</h2>
+<blockquote>Check my Stocksbrew Watchlist every weekday before the US market opens. Use the saved cursor. Message me only when earnings, a directive, a risk, or a tracked price level changed. Keep the message under 10 lines. Save the new cursor only after the message is delivered.</blockquote>
 
 <p>The cursor prevents a daily agent from reading the entire watchlist as if everything were new. The delivery rule prevents notification fatigue. The agent should stay quiet when no material attention items exist.</p>
 
-<h2 id="cursor">Use Radar cursors correctly</h2>
+<h2 id="cursor">Use Watchlist cursors correctly</h2>
 <p><code>get_radar_changes</code> returns attention items and a cursor. Treat the cursor as opaque even if it currently resembles a timestamp.</p>
 
 <pre><code>{
@@ -191,12 +191,12 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 <h2 id="missing-research">Handle a ticker with no detailed brief</h2>
 <p>OpenClaw can still answer with current baseline data. The response says whether detailed research exists and provides a machine-readable next action.</p>
 
-<blockquote><strong>User:</strong> Why is CCL moving?<br/><br/><strong>Agent:</strong> Stocksbrew has current price, technical, and fundamental context for CCL. Its detailed brief is not ready. Want me to add CCL to Radar and queue research?</blockquote>
+<blockquote><strong>User:</strong> Why is CCL moving?<br/><br/><strong>Agent:</strong> Stocksbrew has current price, technical, and fundamental context for CCL. Its detailed brief is not ready. Want me to add CCL to Watchlist and queue research?</blockquote>
 
-<p>The agent asks because adding a stock changes the member's Radar. After confirmation, <code>add_to_radar</code> queues or refreshes research. A later scheduled check can revisit the ticker when the coverage state moves from queued or running to ready.</p>
+<p>The agent asks because adding a stock changes the member's Watchlist. After confirmation, <code>add_to_radar</code> queues or refreshes research. A later scheduled check can revisit the ticker when the coverage state moves from queued or running to ready.</p>
 
 <h2 id="alerts">Stock alerts and chat updates are different</h2>
-<p>A Stocksbrew alert is a price rule such as “NVDA below $190.” Current alert delivery is email. Earnings, RSI, call, anomaly, and news updates are produced by polling Radar changes and routing a summary to a channel.</p>
+<p>A Stocksbrew alert is a price rule such as “NVDA below $190.” Current alert delivery is email. Earnings, RSI, call, anomaly, and news updates are produced by polling Watchlist changes and routing a summary to a channel.</p>
 
 <p>OpenClaw can still manage alert rules conversationally:</p>
 <blockquote><strong>User:</strong> Create an alert when NVDA drops below $190.<br/><br/><strong>Agent:</strong> I can create a below-$190 email alert. Should I create it?</blockquote>
@@ -223,21 +223,21 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 </ul>
 
 <h2 id="rest">REST fallback</h2>
-<p>If a particular OpenClaw release cannot complete remote MCP OAuth, a deterministic integration can use the REST endpoints with a personal token stored as a secret. The same Radar, change, and alert operations are available. MCP remains the easier conversational option because the client can discover the tools and their schemas.</p>
+<p>If a particular OpenClaw release cannot complete remote MCP OAuth, a deterministic integration can use the REST endpoints with a personal token stored as a secret. The same Watchlist, change, and alert operations are available. MCP remains the easier conversational option because the client can discover the tools and their schemas.</p>
 
-<div class="cta-section"><h3>Give OpenClaw current stock context</h3><p>Connect Stocksbrew research, Radar, changes, and alerts, then route the useful results through your own channels.</p><a class="cta-button" href="/agents">See Stocksbrew for Agents →</a></div>
+<div class="cta-section"><h3>Give OpenClaw current stock context</h3><p>Connect Stocksbrew research, Watchlist, changes, and alerts, then route the useful results through your own channels.</p><a class="cta-button" href="/agents">See Stocksbrew for Agents →</a></div>
 `,
 
   "ai-agent-stock-watchlist-radar-alerts": `
 <p>An AI stock watchlist becomes useful after it stops behaving like a list of tickers. The agent needs to answer questions about any covered stock, distinguish available facts from missing research, remember what the investor follows, and return only changes worth reviewing.</p>
 
-<p>This guide describes that architecture using <a href="/agents">Stocksbrew Radar and agent access</a>. It covers the domain model, MCP tools, REST endpoints, research states, cursor handling, alert permissions, and failure behavior needed for a dependable personal stock agent.</p>
+<p>This guide describes that architecture using <a href="/agents">Stocksbrew Watchlist and agent access</a>. It covers the domain model, MCP tools, REST endpoints, research states, cursor handling, alert permissions, and failure behavior needed for a dependable personal stock agent.</p>
 
 <h2 id="mental-model">The smallest useful mental model</h2>
 <pre><code>Ask about a stock
 → read what exists
 → show the research state
-→ add to Radar with confirmation
+→ add to Watchlist with confirmation
 → queue research
 → check changes with a cursor
 → create alerts with confirmation</code></pre>
@@ -299,13 +299,13 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 
 <p>Return a machine-readable <code>next_action</code> with the state. The agent writes the conversational wording. The server remains the authority on what action is valid.</p>
 
-<h2 id="idempotency">Make add-to-Radar idempotent</h2>
-<p>Agents retry. Networks time out. A user can ask twice. Adding a stock to Radar should not create duplicate rows or double-count the watchlist. The same action can safely refresh missing or failed research for an already tracked stock.</p>
+<h2 id="idempotency">Make add-to-Watchlist idempotent</h2>
+<p>Agents retry. Networks time out. A user can ask twice. Adding a stock to Watchlist should not create duplicate rows or double-count the watchlist. The same action can safely refresh missing or failed research for an already tracked stock.</p>
 
 <p>This avoids a separate “request research” tool and matches the human product: following the stock is the durable reason to spend work generating a brief.</p>
 
 <h2 id="changes">Return changes instead of a repeated dashboard</h2>
-<p>A recurring agent should not narrate the full Radar every morning. <code>get_radar_changes</code> accepts a saved cursor and returns only attention items after that point.</p>
+<p>A recurring agent should not narrate the full Watchlist every morning. <code>get_radar_changes</code> accepts a saved cursor and returns only attention items after that point.</p>
 
 <pre><code>{
   "attention_items": [
@@ -322,8 +322,8 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 
 <p>Treat the cursor as opaque. Persist it only after the summary or channel message succeeds. Keep item IDs for deduplication. Back off on HTTP 429 and transient 5xx errors.</p>
 
-<h2 id="alerts">Separate Radar changes from alert rules</h2>
-<p>Radar changes are an incremental read for earnings, RSI extremes, call changes, anomalies, news, and tracked price events. Custom email alert rules currently support price thresholds.</p>
+<h2 id="alerts">Separate Watchlist changes from alert rules</h2>
+<p>Watchlist changes are an incremental read for earnings, RSI extremes, call changes, anomalies, news, and tracked price events. Custom email alert rules currently support price thresholds.</p>
 
 <p>The agent should confirm the exact rule before writing:</p>
 <blockquote><strong>User:</strong> Tell me when MSFT enters the buy zone.<br/><br/><strong>Agent:</strong> I can create a price alert using the current zone threshold. Should I create that email alert?</blockquote>
@@ -340,7 +340,7 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
   <li><code>alerts:write</code> for creating and deactivating rules.</li>
 </ul>
 
-<p>A research-only client does not need writes. A daily companion needs Radar read. A full assistant needs all six. Keep trading outside the system entirely.</p>
+<p>A research-only client does not need writes. A daily companion needs Watchlist read. A full assistant needs all six. Keep trading outside the system entirely.</p>
 
 <h2 id="mcp-rest">Keep MCP and REST behavior aligned</h2>
 <p>MCP works well for conversational discovery. REST works well for deterministic scripts and clients without MCP support. Both should call the same domain operations and share validation, scopes, quotas, errors, and response field names.</p>
@@ -353,7 +353,7 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 <p>Do not use errors for normal research states. “Brief not generated” belongs in <code>coverage</code>. “Ticker does not exist” belongs in an error.</p>
 
 <h2 id="prompt">A practical daily prompt</h2>
-<blockquote>Check my Stocksbrew Radar using the saved cursor. Tell me only what changed in earnings, directive, risk, or tracked price levels. For any stock with queued research, check whether it is ready. Do not change Radar or alerts without asking. Save the cursor only after this report succeeds.</blockquote>
+<blockquote>Check my Stocksbrew Watchlist using the saved cursor. Tell me only what changed in earnings, directive, risk, or tracked price levels. For any stock with queued research, check whether it is ready. Do not change Watchlist or alerts without asking. Save the cursor only after this report succeeds.</blockquote>
 
 <p>This prompt has a bounded job, a factual source, a clear silence condition, and safe mutation rules. It is much easier to audit than “watch the market and tell me what matters.”</p>
 
@@ -361,7 +361,7 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 <ul>
   <li>Every response carries schema version, request ID, as-of time, freshness, usage, and notice fields.</li>
   <li>Missing research returns baseline data and coverage state.</li>
-  <li>Radar mutations are idempotent and account counters remain atomic.</li>
+  <li>Watchlist mutations are idempotent and account counters remain atomic.</li>
   <li>Alert writes validate ticker, kind, threshold, condition, and ownership.</li>
   <li>OAuth grants are narrow, visible, refreshable, and revocable.</li>
   <li>Write tools are annotated and their descriptions require confirmation.</li>
@@ -369,6 +369,6 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
   <li>No tool can place a trade or access a brokerage.</li>
 </ul>
 
-<div class="cta-section"><h3>Build your stock agent on a real research loop</h3><p>Stocksbrew Pro includes stock intelligence, Radar, changes, research generation, and alert tools through MCP and REST.</p><a class="cta-button" href="/agents">See Stocksbrew for Agents →</a></div>
+<div class="cta-section"><h3>Build your stock agent on a real research loop</h3><p>Stocksbrew Pro includes stock intelligence, Watchlist, changes, research generation, and alert tools through MCP and REST.</p><a class="cta-button" href="/agents">See Stocksbrew for Agents →</a></div>
 `,
 };

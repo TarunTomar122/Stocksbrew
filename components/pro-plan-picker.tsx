@@ -26,7 +26,7 @@ const PLANS = {
 } as const;
 
 const COMPARE_ROWS = [
-  { label: "Track stocks on Radar", free: "Up to 3 names", pro: "Unlimited" },
+  { label: "Stocks in your Watchlist", free: "Up to 3 names", pro: "Unlimited" },
   { label: "Detailed calls, zones, drivers, and risks", free: "Preview", pro: true },
   { label: "Stocksbrew target price", free: false, pro: true },
   { label: "Automatic earnings and zone alerts", free: false, pro: true },
@@ -109,7 +109,7 @@ function FreeRadarCta() {
           })
         }
       >
-        Start on Radar
+        Start your Watchlist
         <span aria-hidden>→</span>
       </Link>
     );
@@ -117,7 +117,7 @@ function FreeRadarCta() {
 
   return (
     <button type="button" disabled={busy} onClick={() => void signInThenRadar()} className="pro-compare-secondary-cta">
-      {busy ? "Signing in…" : "Sign in & start on Radar"}
+      {busy ? "Signing in…" : "Sign in & start your Watchlist"}
       {!busy ? <span aria-hidden>→</span> : null}
     </button>
   );

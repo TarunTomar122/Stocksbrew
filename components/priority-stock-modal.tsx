@@ -50,7 +50,7 @@ export function PriorityStockModal({ open, instrumentId, ticker }: Props) {
             </h2>
             <p className="text-[14px] text-[#6b7280] leading-relaxed">
               This page still works, but intraday refresh is less frequent right
-              now. We use real user demand (visits and Radar interest) to
+              now. We use real user demand (visits and Watchlist interest) to
               promote stocks into the high-frequency set.
             </p>
           </div>

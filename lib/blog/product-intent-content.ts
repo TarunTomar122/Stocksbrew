@@ -22,7 +22,7 @@ export const productIntentBlogContent: Record<string, string> = {
 <tr><td>Koyfin</td><td>Custom research workspace</td><td>Dashboards, global data, graphing</td><td>Can be more workspace than a casual investor needs</td></tr>
 <tr><td>Quartr</td><td>Earnings and IR research</td><td>Calls, transcripts, filings, slides</td><td>Focused on primary company material</td></tr>
 <tr><td>Seeking Alpha</td><td>Competing investment opinions</td><td>Contributor analysis, ratings, news</td><td>Volume of opinion requires filtering</td></tr>
-<tr><td>stocksbrew</td><td>Monitoring followed US stocks</td><td>AI briefs, Radar, market context, alerts</td><td>US-focused and no native mobile app</td></tr>
+<tr><td>stocksbrew</td><td>Monitoring followed US stocks</td><td>AI briefs, Watchlist, market context, alerts</td><td>US-focused and no native mobile app</td></tr>
 </tbody></table></div>
 
 <h2>1. Stock Analysis: best for clean financial data</h2>
@@ -69,7 +69,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <h2>8. stocksbrew: best for interpreted US-stock monitoring</h2>
 
-<p><a href="/stocks">stocksbrew</a> is designed for the stage after discovery. Add a US stock to Radar and the product researches its fundamentals, current price, news, analyst context, social conversation, risks, and catalysts. It publishes an AI brief and watches for material changes.</p>
+<p><a href="/stocks">stocksbrew</a> is designed for the stage after discovery. Add a US stock to Watchlist and the product researches its fundamentals, current price, news, analyst context, social conversation, risks, and catalysts. It publishes an AI brief and watches for material changes.</p>
 
 <p>The fit is a busy investor who wants a clear current view without rebuilding the analysis every day. It is not the right tool for advanced technical charting, global equity screening, professional financial modeling, or trade execution. It is currently a web app rather than a native iOS or Android app.</p>
 
@@ -91,12 +91,12 @@ export const productIntentBlogContent: Record<string, string> = {
 <tbody>
 <tr><td>Free fundamental researcher</td><td>SEC EDGAR + Stock Analysis + Finviz</td><td>Primary filings, clean data, and discovery</td></tr>
 <tr><td>Active chart user</td><td>TradingView + earnings/filing source</td><td>Technical workflow with factual verification</td></tr>
-<tr><td>Busy US-stock investor</td><td>Finviz or Stock Analysis + stocksbrew Radar</td><td>Find or verify names, then monitor what changes</td></tr>
+<tr><td>Busy US-stock investor</td><td>Finviz or Stock Analysis + stocksbrew Watchlist</td><td>Find or verify names, then monitor what changes</td></tr>
 </tbody></table></div>
 
 <div class="source-note"><strong>Method:</strong> feature descriptions were checked against the official sites for <a href="https://stockanalysis.com/">Stock Analysis</a>, <a href="https://finviz.com/">Finviz</a>, <a href="https://www.tradingview.com/">TradingView</a>, <a href="https://www.tikr.com/">TIKR</a>, <a href="https://www.koyfin.com/">Koyfin</a>, <a href="https://quartr.com/">Quartr</a>, and <a href="https://seekingalpha.com/">Seeking Alpha</a> on August 3, 2026. Features and prices can change. Stocksbrew has no affiliate relationship with the listed products.</div>
 
-<div class="cta-section"><h3>Research one stock before choosing</h3><p>Open a live US stock page, inspect the financials and current context, then decide whether Radar solves the job you need.</p><a class="cta-button" href="/stocks">Browse US stocks →</a></div>
+<div class="cta-section"><h3>Research one stock before choosing</h3><p>Open a live US stock page, inspect the financials and current context, then decide whether Watchlist solves the job you need.</p><a class="cta-button" href="/stocks">Browse US stocks →</a></div>
 `,
 
   "best-stock-watchlist-apps-2026": `
@@ -115,7 +115,7 @@ export const productIntentBlogContent: Record<string, string> = {
 <tr><td>Stock Analysis</td><td>Fundamental watchlists</td><td>Financials, estimates, news</td><td>Limited interpretation of what changed</td></tr>
 <tr><td>Koyfin</td><td>Custom dashboards</td><td>Configurable data and views</td><td>More complexity than a basic list</td></tr>
 <tr><td>Seeking Alpha</td><td>Research-heavy following</td><td>Articles, ratings, earnings, news</td><td>Opinion volume can become noise</td></tr>
-<tr><td>stocksbrew</td><td>AI-monitored US stocks</td><td>Briefs, Radar changes, email alerts</td><td>Web-only and US-focused</td></tr>
+<tr><td>stocksbrew</td><td>AI-monitored US stocks</td><td>Briefs, Watchlist changes, email alerts</td><td>Web-only and US-focused</td></tr>
 </tbody></table></div>
 
 <h2>1. Yahoo Finance: best general-purpose watchlist</h2>
@@ -156,7 +156,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <h2>7. stocksbrew: best for a watchlist that researches back</h2>
 
-<p><a href="/radar">stocksbrew Radar</a> is built around a different idea: a list should monitor the research case, not only the price. Tracking a US stock starts an AI brief covering financials, analyst targets, news, market context, social conversation, drivers, risks, and catalysts. Radar then surfaces material changes and can send email alerts.</p>
+<p><a href="/radar">stocksbrew Watchlist</a> is built around a different idea: a list should monitor the research case, not only the price. Tracking a US stock starts an AI brief covering financials, analyst targets, news, market context, social conversation, drivers, risks, and catalysts. Watchlist then surfaces material changes and can send email alerts.</p>
 
 <p>The product fits investors who would rather wait for a completed research update than stare at a live list. It does not offer broker execution, advanced technical alerts, global stock coverage, or a native mobile app.</p>
 
@@ -184,7 +184,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <div class="source-note"><strong>Method:</strong> we reviewed official product information from <a href="https://finance.yahoo.com/about/mobile/">Yahoo Finance</a>, <a href="https://support.apple.com/guide/iphone/check-stocks-iph1ac0b1bc/ios">Apple</a>, <a href="https://www.tradingview.com/">TradingView</a>, <a href="https://stockanalysis.com/">Stock Analysis</a>, <a href="https://www.koyfin.com/">Koyfin</a>, and <a href="https://seekingalpha.com/">Seeking Alpha</a> on August 3, 2026. Features and plan limits can change. We receive no affiliate compensation.</div>
 
-<div class="cta-section"><h3>Make the list do some work</h3><p>Add a US stock to Radar and stocksbrew will research it, publish the brief, and monitor what changes.</p><a class="cta-button" href="/radar">Open Radar →</a></div>
+<div class="cta-section"><h3>Make the list do some work</h3><p>Add a US stock to Watchlist and stocksbrew will research it, publish the brief, and monitor what changes.</p><a class="cta-button" href="/radar">Open Watchlist →</a></div>
 `,
 
   "best-stock-news-apps-2026": `
@@ -203,7 +203,7 @@ export const productIntentBlogContent: Record<string, string> = {
 <tr><td>Yahoo Finance</td><td>Free personalized market news</td><td>Quotes, watchlists, alerts, articles</td><td>News quality and source depth vary</td></tr>
 <tr><td>Seeking Alpha</td><td>Company analysis and opinion</td><td>Contributors, news, ratings, earnings</td><td>Opinion must be filtered and verified</td></tr>
 <tr><td>Stock Analysis</td><td>News beside fundamentals</td><td>Aggregated headlines and company data</td><td>Limited event interpretation</td></tr>
-<tr><td>stocksbrew</td><td>News that affects followed stocks</td><td>AI context, anomalies, Radar changes</td><td>US-focused and not a wire service</td></tr>
+<tr><td>stocksbrew</td><td>News that affects followed stocks</td><td>AI context, anomalies, Watchlist changes</td><td>US-focused and not a wire service</td></tr>
 </tbody></table></div>
 
 <h2>1. Reuters: best for fast factual market news</h2>
@@ -244,7 +244,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <h2>7. stocksbrew: best for interpreted watchlist news</h2>
 
-<p><a href="/news">stocksbrew</a> connects news with price movement, fundamentals, analyst context, market conditions, and social conversation for US stocks. Radar tracks followed names; Pulse and Market Daily explain broader moves; anomaly views surface unusual sector and company behavior.</p>
+<p><a href="/news">stocksbrew</a> connects news with price movement, fundamentals, analyst context, market conditions, and social conversation for US stocks. Watchlist tracks followed names; Pulse and Market Daily explain broader moves; anomaly views surface unusual sector and company behavior.</p>
 
 <p>The product is useful when you care about “why does this matter to my stock?” more than reading every article. It is not a substitute for Reuters or another primary newsroom, and every meaningful claim should remain traceable to the source.</p>
 
@@ -280,6 +280,6 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <div class="source-note"><strong>Method:</strong> we reviewed official pages for <a href="https://www.reuters.com/markets/">Reuters</a>, <a href="https://www.bloomberg.com/markets">Bloomberg</a>, <a href="https://www.cnbc.com/markets/">CNBC</a>, <a href="https://finance.yahoo.com/about/mobile/">Yahoo Finance</a>, <a href="https://seekingalpha.com/">Seeking Alpha</a>, and <a href="https://stockanalysis.com/">Stock Analysis</a> on August 3, 2026. Product access and features can change. Stocksbrew receives no affiliate compensation.</div>
 
-<div class="cta-section"><h3>See the news around your stocks</h3><p>Track a US stock in Radar to connect relevant headlines with the company’s price, financials, catalysts, risks, and current research brief.</p><a class="cta-button" href="/radar">Track a stock →</a></div>
+<div class="cta-section"><h3>See the news around your stocks</h3><p>Track a US stock in Watchlist to connect relevant headlines with the company’s price, financials, catalysts, risks, and current research brief.</p><a class="cta-button" href="/radar">Track a stock →</a></div>
 `,
 };

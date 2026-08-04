@@ -259,7 +259,7 @@ def build_premarket_brief_email(
       {''.join(sections)}
       <tr><td style="padding:16px 20px 24px 20px;border-top:1px solid #f3f4f6">
         <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-          <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;padding:13px 28px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open Radar</a>
+          <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;padding:13px 28px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open Watchlist</a>
         </td></tr></table>
         <div style="margin-top:12px;text-align:center;font-size:13px;color:#9ca3af">
           <a href="{html.escape(APP_URL)}/premarket" style="color:#065f46;text-decoration:none;font-weight:600">Full pre-market board →</a>

@@ -36,7 +36,7 @@ export default async function DevAnalyticsPage({
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight text-[#111111]">App analytics</h1>
           <p className="text-sm text-[#6b7280]">
-            Human traffic, Radar activation, retention, and conversions · stocksbrew.online only
+            Human traffic, Watchlist activation, retention, and conversions · stocksbrew.online only
           </p>
         </div>
         <AnalyticsPeriodToggle days={days} />

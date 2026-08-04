@@ -61,7 +61,7 @@ export function buildRadarStarterPicks(
       instrument_id,
       label?.ticker ?? ticker,
       label?.name ?? ticker,
-      FALLBACK_HINTS[ticker] ?? "Popular on Radar",
+      FALLBACK_HINTS[ticker] ?? "Popular in Watchlists",
     );
     if (out.length >= 6) break;
   }

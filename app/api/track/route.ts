@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         limit: FREE_RADAR_TRACK_LIMIT,
       });
       return NextResponse.json(
-        { error: "free_tier_limit_reached", limit: FREE_RADAR_TRACK_LIMIT, reason: "Free Radar supports up to 3 stocks." },
+        { error: "free_tier_limit_reached", limit: FREE_RADAR_TRACK_LIMIT, reason: "Free Watchlist supports up to 3 stocks." },
         { status: 409 },
       );
   }

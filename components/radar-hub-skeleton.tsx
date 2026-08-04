@@ -25,10 +25,10 @@ export function RadarHubStaticHeader() {
   return (
     <div className="w-full pt-6 sm:pt-8">
       <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
-        stocksbrew · radar
+        stocksbrew · watchlist
       </div>
       <h1 className="mt-1 font-mono text-[28px] font-extrabold tracking-tight text-on-surface md:text-[34px]">
-        Radar
+        Watchlist
       </h1>
     </div>
   );

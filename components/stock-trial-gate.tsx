@@ -86,7 +86,7 @@ export function StockTrialGate({ stock, currency, market }: Props) {
           See the full {stock.ticker} research page.
         </h2>
         <p className="mt-5 max-w-xl text-[15px] leading-7 text-on-surface-variant sm:text-base">
-          Unlock our current call, price zones, target, fundamentals, news, crowd signals, and Radar alerts.
+          Unlock the current call, price zones, target, fundamentals, news, crowd discussion and Watchlist alerts.
         </p>
 
         <button

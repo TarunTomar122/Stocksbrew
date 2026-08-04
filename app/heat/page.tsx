@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Market Heat",
   description:
-    "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving, and track names in Radar.",
+    "Daily ranked list of stocks getting unusual attention. See why they are moving and add the names you care about to Watchlist.",
   alternates: { canonical: "/heat" },
   openGraph: {
     title: "Market Heat - Daily Ranked Stock Setups · stocksbrew",

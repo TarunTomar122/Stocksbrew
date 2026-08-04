@@ -120,7 +120,7 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
       <section>
         <p className="text-[14px] font-semibold text-on-surface">Connect Stocksbrew</p>
         <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-          Copy the setup prompt into your agent and approve only the research, Radar, and alert permissions it needs.
+          Copy the setup prompt into your agent and approve only the research, Watchlist and alert permissions it needs.
         </p>
         <AgentSetupPrompt compact className="mt-4" />
       </section>

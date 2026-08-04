@@ -21,7 +21,7 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
       {
         href: "/should-i-buy",
         title: "Should I Buy?",
-        description: "Free AI scorecard on any US ticker. Add winners to Radar in one click.",
+        description: "Check valuation, growth, quality and momentum on any US ticker. Add it to Watchlist in one click.",
         icon: "fact_check",
         accent: "#059669",
         featured: true,
@@ -118,7 +118,7 @@ export const FREE_TOOLS_FAQS = [
   {
     question: "Are these tools really free?",
     answer:
-      "Yes. Every tool on this page is free to use. Radar tracking is free for up to three US tickers; Pro unlocks unlimited names and deeper intel.",
+      "Yes. Every tool on this page is free to use. Watchlist tracking is free for up to three US tickers; Pro unlocks unlimited names and detailed research.",
   },
   {
     question: "Where should I start?",

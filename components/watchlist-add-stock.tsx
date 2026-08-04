@@ -26,7 +26,7 @@ export function WatchlistAddStock({ searchIndex, trackedIds, isSubscribed }: Pro
         onClick={() => setOpen(true)}
         className="inline-flex items-center justify-center rounded-full bg-[#111111] px-4 py-2.5 text-[13px] font-semibold text-white transition-transform hover:-translate-y-0.5"
       >
-        Add to Radar
+        Add to Watchlist
       </button>
       {open && (
         <SearchModal
@@ -94,7 +94,7 @@ function SearchModal({
       className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-24"
       role="dialog"
       aria-modal="true"
-      aria-label="Add a stock to Radar"
+      aria-label="Add a stock to Watchlist"
     >
       <button
         type="button"

@@ -48,7 +48,7 @@ export function RadarFreeLimitModal({
             Free · {limit}/{limit} stocks
           </span>
           <h2 id="radar-free-limit-title" className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface">
-            You&apos;ve hit the free Radar limit
+            You&apos;ve hit the free Watchlist limit
           </h2>
           <p className="text-[14px] leading-relaxed text-on-surface-variant">
             Free tracks up to {limit} stocks. Remove one to swap, or upgrade to Pro for unlimited names and a morning call on each.
@@ -57,7 +57,7 @@ export function RadarFreeLimitModal({
 
         <ul className="mt-4 space-y-2 text-[13px] text-on-surface">
           {[
-            "Unlimited stocks on Radar",
+            "Unlimited stocks in Watchlist",
             "Daily buy / hold / sell call on each name",
             "Whole-book diagnosis and alerts",
           ].map((item) => (
@@ -92,7 +92,7 @@ export function RadarFreeLimitModal({
         <p className="mt-4 text-center text-[11px] text-on-surface-variant">
           Or{" "}
           <Link href="/watchlist" className="font-semibold text-on-surface underline-offset-2 hover:underline">
-            manage your Radar
+            manage your Watchlist
           </Link>{" "}
           to remove a stock first.
         </p>

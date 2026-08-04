@@ -22,7 +22,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
             You&apos;re on Pro.
           </h2>
           <p className="max-w-md text-[14px] leading-relaxed text-[#6b7280]">
-            Your detailed calls, Stocksbrew targets, unlimited Radar, and alerts are active.
+            Your detailed calls, Stocksbrew targets, unlimited Watchlist and alerts are active.
           </p>
         </div>
 
@@ -49,7 +49,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
             href="/watchlist"
             className="inline-flex h-[42px] items-center justify-center rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white"
           >
-            Build my Radar →
+            Build my Watchlist →
           </Link>
         </div>
       </div>
@@ -94,7 +94,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
           href="/watchlist"
           className="inline-flex h-[50px] items-center justify-center rounded-full bg-[#111111] px-6 text-[14px] font-semibold text-white"
         >
-          Build my Radar →
+          Build my Watchlist →
         </Link>
         <Link
           href="/"

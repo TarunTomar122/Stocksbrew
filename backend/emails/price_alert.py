@@ -186,7 +186,7 @@ def build_price_alert_email(
         {directive_block}
         {level_rows}
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px"><tr><td align="center">
-          <a href="{html.escape(stock_url)}" style="display:inline-block;padding:12px 22px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open in Radar</a>
+          <a href="{html.escape(stock_url)}" style="display:inline-block;padding:12px 22px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open stock</a>
         </td></tr></table>
       </td></tr>"""
 

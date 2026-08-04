@@ -7,7 +7,7 @@ type FaqItem = { q: string; a: string };
 const FAQS: FaqItem[] = [
   {
     q: "What do I get for free?",
-    a: "Search any US stock and track up to three names on Radar. Pro adds deeper research, targets, unlimited tracking and alerts.",
+    a: "Search any US stock and track up to three names in your Watchlist. Pro adds detailed calls, price zones, targets, unlimited tracking and alerts.",
   },
   {
     q: "Free or Pro: which should I pick?",
@@ -15,11 +15,11 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What does Pro actually add?",
-    a: "The full research, price zones and targets, unlimited Radar stocks, alerts, and access from compatible AI agents.",
+    a: "Detailed calls, price zones and targets, unlimited Watchlist stocks, alerts, and access from compatible AI agents.",
   },
   {
     q: "Can I use Stocksbrew in Claude Code, Cursor, or Codex?",
-    a: "Yes. Pro includes MCP and REST access for current stock research, Radar, changes, and alerts. You choose narrow read and write scopes. Stocksbrew cannot place trades or move money.",
+    a: "Yes. Pro includes MCP and REST access for current stock research, your Watchlist, changes and alerts. You choose narrow read and write scopes. Stocksbrew cannot place trades or move money.",
   },
   {
     q: "Is there a free trial?",

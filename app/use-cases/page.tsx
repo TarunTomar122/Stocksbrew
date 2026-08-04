@@ -7,7 +7,7 @@ import { USE_CASES } from "@/lib/use-cases-data";
 export const metadata: Metadata = {
   title: "Stock research by investing style",
   description:
-    "Workflow guides for dividend investors, swing traders, and earnings-season prep. Each maps to stocksbrew Radar, Should I Buy, and free tools.",
+    "Workflow guides for dividend investors, swing traders and earnings-season prep. Each maps to the stocksbrew Watchlist, Should I Buy and free tools.",
   alternates: { canonical: "/use-cases" },
   openGraph: {
     title: "Stock research use cases · stocksbrew",

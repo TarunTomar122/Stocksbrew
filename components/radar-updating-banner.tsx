@@ -48,7 +48,7 @@ export function RadarUpdatingBanner({
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
       </span>
       <span className="font-medium">
-        Radar is updating.{" "}
+        Watchlist is updating.{" "}
         {pendingCount > 0
           ? `${pendingCount} new ${pendingCount === 1 ? "stock" : "stocks"} being processed.`
           : "Refreshing your analysis."}{" "}

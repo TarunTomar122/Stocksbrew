@@ -36,7 +36,7 @@ export function TierCTA({
       <div className="flex flex-col items-start gap-3 rounded-2xl tint-bull px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="min-w-0 text-[13px] font-medium leading-relaxed text-[#10b981]">
           {isSubscribed
-            ? "Track this stock to keep its research and alerts on Radar."
+            ? "Add this stock to your Watchlist for ongoing research and alerts."
             : "Track this stock free. Pro adds the full research, target and alerts."}
         </span>
         <div
@@ -63,7 +63,7 @@ export function TierCTA({
     return (
       <div className="flex flex-col items-start gap-2 rounded-2xl tint-info px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#3b82f6]">
-          This stock is on Radar. Pro keeps the full research, target and alerts current.
+          This stock is in your Watchlist. Pro keeps the full research, target and alerts current.
         </span>
         <div className={isTracked ? "shrink-0 self-end sm:self-auto" : "self-end sm:self-auto"}>
           <TrackButton
@@ -84,7 +84,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`Want the full read on ${ticker}?`}
-        body="Sign in to track it on Radar. Pro adds the full research, target and alerts."
+        body="Sign in to add it to your Watchlist. Pro adds the full research, target and alerts."
         primary={{
           label: "Start your 3-day free trial",
           onClick: async () => {
@@ -108,7 +108,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`Unlock the full ${ticker} research`}
-        body="Pro adds the current view, price zones, target and Radar alerts."
+        body="Pro adds the current view, price zones, target and Watchlist alerts."
         primary={{
           label: "Get Pro",
           onClick: () => router.push("/subscribe"),
@@ -122,8 +122,8 @@ export function TierCTA({
   if (isTracked) {
     return (
       <CtaCard
-        title={`${ticker} is in your Radar`}
-        body="Open Radar for the latest research, target and alerts."
+        title={`${ticker} is in your Watchlist`}
+        body="Open Watchlist for the latest research, target and alerts."
         action={
           <TrackButton
             ticker={ticker}
@@ -140,7 +140,7 @@ export function TierCTA({
 
   return (
     <CtaCard
-      title={`Add ${ticker} to Radar`}
+      title={`Add ${ticker} to Watchlist`}
       body="Choose Holding if you own it or Watching if you are still researching it."
       action={
         <TrackButton

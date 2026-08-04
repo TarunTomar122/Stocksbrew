@@ -254,7 +254,7 @@ export type RadarStyleNewsFeedProps =
     };
 
 const RADAR_COPY = {
-  title: "Radar news",
+  title: "Watchlist news",
   subtitle:
     "Stories mentioning your tracked names - scan fast like a wire, open anything that matters.",
 } as const;
@@ -371,7 +371,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
     variant === "radar" ? (
       <div className="flex flex-col gap-2 text-[13px] leading-relaxed text-[#737373]">
         <p>
-          Nothing matched your Radar in the latest news run yet - try again after the pipeline
+          No recent news matched your Watchlist.
           refreshes, or open the full market feed.
         </p>
         <Link href="/news" className="w-fit font-semibold text-[#22d3ee] hover:underline">

@@ -480,7 +480,7 @@ export function buildHealthProps(
       grade: "-",
       gradePct: 0,
       headline: "Mark your holdings to grade your book",
-      body: "Once you flag which tracked names you actually own, Radar grades your book on valuation, growth, quality, and momentum, and flags what to fix.",
+      body: "Mark the stocks you own to see how your portfolio scores on valuation, growth, quality and momentum.",
       fixes: [],
       pillars: [],
     };

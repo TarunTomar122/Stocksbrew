@@ -106,7 +106,7 @@ async function loadRadarRepeatVisitors(periodDays: number): Promise<{
     rows.push({
       email,
       uid: doc.id,
-      detail: `${visits} radar visits · ${tracked.length} tracked`,
+      detail: `${visits} watchlist visits · ${tracked.length} tracked`,
       createdAt: null,
     });
   }

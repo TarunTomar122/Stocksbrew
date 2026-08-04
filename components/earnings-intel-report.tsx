@@ -476,7 +476,7 @@ export function EarningsIntelReport({
               <div className="flex items-center gap-2">
                 <MaterialIcon name="radar" className="text-[#6b7280]" />
                 <p className="text-xs font-semibold uppercase tracking-widest text-[#9ca3af]">
-                  Keep on your radar
+                  Add to Watchlist
                 </p>
               </div>
               <ul className="mt-3 flex flex-wrap gap-2">

@@ -6,7 +6,7 @@ function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
 
-describe("first Radar activation flow", () => {
+describe("first Watchlist activation flow", () => {
   it("identifies the Firebase user before emitting the signup event", () => {
     const signIn = source("lib/sign-in.ts");
     expect(signIn.indexOf("identifyUser(result.user.uid")).toBeGreaterThan(-1);
@@ -15,7 +15,7 @@ describe("first Radar activation flow", () => {
     );
   });
 
-  it("uses a real sign-in action on the signed-out Radar instead of linking to itself", () => {
+  it("uses a real sign-in action on the signed-out Watchlist instead of linking to itself", () => {
     const states = source("components/radar-next/states.tsx");
     expect(states).toContain("StartRadarButton");
     expect(states).toContain('surface="radar_page"');
@@ -58,7 +58,7 @@ describe("first Radar activation flow", () => {
     expect(legacyGate).not.toContain("inline-flex h-10");
   });
 
-  it("shows the bulk Radar action after signed-out auth resolution", () => {
+  it("shows the bulk Watchlist action after signed-out auth resolution", () => {
     const bulkTrack = source("components/track-in-radar-button.tsx");
     expect(bulkTrack).toContain("const { user, loading, initialAuthed } = useUser()");
     expect(bulkTrack).toContain("const isLoading = loading && !initialAuthed");

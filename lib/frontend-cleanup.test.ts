@@ -7,7 +7,7 @@ function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
 
-describe("Pulse, Social, Radar, and home cleanup", () => {
+describe("Pulse, Social, Watchlist, and home cleanup", () => {
   it("puts price before the final interesting rationale column", () => {
     const feed = source("components/interesting-stocks-feed.tsx");
     const today = feed.indexOf("<span className=\"text-right\">Today</span>");
@@ -38,7 +38,7 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
     expect(source("app/explore/page.tsx")).toContain('redirect("/")');
   });
 
-  it("groups Radar decisions and source-backed changes into compact cards", () => {
+  it("groups Watchlist decisions and source-backed changes into compact cards", () => {
     const queue = source("components/radar-next/attention-queue.tsx");
     const decisions = source("components/radar-next/decision-queue.tsx");
     const header = source("components/radar-next/command-header.tsx");
@@ -57,7 +57,7 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
     expect(decisions).not.toContain("inset 3px 0");
     expect(decisions).toContain("Why:</span> {item.driver}");
     const book = source("components/radar-next/book.tsx");
-    expect(book).not.toContain("Radar call");
+    expect(book).not.toContain("Watchlist call");
     expect(book).not.toContain("row.call");
     expect(book.indexOf('label="Signals"')).toBeLessThan(book.indexOf('label="Score"'));
     expect(book).not.toContain(">\n                Ready\n");
@@ -135,11 +135,41 @@ describe("Pulse, Social, Radar, and home cleanup", () => {
   });
 
   it("keeps every Pulse tab reachable in the mobile scroller", () => {
+    const pulse = source("components/pulse-hub.tsx");
     const css = source("app/globals.css");
+    expect(pulse).toContain('useState<Lens>("moving")');
     expect(css).toContain("@media (max-width: 639px)");
     expect(css).toContain(".pulse-tabs {\n    overflow-x: auto;");
     expect(css).toContain(".pulse-tab {\n    justify-content: center;");
     expect(css).toContain("white-space: nowrap");
     expect(css).toContain("flex-shrink: 0");
+  });
+
+  it("shows no more than three Watchlist decisions", () => {
+    const queue = source("components/radar-next/decision-queue.tsx");
+    const page = source("app/watchlist/page.tsx");
+
+    expect(queue).toContain("items.slice(0, 3)");
+    expect(page).toContain("buildDecisionCards(rows, activeRadarUserView).slice(0, 3)");
+  });
+
+  it("lets free and Pro members generate missing stock analysis", () => {
+    const lockedBrief = source("components/locked-ai-brief.tsx");
+    const detail = source("components/stock-detail.tsx");
+
+    expect(lockedBrief).toContain("if (user)");
+    expect(lockedBrief).not.toContain("Start your 3-day free trial");
+    expect(lockedBrief).toContain("Generate AI analysis for {ticker}");
+    expect(detail).toContain("Generate AI analysis for ${ticker}");
+    expect(detail).toContain('untrackedLabel="Generate analysis"');
+  });
+
+  it("shows recent support and resistance on stock pages", () => {
+    const detail = source("components/stock-detail.tsx");
+
+    expect(detail).toContain("findNearestTechnicalLevels(hist, stock.price)");
+    expect(detail).toContain("Nearest support");
+    expect(detail).toContain("Nearest resistance");
+    expect(detail).toContain("From recent closing-price reversals.");
   });
 });

@@ -16,8 +16,8 @@ export function DeleteAccountButton({
 
   async function handleDelete() {
     const warning = hasBillableSubscription
-      ? "This permanently deletes your stocksbrew account, Radar, and preferences. Your Pro subscription will be scheduled to cancel at the end of the current billing period. This cannot be undone."
-      : "This permanently deletes your stocksbrew account, Radar, and preferences. This cannot be undone.";
+      ? "This permanently deletes your stocksbrew account, Watchlist and preferences. Your Pro subscription will be scheduled to cancel at the end of the current billing period. This cannot be undone."
+      : "This permanently deletes your stocksbrew account, Watchlist and preferences. This cannot be undone.";
 
     if (!window.confirm(`${warning}\n\nDelete your account?`)) return;
 

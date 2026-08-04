@@ -65,7 +65,7 @@ export function WatchlistBriefing({ brief, rows }: Props) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-                Radar intelligence
+                Watchlist research
               </div>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-on-surface">
                 {brief.narrative || "Your portfolio read is ready."}
@@ -90,7 +90,7 @@ export function WatchlistBriefing({ brief, rows }: Props) {
                         {tile.ticker}
                       </div>
                       <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-                        {row?.sector_label || row?.market || "In Radar"}
+                        {row?.sector_label || row?.market || "In Watchlist"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

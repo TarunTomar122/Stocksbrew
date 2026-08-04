@@ -78,7 +78,7 @@ export const researchBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>See What Changed After Earnings</h3>
-  <p>Browse free Earnings Intel reports for a plain-English post-results read, then add the names you follow to Radar for ongoing context.</p>
+  <p>Browse free Earnings Intel reports for a plain-English post-results read, then add the names you follow to Watchlist for ongoing context.</p>
   <a href="/earnings-intel" class="cta-button">Browse Earnings Intel →</a>
 </div>
 `,
@@ -180,7 +180,7 @@ export const researchBlogContent: Record<string, string> = {
   <li>the explicit invalidation condition.</li>
 </ul>
 
-<p>Use <a href="/earnings">Earnings</a> for dates, <a href="/news">News</a> for ticker-specific developments, and <a href="/radar">Radar</a> to monitor calls and risk flags. These tools reduce the scanning burden; they do not change the underlying evidence standard.</p>
+<p>Use <a href="/earnings">Earnings</a> for dates, <a href="/news">News</a> for ticker-specific developments, and <a href="/radar">Watchlist</a> to monitor calls and risk flags. These tools reduce the scanning burden; they do not change the underlying evidence standard.</p>
 
 <h2 id="ai-boundary">Where AI helps—and where it should stop</h2>
 
@@ -210,7 +210,7 @@ export const researchBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Turn the checklist into a live watch list</h3>
-  <p>Use Should I Buy for a structured first pass, then monitor the names that survive your research on Radar. Free for three stocks.</p>
+  <p>Use Should I Buy for a structured first pass, then monitor the names that survive your research on Watchlist. Free for three stocks.</p>
   <a href="/should-i-buy" class="cta-button">Run a structured check →</a>
 </div>
 `,
@@ -276,9 +276,9 @@ export const researchBlogContent: Record<string, string> = {
 
 <h2 id="stocksbrew">Choose stocksbrew when monitoring is the bottleneck</h2>
 
-<p>stocksbrew begins after discovery. Add the stocks you own or seriously watch, then use Radar for a current add/hold/trim call, target and risk zones, news and earnings context, and email alerts. Market Pulse, Earnings Intel, Should I Buy, and Compare Stocks support the same focused US-equity workflow.</p>
+<p>stocksbrew begins after discovery. Add the stocks you own or seriously watch, then use Watchlist for a current add/hold/trim call, target and risk zones, news and earnings context, and email alerts. Market Pulse, Earnings Intel, Should I Buy, and Compare Stocks support the same focused US-equity workflow.</p>
 
-<p><strong>Strengths:</strong> readable context per tracked name, fewer tabs, product features tied to a watchlist, and a free tier for three Radar stocks.</p>
+<p><strong>Strengths:</strong> readable context per tracked name, fewer tabs, product features tied to a watchlist, and a free tier for three Watchlist stocks.</p>
 
 <p><strong>Trade-offs:</strong> stocksbrew is not a brokerage, a tax-grade portfolio tracker, a professional charting package, or an unrestricted market screener. Its calls are decision support, not individualized investment advice.</p>
 
@@ -286,7 +286,7 @@ export const researchBlogContent: Record<string, string> = {
 
 <h2 id="price">Price is part of the workflow—not the ranking</h2>
 
-<p>As checked on July 16, 2026, Finviz lists Elite at $39.50 monthly or $299.50 annually after its trial. TradingView has multiple plan and market-data combinations, so verify the total on its pricing page for your exchanges and alert limits. stocksbrew lists Pro at $9 per month or $99 per year, with three Radar stocks on the free tier.</p>
+<p>As checked on July 16, 2026, Finviz lists Elite at $39.50 monthly or $299.50 annually after its trial. TradingView has multiple plan and market-data combinations, so verify the total on its pricing page for your exchanges and alert limits. stocksbrew lists Pro at $9 per month or $99 per year, with three Watchlist stocks on the free tier.</p>
 
 <p>Do not compare headline prices alone. The relevant cost is the cheapest plan that supports your actual alerts, market data, saved layouts, or watchlist size.</p>
 
@@ -296,7 +296,7 @@ export const researchBlogContent: Record<string, string> = {
 <ol>
   <li>Use Finviz once a week to screen for quality and valuation criteria.</li>
   <li>Read primary filings for the finalists.</li>
-  <li>Add only serious candidates and holdings to stocksbrew Radar.</li>
+  <li>Add only serious candidates and holdings to stocksbrew Watchlist.</li>
   <li>Open TradingView only when price structure matters to sizing.</li>
 </ol>
 
@@ -311,7 +311,7 @@ export const researchBlogContent: Record<string, string> = {
 <ol>
   <li>Keep discovery rare and deliberate.</li>
   <li>Maintain the decision thesis in writing.</li>
-  <li>Use Radar and earnings alerts for monitoring.</li>
+  <li>Use Watchlist and earnings alerts for monitoring.</li>
   <li>Return to Finviz or TradingView only when a thesis event requires deeper analysis.</li>
 </ol>
 
@@ -323,8 +323,8 @@ export const researchBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Try the monitoring layer</h3>
-  <p>Add three US stocks to Radar free. Keep your screener and charting workflow; use stocksbrew to track what changes afterward.</p>
-  <a href="/radar" class="cta-button">Open Radar →</a>
+  <p>Add three US stocks to Watchlist free. Keep your screener and charting workflow; use stocksbrew to track what changes afterward.</p>
+  <a href="/radar" class="cta-button">Open Watchlist →</a>
 </div>
 `,
 };

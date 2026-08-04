@@ -344,7 +344,7 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
   const funnel: FunnelStep[] = [
     { key: "visitors", label: "Unique visitors", count: funnelVisitors },
     { key: "sign_ups", label: "Sign-ups", count: signUps },
-    { key: "first_radar_stock", label: "First Radar stock", count: firstRadarStock },
+    { key: "first_radar_stock", label: "First Watchlist stock", count: firstRadarStock },
     { key: "checkout_started", label: "Checkout started", count: checkoutStarted },
     { key: "converted", label: "Subscribed", count: converted },
   ];

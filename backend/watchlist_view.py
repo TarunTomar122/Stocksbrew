@@ -1678,7 +1678,7 @@ def _mention_quality_score(article: dict[str, Any], mention: dict[str, Any]) -> 
 def _format_event_body(base: str, beneficiaries: list[str] | None = None) -> str:
     body = _clip_signal_text(base, 150)
     if beneficiaries:
-        suffix = f" That can matter for {', '.join(beneficiaries)} on your Radar."
+        suffix = f" That can matter for {', '.join(beneficiaries)} in your Watchlist."
         if len(body) + len(suffix) > 220:
             allowed = max(40, 220 - len(suffix))
             body = _clip_signal_text(body, allowed)
@@ -2083,7 +2083,7 @@ def _today_setup(
         ticker = str(row.get("ticker") or "").strip().upper()
         position_type = str(row.get("position_type") or "watchlist").strip().lower()
         directive = (row.get("directive_v2") or {}) if isinstance(row.get("directive_v2"), dict) else {}
-        action = str(directive.get("title") or row.get("suggested_action") or "Review in Radar").strip()
+        action = str(directive.get("title") or row.get("suggested_action") or "Review in Watchlist").strip()
 
         anomaly_doc = anomaly_by_id.get(instrument_id) or {}
         anomaly = anomaly_doc.get("anomaly") if isinstance(anomaly_doc.get("anomaly"), dict) else {}
@@ -2229,7 +2229,7 @@ def _today_setup(
                     "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
                     "urgency": int(min(94, 76 + abs(move or 0) * 2.5)),
                     "title": f"{broad_ticker} may set the tone for your {sector_label} names",
-                    "why_it_matters": f"{why[:150]} This could spill into {', '.join(affected[:3])} on your Radar.",
+                    "why_it_matters": f"{why[:150]} This could spill into {', '.join(affected[:3])} in your Watchlist.",
                     "action": f"Watch {', '.join(affected[:3])} for follow-through after the open",
                     "evidence": [f"{move:+.1f}% move" if move is not None else sector_label, catalyst][:2],
                 }
@@ -2248,7 +2248,7 @@ def _today_setup(
                     "kind": "sector_theme",
                     "tone": "neutral",
                     "urgency": 70,
-                    "title": f"{sector_label} is a live theme across your Radar",
+                    "title": f"{sector_label} is a live theme across your Watchlist",
                     "why_it_matters": f"{sector_change[:150]} This theme runs through {', '.join(affected[:3])}.",
                     "action": sector_watch[:120] if sector_watch else f"Review {', '.join(affected[:3])} together, not one by one",
                     "evidence": [f"{len(affected)} tracked names in {sector_label}"],
@@ -2331,7 +2331,7 @@ def _today_setup(
                 "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
                 "urgency": int(min(96, 82 + abs(move or 0) * 2.5)),
                 "title": f"{candidate_ticker or tag.upper()} could influence your {display_tag} names",
-                "why_it_matters": f"{why[:150]} That can matter for {', '.join(beneficiary_targets)} on your Radar.",
+                "why_it_matters": f"{why[:150]} That can matter for {', '.join(beneficiary_targets)} in your Watchlist.",
                 "action": f"Check {', '.join(beneficiary_targets)} for theme follow-through after the open",
                 "evidence": [f"{move:+.1f}% move" if move is not None else display_tag, catalyst][:2],
             }
@@ -2389,14 +2389,14 @@ def _today_setup(
             ]
             if direct_cross_top:
                 visible_direct_count = min(len(direct_top), 2)
-                headline = f"{visible_direct_count} market event{'s' if visible_direct_count != 1 else ''} could move names on your Radar today"
+                headline = f"{visible_direct_count} market event{'s' if visible_direct_count != 1 else ''} could move names in your Watchlist today"
             else:
-                headline = f"{len(cross_top)} broader market theme{'s' if len(cross_top) != 1 else ''} may hit your Radar today"
+                headline = f"{len(cross_top)} broader market theme{'s' if len(cross_top) != 1 else ''} may affect your Watchlist today"
             body_source = direct_top[:2] if direct_cross_top else cross_top[:2]
             body = " ".join(str(item.get("why_it_matters") or "").strip() for item in body_source if str(item.get("why_it_matters") or "").strip())[:520]
         else:
             headline = (
-                f"{len(top)} pre-open catalyst{'s' if len(top) != 1 else ''} matter for your Radar today"
+                f"{len(top)} pre-open catalyst{'s' if len(top) != 1 else ''} matter for your Watchlist today"
                 if len(top) > 1
                 else f"{top[0].get('ticker') or 'A tracked name'} has the key pre-open setup today"
             )

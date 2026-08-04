@@ -15,19 +15,19 @@ import {
 export const metadata: Metadata = {
   title: "Stock Research Guide",
   description:
-    "Free tools, comparisons, and tutorials for US stock research. Radar watchlists, Should I Buy, Learn guides, and a weekly workflow in one place.",
+    "Free tools, comparisons and tutorials for US stock research. Start with Watchlist, Should I Buy, Learn guides or the weekly workflow.",
   alternates: { canonical: "/guides" },
   openGraph: {
     title: "Stock Research Guide · stocksbrew",
     description:
-      "Free tools, comparisons, and tutorials for US stock research. Start with Radar, Should I Buy, or the Learn library.",
+      "Free tools, comparisons and tutorials for US stock research. Start with Watchlist, Should I Buy or the Learn library.",
     url: "https://www.stocksbrew.online/guides",
   },
   twitter: {
     card: "summary_large_image",
     title: "Stock Research Guide · stocksbrew",
     description:
-      "Free tools, comparisons, and tutorials for US stock research. Start with Radar, Should I Buy, or the Learn library.",
+      "Free tools, comparisons and tutorials for US stock research. Start with Watchlist, Should I Buy or the Learn library.",
   },
 };
 
@@ -82,7 +82,7 @@ export default function GuidesPage() {
           <p className="text-[16px] text-[#374151] leading-[1.55]">
             Pick a guide, compare a tool, or open{" "}
             <Link href="/watchlist" className="font-medium text-[#111111] underline underline-offset-2 hover:text-[#0052ff]">
-              Radar
+              Watchlist
             </Link>{" "}
             if you already know your tickers.
           </p>
@@ -203,7 +203,7 @@ export default function GuidesPage() {
               href="/watchlist"
               className="inline-flex items-center h-[44px] px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold hover:-translate-y-[1px] transition-transform"
             >
-              Open Radar →
+              Open Watchlist →
             </Link>
             <Link
               href="/subscribe"

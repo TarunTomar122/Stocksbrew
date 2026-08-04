@@ -505,7 +505,7 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
                   Want this for your whole watchlist?
                 </h2>
                 <p className="text-[13px] text-white/75 leading-[1.5]">
-                  Daily signals and AI briefs for every stock in your Radar.
+                  Current calls and research for every stock in your Watchlist.
                 </p>
               </div>
               <Link

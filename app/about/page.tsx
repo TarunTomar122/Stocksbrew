@@ -60,7 +60,7 @@ export default function AboutPage() {
           </h2>
           <p className="text-[15px] text-[#374151] leading-[1.7]">
             I built stocksbrew because following a company meant reopening the same tabs every day.
-            A stock page now brings the financials, news and market context together. Radar keeps
+            A stock page brings financials, valuation, filings, earnings, analyst targets and news together. Your Watchlist keeps
             researching the companies you own or want to follow.
           </p>
           <p className="text-[15px] text-[#374151] leading-[1.7]">

@@ -587,7 +587,7 @@ function ProCTA() {
       </div>
       <div className="flex flex-col items-start md:items-center gap-3 shrink-0">
         <ProCtaLink href="/subscribe" size="lg" showStar className="px-8">
-          Start your Radar →
+          Start your Watchlist →
         </ProCtaLink>
         <Link
           href="/watchlist"
@@ -790,7 +790,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
                         Start tracking to get the full picture
                       </p>
                       <p className="text-[12px] text-[#6b7280] leading-relaxed">
-                        Add to your Radar and unlock daily directives, diversification gaps, analyst price targets, and alerts when something changes.
+                        Add these stocks to your Watchlist for current calls, portfolio gaps, analyst targets and alerts.
                       </p>
                     </div>
                   </div>

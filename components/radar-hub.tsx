@@ -251,7 +251,7 @@ export function RadarHub({
       {!embedded ? (
         <>
           <div className="flex items-center gap-3">
-            <div className="font-mono text-[12px] text-on-surface-variant">// your radar</div>
+            <div className="font-mono text-[12px] text-on-surface-variant">// your watchlist</div>
             {isSubscribed ? (
               <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
                 pro

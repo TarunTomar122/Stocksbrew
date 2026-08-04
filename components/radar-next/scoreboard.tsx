@@ -67,7 +67,7 @@ export function Scoreboard({ board }: { board: RadarScoreboard }) {
         </h2>
         <div className="rn-card p-5">
           <p className="text-[13px] leading-relaxed text-[var(--rn-muted)]">
-            Your scoreboard lights up the moment Radar makes its first call on one of your stocks.
+            Your scoreboard appears after Stocksbrew makes its first call on a Watchlist stock.
             It tracks how each call performs from the price it was issued at.
           </p>
         </div>

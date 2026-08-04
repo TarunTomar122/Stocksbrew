@@ -101,7 +101,7 @@ export function ShouldIBuyLandingSections() {
           <FaqSection faqs={SHOULD_I_BUY_FAQS} />
 
           <p className="text-[12px] text-[#9ca3af] leading-relaxed max-w-[640px]">
-            Research and education only. Not investment advice. Not a broker. Free Radar capped at 3 stocks; Pro unlocks unlimited tracking at ${US_PRO_MONTHLY}/month.
+            Research and education only. Not investment advice. Not a broker. Free Watchlist is capped at 3 stocks; Pro unlocks unlimited tracking at ${US_PRO_MONTHLY}/month.
           </p>
         </div>
       </div>

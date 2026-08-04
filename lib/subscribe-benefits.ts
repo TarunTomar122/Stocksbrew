@@ -40,8 +40,8 @@ export const PRO_VALUE_PILLARS: ProValuePillar[] = [
   {
     id: "radar",
     icon: "notifications_active",
-    title: "Radar tracking and alerts",
-    shortTitle: "Radar and alerts",
+    title: "Watchlist tracking and alerts",
+    shortTitle: "Watchlist and alerts",
     body: "Track every stock you care about. Get automatic earnings and zone alerts, or set your own price alert.",
   },
 ];
@@ -64,10 +64,10 @@ export const SUBSCRIBE_BENEFITS: SubscribeBenefit[] = [
   },
   {
     icon: "notifications_active",
-    title: "Radar and alerts",
+    title: "Watchlist and alerts",
     body: "Unlimited tracking, automatic earnings and zone alerts, plus manual price alerts.",
     href: "/watchlist",
-    linkLabel: "Open Radar",
+    linkLabel: "Open Watchlist",
   },
   {
     icon: "smart_toy",
@@ -89,10 +89,10 @@ export const PRO_UNLOCKED_BENEFITS = SUBSCRIBE_BENEFITS.filter(
 
 export const PRO_WELCOME_STEPS: ProWelcomeStep[] = [
   {
-    title: "Build your Radar",
+    title: "Build your Watchlist",
     body: "Add the stocks you own and the stocks you are waiting to buy.",
     href: "/watchlist",
-    linkLabel: "Open Radar",
+    linkLabel: "Open Watchlist",
   },
   {
     title: "Read the call and target",
@@ -160,7 +160,7 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
 
   if (count > 0) {
     return [
-      { icon: "verified", text: `Detailed calls and zones on the ${count} ${stockWord} on your Radar.` },
+      { icon: "verified", text: `Detailed calls and zones on the ${count} ${stockWord} in your Watchlist.` },
       { icon: "flag", text: "Stocksbrew target prices with upside or downside context." },
       { icon: "radar", text: "Track more names without hitting the free limit." },
       { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
@@ -171,7 +171,7 @@ export function buildSubscribeContextLines(trackedCount: number): SubscribeConte
   return [
     { icon: "verified", text: "Detailed calls, buy and trim zones, drivers, and risks." },
     { icon: "flag", text: "Stocksbrew target prices with room from today." },
-    { icon: "radar", text: "Track every stock you own or watch on Radar." },
+    { icon: "radar", text: "Track every stock you own or follow in Watchlist." },
     { icon: "notifications_active", text: "Automatic earnings and zone alerts, plus manual alerts." },
     { icon: "smart_toy", text: "Give your AI current Stocksbrew stock context." },
   ];

@@ -353,7 +353,7 @@ function HeroCta({
         disabled={busy}
         className="inline-flex w-full sm:w-auto items-center justify-center h-11 px-7 rounded-full bg-[#111111] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-60"
       >
-        {busy ? "Opening..." : signedIn ? "Open your Radar" : "Track your first stock for free"}
+        {busy ? "Opening..." : signedIn ? "Open your Watchlist" : "Track your first stock for free"}
       </button>
       {!isSubscribed && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">

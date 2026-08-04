@@ -53,7 +53,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     name: AGENT_MCP_SERVER_NAME,
     version: AGENT_MCP_SERVER_VERSION,
     title: "Stocksbrew for Agents",
-    description: "Stock research, Radar tracking, and alert tools for Stocksbrew Pro members.",
+    description: "Stock research, Watchlist tracking and alert tools for Stocksbrew Pro members.",
   });
 
   const readOnly = {
@@ -82,7 +82,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
 
   server.registerTool("get_stock_intelligence", {
     title: "Get stock intelligence",
-    description: "Get the current Stocksbrew call, zones, target context, drivers, risks, fundamentals, technical setup, freshness, and research status for one stock. If a brief is missing, follow coverage.next_action and ask before adding the stock to Radar.",
+    description: "Get the current Stocksbrew call, zones, target context, drivers, risks, fundamentals, technical setup, freshness and research status for one stock. If a brief is missing, follow coverage.next_action and ask before adding the stock to Watchlist.",
     inputSchema: {
       ticker: z.string().min(1).max(20).describe("Ticker symbol or stocksbrew instrument ID"),
       market: z.enum(["US", "IN"]).default("US"),
@@ -109,8 +109,8 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
   }, toolHandler(principal, "get_market_brief"));
 
   server.registerTool("get_my_radar", {
-    title: "Get my Radar",
-    description: "Get the authorized Pro member's tracked stocks, current calls, target room, portfolio context, and Radar summary.",
+    title: "Get my Watchlist",
+    description: "Get the authorized Pro member's tracked stocks, current calls, target room, portfolio context and Watchlist summary.",
     inputSchema: {
       limit: z.number().int().min(1).max(100).default(50),
       offset: z.number().int().min(0).default(0),
@@ -119,8 +119,8 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
   }, toolHandler(principal, "get_my_radar"));
 
   server.registerTool("get_radar_changes", {
-    title: "Get Radar changes",
-    description: "Get fresh, quality-passed changes and upcoming events across the authorized member's Radar.",
+    title: "Get Watchlist changes",
+    description: "Get new changes and upcoming events across the authorized member's Watchlist.",
     inputSchema: {
       since: z.string().datetime().optional().describe("Only return attention items after this ISO timestamp. Use the returned cursor on the next poll."),
     },
@@ -128,8 +128,8 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
   }, toolHandler(principal, "get_radar_changes"));
 
   server.registerTool("add_to_radar", {
-    title: "Add stock to Radar",
-    description: "Add a stock to the member's Radar and queue missing AI research. This changes the member's account. Ask for confirmation before calling it.",
+    title: "Add stock to Watchlist",
+    description: "Add a stock to the member's Watchlist and queue missing research. This changes the member's account. Ask for confirmation before calling it.",
     inputSchema: {
       ticker: z.string().min(1).max(20),
       market: z.enum(["US", "IN"]).default("US"),
@@ -139,8 +139,8 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
   }, toolHandler(principal, "add_to_radar"));
 
   server.registerTool("remove_from_radar", {
-    title: "Remove stock from Radar",
-    description: "Remove a stock and its holding context from the member's Radar. Ask for confirmation before calling it.",
+    title: "Remove stock from Watchlist",
+    description: "Remove a stock and its holding context from the member's Watchlist. Ask for confirmation before calling it.",
     inputSchema: {
       ticker: z.string().min(1).max(20),
       market: z.enum(["US", "IN"]).default("US"),

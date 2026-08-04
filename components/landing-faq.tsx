@@ -3,11 +3,11 @@ type QA = { q: string; a: string };
 const FAQS: QA[] = [
   {
     q: "What do I get for free?",
-    a: "Search stocks, follow the market, and track up to 3 names on Radar. Detailed calls and zones, the Stocksbrew target price, and alerts are Pro.",
+    a: "Search stocks, follow the market and track up to 3 names in Watchlist. Detailed calls, price zones, the Stocksbrew target and alerts are Pro.",
   },
   {
     q: "What does Pro actually add?",
-    a: "Detailed calls with buy and trim zones, drivers, and risks; the Stocksbrew target price; and unlimited Radar tracking with automatic earnings and zone alerts plus manual price alerts.",
+    a: "Detailed calls with buy and trim zones, drivers and risks; the Stocksbrew target; unlimited Watchlist tracking; earnings, zone and manual price alerts.",
   },
   {
     q: "Is this investment advice?",

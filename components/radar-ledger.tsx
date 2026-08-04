@@ -894,7 +894,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       <RadarAsyncModal
         open={modalOpen}
         title={`Adding ${ticker} to Holdings`}
-        subtitle="Saved. Radar analysis is refreshing in the background..."
+        subtitle="Saved. We’re refreshing the research now."
         status={modalStatus}
       />
     </>
@@ -1238,7 +1238,7 @@ function RowMenu({ row }: { row: WatchlistRow }) {
           </div>
         )}
       </div>
-      <RadarAsyncModal open={modalOpen} title={modalTitle} subtitle="Saved. Radar analysis is refreshing in the background..." status={modalStatus} />
+      <RadarAsyncModal open={modalOpen} title={modalTitle} subtitle="Saved. We’re refreshing the research now." status={modalStatus} />
     </>
   );
 }

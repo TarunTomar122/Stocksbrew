@@ -4,26 +4,26 @@
 
 export const BRAND_NAME = "stocksbrew";
 
-export const TAGLINE = "Analyse and track US stocks with AI.";
+export const TAGLINE = "Analyse and track US stocks.";
 
 export const SITE_TITLE_DEFAULT =
-  "AI Stock Analysis & Tracking for US Stocks | stocksbrew";
+  "US Stock Analysis & Watchlist | stocksbrew";
 
 export const SHORT_DESCRIPTION =
   "Analyse any US stock, then track the ones you care about.";
 
 export const MEDIUM_DESCRIPTION =
-  "Search any US stock for financials, news and market context. Track up to three stocks free with Radar.";
+  "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Track up to three stocks free in your Watchlist.";
 
 export const LONG_DESCRIPTION =
-  "stocksbrew helps you analyse and track US stocks. Search a company for its financials, recent news and market context, then add it to Radar if you want ongoing research and alerts. Pro adds deeper calls, targets and unlimited tracking. Research only, not investment advice.";
+  "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "Analyse and track US stocks with AI";
+export const HERO_HEADLINE = "Analyse and track US stocks";
 export const HERO_HEADLINE_LEAD = "Analyse and track";
-export const HERO_HEADLINE_EMPHASIS = "US stocks with AI";
+export const HERO_HEADLINE_EMPHASIS = "US stocks";
 
 export const HERO_SUBHEAD =
-  "Search any US stock for financials, news and market context.";
+  "Financials, valuation, filings, earnings, analyst targets and news for any US stock.";
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";
@@ -34,7 +34,7 @@ export const HOME_LIVE_FEED_SUBHEAD =
 export const ABOUT_PILLARS = [
   {
     title: "Analyse any US stock.",
-    body: "Open a company page for financials, recent news, price history and market context.",
+    body: "Open a company page for financials, valuation, filings, earnings, analyst targets and news.",
   },
   {
     title: "See what changed.",
@@ -42,7 +42,7 @@ export const ABOUT_PILLARS = [
   },
   {
     title: "Track the stocks you care about.",
-    body: "Add holdings and watchlist names to Radar so their research stays current.",
+    body: "Add holdings and watchlist names to your Watchlist. We’ll keep checking them after you leave.",
   },
   {
     title: "Come back when something changes.",
@@ -52,5 +52,5 @@ export const ABOUT_PILLARS = [
 
 export function stockMetaDescription(ticker: string): string {
   const upper = ticker.toUpperCase();
-  return `Analyse ${upper} with price history, financials, news and market context. Track it on stocksbrew Radar for ongoing research and alerts.`;
+  return `Analyse ${upper} with financials, valuation, filings, earnings, analyst targets and news. Add it to your stocksbrew Watchlist for ongoing research and alerts.`;
 }

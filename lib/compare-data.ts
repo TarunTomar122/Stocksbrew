@@ -28,9 +28,9 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     competitorName: "Tickertape",
     title: "stocksbrew vs Tickertape",
     description:
-      "Honest comparison for US vs Indian market research. Tickertape excels at Indian screeners; stocksbrew gives US watchlist calls, Should I Buy, and Radar alerts.",
+      "Honest comparison for US vs Indian market research. Tickertape excels at Indian screeners; stocksbrew gives US watchlist calls, Should I Buy and Watchlist alerts.",
     verdict:
-      "Tickertape is built for Indian retail: screeners, smallcases, and NSE/BSE data. stocksbrew is built for US equities: daily buy/hold/sell calls on your Radar and email when setups change.",
+      "Tickertape is built for Indian retail: screeners, smallcases and NSE/BSE data. stocksbrew is built for US equities: current calls on your Watchlist and email for important changes.",
     competitorUrl: "https://www.tickertape.in",
     competitorPricingUrl: "https://www.tickertape.in/pricing",
     stocksbrewBestFor:
@@ -38,17 +38,17 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     competitorBestFor:
       "You invest primarily in Indian equities, live in screeners, and want smallcase and mutual fund discovery in one Indian-native app.",
     bothScenario:
-      "Screen Indian ideas on Tickertape and track US execution on Radar. Many investors use both markets with different tools.",
+      "Screen Indian ideas on Tickertape and track US stocks in Watchlist. Many investors use both markets with different tools.",
     rows: [
       { dimension: "Primary market", stocksbrew: "US equities", competitor: "India (NSE/BSE)" },
       { dimension: "Core output", stocksbrew: "Buy / hold / sell call per tracked ticker", competitor: "Screens, scores, market data" },
-      { dimension: "Watchlist intelligence", stocksbrew: "Radar briefs + daily digest", competitor: "Stock pages + screener exports" },
+      { dimension: "Watchlist research", stocksbrew: "Current briefs + daily digest", competitor: "Stock pages + screener exports" },
       { dimension: "Alerts", stocksbrew: "Email on buy/sell zones (Pro)", competitor: "Price and news alerts (plan-dependent)" },
-      { dimension: "Free tier", stocksbrew: "3 Radar stocks, Should I Buy, Earnings Intel", competitor: "Free tier on tickertape.in" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Radar", competitor: "See Tickertape pricing page" },
+      { dimension: "Free tier", stocksbrew: "3 Watchlist stocks, Should I Buy, Earnings Intel", competitor: "Free tier on tickertape.in" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Watchlist", competitor: "See Tickertape pricing page" },
     ],
     stocksbrewStrengths: [
-      "Clear US watchlist directives on Radar",
+      "Clear calls on US Watchlist stocks",
       "Free Should I Buy scorecard on any US ticker",
       "Earnings Intel and news tied to your names",
       "Email alerts when a setup shifts (Pro)",
@@ -61,8 +61,8 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     ],
     workflow: [
       {
-        title: "Monday: set Radar",
-        body: "Add holdings and watchlist names to Radar (free for 3 stocks). Each ticker gets an AI directive with rationale from fundamentals, news, Reddit, and earnings.",
+        title: "Monday: set your Watchlist",
+        body: "Add holdings and watchlist names to Watchlist (free for 3 stocks). Each ticker gets a current call based on fundamentals, news, Reddit and earnings.",
       },
       {
         title: "Tuesday–Thursday: let alerts work",
@@ -77,22 +77,22 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Is stocksbrew a Tickertape alternative?",
         answer:
-          "For US equities and personalized buy/hold/sell calls on your watchlist, yes. Tickertape focuses on Indian markets, screeners, and smallcases. stocksbrew focuses on Radar, AI directives, and email alerts for US stocks.",
+          "For US equities and current calls on your watchlist, yes. Tickertape focuses on Indian markets, screeners and smallcases. stocksbrew focuses on Watchlist research and email alerts for US stocks.",
       },
       {
         question: "Does Tickertape work for US stocks?",
         answer:
-          "Tickertape is built primarily for Indian retail investors. stocksbrew is built for US equities with Radar, Should I Buy, and earnings intel tied to your holdings.",
+          "Tickertape is built primarily for Indian retail investors. stocksbrew is built for US equities with Watchlist, Should I Buy and earnings research tied to your holdings.",
       },
       {
         question: "Which is better for watchlist alerts?",
         answer:
-          "stocksbrew sends email alerts when a tracked stock moves into a buy or sell zone and refreshes AI briefs on Radar. Tickertape emphasizes screeners and market data for Indian tickers rather than personalized US portfolio calls.",
+          "stocksbrew sends email alerts when a tracked stock reaches a buy or sell zone and refreshes Watchlist research. Tickertape emphasizes screeners and market data for Indian tickers.",
       },
       {
         question: "How much does each cost?",
         answer:
-          "stocksbrew is free for 3 Radar stocks; Pro is $9/month or $99/year. Tickertape offers free and paid tiers on tickertape.in; see their pricing page for current plans.",
+          "stocksbrew is free for 3 Watchlist stocks; Pro is $9/month or $99/year. Tickertape offers free and paid tiers on tickertape.in; see their pricing page for current plans.",
       },
       {
         question: "Can I use both tools together?",
@@ -124,8 +124,8 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Time to value", stocksbrew: "5 min/day — read AI brief", competitor: "15-30 min/day — read and filter articles" },
       { dimension: "AI features", stocksbrew: "Core — signal scoring, sentiment, earnings intel", competitor: "Quant ratings, Virtual Analyst reports, earnings-call insights" },
       { dimension: "Dividend analysis", stocksbrew: "Dividend tracking in daily briefs", competitor: "Excellent — dividend grades, safety scores, history" },
-      { dimension: "Free tier", stocksbrew: "Radar for 3 stocks plus free tools", competitor: "Limited article and portfolio access" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Radar", competitor: "Premium $299/yr as listed by Seeking Alpha" },
+      { dimension: "Free tier", stocksbrew: "Watchlist for 3 stocks plus free tools", competitor: "Limited article and portfolio access" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Watchlist", competitor: "Premium $299/yr as listed by Seeking Alpha" },
     ],
     stocksbrewStrengths: [
       "AI personalized brief — ready in 5 minutes, no manual filtering",
@@ -152,7 +152,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       },
       {
         title: "Friday: review your watchlist",
-        body: "Use stocksbrew's radar to review weekly performance. Check if any holdings changed from buy to hold or hold to sell. Use Seeking Alpha for fundamental research before making changes.",
+        body: "Use stocksbrew Watchlist to review weekly performance. Check whether any holding changed call. Use Seeking Alpha for additional fundamental research before making changes.",
       },
     ],
     faqs: [
@@ -203,11 +203,11 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Core function", stocksbrew: "AI-powered daily market intelligence", competitor: "Professional-grade charting platform" },
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief with buy/hold/sell calls", competitor: "No AI brief — community ideas and news feed" },
       { dimension: "Charting", stocksbrew: "Not a charting tool", competitor: "Advanced multi-timeframe charts, drawings, indicators, and Pine" },
-      { dimension: "Watchlist", stocksbrew: "AI radar with scoring, alerts, and context", competitor: "Watchlists with price, technical, drawing, and Pine-based alerts" },
+      { dimension: "Watchlist", stocksbrew: "Current calls, scores, alerts and context", competitor: "Watchlists with price, technical, drawing and Pine-based alerts" },
       { dimension: "Stock screening", stocksbrew: "Curated screens (growth, momentum, value)", competitor: "Built-in screener with technical + fundamental filters" },
       { dimension: "Portfolio analysis", stocksbrew: "Portfolio analyzer with health scoring", competitor: "Chart trading and broker connections; not tax accounting" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings previews and post-earnings analysis", competitor: "Earnings calendar + basic data" },
-      { dimension: "Free tier", stocksbrew: "Radar for 3 stocks plus free tools", competitor: "Free charting and screening with plan limits" },
+      { dimension: "Free tier", stocksbrew: "Watchlist for 3 stocks plus free tools", competitor: "Free charting and screening with plan limits" },
       { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Several plans; exchange data and limits vary" },
     ],
     stocksbrewStrengths: [
@@ -330,7 +330,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       {
         question: "Is stocksbrew free like Yahoo Finance?",
         answer:
-          "stocksbrew has a generous free tier with daily briefs and watchlist radar. Yahoo Finance is completely free (ad-supported). stocksbrew Pro costs $9/mo for unlimited features — but removes all ads and gives you AI intelligence Yahoo can't match.",
+          "stocksbrew has a generous free tier with daily briefs and a three-stock Watchlist. Yahoo Finance is completely free (ad-supported). stocksbrew Pro costs $9/mo for unlimited features — but removes all ads and gives you AI intelligence Yahoo can't match.",
       },
       {
         question: "Which has better financial data?",
@@ -441,7 +441,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "Not a feature" },
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, earnings, sentiment", competitor: "Price alerts, report availability alerts" },
       { dimension: "Portfolio analysis", stocksbrew: "Health scoring with risk flags", competitor: "X-ray, style box, sector allocation (Investor tier)" },
-      { dimension: "Free tier", stocksbrew: "Daily brief, watchlist radar, sector overview", competitor: "Limited quotes, ratings, articles" },
+      { dimension: "Free tier", stocksbrew: "Daily brief, three-stock Watchlist, sector overview", competitor: "Limited quotes, ratings, articles" },
       { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Premium $249/yr or Investor $299/yr" },
     ],
     stocksbrewStrengths: [
@@ -515,7 +515,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     competitorBestFor:
       "You want to screen thousands of stocks with technical and fundamental filters, visualize market sectors, and find setups you would never spot manually.",
     bothScenario:
-      "Screen on Finviz to find candidates. Add winners to your stocksbrew Radar. Let stocksbrew handle daily monitoring so you never miss a signal on stocks you care about.",
+      "Screen on Finviz to find candidates. Add the serious ones to your stocksbrew Watchlist for ongoing research and alerts.",
     rows: [
       { dimension: "Core function", stocksbrew: "AI daily intelligence for your watchlist", competitor: "Stock screener and market visualization" },
       { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Broad fundamental and technical filters; advanced custom filters on Elite" },
@@ -523,7 +523,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Heatmaps", stocksbrew: "Sector and market attention maps", competitor: "Industry-leading S&P 500 and market heatmaps" },
       { dimension: "Alerts", stocksbrew: "Price zones and setup-change emails", competitor: "Elite price, news, ratings, insider, filing, portfolio, and screener alerts" },
       { dimension: "Written watchlist context", stocksbrew: "Calls with earnings, news, price, and sentiment context", competitor: "Market data and alerts rather than an equivalent written call" },
-      { dimension: "Free tier", stocksbrew: "Daily brief, Radar for 3 stocks, Should I Buy", competitor: "Full screener with delayed data, heatmaps" },
+      { dimension: "Free tier", stocksbrew: "Daily brief, Watchlist for 3 stocks, Should I Buy", competitor: "Full screener with delayed data, heatmaps" },
       { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Elite $39.50/mo or $299.50/yr when reviewed" },
     ],
     stocksbrewStrengths: [
@@ -546,12 +546,12 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
         body: "Use Finviz screener to find stocks matching your criteria. Filter by sector, P/E, volume, technical patterns. Build a shortlist of 5-10 candidates.",
       },
       {
-        title: "Monday: add to Radar",
-        body: "Move your shortlist to stocksbrew Radar. Each ticker gets an AI directive with buy/hold/sell call. Run Should I Buy on any you are unsure about.",
+        title: "Monday: build your Watchlist",
+        body: "Move your shortlist to stocksbrew Watchlist. Each ticker gets a current call. Run Should I Buy on any you are unsure about.",
       },
       {
         title: "Daily: let stocksbrew monitor",
-        body: "Radar keeps the monitored names together and can email when configured price zones or setup conditions change. Re-run a Finviz screen when you are looking for new candidates.",
+        body: "Watchlist keeps the monitored names together and can email when price zones or important research changes. Re-run a Finviz screen when you need new candidates.",
       },
     ],
     faqs: [
@@ -605,7 +605,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Ranking-based screener — filter by Zacks Rank" },
       { dimension: "Earnings analysis", stocksbrew: "AI earnings intel with pre/post analysis", competitor: "Core strength — earnings estimate tracking" },
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Rank change alerts (Premium)" },
-      { dimension: "Free tier", stocksbrew: "Daily brief, Radar for 3 stocks", competitor: "Limited rankings, daily market commentary" },
+      { dimension: "Free tier", stocksbrew: "Daily brief, Watchlist for 3 stocks", competitor: "Limited rankings, daily market commentary" },
       { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Premium $249/yr" },
     ],
     stocksbrewStrengths: [
@@ -674,7 +674,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
     competitorBestFor:
       "You want expert stock picks with a 20+ year track record. Motley Fool analysts research and recommend 2 stocks per month for long-term holding.",
     bothScenario:
-      "Use Motley Fool Stock Advisor for stock ideas. Add recommended stocks to your stocksbrew Radar. Let stocksbrew monitor them daily so you know when something changes.",
+      "Use Motley Fool Stock Advisor for stock ideas. Add the ones you care about to your stocksbrew Watchlist for ongoing research.",
     rows: [
       { dimension: "Core service", stocksbrew: "AI daily intelligence for your watchlist", competitor: "Expert stock picks — 2 new recommendations per month" },
       { dimension: "Stock selection", stocksbrew: "You choose — stocksbrew monitors", competitor: "Analysts choose — buy-and-hold recommendations" },
@@ -706,7 +706,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       },
       {
         title: "Add picks to stocksbrew",
-        body: "Move Fool recommendations you buy into stocksbrew Radar. Run Should I Buy for a second opinion. Let AI monitor them daily.",
+        body: "Move Fool recommendations you buy into stocksbrew Watchlist. Run Should I Buy for a second opinion and keep following them there.",
       },
       {
         title: "Daily: stocksbrew brief (5 min)",
@@ -869,7 +869,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       },
       {
         title: "Screen: StockAnalysis",
-        body: "Use StockAnalysis screener to find new candidates. Add winners to stocksbrew Radar for daily monitoring.",
+        body: "Use StockAnalysis screener to find new candidates. Add the serious ones to stocksbrew Watchlist for ongoing research.",
       },
     ],
     faqs: [
@@ -941,8 +941,8 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
         body: "When evaluating a new stock, check Danelfin's 1-10 AI score. Scores of 7+ historically outperform. Quick gut check before deeper research.",
       },
       {
-        title: "Track: stocksbrew Radar",
-        body: "Add stocks you buy to stocksbrew Radar. Get daily AI briefs tracking how signals evolve — sentiment trends, technical shifts, and earnings events.",
+        title: "Track: stocksbrew Watchlist",
+        body: "Add stocks you buy to stocksbrew Watchlist. Follow the latest call, earnings, news and price levels in one place.",
       },
       {
         title: "Alert: let AI monitor",

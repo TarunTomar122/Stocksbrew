@@ -532,12 +532,12 @@ async function WatchlistRadarStream() {
 
   const chatTickers = rows.map((r) => r.ticker).filter(Boolean);
   const chatStarters: RadarChatStarter[] = [
-    { label: "How's my radar today?", message: "How is my radar looking today?" },
+    { label: "How's my Watchlist today?", message: "How is my Watchlist looking today?" },
     ...(topDirective
       ? [
           {
             label: `Why ${topDirective.row.ticker}?`,
-            message: `Why is ${topDirective.row.ticker} ${topDirective.directive.stance ?? "on my radar"}? Summarize the directive.`,
+            message: `Why is ${topDirective.row.ticker} ${topDirective.directive.stance ?? "in my Watchlist"}? Summarize the current call.`,
           },
         ]
       : []),
@@ -692,7 +692,7 @@ function HeaderStrip({
           </span>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-[28px] font-extrabold leading-none tracking-tight text-on-surface md:text-[34px]">
-              Radar
+              Watchlist
             </h1>
             {!isSubscribed && (
               <Link
@@ -707,7 +707,7 @@ function HeaderStrip({
             )}
           </div>
           <p className="font-mono text-[11px] text-on-surface-variant">
-            {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
+            {rows.length} {rows.length === 1 ? "ticker" : "tickers"} in Watchlist · refreshed{" "}
             {radarView?.generated_at
               ? formatRelative(radarView.generated_at)
               : builtAt
@@ -1527,7 +1527,7 @@ function YourBookSection({
     ? visibleCount === 1
       ? { headline: "Add 1 more stock to unlock comparisons", body: "With 2+ stocks stocksbrew can compare scores, cluster your book, and surface which one deserves attention today." }
       : visibleCount === 2
-      ? { headline: "One more stock and your Radar really kicks in", body: "Portfolio diagnosis, concentration risks, and daily directives all light up once you have 3 stocks tracked." }
+      ? { headline: "Add one more stock for the portfolio view", body: "Portfolio concentration, sector mix and calls appear once you have 3 stocks tracked." }
       : { headline: "Pro tip: 5+ stocks makes everything smarter", body: "The more you track, the better stocksbrew clusters your book, spots risks, and prioritises what to act on today." }
     : null;
 
@@ -1617,7 +1617,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
             Add share counts to unlock position-weighted analysis
           </p>
           <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">
-            Without size, Radar ranks by signal strength — not by how much each holding actually moves your portfolio.
+            Without position size, Watchlist ranks by signal strength. Add size to see what moves your portfolio.
           </p>
         </div>
       </div>
@@ -1942,7 +1942,7 @@ function DiagnosisSection({
       <div className="grid grid-cols-1 items-start gap-6 md:gap-8 xl:grid-cols-[minmax(240px,_300px)_1fr]">
         <div className="flex flex-col gap-2">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-            {hasHoldings ? "Your holdings" : "Your radar"}
+            {hasHoldings ? "Your holdings" : "Your Watchlist"}
           </span>
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant/80">
             Portfolio score
@@ -2698,10 +2698,10 @@ function BareHeader({ rowsCount, builtAt }: { rowsCount: number; builtAt?: strin
     <header className="flex items-end justify-between gap-4 flex-wrap">
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[28px] md:text-[34px] font-semibold text-on-surface tracking-[-0.02em] leading-none">
-          Radar
+          Watchlist
         </h1>
         <span className="text-[13px] text-on-surface-variant">
-          {rowsCount} {rowsCount === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
+          {rowsCount} {rowsCount === 1 ? "ticker" : "tickers"} in Watchlist · refreshed{" "}
           {builtAt ? formatRelative(builtAt) : "never"}
         </span>
       </div>
@@ -2754,7 +2754,7 @@ function EmptyState({
           </span>
           <div className="flex flex-col gap-1.5">
             <h2 className="text-[22px] md:text-[24px] font-semibold text-on-surface tracking-[-0.02em]">
-              Build your Radar
+              Build your Watchlist
             </h2>
             <p className="text-[14px] text-on-surface-variant leading-relaxed max-w-[560px]">
               Add stocks from any detail page and stocksbrew gives you personalized buy, hold, and
@@ -2841,7 +2841,7 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
       <div className="mx-auto w-full min-w-0 max-w-screen-2xl px-3 sm:px-6 md:px-10 lg:px-12 xl:px-20 2xl:px-32 py-10 md:py-12 flex flex-col gap-8">
         <header className="flex flex-col gap-1.5">
           <h1 className="text-[28px] md:text-[34px] font-semibold text-on-surface tracking-[-0.02em] leading-none">
-            Radar
+            Watchlist
           </h1>
           <p className="text-[13px] text-on-surface-variant">
             {rows.length}/3 stocks · refreshed{" "}
@@ -2858,7 +2858,7 @@ function FreeRadarState({ rows, builtAt }: { rows: WatchlistRow[]; builtAt?: str
             </ProCtaLink>
           </div>
           <p className="text-[12px] text-on-surface-variant">
-            Prices are loading. Your analysis will appear here once the next radar cycle runs.
+            Prices are loading. Your research will appear after the next Watchlist update.
             Free plan supports up to 3 stocks; Pro unlocks unlimited.
           </p>
           <WatchlistTabs holdings={holdings} watching={watching} suggestions={[]} />
@@ -2910,7 +2910,7 @@ function UnsubscribedState({
         }));
   const chatStarters: RadarChatStarter[] = [
     { label: "What's moving today?", message: "What's moving in the market today?" },
-    { label: "Help me pick a stock", message: "Help me pick my first stock to track on Radar." },
+    { label: "Help me pick a stock", message: "Help me pick my first stock to add to Watchlist." },
     ...(featured
       ? [{ label: `Why ${featured.ticker}?`, message: `Why is ${featured.ticker} moving today?` }]
       : []),
@@ -2928,7 +2928,7 @@ function UnsubscribedState({
               </span>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="font-mono text-[28px] font-extrabold leading-none tracking-tight text-on-surface md:text-[34px]">
-                  Radar
+                  Watchlist
                 </h1>
                 <Link
                   href="/subscribe"
@@ -2941,7 +2941,7 @@ function UnsubscribedState({
                 </Link>
               </div>
               <p className="font-mono text-[11px] text-on-surface-variant">
-                0 tickers on Radar · refreshed {builtAt ? formatRelative(builtAt) : "today"}
+                0 tickers in Watchlist · refreshed {builtAt ? formatRelative(builtAt) : "today"}
               </p>
             </div>
 

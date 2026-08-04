@@ -78,12 +78,12 @@ export default function CompareIndexPage() {
           <div className="flex flex-col gap-2 max-w-[440px]">
             <h2 className="text-[20px] font-semibold text-white">Not sure yet?</h2>
             <p className="text-[14px] text-[#d1d5db] leading-relaxed">
-              Start with 3 free Radar stocks or run Should I Buy on any US ticker. No card required.
+              Add 3 stocks to Watchlist free or run Should I Buy on any US ticker. No card required.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/radar" className="inline-flex h-[44px] items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
-              Open Radar →
+              Open Watchlist →
             </Link>
             <Link href="/should-i-buy" className="inline-flex h-[44px] items-center px-6 rounded-full border border-[#374151] text-white text-[13px] font-medium hover:border-white transition-colors">
               Try Should I Buy

@@ -2203,11 +2203,11 @@ async function rewriteSuggestionWhys(
     dominant_sector: ctx.dominantSector || null,
   };
 
-  const SYSTEM_PROMPT = `You write one-line stock suggestion rationales for a financial app's Radar page.
+  const SYSTEM_PROMPT = `You write one-line stock suggestion rationales for a financial app's Watchlist page.
 
-You receive (a) a user's current Radar profile (avg pillar scores, dominant sector) and (b) a list of candidate stocks with their raw signal data (reddit buzz, anomaly move, heat list driver, screen hook).
+You receive (a) a user's current Watchlist profile (avg pillar scores, dominant sector) and (b) a list of candidate stocks with their raw signal data (reddit buzz, anomaly move, heat list driver, screen hook).
 
-For each candidate, write a SINGLE sentence (8-16 words) explaining why this stock could fit THIS user's Radar. Be specific to the signal:
+For each candidate, write a SINGLE sentence (8-16 words) explaining why this stock could fit THIS user's Watchlist. Be specific to the signal:
 - If multi-source (sources length > 1) — lead with that ("Showing up in heat + reddit").
 - If anomaly_move_pct — mention the move size and direction.
 - If reddit_mentions >= 5 — mention the buzz.
@@ -2254,7 +2254,7 @@ Rules:
 
 async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string, unknown>> {
   if (!rows.length) {
-    return { summary: "No Radar stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
+    return { summary: "No Watchlist stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
   }
 
   // ── Step 1: Position weights (all-or-none) ─────────────────────────────────
@@ -2322,7 +2322,7 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
         `${opportunities.length} watch list name${opportunities.length === 1 ? "" : "s"} have strong analyst runway for entry.`,
       );
     }
-    summary = summaryParts.join(" ") || "Radar diagnosis is ready.";
+    summary = summaryParts.join(" ") || "Watchlist diagnosis is ready.";
   }
 
   // ── Step 3: Concentration + position-level risk flags ──────────────────────
@@ -2406,12 +2406,12 @@ function riskSummary(rows: WatchlistRow[], portfolio: Record<string, unknown>): 
   const headline = highAttentionHoldings[0]
     ? `${highAttentionHoldings[0].ticker} needs review first`
     : dominant
-      ? `${dominant.sector} dominates your Radar`
+      ? `${dominant.sector} dominates your Watchlist`
       : "No obvious risk cluster yet";
   const body = highAttentionHoldings[0]
     ? String(highAttentionHoldings[0].attention_reason || "A holding has a material signal.")
     : dominant
-      ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of Radar names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
+      ? `${Math.round(toNumber(dominant.weight_pct) ?? 0)}% of Watchlist names sit in ${dominant.sector}. Keep an eye on single-theme risk.`
       : "Add more holdings/watching names and stocksbrew will detect concentration, technical, and news risk.";
   return {
     headline,
@@ -2439,7 +2439,7 @@ function eventRadar(rows: WatchlistRow[], portfolio: Record<string, unknown>): R
       add({
         ticker: row.ticker,
         kind: "new_tracking",
-        title: `${row.ticker} is new to Radar`,
+        title: `${row.ticker} is new to Watchlist`,
         body: "Baseline facts, score, technicals, and alerts are now being monitored for changes.",
         urgency: 60,
         evidence: ["new baseline"],
@@ -2452,7 +2452,7 @@ function eventRadar(rows: WatchlistRow[], portfolio: Record<string, unknown>): R
           ticker: row.ticker,
           kind: "conviction_delta",
           title: `${row.ticker} conviction ${overallDelta > 0 ? "improved" : "weakened"}`,
-          body: `Overall score changed ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)} since the last Radar build.`,
+          body: `Overall score changed ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)} since the last Watchlist update.`,
           urgency: Math.abs(overallDelta) >= 5 ? 72 : 58,
           tone: overallDelta > 0 ? "positive" : "negative",
           evidence: [`score ${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)}`],
@@ -2588,7 +2588,7 @@ function changeSummary(rows: WatchlistRow[], previousView: WatchlistView | null)
     score_changes: scoreChanges.slice(0, 6),
     new_tickers: newRows.map((row) => row.ticker),
     summary: previousView
-      ? `${changed.length} Radar stock(s) changed materially since the last build.`
+      ? `${changed.length} Watchlist stock(s) changed materially since the last update.`
       : "No previous snapshot yet; this build sets the baseline.",
   };
 }
@@ -2645,7 +2645,7 @@ function rowMicrocopy(
 function pulseFromRows(rows: WatchlistRow[]): WatchlistPulse {
   if (rows.length === 0) {
     return {
-      headline: "Your Radar is empty",
+      headline: "Your Watchlist is empty",
       subtitle: "Add a stock from any detail page to start getting daily briefs.",
       stats: {},
     };
@@ -2693,7 +2693,7 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
   const concentrated = dominant && dominant[1] >= Math.max(2, Math.ceil(rows.length / 2));
   const alertEvents = rows.flatMap((row) =>
     row.alerts.slice(0, 1).map((flag) => ({
-      sentence: String(flag.message || flag.type || "Radar alert triggered.").slice(0, 120),
+      sentence: String(flag.message || flag.type || "Watchlist alert triggered.").slice(0, 120),
       event_type: "technical",
       scope: "stock" as const,
       direction: (String(flag.direction || "mixed") as "up" | "down" | "mixed"),
@@ -2728,7 +2728,7 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
     ],
     blind_spot_title: "Exposure check",
     blind_spot_body: concentrated
-      ? `Most of this Radar clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
+      ? `Most of this Watchlist clusters around ${dominant[0]}. Add an unrelated sector to reduce single-theme risk.`
       : "No obvious concentration yet. Add more stocks and stocksbrew will flag sector, style, and event blind spots.",
     essential_events: alertEvents.length
       ? alertEvents.slice(0, 5)

@@ -118,7 +118,7 @@ export function RadarWorkspace({
                   : "text-on-surface-variant"
               }`}
             >
-              Radar
+              Watchlist
             </button>
             <button
               type="button"

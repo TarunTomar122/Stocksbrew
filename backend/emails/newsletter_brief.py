@@ -220,7 +220,7 @@ def build_newsletter_brief_email(
         "<tr><td style='padding:18px 20px 8px 20px;border-top:1px solid #f3f4f6'>"
         f"<a href='{APP_URL}/watchlist' style='display:inline-block;padding:12px 18px;border-radius:10px;"
         "background:#111827;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none'>"
-        "Track your own book on Radar →</a>"
+        "Open your Watchlist →</a>"
         "</td></tr>",
     ])
 

@@ -52,7 +52,7 @@ class NewsletterBriefTemplateTests(unittest.TestCase):
         self.assertIn("Macro forces", html)
         self.assertIn("What to watch", html)
         self.assertIn("Chip stocks rallied after Micron posted strong earnings.", html)
-        self.assertIn("Track your own book on Radar", html)
+        self.assertIn("Open your Watchlist", html)
 
 
 if __name__ == "__main__":

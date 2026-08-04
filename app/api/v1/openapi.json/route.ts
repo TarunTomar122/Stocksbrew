@@ -7,7 +7,7 @@ export async function GET() {
     info: {
       title: "Stocksbrew Agent API",
       version: "1.1.0",
-      description: "Stock intelligence, Radar tracking, and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
+      description: "Stock research, Watchlist tracking and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
     },
     servers: [{ url: `${base}/api/v1` }],
     security: [{ bearerAuth: [] }],
@@ -57,27 +57,27 @@ export async function GET() {
       "/radar": {
         get: {
           operationId: "getMyRadar",
-          summary: "Get the authorized member's Radar",
+          summary: "Get the authorized member's Watchlist",
           parameters: [
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
           ],
-          responses: { "200": { description: "Personal Radar", content: { "application/json": { schema: { type: "object" } } } } },
+          responses: { "200": { description: "Personal Watchlist", content: { "application/json": { schema: { type: "object" } } } } },
         },
         post: {
           operationId: "addToRadar",
-          summary: "Add a stock to Radar and queue missing research",
+          summary: "Add a stock to Watchlist and queue missing research",
           requestBody: {
             required: true,
             content: { "application/json": { schema: { type: "object", required: ["ticker"], properties: {
               ticker: { type: "string" }, market: { type: "string", enum: ["US", "IN"], default: "US" }, position_type: { type: "string", enum: ["watchlist", "holding"], default: "watchlist" },
             } } } },
           },
-          responses: { "200": { description: "Radar mutation and research queue status", content: { "application/json": { schema: { type: "object" } } } } },
+          responses: { "200": { description: "Watchlist mutation and research queue status", content: { "application/json": { schema: { type: "object" } } } } },
         },
         delete: {
           operationId: "removeFromRadar",
-          summary: "Remove a stock from Radar",
+          summary: "Remove a stock from Watchlist",
           requestBody: {
             required: true,
             content: { "application/json": { schema: { type: "object", required: ["ticker"], properties: { ticker: { type: "string" }, market: { type: "string", enum: ["US", "IN"], default: "US" } } } } },
@@ -88,9 +88,9 @@ export async function GET() {
       "/radar/changes": {
         get: {
           operationId: "getRadarChanges",
-          summary: "Get current changes across the authorized member's Radar",
+          summary: "Get current changes across the authorized member's Watchlist",
           parameters: [{ name: "since", in: "query", description: "ISO cursor from the previous response", schema: { type: "string", format: "date-time" } }],
-          responses: { "200": { description: "Radar changes", content: { "application/json": { schema: { type: "object" } } } } },
+          responses: { "200": { description: "Watchlist changes", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
       "/alerts": {
@@ -133,8 +133,8 @@ export async function GET() {
               scopes: {
                 "stocks:read": "Read stock intelligence",
                 "market:read": "Read market intelligence",
-                "radar:read": "Read the member's private Radar",
-                "radar:write": "Add or remove Radar stocks after the member instructs the agent",
+                "radar:read": "Read the member's private Watchlist",
+                "radar:write": "Add or remove Watchlist stocks after the member instructs the agent",
                 "alerts:read": "Read active alerts",
                 "alerts:write": "Create or deactivate alerts after the member instructs the agent",
               },

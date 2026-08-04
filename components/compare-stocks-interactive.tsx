@@ -868,13 +868,13 @@ function ResultsExperience({
 
       <div className="flex flex-col gap-4 rounded-[24px] bg-[#eef7f2] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
         <div>
-          <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#15231b]">Keep the matchup on your Radar.</h2>
+          <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#15231b]">Keep following these stocks.</h2>
           <p className="mt-1 text-[12px] text-[#627067]">Track the names and come back when the setup changes.</p>
         </div>
         <TrackInRadarButton
           instrumentIds={instrumentIds}
           positionType="watchlist"
-          label={`Track ${stocks.length} in Radar`}
+          label={`Add ${stocks.length} to Watchlist`}
           className="w-full sm:w-auto"
         />
       </div>

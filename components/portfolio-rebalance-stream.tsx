@@ -22,16 +22,16 @@ export async function PortfolioRebalanceStream() {
         <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-6 py-12 md:px-10 md:py-16 lg:px-12">
           <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-10 text-center">
             <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">
-              No stocks on Radar yet
+              No stocks in Watchlist yet
             </p>
             <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[#6b7280]">
-              Add stocks to your Radar first, then browse them by sector here.
+              Add stocks to your Watchlist first, then browse them by sector here.
             </p>
             <Link
               href="/watchlist"
               className="mt-5 inline-flex items-center rounded-full bg-[#111111] px-4 py-2 text-[12px] font-semibold text-white hover:bg-black"
             >
-              Back to Radar
+              Back to Watchlist
             </Link>
           </div>
         </div>

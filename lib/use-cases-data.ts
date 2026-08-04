@@ -27,17 +27,17 @@ export const USE_CASES: UseCase[] = [
     title: "Dividend & income investing",
     headline: "Track payout safety without reading every press release",
     description:
-      "Monitor dividend holdings on Radar, catch guidance changes after earnings, and keep upcoming dates together.",
+      "Monitor dividend holdings in Watchlist, catch guidance changes after earnings and keep upcoming dates together.",
     pain:
       "Income investors need to know when a payout is at risk, when guidance shifts, and when ex-dates approach. Reading every filing is not realistic.",
     steps: [
-      { text: "Add dividend holdings to Radar as holdings.", href: "/watchlist", linkLabel: "Open Radar" },
+      { text: "Add dividend holdings to Watchlist as holdings.", href: "/watchlist", linkLabel: "Open Watchlist" },
       { text: "Read the AI brief after earnings to see what changed." },
       { text: "Sync your list to the earnings calendar.", href: "/earnings", linkLabel: "Earnings calendar" },
       { text: "Enable email digest on your profile for weekly call changes.", href: "/profile", linkLabel: "Profile settings" },
     ],
     features: [
-      { name: "Radar", href: "/watchlist", description: "Research and alerts for each income stock" },
+      { name: "Watchlist", href: "/watchlist", description: "Research and alerts for each income stock" },
       { name: "Earnings Intel", href: "/earnings-intel", description: "What changed after the report" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Score new yield ideas before adding" },
       { name: "News timeline", href: "/news", description: "Filter headlines to your holdings" },
@@ -51,7 +51,7 @@ export const USE_CASES: UseCase[] = [
       {
         question: "How do I track ex-dates?",
         answer:
-          "Radar briefs and the earnings calendar flag upcoming report and catalyst windows. Enable email digest so you do not have to check daily.",
+          "Watchlist research and the earnings calendar flag upcoming reports and catalyst windows. Enable the email digest so you do not have to check daily.",
       },
       {
         question: "Is this for US dividend stocks?",
@@ -64,29 +64,29 @@ export const USE_CASES: UseCase[] = [
     title: "Swing trading setups",
     headline: "Find movers, score entry quality, get pinged when the thesis breaks",
     description:
-      "Scan Heat and Screens for ideas, run Should I Buy before sizing up, and track setups on Radar with Pro alerts.",
+      "Scan Heat and Screens for ideas, run Should I Buy before sizing up and track the stocks in Watchlist with Pro alerts.",
     pain:
       "Swing traders need fast idea flow, a quick quality check before entry, and alerts when price or narrative invalidates the trade.",
     steps: [
       { text: "Scan Market Heat and Screens for unusual attention.", href: "/heat", linkLabel: "Market Heat" },
       { text: "Run Should I Buy before adding size to a new name.", href: "/should-i-buy", linkLabel: "Should I Buy" },
-      { text: "Track as watching on Radar and set Pro price triggers.", href: "/watchlist", linkLabel: "Add to Radar" },
+      { text: "Add it to Watchlist as watching and set Pro price triggers.", href: "/watchlist", linkLabel: "Add to Watchlist" },
       { text: "Review news timeline when an alert fires.", href: "/news", linkLabel: "News" },
     ],
     features: [
       { name: "Market Heat", href: "/heat", description: "Sector and theme momentum at a glance" },
       { name: "Screens", href: "/screens", description: "Thematic lists updated with the market" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Fast scorecard before you commit" },
-      { name: "Radar alerts", href: "/subscribe", description: "Pro triggers when setup shifts" },
+      { name: "Watchlist alerts", href: "/subscribe", description: "Pro alerts for important changes" },
     ],
     faqs: [
       {
         question: "Is stocksbrew a charting platform?",
-        answer: "No. Pair Radar with your charting tool. stocksbrew handles the narrative read and alerts; you handle entries and exits.",
+        answer: "No. Pair Watchlist with your charting tool. Stocksbrew handles the company research and alerts; you handle entries and exits.",
       },
       {
         question: "How fast can I vet a new ticker?",
-        answer: "Should I Buy returns pillar scores and a synthesis in under a minute. Add to Radar if you want ongoing briefs.",
+        answer: "Should I Buy returns pillar scores and a current call in under a minute. Add it to Watchlist for ongoing research.",
       },
       {
         question: "Do alerts work for intraday moves?",
@@ -99,11 +99,11 @@ export const USE_CASES: UseCase[] = [
     title: "Earnings season prep",
     headline: "Keep report dates and earnings research in one place",
     description:
-      "Use Earnings Intel for AI briefs, sync Radar to the calendar, and get flags on names reporting in the next five sessions.",
+      "Use Earnings Intel for post-results research, sync Watchlist to the calendar and see which names report in the next five sessions.",
     pain:
       "Earnings season brings scattered dates, changed guidance, and new filings across every stock you follow.",
     steps: [
-      { text: "Add reporting names to Radar before the week starts.", href: "/watchlist", linkLabel: "Radar" },
+      { text: "Add reporting names to Watchlist before the week starts.", href: "/watchlist", linkLabel: "Watchlist" },
       { text: "Check the earnings calendar against your list.", href: "/earnings", linkLabel: "Calendar" },
       { text: "Read Earnings Intel before and after the report.", href: "/earnings-intel", linkLabel: "Earnings Intel" },
       { text: "Enable digest email so call changes land in your inbox.", href: "/profile", linkLabel: "Profile" },
@@ -111,17 +111,17 @@ export const USE_CASES: UseCase[] = [
     features: [
       { name: "Earnings Intel", href: "/earnings-intel", description: "AI earnings research for each ticker" },
       { name: "Earnings calendar", href: "/earnings", description: "Dates synced to your workflow" },
-      { name: "Radar", href: "/watchlist", description: "Flags names reporting soon" },
+      { name: "Watchlist", href: "/watchlist", description: "Flags names reporting soon" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Re-score after a big print" },
     ],
     faqs: [
       {
         question: "Does Earnings Intel cover every US stock?",
-        answer: "Coverage expands with reports. Add tickers to Radar and check Earnings Intel for published briefs on your names.",
+        answer: "Coverage expands with reports. Add tickers to Watchlist and check Earnings Intel for published research on your names.",
       },
       {
         question: "Can I prep before the report?",
-        answer: "Yes. Radar briefs include upcoming catalyst context. Read Earnings Intel after the report to see what changed.",
+        answer: "Yes. Watchlist briefs include upcoming catalyst context. Read Earnings Intel after the report to see what changed.",
       },
       {
         question: "How is this different from a earnings calendar app?",
@@ -134,17 +134,17 @@ export const USE_CASES: UseCase[] = [
     title: "Long-term buy-and-hold investing",
     headline: "Monitor your holdings without the daily noise",
     description:
-      "Track long-term positions on Radar, get weekly digests instead of constant alerts, and stay informed when fundamentals shift.",
+      "Track long-term positions in Watchlist, get weekly digests and hear when fundamentals change.",
     pain:
       "Long-term investors don't want to check stocks daily. But they still need to know when something fundamentally changes — a guidance cut, a management shakeup, or a competitive threat.",
     steps: [
-      { text: "Add your core holdings to Radar.", href: "/watchlist", linkLabel: "Open Radar" },
+      { text: "Add your core holdings to Watchlist.", href: "/watchlist", linkLabel: "Open Watchlist" },
       { text: "Enable weekly email digest instead of daily.", href: "/profile", linkLabel: "Profile settings" },
       { text: "Read Earnings Intel quarterly to track thesis evolution.", href: "/earnings-intel", linkLabel: "Earnings Intel" },
       { text: "Run Should I Buy annually to re-evaluate each position.", href: "/should-i-buy", linkLabel: "Should I Buy" },
     ],
     features: [
-      { name: "Radar", href: "/watchlist", description: "Weekly directives on each long-term holding" },
+      { name: "Watchlist", href: "/watchlist", description: "Weekly calls on each long-term holding" },
       { name: "Earnings Intel", href: "/earnings-intel", description: "Quarterly thesis check after earnings" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Annual re-evaluation scorecard" },
       { name: "Pulse", href: "/pulse", description: "Catch unusual attention on your names" },
@@ -169,14 +169,14 @@ export const USE_CASES: UseCase[] = [
     title: "Day trading and active trading",
     headline: "See the overnight moves before the market opens",
     description:
-      "Use Premarket for overnight moves, Market Heat for momentum scanning, and Radar for tracking setups across multiple names.",
+      "Use Premarket for overnight moves, Market Heat for momentum scanning and Watchlist for the stocks you want to keep following.",
     pain:
       "Active traders need fast pre-market context, momentum scanning, and alerts when a setup changes.",
     steps: [
       { text: "Check Premarket before the open for overnight movers.", href: "/premarket", linkLabel: "Premarket" },
       { text: "Scan Market Heat during the day for sector momentum.", href: "/heat", linkLabel: "Market Heat" },
       { text: "Run Should I Buy on watchlist candidates before entry.", href: "/should-i-buy", linkLabel: "Should I Buy" },
-      { text: "Track active names on Radar with Pro price triggers.", href: "/watchlist", linkLabel: "Radar" },
+      { text: "Track active names in Watchlist with Pro price triggers.", href: "/watchlist", linkLabel: "Watchlist" },
     ],
     features: [
       { name: "Premarket", href: "/premarket", description: "Overnight moves and gap analysis" },
@@ -204,17 +204,17 @@ export const USE_CASES: UseCase[] = [
     title: "Retirement portfolio management",
     headline: "Monitor your retirement holdings with a weekly 5-minute brief",
     description:
-      "Track retirement positions on Radar, get income-focused intelligence, and stay informed about payout safety without daily checking.",
+      "Track retirement positions in Watchlist, follow payout safety and get a weekly digest.",
     pain:
       "Retirement investors need income stability and capital preservation. They don't want to monitor stocks daily, but they can't afford to miss a dividend cut or a fundamental deterioration in a core holding.",
     steps: [
-      { text: "Add your retirement holdings to Radar.", href: "/watchlist", linkLabel: "Open Radar" },
+      { text: "Add your retirement holdings to Watchlist.", href: "/watchlist", linkLabel: "Open Watchlist" },
       { text: "Enable weekly email digest.", href: "/profile", linkLabel: "Profile settings" },
       { text: "Sync holdings to the earnings calendar.", href: "/earnings", linkLabel: "Earnings calendar" },
       { text: "Run Should I Buy on any new dividend stock ideas.", href: "/should-i-buy", linkLabel: "Should I Buy" },
     ],
     features: [
-      { name: "Radar", href: "/watchlist", description: "Weekly directives on retirement holdings" },
+      { name: "Watchlist", href: "/watchlist", description: "Weekly calls on retirement holdings" },
       { name: "Earnings Intel", href: "/earnings-intel", description: "Post-earnings context for income stocks" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Score new income ideas before adding" },
       { name: "Pulse", href: "/pulse", description: "Catch unusual attention on your names" },

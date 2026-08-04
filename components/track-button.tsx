@@ -67,6 +67,8 @@ type Props = {
   trackedAsBadge?: boolean;
   /** Optional copy for a signed-in stock that is not tracked yet. */
   untrackedLabel?: string;
+  /** Optional copy before sign-in, used when the click starts a specific flow. */
+  signedOutLabel?: string;
 };
 
 // Single source of truth for the radar / sign-in / subscribe flow used by every
@@ -82,6 +84,7 @@ export function TrackButton({
   variant = "pill",
   trackedAsBadge = false,
   untrackedLabel,
+  signedOutLabel,
 }: Props) {
   const router = useRouter();
   const { user, loading } = useUser();
@@ -252,7 +255,7 @@ export function TrackButton({
               showFreeLimitModal();
               return;
             }
-            setError("Your Radar is full. Remove one, or go Pro to track every stock you hold.");
+            setError("Your Watchlist is full. Remove one, or go Pro to track every stock you hold.");
           } else {
             setError("Could not add - try again.");
           }
@@ -305,16 +308,16 @@ export function TrackButton({
       return (
         <span
           className="shrink-0 text-[#0052ff]"
-          aria-label={`${ticker} is on your Radar`}
-          title="On your Radar"
+          aria-label={`${ticker} is in your Watchlist`}
+          title="In your Watchlist"
         >
           <RadarTrackIcon tracked />
         </span>
       );
     }
     return (
-      <span className={trackedPillClass} aria-label={`${ticker} is on your Radar`}>
-        In Radar ✓
+      <span className={trackedPillClass} aria-label={`${ticker} is in your Watchlist`}>
+        In Watchlist ✓
       </span>
     );
   }
@@ -322,14 +325,14 @@ export function TrackButton({
   const label = !user
     ? signingIn
       ? "Signing in..."
-      : variant === "compact" ? "Add to Radar" : "Sign in to add to Radar"
+      : signedOutLabel ?? (variant === "compact" ? "Add to Watchlist" : "Sign in to add to Watchlist")
     : pendingOp === "remove"
         ? "Removing…"
         : pendingOp === "add"
           ? "Adding…"
           : localTracked
-            ? "In Radar ✓"
-            : untrackedLabel ?? (variant === "compact" ? "Add to Radar" : `Add ${ticker} to Radar`);
+            ? "In Watchlist ✓"
+            : untrackedLabel ?? (variant === "compact" ? "Add to Watchlist" : `Add ${ticker} to Watchlist`);
 
   return (
     <>
@@ -348,7 +351,7 @@ export function TrackButton({
           }}
           onClick={onPrimaryClick}
           disabled={pending || signingIn}
-          aria-label={localTracked ? `Remove ${ticker} from Radar` : `Add ${ticker} to Radar`}
+          aria-label={localTracked ? `Remove ${ticker} from Watchlist` : `Add ${ticker} to Watchlist`}
           className={`shrink-0 transition-colors disabled:opacity-50 ${
             localTracked
               ? "text-[#0052ff]"
@@ -394,7 +397,7 @@ export function TrackButton({
       <RadarAsyncModal
         open={modalOpen}
         title={modalTitle}
-        subtitle="Saved. Radar analysis is refreshing in the background..."
+        subtitle="Saved. We’re refreshing its research now."
         status={modalStatus}
       />
       <RadarFreeLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} limit={freeLimit} />
@@ -473,10 +476,10 @@ function TrackModal({
       <div className="relative z-[1] w-full max-w-[420px] rounded-3xl bg-surface p-6 shadow-[0_24px_70px_rgba(17,24,39,0.18)]">
         <div className="flex flex-col gap-1.5">
           <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-on-surface-variant">
-            Personal radar
+            Your watchlist
           </span>
           <h2 id="track-modal-title" className="text-[20px] font-semibold tracking-[-0.02em] text-on-surface">
-            Add {ticker} to Radar
+            Add {ticker} to Watchlist
           </h2>
           <p className="text-[13px] text-on-surface-variant leading-relaxed">
             Tell stocksbrew how to monitor this stock. You can move it later.
@@ -519,7 +522,7 @@ function TrackModal({
             disabled={pending}
             className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-on-surface text-surface text-[13px] font-semibold disabled:opacity-60 transition-transform hover:-translate-y-[1px] active:translate-y-0"
           >
-            {pending ? "Adding…" : "Add to Radar"}
+            {pending ? "Adding…" : "Add to Watchlist"}
           </button>
         </div>
       </div>

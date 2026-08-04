@@ -23,7 +23,7 @@ export function CommandHeader({
   return (
     <header className="border-b border-[var(--rn-line)] pb-6 pt-3 sm:pb-8 sm:pt-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="rn-kick">Radar</span>
+        <span className="rn-kick">Watchlist</span>
         <span className="text-[var(--rn-line)]" aria-hidden>
           /
         </span>

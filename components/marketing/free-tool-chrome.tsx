@@ -51,7 +51,7 @@ export function FreeToolHero({
             All tools
           </Link>
           <Link href="/watchlist" className="landing-btn-primary px-4 py-2 text-sm">
-            Open Radar
+            Open Watchlist
           </Link>
         </div>
       </div>

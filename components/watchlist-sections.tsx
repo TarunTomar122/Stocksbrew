@@ -438,7 +438,7 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
             stocksbrew · {todayMasthead()}
           </span>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">Radar</h1>
+            <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.025em] text-[#0a0a0a] leading-none">Watchlist</h1>
             {!isSubscribed && (
               <Link href="/subscribe"
                 className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-semibold text-[#92400e] hover:border-[#f59e0b] transition-colors">
@@ -450,7 +450,7 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
             )}
           </div>
           <p className="text-[12.5px] text-[#6b7280]">
-            {rows.length} {rows.length === 1 ? "ticker" : "tickers"} on Radar · refreshed{" "}
+            {rows.length} {rows.length === 1 ? "ticker" : "tickers"} in Watchlist · refreshed{" "}
             {builtAt ? formatRelative(builtAt) : "never"}
             {pulse?.subtitle ? ` · ${pulse.subtitle}` : ""}
           </p>
@@ -785,7 +785,7 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, sug
     ? visibleCount === 1
       ? { headline: "Add 1 more stock to unlock comparisons", body: "With 2+ stocks stocksbrew can compare scores, cluster your book, and surface which one deserves attention today." }
       : visibleCount === 2
-      ? { headline: "One more stock and your Radar really kicks in", body: "Portfolio diagnosis, concentration risks, and daily directives all light up once you have 3 stocks tracked." }
+      ? { headline: "Add one more stock for the portfolio view", body: "Portfolio concentration, sector mix and calls appear once you have 3 stocks tracked." }
       : { headline: "Pro tip: 5+ stocks makes everything smarter", body: "The more you track, the better stocksbrew clusters your book, spots risks, and prioritises what to act on today." }
     : null;
   return (
@@ -805,7 +805,7 @@ export function YourBookSection({ holdings, watching, earningsReadyThisWeek, sug
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-white/60">Free · {visibleCount}/3 stocks</span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#fef3c7]/15 border border-[#fcd34d]/30 px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase text-[#fcd34d]">🚀 Launch pricing</span>
               </div>
-              <p className="text-[15px] font-semibold text-white leading-snug">You&apos;ve hit the limit. Unlock your full Radar.</p>
+              <p className="text-[15px] font-semibold text-white leading-snug">You&apos;ve hit the limit. Unlock your full Watchlist.</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {[
                   { icon: "trending_up", text: "Unlimited stocks" },
@@ -850,7 +850,7 @@ function PositionAwareState({ holdings, portfolio }: { holdings: WatchlistRow[];
         <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--outline)]" />
         <div className="flex flex-col gap-0.5">
           <p className="text-[12px] font-semibold text-[var(--on-surface)]">Add share counts to unlock position-weighted analysis</p>
-          <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">Without size, Radar ranks by signal strength — not by how much each holding actually moves your portfolio.</p>
+          <p className="text-[11px] text-[var(--on-surface-variant)] leading-snug">Without position size, Watchlist ranks stocks by signal strength. Add size to see their effect on your portfolio.</p>
         </div>
       </div>
     );

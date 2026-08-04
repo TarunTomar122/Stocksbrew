@@ -13,12 +13,12 @@ import {
 } from "@/lib/radar-next-demo";
 import type { RadarStarterPick } from "@/lib/radar-starter-picks";
 
-/** Signed-out: show a live sample Radar, not a feature list. */
+/** Signed-out: show a live sample Watchlist, not a feature list. */
 export function RadarNextSignedOut() {
   return (
     <div className="radar-next mx-auto w-full max-w-[1240px] space-y-10 px-4 pb-10 pt-3 sm:space-y-14 sm:px-6 sm:pt-6">
       <CommandHeader
-        greeting="This is what a live Radar looks like"
+        greeting="This is what a live Watchlist looks like"
         dateLabel="Sample data"
         statusLine="6 tracked · 3 decisions · 4 open checkpoints"
         trackedCount={6}
@@ -28,7 +28,7 @@ export function RadarNextSignedOut() {
           <StartRadarButton
             surface="radar_page"
             signedOutLabel="Track 3 stocks free"
-            signedInLabel="Open Radar"
+            signedInLabel="Open Watchlist"
             className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] no-underline disabled:opacity-60"
           />
         }
@@ -51,7 +51,7 @@ export function RadarNextSignedOut() {
           Keep the stocks you follow in one place.
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-[13px] leading-relaxed opacity-70">
-          Add up to three stocks free. Radar keeps their price, research and important changes together.
+          Add up to three stocks free. Your Watchlist keeps their price, research and important changes together.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
           <StartRadarButton
@@ -89,7 +89,7 @@ export function RadarNextEmpty({ header, picks, trackedIds }: RadarNextEmptyProp
             Add a stock you own or genuinely watch
           </h2>
           <p className="mt-2 max-w-lg text-[13.5px] leading-relaxed text-[var(--rn-muted)]">
-            Radar keeps its live price, latest research and important changes in one place.
+            Your Watchlist keeps its live price, latest research and important changes in one place.
           </p>
           <StarterPicks
             picks={picks}

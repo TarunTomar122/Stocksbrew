@@ -66,7 +66,7 @@ const ANOMALY_BENEFITS: Benefit[] = [
   },
   {
     icon: "radar",
-    title: "Track in Radar",
+    title: "Add to Watchlist",
     body: "Add any mover to your list and get the same read on your book.",
   },
 ];

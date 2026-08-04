@@ -71,7 +71,7 @@ export default async function ComparePage({ params }: Props) {
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
             <Link href="/radar" className="inline-flex h-[40px] items-center px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold">
-              Start free Radar →
+              Start free Watchlist →
             </Link>
             <a
               href={page.competitorUrl}
@@ -176,7 +176,7 @@ export default async function ComparePage({ params }: Props) {
             <strong className="text-[#111111]">Use both if:</strong> {page.bothScenario}
           </p>
           <p className="text-[13px] text-[#6b7280]">
-            stocksbrew: free for 3 Radar stocks,{" "}
+            stocksbrew: free for 3 Watchlist stocks,{" "}
             <Link href="/subscribe" className="underline underline-offset-2 hover:text-[#111111]">
               Pro at ${US_PRO_MONTHLY}/month
             </Link>
@@ -204,7 +204,7 @@ export default async function ComparePage({ params }: Props) {
             Add 3 stocks free. Get AI calls and optional email alerts when setups change.
           </p>
           <Link href="/radar" className="inline-flex h-[44px] w-fit items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
-            Open Radar →
+            Open Watchlist →
           </Link>
         </section>
       </div>

@@ -1,10 +1,10 @@
 const STEPS = [
   {
     title: "Search a stock",
-    body: "Open any US company for financials, news, price history and market context.",
+    body: "Read its financials, valuation, filings, earnings, analyst targets and news.",
   },
   {
-    title: "Add it to Radar",
+    title: "Add it to your Watchlist",
     body: "Track a company you own or want to follow. Your first three are free.",
   },
   {
@@ -23,7 +23,7 @@ export function LandingSimpleWay() {
             Search once. Track what matters.
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-on-surface-variant">
-            Start with a company page. Add it to Radar when you want us to keep watching it.
+            Start with a company page. Add it to your Watchlist when you want us to keep checking it.
           </p>
         </div>
 

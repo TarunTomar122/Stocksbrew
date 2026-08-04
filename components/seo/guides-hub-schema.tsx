@@ -8,7 +8,7 @@ export function GuidesHubSchema() {
     "@type": "WebPage",
     name: "Stock Research Guide",
     description:
-      "Free tools, comparisons, and tutorials for US stock research on stocksbrew. Start with Radar, Should I Buy, or the Learn library.",
+      "Free tools, comparisons and tutorials for US stock research on stocksbrew. Start with Watchlist, Should I Buy or the Learn library.",
     url: `${BASE}/guides`,
     isPartOf: { "@type": "WebSite", name: "stocksbrew", url: BASE },
   };

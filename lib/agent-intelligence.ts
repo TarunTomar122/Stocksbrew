@@ -236,7 +236,7 @@ export async function getStockAgentIntelligence(input: {
           ? {
               action: "ask_to_add_to_radar",
               tool: "add_to_radar",
-              message: "Baseline data is available, but the AI brief is missing. Ask the user before adding this stock to Radar. Adding it queues research.",
+              message: "Baseline data is available, but the detailed research is missing. Ask the user before adding this stock to Watchlist. Adding it queues research.",
             }
           : researchStatus === "queued" || researchStatus === "running"
             ? {
@@ -375,8 +375,8 @@ export async function getAgentRadarChanges(uid: string, input: { since?: string 
   const view = await getRadarUserView(uid);
   if (!view) {
     return envelope({
-      headline: "No current Radar changes",
-      body: "Stocksbrew has no fresh, quality-passed changes for this Radar yet.",
+      headline: "No current Watchlist changes",
+      body: "Stocksbrew has no new Watchlist changes yet.",
       attention_items: [],
       upcoming_events: [],
       cursor: null,
@@ -424,7 +424,7 @@ export async function addAgentStockToRadar(uid: string, input: { ticker: string;
         tool: "get_stock_intelligence",
         message: result.research_queued
           ? "Research was queued. Check the stock again later."
-          : "The stock is on Radar. Read its current intelligence now.",
+          : "The stock is in Watchlist. Read its current research now.",
       },
     }, new Date().toISOString());
   } catch (error) {

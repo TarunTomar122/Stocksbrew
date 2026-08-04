@@ -9,17 +9,17 @@ import { SubscriptionActivator } from "@/components/subscription-activator";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
-  description: "Track unlimited US stocks with deeper AI research, Radar alerts, target context, and connected AI access.",
+  description: "Track unlimited US stocks with detailed research, Watchlist alerts, price zones, targets and connected AI access.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
     title: "stocksbrew Pro - Pricing & Plans",
-    description: "Try Stocksbrew Pro free for 3 days, then get detailed calls, targets, Radar alerts, and current stock context for your AI for $9 per month.",
+    description: "Try Stocksbrew Pro free for 3 days, then get detailed calls, targets, Watchlist alerts and current stock context for your AI for $9 per month.",
     url: "https://www.stocksbrew.online/subscribe",
   },
   twitter: {
     card: "summary_large_image",
     title: "stocksbrew Pro - Pricing & Plans",
-    description: "Try Stocksbrew Pro free for 3 days, then get detailed calls, targets, Radar alerts, and current stock context for your AI for $9 per month.",
+    description: "Try Stocksbrew Pro free for 3 days, then get detailed calls, targets, Watchlist alerts and current stock context for your AI for $9 per month.",
   },
 };
 
@@ -78,7 +78,7 @@ export default async function SubscribePage({ searchParams }: Props) {
           <div className="rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-center">
             <p className="text-[14px] font-semibold text-on-surface">You&apos;ve hit the free 3-stock limit</p>
             <p className="mt-1 text-[13px] text-on-surface-variant">
-              Upgrade to Pro to track every name you hold, or remove a stock on Radar first.
+              Upgrade to Pro to track every name you hold, or remove a stock from your Watchlist first.
             </p>
           </div>
         ) : null}

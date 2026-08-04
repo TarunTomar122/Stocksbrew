@@ -95,7 +95,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
           hint={posthog.signupRate != null ? `${posthog.signupRate}% of visitors` : "PostHog"}
         />
         <Kpi
-          label="First Radar stock"
+          label="First Watchlist stock"
           value={firstRadarStock}
           hint={posthog.radarActivationRate != null ? `${posthog.radarActivationRate}% of sign-ups` : periodLabel}
         />
@@ -224,14 +224,14 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                 </ResponsiveContainer>
               </div>
               <p className="mt-2 text-[11px] text-[#6b7280]">
-                Activated cohort return: {summary.activatedReturned} / {summary.activatedCohort} users who added their first Radar stock in the prior {periodDays} days.
+                Activated cohort return: {summary.activatedReturned} / {summary.activatedCohort} users who added their first Watchlist stock in the prior {periodDays} days.
               </p>
             </Panel>
 
             {/* Conversion funnel */}
             <Panel
               title={`Activation and conversion · ${periodDays} days`}
-              subtitle={`Visitor → signup ${pct(signUps, visitorToSignup)} · signup → first Radar ${pct(firstRadarStock, signUps)}`}
+              subtitle={`Visitor → signup ${pct(signUps, visitorToSignup)} · signup → first Watchlist ${pct(firstRadarStock, signUps)}`}
             >
               <div className="space-y-3 pt-1">
                 {funnel.map((step, index) => {
@@ -388,13 +388,13 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
 
       <div className="grid gap-6 lg:grid-cols-2">
         <EngagementEmailPanel
-          title={`Radar power users · ${periodLabel}`}
-          subtitle="Has stocks on Radar and visited /watchlist more than once"
+          title={`Watchlist power users · ${periodLabel}`}
+          subtitle="Has stocks on Watchlist and visited /watchlist more than once"
           rows={engagement.radarRepeatVisitors}
           emptyMessage={
             engagement.radarRepeatVisitorsError
               ? engagement.radarRepeatVisitorsError
-              : `No repeat Radar visitors in the last ${periodDays} days.`
+              : `No repeat Watchlist visitors in the last ${periodDays} days.`
           }
           error={Boolean(engagement.radarRepeatVisitorsError)}
         />

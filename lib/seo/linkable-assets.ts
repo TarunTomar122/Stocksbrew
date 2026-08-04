@@ -39,11 +39,11 @@ export const LINKABLE_ASSETS: LinkableAsset[] = [
   },
   {
     href: "/radar",
-    title: "Radar — AI watchlist calls",
+    title: "Watchlist — stock research and alerts",
     description: "Daily buy/hold/sell stances on your watchlist with portfolio health.",
-    suggestedAnchor: "stocksbrew Radar",
+    suggestedAnchor: "stocksbrew Watchlist",
     outreachBlurb:
-      "For ongoing watchlist monitoring (not just one-off screens), Radar gives daily buy/hold/sell calls on your names: " +
+      "For ongoing stock monitoring, Watchlist keeps current calls, earnings, news and alerts on your names: " +
       `${BASE}/radar`,
   },
   {
@@ -107,6 +107,6 @@ export const REDDIT_OUTREACH_TEMPLATES = [
   {
     title: "Bogleheads forum — tool stack for US equities",
     body:
-      "For US names I screen with Finviz, then track stance changes on a small Radar list (3 free). Not a broker — just buy/hold/sell calls with context. Comparison vs Yahoo portfolio tracking if anyone's evaluating: https://www.stocksbrew.online/compare/stocksbrew-vs-yahoo-finance",
+      "For US names I screen with Finviz, then track stance changes on a small Watchlist (3 free). Not a broker — just buy/hold/sell calls with context. Comparison vs Yahoo portfolio tracking if anyone's evaluating: https://www.stocksbrew.online/compare/stocksbrew-vs-yahoo-finance",
   },
 ] as const;

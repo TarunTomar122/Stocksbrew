@@ -39,7 +39,7 @@ const VALUE_PROPS: ValueProp[] = [
     iconBg: "#ecfdf5",
     iconFg: "#047857",
     title: "Pinged when something moves",
-    body: "Breakouts, RSI extremes, earnings windows, and score shifts can hit your inbox when they trip on your Radar.",
+    body: "Get an email for important earnings, price levels and research changes in your Watchlist.",
   },
   {
     icon: "schedule",

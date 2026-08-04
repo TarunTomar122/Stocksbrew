@@ -40,7 +40,7 @@ const FEATURES: Feature[] = [
 ];
 
 export const PRO_BULLETS = [
-  "Calls on every Radar stock",
+  "Calls on every Watchlist stock",
   "Why big moves happened",
   "Reddit and news read for you",
   "Portfolio crowding and gaps",

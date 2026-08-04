@@ -6,9 +6,9 @@ import { HERO_HEADLINE, HERO_SUBHEAD } from "@/lib/brand-copy";
 import type { Market } from "@/lib/types";
 
 const FEATURES = [
-  { label: "Financials, news and context", icon: "verified" },
-  { label: "Track 3 stocks free", icon: "flag" },
-  { label: "Alerts for important changes", icon: "notifications_active" },
+  { label: "Five-year financials and valuation", icon: "verified" },
+  { label: "Filings, earnings and analyst targets", icon: "flag" },
+  { label: "Track 3 stocks free", icon: "notifications_active" },
 ] as const;
 
 export function TerminalLandingHeroCopy({
@@ -49,7 +49,7 @@ export function TerminalLandingHeroCopy({
         <StartRadarButton
           surface="hero"
           signedOutLabel="Track 3 stocks free"
-          signedInLabel="Open your Radar"
+          signedInLabel="Open your Watchlist"
           className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-5 py-2.5 text-[13px] font-bold text-on-surface transition-colors hover:border-on-surface disabled:opacity-60"
         />
       </div>

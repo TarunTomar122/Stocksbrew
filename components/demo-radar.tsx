@@ -171,7 +171,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           disabled={busy}
           className="shrink-0 h-7 px-4 rounded-full bg-surface text-on-surface text-[11px] font-bold hover:bg-surface/90 transition-colors disabled:opacity-50"
         >
-          {busy ? "Signing in…" : "Get your free Radar →"}
+          {busy ? "Signing in…" : "Start your free Watchlist →"}
         </button>
       </div>
 
@@ -192,7 +192,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
             <div className="flex flex-col gap-1">
               <Heading className="text-[40px] md:text-[56px] font-semibold tracking-[-0.035em] text-on-surface leading-[1.0]">
-                Your Radar
+                Your Watchlist
               </Heading>
               <p className="text-[15px] text-on-surface-variant leading-[1.65] mt-3">
                 Every morning we read the buzz, the moves, the earnings, and the sector regime on
@@ -298,7 +298,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               <span className="text-[#10b981]">It takes 30 seconds.</span>
             </h2>
             <p className="text-[14px] text-on-surface-variant leading-[1.6]">
-              Add the stocks you own and watch. stocksbrew builds a personalized Radar overnight with
+              Add the stocks you own and follow. stocksbrew keeps their research current with
               a full directive on every holding, risk flags, and opportunities, waiting for you
               each morning. Free for 3 stocks, no credit card.
             </p>

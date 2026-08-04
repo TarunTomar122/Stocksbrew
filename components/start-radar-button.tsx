@@ -20,8 +20,8 @@ type StartRadarButtonProps = {
 export function StartRadarButton({
   surface,
   className,
-  signedOutLabel = "Start your free Radar",
-  signedInLabel = "Open your Radar",
+  signedOutLabel = "Start your free Watchlist",
+  signedInLabel = "Open your Watchlist",
   busyLabel = "Signing in…",
 }: StartRadarButtonProps) {
   const { user, loading, initialAuthed } = useUser();
@@ -48,7 +48,7 @@ export function StartRadarButton({
       await signInWithGoogle({ surface });
       window.location.assign("/watchlist");
     } catch (err) {
-      console.error("Radar sign-in failed", err);
+      console.error("Watchlist sign-in failed", err);
       setError("Could not sign in. Please try again.");
       setBusy(false);
     }

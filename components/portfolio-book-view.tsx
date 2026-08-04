@@ -94,7 +94,7 @@ export function PortfolioBookView({
             href="/watchlist"
             className="w-fit text-[12px] font-semibold text-[#0052ff] hover:underline"
           >
-            ← Radar
+            ← Watchlist
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -102,7 +102,7 @@ export function PortfolioBookView({
                 Rebalance
               </h1>
               {builtAt && relativeTime(builtAt) ? (
-                <p className="mt-1 text-[11px] text-[#9ca3af]">Radar · {relativeTime(builtAt)}</p>
+                <p className="mt-1 text-[11px] text-[#9ca3af]">Watchlist · {relativeTime(builtAt)}</p>
               ) : null}
             </div>
             {holdings.length > 0 ? (
@@ -121,13 +121,13 @@ export function PortfolioBookView({
       {holdings.length === 0 ? (
         <div className="rounded-2xl border border-[#e5e7eb] bg-white p-8 text-center">
           <p className="text-[13px] text-[#6b7280]">
-            Mark stocks as holdings on Radar to see your rebalance view.
+            Mark Watchlist stocks as holdings to see your rebalance view.
           </p>
           <Link
             href="/watchlist"
             className="mt-4 inline-flex rounded-full bg-[#111111] px-4 py-2 text-[12px] font-semibold text-white"
           >
-            Go to Radar
+            Go to Watchlist
           </Link>
         </div>
       ) : (

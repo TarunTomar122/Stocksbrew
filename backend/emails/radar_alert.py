@@ -15,9 +15,9 @@ def build_radar_alert_email(event_type: str, payload: dict[str, Any]) -> tuple[s
         event_date = str(payload.get("event_date") or "").strip()
         subject = f"{ticker} reports within 24 hours"
         headline = f"{ticker} earnings are close"
-        detail = f"{ticker} is on your Radar and is scheduled to report within 24 hours."
+        detail = f"{ticker} is in your Watchlist and is scheduled to report within 24 hours."
         if event_date:
-            detail = f"{ticker} is on your Radar and is scheduled to report on {event_date}."
+            detail = f"{ticker} is in your Watchlist and is scheduled to report on {event_date}."
         label = "Earnings alert"
     else:
         stance = str(payload.get("new_stance") or "").strip().lower()
@@ -26,10 +26,10 @@ def build_radar_alert_email(event_type: str, payload: dict[str, Any]) -> tuple[s
             subject = f"{ticker} moved into its {stance_label}"
             headline = f"{ticker}: {stance_label}"
         else:
-            subject = f"{ticker} Radar setup changed"
+            subject = f"Something changed for {ticker}"
             headline = subject
         detail = clean_optional_email_text(payload.get("directive_text"), max_chars=320)
-        label = "Radar setup alert"
+        label = "Watchlist alert"
 
     detail_block = (
         f'<p style="margin:12px 0 0;font-size:14px;line-height:1.6;color:#4b5563">{html.escape(detail)}</p>'
@@ -45,7 +45,7 @@ def build_radar_alert_email(event_type: str, payload: dict[str, Any]) -> tuple[s
       </td></tr>
       <tr><td style="padding:14px 24px 24px 24px">
         <a href="{html.escape(APP_URL)}/stock/{html.escape(ticker)}" style="display:inline-block;padding:12px 22px;background:#111827;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;border-radius:999px">Open {html.escape(ticker)}</a>
-        <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;margin-left:8px;padding:12px 18px;color:#111827;text-decoration:none;font-size:13px;font-weight:700">Open Radar</a>
+        <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;margin-left:8px;padding:12px 18px;color:#111827;text-decoration:none;font-size:13px;font-weight:700">Open Watchlist</a>
       </td></tr>
     """
     footer = (

@@ -34,7 +34,8 @@ export function DecisionQueue({
   items: DecisionCard[];
   openLoops?: number;
 }) {
-  if (items.length === 0) return null;
+  const visibleItems = items.slice(0, 3);
+  if (visibleItems.length === 0) return null;
 
   return (
     <section aria-labelledby="rn-decisions">
@@ -46,12 +47,12 @@ export function DecisionQueue({
           </h2>
         </div>
         <p className="font-mono text-[10.5px] text-[var(--rn-muted)]">
-          {items.length} actionable · {openLoops} open {openLoops === 1 ? "checkpoint" : "checkpoints"}
+          {visibleItems.length} actionable · {openLoops} open {openLoops === 1 ? "checkpoint" : "checkpoints"}
         </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {items.map((item, index) => {
+        {visibleItems.map((item, index) => {
             const color = directionColor(item.direction);
             const dayMove = move(item.dayChangePct);
             const pills = decisionPills(item);

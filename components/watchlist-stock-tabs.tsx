@@ -20,7 +20,7 @@ export function WatchlistStockTabs({ rows }: { rows: WatchlistRow[] }) {
       <div className="-mx-1 overflow-x-auto scrollbar-hide">
         <div
           role="tablist"
-          aria-label="Radar stocks"
+          aria-label="Watchlist stocks"
           className="flex items-center gap-1 px-1 min-w-min"
         >
           {rows.map((row) => {

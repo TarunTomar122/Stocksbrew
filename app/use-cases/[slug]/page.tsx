@@ -54,7 +54,7 @@ export default async function UseCasePage({ params }: Props) {
           <p className="text-[18px] text-[#374151] leading-[1.5]">{uc.headline}</p>
           <p className="text-[15px] text-[#6b7280] leading-relaxed">{uc.pain}</p>
           <Link href="/watchlist" className="inline-flex h-[40px] w-fit items-center px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold">
-            Add stocks to Radar →
+            Add stocks to Watchlist →
           </Link>
         </header>
 
@@ -102,11 +102,11 @@ export default async function UseCasePage({ params }: Props) {
         <section className="rounded-2xl border border-[#111111] bg-[#111111] p-8 flex flex-col gap-4">
           <h2 className="text-[20px] font-semibold text-white">Start with 3 stocks free</h2>
           <p className="text-[14px] text-[#d1d5db] leading-relaxed max-w-[480px]">
-            Match this workflow on Radar. Upgrade to Pro for unlimited names and full alert coverage.
+            Match this workflow in your Watchlist. Upgrade to Pro for unlimited names and full alert coverage.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/watchlist" className="inline-flex h-[44px] items-center px-6 rounded-full bg-white text-[#111111] text-[13px] font-semibold">
-              Open Radar →
+              Open Watchlist →
             </Link>
             <Link href="/subscribe" className="inline-flex h-[44px] items-center px-6 rounded-full border border-[#374151] text-white text-[13px] font-medium hover:border-white transition-colors">
               See Pro

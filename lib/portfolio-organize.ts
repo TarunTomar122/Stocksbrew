@@ -341,7 +341,7 @@ export function buildRebalancePlanFromData(args: {
     return {
       strategy,
       headline: "No holdings yet",
-      summary: "Mark a few names as holdings on Radar and this view will diagnose concentration and strategy fit.",
+      summary: "Mark a few Watchlist names as holdings to see concentration, sector mix and portfolio fit.",
       diagnostics: [],
       sectors: [],
       core_focus: {

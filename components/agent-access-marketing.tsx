@@ -14,7 +14,7 @@ export function AgentAccessLandingSection() {
               Let your agent keep up with your stocks.
             </h2>
             <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-on-surface-variant">
-              Ask about any stock, keep Radar current, and manage alerts from the AI you already use.
+              Ask about any stock, check your Watchlist and manage alerts from the AI you already use.
             </p>
             <AgentClientLogos compact className="mt-5" />
             <p className="mt-6 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Works wherever your agent talks to you</p>
@@ -28,8 +28,8 @@ export function AgentAccessLandingSection() {
           <div>
             <div className="divide-y divide-outline-variant border-y border-outline-variant">
               {[
-                ["Research any stock", "Get current market data and the detailed Stocksbrew view. If research is missing, your agent can ask to add the stock to Radar and queue it."],
-                ["Check what changed", "Read your Radar, find new price levels or events since the last run, and revisit queued research."],
+                ["Research any stock", "Get current market data and the detailed Stocksbrew view. If research is missing, your agent can ask to add the stock to Watchlist and queue it."],
+                ["Check what changed", "Read your Watchlist, find new price levels or events since the last run, and revisit queued research."],
                 ["Manage alerts", "Create or remove price alerts, and ask what changed across earnings, RSI, calls, anomalies, and news."],
               ].map(([title, body]) => (
                 <div key={title} className="grid gap-1 py-4 sm:grid-cols-[150px_1fr] sm:gap-6">

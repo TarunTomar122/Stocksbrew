@@ -105,11 +105,11 @@ function WatchlistCTA() {
           Go Personal
         </span>
         <h3 className="text-[16px] font-semibold text-on-surface leading-snug">
-          Build your own Radar
+          Build your own Watchlist
         </h3>
         <p className="text-[12px] text-on-surface-variant leading-relaxed">
           Add up to 10 stocks and we&apos;ll run the same news-backed AI read
-          on each - plus a radar pulse that spots themes, overlaps, and
+          on each, plus a Watchlist summary that spots themes, overlaps and
           blind spots across your picks.
         </p>
       </div>
@@ -117,11 +117,11 @@ function WatchlistCTA() {
       <ul className="flex flex-col gap-1.5 text-[12px] text-on-surface">
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
-          <span>Personalized calls on every Radar stock</span>
+          <span>Current calls on every Watchlist stock</span>
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
-          <span>Radar pulse - what moved, what to act on</span>
+          <span>Daily changes across the stocks you follow</span>
         </li>
         <li className="flex items-start gap-2">
           <span className="text-primary text-[11px] mt-0.5">◆</span>
@@ -133,7 +133,7 @@ function WatchlistCTA() {
         href="/watchlist"
         className="inline-flex items-center justify-center gap-2 bg-primary text-on-primary text-[12px] font-bold tracking-[0.08em] uppercase rounded-full px-4 py-2.5 hover:bg-primary-container transition-colors"
       >
-        Start your Radar
+        Start your Watchlist
         <span aria-hidden="true">→</span>
       </Link>
     </div>

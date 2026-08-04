@@ -155,7 +155,7 @@ export default function BlogPage() {
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#16a34a]">Stocksbrew for AI agents</span>
             <span className="text-[16px] font-semibold text-[#111111]">Give your AI current, structured stock data</span>
-            <span className="text-[13px] text-[#6b7280]">Connect with MCP or use the stock research, Radar, and alerts API.</span>
+            <span className="text-[13px] text-[#6b7280]">Connect with MCP or use the stock research, Watchlist and alerts API.</span>
           </div>
           <span className="text-[13px] font-semibold text-[#166534] shrink-0">Read the guide →</span>
         </Link>

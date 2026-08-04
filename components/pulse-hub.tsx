@@ -221,7 +221,7 @@ export function PulseHub({
 }: {
   items: ScannerItem[]; sectors: SectorCard[]; reddit: RedditPick[]; earnings: EarningsPick[]; recentEarnings: RecentEarningsPick[]; premarketMovers?: PremarketMovers | null; premarketReport?: OpeningReport | null; marketPhase?: string | null; marketRisk?: string | null; interestingStocks?: InterestingStockRow[]; fullItemLimit?: number; isSubscribed?: boolean;
 }) {
-  const [lens, setLens] = useState<Lens>("today");
+  const [lens, setLens] = useState<Lens>("moving");
   const showPremarket = Boolean(premarketMovers || premarketReport);
 
   return (

@@ -51,6 +51,7 @@ import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import type { NewsArticle } from "@/lib/news";
 import type { LivePremarketQuote } from "@/lib/premarket-shared";
 import type { StockIntelPro } from "@/lib/types";
+import { findNearestTechnicalLevels } from "@/lib/technical-levels";
 
 type RedditCtx = { sentiment?: string; summary?: string; mention_count?: number; catalysts?: string[] } | null;
 
@@ -250,7 +251,9 @@ function LongTailResearchCard({
             ? `Researching ${ticker}’s latest setup`
             : researchText
               ? `${ticker}, researched`
-              : `Track ${ticker} for continuous AI research`}
+              : isTracked
+                ? `Researching ${ticker}`
+                : `Generate AI analysis for ${ticker}`}
         </h2>
         {researchText ? (
           <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">{researchText}</p>
@@ -258,7 +261,11 @@ function LongTailResearchCard({
           <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
             The financial page is ready. Fresh news research is running now.
           </p>
-        ) : null}
+        ) : (
+          <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
+            Add it to your Watchlist. We’ll read the latest filings, earnings and news, then build the brief here.
+          </p>
+        )}
         {refreshed && researchText ? (
           <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-on-surface-variant">
             refreshed {refreshed}
@@ -272,7 +279,8 @@ function LongTailResearchCard({
           tier="free"
           isSubscribed={isSubscribed}
           isTracked={isTracked}
-          untrackedLabel={`Track ${ticker}`}
+          untrackedLabel="Generate analysis"
+          signedOutLabel="Sign in to generate"
         />
       </div>
     </div>
@@ -436,6 +444,7 @@ export function StockDetail(props: Props) {
   const stanceLabel = stance.charAt(0).toUpperCase() + stance.slice(1);
 
   const hist = (priceHistory ?? []).filter((p) => n(p.close));
+  const technicalLevels = findNearestTechnicalLevels(hist, stock.price);
   const hasChart = hist.length >= 5;
   const showLongTailResearch = !subscribed && tier === "free";
   const showLockedVerdict = !subscribed && !showLongTailResearch;
@@ -476,9 +485,10 @@ export function StockDetail(props: Props) {
   const has52WeekRange =
     n(week52High) && n(week52Low) && week52High! > week52Low!;
   const hasRsiSlider = n(rsi);
-  const showWhereItSits = has52WeekRange || hasRsiSlider || hasAnomalyMove;
+  const hasTechnicalLevels = Boolean(technicalLevels?.support || technicalLevels?.resistance);
+  const showWhereItSits = has52WeekRange || hasRsiSlider || hasAnomalyMove || hasTechnicalLevels;
   const pricePositionItemCount =
-    Number(has52WeekRange) + Number(hasRsiSlider) + Number(hasAnomalyMove);
+    Number(has52WeekRange) + Number(hasRsiSlider) + Number(hasAnomalyMove) + Number(hasTechnicalLevels);
 
   const crowdScore = n(sentiment?.overall_score)
     ? Math.round(sentiment!.overall_score!)
@@ -978,6 +988,42 @@ export function StockDetail(props: Props) {
                 />
               )}
               {hasRsiSlider && <RsiStrength value={rsi!} state={rsiState} />}
+              {hasTechnicalLevels && technicalLevels && (
+                <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4">
+                  <p className={RAIL_KICKER}>recent technical levels</p>
+                  <div className="mt-3 grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+                        Nearest support
+                      </p>
+                      <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[var(--signal-bullish)]">
+                        {technicalLevels.support ? money(technicalLevels.support) : "—"}
+                      </p>
+                      {technicalLevels.support ? (
+                        <p className="mt-1 text-[11px] text-on-surface-variant">
+                          {Math.abs(((technicalLevels.support - stock.price) / stock.price) * 100).toFixed(1)}% below
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="border-l border-outline-variant pl-4">
+                      <p className="text-[10px] uppercase tracking-[0.08em] text-on-surface-variant">
+                        Nearest resistance
+                      </p>
+                      <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[var(--signal-bearish)]">
+                        {technicalLevels.resistance ? money(technicalLevels.resistance) : "—"}
+                      </p>
+                      {technicalLevels.resistance ? (
+                        <p className="mt-1 text-[11px] text-on-surface-variant">
+                          {Math.abs(((technicalLevels.resistance - stock.price) / stock.price) * 100).toFixed(1)}% above
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[10px] leading-4 text-on-surface-variant">
+                    From recent closing-price reversals.
+                  </p>
+                </div>
+              )}
               {hasAnomalyMove && (
                 <StockTodaysMoveRailCard
                   dayPct={dayPct}
@@ -1378,7 +1424,7 @@ export function StockDetail(props: Props) {
                 {n(calendarEarnings?.eps_estimate)
                   ? `Wall Street EPS estimate: ${calendarEarnings!.eps_estimate!.toFixed(2)}.`
                   : "The next scheduled report is on the calendar."}{" "}
-                Add {stock.ticker} to Radar so the earnings setup can bring you back when it matters.
+                Add {stock.ticker} to Watchlist for the next earnings report and important changes.
               </p>
             </div>
             <Link

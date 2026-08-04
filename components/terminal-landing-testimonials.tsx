@@ -10,7 +10,7 @@ const PROOF_CARDS = [
   },
   {
     icon: "flag",
-    kicker: "Radar",
+    kicker: "Watchlist",
     title: "Keep your stocks current",
     body: "Track holdings and watchlist names without repeating the same research every morning.",
     sample: "Example: Target $224. 18% room from today.",
@@ -32,7 +32,7 @@ export function TerminalLandingTestimonials() {
         <div className="mx-auto mb-10 max-w-2xl text-center">
           <p className="landing-section-kicker text-landing-brand">What you can do</p>
           <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl">
-            Analyse a stock, then keep it on Radar
+            Research it now. Keep following it later.
           </h2>
           <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant sm:text-[15px]">
             Research the company now. Track it when you want the work to stay current.

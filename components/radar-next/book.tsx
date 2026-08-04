@@ -260,7 +260,7 @@ export function Book({ holdings, watching }: { holdings: BookRow[]; watching: Bo
             Every tracked stock, one consistent read
           </h2>
         </div>
-        <div className="flex items-center gap-1.5" role="tablist" aria-label="Radar positions">
+        <div className="flex items-center gap-1.5" role="tablist" aria-label="Watchlist positions">
           {([
             ["holdings", "Holdings", holdings.length],
             ["watching", "Watching", watching.length],

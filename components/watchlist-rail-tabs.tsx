@@ -19,7 +19,7 @@ export function WatchlistRailTabs({ holdings, watching }: Props) {
   const rows = active === "holdings" ? holdings : watching;
   const empty =
     active === "holdings"
-      ? "No holdings yet. Mark a radar stock as a holding."
+      ? "No holdings yet. Mark a Watchlist stock as a holding."
       : "Nothing in Watching yet. Add names from any stock page.";
 
   return (

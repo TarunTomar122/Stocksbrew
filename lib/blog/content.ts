@@ -1364,7 +1364,7 @@ export const blogContent: Record<string, string> = {
         </div>
         <div class="card">
           <h3>stocksbrew</h3>
-          <p><strong>What it is:</strong> Market intelligence platform with AI briefs, watchlist radar, and sector spotlights.</p>
+          <p><strong>What it is:</strong> Market intelligence platform with AI briefs, a tracked Watchlist, and sector spotlights.</p>
           <p><strong>Best for:</strong> Understanding what's happening in the market right now and what it means for your portfolio.</p>
           <p><strong>Core strength:</strong> AI-powered daily briefs that curate market intelligence so you don't have to.</p>
           <p><strong>Pricing:</strong> Free tier / $9/mo Pro</p>
@@ -1404,7 +1404,7 @@ export const blogContent: Record<string, string> = {
           <tr>
             <td>Watchlist Intelligence</td>
             <td>Basic portfolio tracking</td>
-            <td>AI radar: scoring, breakouts, RSI, earnings alerts</td>
+            <td>AI monitoring: scoring, breakouts, RSI, earnings alerts</td>
             <td>stocksbrew</td>
           </tr>
           <tr>
@@ -1434,7 +1434,7 @@ export const blogContent: Record<string, string> = {
           <tr>
             <td>AI Features</td>
             <td>None</td>
-            <td>Core feature (briefs, radar, scorecard)</td>
+            <td>Core feature (briefs, Watchlist, scorecard)</td>
             <td>stocksbrew</td>
           </tr>
           <tr>
@@ -1526,7 +1526,7 @@ export const blogContent: Record<string, string> = {
 
       <p>If you can only pick one, the decision comes down to how you spend your time. If you're an active trader who spends hours scanning for setups, Finviz is non-negotiable. The screener is too good to pass up, and the heatmaps are genuinely useful for spotting momentum.</p>
 
-      <p>But if you're like most investors, you don't have time to screen 8,000 stocks every morning. You want to know what moved, why it moved, and what it means for the 15 stocks you actually own. That's where stocksbrew shines. The AI brief gives you that context in 5 minutes, and the watchlist radar monitors your positions while you do other things.</p>
+      <p>But if you're like most investors, you don't have time to screen 8,000 stocks every morning. You want to know what moved, why it moved, and what it means for the 15 stocks you actually own. Stocksbrew brings that research together and keeps your Watchlist current while you do other things.</p>
 
       <p>The price difference reinforces this. At $9/mo, stocksbrew costs less than a quarter of Finviz Elite. For investors who want intelligence without the time commitment, it's the better value play.</p>
 
@@ -1537,7 +1537,7 @@ export const blogContent: Record<string, string> = {
         <p style="margin-top:12px; color:var(--text-dim);">At $9/mo vs $39.50/mo, stocksbrew is also the clear value play. You get AI-powered intelligence for less than a quarter of Finviz's price.</p>
       </div>
 
-      <p>Also see: <a href="/compare/stocksbrew-vs-tickertape">stocksbrew vs Tickertape</a> (US Radar vs Indian screeners) and the <a href="/guides">stock research guide</a>.</p>
+      <p>Also see: <a href="/compare/stocksbrew-vs-tickertape">stocksbrew vs Tickertape</a> (US Watchlist vs Indian screeners) and the <a href="/guides">stock research guide</a>.</p>
 
       <div class="cta-section">
         <h3>Try stocksbrew Free</h3>
@@ -1649,7 +1649,7 @@ export const blogContent: Record<string, string> = {
 <h2 id="methods">How to Get an Earnings Calendar for Your Watchlist</h2>
 
 <h3>Option 1: stocksbrew Earnings Calendar (Recommended)</h3>
-<p><a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> automatically syncs with your watchlist. You add stocks to your radar, and the earnings calendar shows upcoming reports for only those stocks. It also includes AI-powered briefs for recent earnings, so you can see what happened last quarter at a glance.</p>
+<p><a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> automatically syncs with your Watchlist. Add stocks to your Watchlist and the earnings calendar shows upcoming reports for only those stocks. It also includes AI-powered briefs for recent earnings, so you can see what happened last quarter at a glance.</p>
 <p><strong>What makes it different:</strong> Watchlist sync, AI brief integration, free tier available.</p>
 <p><strong>Best for:</strong> Investors who want earnings dates tied to their actual portfolio, not a generic calendar.</p>
 
@@ -1855,9 +1855,9 @@ export const blogContent: Record<string, string> = {
 
 <h3>4. stocksbrew (Best for Intelligence-Based Alerts)</h3>
 <p><a href="https://www.stocksbrew.online">stocksbrew</a> takes a different approach to alerts. Instead of just price triggers, it uses AI to score market signals and alerts you when something significant happens for your watchlist: earnings beats/misses, unusual sentiment shifts, analyst changes, sector rotations. The alerts are part of a broader daily intelligence system.</p>
-<p><strong>Alert types:</strong> AI-scored market signals, earnings alerts, watchlist radar, anomaly detection.</p>
+<p><strong>Alert types:</strong> AI-scored market signals, earnings alerts, Watchlist changes, and anomaly detection.</p>
 <p><strong>Delivery:</strong> Daily brief, web dashboard.</p>
-<p><strong>Free tier:</strong> Full daily brief and watchlist radar. <a href="https://www.stocksbrew.online">Sign up free</a>.</p>
+<p><strong>Free tier:</strong> Full daily brief and a three-stock Watchlist. <a href="https://www.stocksbrew.online">Sign up free</a>.</p>
 <p><strong>Verdict:</strong> Best for investors who want intelligence, not just price triggers. The alert philosophy is fundamentally different: it tells you <em>what matters</em>, not just <em>what moved</em>.</p>
 
 <h3>5. Yahoo Finance (Best for Portfolio Alerts)</h3>
@@ -1907,7 +1907,7 @@ export const blogContent: Record<string, string> = {
 
 <ol>
   <li><strong>Brokerage alerts</strong> for price moves (5% thresholds on each holding)</li>
-  <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> for daily intelligence brief and watchlist radar</li>
+  <li><strong><a href="https://www.stocksbrew.online">stocksbrew</a></strong> for a daily intelligence brief and tracked Watchlist</li>
   <li><strong>Google Finance</strong> for news aggregation and basic price tracking</li>
   <li><strong>TradingView free</strong> for your #1 most important technical alert</li>
   <li><strong>Yahoo Finance</strong> for earnings and dividend date alerts</li>
@@ -2036,7 +2036,7 @@ export const blogContent: Record<string, string> = {
 <p>World's best charting platform. Free tier includes basic screening with real-time NSE/BSE data.</p>
 
 <h2 id="alternatives">4. AI-Powered Alternatives</h2>
-<p><a href="https://stocksbrew.online">stocksbrew</a> offers AI-powered stock briefs, market heat maps, portfolio analysis, and watchlist radar. Stronger for US markets currently with India support planned.</p>
+<p><a href="https://stocksbrew.online">stocksbrew</a> offers AI-powered stock briefs, market heat maps, portfolio analysis, and a tracked Watchlist. Stronger for US markets currently with India support planned.</p>
 
 <div class="cta-section">
   <h3>Try AI-Powered Stock Analysis</h3>
@@ -2069,7 +2069,7 @@ export const blogContent: Record<string, string> = {
 
 <h2 id="monitoring">Monitoring Your Watchlist</h2>
 
-<p><a href="https://stocksbrew.online">stocksbrew's Radar</a> tracks your watchlist automatically — daily briefs, alerts when stocks hit buy/sell zones.</p>
+<p><a href="https://stocksbrew.online">stocksbrew's Watchlist</a> tracks your watchlist automatically — daily briefs, alerts when stocks hit buy/sell zones.</p>
 
 <div class="cta-section">
   <h3>AI-Powered Watchlist Monitoring</h3>
@@ -2254,12 +2254,12 @@ export const blogContent: Record<string, string> = {
 
 <h2 id="stocksbrew-approach">Use Alerts With Context</h2>
 
-<p>stocksbrew Radar keeps a focused list of holdings and watchlist names, then surfaces calls, earnings context, and alerts when a setup changes. It is designed to help start a review—not to replace your judgment or your primary-source research.</p>
+<p>stocksbrew Watchlist keeps a focused list of holdings and watchlist names, then surfaces calls, earnings context, and alerts when a setup changes. It is designed to help start a review—not to replace your judgment or your primary-source research.</p>
 
 <div class="cta-section">
   <h3>Build a Watchlist Around Real Decisions</h3>
   <p>Track three US stocks free, then use calls, earnings context, and alerts to keep the research current.</p>
-  <a href="/radar" class="cta-button">Open Radar →</a>
+  <a href="/radar" class="cta-button">Open Watchlist →</a>
 </div>
 
 <p>Related: <a href="/blog/earnings-season-watchlist-playbook">Earnings Watchlist Workflow</a> and <a href="/blog/stock-research-checklist-evidence-first">How to Research a Stock</a>.</p>

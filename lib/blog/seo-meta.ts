@@ -19,7 +19,7 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
     faqs: [
       { question: "What is the best free stock market analysis tool?", answer: "The best free tool depends on your needs. stocksbrew offers the best free daily market intelligence with AI-powered briefs. Finviz has the best free stock screener. TradingView offers the best free charting." },
       { question: "Are free stock analysis tools any good?", answer: "Yes. Free tools like stocksbrew, Finviz, and Yahoo Finance provide useful market data at zero cost. The tradeoff is usually delayed data or limited features, but for most individual investors, free tools cover 80% of what you need." },
-      { question: "What is the best free AI stock analysis tool?", answer: "stocksbrew offers the best free AI-powered stock analysis with personalized daily briefs, watchlist radar, and signal scoring. The free tier is generous and doesn't require a credit card." },
+      { question: "What is the best free AI stock analysis tool?", answer: "stocksbrew offers stock analysis with personalized daily briefs, a three-stock Watchlist, and signal scoring. The free tier doesn't require a credit card." },
       { question: "Can you do stock analysis for free?", answer: "Yes. You can combine stocksbrew for daily intelligence, Finviz for screening, TradingView for charting, and Yahoo Finance for portfolio tracking. This stack covers daily monitoring, research, and analysis at zero cost." },
     ],
   },
@@ -180,7 +180,7 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
     faqs: [
       { question: "What is the difference between a watchlist and a portfolio?", answer: "A watchlist tracks stocks you are researching or waiting to buy. A portfolio tracks positions you already own with cost basis, allocation, and performance. Mixing them creates decision noise." },
       { question: "How many stocks should be on a watchlist?", answer: "Most investors do best with 10–30 names on an active watchlist — enough opportunity without losing focus. Your owned portfolio is usually smaller: 10–20 positions." },
-      { question: "Do I need a separate watchlist app?", answer: "If your broker watchlist has no thesis notes, news filtering, or stance updates, a dedicated tool like stocksbrew Radar helps you monitor candidates without treating them like owned positions." },
+      { question: "Do I need a separate watchlist app?", answer: "If your broker watchlist has no thesis notes, news filtering, or stance updates, a dedicated tool like stocksbrew Watchlist helps you monitor candidates without treating them like owned positions." },
     ],
   },
   "earnings-season-watchlist-playbook": {
@@ -196,7 +196,7 @@ export const seoPostMeta: Record<string, SeoPostMeta> = {
     faqs: [
       { question: "How do I prepare my watchlist for earnings season?", answer: "Two weeks before your holdings report: note consensus estimates, your thesis, and what would surprise you. Set alerts for report dates. After each print, update whether you still want to own or watch the name." },
       { question: "Should I buy a stock right before earnings?", answer: "Usually no unless you have a specific catalyst thesis and accept binary risk. Most retail investors do better waiting for the reaction and guidance call before sizing a position." },
-      { question: "How do I track earnings for only my stocks?", answer: "Use a watchlist-aware calendar — stocksbrew Radar flags reporting dates on names you track, instead of scrolling a market-wide earnings calendar." },
+      { question: "How do I track earnings for only my stocks?", answer: "Use a watchlist-aware calendar — stocksbrew Watchlist flags reporting dates on names you track, instead of scrolling a market-wide earnings calendar." },
     ],
   },
   "stock-market-information-overload": {

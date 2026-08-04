@@ -382,7 +382,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
         <header className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
           <div>
             <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface-variant">
-              Your Radar
+              Your Watchlist
             </div>
             {headline && (
               <h3 className="mt-1 text-base font-semibold text-on-surface">{headline}</h3>
@@ -410,10 +410,10 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
         <header className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
           <div>
             <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface-variant">
-              Your Radar · empty
+              Your Watchlist · empty
             </div>
             <h3 className="mt-1 text-base font-semibold text-on-surface">
-              Nothing in Radar yet - here&apos;s what you&apos;ll get
+              Nothing in your Watchlist yet. Here&apos;s what you&apos;ll get.
             </h3>
           </div>
           <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
@@ -472,7 +472,7 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
         <div className="flex items-center justify-between px-5 py-4 bg-indigo-500/5 border-t border-indigo-500/20">
           <p className="text-sm text-on-surface-variant">
             Open any stock and hit{" "}
-            <span className="font-semibold text-on-surface">Add to Radar</span> to start yours.
+            <span className="font-semibold text-on-surface">Add to Watchlist</span> to start yours.
           </p>
           <Link
             href="/"
@@ -486,16 +486,16 @@ export function WatchlistTeaser({ isSubscribed, rows, headline }: Props) {
   }
 
   // --- Case: anon or non-subscribed → blurred sample + CTA overlay ---
-  const teaserTitle = "Your Radar";
+  const teaserTitle = "Your Watchlist";
   const teaserBody = "Research-backed calls on the tickers you track.";
-  const ctaLabel = signedIn ? "Unlock Radar" : "Start your 3-day free trial";
+  const ctaLabel = signedIn ? "Unlock Watchlist" : "Start your 3-day free trial";
   const onClick = signedIn ? () => router.push("/subscribe") : handleSignIn;
 
   return (
     <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest overflow-hidden relative">
       <header className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface-variant">
-          Radar
+          Watchlist
         </div>
       </header>
       <div className="relative min-h-[260px]">

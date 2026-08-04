@@ -53,11 +53,11 @@ export const editorialRefreshBlogContent: Record<string, string> = {
   <li><strong>Delete freely.</strong> A shorter watchlist makes the remaining alerts more useful.</li>
 </ol>
 
-<p>Stocksbrew’s <a href="/radar">Radar</a> is built for the monitoring side of that workflow. Search a US stock, review its financials and market context, then add it to Radar if you want ongoing research. Keep your broker or portfolio tracker for the transaction record.</p>
+<p>Stocksbrew’s <a href="/radar">Watchlist</a> is built for the monitoring side of that workflow. Search a US stock, review its financials and market context, then add it to Watchlist if you want ongoing research. Keep your broker or portfolio tracker for the transaction record.</p>
 
 <div class="cta-section">
   <h3>Track the stocks you still have questions about</h3>
-  <p>Search any US stock, then add the ones you care about to Radar.</p>
+  <p>Search any US stock, then add the ones you care about to Watchlist.</p>
   <a href="/stocks" class="cta-button">Search a stock →</a>
 </div>
 
@@ -121,12 +121,12 @@ export const editorialRefreshBlogContent: Record<string, string> = {
 
 <p>For holdings, also check whether the position still fits the portfolio’s risk. For candidates, decide whether the report answered the open question. Remove a ticker when the reason for watching it is gone; a watchlist is not an archive.</p>
 
-<p>Stocksbrew’s <a href="/earnings">earnings calendar</a> and <a href="/radar">Radar</a> can keep the relevant dates and subsequent research with the stocks you follow. For a deeper financial review, use the <a href="/blog/earnings-report-analysis-template">earnings report analysis template</a>.</p>
+<p>Stocksbrew’s <a href="/earnings">earnings calendar</a> and <a href="/radar">Watchlist</a> can keep the relevant dates and subsequent research with the stocks you follow. For a deeper financial review, use the <a href="/blog/earnings-report-analysis-template">earnings report analysis template</a>.</p>
 
 <div class="cta-section">
   <h3>Keep earnings research with the stock</h3>
-  <p>Add a US stock to Radar and follow what changes around its next report.</p>
-  <a href="/radar" class="cta-button">Open Radar →</a>
+  <p>Add a US stock to Watchlist and follow what changes around its next report.</p>
+  <a href="/radar" class="cta-button">Open Watchlist →</a>
 </div>
 
 <div class="source-note"><strong>Sources and method.</strong> Filing guidance was checked on August 4, 2026 against Investor.gov’s explainers on <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read-8" rel="nofollow">reading an 8-K</a> and <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read" rel="nofollow">reading 10-K and 10-Q reports</a>. Verify report dates and company guidance on the issuer’s investor-relations site and SEC EDGAR. This is a research workflow, not investment advice.</div>
@@ -186,11 +186,11 @@ export const editorialRefreshBlogContent: Record<string, string> = {
   <li><strong>Remove stale names.</strong> If you would not spend ten minutes researching it today, it probably does not need alerts.</li>
 </ol>
 
-<p>Stocksbrew’s <a href="/radar">Radar</a> follows the US stocks you choose and keeps their financials, news, market context, and AI research together. It is useful as the interpretation layer; the linked filing or original report remains the evidence.</p>
+<p>Stocksbrew’s <a href="/radar">Watchlist</a> follows the US stocks you choose and keeps their financials, news, market context, and AI research together. It is useful as the interpretation layer; the linked filing or original report remains the evidence.</p>
 
 <div class="cta-section">
   <h3>Follow the stocks you actually care about</h3>
-  <p>Search a US stock and add it to Radar for ongoing research.</p>
+  <p>Search a US stock and add it to Watchlist for ongoing research.</p>
   <a href="/stocks" class="cta-button">Search a stock →</a>
 </div>
 

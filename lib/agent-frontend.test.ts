@@ -41,14 +41,14 @@ describe("agent access frontend launch surfaces", () => {
     expect(source("components/agent-access-marketing.tsx")).not.toContain('bg-[#07110c]');
     expect(source("components/agent-access-marketing.tsx")).toContain("Let your agent keep up with your stocks");
     expect(source("app/agents/page.tsx")).toContain("Research any stock");
-    expect(source("app/developers/page.tsx")).toContain("Research, Radar, and alerts for your agent");
+    expect(source("app/developers/page.tsx")).toContain("Stock research, Watchlist and alerts for your agent");
     expect(source("app/developers/page.tsx")).toContain("Connect with one prompt");
     expect(source("components/agent-access-card.tsx")).toContain("Connect Stocksbrew");
   });
 
-  it("makes the full Radar and alert workflow explicit", () => {
-    expect(source("components/agent-access-marketing.tsx")).toContain("Radar");
-    expect(source("lib/agent-setup-prompt.ts")).toContain("Radar");
+  it("makes the full Watchlist and alert workflow explicit", () => {
+    expect(source("components/agent-access-marketing.tsx")).toContain("Watchlist");
+    expect(source("lib/agent-setup-prompt.ts")).toContain("Watchlist");
     expect(source("app/developers/page.tsx")).toContain("add_to_radar");
     expect(source("app/developers/page.tsx")).toContain("create_alert");
   });
@@ -62,7 +62,7 @@ describe("agent access frontend launch surfaces", () => {
 
   it("targets the intended AI stock search language with useful visible sections", () => {
     const agents = source("app/agents/page.tsx");
-    expect(agents).toContain("AI Stock Agent for Research, Radar, and Alerts");
+    expect(agents).toContain("AI Stock Agent for Research, Watchlist, and Alerts");
     expect(agents).toContain("stock market MCP server");
     expect(agents).toContain("Hermes stock research");
     expect(agents).toContain("OpenClaw stock research");

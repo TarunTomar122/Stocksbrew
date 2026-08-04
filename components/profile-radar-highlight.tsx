@@ -38,12 +38,12 @@ export function ProfileRadarHighlight({ trackedCount }: ProfileRadarHighlightPro
                   {trackedCount}
                 </span>
                 <span className="ml-2 text-[15px] font-semibold leading-snug text-on-surface sm:text-base">
-                  {stockWord} on your Radar
+                  {stockWord} in your Watchlist
                 </span>
               </p>
             ) : (
               <p className="text-[18px] font-extrabold leading-snug tracking-tight text-on-surface sm:text-[20px]">
-                Your Radar is empty
+                Your Watchlist is empty
               </p>
             )}
             <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
@@ -59,7 +59,7 @@ export function ProfileRadarHighlight({ trackedCount }: ProfileRadarHighlightPro
         href="/watchlist"
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-on-surface px-5 py-3 text-[14px] font-semibold text-surface transition-opacity hover:opacity-90"
       >
-        {hasStocks ? "Open Radar" : "Add your first stock"}
+        {hasStocks ? "Open Watchlist" : "Add your first stock"}
         <AnimatedIcon name="arrow_forward" size={18} className="text-[18px]" aria-hidden />
       </Link>
     </div>

@@ -73,7 +73,7 @@ export function FreeToolsHub() {
             Every free research tool, one place.
           </h1>
           <p className="mt-4 max-w-[540px] text-[16px] leading-relaxed text-on-surface-variant">
-            Check a ticker, scan the market, or size a trade — no card required. Add your favorites to Radar when you are
+            Check a ticker, scan the market, or size a trade. Add your favorites to Watchlist when you are
             ready to track them daily.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
@@ -81,7 +81,7 @@ export function FreeToolsHub() {
               Market Pulse
             </Link>
             <Link href="/watchlist" className="landing-btn-primary px-4 py-2 text-sm">
-              Open Radar
+              Open Watchlist
             </Link>
           </div>
           <div className="mt-8 flex flex-wrap gap-4 text-[12px] text-on-surface-variant">
@@ -198,13 +198,13 @@ export function FreeToolsHub() {
       <section className="free-tools-radar-cta">
         <div className="free-tools-radar-cta-inner">
           <div>
-            <h2 className="text-xl font-bold text-on-surface">Like a tool? Track it in Radar.</h2>
+            <h2 className="text-xl font-bold text-on-surface">Found a stock? Add it to Watchlist.</h2>
             <p className="mt-2 max-w-md text-[14px] leading-relaxed text-on-surface-variant">
               Free for up to three US tickers — daily briefs, alerts, and earnings intel when you are ready to go deeper.
             </p>
           </div>
           <Link href="/watchlist" className="landing-btn-primary shrink-0 px-5 py-2.5 text-sm">
-            Open Radar
+            Open Watchlist
           </Link>
         </div>
       </section>

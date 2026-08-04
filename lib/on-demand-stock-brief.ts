@@ -7,7 +7,7 @@ import type { Instrument } from "@/lib/types";
 type Market = "US" | "IN";
 type Dict = Record<string, unknown>;
 
-const SYSTEM_PROMPT = `You write premium stock Radar briefs for paid users.
+const SYSTEM_PROMPT = `You write detailed stock Watchlist briefs for paid users.
 Use only the supplied price, technical, analyst, and scorecard facts.
 Do not invent news. If fresh news is absent, say that directly and explain what the numbers imply.
 Return exactly one JSON object with concise, specific language.`;
@@ -151,7 +151,7 @@ function fallbackBrief(
   const rsiText = rsi !== null ? `RSI ${rsi.toFixed(1)}` : "RSI unavailable";
   const scoreText = score !== null ? `score ${Math.round(score)}` : "score pending";
   const headline = `${instrument.ticker} tracking brief is building`;
-  const todayBrief = `${instrument.ticker} was added to your Radar. Current setup: ${moveText}, ${rsiText}, ${scoreText}.`;
+  const todayBrief = `${instrument.ticker} was added to your Watchlist. Current setup: ${moveText}, ${rsiText}, ${scoreText}.`;
   return {
     headline,
     today_brief: todayBrief,
@@ -276,7 +276,7 @@ export async function ensureOnDemandStockBrief(
   const technicals = technicalSnap.exists ? (technicalSnap.data() as Dict) : null;
   const fallback = fallbackBrief(instrument, latestPrice, technicals, intelPro);
   const llmPayload = {
-    task: "Create an on-demand first Radar brief for a paid user who just added this stock.",
+    task: "Create the first Watchlist brief for a paid user who just added this stock.",
     coverage_note: "No fresh stock-intelligence document exists for this ticker yet.",
     instrument: {
       instrument_id: instrument.instrument_id,

@@ -106,7 +106,7 @@ export function Ideas({
             Ideas to explore
           </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Radar idea lens">
+        <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Watchlist idea lens">
           {available.map((item) => {
             const active = lens === item.id;
             return (

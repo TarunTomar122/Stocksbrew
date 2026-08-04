@@ -210,7 +210,7 @@ export function PositionSizeCalculator() {
                 href="/watchlist"
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#0052ff] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
               >
-                Track {tickerSlug} in Radar
+                Add {tickerSlug} to Watchlist
               </Link>
               <Link
                 href={tickerSlug ? `/should-i-buy/${tickerSlug}` : "/should-i-buy"}
@@ -233,7 +233,7 @@ export function PositionSizeCalculator() {
                 href="/watchlist"
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#0052ff] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
               >
-                Track stocks in Radar
+                Track stocks in your Watchlist
               </Link>
               <Link
                 href="/should-i-buy"

@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     question: "Can I save a comparison?",
-    answer: "You can add the stocks to Radar to keep tracking them as their price and setup change.",
+    answer: "You can add the stocks to your Watchlist to keep tracking their price, research and important changes.",
   },
 ];
 
@@ -42,14 +42,14 @@ export function CompareStocksLandingSections() {
               Compare once. Track what changes.
             </h2>
             <p className="mt-4 max-w-sm text-[14px] leading-6 text-[#68736c]">
-              Put the names you care about on Radar instead of rebuilding the same spreadsheet next week.
+              Add the names you care about to your Watchlist and we&apos;ll keep their research current.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link
                 href="/watchlist"
                 className="rounded-full bg-[#111713] px-4 py-2.5 text-[11px] font-semibold text-white"
               >
-                Open Radar
+                Open Watchlist
               </Link>
               <Link
                 href="/should-i-buy"

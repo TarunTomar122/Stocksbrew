@@ -82,7 +82,7 @@ export const RESOURCE_GROUPS: ResourceGroup[] = [
     items: [
       {
         href: "/radar",
-        title: "Radar product page",
+        title: "Watchlist product page",
         description: "Indexable overview of buy/hold/sell calls and portfolio health.",
         icon: "radar",
       },

@@ -8,16 +8,16 @@ stocksbrew helps people analyse and track US stocks.
 
 ## Approved homepage copy
 
-**Headline:** Analyse and track US stocks with AI
+**Headline:** Analyse and track US stocks
 
-**Supporting line:** Search any US stock for financials, news and market context.
+**Supporting line:** Financials, valuation, filings, earnings, analyst targets and news for any US stock.
 
-The search field is the primary action. Radar is the next step after someone finds a stock worth following.
+The search field is the primary action. Watchlist is the next step after someone finds a stock worth following.
 
 ## Product hierarchy
 
 1. **Analyse:** open any US stock for financials, news, price history and market context.
-2. **Track:** add holdings or watchlist names to Radar so their research stays current.
+2. **Track:** add holdings or watchlist names to Watchlist so their research stays current.
 3. **Return:** use alerts for earnings, price levels and important changes.
 4. **Explore:** Pulse, Daily and Social provide wider market context. They support the core product; they are not the homepage promise.
 
@@ -65,4 +65,3 @@ Use one strong generation call with the evidence attached. Prompts should requir
 ## Editorial publishing rule
 
 A blog URL is indexable only after a deliberate editorial review. Review means the page has a clear search intent, useful original structure or product data, current primary or authoritative sources, honest limitations, accurate metadata, and a reason to exist beside the other published pages. New posts default to unpublished from search until they are added to the reviewed set.
-

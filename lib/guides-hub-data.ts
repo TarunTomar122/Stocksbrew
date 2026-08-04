@@ -12,7 +12,7 @@ export const START_PATHS: HubLink[] = [
   {
     href: "/blog/stock-research-checklist-evidence-first",
     title: "Start with evidence",
-    description: "Use a filings-first checklist, write the thesis and invalidation case, then add serious candidates to Radar.",
+    description: "Use a filings-first checklist, write the thesis and invalidation case, then add serious candidates to Watchlist.",
     badge: "Path A",
   },
   {
@@ -39,17 +39,17 @@ export const COMPARISONS: HubLink[] = [
   {
     href: "/compare/stocksbrew-vs-finviz",
     title: "stocksbrew vs Finviz",
-    description: "Compare Finviz screening with stocksbrew research and Radar tracking.",
+    description: "Compare Finviz screening with stocksbrew research and Watchlist tracking.",
   },
   {
     href: "/compare/stocksbrew-vs-tradingview",
     title: "stocksbrew vs TradingView",
-    description: "Compare TradingView charts with stocksbrew research and Radar tracking.",
+    description: "Compare TradingView charts with stocksbrew research and Watchlist tracking.",
   },
   {
     href: "/compare/stocksbrew-vs-yahoo-finance",
     title: "stocksbrew vs Yahoo Finance",
-    description: "Compare Yahoo Finance portfolio tracking with stocksbrew Radar.",
+    description: "Compare Yahoo Finance portfolio tracking with stocksbrew Watchlist.",
   },
   {
     href: "/compare/stocksbrew-vs-tickertape",
@@ -114,7 +114,7 @@ export const WORKFLOW_GUIDES: HubLink[] = [
 export const WEEKLY_WORKFLOW = [
   {
     day: "Monday",
-    task: "Read your Radar digest and scan the news timeline for watchlist movers.",
+    task: "Read your Watchlist digest and scan the news timeline for movers.",
     href: "/watchlist",
   },
   {
@@ -133,12 +133,12 @@ export const GUIDES_FAQS = [
   {
     question: "Where should I start researching stocks?",
     answer:
-      "Start with the evidence-first stock research checklist, then add up to three serious candidates or holdings to Radar for free. If you are comparing tools first, use the workflow comparison section on this page.",
+      "Start with the evidence-first stock research checklist, then add up to three serious candidates or holdings to Watchlist for free. If you are comparing tools first, use the workflow comparison section on this page.",
   },
   {
     question: "What free tools does stocksbrew include?",
     answer:
-      "Should I Buy, Compare Stocks, Portfolio Analyzer, Market Heat, Screens, News, Trump Logic, IPO calendar, and more — all listed on the free tools page. Radar tracking is free for up to three US tickers.",
+      "Should I Buy, Compare Stocks, Portfolio Analyzer, Market Heat, Screens, News, Trump Logic, IPO calendar and more are listed on the free tools page. Watchlist tracking is free for up to three US tickers.",
   },
   {
     question: "How is this different from a screener site?",
@@ -148,7 +148,7 @@ export const GUIDES_FAQS = [
   {
     question: "Do I need a paid plan to use this hub?",
     answer:
-      "No. Every tool linked from this page has a free tier. Pro adds unlimited Radar names, more alerts, and deeper intel.",
+      "No. Every tool linked from this page has a free tier. Pro adds unlimited Watchlist names, more alerts and detailed research.",
   },
   {
     question: "Is this investment advice?",

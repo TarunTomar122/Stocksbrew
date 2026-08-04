@@ -41,7 +41,7 @@ function planLabel(plan: string | null | undefined): string | null {
 }
 
 const PRO_FEATURES = [
-  "Unlimited stocks on Radar",
+  "Unlimited stocks in Watchlist",
   "Add · hold · trim on every name",
   "Smart alerts & morning digest",
   "Pre-earnings setups before the print",

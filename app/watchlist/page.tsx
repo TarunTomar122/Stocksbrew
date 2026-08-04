@@ -92,7 +92,7 @@ async function RadarNextStream() {
           header={{
             greeting: greetingFor(now),
             dateLabel: dateLabelFor(now),
-            statusLine: "0 tracked. Add stocks to start your Radar",
+            statusLine: "0 tracked. Add stocks to start your Watchlist",
             trackedCount: 0,
             isSubscribed,
           }}
@@ -140,7 +140,7 @@ async function RadarNextStream() {
     (activeRadarUserView?.attention_items ?? []).map((item) => item.instrument_id.toUpperCase()),
   );
 
-  const decisions = buildDecisionCards(rows, activeRadarUserView);
+  const decisions = buildDecisionCards(rows, activeRadarUserView).slice(0, 3);
   const openLoops = countOpenLoops(rows);
   const book = buildBookRows(rows, { states: radarStockStates, newsInstrumentIds });
   const health = buildHealthProps(diagnosis, holdings.length);

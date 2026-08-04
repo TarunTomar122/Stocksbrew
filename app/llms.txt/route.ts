@@ -22,7 +22,7 @@ export async function GET() {
 
   const body = `# stocksbrew
 
-> Stocksbrew is a US-stock research product with timestamped market data, source-linked daily market analysis, stock fundamentals, Radar monitoring, and a scoped API/MCP interface for AI agents.
+> Stocksbrew is a US-stock research product with timestamped market data, source-linked daily market analysis, stock fundamentals, Watchlist monitoring and a scoped API/MCP interface for AI agents.
 
 Canonical site: ${BASE}
 Language: English (en-US)

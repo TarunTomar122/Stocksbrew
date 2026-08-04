@@ -25,7 +25,7 @@ export const seoBlogContent: Record<string, string> = {
 <h3>1. stocksbrew — Best for Daily Market Intelligence</h3>
 <p><a href="https://www.stocksbrew.online">stocksbrew</a> offers a free tier that delivers AI-powered daily market intelligence. Unlike most free tools that just show you raw data, stocksbrew aggregates multiple configured inputs (news, social media, filings, analyst reports), scores signals for relevance, and personalizes everything to your watchlist. You get a daily brief that tells you what moved and why, instead of a list of headlines you have to sort through yourself.</p>
 
-<p><strong>Whats free:</strong> Daily market brief, watchlist radar, sector spotlights, market overview.</p>
+<p><strong>Whats free:</strong> Daily market brief, a three-stock Watchlist, sector spotlights, and market overview.</p>
 <p><strong>Best for:</strong> Investors who want daily intelligence without spending 30 minutes scanning news.</p>
 
 <h3>2. Finviz — Best for Stock Screening</h3>
@@ -64,7 +64,7 @@ export const seoBlogContent: Record<string, string> = {
   <tr>
     <td>stocksbrew</td>
     <td>Daily intelligence</td>
-    <td>AI daily brief + watchlist radar</td>
+    <td>Daily brief + Watchlist tracking</td>
     <td>Not a screener or charting tool</td>
   </tr>
   <tr>
@@ -140,7 +140,7 @@ export const seoBlogContent: Record<string, string> = {
 <p>The best way to get this is through an AI-powered tool like <a href="https://www.stocksbrew.online">stocksbrew</a> that aggregates multiple configured inputs and personalizes the brief to your watchlist. It takes 5 minutes to read and you're done before your first meeting.</p>
 
 <h3>Midday: Quick Check (2 min)</h3>
-<p>During lunch, open the stocksbrew radar or your brokerage app. Check for:</p>
+<p>During lunch, open the stocksbrew Watchlist or your brokerage app. Check for:</p>
 <ul>
   <li>Any position moving more than 3%</li>
   <li>Breaking news on your holdings</li>
@@ -181,7 +181,7 @@ export const seoBlogContent: Record<string, string> = {
 <p>The 10-minute routine only works if you have the right tools. Here's the stack:</p>
 
 <ul>
-  <li><strong>stocksbrew (Free)</strong> — Daily AI brief, watchlist radar, earnings calendar, sector intelligence. This is the centerpiece of the routine. The brief replaces 30 minutes of manual news scanning.</li>
+  <li><strong>stocksbrew (Free)</strong> — Daily AI brief, a three-stock Watchlist, earnings calendar, and sector intelligence. This is the centerpiece of the routine. The brief replaces 30 minutes of manual news scanning.</li>
   <li><strong>Your brokerage app (Free)</strong> — Price alerts at 5% and 10% thresholds. Don't set alerts for smaller moves, they'll just distract you.</li>
   <li><strong>Google Finance (Free)</strong> — Quick midday check on your phone. Clean interface, no ads.</li>
   <li><strong>SEC EDGAR (Free)</strong> — Read actual filings when earnings matter. Skip the summaries, read the source.</li>
@@ -270,7 +270,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <p><strong>Personalization:</strong> Excellent. The entire brief is personalized to your watchlist. You set the stocks you care about, and the AI surfaces only what's relevant to them.</p>
 
-<p><strong>Pricing:</strong> Free tier with daily brief and watchlist radar. Pro at $9/mo unlocks unlimited stocks, email alerts, and scorecard.</p>
+<p><strong>Pricing:</strong> Free tier with a daily brief and three-stock Watchlist. Pro at $9/mo unlocks unlimited stocks, email alerts, and scorecard.</p>
 
 <p><strong>Best for:</strong> Investors who want daily intelligence without spending 30+ minutes reading news. The free tier is surprisingly generous.</p>
 
@@ -1003,7 +1003,7 @@ export const seoBlogContent: Record<string, string> = {
   <li><strong>Rationale</strong> — What changed? Earnings, guidance, sentiment, valuation, or technical structure</li>
 </ul>
 
-<p>Platforms like <a href="https://www.stocksbrew.online">stocksbrew</a> generate these stances on Radar by scoring news, Reddit buzz, fundamentals, and earnings context per ticker — so you get a call tied to <em>your</em> watchlist, not a generic hot-stock list.</p>
+<p>Platforms like <a href="https://www.stocksbrew.online">stocksbrew</a> generate these stances on Watchlist by scoring news, Reddit buzz, fundamentals, and earnings context per ticker — so you get a call tied to <em>your</em> watchlist, not a generic hot-stock list.</p>
 
 <h2 id="vs-alerts">Signals vs Price Alerts: The Critical Difference</h2>
 
@@ -1050,13 +1050,13 @@ export const seoBlogContent: Record<string, string> = {
 
 <h2 id="workflow">A Simple Weekly Workflow</h2>
 
-<p>Monday: scan Radar or your brief for stance changes on holdings. Wednesday: check earnings dates for the next two weeks. Friday: note any sell trims needed for oversized winners. Total time: under 15 minutes if tools filter to your list.</p>
+<p>Monday: scan Watchlist or your brief for stance changes on holdings. Wednesday: check earnings dates for the next two weeks. Friday: note any sell trims needed for oversized winners. Total time: under 15 minutes if tools filter to your list.</p>
 
 <p>For a deeper comparison of tools that generate these calls, see our <a href="/compare/stocksbrew-vs-tipranks">stocksbrew vs TipRanks</a> page and the <a href="/blog/best-free-stock-alert-tools-2026">free stock alert tools roundup</a>.</p>
 
 <div class="cta-section">
   <h3>Get Buy, Hold, Sell Calls on Your Watchlist</h3>
-  <p>stocksbrew Radar scores your tickers daily and explains each stance. Free for 3 stocks — no credit card.</p>
+  <p>stocksbrew Watchlist scores your tickers daily and explains each stance. Free for 3 stocks — no credit card.</p>
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 `,
@@ -1093,7 +1093,7 @@ export const seoBlogContent: Record<string, string> = {
 <ol>
   <li><strong>Start from a screen, not a headline</strong> — Use <a href="/screens">thematic screens</a> or Finviz filters; add only names that pass your criteria.</li>
   <li><strong>One-line thesis per ticker</strong> — “Cloud infra, 25% growth, buy below 28x earnings.”</li>
-  <li><strong>Tier your list</strong> — Tier 1: ready to buy at price. Tier 2: needs more research. Tier 3: radar only.</li>
+  <li><strong>Tier your list</strong> — Tier 1: ready to buy at price. Tier 2: needs more research. Tier 3: monitor only.</li>
   <li><strong>Set alerts at your levels</strong> — Entry zone, not every 1% wiggle.</li>
   <li><strong>Cull monthly</strong> — Remove names you would not buy today even at yesterday’s price.</li>
 </ol>
@@ -1104,16 +1104,16 @@ export const seoBlogContent: Record<string, string> = {
 
 <p>Portfolio trackers should answer: What do I own? What is it worth? Am I concentrated? What changed today that affects my holdings?</p>
 
-<p>Yahoo Finance and broker apps handle dollars and cents well. They are weaker at <em>stance</em> — whether today’s news changes your hold/sell decision. That is where <a href="https://www.stocksbrew.online">stocksbrew Radar</a> fits: holdings and watchlist in one place, but with different treatment — directives and health on what you own, research pipeline for what you do not.</p>
+<p>Yahoo Finance and broker apps handle dollars and cents well. They are weaker at <em>stance</em> — whether today’s news changes your hold/sell decision. That is where <a href="https://www.stocksbrew.online">stocksbrew Watchlist</a> fits: holdings and watchlist in one place, but with different treatment — directives and health on what you own, research pipeline for what you do not.</p>
 
 <h2 id="tools">Tool Stack by Job</h2>
 
 <table>
   <tr><th>Job</th><th>Tool type</th><th>Example</th></tr>
   <tr><td>Find candidates</td><td>Screener</td><td>Finviz, stocksbrew Screens</td></tr>
-  <tr><td>Monitor candidates</td><td>Watchlist + alerts</td><td>stocksbrew Radar (watching tab)</td></tr>
+  <tr><td>Monitor candidates</td><td>Watchlist + alerts</td><td>stocksbrew Watchlist (watching tab)</td></tr>
   <tr><td>Track cost basis</td><td>Broker or tracker</td><td>Fidelity, Schwab, Yahoo Finance</td></tr>
-  <tr><td>Daily stance on holdings</td><td>AI brief / Radar</td><td>stocksbrew</td></tr>
+  <tr><td>Daily stance on holdings</td><td>AI brief / Watchlist</td><td>stocksbrew</td></tr>
 </table>
 
 <h2 id="workflow">Weekly Workflow (15 Minutes)</h2>
@@ -1124,7 +1124,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Holdings and Watching, Clearly Separated</h3>
-  <p>Radar splits your book into holdings vs watching — with buy/hold/sell calls on what you own. Free for 3 stocks.</p>
+  <p>Watchlist splits your book into holdings vs watching — with buy/hold/sell calls on what you own. Free for 3 stocks.</p>
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 `,
@@ -1169,7 +1169,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <h2 id="calendar">Stop Using Generic Earnings Calendars</h2>
 
-<p>Market-wide calendars list 500 reports per week. You need <em>your</em> calendar — filtered to Radar holdings and watchlist. stocksbrew surfaces upcoming earnings on tracked tickers so you are not scrolling irrelevant names.</p>
+<p>Market-wide calendars list 500 reports per week. You need <em>your</em> calendar — filtered to Watchlist holdings and watchlist. stocksbrew surfaces upcoming earnings on tracked tickers so you are not scrolling irrelevant names.</p>
 
 <p>Pair this with our <a href="/blog/earnings-calendar-for-my-watchlist">earnings calendar for your watchlist</a> guide, the <a href="/blog/how-to-analyze-earnings-report">post-earnings analysis checklist</a>, and the free <a href="/earnings-intel">Earnings Intel</a> pages for individual names.</p>
 
@@ -1188,8 +1188,8 @@ export const seoBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>Never Miss a Report on Your List</h3>
-  <p>Add holdings and watchlist names to Radar. Earnings dates, directives, and post-print stance updates — free for 3 stocks.</p>
-  <a href="/radar" class="cta-button">Open Radar →</a>
+  <p>Add holdings and watchlist names to Watchlist. Earnings dates, directives, and post-print stance updates — free for 3 stocks.</p>
+  <a href="/radar" class="cta-button">Open Watchlist →</a>
 </div>
 `,
   "stock-market-information-overload": `
@@ -1211,7 +1211,7 @@ export const seoBlogContent: Record<string, string> = {
 <h2 id="principles">Four Principles</h2>
 
 <h3>1. Filter to your tickers</h3>
-<p>If a story does not mention a stock you own or watch, skip it. Radical but effective. Tools like stocksbrew filter news and signals to your Radar list automatically.</p>
+<p>If a story does not mention a stock you own or watch, skip it. Radical but effective. Tools like stocksbrew filter news and signals to your Watchlist list automatically.</p>
 
 <h3>2. One daily input, not six</h3>
 <p>Replace scrolling with one 5-minute brief. Our <a href="/blog/daily-stock-market-analysis-routine">10-minute daily routine</a> shows the shape.</p>
@@ -1243,7 +1243,7 @@ export const seoBlogContent: Record<string, string> = {
 <h2 id="stack">A Low-Noise Stack</h2>
 
 <ol>
-  <li><strong>stocksbrew Radar</strong> — Morning stance + news on your list (5 min)</li>
+  <li><strong>stocksbrew Watchlist</strong> — Morning stance + news on your list (5 min)</li>
   <li><strong>Broker app</strong> — Execution only; notifications off except your alerts</li>
   <li><strong>Finviz or Screens</strong> — Weekly idea generation (15 min Sunday)</li>
   <li><strong>SEC EDGAR</strong> — Only when you are sizing up a new position</li>
@@ -1300,7 +1300,7 @@ export const seoBlogContent: Record<string, string> = {
   <tr><td>D</td><td>Single stock &gt;15% or portfolio moves as one factor bet</td></tr>
 </table>
 
-<p>stocksbrew Radar shows a portfolio health grade with pillar breakdown (growth, value, momentum, risk) on your holdings — useful as a starting point, not a final verdict.</p>
+<p>stocksbrew Watchlist shows a portfolio health grade with pillar breakdown (growth, value, momentum, risk) on your holdings — useful as a starting point, not a final verdict.</p>
 
 <h2 id="fixes">Common Fixes</h2>
 
@@ -1319,7 +1319,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>See Your Portfolio Health Score</h3>
-  <p>Radar grades your holdings across growth, value, momentum, and risk — with fixes to consider. Free for 3 stocks.</p>
+  <p>Watchlist grades your holdings across growth, value, momentum, and risk — with fixes to consider. Free for 3 stocks.</p>
   <a href="https://www.stocksbrew.online" class="cta-button">Try stocksbrew Free →</a>
 </div>
 `,

@@ -32,7 +32,7 @@ export function RadarAsyncModal({ open, title, subtitle, status = "loading" }: P
           <div className="flex min-w-0 flex-col">
             <p className="text-[14px] font-semibold text-[#0f172a]">{title}</p>
             <p className="text-[12px] text-[#475569]">
-              {subtitle || (isError ? "Could not apply this update." : isSuccess ? "Update applied." : "Applying your update and rebuilding Radar...")}
+              {subtitle || (isError ? "Could not apply this update." : isSuccess ? "Update applied." : "Saving your Watchlist and refreshing the research...")}
             </p>
           </div>
         </div>

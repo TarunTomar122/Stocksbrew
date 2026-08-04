@@ -180,7 +180,7 @@ export default async function BlogPostPage({ params }: Props) {
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               <Link href="/stocks" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform">Search US stocks →</Link>
-              <Link href="/radar" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full border border-[#d1d5db] bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:border-[#111111] transition-colors">Open Radar</Link>
+              <Link href="/watchlist" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full border border-[#d1d5db] bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:border-[#111111] transition-colors">Open Watchlist</Link>
             </div>
           </div>
 

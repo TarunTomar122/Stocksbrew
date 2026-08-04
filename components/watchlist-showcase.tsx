@@ -48,7 +48,7 @@ function StocksGridVisual() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-[#6b7280] tracking-[0.08em] uppercase">
-          Radar tracking 28 stocks
+          Watchlist tracking 28 stocks
         </span>
         <span className="inline-flex items-center gap-1.5 text-[11px] text-[#6b7280]">
           <PulseDot />
@@ -300,13 +300,13 @@ const SLIDES: Slide[] = [
     id: "brief",
     eyebrow: "Brief",
     title: "A clear call on every name.",
-    body: "Fundamentals, news, Reddit, and earnings turned into buy, hold, or sell guidance on your Radar.",
+    body: "Fundamentals, news, Reddit and earnings support the current call on each Watchlist stock.",
     visual: BriefVisual,
   },
   {
     id: "pulse",
     eyebrow: "Pulse",
-    title: "How your Radar moved today.",
+    title: "What changed in your Watchlist today.",
     body: "One AI paragraph: drivers, laggards, what to watch next.",
     visual: PulseVisual,
   },
@@ -379,7 +379,7 @@ export function WatchlistShowcase() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm">
               <PulseDot color="#a5b4fc" />
-              Radar · Pro
+              Watchlist · Pro
             </span>
           </div>
 

@@ -28,7 +28,7 @@ function renderToolStatus(part: UIMessage["parts"][number], index: number) {
   if (part.state === "output-error") {
     return (
       <span key={index} className="text-[12px] text-[#f59e0b]">
-        {toolName === "web_search" ? "Search failed — using radar data" : "Intel lookup failed"}
+        {toolName === "web_search" ? "Search failed — using Watchlist data" : "Intel lookup failed"}
       </span>
     );
   }
@@ -121,7 +121,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
             <p className="mt-0.5 truncate text-[12px] text-on-surface-variant">
               {trackedCount > 0
                 ? `${trackedCount} tickers · ${tickerLabel}`
-                : "Add tickers to your radar"}
+                : "Add tickers to your Watchlist"}
             </p>
           </div>
           <button
@@ -219,7 +219,7 @@ export function RadarChat({ trackedCount, tickers, starters }: RadarChatProps) {
               }
             }}
             rows={1}
-            placeholder="Ask about your radar…"
+            placeholder="Ask about your Watchlist…"
             disabled={status !== "ready"}
             className="max-h-28 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-[14px] leading-snug text-on-surface placeholder:text-[#a1a1aa] focus:outline-none focus:ring-0 disabled:opacity-60"
           />

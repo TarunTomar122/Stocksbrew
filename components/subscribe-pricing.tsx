@@ -56,7 +56,7 @@ const PLANS_IN = [
 const PRO_HIGHLIGHTS = [
   { icon: "verified", text: "Deeper research, drivers, and risks" },
   { icon: "flag", text: "Analyst targets in context" },
-  { icon: "notifications_active", text: "Unlimited Radar tracking" },
+  { icon: "notifications_active", text: "Unlimited Watchlist tracking" },
 ];
 
 async function devActivateSubscription(period: "monthly" | "yearly"): Promise<string> {
@@ -290,7 +290,7 @@ export function SubscribePricing({
 
         <div className="border-y border-outline-variant py-4">
           <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-            {trackedCount > 0 ? "What Pro adds to Radar" : "What Pro includes"}
+            {trackedCount > 0 ? "What Pro adds to Watchlist" : "What Pro includes"}
           </p>
           <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-x-4">
             {PRO_HIGHLIGHTS.map((line) => (

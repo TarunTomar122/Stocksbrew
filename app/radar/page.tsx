@@ -34,8 +34,8 @@ const FEATURES = [
     body: "Holdings and watching lists stay separate — so research names do not pollute portfolio decisions.",
   },
   {
-    title: "Buy / hold / sell on every ticker",
-    body: "Calls update when fundamentals, news, Reddit, earnings, or price action materially change — not for every price ping.",
+    title: "A current view on every ticker",
+    body: "See the latest call, price zones, target, earnings, news and the reason anything changed.",
   },
   {
     title: "Portfolio health grade",
@@ -49,22 +49,22 @@ const FEATURES = [
 
 const FAQS = [
   {
-    question: "What is stocksbrew Radar?",
+    question: "What is the stocksbrew Watchlist?",
     answer:
-      "Track the US stocks you own or watch. Radar keeps their prices, research, earnings and important changes in one place. Free for three stocks.",
+      "Track the US stocks you own or watch. Your Watchlist keeps their prices, research, earnings and important changes in one place. Free for three stocks.",
   },
   {
-    question: "Is Radar the same as a portfolio tracker?",
+    question: "Is the Watchlist the same as a portfolio tracker?",
     answer:
-      "Radar focuses on what to do next — stances, alerts, and health — not tax lots or broker sync. Pair it with your broker for execution and cost basis.",
+      "The Watchlist covers current calls, alerts and portfolio health. It does not replace your broker for execution, tax lots or cost basis.",
   },
   {
-    question: "How is Radar different from Finviz or TradingView?",
+    question: "How is the Watchlist different from Finviz or TradingView?",
     answer:
-      "Finviz and TradingView excel at screening and charting. Radar excels at personalized calls and alerts on the names you already care about. Many investors use all three.",
+      "Finviz and TradingView cover screening and charting. Stocksbrew keeps researching the stocks you choose and alerts you to important changes.",
   },
   {
-    question: "How much does Radar cost?",
+    question: "How much does the Watchlist cost?",
     answer: `Free for 3 tracked stocks. Try Pro free for 3 days, then pay $${US_PRO_MONTHLY}/month for unlimited watchlist names and email alerts when setups change.`,
   },
 ];
@@ -74,19 +74,19 @@ export default function RadarLandingPage() {
     <main className="flex-grow">
       <MarketingSchema
         path="/radar"
-        name="stocksbrew Radar"
+        name="stocksbrew Watchlist"
         description="Track US stocks with current research, earnings context and alerts for important changes."
         faqs={FAQS}
-        breadcrumbLabel="Radar"
+        breadcrumbLabel="Watchlist"
       />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-14 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <header className="flex max-w-[760px] flex-col gap-5">
-          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">Radar</span>
+          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">Watchlist</span>
           <h1 className="text-[40px] md:text-[56px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
             {TAGLINE}
           </h1>
           <p className="text-[17px] text-[#374151] leading-[1.6]">
-            Radar reads fundamentals, news, Reddit, earnings, and price action for your watchlist — then tells you what changed and what to do in plain English. Get alerted when a setup matters, not for every tick.
+            Add the stocks you own or follow. See their financials, latest research, earnings, news, calls and price levels together. We&apos;ll email you when something important changes.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
             <Link
@@ -148,7 +148,7 @@ export default function RadarLandingPage() {
           </div>
         </section>
 
-        <ShareLinkBar url="/radar" title="stocksbrew Radar — AI watchlist buy, hold & sell calls" />
+        <ShareLinkBar url="/radar" title="stocksbrew Watchlist — stock research and alerts" />
 
         <FaqSection faqs={FAQS} />
 
@@ -160,7 +160,7 @@ export default function RadarLandingPage() {
             </p>
           </div>
           <Link href="/watchlist" className="inline-flex h-[44px] w-fit items-center px-6 rounded-full bg-white text-[#111111] text-[14px] font-semibold">
-            Open Radar →
+            Open Watchlist →
           </Link>
         </section>
       </div>

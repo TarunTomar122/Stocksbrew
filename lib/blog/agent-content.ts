@@ -4,7 +4,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <p>The <a href="https://modelcontextprotocol.io/docs/getting-started/intro" rel="noopener noreferrer">Model Context Protocol</a>, usually shortened to MCP, is an open standard for connecting AI applications to external systems. An MCP server can expose a small set of tools with clear inputs and outputs. A compatible client can discover those tools, choose the right one for the question, and use the result in its answer.</p>
 
-<p>This guide explains the workflow using the scoped <a href="/agents">Stocksbrew agent connection</a> as a concrete example. It is written for individual investors and developers who want useful research, Radar, and alert automation without giving an agent trading access.</p>
+<p>This guide explains the workflow using the scoped <a href="/agents">Stocksbrew agent connection</a> as a concrete example. It is written for individual investors and developers who want useful research, Watchlist, and alert automation without giving an agent trading access.</p>
 
 <h2 id="what-mcp-changes">What MCP changes for stock research</h2>
 
@@ -37,9 +37,9 @@ export const agentBlogContent: Record<string, string> = {
 
 <h3>2. Approve narrow scopes</h3>
 
-<p>The setup prompt asks for stock and market reads. Radar and alert permissions are separate and optional. Stocksbrew does not expose trading, brokerage, or money-movement tools.</p>
+<p>The setup prompt asks for stock and market reads. Watchlist and alert permissions are separate and optional. Stocksbrew does not expose trading, brokerage, or money-movement tools.</p>
 
-<p>This separation matters. Approve only clients you trust, grant the smallest useful scope set, require confirmation before Radar or alert changes, and revoke credentials that are exposed.</p>
+<p>This separation matters. Approve only clients you trust, grant the smallest useful scope set, require confirmation before Watchlist or alert changes, and revoke credentials that are exposed.</p>
 
 <h3>3. Ask for a research outcome</h3>
 
@@ -89,7 +89,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <h2 id="safety">What the agent should not be allowed to do</h2>
 
-<p>Research tools and workflow actions deserve different scopes. Stocksbrew can update Radar and alert rules with permission. It cannot place a trade, move money, or access a brokerage account.</p>
+<p>Research tools and workflow actions deserve different scopes. Stocksbrew can update Watchlist and alert rules with permission. It cannot place a trade, move money, or access a brokerage account.</p>
 
 <p>You should also keep a human review step between an agent answer and any financial decision. An external agent can combine Stocksbrew data with its own memory, prompts, and other tools. Stocksbrew does not control the resulting answer. Verify timestamps, assumptions, and primary sources before acting.</p>
 

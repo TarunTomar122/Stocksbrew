@@ -248,7 +248,7 @@ export function RadarBatchEditModal({
       }, 700);
     } catch (e) {
       setModalStatus("error");
-      setError("Could not update Radar in one go. Try again.");
+      setError("Could not update your Watchlist in one go. Try again.");
       console.error(e);
       setTimeout(() => setModalOpen(false), 1200);
     } finally {
@@ -271,7 +271,7 @@ export function RadarBatchEditModal({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center px-0 md:px-4" role="dialog" aria-modal="true" aria-label="Edit Radar stocks">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center px-0 md:px-4" role="dialog" aria-modal="true" aria-label="Edit Watchlist stocks">
           <button
             type="button"
             aria-label="Close"
@@ -284,7 +284,7 @@ export function RadarBatchEditModal({
             {/* ── Header ── */}
             <div className="flex items-center justify-between gap-4 border-b border-outline-variant px-5 py-4 shrink-0">
               <div className="flex items-center gap-3">
-                <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">Edit your Radar</h3>
+                <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">Edit your Watchlist</h3>
                 <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant tabular-nums">
                   {items.length}{!isSubscribed ? `/${freeLimit}` : ""}
                 </span>
@@ -465,8 +465,8 @@ export function RadarBatchEditModal({
 
       <RadarAsyncModal
         open={modalOpen}
-        title="Updating Radar"
-        subtitle="Saved. Radar analysis is refreshing in the background..."
+        title="Updating Watchlist"
+        subtitle="Saved. We’re refreshing the research now."
         status={modalStatus}
       />
       <RadarFreeLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} limit={freeLimit} />
