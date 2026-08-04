@@ -1,29 +1,29 @@
 /**
- * Approved marketing copy (v0.2). Source of truth: docs/brand-copy.md
+ * Approved product copy (v0.3). Source of truth: docs/product-voice.md
  */
 
 export const BRAND_NAME = "stocksbrew";
 
-export const TAGLINE = "Know what to do with your stocks.";
+export const TAGLINE = "Analyse and track US stocks with AI.";
 
 export const SITE_TITLE_DEFAULT =
-  "Stock Watchlist Alerts & Buy, Hold, Sell Guidance | stocksbrew";
+  "AI Stock Analysis & Tracking for US Stocks | stocksbrew";
 
 export const SHORT_DESCRIPTION =
-  "Stock watchlist guidance and alerts for the US stocks you follow.";
+  "Analyse any US stock, then track the ones you care about.";
 
 export const MEDIUM_DESCRIPTION =
-  "Clear buy, hold, and sell guidance for the US stocks you follow, with email alerts for earnings, price zones, and thesis changes. Free for 3 stocks.";
+  "Search any US stock for financials, news and market context. Track up to three stocks free with Radar.";
 
 export const LONG_DESCRIPTION =
-  "stocksbrew combines fundamentals, news, Reddit, earnings, and price action into a detailed add, hold, or trim call with buy and trim zones, drivers, and risks. Pro adds the Stocksbrew target price, unlimited Radar tracking, automatic earnings and zone alerts, and manual price alerts. Built for US markets today. Not investment advice. Not a broker.";
+  "stocksbrew helps you analyse and track US stocks. Search a company for its financials, recent news and market context, then add it to Radar if you want ongoing research and alerts. Pro adds deeper calls, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "Know what to do with your stocks.";
-export const HERO_HEADLINE_LEAD = "Know what to do";
-export const HERO_HEADLINE_EMPHASIS = "with your stocks.";
+export const HERO_HEADLINE = "Analyse and track US stocks with AI";
+export const HERO_HEADLINE_LEAD = "Analyse and track";
+export const HERO_HEADLINE_EMPHASIS = "US stocks with AI";
 
 export const HERO_SUBHEAD =
-  "stocksbrew reads the fundamentals, news, Reddit, earnings, and price action, then turns them into a call, target, and alerts.";
+  "Search any US stock for financials, news and market context.";
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";
@@ -33,24 +33,24 @@ export const HOME_LIVE_FEED_SUBHEAD =
 
 export const ABOUT_PILLARS = [
   {
-    title: "A clear stance on every name you track.",
-    body: "Personalized buy, hold, sell, or watch guidance on your holdings and watchlist. You know what to do and why.",
+    title: "Analyse any US stock.",
+    body: "Open a company page for financials, recent news, price history and market context.",
   },
   {
-    title: "We read the messy stuff for you.",
-    body: "Fundamentals, news, Reddit, earnings, and price action combined into one readable call.",
+    title: "See what changed.",
+    body: "We connect the latest company news, earnings, analyst changes and price movement.",
   },
   {
-    title: "Your stocks in one place.",
-    body: "Follow what you own and what you are watching. Context, scores, and calls per ticker on Radar.",
+    title: "Track the stocks you care about.",
+    body: "Add holdings and watchlist names to Radar so their research stays current.",
   },
   {
-    title: "Triggers when it matters.",
-    body: "Set levels or zones. Get emails when a stock moves into a buy or sell zone or your thesis shifts.",
+    title: "Come back when something changes.",
+    body: "Use alerts for earnings, price levels and important changes instead of checking every day.",
   },
 ] as const;
 
 export function stockMetaDescription(ticker: string): string {
   const upper = ticker.toUpperCase();
-  return `${upper} price, fundamentals, catalysts, and research-backed guidance in one place. Track it on your watchlist for earnings and price-zone alerts.`;
+  return `Analyse ${upper} with price history, financials, news and market context. Track it on stocksbrew Radar for ongoing research and alerts.`;
 }

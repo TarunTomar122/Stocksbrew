@@ -36,8 +36,8 @@ export function TierCTA({
       <div className="flex flex-col items-start gap-3 rounded-2xl tint-bull px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="min-w-0 text-[13px] font-medium leading-relaxed text-[#10b981]">
           {isSubscribed
-            ? "Pro is active. Track this stock for its detailed call, target, and alerts on Radar."
-            : "Add this stock to Radar for free. Pro unlocks the detailed call, Stocksbrew target, and alerts."}
+            ? "Track this stock to keep its research and alerts on Radar."
+            : "Track this stock free. Pro adds the full research, target and alerts."}
         </span>
         <div
           className={
@@ -63,7 +63,7 @@ export function TierCTA({
     return (
       <div className="flex flex-col items-start gap-2 rounded-2xl tint-info px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <span className="pr-2 text-[13px] font-medium leading-relaxed text-[#3b82f6]">
-          On your Radar. Pro keeps the call, target, and alert levels up to date.
+          This stock is on Radar. Pro keeps the full research, target and alerts current.
         </span>
         <div className={isTracked ? "shrink-0 self-end sm:self-auto" : "self-end sm:self-auto"}>
           <TrackButton
@@ -84,7 +84,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`Want the full read on ${ticker}?`}
-        body="Sign in to add it to Radar. Pro unlocks detailed zones, drivers, risks, our target price, and alerts."
+        body="Sign in to track it on Radar. Pro adds the full research, target and alerts."
         primary={{
           label: "Start your 3-day free trial",
           onClick: async () => {
@@ -107,8 +107,8 @@ export function TierCTA({
   if (!isSubscribed) {
     return (
       <CtaCard
-        title={`Unlock the full ${ticker} setup`}
-        body="Pro gives you the detailed call and zones, the Stocksbrew target price, and Radar alerts."
+        title={`Unlock the full ${ticker} research`}
+        body="Pro adds the current view, price zones, target and Radar alerts."
         primary={{
           label: "Get Pro",
           onClick: () => router.push("/subscribe"),
@@ -123,7 +123,7 @@ export function TierCTA({
     return (
       <CtaCard
         title={`${ticker} is in your Radar`}
-        body="Radar is tracking it. Open the call, target, and alerts whenever the setup changes."
+        body="Open Radar for the latest research, target and alerts."
         action={
           <TrackButton
             ticker={ticker}
@@ -141,7 +141,7 @@ export function TierCTA({
   return (
     <CtaCard
       title={`Add ${ticker} to Radar`}
-      body="Choose Holding if you own it or Watching if you are waiting. Pro adds the detailed call, target, and alerts to both."
+      body="Choose Holding if you own it or Watching if you are still researching it."
       action={
         <TrackButton
           ticker={ticker}

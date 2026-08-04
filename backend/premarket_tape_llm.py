@@ -23,17 +23,19 @@ from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
 
-CACHE_VERSION = "premarket-tape-v3"
+CACHE_VERSION = "premarket-lines-v4-plain-language"
 BATCH_SIZE = 40
 MAX_TAPE_WORDS = 28
 
 TAPE_PROMPT = (
-    "You write pre-market tape lines for an investor morning email.\n"
+    "You write short pre-market notes for an investor morning email.\n"
     "Turn each raw headline/detail into one short plain-English sentence.\n"
     "Rules:\n"
     "- Max one sentence, about 25 words.\n"
     "- Say what happened and why it may matter for the stock pre-market.\n"
     "- No clickbait, no SEO phrasing, no 'here's why', no emojis.\n"
+    "- Use ordinary finance language. Never say 'the tape', 'calm', 'print', or 'risk-on'.\n"
+    "- Avoid 'this is not X, it is Y' and 'not just X, but Y' constructions.\n"
     "- Do not mention the publisher/source name.\n"
     "- If the input is vague, unrelated, or has no concrete event, return an empty tape_line for that ticker.\n"
     "- Treat the ticker/company mapping as a claim to verify, not as truth. The raw text must name that ticker or company.\n"

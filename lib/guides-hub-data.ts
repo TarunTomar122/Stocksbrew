@@ -39,17 +39,17 @@ export const COMPARISONS: HubLink[] = [
   {
     href: "/compare/stocksbrew-vs-finviz",
     title: "stocksbrew vs Finviz",
-    description: "Static screener tables vs AI briefs and Radar alerts on your names.",
+    description: "Compare Finviz screening with stocksbrew research and Radar tracking.",
   },
   {
     href: "/compare/stocksbrew-vs-tradingview",
     title: "stocksbrew vs TradingView",
-    description: "Charting platform vs daily buy/hold/sell calls on your watchlist.",
+    description: "Compare TradingView charts with stocksbrew research and Radar tracking.",
   },
   {
     href: "/compare/stocksbrew-vs-yahoo-finance",
     title: "stocksbrew vs Yahoo Finance",
-    description: "Portfolio tracking vs stance-based Radar intelligence.",
+    description: "Compare Yahoo Finance portfolio tracking with stocksbrew Radar.",
   },
   {
     href: "/compare/stocksbrew-vs-tickertape",
@@ -71,23 +71,13 @@ export const COMPARISONS: HubLink[] = [
 export const WORKFLOW_GUIDES: HubLink[] = [
   {
     href: "/blog/finviz-vs-tradingview-vs-stocksbrew",
-    title: "Daily market intelligence guide",
-    description: "How to build a 10-minute morning read without opening six tabs.",
+    title: "A daily US market workflow",
+    description: "A short way to check the market, your stocks, and the next events.",
   },
   {
     href: "/blog/track-stock-news-for-your-portfolio",
-    title: "Track news without noise",
-    description: "Filter headlines to your watchlist so you only see what moves your stocks.",
-  },
-  {
-    href: "/blog/stay-updated-on-stocks-without-checking-daily",
-    title: "Stay updated without checking daily",
-    description: "Digest-first workflow: Radar briefs and alerts instead of refreshing quotes.",
-  },
-  {
-    href: "/blog/buy-hold-sell-signals-explained",
-    title: "Buy, hold, sell signals",
-    description: "What stance-based calls mean and how they differ from price alerts on Radar.",
+    title: "Track stock news",
+    description: "Give filings and material company events priority over repeated headlines.",
   },
   {
     href: "/blog/watchlist-vs-portfolio-tracker",
@@ -95,14 +85,14 @@ export const WORKFLOW_GUIDES: HubLink[] = [
     description: "Keep research names separate from holdings so tracking stays clear.",
   },
   {
-    href: "/blog/portfolio-health-check-guide",
-    title: "Portfolio health check",
-    description: "Quarterly concentration and sector review in 20 minutes.",
+    href: "/blog/stock-news-catalyst-analysis",
+    title: "Check a stock-news catalyst",
+    description: "Verify what happened, when it happened, and whether it changes the business case.",
   },
   {
     href: "/blog/earnings-season-watchlist-playbook",
     title: "Earnings season playbook",
-    description: "Prep your watchlist two weeks before reports — timeline and mistakes to avoid.",
+    description: "Prepare for a report, read the filing, and record what changed.",
   },
   {
     href: "/use-cases",
@@ -112,7 +102,7 @@ export const WORKFLOW_GUIDES: HubLink[] = [
   {
     href: "/should-i-buy",
     title: "Should I Buy checker",
-    description: "Free AI scorecard on any US ticker. Add to Radar if you like the call.",
+    description: "A quick look at valuation, growth, quality, and momentum for any US ticker.",
   },
   {
     href: "/editorial-policy",

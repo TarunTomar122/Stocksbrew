@@ -120,7 +120,7 @@ export function buildBookRead(input: {
   } else if (stats.laggard && Math.abs(stats.laggard.changePct) >= 4) {
     parts.push(`${stats.laggard.ticker} is the main drag (${stats.laggard.changePct.toFixed(1)}%).`);
   } else if (stats.leader && stats.leader.changePct >= 4) {
-    parts.push(`${stats.leader.ticker} is carrying the tape (+${stats.leader.changePct.toFixed(1)}%).`);
+    parts.push(`${stats.leader.ticker} is the strongest mover (+${stats.leader.changePct.toFixed(1)}%).`);
   }
 
   if (pillars.overall !== null && parts.length < 2) {

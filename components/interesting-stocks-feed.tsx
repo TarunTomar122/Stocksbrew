@@ -151,7 +151,7 @@ export function InterestingStocksFeed({
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-[14px] font-semibold text-on-surface">Today&apos;s setups</p>
-        <p className="mt-1 text-[13px] text-on-surface-variant">The strongest setups on today&apos;s tape.</p>
+        <p className="mt-1 text-[13px] text-on-surface-variant">Stocks worth a closer look today.</p>
       </div>
       <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface">
         <div className="hidden grid-cols-[minmax(150px,0.75fr)_120px_118px_100px_minmax(280px,1.55fr)] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant lg:grid">

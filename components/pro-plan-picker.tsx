@@ -208,10 +208,10 @@ export function ProPlanPicker() {
 
       <div className="pro-compare-social mx-auto mt-10 max-w-2xl rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4 text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
-          One Pro workflow
+          Pro in one sentence
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
-          Read the call and target, add the stock to Radar, then let alerts bring you back when the setup changes.
+          Track every stock you care about, read the full research, and choose the alerts you want.
         </p>
       </div>
     </div>

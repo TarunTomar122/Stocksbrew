@@ -15,7 +15,7 @@ const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   tikrr_top:          { title: "Top stocksbrew Score",   subtitle: "Stocks with the best overall score across growth, momentum, quality and valuation." },
   quality_compounders:{ title: "Quality Compounders",    subtitle: "Strong businesses built to grow year after year." },
   cheap_growth:       { title: "Growth at a Fair Price", subtitle: "Still growing fast, not priced for perfection yet." },
-  momentum_leaders:   { title: "On a Tear",              subtitle: "Leading the tape with the long-term trend intact." },
+  momentum_leaders:   { title: "On a Tear",              subtitle: "Strong recent gains with the longer trend intact." },
   oversold_quality:   { title: "Quality on Sale",        subtitle: "Great businesses that just got marked down." },
   near_52w_high:      { title: "Near New Highs",         subtitle: "Stocks within 3% of their 52-week peak." },
   smart_money:        { title: "Where the Pros Are",     subtitle: "Heavy institutional ownership, solid overall scores." },

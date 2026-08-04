@@ -54,9 +54,9 @@ const PLANS_IN = [
 ];
 
 const PRO_HIGHLIGHTS = [
-  { icon: "verified", text: "Calls, zones, drivers, and risks" },
-  { icon: "flag", text: "Target price and room from today" },
-  { icon: "notifications_active", text: "Unlimited Radar and alerts" },
+  { icon: "verified", text: "Deeper research, drivers, and risks" },
+  { icon: "flag", text: "Analyst targets in context" },
+  { icon: "notifications_active", text: "Unlimited Radar tracking" },
 ];
 
 async function devActivateSubscription(period: "monthly" | "yearly"): Promise<string> {

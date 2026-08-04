@@ -23,10 +23,10 @@ export function LandingHeroSkeleton() {
       <div className="lg:pb-5">
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-primary">Stocksbrew</p>
         <h1 className="max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-0.045em] text-on-surface sm:text-5xl lg:text-[3.75rem]">
-          Know when to buy, hold, or walk away.
+          Analyse and track US stocks with AI
         </h1>
         <p className="mt-5 max-w-lg text-base leading-7 text-on-surface-variant">
-          See the current call, levels, and risks. We will alert you when there is a reason to look again.
+          Search any US stock for financials, news and market context.
         </p>
         <div className="mt-7 space-y-3" aria-hidden>
           <Bone className="h-14 w-full rounded-full" />

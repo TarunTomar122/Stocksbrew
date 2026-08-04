@@ -173,14 +173,14 @@ export default async function BlogPostPage({ params }: Props) {
 
           <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
             <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
-              Give your AI current stock context
+              Analyse a stock on stocksbrew
             </h3>
             <p className="text-[14px] text-[#6b7280] mb-5">
-              Connect a compatible agent to current calls, targets, drivers, risks, and freshness.
+              Search any US stock for financials, news and market context.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Link href="/radar" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform">Try stocksbrew Free →</Link>
-              <Link href="/agents" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full border border-[#d1d5db] bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:border-[#111111] transition-colors">Explore agent access</Link>
+              <Link href="/stocks" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform">Search US stocks →</Link>
+              <Link href="/radar" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full border border-[#d1d5db] bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:border-[#111111] transition-colors">Open Radar</Link>
             </div>
           </div>
 

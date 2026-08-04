@@ -14,7 +14,7 @@ export function PulseHubHero({ topline }: { topline?: PulseTopline | null }) {
     <section className="pulse-hero">
       <div>
         <p className="landing-section-kicker text-landing-brand">Market pulse</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">What is worth opening today?</h1>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">What is moving today?</h1>
 
         {topline?.lead ? (
           <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-on-surface-variant">

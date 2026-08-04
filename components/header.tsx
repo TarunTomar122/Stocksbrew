@@ -28,7 +28,7 @@ type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; 
 
 // Primary nav: market context, social attention, then the user's Radar.
 const NAV_ITEMS: NavItem[] = [
-  { href: "/pulse",     label: "Pulse",  icon: "monitoring" },
+  { href: "/pulse",     label: "Market",  icon: "monitoring" },
   { href: "/market-daily", label: "Daily", icon: "newspaper" },
   { href: "/social",    label: "Social", icon: "forum" },
   { href: "/watchlist", label: "Radar",  icon: "radar" },

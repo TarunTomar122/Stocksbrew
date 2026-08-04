@@ -599,7 +599,7 @@ def _row_attention(
         }
     return {
         "attention_score": 35,
-        "attention_reason": f"{ticker} is calm. No major price, technical, alert, or news anomaly stood out.",
+        "attention_reason": f"Nothing material has changed for {ticker} today.",
         "attention_kind": "calm",
         "suggested_action": "Hold thesis" if position_type == "holding" else "Keep on watch",
         "action_tone": "neutral",
@@ -952,7 +952,7 @@ def _pulse_headline(rows: list[dict[str, Any]]) -> dict[str, Any]:
     elif len(movers_down) > len(movers_up):
         mood = "Mostly red"
     else:
-        mood = "Mixed tape"
+        mood = "A mixed day"
 
     pieces = []
     if alert_count:
@@ -1092,7 +1092,7 @@ def _fallback_portfolio_brief(rows: list[dict[str, Any]], pulse: dict[str, Any])
         "signals": [
             {
                 "tag": "Breadth",
-                "headline": pulse.get("headline", "Mixed tape"),
+                "headline": pulse.get("headline", "A mixed day"),
                 "body": pulse.get("subtitle", "Watchlist breadth is mixed."),
                 "detail": "This fallback uses prices, factor scores, and alert flags while the personalized LLM brief is unavailable.",
                 "vibe": "neutral",

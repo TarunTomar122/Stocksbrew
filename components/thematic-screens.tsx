@@ -34,7 +34,7 @@ const FRIENDLY_COPY: Record<string, { title: string; subtitle: string }> = {
   },
   momentum_leaders: {
     title: "On a Tear",
-    subtitle: "Leading the tape with the long-term trend intact.",
+    subtitle: "Strong recent gains with the longer trend intact.",
   },
   oversold_quality: {
     title: "Quality on Sale",

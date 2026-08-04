@@ -99,7 +99,7 @@ def _fallback_brief(
         ticker = str(top.get("ticker") or "").strip().upper()
         move = float(top.get("day_change_pct") or 0)
         story = anomaly_tape_line(top).strip()
-        top_line = f"{ticker} led the tape ({move:+.1f}%)."
+        top_line = f"{ticker} was the biggest mover ({move:+.1f}%)."
         if story:
             top_line += f" {story}"
 

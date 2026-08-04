@@ -27,18 +27,18 @@ export const USE_CASES: UseCase[] = [
     title: "Dividend & income investing",
     headline: "Track payout safety without reading every press release",
     description:
-      "Monitor dividend holdings on Radar, catch guidance changes after earnings, and stay ahead of ex-dates with a weekly digest.",
+      "Monitor dividend holdings on Radar, catch guidance changes after earnings, and keep upcoming dates together.",
     pain:
       "Income investors need to know when a payout is at risk, when guidance shifts, and when ex-dates approach. Reading every filing is not realistic.",
     steps: [
       { text: "Add dividend holdings to Radar as holdings.", href: "/watchlist", linkLabel: "Open Radar" },
-      { text: "Read AI briefs for trim or hold signals after earnings." },
+      { text: "Read the AI brief after earnings to see what changed." },
       { text: "Sync your list to the earnings calendar.", href: "/earnings", linkLabel: "Earnings calendar" },
       { text: "Enable email digest on your profile for weekly call changes.", href: "/profile", linkLabel: "Profile settings" },
     ],
     features: [
-      { name: "Radar", href: "/watchlist", description: "Daily directives on each income name" },
-      { name: "Earnings Intel", href: "/earnings-intel", description: "Post-print guidance read-throughs" },
+      { name: "Radar", href: "/watchlist", description: "Research and alerts for each income stock" },
+      { name: "Earnings Intel", href: "/earnings-intel", description: "What changed after the report" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Score new yield ideas before adding" },
       { name: "News timeline", href: "/news", description: "Filter headlines to your holdings" },
     ],
@@ -97,19 +97,19 @@ export const USE_CASES: UseCase[] = [
   {
     slug: "earnings-season",
     title: "Earnings season prep",
-    headline: "Know report dates and the post-print so what without ten tabs open",
+    headline: "Keep report dates and earnings research in one place",
     description:
       "Use Earnings Intel for AI briefs, sync Radar to the calendar, and get flags on names reporting in the next five sessions.",
     pain:
-      "Earnings season means scattered dates, surprise guidance, and post-print moves you need to interpret quickly across a watchlist.",
+      "Earnings season brings scattered dates, changed guidance, and new filings across every stock you follow.",
     steps: [
       { text: "Add reporting names to Radar before the week starts.", href: "/watchlist", linkLabel: "Radar" },
       { text: "Check the earnings calendar against your list.", href: "/earnings", linkLabel: "Calendar" },
-      { text: "Read Earnings Intel for pre- and post-print context.", href: "/earnings-intel", linkLabel: "Earnings Intel" },
+      { text: "Read Earnings Intel before and after the report.", href: "/earnings-intel", linkLabel: "Earnings Intel" },
       { text: "Enable digest email so call changes land in your inbox.", href: "/profile", linkLabel: "Profile" },
     ],
     features: [
-      { name: "Earnings Intel", href: "/earnings-intel", description: "AI post-earnings briefs per ticker" },
+      { name: "Earnings Intel", href: "/earnings-intel", description: "AI earnings research for each ticker" },
       { name: "Earnings calendar", href: "/earnings", description: "Dates synced to your workflow" },
       { name: "Radar", href: "/watchlist", description: "Flags names reporting soon" },
       { name: "Should I Buy", href: "/should-i-buy", description: "Re-score after a big print" },
@@ -121,7 +121,7 @@ export const USE_CASES: UseCase[] = [
       },
       {
         question: "Can I prep before the report?",
-        answer: "Yes. Radar briefs include upcoming catalyst context. Read Earnings Intel after the print for the structured so-what.",
+        answer: "Yes. Radar briefs include upcoming catalyst context. Read Earnings Intel after the report to see what changed.",
       },
       {
         question: "How is this different from a earnings calendar app?",
@@ -167,11 +167,11 @@ export const USE_CASES: UseCase[] = [
   {
     slug: "day-trading",
     title: "Day trading and active trading",
-    headline: "Pre-market prep and real-time narrative intelligence for active traders",
+    headline: "See the overnight moves before the market opens",
     description:
       "Use Premarket for overnight moves, Market Heat for momentum scanning, and Radar for tracking setups across multiple names.",
     pain:
-      "Active traders need fast pre-market context, momentum scanning during the day, and alerts when setups invalidate. Most intelligence tools are built for long-term investors, not traders.",
+      "Active traders need fast pre-market context, momentum scanning, and alerts when a setup changes.",
     steps: [
       { text: "Check Premarket before the open for overnight movers.", href: "/premarket", linkLabel: "Premarket" },
       { text: "Scan Market Heat during the day for sector momentum.", href: "/heat", linkLabel: "Market Heat" },
@@ -187,7 +187,7 @@ export const USE_CASES: UseCase[] = [
     faqs: [
       {
         question: "Does stocksbrew provide real-time data?",
-        answer: "stocksbrew focuses on AI narrative intelligence, not real-time price feeds. Use your brokerage for execution and stocksbrew for context and idea generation.",
+        answer: "Stocksbrew explains the market and the stocks you follow. Use your brokerage for live execution and order data.",
       },
       {
         question: "Can stocksbrew replace my charting platform?",

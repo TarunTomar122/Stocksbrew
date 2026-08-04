@@ -77,10 +77,10 @@ export default function GuidesPage() {
             Guides
           </span>
           <h1 className="text-[40px] md:text-[52px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
-            Stock research, one place to start
+            Learn how to research a US stock
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55]">
-            Free tools, comparisons, and tutorials for US investors. Pick a path below, or jump straight to{" "}
+            Pick a guide, compare a tool, or open{" "}
             <Link href="/watchlist" className="font-medium text-[#111111] underline underline-offset-2 hover:text-[#0052ff]">
               Radar
             </Link>{" "}
@@ -91,7 +91,7 @@ export default function GuidesPage() {
               href="/watchlist"
               className="inline-flex items-center h-[40px] px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold hover:-translate-y-[1px] transition-transform"
             >
-              Open Radar →
+              Track a stock →
             </Link>
             <Link
               href="/should-i-buy"
@@ -105,7 +105,7 @@ export default function GuidesPage() {
         <section className="flex flex-col gap-5">
           <div>
             <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Start here</h2>
-            <p className="text-[14px] text-[#6b7280] mt-1">Three common entry points depending on where you are.</p>
+            <p className="text-[14px] text-[#6b7280] mt-1">Choose the job you need to do.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {START_PATHS.map((path, idx) => (
@@ -134,7 +134,7 @@ export default function GuidesPage() {
         <section className="flex flex-col gap-5">
           <div>
             <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Compare research stacks</h2>
-            <p className="text-[14px] text-[#6b7280] mt-1">Honest side-by-sides when you are choosing a workflow.</p>
+            <p className="text-[14px] text-[#6b7280] mt-1">See which tool fits the way you research.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {COMPARISONS.map((item) => (
@@ -157,8 +157,8 @@ export default function GuidesPage() {
 
         <section className="rounded-2xl border border-[#e5e7eb] bg-white p-6 md:p-8 flex flex-col gap-6">
           <div>
-            <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Weekly research rhythm</h2>
-            <p className="text-[14px] text-[#6b7280] mt-1">A simple cadence so you stay informed without living in the app.</p>
+            <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">A simple weekly check</h2>
+            <p className="text-[14px] text-[#6b7280] mt-1">A short routine for the stocks you follow.</p>
           </div>
           <ol className="flex flex-col gap-4">
             {WEEKLY_WORKFLOW.map((step) => (

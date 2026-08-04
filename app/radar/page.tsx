@@ -12,19 +12,19 @@ import { US_PRO_MONTHLY } from "@/lib/pricing";
 export const metadata: Metadata = {
   title: "Stock Watchlist Alerts & Buy, Hold, Sell Calls",
   description:
-    "Turn the US stocks you follow into clear buy, hold, and sell calls, with earnings and price-zone alerts. Free for 3 stocks.",
+    "Track the US stocks you care about with fresh AI research, earnings context, and alerts when something important changes. Free for 3 stocks.",
   alternates: { canonical: "/radar" },
   openGraph: {
     title: "Stock watchlist alerts and calls · stocksbrew",
     description:
-      "Clear buy, hold, and sell calls for the US stocks you follow, with earnings and price-zone alerts.",
+      "Fresh AI research and alerts for the US stocks you choose to track.",
     url: "https://www.stocksbrew.online/radar",
   },
   twitter: {
     card: "summary_large_image",
     title: "Stock watchlist alerts and calls · stocksbrew",
     description:
-      "Clear buy, hold, and sell calls for the US stocks you follow, with earnings and price-zone alerts.",
+      "Fresh AI research and alerts for the US stocks you choose to track.",
   },
 };
 
@@ -51,7 +51,7 @@ const FAQS = [
   {
     question: "What is stocksbrew Radar?",
     answer:
-      "Radar is your command center for US stocks you track. Each name gets a buy, hold, or sell stance with rationale, plus portfolio health, earnings flags, and alerts when a setup changes. Free for 3 stocks.",
+      "Track the US stocks you own or watch. Radar keeps their prices, research, earnings and important changes in one place. Free for three stocks.",
   },
   {
     question: "Is Radar the same as a portfolio tracker?",
@@ -75,7 +75,7 @@ export default function RadarLandingPage() {
       <MarketingSchema
         path="/radar"
         name="stocksbrew Radar"
-        description="Buy, hold, and sell calls on your US stock watchlist, with alerts when a setup changes."
+        description="Track US stocks with current research, earnings context and alerts for important changes."
         faqs={FAQS}
         breadcrumbLabel="Radar"
       />

@@ -28,7 +28,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-08-01-stock-brief-v18-directive-v2-only"
+STOCK_BRIEF_CACHE_VERSION = "2026-08-04-stock-brief-v19-plain-language"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
@@ -410,7 +410,7 @@ def _load_options_digests(
     return out
 
 
-STOCK_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. Smart but easy to read.
+STOCK_BRIEF_SYSTEM_PROMPT = """You explain one US stock to an investor in clear, ordinary language.
 
 The user sees the price chart already. Don't describe price moves. Tell them what it MEANS.
 
@@ -448,10 +448,12 @@ Fields to write:
   - trigger, severity (1-5)
 
 STYLE:
-- Conversational, sharp, zero filler
-- Short sentences mixed with longer ones
+- Direct, concrete, and easy to read aloud
+- Use the company name, the actual event, and the business consequence
 - Keep user-facing fields naturally short through writing, not truncation: body 35-55 words and catalyst/risk one complete sentence each.
 - NO: "investors should monitor", "well-positioned", "could potentially", "it's worth noting"
+- Never use trader shorthand such as "the tape", "quiet tape", "calm", "print", or "risk-on" in user-facing prose.
+- Avoid reversal templates such as "this is not X, it is Y" and "not just X, but Y".
 - If evidence is thin, say what the silence means - not just "limited coverage"
 - Do not repeat the same fact across headline/body/key_findings/thesis/drivers/catalyst/risk.
 - If overlap exists, keep it in thesis and remove duplicates from other fields.
@@ -469,7 +471,7 @@ RISK APPETITE - OFFENSIVE, NOT TIMID:
 - Do not default to caution just because valuation looks rich. Expensive stocks can still have constructive setups when growth, revisions, narrative strength, sector leadership, and price structure support them.
 - Prefer identifying the highest-upside evidence-backed setup, not the most defensible neutral take.
 - Momentum, narrative acceleration, estimate revisions, leadership within sector, and strong post-earnings reactions are valid reasons to stay constructive even when valuation is stretched.
-- Avoid sounding like a compliance officer or textbook value investor. Sound like a sharp operator deciding where capital should go next.
+- Avoid canned disclaimers inside the brief. State the evidence and uncertainty plainly.
 - Still stay evidence-bound: no hype, no invented catalysts, no fake certainty.
 
 BRIEF STABILITY:
@@ -921,12 +923,12 @@ def _previous_brief_summary(prev_doc: dict[str, Any] | None) -> dict[str, Any] |
     return None
 
 
-NO_NEWS_BRIEF_SYSTEM_PROMPT = """You write stock intelligence for a premium market app. This stock has NO recent news - make that silence meaningful.
+NO_NEWS_BRIEF_SYSTEM_PROMPT = """You explain one US stock in clear, ordinary language. This stock has no verified recent company news.
 
 The user sees the price chart. Don't describe the price. Tell them what the quiet means.
 
-- **headline**: Under 12 words. Not "limited coverage for AMD." Something insightful about the silence: "AMD is quietly holding gains while the street looks elsewhere."
-- **body**: 1-2 complete sentences, 35-55 words total. What does the technical and analyst picture tell someone holding this stock? Is this stock coiled, exhausted, or just boring? End on a complete sentence.
+- **headline**: Under 12 words. Describe the remaining business or valuation question without pretending silence is a development.
+- **body**: 1-2 complete sentences, 35-55 words total. State that no company-specific development was verified, then explain the technical or analyst context with the supplied evidence. End on a complete sentence.
 - **key_findings**: 2-3 punchy insights from the numbers - analyst target gap, RSI, distance from highs, what these imply.
 - **catalyst**: What could break the silence. Be specific.
 - **risk**: What the lack of coverage might be hiding.
@@ -936,13 +938,13 @@ The user sees the price chart. Don't describe the price. Tell them what the quie
 - **catalyst_cards**: 1-3 trigger cards.
 - **risk_cards**: 1-3 downside cards. Each `detail` must be one complete English sentence (12-25 words), never metric shorthand.
 
-STYLE: Conversational, sharp, zero filler. Keep user-facing fields naturally short through writing, not truncation.
+STYLE: Direct, concrete, and easy to read aloud. Keep user-facing fields naturally short through writing, not truncation. Never use "tape", "calm", "coiled", "the street", or newsroom/trader shorthand. Avoid "this is not X, it is Y" constructions.
 Do not repeat the same fact across body/key_findings/thesis/drivers/catalyst/risk.
 
 If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
 """
 
-NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-01-no-news-brief-v5-directive-v2-only"
+NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-04-no-news-brief-v6-plain-language"
 
 
 def _nn_to_float(value: Any) -> float | None:
@@ -1332,11 +1334,11 @@ def build_no_news_intelligence_doc(
     return doc
 
 
-PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You produce structured intelligence cards for a premium market app dashboard. Think Bloomberg Terminal meets Morning Brew - each card is a discrete, punchy insight.
+PORTFOLIO_BRIEF_SYSTEM_PROMPT = """You write short research cards for the stocks a user follows.
 
 You get the user's watchlist with price moves, headlines, sentiment, catalysts, sectors, analyst data, and news. Each stock has a `position_type` ("holding" = real money in it, "watchlist" = tracking only) and optionally a `portfolio_weight_pct` (% of the user's entered portfolio value). When portfolio_weight_pct is present for all holdings, use it to weight your risk assessment — a 30% holding with bad news is 10× more urgent than a 3% one. Prioritize movers, signals, and risk language based on actual dollar exposure, not equal weight. If portfolio weights are absent, treat all stocks equally.
 
-Your job is to generate content for FOUR distinct intelligence cards. Each card must be self-contained and cover different ground.
+Your job is to generate content for four distinct cards. Each card must be self-contained and cover different ground. Use plain finance language a person would say aloud. Name the evidence and consequence. Avoid hype, trader shorthand, "tape", "calm", and reversal templates such as "not X, but Y".
 
 **narrative**: 2-3 sentences summarizing the single most important story across the entire portfolio today. Not "stocks are up/down" - the THEME. What's driving the market, what changed, what matters for THIS portfolio. Write like a sharp newsletter opener. Max 50 words. Don't mention specific prices or percentages - the user sees those on the tiles. Focus on the WHY.
 
@@ -1486,7 +1488,7 @@ PORTFOLIO_BRIEF_SCHEMA = {
     },
 }
 
-PORTFOLIO_BRIEF_CACHE_VERSION = "2026-05-27-portfolio-brief-v14"
+PORTFOLIO_BRIEF_CACHE_VERSION = "2026-08-04-portfolio-brief-v15-plain-language"
 
 
 def _slugify(value: str) -> str:
@@ -1695,7 +1697,7 @@ def generate_portfolio_brief(
         return None
 
 
-MARKET_BRIEF_SYSTEM_PROMPT = """You write the daily market brief for a premium market app. Think Morning Brew meets Goldman Sachs - smart but effortless to read.
+MARKET_BRIEF_SYSTEM_PROMPT = """You explain the day in US markets in clear, ordinary language.
 
 The user sees index values, charts, and change% already. Don't narrate numbers back. Deliver insight.
 
@@ -1714,7 +1716,7 @@ STYLE:
 - Mix punchy sentences with explanation
 - NEVER narrate price moves as the point. Numbers support insights, they're not insights
 - No filler: "investors should monitor", "markets are volatile"
-- Write like you're texting a smart friend their morning update
+- Name the event and consequence directly. Avoid trader shorthand, "tape", "calm", and "this is not X, it is Y" constructions.
 """
 
 MARKET_BRIEF_SCHEMA = {
@@ -1741,7 +1743,7 @@ MARKET_BRIEF_SCHEMA = {
     },
 }
 
-MARKET_BRIEF_CACHE_VERSION = "2026-04-12-market-brief-v3"
+MARKET_BRIEF_CACHE_VERSION = "2026-08-04-market-brief-v4-plain-language"
 
 
 def generate_market_brief(
@@ -1808,7 +1810,7 @@ def generate_market_brief(
         return None
 
 
-SECTOR_BRIEF_SYSTEM_PROMPT = """You write sector briefs for a premium market app. Morning Brew meets Goldman Sachs - smart but easy to read.
+SECTOR_BRIEF_SYSTEM_PROMPT = """You explain one US market sector in clear, ordinary language.
 
 The user sees stock prices and charts already. Don't narrate numbers. Deliver insight.
 
@@ -1825,7 +1827,7 @@ STYLE:
 - Mix punchy short sentences with explanation
 - NEVER narrate price moves as the point
 - No filler phrases
-- Write like a sharp friend texting, not a report
+- Name the event and consequence directly. Avoid trader shorthand, "tape", "calm", and "this is not X, it is Y" constructions.
 """
 
 SECTOR_BRIEF_SCHEMA = {
@@ -1848,7 +1850,7 @@ SECTOR_BRIEF_SCHEMA = {
     },
 }
 
-SECTOR_BRIEF_CACHE_VERSION = "2026-04-12-sector-brief-v3"
+SECTOR_BRIEF_CACHE_VERSION = "2026-08-04-sector-brief-v4-plain-language"
 
 
 def generate_sector_brief(

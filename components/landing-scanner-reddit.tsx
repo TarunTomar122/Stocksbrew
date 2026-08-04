@@ -152,7 +152,7 @@ export function LandingScannerReddit({
           <footer className="flex flex-col gap-2 border-t border-outline-variant px-5 py-4 text-[12px] text-on-surface-variant sm:flex-row sm:items-center sm:justify-between md:px-6">
             <div className="flex items-center gap-2">
               <AnimatedIcon name="lightbulb" size={16} className="text-[16px] text-on-surface-variant" />
-              Stay informed. Daily market movers and what investors are talking about.
+              A live look at unusual moves and the conversations around them.
             </div>
             {dataLabel ? <p className="shrink-0 sm:text-right">Data as of {dataLabel}</p> : null}
           </footer>

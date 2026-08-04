@@ -563,7 +563,7 @@ export function PremarketPageView({
             <div className={SUB_HEAD}>
               <div>
                 <p className={KICK}>Global handoff</p>
-                <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Market tape</h2>
+                <h2 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface">Global markets</h2>
               </div>
               <span className="font-mono text-[10px] text-on-surface-variant">
                 {embedded ? `${Math.min(5, sortedCues.length)} of ${sortedCues.length}` : sortedCues.length} markets
@@ -604,7 +604,7 @@ export function PremarketPageView({
             <section className={`${SUB} overflow-hidden`}>
               <div className="flex items-end justify-between gap-3 border-b border-outline-variant/60 px-4 py-3.5 sm:px-5">
                 <div>
-                  <p className={KICK}>Social tape</p>
+                  <p className={KICK}>Investor discussion</p>
                   <p className="mt-1 text-[24px] font-extrabold tabular-nums" style={{ color: toneColor(socialTone) }}>{data.social.sentiment_score >= 0 ? "+" : ""}{data.social.sentiment_score.toFixed(0)}</p>
                 </div>
                 <div className="text-right font-mono text-[9.5px] text-on-surface-variant">

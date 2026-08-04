@@ -9,7 +9,7 @@ import { SubscriptionActivator } from "@/components/subscription-activator";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
-  description: "Try Stocksbrew Pro free for 3 days. Get detailed calls and zones, Stocksbrew targets, unlimited Radar, alerts, and current stock context for your AI.",
+  description: "Track unlimited US stocks with deeper AI research, Radar alerts, target context, and connected AI access.",
   alternates: { canonical: "/subscribe" },
   openGraph: {
     title: "stocksbrew Pro - Pricing & Plans",

@@ -89,7 +89,7 @@ const OVERVIEW_DEMO_TILES: SignalTileModel[] = [
     bg: "#ecfdf5",
     label: "Revenue YoY",
     headline: "+18.4%",
-    supporting: "Solid growth tape",
+    supporting: "Revenue is still growing",
     tone: "up",
   },
   {

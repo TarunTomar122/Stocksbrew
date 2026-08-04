@@ -884,7 +884,7 @@ function rowAttention(
   }
   return {
     attention_score: 35,
-    attention_reason: `${ticker} is calm. No major price, technical, alert, or news anomaly stood out.`,
+    attention_reason: `Nothing material has changed for ${ticker} today.`,
     attention_kind: "calm",
     suggested_action: positionType === "holding" ? "Hold thesis" : "Keep on watch",
     action_tone: "neutral",
@@ -2658,7 +2658,7 @@ function pulseFromRows(rows: WatchlistRow[]): WatchlistPulse {
     : null;
   const alertCount = rows.reduce((s, r) => s + r.alerts.length, 0);
 
-  let headline = "Mixed tape";
+  let headline = "A mixed day";
   if (up.length && !down.length) headline = "Green across the board";
   else if (down.length && !up.length) headline = "Red across the board";
   else if (up.length > down.length) headline = "Mostly green";

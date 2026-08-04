@@ -12,7 +12,7 @@ const COLUMNS: Column[] = [
   {
     title: "Product",
     links: [
-      { label: "Market Pulse", href: "/pulse" },
+      { label: "Market today", href: "/pulse" },
       { label: "Social", href: "/social" },
       { label: "Radar", href: "/radar" },
       { label: "Pre-market movers", href: "/premarket" },

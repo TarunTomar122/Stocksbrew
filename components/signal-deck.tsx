@@ -265,7 +265,7 @@ function collectSignals({
         revGrowth >= 25
           ? "High-growth top line"
           : revGrowth >= 15
-            ? "Solid growth tape"
+            ? "Revenue is still growing"
             : revGrowth >= 0
               ? "Steady but slowing"
               : "Top line going backwards",

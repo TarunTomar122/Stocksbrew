@@ -69,7 +69,7 @@ const BASE_SLIDES: Slide[] = [
   {
     id: "hold",
     verb: "Hold",
-    line: "Noisy tape, steady thesis - AI keeps the story tied to filings + margins.",
+    line: "Price moved, the business case did not. Check the filings and margins.",
     tone: "slate",
   },
   {

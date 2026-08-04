@@ -27,7 +27,7 @@ export function RadarNextSignedOut() {
         actions={
           <StartRadarButton
             surface="radar_page"
-            signedOutLabel="Start your 3-day free trial"
+            signedOutLabel="Track 3 stocks free"
             signedInLabel="Open Radar"
             className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] no-underline disabled:opacity-60"
           />
@@ -48,15 +48,15 @@ export function RadarNextSignedOut() {
       <section className="rounded-2xl bg-[var(--rn-ink)] px-5 py-7 text-center text-[var(--rn-card)] sm:px-8 sm:py-9">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] opacity-65">Make it yours</span>
         <h2 className="mx-auto mt-2 max-w-xl text-[24px] font-extrabold leading-tight tracking-[-0.035em] sm:text-[32px]">
-          Stop reopening five tabs to check the same stocks.
+          Keep the stocks you follow in one place.
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-[13px] leading-relaxed opacity-70">
-          Add up to three stocks free. Radar keeps the call, live price, material changes, and next checkpoint together.
+          Add up to three stocks free. Radar keeps their price, research and important changes together.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
           <StartRadarButton
             surface="radar_page"
-            signedOutLabel="Start your 3-day free trial"
+            signedOutLabel="Track 3 stocks free"
             signedInLabel="Add my first stock"
             className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-card)] px-5 py-2.5 text-[13px] font-bold text-[var(--rn-ink)] no-underline disabled:opacity-60"
           />
@@ -89,7 +89,7 @@ export function RadarNextEmpty({ header, picks, trackedIds }: RadarNextEmptyProp
             Add a stock you own or genuinely watch
           </h2>
           <p className="mt-2 max-w-lg text-[13.5px] leading-relaxed text-[var(--rn-muted)]">
-            Radar will keep its live price, current call, meaningful changes, and next checkpoint in one place.
+            Radar keeps its live price, latest research and important changes in one place.
           </p>
           <StarterPicks
             picks={picks}

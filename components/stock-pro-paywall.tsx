@@ -14,16 +14,16 @@ import { signInWithGoogle } from "@/lib/sign-in";
 import type { StockIntelPro } from "@/lib/types";
 
 const BENEFITS = [
-  "Daily directive: buy, hold, sell, or watch",
-  "Big news and headlines tied to the call",
-  "Catalysts, earnings, and risks flagged",
-  "Sentiment from news, analysts, and the crowd",
+  "A current add, hold, trim, or watch view",
+  "The news connected to the company",
+  "Earnings, catalysts, and risks in one brief",
+  "Analyst and investor context",
 ];
 
 const UNLOCK_ROWS = [
   {
-    label: "Strategic directive",
-    detail: "One clear stance on the name",
+    label: "Current view",
+    detail: "What the research supports today",
   },
   {
     label: "News read",
@@ -76,8 +76,7 @@ function ProUnlockSketch({ ticker }: { ticker: string }) {
         ))}
       </div>
       <p className="text-[11px] leading-relaxed text-on-surface-variant">
-        Pro picks one live stance each morning after reading the news. This is not a recommendation
-        on {ticker}.
+        The live page uses current evidence. This sketch is not a recommendation on {ticker}.
       </p>
     </div>
   );
@@ -136,8 +135,7 @@ export function StockProPaywall({
             Know when to buy, hold, or sell {ticker}
           </h2>
           <p className="text-[14px] leading-relaxed text-on-surface-variant">
-            Scores are above. Pro reads the news on {ticker}, flags the catalyst, and gives you one
-            daily call plus the full AI brief.
+            Pro connects {ticker}&apos;s financials, news, catalysts and risks in one current brief.
           </p>
         </div>
 

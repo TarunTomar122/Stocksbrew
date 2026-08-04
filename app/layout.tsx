@@ -60,10 +60,10 @@ const jsonLd = {
       applicationCategory: "FinanceApplication",
       operatingSystem: "All",
       featureList: [
-        "Stock calls and target context",
-        "Radar tracking and alerts",
-        "Current structured stock context for AI agents",
-        "Read-only stock intelligence API",
+        "US stock financials, news, and market context",
+        "Radar tracking and material-change alerts",
+        "AI research briefs for tracked stocks",
+        "Structured stock data for connected AI tools",
       ],
       offers: {
         "@type": "Offer",
@@ -92,11 +92,13 @@ export const metadata: Metadata = {
   },
   description: MEDIUM_DESCRIPTION,
   keywords: [
-    "stock calls",
-    "buy hold sell guidance",
-    "risk flags",
-    "investment opportunities",
-    "watchlist radar",
+    "stock analysis app",
+    "AI stock research",
+    "US stock analysis",
+    "stock watchlist app",
+    "stock news alerts",
+    "stock financials",
+    "Radar stock tracking",
     "stock analysis",
     "AI briefs",
     "portfolio tracking",
@@ -203,7 +205,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <meta property="og:image" content="https://www.stocksbrew.online/api/og" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="stocksbrew — clear buy, hold, and sell calls on US stocks" />
+        <meta property="og:image:alt" content="stocksbrew — analyse and track US stocks with AI" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="https://www.stocksbrew.online/api/og" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

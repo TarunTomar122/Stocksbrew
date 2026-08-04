@@ -462,7 +462,7 @@ def deterministic_drivers(
     if social.get("available"):
         social_score = _number(social.get("sentiment_score"))
         drivers.append({
-            "title": "Social tape",
+            "title": "Investor discussion",
             "detail": f"Reddit mention balance is {social_score:+.0f} on the latest monitored investing conversations.",
             "tone": "positive" if social_score > 10 else "negative" if social_score < -10 else "neutral",
         })

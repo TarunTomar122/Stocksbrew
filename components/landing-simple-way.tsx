@@ -1,15 +1,15 @@
 const STEPS = [
   {
-    title: "Read the current view",
-    body: "See whether the setup is looking better, worse, or mostly unchanged.",
+    title: "Search a stock",
+    body: "Open any US company for financials, news, price history and market context.",
   },
   {
-    title: "Know the levels",
-    body: "Find the buy zone, trim zone, target, and the assumptions behind them.",
+    title: "Add it to Radar",
+    body: "Track a company you own or want to follow. Your first three are free.",
   },
   {
-    title: "Come back when it matters",
-    body: "Get notified about earnings, price levels, and other changes you choose to track.",
+    title: "We keep researching",
+    body: "Get an alert when earnings, news or a price level gives you a reason to look again.",
   },
 ] as const;
 
@@ -20,10 +20,10 @@ export function LandingSimpleWay() {
         <div className="max-w-2xl">
           <p className="landing-section-kicker text-landing-brand">How it works</p>
           <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl">
-            A simple way to keep up with a stock.
+            Search once. Track what matters.
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-on-surface-variant">
-            Most stock apps are built to keep you scrolling. StocksBrew is built for the stocks you have already decided are worth following.
+            Start with a company page. Add it to Radar when you want us to keep watching it.
           </p>
         </div>
 

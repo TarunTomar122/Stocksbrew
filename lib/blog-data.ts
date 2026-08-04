@@ -533,14 +533,15 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "watchlist-vs-portfolio-tracker",
-    title: "Watchlist vs Portfolio Tracker: Why You Need Both",
+    title: "Watchlist vs Portfolio Tracker: What Each One Should Do",
     seoTitle: "Watchlist vs Portfolio Tracker",
     description:
-      "Mixing stocks you own with stocks you might buy creates chaos. Here's how to separate watchlists from portfolios and which tools handle each job.",
+      "See how a stock watchlist differs from a portfolio tracker, what belongs in each, and how to use both without duplicating the same messy list.",
     category: "guides",
     tags: ["watchlist", "portfolio", "tracking", "workflow", "guide"],
     date: "2026-07-15",
-    readTime: "10 min read",
+    updated: "2026-08-04",
+    readTime: "9 min read",
   },
   {
     slug: "earnings-season-watchlist-playbook",
@@ -551,8 +552,8 @@ export const allBlogPosts: BlogPost[] = [
     category: "guides",
     tags: ["earnings", "watchlist", "season", "strategy", "guide"],
     date: "2026-07-15",
-    updated: "2026-07-20",
-    readTime: "12 min read",
+    updated: "2026-08-04",
+    readTime: "10 min read",
   },
   {
     slug: "stock-market-information-overload",
@@ -607,13 +608,14 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "track-stock-news-for-your-portfolio",
-    title: "How to Track Stock News for Your Portfolio (Without Drowning in Noise)",
-    seoTitle: "Track Stock News Without the Noise",
-    description: "Most investors either ignore portfolio news or get buried in it. Here's a system to track only the news that matters for your holdings.",
+    title: "How to Track Stock News for the Companies You Follow",
+    seoTitle: "How to Track Stock News for Your Portfolio",
+    description: "Build a source-first system for stock news, SEC filings, earnings, and alerts so the important changes reach you without constant checking.",
     category: "guides",
     tags: ["portfolio", "news", "tracking", "guide"],
     date: "2026-05-17",
-    readTime: "12 min read",
+    updated: "2026-08-04",
+    readTime: "9 min read",
   },
   {
     slug: "earnings-calendar-for-my-watchlist",
@@ -873,36 +875,41 @@ export const allBlogPosts: BlogPost[] = [
   },
 ];
 
-// These legacy posts remain reachable for existing links, but they are broad,
-// overlapping, or comparison-heavy pages that have not yet met the current
-// source and review standard. Keep them out of discovery surfaces until edited.
-const LEGACY_NOINDEX_BLOG_SLUGS = new Set([
-  "stock-market-heatmap-tools",
-  "ai-stock-watchlist-vs-traditional",
-  "best-market-intelligence-tools-2026",
-  "stocksbrew-vs-finviz",
-  "best-free-stock-alert-tools-2026",
-  "daily-stock-market-analysis-routine",
-  "sector-rotation-tracking-tools",
-  "earnings-predictions-ai-vs-analyst",
-  "ai-stock-sentiment-analysis-tools",
-  "track-insider-trading-free",
-  "stock-market-daily-newsletter-free",
-  "market-breadth-analysis-guide",
-  "how-to-read-stock-heat-map",
-  "stock-analysis-beginners-technical-vs-fundamental",
-  "free-stock-screeners-indian-investors",
-  "portfolio-rebalancing-guide-retail-investors",
-  "how-to-analyze-a-stock-before-buying",
-  "best-stock-portfolio-tracker-free-2026",
-  "how-to-read-stock-charts-beginners",
-  "stock-market-for-beginners-2026",
-  "how-to-build-a-stock-portfolio-from-scratch",
-  "when-to-sell-a-stock",
+// Indexing is earned through editorial review. New metadata entries stay out of
+// discovery until their article has a clear intent, original value, sources,
+// useful internal links, and a human read-through.
+export const REVIEWED_BLOG_SLUGS = new Set([
+  "best-stock-research-websites-2026",
+  "best-stock-watchlist-apps-2026",
+  "best-stock-news-apps-2026",
+  "what-is-a-good-pe-ratio",
+  "free-cash-flow-vs-net-income",
+  "gross-margin-vs-operating-margin-vs-net-margin",
+  "semiconductor-stocks-analysis-guide",
+  "earnings-report-analysis-template",
+  "fundamental-stock-analysis-framework",
+  "analyst-ratings-price-targets-explained",
+  "stock-news-catalyst-analysis",
+  "best-stock-analysis-apps-2026",
+  "us-stock-market-analysis-daily-workflow-2026",
+  "stock-analysis-app-checklist",
+  "how-to-connect-ai-agent-stock-market-data-mcp",
+  "stock-research-prompts-for-ai-agents",
+  "hermes-agent-stock-market-data-watchlist",
+  "openclaw-stock-alerts-telegram-whatsapp-discord",
+  "ai-agent-stock-watchlist-radar-alerts",
+  "how-to-analyze-earnings-report",
+  "stock-research-checklist-evidence-first",
+  "finviz-vs-tradingview-vs-stocksbrew",
+  "ai-stock-analysis-comparison",
+  "free-stock-market-analysis-tools",
+  "watchlist-vs-portfolio-tracker",
+  "earnings-season-watchlist-playbook",
+  "track-stock-news-for-your-portfolio",
 ]);
 
 export function isIndexableBlogPost(slug: string): boolean {
-  return !LEGACY_NOINDEX_BLOG_SLUGS.has(slug);
+  return REVIEWED_BLOG_SLUGS.has(slug);
 }
 
 export const indexableBlogPosts = allBlogPosts.filter((post) => isIndexableBlogPost(post.slug));

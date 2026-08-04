@@ -1,4 +1,6 @@
-# stocksbrew · Brand copy source of truth
+# stocksbrew · Brand copy archive
+
+> The current product positioning and voice live in [`docs/product-voice.md`](./product-voice.md). This document preserves the older v0.2 decisions for history. Where the files disagree, `docs/product-voice.md` wins.
 
 Single place to agree on naming, taglines, and descriptions before we wire them into the app.
 

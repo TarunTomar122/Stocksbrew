@@ -20,7 +20,8 @@ function source(path: string): string {
 
 describe("agent access frontend launch surfaces", () => {
   it("keeps the primary conversion surfaces connected to the agent story", () => {
-    expect(source("components/public-home-page.tsx")).toContain("AgentAccessLandingSection");
+    expect(source("components/public-home-page.tsx")).not.toContain("AgentAccessLandingSection");
+    expect(source("app/agents/page.tsx")).toContain("Let your agent keep up with your stocks");
     expect(source("components/pro-plan-picker.tsx")).toContain("Current stock context for your AI");
     expect(source("lib/subscribe-benefits.ts")).toContain("Current stock context for your AI");
     expect(source("app/profile/page.tsx")).toContain('id="agent-access"');

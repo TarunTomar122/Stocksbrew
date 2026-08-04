@@ -3,23 +3,23 @@ import { AnimatedIcon } from "@/components/animated-icon";
 const PROOF_CARDS = [
   {
     icon: "verified",
-    kicker: "Detailed call",
-    title: "Know the stance and the zones",
-    body: "See the add, hold, or trim call with its buy zone, trim zone, drivers, and risks.",
+    kicker: "Research",
+    title: "Read the company in one place",
+    body: "Financials, recent news, price levels, drivers and risks stay together on the stock page.",
     sample: "Example: Add below $182. Hold while margins stay above plan.",
   },
   {
     icon: "flag",
-    kicker: "Stocksbrew target",
-    title: "Put the target next to today",
-    body: "See our target price, the room from the current price, and the evidence that could change it.",
+    kicker: "Radar",
+    title: "Keep your stocks current",
+    body: "Track holdings and watchlist names without repeating the same research every morning.",
     sample: "Example: Target $224. 18% room from today.",
   },
   {
     icon: "notifications_active",
-    kicker: "Radar alert",
-    title: "Come back when it matters",
-    body: "Get automatic earnings and zone alerts, or create a manual price alert for any stock you follow.",
+    kicker: "Alerts",
+    title: "Know when to look again",
+    body: "Get earnings and price-level alerts for the stocks you follow.",
     sample: "Example: Buy zone reached. Earnings in 24 hours.",
   },
 ] as const;
@@ -30,12 +30,12 @@ export function TerminalLandingTestimonials() {
     <section className="border-t border-outline-variant bg-background">
       <div className="landing-inner py-16 lg:py-20">
         <div className="mx-auto mb-10 max-w-2xl text-center">
-          <p className="landing-section-kicker text-landing-brand">What Pro does</p>
+          <p className="landing-section-kicker text-landing-brand">What you can do</p>
           <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl">
-            One decision loop, not another news feed
+            Analyse a stock, then keep it on Radar
           </h2>
           <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant sm:text-[15px]">
-            Understand the setup, track it on Radar, and let the next important event bring you back.
+            Research the company now. Track it when you want the work to stay current.
           </p>
         </div>
 

@@ -13,7 +13,7 @@ function isSetupPhrase(text: string): boolean {
 }
 
 function isCalmReason(text: string): boolean {
-  return /\bis calm\b/i.test(text) || /no major price/i.test(text);
+  return /\bis calm\b/i.test(text) || /no major price/i.test(text) || /nothing material has changed/i.test(text);
 }
 
 /** Day move is already in the Change column. */

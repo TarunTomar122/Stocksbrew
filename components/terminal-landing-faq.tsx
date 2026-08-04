@@ -7,15 +7,15 @@ type FaqItem = { q: string; a: string };
 const FAQS: FaqItem[] = [
   {
     q: "What do I get for free?",
-    a: "Search stocks, follow the market, and track up to 3 names on Radar. Free users can preview the product. Detailed calls and zones, the Stocksbrew target price, and alerts are Pro.",
+    a: "Search any US stock and track up to three names on Radar. Pro adds deeper research, targets, unlimited tracking and alerts.",
   },
   {
     q: "Free or Pro: which should I pick?",
-    a: "Start free if you are exploring a few names. Go Pro when you want a repeatable workflow: read the detailed call and target, track the stock on Radar, and get automatic or manual alerts.",
+    a: "Start free with up to three stocks. Choose Pro when you want unlimited tracking, the full research and alerts.",
   },
   {
     q: "What does Pro actually add?",
-    a: "Detailed add, hold, or trim calls with zones, drivers, and risks; the Stocksbrew target price; unlimited Radar and alerts; plus current stock context for your AI agent.",
+    a: "The full research, price zones and targets, unlimited Radar stocks, alerts, and access from compatible AI agents.",
   },
   {
     q: "Can I use Stocksbrew in Claude Code, Cursor, or Codex?",
@@ -27,7 +27,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Is this investment advice?",
-    a: "No. StocksBrew is research and opinion to help you decide faster. You make the call. We are not a broker and we do not touch your money.",
+    a: "No. Stocksbrew provides research for your own decisions. It is not a broker and cannot place trades or move money.",
   },
   {
     q: "Can I cancel anytime?",
@@ -35,7 +35,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Which markets do you cover?",
-    a: "US markets today, with more on the way. Everything you see on the site runs on real, current data.",
+    a: "US-listed stocks. Each page shows when its price, financials and research were last updated.",
   },
 ];
 

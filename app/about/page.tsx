@@ -33,7 +33,7 @@ export default function AboutPage() {
             About stocksbrew
           </span>
           <h1 className="text-[40px] md:text-[56px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
-            We&apos;re building the read on the market we wished existed.
+            Analyse a stock. Track it when it matters to you.
           </h1>
           <p className="text-[17px] text-[#374151] leading-[1.55] max-w-[640px]">
             {LONG_DESCRIPTION}
@@ -59,14 +59,13 @@ export default function AboutPage() {
             Why this exists
           </h2>
           <p className="text-[15px] text-[#374151] leading-[1.7]">
-            Most retail investors are drowning in feeds. Twitter is fast but noisy, Bloomberg is
-            rigorous but expensive, Yahoo Finance is free but does not tell you what to do next. We
-            built stocksbrew for portfolio-grade clarity in plain language, scoped to the names you
-            actually own or watch.
+            I built stocksbrew because following a company meant reopening the same tabs every day.
+            A stock page now brings the financials, news and market context together. Radar keeps
+            researching the companies you own or want to follow.
           </p>
           <p className="text-[15px] text-[#374151] leading-[1.7]">
-            We&apos;re a small team. The product is live and improving daily. Feedback is gold -
-            write to us anytime.
+            Stocksbrew is a small, independent product. If a page feels confusing or a fact looks
+            wrong, email me. I read every message.
           </p>
         </section>
 
@@ -87,7 +86,7 @@ export default function AboutPage() {
             href="/"
             className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
           >
-            Explore the markets
+            Search a US stock
           </Link>
           <a
             href="mailto:tomartarun2001@gmail.com"

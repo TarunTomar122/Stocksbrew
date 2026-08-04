@@ -6,19 +6,19 @@ import { ALL_COMPARE_LINKS } from "@/lib/seo/compare-links";
 export const metadata: Metadata = {
   title: "Blog",
   description:
-    "Practical notes on stock calls, watchlists, risk-aware investing, and tools from the makers of stocksbrew.",
+    "Researched guides to stock analysis, financial statements, earnings, watchlists, and the tools investors use.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Blog · Stock calls & investing · stocksbrew",
+    title: "Stock research guides · stocksbrew",
     description:
-      "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",
+      "Researched guides to analysing companies, following earnings, and choosing stock research tools.",
     url: "https://www.stocksbrew.online/blog",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Blog · Stock calls & investing · stocksbrew",
+    title: "Stock research guides · stocksbrew",
     description:
-      "Practical notes on personalized stock guidance, smarter watchlists, and building an investing workflow without noise.",
+      "Researched guides to analysing companies, following earnings, and choosing stock research tools.",
   },
 };
 
@@ -84,10 +84,10 @@ export default function BlogPage() {
             Blog
           </span>
           <h1 className="text-[40px] md:text-[52px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
-            Notes from the desk.
+            Stock research guides
           </h1>
           <p className="text-[16px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Notes on personalized stock calls, cutting through noise, and investing with clearer risk and opportunity framing. No jargon, no hype.
+            Clear methods, primary sources, and practical ways to research the US stocks you care about.
           </p>
         </header>
 
@@ -114,7 +114,7 @@ export default function BlogPage() {
           <div className="mb-5">
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Research library</span>
             <h2 id="research-library" className="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">
-              Follow a topic, not a pile of posts
+              Start with the question you have
             </h2>
           </div>
           <div className="grid gap-7 md:grid-cols-3">

@@ -287,7 +287,7 @@ function AnomalyRail({ edition }: { edition: MarketDailyEdition }) {
       <div className={styles.anomalyHeader}>
         <div>
           <span className={styles.graphicEyebrow}>Session outliers</span>
-          <strong>Where the tape broke from the crowd</strong>
+          <strong>Stocks that moved against the market</strong>
           <small>{edition.anomalies.session_date} close</small>
         </div>
         <div className={styles.windowSwitch} aria-label="Mover group">
