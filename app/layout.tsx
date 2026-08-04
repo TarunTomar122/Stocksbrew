@@ -205,7 +205,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <meta property="og:image" content="https://www.stocksbrew.online/api/og" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="stocksbrew — analyse and track US stocks with AI" />
+        <meta property="og:image:alt" content="stocksbrew — analyse and track US stocks" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="https://www.stocksbrew.online/api/og" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

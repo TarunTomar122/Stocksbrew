@@ -23,7 +23,7 @@ export function LandingHeroSkeleton() {
       <div className="lg:pb-5">
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-primary">Stocksbrew</p>
         <h1 className="max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-0.045em] text-on-surface sm:text-5xl lg:text-[3.75rem]">
-          Analyse and track US stocks with AI
+          Analyse and track US stocks
         </h1>
         <p className="mt-5 max-w-lg text-base leading-7 text-on-surface-variant">
           Search any US stock for financials, news and market context.
