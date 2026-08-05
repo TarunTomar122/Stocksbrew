@@ -168,8 +168,8 @@ function PremarketLedger({ report, movers }: { report: OpeningReport | null; mov
     const reason = reasons.get(row.ticker.toUpperCase());
     return (
       <Link key={row.instrument_id} href={`/stock/${row.ticker}`} className="grid grid-cols-[minmax(8rem,0.45fr)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-outline-variant/70 px-4 py-3 first:border-t-0 hover:bg-surface-container-low sm:px-5">
-        <span className="flex min-w-0 items-center gap-2.5"><StockLogo ticker={row.ticker} market="US" size={24} /><span className="min-w-0"><span className="block font-bold text-on-surface">{row.ticker}</span><span className="block truncate text-[10px] text-on-surface-variant">{row.name}</span></span></span>
-        {reason ? <span className="min-w-0 line-clamp-2 text-[12px] leading-[1.45] text-on-surface-variant">{reason}</span> : <span aria-hidden />}
+        <span className="flex min-w-0 items-center gap-2.5"><StockLogo ticker={row.ticker} market="US" size={24} /><span className="min-w-0"><span className="block font-bold text-on-surface">{row.ticker}</span><span className="block truncate text-[11.5px] font-medium text-on-surface-variant">{row.name}</span></span></span>
+        {reason ? <span className="min-w-0 line-clamp-2 text-[13px] font-medium leading-relaxed text-on-surface-variant">{reason}</span> : <span aria-hidden />}
         <span className="text-right font-mono text-[12px] font-semibold" style={{ color: tone === "up" ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>{tone === "up" ? "▲" : "▼"} {Math.abs(row.pre_market_change_pct).toFixed(2)}%</span>
       </Link>
     );
@@ -197,8 +197,8 @@ function EarningsLedger({ recentEarnings, earnings }: { recentEarnings: RecentEa
             {recentEarnings.map((item) => (
               <Link key={`${item.ticker}-${item.eventDate}`} href={`/earnings-intel/${encodeURIComponent(item.ticker)}`} className="pulse-list-row items-start">
                 <StockLogo ticker={item.ticker} market="US" size={24} />
-                <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-bold text-on-surface">{item.ticker}</span><span className="text-[11px] text-on-surface-variant">{item.company}</span></div><p className="mt-1 text-[13px] leading-snug text-on-surface-variant">{item.headline}</p></div>
-                <div className="shrink-0 text-right"><p className="font-mono text-[10px] text-on-surface-variant">{fmtDate(item.eventDate)}</p>{item.epsTag ? <span className="mt-1 inline-block rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide" style={chipTone(item.epsTag)}>{EPS_LABEL[item.epsTag] ?? item.epsTag}</span> : null}</div>
+                <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-bold text-on-surface">{item.ticker}</span><span className="text-[12px] font-medium text-on-surface-variant">{item.company}</span></div><p className="mt-1 text-[13px] font-medium leading-relaxed text-on-surface-variant">{item.headline}</p></div>
+                <div className="shrink-0 text-right"><p className="font-mono text-[11px] font-medium text-on-surface-variant">{fmtDate(item.eventDate)}</p>{item.epsTag ? <span className="mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={chipTone(item.epsTag)}>{EPS_LABEL[item.epsTag] ?? item.epsTag}</span> : null}</div>
               </Link>
             ))}
           </div>
@@ -208,7 +208,7 @@ function EarningsLedger({ recentEarnings, earnings }: { recentEarnings: RecentEa
         <section className={recentEarnings.length > 0 ? "mt-8" : undefined}>
           <div className="mb-3"><p className="landing-section-kicker text-landing-brand">Next 7 days</p><h2 className="mt-1 text-lg font-bold text-on-surface">Upcoming reports</h2></div>
           <div className="pulse-list-panel">
-            {earnings.map((item) => <Link key={`${item.ticker}-${item.eventDate}`} href={`/stock/${item.ticker}`} className="pulse-list-row"><StockLogo ticker={item.ticker} market="US" size={24} /><span className="w-14 shrink-0 font-bold text-on-surface">{item.ticker}</span><span className="hidden min-w-0 flex-1 truncate text-on-surface-variant sm:block">{item.company}</span><span className="ml-auto flex items-center gap-2"><span className="font-mono text-[10px] text-on-surface-variant">{fmtDate(item.eventDate)} · {item.time === "bmo" ? "before open" : item.time === "amc" ? "after close" : item.time}</span>{item.epsOutlook ? <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide" style={chipTone(item.epsOutlook)}>{EPS_LABEL[item.epsOutlook] ?? item.epsOutlook}</span> : null}{item.reaction ? <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide" style={chipTone(item.reaction)}>{MOVE_LABEL[item.reaction] ?? item.reaction}</span> : null}</span></Link>)}
+            {earnings.map((item) => <Link key={`${item.ticker}-${item.eventDate}`} href={`/stock/${item.ticker}`} className="pulse-list-row"><StockLogo ticker={item.ticker} market="US" size={24} /><span className="w-14 shrink-0 font-bold text-on-surface">{item.ticker}</span><span className="hidden min-w-0 flex-1 truncate font-medium text-on-surface-variant sm:block">{item.company}</span><span className="ml-auto flex items-center gap-2"><span className="font-mono text-[11px] font-medium text-on-surface-variant">{fmtDate(item.eventDate)} · {item.time === "bmo" ? "before open" : item.time === "amc" ? "after close" : item.time}</span>{item.epsOutlook ? <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={chipTone(item.epsOutlook)}>{EPS_LABEL[item.epsOutlook] ?? item.epsOutlook}</span> : null}{item.reaction ? <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={chipTone(item.reaction)}>{MOVE_LABEL[item.reaction] ?? item.reaction}</span> : null}</span></Link>)}
           </div>
         </section>
       ) : null}

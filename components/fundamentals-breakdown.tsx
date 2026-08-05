@@ -82,6 +82,38 @@ function relativeMetricLine(m: StockIntelMetric): string {
   return context || "";
 }
 
+function pillarRead(key: Key, pillar: StockIntelPro["pillars"][Key]): string {
+  if (pillarCoverage(pillar) < 0.5) return "Score withheld until enough weighted inputs are available.";
+
+  const favorable = pillar.verdict === "strong" || pillar.verdict === "solid";
+  if (key === "valuation") {
+    return favorable
+      ? "The current price leaves more room for results to disappoint without breaking the case."
+      : pillar.verdict === "weak"
+        ? "The current price already expects strong results, so a miss could hurt the shares quickly."
+        : "The price needs results to stay on track. A miss could make the multiple harder to justify.";
+  }
+  if (key === "quality") {
+    return favorable
+      ? "The business is turning capital into profit efficiently, giving it more room to fund growth and handle a slowdown."
+      : pillar.verdict === "weak"
+        ? "Weak returns on capital can limit reinvestment and leave less room for a slowdown."
+        : "The business is profitable, though its ability to reinvest and absorb a slowdown is still mixed.";
+  }
+  if (key === "growth") {
+    return favorable
+      ? "Growth is building a larger earnings base, which can support the thesis if that pace holds."
+      : pillar.verdict === "weak"
+        ? "Growth needs to improve before it can carry the thesis on its own."
+        : "Growth is moving in the right direction, though the next results need to confirm the pace.";
+  }
+  return favorable
+    ? "Recent price action is supporting the setup, though the trend still needs to hold."
+    : pillar.verdict === "weak"
+      ? "Recent price action is working against the setup, so the trend needs to stabilize."
+      : "Price action is undecided, so there is no clear trend to lean on yet.";
+}
+
 type MetricGroup = {
   title: string;
   metrics: StockIntelMetric[];
@@ -128,10 +160,10 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
         ) : null}
       </div>
       {relative ? (
-        <div className="mt-1.5 text-[11.5px] leading-snug text-on-surface-variant">
+        <div className="mt-1.5 text-[12px] font-medium leading-snug text-on-surface-variant">
           <span className="block max-w-[42ch]">{relative}</span>
           {m.benchmark != null && m.benchmark_label ? (
-            <span className="mt-1 block font-mono tabular-nums text-[10px] text-on-surface-variant/80">
+            <span className="mt-1 block font-mono tabular-nums text-[11px] text-on-surface-variant">
               {m.benchmark_label}: {formatMetricValue(m.benchmark)}
             </span>
           ) : null}
@@ -164,7 +196,7 @@ function PillarTab({
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-colors ${
         active
-          ? "border-[color-mix(in_srgb,var(--on-surface)_20%,transparent)] bg-surface-container-low text-on-surface"
+          ? "border-on-surface bg-surface-container-highest text-on-surface shadow-sm"
           : "border-outline-variant bg-surface text-on-surface-variant hover:border-on-surface hover:text-on-surface"
       }`}
       aria-pressed={active}
@@ -194,6 +226,7 @@ export function FundamentalsBreakdown({
   const availableMetrics = p.available_metrics ?? p.metrics.filter((metric) => metric.score != null).length;
   const totalMetrics = p.total_metrics ?? p.metrics.length;
   const coverage = Math.round(pillarCoverage(p) * 100);
+  const read = pillarRead(active, p);
 
   return (
     <div className={isSubscribed ? "" : "flex h-full min-h-[32rem] flex-col"}>
@@ -222,17 +255,13 @@ export function FundamentalsBreakdown({
           <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2">
             <div>
               <p className="text-[16px] font-semibold capitalize text-on-surface">{p.verdict}</p>
-              <p className="mt-1 max-w-[48ch] text-[10.5px] leading-relaxed text-on-surface-variant">
-                {pillarCoverage(p) < 0.5
-                  ? "Score withheld until enough weighted inputs are available."
-                  : "Compared with sector peers where available."}
-              </p>
+              <p className="mt-1 max-w-[64ch] text-[13px] leading-relaxed text-on-surface-variant text-pretty">{read}</p>
             </div>
             <div className="text-right">
-              <p className="font-mono text-[10.5px] tabular-nums text-on-surface-variant">
+              <p className="font-mono text-[11.5px] font-medium tabular-nums text-on-surface-variant">
                 {availableMetrics} / {totalMetrics} metrics
               </p>
-              <p className="mt-0.5 font-mono text-[10.5px] font-semibold tabular-nums text-on-surface">
+              <p className="mt-0.5 font-mono text-[11.5px] font-semibold tabular-nums text-on-surface">
                 {coverage}% coverage
               </p>
             </div>
@@ -244,7 +273,7 @@ export function FundamentalsBreakdown({
                 key={group.title}
                 className="min-w-0 first:md:pr-7 last:md:pl-7"
               >
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
                   {group.title}
                 </p>
                 <div className="mt-2 space-y-1">

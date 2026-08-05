@@ -175,16 +175,40 @@ const SIGNAL_COLOR: Record<StockIntelSignal, string> = {
   na: "var(--on-surface-variant)",
 };
 
+function practicalTakeaway(label: string, signal: StockIntelSignal): string {
+  const metric = label.toLowerCase();
+  const positive = signal === "green";
+  const negative = signal === "red";
+
+  if (metric.includes("p/e") || metric.includes("price / sales") || metric.includes("price / fcf") || metric.includes("ev / ebitda")) {
+    if (positive) return "The market is asking less of future results.";
+    if (negative) return "Future results need to keep beating expectations.";
+    return "Future results will drive the next move.";
+  }
+  if (metric === "roic" || metric === "roe") {
+    if (positive) return "The business is turning its capital into profit efficiently.";
+    if (negative) return "The business is earning less from its capital.";
+    return "The business is earning a typical return on its capital.";
+  }
+  if (metric.includes("debt")) {
+    if (positive) return "Low leverage leaves more room to handle a slowdown.";
+    if (negative) return "Higher debt can magnify the damage from a slowdown.";
+    return "Leverage is manageable, though it still needs monitoring.";
+  }
+  if (metric.includes("current ratio")) {
+    if (positive) return "The company should be able to cover bills due over the next year.";
+    if (negative) return "Near-term funding could become a constraint.";
+    return "Near-term assets are covering near-term bills.";
+  }
+  return "Compared with sector peers where available.";
+}
+
 function RatioRow({ label, value, note, guidance }: { label: string; value: string; note: string; guidance: Guidance }) {
   return (
     <div className="group grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-outline-variant py-3.5 transition-colors hover:bg-surface-container-low/60 last:border-b-0">
       <div className="min-w-0">
         <p className="text-[13px] font-semibold text-[#111827]">{label}</p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-[#6b7280]">{note}</p>
-        <p className="mt-1.5 text-[10.5px] font-medium leading-relaxed" style={{ color: SIGNAL_COLOR[guidance.signal] }}>
-          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: SIGNAL_COLOR[guidance.signal] }} />
-          {guidance.label} <span className="font-normal text-on-surface-variant">· {guidance.detail}</span>
-        </p>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-[#6b7280]">{note}</p>
       </div>
       <p className="self-center text-[17px] font-semibold tabular-nums" style={{ color: SIGNAL_COLOR[guidance.signal] }}>{value}</p>
     </div>
@@ -273,6 +297,8 @@ function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; cur
   const median = target?.median;
   const high = target?.high;
   if (![low, average, high].every(finite)) return null;
+  const midpoint = finite(median) ? median : average;
+  const medianPosition = high === low ? 50 : Math.min(92, Math.max(8, ((midpoint! - low!) / (high! - low!)) * 100));
   const averageMove = finite(currentPrice) && currentPrice !== 0
     ? ((average! - currentPrice) / currentPrice) * 100
     : null;
@@ -299,11 +325,20 @@ function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; cur
           </div>
         </div>
       </div>
-      <p className="mt-4 text-[11px] font-semibold text-on-surface">Analyst target range</p>
-      <div className="mt-2 grid grid-cols-3 divide-x divide-outline-variant rounded-lg border border-outline-variant bg-surface text-[11px] text-on-surface">
-        <div className="px-3 py-3"><span className="block text-on-surface-variant">Low</span><b className="mt-0.5 block tabular-nums">{compactMoney(low, currency)}</b></div>
-        <div className="px-3 py-3 text-center"><span className="block text-on-surface-variant">Median</span><b className="mt-0.5 block tabular-nums">{compactMoney(median, currency)}</b></div>
-        <div className="px-3 py-3 text-right"><span className="block text-on-surface-variant">High</span><b className="mt-0.5 block tabular-nums">{compactMoney(high, currency)}</b></div>
+      <div className="mt-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold text-on-surface">Analyst target range</p>
+            <p className="mt-0.5 text-[12px] text-on-surface-variant">Where analysts think the stock could trade</p>
+          </div>
+          <p className="text-[12px] tabular-nums text-on-surface-variant"><span className="font-semibold text-on-surface">{compactMoney(low, currency)}</span> to <span className="font-semibold text-on-surface">{compactMoney(high, currency)}</span></p>
+        </div>
+        <div className="relative mt-8 h-2 rounded-full bg-surface-container-high">
+          <span className="absolute inset-y-0 left-0 rounded-l-full bg-surface-container-highest" style={{ width: `${medianPosition}%` }} />
+          <span className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-on-surface shadow-sm" style={{ left: `${medianPosition}%` }} />
+          <span className="absolute bottom-5 -translate-x-1/2 whitespace-nowrap rounded-md bg-on-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-surface" style={{ left: `${medianPosition}%` }}>Median {compactMoney(midpoint, currency)}</span>
+        </div>
+        <div className="mt-2 flex justify-between text-[11px] text-on-surface-variant"><span>Low</span><span>High</span></div>
       </div>
     </div>
   );
@@ -390,6 +425,34 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
   const roeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["ROE", "Return on equity"])) ?? bandGuidance(quality?.roe_pct, { green: 20, yellow: 10, greenCopy: "At least 20% return on equity", yellowCopy: "A 10% to 20% return on equity", redCopy: "Below 10% return on equity" });
   const debtEquityGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Debt / Equity", "Debt to equity"])) ?? bandGuidance(quality?.debt_to_equity, { green: 0.5, yellow: 1.5, lowerIsBetter: true, greenCopy: "Debt is under half of equity", yellowCopy: "Manageable balance-sheet leverage", redCopy: "Debt is above 1.5x equity" });
   const currentRatioGuidance = bandGuidance(quality?.current_ratio, { green: 1.5, yellow: 1, greenCopy: "Comfortable short-term liquidity", yellowCopy: "Assets still cover near-term liabilities", redCopy: "Near-term liabilities exceed current assets" });
+  const valuationPoint = [
+    { label: "Forward P/E", guidance: forwardPeGuidance },
+    { label: "Price / sales", guidance: priceSalesGuidance },
+    { label: "Price / FCF", guidance: priceFcfGuidance },
+    { label: "EV / EBITDA", guidance: evEbitdaGuidance },
+  ].find((item) => item.guidance.signal === "red") ?? { label: "Forward P/E", guidance: forwardPeGuidance };
+  const qualityPoint = [
+    { label: "ROIC", guidance: roicGuidance },
+    { label: "ROE", guidance: roeGuidance },
+    { label: "Debt / equity", guidance: debtEquityGuidance },
+    { label: "Current ratio", guidance: currentRatioGuidance },
+  ].find((item) => item.guidance.signal === "green") ?? { label: "ROIC", guidance: roicGuidance };
+  const pointCopy = ({ label, guidance }: { label: string; guidance: Guidance }) => {
+    const comparison = guidance.detail.replace(/[.]+$/, "");
+    return `${label}: ${practicalTakeaway(label, guidance.signal)}${comparison ? ` ${comparison}.` : ""}`;
+  };
+  const keyPoints = [
+    finite(balance?.net_cash)
+      ? {
+          signal: balance.net_cash >= 0 ? "green" : "red" as StockIntelSignal,
+          text: balance.net_cash >= 0
+            ? `Cash exceeds debt by ${compactMoney(balance.net_cash, currency)}, leaving a net cash buffer.`
+            : `Debt exceeds cash by ${compactMoney(Math.abs(balance.net_cash), currency)}, increasing balance-sheet pressure.`,
+        }
+      : null,
+    { signal: valuationPoint.guidance.signal, text: pointCopy(valuationPoint) },
+    { signal: qualityPoint.guidance.signal, text: pointCopy(qualityPoint) },
+  ].filter((point): point is { signal: StockIntelSignal; text: string } => Boolean(point));
 
   return (
     <section id="stock-financial-depth" className="flex flex-col gap-12 border-t border-outline-variant bg-transparent py-7 sm:py-9">
@@ -434,8 +497,9 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
 
       {(hasBalance || hasRatios) ? (
         <section className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
-          {hasBalance ? (
-            <div>
+          <div>
+            {hasBalance ? (
+              <>
               <div className="border-b border-[#111827] pb-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Capital structure</p>
                 <h3 className="mt-1 text-[19px] font-semibold text-[#111827]">Cash versus debt</h3>
@@ -449,23 +513,37 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
                 ) : null}
                 {finite(balance?.net_cash) ? <div className="flex items-baseline justify-between border-t border-[#eceff3] pt-4"><span className="text-[12px] text-[#6b7280]">Net cash after debt</span><b className={balance.net_cash >= 0 ? "text-[20px] text-[#10b981]" : "text-[20px] text-[#ef4444]"}>{compactMoney(balance.net_cash, currency)}</b></div> : null}
               </div>
-            </div>
-          ) : null}
+              </>
+            ) : null}
+            {keyPoints.length ? (
+              <div className={hasBalance ? "mt-8 border-t border-outline-variant pt-5" : ""}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Key points</p>
+                <ul className="mt-3 space-y-3">
+                  {keyPoints.slice(0, 3).map((point, index) => (
+                    <li key={index} className="flex gap-2.5 text-[13px] leading-relaxed text-on-surface/85 text-pretty">
+                      <span aria-hidden className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SIGNAL_COLOR[point.signal] }} />
+                      <span>{point.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
           {hasRatios ? (
             <div className="grid gap-8 sm:grid-cols-2">
               <div>
                 <div className="border-b border-[#111827] pb-3"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Valuation</p><h3 className="mt-1 text-[19px] font-semibold text-[#111827]">What the market charges</h3></div>
-                <RatioRow label="Forward P/E" value={ratio(valuation?.forward_pe)} note="Price against expected earnings" guidance={forwardPeGuidance} />
-                <RatioRow label="Price / sales" value={ratio(valuation?.price_to_sales)} note="Value assigned to each sales dollar" guidance={priceSalesGuidance} />
-                <RatioRow label="Price / FCF" value={ratio(valuation?.price_to_fcf)} note="Price against free cash generation" guidance={priceFcfGuidance} />
-                <RatioRow label="EV / EBITDA" value={ratio(valuation?.ev_to_ebitda)} note="Operating value including debt" guidance={evEbitdaGuidance} />
+                <RatioRow label="Forward P/E" value={ratio(valuation?.forward_pe)} note="Price paid for each $1 of expected profit" guidance={forwardPeGuidance} />
+                <RatioRow label="Price / sales" value={ratio(valuation?.price_to_sales)} note="Market value per $1 of sales" guidance={priceSalesGuidance} />
+                <RatioRow label="Price / FCF" value={ratio(valuation?.price_to_fcf)} note="$ paid for each $1 of free cash flow" guidance={priceFcfGuidance} />
+                <RatioRow label="EV / EBITDA" value={ratio(valuation?.ev_to_ebitda)} note="Company value relative to operating earnings" guidance={evEbitdaGuidance} />
               </div>
               <div>
                 <div className="border-b border-[#111827] pb-3"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Quality</p><h3 className="mt-1 text-[19px] font-semibold text-[#111827]">How efficiently it compounds</h3></div>
-                <RatioRow label="ROIC" value={pct(quality?.roic_pct)} note="Return earned on invested capital" guidance={roicGuidance} />
-                <RatioRow label="ROE" value={pct(quality?.roe_pct)} note="Profit generated from shareholder equity" guidance={roeGuidance} />
-                <RatioRow label="Debt / equity" value={ratio(quality?.debt_to_equity)} note="Balance-sheet leverage" guidance={debtEquityGuidance} />
-                <RatioRow label="Current ratio" value={ratio(quality?.current_ratio)} note="Short-term assets against liabilities" guidance={currentRatioGuidance} />
+                <RatioRow label="ROIC" value={pct(quality?.roic_pct)} note="Profit earned from the capital in the business" guidance={roicGuidance} />
+                <RatioRow label="ROE" value={pct(quality?.roe_pct)} note="Profit earned on shareholders’ capital" guidance={roeGuidance} />
+                <RatioRow label="Debt / equity" value={ratio(quality?.debt_to_equity)} note="Borrowing relative to shareholders’ capital" guidance={debtEquityGuidance} />
+                <RatioRow label="Current ratio" value={ratio(quality?.current_ratio)} note="Near-term assets available to pay near-term bills" guidance={currentRatioGuidance} />
               </div>
             </div>
           ) : null}

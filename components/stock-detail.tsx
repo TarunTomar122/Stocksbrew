@@ -43,7 +43,6 @@ import {
   resolvePriceAwareCall,
   setupStateLabel,
 } from "@/lib/directive-ui";
-import { formatRiskRewardRatio } from "@/lib/risk-reward";
 import { hasRedditBuzzData, StockRedditBuzzRailCard } from "@/components/stock-social-proof-card";
 import { StockNewsRailCard } from "@/components/stock-news-rail-card";
 import { StockTodaysMoveRailCard } from "@/components/stock-todays-move-rail-card";
@@ -170,7 +169,7 @@ function cap(v?: number | null): string | null {
 
 // ---- stock page layout primitives -----------------------------------------
 const KICK = CALL_KICK;
-const RAIL_KICKER = "font-mono text-[10.5px] uppercase tracking-[0.12em] text-on-surface-variant";
+const RAIL_KICKER = "font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant";
 const TIER = "font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--signal-bullish)]";
 const CHIP = "rounded-lg bg-surface-container-low";
 const STOCK_SECTION = "border-t border-outline-variant bg-transparent";
@@ -380,33 +379,20 @@ export function StockDetail(props: Props) {
     n(riskAnchor) && stock.price > 0
       ? ((stock.price - riskAnchor!) / stock.price) * 100
       : null;
-  const riskRewardRatio =
-    !isTrimLikeCall && n(profitTargetPct) && n(breakRiskPct) && breakRiskPct! > 0 && profitTargetPct! > 0
-      ? profitTargetPct! / breakRiskPct!
-      : null;
-
   const whyBullets = (cards?.drivers ?? [])
-    .slice(0, 4)
+    .slice(0, 3)
     .map((d) => d.detail?.trim() || d.label)
     .filter((text): text is string => Boolean(text));
   if (whyBullets.length === 0 && whyLikeIt) whyBullets.push(whyLikeIt);
 
   const flipBullets = (cards?.risk_cards ?? [])
-    .slice(0, 4)
+    .slice(0, 3)
     .map((r) => r.detail?.trim() || r.risk || r.label)
     .filter((text): text is string => Boolean(text));
   if (flipBullets.length === 0 && whatFlips) flipBullets.push(whatFlips);
 
   const showCallMetrics = n(profitTarget) || n(breakPrice);
   const showCallInsights = whyBullets.length > 0 || flipBullets.length > 0;
-  const decisionContext = (
-    [
-      ["what changed", visual?.what_changed],
-      ["why now", visual?.why_it_matters],
-      ["next checkpoint", visual?.what_to_watch],
-    ] as const
-  ).filter(([, value]) => Boolean(value?.trim()));
-
   const callMetrics: Array<{
     label: string;
     value: string;
@@ -433,15 +419,6 @@ export function StockDetail(props: Props) {
       hintTone: "bearish",
     });
   }
-  if (n(riskRewardRatio)) {
-    callMetrics.push({
-      label: "Reward / risk",
-      value: formatRiskRewardRatio(riskRewardRatio!),
-      hint: riskRewardRatio! >= 1.5 ? "Favorable" : riskRewardRatio! >= 1 ? "Balanced" : "Tight",
-      hintTone: riskRewardRatio! >= 1.5 ? "bullish" : "neutral",
-    });
-  }
-
   const stanceLabel = stance.charAt(0).toUpperCase() + stance.slice(1);
 
   const hist = (priceHistory ?? []).filter((p) => n(p.close));
@@ -874,11 +851,6 @@ export function StockDetail(props: Props) {
                     {priceAwareCall?.body && (
                       <div className="mt-5">
                         <p className="text-[15px] leading-[1.55] text-on-surface/85">{highlightCallText(priceAwareCall.body)}</p>
-                        {priceAwareCall.levels && (
-                          <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">
-                            {highlightCallText(priceAwareCall.levels)}
-                          </p>
-                        )}
                       </div>
                     )}
                   </>
@@ -886,7 +858,7 @@ export function StockDetail(props: Props) {
               />
 
               {(showCallMetrics || hasSmartAlerts) && (
-                <div className="mt-6">
+                <div className="mt-7 border-t border-outline-variant/50 pt-5">
                   <CallMetricsStrip
                     metrics={callMetrics}
                     mobileColumns={2}
@@ -906,31 +878,17 @@ export function StockDetail(props: Props) {
               )}
 
               {showCallInsights && (
-                <div className="mt-6 grid gap-6 border-t border-outline-variant/50 pt-6 sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-outline-variant/40">
+                <div className="mt-8 grid gap-8 sm:grid-cols-2">
                   {whyBullets.length > 0 && (
-                    <div className="sm:pr-6">
+                    <div>
                       <CallInsightCard tone="bullish" title="drivers" bullets={whyBullets} />
                     </div>
                   )}
                   {flipBullets.length > 0 && (
-                    <div className="sm:pl-6">
+                    <div>
                       <CallInsightCard tone="bearish" title="risks" bullets={flipBullets} />
                     </div>
                   )}
-                </div>
-              )}
-
-              {decisionContext.length > 0 && (
-                <div className="mt-6 divide-y divide-outline-variant/50 border-t border-outline-variant/50 pt-2">
-                  {decisionContext.map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="grid gap-1.5 py-4 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:gap-8"
-                    >
-                      <p className={RAIL_KICKER}>{label}</p>
-                      <p className="text-[13px] leading-relaxed text-on-surface/85">{value}</p>
-                    </div>
-                  ))}
                 </div>
               )}
 
@@ -1041,7 +999,7 @@ export function StockDetail(props: Props) {
                         <span className="ml-1 text-[12px] font-normal text-on-surface-variant">/100</span>
                       )}
                     </p>
-                    <p className="mt-2 text-[11px] leading-relaxed text-on-surface-variant">
+                    <p className="mt-2 text-[12px] font-medium leading-relaxed text-on-surface-variant">
                       {hasReliableOverall ? "Compared with sector peers" : "Insufficient data"}
                       {overallCoverage != null ? ` · ${Math.round(overallCoverage * 100)}% coverage` : ""}
                     </p>
@@ -1056,7 +1014,7 @@ export function StockDetail(props: Props) {
                       <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                         {fundamentalStats.map((item) => (
                           <div key={item.k} className="min-w-0">
-                            <span className="block text-[11px] leading-snug text-on-surface-variant">{item.k}</span>
+                            <span className="block text-[12px] font-medium leading-snug text-on-surface-variant">{item.k}</span>
                             <span
                               className="mt-1 block font-mono text-[13px] font-bold tabular-nums"
                               style={{ color: toneColor[item.tone] }}
@@ -1075,7 +1033,7 @@ export function StockDetail(props: Props) {
                       <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                         {finTiles.map(([k, v]) => (
                           <div key={k} className="min-w-0">
-                            <p className="text-[11px] leading-snug text-on-surface-variant">{k}</p>
+                            <p className="text-[12px] font-medium leading-snug text-on-surface-variant">{k}</p>
                             <p className="mt-1 font-mono text-[13px] font-bold tabular-nums text-on-surface">{v}</p>
                           </div>
                         ))}
@@ -1083,7 +1041,7 @@ export function StockDetail(props: Props) {
                     </div>
                   )}
                   {!hasFinancialDepth ? (
-                    <p className="mt-6 border-t border-outline-variant pt-4 text-[11px] leading-relaxed text-on-surface-variant">
+                    <p className="mt-6 border-t border-outline-variant pt-4 text-[12px] font-medium leading-relaxed text-on-surface-variant">
                       Five-year statements are not available from the current sources yet. Missing figures are left blank, never estimated.
                     </p>
                   ) : null}

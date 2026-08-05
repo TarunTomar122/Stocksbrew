@@ -57,23 +57,27 @@ export function CallInsightCard({
 }) {
   const accent = tone === "bullish" ? "var(--signal-bullish)" : "var(--signal-bearish)";
 
+  const bulletList = (items: string[]) => (
+    <ul className="space-y-2.5">
+      {items.map((text, i) => (
+        <li key={i} className="flex gap-2.5 text-[15px] leading-6 text-on-surface/85 text-pretty">
+          <span
+            aria-hidden
+            className="mt-[0.5rem] h-1 w-1 shrink-0 rounded-full"
+            style={{ background: accent }}
+          />
+          <span>{highlightCallText(text)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
-    <div className="flex h-full min-w-0 flex-col">
-      <p className={`${CALL_KICK} mb-3`} style={{ color: accent }}>
+    <div className="flex h-full min-w-0 flex-col py-1">
+      <p className="mb-3 text-[13px] font-bold" style={{ color: accent }}>
         {title}
       </p>
-      <ul className="space-y-2.5">
-        {bullets.map((text, i) => (
-          <li key={i} className="flex gap-2.5 text-[13px] leading-snug text-on-surface/80">
-            <span
-              aria-hidden
-              className="mt-[0.35rem] h-1 w-1 shrink-0 rounded-full"
-              style={{ background: accent }}
-            />
-            <span>{highlightCallText(text)}</span>
-          </li>
-        ))}
-      </ul>
+      {bulletList(bullets)}
       {footer ? (
         <p className="mt-4 text-[12px] leading-snug text-on-surface-variant">{highlightCallText(footer)}</p>
       ) : null}
@@ -106,7 +110,7 @@ export function CallMetricsStrip({
 
   return (
     <div
-      className={`grid gap-x-4 gap-y-5 border-t border-outline-variant/50 pt-5 sm:gap-x-6 ${
+      className={`grid gap-x-4 gap-y-5 sm:gap-x-6 ${
         mobileColumns === 2
           ? "grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))]"
           : "grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))]"
@@ -114,7 +118,7 @@ export function CallMetricsStrip({
     >
       {metrics.map((m) => (
         <div key={m.label} className="min-w-0">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant sm:text-[9.5px] sm:tracking-[0.12em]">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
             {m.label}
           </p>
           <p className="mt-1 text-[15px] font-bold tabular-nums tracking-tight text-on-surface sm:text-[17px]">{m.value}</p>

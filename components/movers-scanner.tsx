@@ -125,7 +125,7 @@ export function MoversScanner({
               {visibleRows.map((a, index) => {
                 const up = a.changePct >= 0;
                 const locked = isLocked(index);
-                const shellClass = "grid min-w-0 gap-3 border-t border-outline-variant px-4 py-4 first:border-t-0 transition-colors hover:bg-surface-container-low sm:grid-cols-[13rem_minmax(0,1fr)_6rem] sm:items-start sm:gap-4 sm:px-5";
+                const shellClass = "grid min-w-0 gap-3 border-t border-outline-variant px-4 py-4 first:border-t-0 transition-colors hover:bg-surface-container-low sm:grid-cols-[13rem_minmax(0,42rem)_minmax(6rem,1fr)] sm:items-start sm:gap-4 sm:px-5";
                 const body = (
                   <>
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -133,7 +133,7 @@ export function MoversScanner({
                         <span className="min-w-0 flex-1">
                           <span className="block text-[15px] font-bold text-on-surface">{a.ticker}</span>
                           {a.company ? (
-                            <span className="block text-[10.5px] text-on-surface-variant">
+                            <span className="block text-[12px] font-medium text-on-surface-variant">
                               {a.company}
                             </span>
                           ) : null}
@@ -155,9 +155,9 @@ export function MoversScanner({
                       />
                     ) : (
                       <>
-                        {a.headline ? <p className="text-[13px] font-semibold leading-snug text-on-surface">{a.headline}</p> : null}
-                        {a.whyItMatters ? <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{a.whyItMatters}</p> : null}
-                        {!a.whyItMatters && a.tag ? <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{a.tag}</p> : null}
+                        {a.headline ? <p className="text-[14px] font-semibold leading-snug text-on-surface">{a.headline}</p> : null}
+                        {a.whyItMatters ? <p className="mt-1 text-[13px] font-medium leading-relaxed text-on-surface-variant">{a.whyItMatters}</p> : null}
+                        {!a.whyItMatters && a.tag ? <p className="mt-1 text-[13px] font-medium leading-relaxed text-on-surface-variant">{a.tag}</p> : null}
                       </>
                     )}
                     </div>

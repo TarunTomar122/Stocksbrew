@@ -48,7 +48,7 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
         <StockLogo ticker={row.ticker} market="US" size={30} className="shrink-0" />
         <div className="min-w-0">
           <p className="font-mono text-[13px] font-bold text-on-surface">{row.ticker}</p>
-          <p className="truncate text-[10.5px] text-on-surface-variant">{row.name ?? row.ticker}</p>
+          <p className="truncate text-[11.5px] font-medium text-on-surface-variant">{row.name ?? row.ticker}</p>
         </div>
       </div>
 
@@ -57,7 +57,7 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
           {setupLabel}
         </span>
         {!locked ? (
-          <p className="mt-1 font-mono text-[10.5px] tabular-nums text-on-surface-variant">
+          <p className="mt-1 font-mono text-[11.5px] font-medium tabular-nums text-on-surface-variant">
             score <span className="font-semibold text-on-surface">{row.interesting_score.toFixed(0)}</span>
           </p>
         ) : null}
@@ -72,7 +72,7 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
             {move.text}
           </p>
           {todayFact ? (
-            <p className="mt-1 font-mono text-[9.5px] text-on-surface-variant">{todayFact}</p>
+            <p className="mt-1 font-mono text-[10.5px] font-medium text-on-surface-variant">{todayFact}</p>
           ) : null}
         </div>
       </div>
@@ -97,11 +97,11 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
           />
         ) : (
           <>
-            <p className="line-clamp-2 text-[12.5px] font-medium leading-[1.45] text-on-surface">
+            <p className="line-clamp-2 text-[13px] font-medium leading-relaxed text-on-surface">
               {row.headline}
             </p>
             {row.reasons?.length ? (
-              <p className="mt-1 line-clamp-1 text-[10.5px] text-on-surface-variant">
+              <p className="mt-1 line-clamp-1 text-[11.5px] font-medium text-on-surface-variant">
                 {row.reasons.slice(0, 2).join(" · ")}
               </p>
             ) : null}
@@ -151,10 +151,10 @@ export function InterestingStocksFeed({
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-[14px] font-semibold text-on-surface">Today&apos;s setups</p>
-        <p className="mt-1 text-[13px] text-on-surface-variant">Stocks worth a closer look today.</p>
+        <p className="mt-1 text-[13px] font-medium text-on-surface-variant">Stocks worth a closer look today.</p>
       </div>
       <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface">
-        <div className="hidden grid-cols-[minmax(150px,0.75fr)_120px_118px_100px_minmax(280px,1.55fr)] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-on-surface-variant lg:grid">
+        <div className="hidden grid-cols-[minmax(150px,0.75fr)_120px_118px_100px_minmax(280px,1.55fr)] gap-4 border-b border-outline-variant bg-surface-container-low px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant lg:grid">
           <span>Stock</span>
           <span>Setup</span>
           <span className="text-right">Today</span>
