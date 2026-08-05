@@ -5,9 +5,9 @@ import { StockLogo } from "@/components/stock-logo";
 import type { RedditTicker } from "@/lib/reddit-cues-shared";
 
 const SENTIMENT_META: Record<string, { label: string; color: string; bg: string }> = {
-  bullish: { label: "Bullish", color: "#10b981", bg: "#ecfdf5" },
-  bearish: { label: "Bearish", color: "#ef4444", bg: "#fef2f2" },
-  neutral: { label: "Neutral", color: "#6b7280", bg: "#f3f4f6" },
+  bullish: { label: "Bullish", color: "var(--signal-bullish)", bg: "color-mix(in srgb, var(--signal-bullish) 12%, var(--surface))" },
+  bearish: { label: "Bearish", color: "var(--signal-bearish)", bg: "color-mix(in srgb, var(--signal-bearish) 12%, var(--surface))" },
+  neutral: { label: "Neutral", color: "var(--on-surface-variant)", bg: "var(--surface-container)" },
 };
 
 export function getRedditSentimentMeta(s: string) {

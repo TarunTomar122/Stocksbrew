@@ -34,7 +34,7 @@ export function RadarNextSignedOut() {
       />
 
       <div className="relative max-h-[48rem] overflow-hidden rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card-2)]">
-        <div aria-hidden className="pointer-events-none select-none space-y-10 p-4 opacity-70 sm:space-y-14 sm:p-7">
+        <div aria-hidden className="pointer-events-none select-none space-y-10 p-4 opacity-75 blur-[1.5px] sm:space-y-14 sm:p-7">
           <DecisionQueue items={DEMO_DECISIONS} openLoops={4} />
           <Book holdings={DEMO_HOLDINGS} watching={DEMO_WATCHING} />
           <Health
@@ -46,8 +46,8 @@ export function RadarNextSignedOut() {
             pillars={DEMO_HEALTH.pillars}
           />
         </div>
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-white/65" />
-        <section aria-label="Sample Watchlist notice" className="absolute inset-x-4 top-8 z-10 mx-auto max-w-[27rem] rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card)] p-6 text-center shadow-[0_22px_60px_rgba(15,23,42,0.16)] sm:top-12 sm:p-7">
+        <div aria-hidden className="rn-sample-fade absolute inset-0" />
+        <section aria-label="Sample Watchlist notice" className="absolute inset-x-4 top-8 z-10 mx-auto max-w-[27rem] rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card)]/95 p-6 text-center shadow-[0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-md sm:top-12 sm:p-7">
           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--rn-bear)]">Sample data</span>
           <h2 className="mt-2 text-[24px] font-extrabold leading-tight tracking-[-0.035em] text-[var(--rn-ink)]">
             Build your Watchlist

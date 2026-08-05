@@ -119,8 +119,8 @@ export function LandingHeroCommand({
 
         <VerdictCallChart
           columnsAt="md"
+          chartHeight={190}
           hist={chartData}
-          returns={call.returns}
           currency="$"
           zones={call.chart_zones}
           lineColor={call.chart_line_color}

@@ -120,7 +120,7 @@ function MockSetupCard({ ticker }: { ticker: string }) {
   return (
     <div
       aria-hidden
-      className="flex h-full flex-col gap-4 rounded-[20px] border border-[#fde68a] bg-gradient-to-br from-[#fffbeb] to-[#fff7ed] p-4 shadow-[0_12px_40px_rgba(180,83,9,0.08)]"
+      className="upcoming-earnings-mock flex h-full flex-col gap-4 rounded-[20px] border border-[#fde68a] bg-gradient-to-br from-[#fffbeb] to-[#fff7ed] p-4 shadow-[0_12px_40px_rgba(180,83,9,0.08)]"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -242,7 +242,7 @@ export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
       : "Fresh setups added as names enter the 7-day window";
 
   return (
-    <section className="overflow-hidden rounded-[24px] border border-[#fde68a] bg-gradient-to-br from-[#fffbeb] via-white to-[#fff7ed]">
+    <section className="upcoming-earnings-paywall overflow-hidden rounded-[24px] border border-[#fde68a] bg-gradient-to-br from-[#fffbeb] via-white to-[#fff7ed]">
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="flex flex-col gap-6 p-6 md:p-8 lg:p-10">
           <div className="flex flex-col gap-3">
@@ -307,7 +307,7 @@ export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 bg-[#fafafa]/60 p-6 md:p-8 lg:p-10">
+        <div className="upcoming-earnings-example flex flex-col gap-4 bg-[#fafafa]/60 p-6 md:p-8 lg:p-10">
           <div className="flex flex-col gap-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">
               Example setup card

@@ -105,6 +105,7 @@ export function VerdictCallChart({
   technicalLevels,
   zoneHint,
   columnsAt = "lg",
+  chartHeight,
 }: {
   callSlot: ReactNode;
   hist: Point[];
@@ -116,14 +117,15 @@ export function VerdictCallChart({
   technicalLevels?: StockTechnicalLevels | null;
   zoneHint?: { label: string; color: string } | null;
   columnsAt?: "md" | "lg";
+  chartHeight?: number;
 }) {
   const chartHist = useMemo(() => sliceChartRange(hist, "1y"), [hist]);
   const hasChart = chartHist.length >= 5;
   const gridCols =
     columnsAt === "md"
-      ? "md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]"
+      ? "md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
       : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]";
-  const gridStretch = columnsAt === "md" ? "md:items-stretch" : "lg:items-stretch";
+  const gridStretch = columnsAt === "md" ? "md:items-center" : "lg:items-stretch";
   const gridGap = columnsAt === "md" ? "md:gap-8" : "lg:gap-8";
 
   return (
@@ -148,6 +150,7 @@ export function VerdictCallChart({
             lineColor={lineColor}
             embedded
             currentPrice={currentPrice}
+            height={chartHeight}
           />
         </div>
       )}

@@ -129,7 +129,7 @@ export function ProPlanPicker() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+      <div className="mb-6 flex flex-col items-center justify-center gap-2">
         <div className="pro-billing-toggle" role="group" aria-label="Billing period">
           <button
             type="button"

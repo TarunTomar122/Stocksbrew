@@ -46,7 +46,7 @@ const FINANCIAL_CHART_COLORS = {
   operating: "#d97706",
   net: "#059669",
   negative: "#dc2626",
-  trend: "#111827",
+  trend: "var(--chart-trend)",
 } as const;
 
 function finite(value: unknown): value is number {
@@ -116,7 +116,7 @@ function FinancialChart({
   };
   const axes = (
     <>
-      <CartesianGrid stroke="var(--outline-variant)" strokeDasharray="3 6" vertical={false} />
+      <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 7" vertical={false} />
       <XAxis dataKey="period" tick={{ fill: "var(--on-surface-variant)", fontSize: 11 }} axisLine={false} tickLine={false} />
       <YAxis width={62} tickFormatter={(value) => valueLabel(Number(value))} tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }} axisLine={false} tickLine={false} />
       <Tooltip
@@ -177,7 +177,7 @@ const SIGNAL_COLOR: Record<StockIntelSignal, string> = {
 
 function RatioRow({ label, value, note, guidance }: { label: string; value: string; note: string; guidance: Guidance }) {
   return (
-    <div className="group grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-[#eceff3] py-3.5 transition-colors hover:bg-surface-container-low/60 last:border-b-0">
+    <div className="group grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-outline-variant py-3.5 transition-colors hover:bg-surface-container-low/60 last:border-b-0">
       <div className="min-w-0">
         <p className="text-[13px] font-semibold text-[#111827]">{label}</p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-[#6b7280]">{note}</p>
@@ -196,23 +196,27 @@ function MixBreakdown({ title, mix, currency }: { title: string; mix?: StockReve
   if (!items.length) return null;
   return (
     <section className="min-w-0">
-      <div className="flex items-baseline justify-between gap-3 border-b border-[#111827] pb-2.5">
-        <h4 className="text-[15px] font-semibold text-[#111827]">{title}</h4>
-        {mix?.period ? <span className="text-[11px] text-[#6b7280]">{mix.period}</span> : null}
+      <div className="flex items-baseline justify-between gap-3 border-b border-outline-variant pb-2.5">
+        <h4 className="text-[15px] font-semibold text-on-surface">{title}</h4>
+        {mix?.period ? <span className="text-[11px] text-on-surface-variant">{mix.period}</span> : null}
       </div>
-      <div className="divide-y divide-[#eceff3]">
+      <div className="divide-y divide-outline-variant">
         {items.map((item, index) => (
           <div key={item.name} className="py-3">
             <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <span className="truncate text-[12px] font-medium text-[#374151]">{item.name}</span>
-              <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#111827]">
-                {item.share_pct.toFixed(1)}% <span className="font-normal text-[#9ca3af]">· {compactMoney(item.value, currency)}</span>
+              <span className="truncate text-[12px] font-medium text-on-surface-variant">{item.name}</span>
+              <span className="shrink-0 text-[12px] font-semibold tabular-nums text-on-surface">
+                {item.share_pct.toFixed(1)}% <span className="font-normal text-on-surface-variant">· {compactMoney(item.value, currency)}</span>
               </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-[#eef0f3]">
+            <div className="h-1.5 overflow-hidden rounded-full bg-[var(--chart-track)]">
               <div
-                className={title === "Business mix" ? "h-full rounded-full bg-[#7c3aed]" : "h-full rounded-full bg-[#111827]"}
-                style={{ width: `${Math.max(2, Math.min(100, item.share_pct))}%`, opacity: Math.max(0.5, 1 - index * 0.09) }}
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.max(2, Math.min(100, item.share_pct))}%`,
+                  opacity: Math.max(0.62, 1 - index * 0.07),
+                  background: title === "Business mix" ? "var(--primary)" : "var(--chart-geo)",
+                }}
               />
             </div>
           </div>

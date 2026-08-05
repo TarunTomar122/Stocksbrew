@@ -116,11 +116,11 @@ function SymbolPicker({
         aria-haspopup="listbox"
         id={triggerId}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-[#e5e5e5] bg-surface px-3 text-left text-[13px] font-medium text-on-surface outline-none transition-colors hover:border-[#d4d4d4] focus-visible:border-[#a3a3a3] focus-visible:ring-2 focus-visible:ring-[#111111]/10"
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface px-3 text-left text-[13px] font-medium text-on-surface outline-none transition-colors hover:border-outline focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         <span className="truncate">{triggerLabel}</span>
         <ChevronDown
-          className={`shrink-0 text-[#525252] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`shrink-0 text-on-surface-variant transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -128,7 +128,7 @@ function SymbolPicker({
         <div
           role="listbox"
           aria-labelledby={triggerId}
-          className="absolute left-0 top-[calc(100%+6px)] z-[80] w-full max-h-[min(260px,45vh)] overflow-auto rounded-xl border border-[#ebebeb] bg-surface py-1 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.04]"
+          className="absolute left-0 top-[calc(100%+6px)] z-[80] w-full max-h-[min(260px,45vh)] overflow-auto rounded-xl border border-outline-variant bg-surface py-1 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)]"
         >
           {options.map((opt) => {
             const selected =
@@ -141,8 +141,8 @@ function SymbolPicker({
                 aria-selected={selected}
                 className={`flex w-full min-w-[148px] items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
                   selected
-                    ? "bg-[#f4f4f4] font-semibold text-on-surface"
-                    : "text-[#404040] hover:bg-surface-container-low"
+                    ? "bg-surface-container font-semibold text-on-surface"
+                    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
                 }`}
                 onClick={() => {
                   onChange(opt.value);
@@ -225,14 +225,14 @@ function ArticleCard({ article, radarSet, tickerMetaMode, compact }: ArticleCard
         </span>
         {showSummary && (
           <p
-            className={`mt-2 text-[13px] leading-relaxed text-[#525252] ${
+            className={`mt-2 text-[13px] leading-relaxed text-on-surface-variant ${
               compact ? "line-clamp-2" : "line-clamp-4"
             }`}
           >
             {rawSummary}
           </p>
         )}
-        <p className="mt-3 text-[11px] leading-normal text-[#a3a3a3]">{metaParts.join(" - ")}</p>
+        <p className="mt-3 text-[11px] leading-normal text-on-surface-variant">{metaParts.join(" - ")}</p>
       </a>
     </article>
   );
@@ -369,7 +369,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
 
   const emptyBody =
     variant === "radar" ? (
-      <div className="flex flex-col gap-2 text-[13px] leading-relaxed text-[#737373]">
+      <div className="flex flex-col gap-2 text-[13px] leading-relaxed text-on-surface-variant">
         <p>
           No recent news matched your Watchlist.
           refreshes, or open the full market feed.
@@ -379,7 +379,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
         </Link>
       </div>
     ) : (
-      <p className="text-[13px] leading-relaxed text-[#737373]">
+      <p className="text-[13px] leading-relaxed text-on-surface-variant">
         No articles are available for this market in the latest news run yet - check back after the
         pipeline refreshes.
       </p>
@@ -392,19 +392,19 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
 
   return (
     <section className="flex flex-col gap-4 bg-surface p-3 md:p-5">
-      <div className="flex shrink-0 flex-col gap-4 border-b border-[#ebebeb] pb-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex shrink-0 flex-col gap-4 border-b border-outline-variant pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
           {!hideTitle ? (
             <>
               <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-on-surface md:text-[20px]">
                 {title}
               </HeadingTag>
-              <p className="max-w-xl text-[13px] leading-relaxed text-[#737373]">{subtitle}</p>
+              <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant">{subtitle}</p>
             </>
           ) : (
             <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant">{subtitle}</p>
           )}
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#b5b5b5]">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-on-surface-variant">
             {articles.length === 0
               ? "-"
               : filtered.length === articles.length
@@ -417,7 +417,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             {showSymbolPicker ? (
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#b5b5b5]">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
                   Symbol
                 </span>
                 <SymbolPicker
@@ -429,7 +429,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
             ) : null}
 
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#b5b5b5]">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
                 Tone
               </span>
               <div className="flex flex-wrap gap-1">
@@ -444,7 +444,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                       className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${
                         active
                           ? "bg-on-surface text-surface"
-                          : "bg-surface-container text-[#737373] hover:bg-[#ebebeb] hover:text-on-surface"
+                          : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
                       }`}
                     >
                       <span className="inline-flex items-baseline gap-1">
@@ -452,8 +452,8 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                         <span
                           className={
                             active
-                              ? "font-medium tabular-nums text-white/65"
-                              : "font-medium tabular-nums text-[#b0b0b0]"
+                              ? "font-medium tabular-nums text-surface/70"
+                              : "font-medium tabular-nums text-on-surface-variant"
                           }
                         >
                           · {count}
@@ -512,7 +512,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       {articles.length === 0 ? (
         emptyBody
       ) : filtered.length === 0 ? (
-        <p className="text-[13px] leading-relaxed text-[#737373]">{filteredEmptyHint}</p>
+        <p className="text-[13px] leading-relaxed text-on-surface-variant">{filteredEmptyHint}</p>
       ) : (
         <div className={`w-full ${gridClass} gap-x-8 gap-y-0 lg:gap-x-10`}>
           {columns.map((col, ci) => (

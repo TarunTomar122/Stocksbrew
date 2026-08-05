@@ -15,11 +15,11 @@ import type { PortfolioAnalysis, PortfolioStock, RiskFlag, Opportunity } from "@
 // ---------------------------------------------------------------------------
 
 function scoreColor(s: number | null): string {
-  if (s === null) return "#9ca3af";
-  if (s >= 80) return "#10b981";
-  if (s >= 60) return "#111111";
-  if (s >= 40) return "#6b7280";
-  return "#ef4444";
+  if (s === null) return "var(--on-surface-variant)";
+  if (s >= 80) return "var(--signal-bullish)";
+  if (s >= 60) return "var(--on-surface)";
+  if (s >= 40) return "var(--on-surface-variant)";
+  return "var(--signal-bearish)";
 }
 
 function scoreLabel(s: number | null): string {

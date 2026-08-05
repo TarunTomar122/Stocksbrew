@@ -55,7 +55,7 @@ export function PreEarningsEventCard({ doc, name, logoUrl, quote }: Props) {
   return (
     <Link
       href={href}
-      className="group flex h-full flex-col gap-3 rounded-[20px] border border-[#fde68a] bg-gradient-to-b from-[#fffbeb] to-white p-4 transition-all hover:border-[#f59e0b] hover:shadow-sm"
+      className="pre-earnings-event-card group flex h-full flex-col gap-3 rounded-[20px] border border-[#fde68a] bg-gradient-to-b from-[#fffbeb] to-white p-4 transition-all hover:border-[#f59e0b] hover:shadow-sm"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">

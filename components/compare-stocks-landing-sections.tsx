@@ -32,28 +32,28 @@ export function CompareStocksLandingSections() {
         breadcrumbLabel="Compare Stocks"
       />
 
-      <div className="border-t border-[#e3e8e5] bg-[#f7f9f8]">
+      <div className="border-t border-outline-variant bg-surface-container-low">
         <div className="mx-auto grid w-full max-w-[1240px] gap-12 px-5 py-14 sm:px-8 md:grid-cols-[0.8fr_1.2fr] md:py-20 lg:px-10">
           <section>
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#087a5b]">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-bullish">
               After the comparison
             </span>
-            <h2 className="mt-3 max-w-sm text-[28px] font-semibold leading-[1.05] tracking-[-0.04em] text-[#151b17] sm:text-[34px]">
+            <h2 className="mt-3 max-w-sm text-[28px] font-semibold leading-[1.05] tracking-[-0.04em] text-on-surface sm:text-[34px]">
               Compare once. Track what changes.
             </h2>
-            <p className="mt-4 max-w-sm text-[14px] leading-6 text-[#68736c]">
+            <p className="mt-4 max-w-sm text-[14px] leading-6 text-on-surface-variant">
               Add the names you care about to your Watchlist and we&apos;ll keep their research current.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link
                 href="/watchlist"
-                className="rounded-full bg-[#111713] px-4 py-2.5 text-[11px] font-semibold text-white"
+                className="rounded-full bg-on-surface px-4 py-2.5 text-[11px] font-semibold text-surface"
               >
                 Open Watchlist
               </Link>
               <Link
                 href="/should-i-buy"
-                className="rounded-full border border-[#d6ddd8] bg-white px-4 py-2.5 text-[11px] font-semibold text-[#344139]"
+                className="rounded-full border border-outline-variant bg-surface px-4 py-2.5 text-[11px] font-semibold text-on-surface"
               >
                 Single-stock verdict
               </Link>
@@ -61,15 +61,15 @@ export function CompareStocksLandingSections() {
           </section>
 
           <section>
-            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#1c241f]">Quick questions</h2>
-            <div className="mt-4 divide-y divide-[#dde3df] border-y border-[#dde3df]">
+            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-on-surface">Quick questions</h2>
+            <div className="mt-4 divide-y divide-outline-variant border-y border-outline-variant">
               {FAQS.map((faq) => (
                 <details key={faq.question} className="group py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[13px] font-semibold text-[#27322b]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[13px] font-semibold text-on-surface">
                     {faq.question}
-                    <span className="text-[18px] font-normal text-[#7f8982] transition-transform group-open:rotate-45">+</span>
+                    <span className="text-[18px] font-normal text-on-surface-variant transition-transform group-open:rotate-45">+</span>
                   </summary>
-                  <p className="max-w-xl pt-3 text-[12px] leading-5 text-[#6d7771]">{faq.answer}</p>
+                  <p className="max-w-xl pt-3 text-[12px] leading-5 text-on-surface-variant">{faq.answer}</p>
                 </details>
               ))}
             </div>

@@ -117,7 +117,7 @@ export default async function BlogPostPage({ params }: Props) {
         </header>
 
         <div
-          className="prose prose-lg max-w-none
+          className="blog-prose prose prose-lg max-w-none
             prose-headings:text-[#111111] prose-headings:font-semibold prose-headings:tracking-[-0.02em]
             prose-h2:text-[26px] prose-h2:mt-12 prose-h2:mb-5 prose-h2:pb-2 prose-h2:border-b prose-h2:border-[#e5e7eb]
             prose-h3:text-[20px] prose-h3:mt-10 prose-h3:mb-4 prose-h3:font-semibold

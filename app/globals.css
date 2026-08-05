@@ -12,6 +12,7 @@ table tbody tr:hover > * {
 
 /* ── Theme tokens: light ─────────────────────────────────────────────────── */
 :root {
+  color-scheme: light;
   /* Brand / primary - refined violet */
   --primary:                   #6b38d4;
   --primary-container:         #8455ef;
@@ -74,6 +75,13 @@ table tbody tr:hover > * {
   --outline:          #b8bcc4;
   --outline-variant:  #d5d9e0;
 
+  /* Chart neutrals need their own theme-aware colors. */
+  --chart-grid:   #d5d9e0;
+  --chart-axis:   #6b7280;
+  --chart-trend:  #111827;
+  --chart-geo:    #374151;
+  --chart-track:  #eef0f3;
+
   /* Semantic status colors — darker for WCAG AA text on white/light panels */
   --signal-bullish:  #047857;
   --signal-bearish:  #b91c1c;
@@ -108,10 +116,11 @@ table tbody tr:hover > * {
 
 /* ── Theme tokens: dark ─────────────────────────────────────────────────── */
 .dark {
-  --primary:                   #d0bcff;
+  color-scheme: dark;
+  --primary:                   #cbb5ff;
   --primary-container:         #5516be;
   --primary-fixed:             #e9ddff;
-  --primary-fixed-dim:         #d0bcff;
+  --primary-fixed-dim:         #cbb5ff;
   --on-primary:                #3a0092;
   --on-primary-container:      #e9ddff;
   --on-primary-fixed:          #23005c;
@@ -141,27 +150,36 @@ table tbody tr:hover > * {
   --on-error:               #690005;
   --on-error-container:     #ffdad6;
 
-  /* near-black with a faint green cast (terminal tint) */
-  --background:                    #070b09;
-  --surface:                       #0f1512;
-  --surface-bright:                #1b231d;
-  --surface-dim:                   #070b09;
-  --surface-tint:                  #d0bcff;
-  --surface-variant:               #222a25;
-  --surface-container-lowest:      #050806;
-  --surface-container-low:         #0c120e;
-  --surface-container:             #131a15;
-  --surface-container-high:        #1a221c;
-  --surface-container-highest:     #222b24;
+  /* Neutral graphite surfaces. The page canvas and main surface deliberately
+     match so full-width layouts do not leave darker gutters behind. */
+  --background:                    #121513;
+  --surface:                       #121513;
+  --surface-bright:                #29302d;
+  --surface-dim:                   #0d100f;
+  --surface-tint:                  #cbb5ff;
+  --surface-variant:               #29302d;
+  --surface-container-lowest:      #0d100f;
+  --surface-container-low:         #171b19;
+  --surface-container:             #1c221f;
+  --surface-container-high:        #222925;
+  --surface-container-highest:     #2a322e;
   --inverse-surface:               #e1e2e4;
   --inverse-on-surface:            #2e3132;
 
-  --on-background:       #f1f4f7;
-  --on-surface:          #f1f4f7;
-  --on-surface-variant:  #9aa3af;
+  --on-background:       #f4f7f5;
+  --on-surface:          #f4f7f5;
+  --on-surface-variant:  #c7cec9;
 
-  --outline:          #3a4049;
-  --outline-variant:  #232830;
+  /* `outline` is for controls/focus. `outline-variant` is a deliberately
+     quiet divider so dense finance screens do not look like high-contrast UI. */
+  --outline:          #76817a;
+  --outline-variant:  #343d38;
+
+  --chart-grid:   #323b36;
+  --chart-axis:   #aeb8b2;
+  --chart-trend:  #e5ebe7;
+  --chart-geo:    #8ea49a;
+  --chart-track:  #252d29;
 
   --landing-card-border: var(--outline-variant);
 
@@ -169,7 +187,7 @@ table tbody tr:hover > * {
   --signal-bearish:  #fb7185;
   --signal-neutral:  #94a3b8;   /* hold/neutral is a gray, not amber */
 
-  --accent-terminal: #94a3b8;   /* neutralized from cyan */
+  --accent-terminal: #bdc8c1;   /* neutralized from cyan */
 
   --landing-brand: var(--primary);
   --landing-brand-hover: var(--primary-fixed);
@@ -430,7 +448,7 @@ table tbody tr:hover > * {
 }
 
 /* Light landing palette */
-:not(.dark) .landing-page {
+html:not(.dark) .landing-page {
   --background: #ffffff;
   --surface: #ffffff;
   --surface-container-low: #ffffff;
@@ -1355,6 +1373,15 @@ html:not(.dark):has(.landing-page) body {
   box-shadow: inset 3px 0 0 var(--rn-row-accent);
 }
 
+.radar-next .rn-sample-fade {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--rn-card) 5%, transparent),
+    transparent 45%,
+    color-mix(in srgb, var(--rn-card) 38%, transparent)
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rn-pulse::before, .rn-bone::after { animation: none; }
 }
@@ -1811,6 +1838,256 @@ html:not(.dark):has(.landing-page) body {
   border-radius: 0.625rem;
   background: color-mix(in srgb, var(--tool-accent) 12%, var(--surface-container));
   color: var(--tool-accent);
+}
+
+/* ── Dark compatibility for legacy public surfaces ────────────────────────
+   New UI uses semantic tokens. Older tools and editorial templates still
+   carry literal light-palette utilities; map those recurring utilities at
+   the document boundary so every route follows the selected appearance. */
+html.dark [class~="bg-white"],
+html.dark [class~="bg-white/95"],
+html.dark [class~="bg-white/90"],
+html.dark [class~="bg-white/80"],
+html.dark [class~="bg-[#ffffff]"],
+html.dark [class~="bg-[#fff]"],
+html.dark [class~="bg-[#fbfcfb]"],
+html.dark [class~="bg-[#fafbfa]"],
+html.dark [class~="bg-[#fafafa]"],
+html.dark [class~="bg-[#fafaf7]"],
+html.dark [class~="bg-[#f9fafb]"],
+html.dark [class~="bg-[#f8fafc]"],
+html.dark [class~="bg-[#f8faf9]"],
+html.dark [class~="bg-[#f8f9fa]"],
+html.dark [class~="bg-[#f7faf8]"],
+html.dark [class~="bg-[#f7f9f8]"],
+html.dark [class~="bg-[#f6f7f9]"] {
+  background-color: var(--surface) !important;
+}
+
+html.dark [class~="bg-[#f5f7ff]"],
+html.dark [class~="bg-[#f5f0ff]"],
+html.dark [class~="bg-[#f4f4f4]"],
+html.dark [class~="bg-[#f3f4f6]"],
+html.dark [class~="bg-[#f0f4ff]"],
+html.dark [class~="bg-[#f0f3f1]"],
+html.dark [class~="bg-[#f0f1f3]"],
+html.dark [class~="bg-[#eef2ef]"],
+html.dark [class~="bg-[#eef0f3]"],
+html.dark [class~="bg-[#edf2ef]"],
+html.dark [class~="bg-[#e5e7eb]"],
+html.dark [class~="bg-[#d1d5db]"] {
+  background-color: var(--surface-container) !important;
+}
+
+html.dark [class~="bg-[#ecfdf5]"],
+html.dark [class~="bg-[#f0fdf4]"],
+html.dark [class~="bg-[#edf9f3]"],
+html.dark [class~="bg-[#eef7f2]"] {
+  background-color: color-mix(in srgb, var(--signal-bullish) 12%, var(--surface)) !important;
+}
+
+html.dark [class~="bg-[#fef2f2]"],
+html.dark [class~="bg-[#fff0f0]"],
+html.dark [class~="bg-[#fee2e2]"] {
+  background-color: color-mix(in srgb, var(--signal-bearish) 12%, var(--surface)) !important;
+}
+
+html.dark [class~="bg-[#eff6ff]"],
+html.dark [class~="bg-[#eef2ff]"],
+html.dark [class~="bg-[#dbeafe]"] {
+  background-color: color-mix(in srgb, var(--primary) 12%, var(--surface)) !important;
+}
+
+html.dark [class~="bg-[#fef3c7]"],
+html.dark [class~="bg-[#fffbeb]"],
+html.dark [class~="bg-[#fffaf1]"],
+html.dark [class~="bg-[#fffaf5]"],
+html.dark [class~="bg-[#fff7ed]"],
+html.dark [class~="bg-[#ffedd5]"] {
+  background-color: color-mix(in srgb, var(--signal-neutral) 14%, var(--surface)) !important;
+}
+
+html.dark [class~="text-[#0a0a0a]"],
+html.dark [class~="text-[#111111]"],
+html.dark [class~="text-[#111215]"],
+html.dark [class~="text-[#111827]"],
+html.dark [class~="text-[#1f2937]"],
+html.dark [class~="text-[#374151]"] {
+  color: var(--on-surface) !important;
+}
+
+html.dark [class~="text-[#4b5563]"],
+html.dark [class~="text-[#404040]"],
+html.dark [class~="text-[#525252]"],
+html.dark [class~="text-[#59655e]"],
+html.dark [class~="text-[#6b7280]"],
+html.dark [class~="text-[#68736c]"],
+html.dark [class~="text-[#6d7771]"],
+html.dark [class~="text-[#737373]"],
+html.dark [class~="text-[#7b847e]"],
+html.dark [class~="text-[#7b8780]"],
+html.dark [class~="text-[#7f8982]"],
+html.dark [class~="text-[#9ca3af]"],
+html.dark [class~="text-[#a3a3a3]"],
+html.dark [class~="text-[#b0b0b0]"],
+html.dark [class~="text-[#b5b5b5]"],
+html.dark [class*="text-[#4b5563]/"],
+html.dark [class*="text-[#6b7280]/"],
+html.dark [class*="text-[#737373]/"],
+html.dark [class*="text-[#9ca3af]/"] {
+  color: var(--on-surface-variant) !important;
+}
+
+html.dark [class~="text-[#047857]"],
+html.dark [class~="text-[#059669]"],
+html.dark [class~="text-[#065f46]"],
+html.dark [class~="text-[#087a5b]"],
+html.dark [class~="text-[#10b981]"],
+html.dark [class~="text-[#15803d]"] {
+  color: var(--signal-bullish) !important;
+}
+
+html.dark [class~="text-[#991b1b]"],
+html.dark [class~="text-[#b91c1c]"],
+html.dark [class~="text-[#dc2626]"],
+html.dark [class~="text-[#ef4444]"] {
+  color: var(--signal-bearish) !important;
+}
+
+html.dark [class~="text-[#92400e]"],
+html.dark [class~="text-[#b45309]"],
+html.dark [class~="text-[#c2410c]"] {
+  color: #fbbf24 !important;
+}
+
+html.dark [class~="text-[#0052ff]"],
+html.dark [class~="text-[#1d4ed8]"],
+html.dark [class~="text-[#2563eb]"],
+html.dark [class~="text-[#3b82f6]"] {
+  color: #60a5fa !important;
+}
+
+html.dark [class~="border-[#f3f4f6]"],
+html.dark [class~="border-[#eceff3]"],
+html.dark [class~="border-[#ececea]"],
+html.dark [class~="border-[#e7ebe8]"],
+html.dark [class~="border-[#e5e9e6]"],
+html.dark [class~="border-[#e5e7eb]"],
+html.dark [class~="border-[#e5e5e5]"],
+html.dark [class~="border-[#e3e8e5]"],
+html.dark [class~="border-[#e0e5e2]"],
+html.dark [class~="border-[#dfe5e1]"],
+html.dark [class~="border-[#d1d5db]"] {
+  border-color: var(--outline-variant) !important;
+}
+
+html.dark [class~="bg-[#111111]"] {
+  background-color: var(--on-surface) !important;
+}
+html.dark [class~="bg-[#111111]"][class~="text-white"] {
+  color: var(--surface) !important;
+}
+
+html.dark .prose {
+  --tw-prose-body: var(--on-surface-variant);
+  --tw-prose-headings: var(--on-surface);
+  --tw-prose-lead: var(--on-surface-variant);
+  --tw-prose-links: var(--primary);
+  --tw-prose-bold: var(--on-surface);
+  --tw-prose-counters: var(--on-surface-variant);
+  --tw-prose-bullets: var(--outline);
+  --tw-prose-hr: var(--outline-variant);
+  --tw-prose-quotes: var(--on-surface);
+  --tw-prose-quote-borders: var(--outline);
+  --tw-prose-captions: var(--on-surface-variant);
+  --tw-prose-code: var(--on-surface);
+  --tw-prose-pre-code: var(--on-surface);
+  --tw-prose-pre-bg: var(--surface-container-lowest);
+  --tw-prose-th-borders: var(--outline);
+  --tw-prose-td-borders: var(--outline-variant);
+}
+
+html.dark img[class~="bg-white"] {
+  background-color: #ffffff !important;
+}
+
+html.dark .blog-prose :where(h1, h2, h3, h4, strong) {
+  color: var(--on-surface) !important;
+}
+
+html.dark .blog-prose :where(p, li, blockquote, td, th) {
+  color: var(--on-surface-variant) !important;
+}
+
+html.dark .blog-prose :where(hr, h2, td, th) {
+  border-color: var(--outline-variant) !important;
+}
+
+html.dark .blog-prose :where(.sample-brief, .source-note, .table-scroll, .cta-section) {
+  border-color: var(--outline-variant) !important;
+  background: var(--surface-container-low) !important;
+}
+
+html.dark .blog-prose .article-summary {
+  border-color: color-mix(in srgb, var(--bullish) 30%, var(--outline-variant)) !important;
+  background: color-mix(in srgb, var(--bullish) 10%, var(--surface)) !important;
+}
+
+html.dark .blog-prose .table-scroll th {
+  background: var(--surface-container) !important;
+}
+
+html.dark .compare-builder {
+  border-color: var(--outline-variant) !important;
+  background: var(--surface-container-low) !important;
+}
+
+html.dark .compare-builder-copy h1 {
+  color: var(--on-surface) !important;
+}
+
+html.dark .compare-builder-copy p,
+html.dark .compare-builder-copy > div {
+  color: var(--on-surface-variant) !important;
+}
+
+html.dark .upcoming-earnings-paywall,
+html.dark .upcoming-earnings-mock,
+html.dark .upcoming-earnings-callout {
+  border-color: color-mix(in srgb, #fbbf24 48%, var(--outline-variant)) !important;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #fbbf24 8%, var(--surface-container)),
+    var(--surface-container-low)
+  ) !important;
+}
+
+html.dark .upcoming-earnings-example {
+  background: color-mix(in srgb, #fbbf24 4%, var(--surface-container)) !important;
+}
+
+html.dark .pre-earnings-event-card {
+  border-color: color-mix(in srgb, #fbbf24 48%, var(--outline-variant)) !important;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fbbf24 7%, var(--surface-container)),
+    var(--surface-container-low)
+  ) !important;
+}
+
+html.dark .stock-ai-decision-carousel {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--outline-variant)) !important;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 8%, var(--surface-container)),
+    var(--surface-container-low)
+  ) !important;
+}
+
+html.dark .recharts-default-tooltip {
+  border-color: var(--outline-variant) !important;
+  background: var(--surface-container-high) !important;
+  color: var(--on-surface) !important;
 }
 
 /* ── Base resets ─────────────────────────────────────────────────────────── */

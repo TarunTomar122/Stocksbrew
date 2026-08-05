@@ -57,10 +57,9 @@ function fmtPct(v: number | null | undefined): { text: string; positive: boolean
 }
 
 function heatScoreColor(score: number): string {
-  if (score >= 80) return "#ef4444";
-  if (score >= 60) return "#111111";
-  if (score >= 40) return "#6b7280";
-  return "#9ca3af";
+  if (score >= 80) return "var(--signal-bearish)";
+  if (score >= 60) return "var(--on-surface)";
+  return "var(--on-surface-variant)";
 }
 
 type DriverMeta = { label: string; color: string; bg: string };

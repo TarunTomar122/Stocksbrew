@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
 import styles from "./footer.module.css";
 
@@ -185,6 +186,12 @@ export function Footer() {
                 Live now
               </span>
             </div>
+            <div className="mt-1 flex w-fit items-center gap-2.5">
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-white/50">
+                Appearance
+              </span>
+              <ThemeToggle variant="footer" />
+            </div>
           </div>
 
           {COLUMNS.map((col) => (
@@ -217,7 +224,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className={`${styles.viewport} my-8 py-2`} aria-label="StocksBrew directory features">
+        <div className={`${styles.viewport} my-6 py-1`} aria-label="StocksBrew directory features">
           <div className={styles.track}>
             {[false, true].map((duplicate) => (
               <div className={styles.group} key={duplicate ? "duplicate" : "primary"} aria-hidden={duplicate}>
@@ -236,7 +243,7 @@ export function Footer() {
                         alt={duplicate ? "" : badge.alt}
                         width={badge.width}
                         height={badge.height}
-                        className="h-11 w-auto max-w-none object-contain"
+                        className="h-6 w-auto max-w-none object-contain"
                         loading="lazy"
                       />
                     ) : (

@@ -20,7 +20,7 @@ export function UpcomingEarningsCallout({ setupCount, isSubscribed }: Props) {
   return (
     <Link
       href="/upcoming-events"
-      className="group flex items-start gap-3 rounded-xl border border-[#fde68a] bg-gradient-to-r from-[#fffbeb] via-[#fff7ed] to-white px-4 py-3.5 transition-all hover:border-[#f59e0b] hover:shadow-sm"
+      className="upcoming-earnings-callout group flex items-start gap-3 rounded-xl border border-[#fde68a] bg-gradient-to-r from-[#fffbeb] via-[#fff7ed] to-white px-4 py-3.5 transition-all hover:border-[#f59e0b] hover:shadow-sm"
     >
       <span
         aria-hidden

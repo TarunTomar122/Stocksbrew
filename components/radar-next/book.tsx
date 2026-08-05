@@ -46,7 +46,7 @@ function flagStyle(tone: BookFlagTone): { color: string; background: string } {
           ? "var(--signal-neutral)"
           : tone === "earnings"
             ? "var(--on-surface-variant)"
-            : "#2563eb";
+            : "var(--primary)";
   return { color, background: `color-mix(in srgb, ${color} 12%, transparent)` };
 }
 

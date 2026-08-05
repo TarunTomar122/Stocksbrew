@@ -196,7 +196,7 @@ export function FeedLockedSection({
   signedInLabel?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant bg-[#f7f5ff] px-4 py-4 sm:px-5">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant bg-surface-container px-4 py-4 sm:px-5">
       <div>
         <p className="text-[13px] font-semibold text-on-surface">{count} more {noun}</p>
         <p className="mt-0.5 text-[11.5px] text-on-surface-variant">Research details are available with Pro.</p>

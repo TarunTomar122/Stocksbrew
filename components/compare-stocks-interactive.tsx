@@ -480,7 +480,7 @@ function CompareBuilder({
   );
 
   return (
-    <section className="relative overflow-hidden rounded-[32px] border border-[#dde3df] bg-[#f7faf8]">
+    <section className="compare-builder relative overflow-hidden rounded-[32px] border border-[#dde3df] bg-[#f7faf8]">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-24 -top-36 h-[420px] w-[420px] rounded-full bg-[#baf3d8]/45 blur-3xl"
@@ -495,7 +495,7 @@ function CompareBuilder({
           initial={reducedMotion ? false : { x: -16 }}
           animate={{ x: 0 }}
           transition={{ duration: 0.45 }}
-          className="flex flex-col items-start"
+          className="compare-builder-copy flex flex-col items-start"
         >
           <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#cddbd2] bg-white/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#087a5b]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#16a174]" />

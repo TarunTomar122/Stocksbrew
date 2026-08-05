@@ -158,7 +158,7 @@ export function StockAiDecisionCarousel({ ticker, intelPro }: Props) {
   }, [intelPro]);
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[#eef2ff] bg-gradient-to-br from-[#f8fafc] via-white to-[#eff6ff] px-3 py-2.5">
+    <div className="stock-ai-decision-carousel flex flex-col gap-2 rounded-xl border border-[#eef2ff] bg-gradient-to-br from-[#f8fafc] via-white to-[#eff6ff] px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0052ff]">
           How AI helps you decide

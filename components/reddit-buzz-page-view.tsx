@@ -22,21 +22,21 @@ const SIDE_META: Record<
 > = {
   bullish: {
     label: "Bullish",
-    color: "#047857",
-    bg: "#ecfdf5",
-    border: "#bbf7d0",
+    color: "var(--signal-bullish)",
+    bg: "color-mix(in srgb, var(--signal-bullish) 12%, var(--surface))",
+    border: "color-mix(in srgb, var(--signal-bullish) 45%, var(--outline-variant))",
   },
   neutral: {
     label: "Neutral",
-    color: "#4b5563",
-    bg: "#f3f4f6",
-    border: "#e5e7eb",
+    color: "var(--on-surface-variant)",
+    bg: "var(--surface-container)",
+    border: "var(--outline-variant)",
   },
   bearish: {
     label: "Bearish",
-    color: "#b91c1c",
-    bg: "#fef2f2",
-    border: "#fecaca",
+    color: "var(--signal-bearish)",
+    bg: "color-mix(in srgb, var(--signal-bearish) 12%, var(--surface))",
+    border: "color-mix(in srgb, var(--signal-bearish) 45%, var(--outline-variant))",
   },
 };
 

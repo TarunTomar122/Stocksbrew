@@ -13,9 +13,9 @@ type Props = {
 };
 
 const SENTIMENT_META: Record<string, { label: string; color: string }> = {
-  bullish: { label: "Bullish", color: "#10b981" },
-  bearish: { label: "Bearish", color: "#ef4444" },
-  neutral: { label: "Neutral", color: "#6b7280" },
+  bullish: { label: "Bullish", color: "var(--signal-bullish)" },
+  bearish: { label: "Bearish", color: "var(--signal-bearish)" },
+  neutral: { label: "Neutral", color: "var(--on-surface-variant)" },
 };
 
 function getSentimentMeta(s: string) {

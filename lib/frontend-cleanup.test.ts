@@ -7,6 +7,20 @@ function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
 
+function relativeLuminance(hex: string): number {
+  const channels = hex.match(/[\da-f]{2}/gi)?.map((channel) => Number.parseInt(channel, 16) / 255) ?? [];
+  const linear = channels.map((value) =>
+    value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
+  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 describe("Pulse, Social, Watchlist, and home cleanup", () => {
   it("puts price before the final interesting rationale column", () => {
     const feed = source("components/interesting-stocks-feed.tsx");
@@ -211,15 +225,41 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(depth).toContain(">Trend</span>");
   });
 
+  it("keeps the homepage market-read card compact without the return-period strip", () => {
+    const hero = source("components/landing-hero-command.tsx");
+
+    expect(hero).toContain("<VerdictCallChart");
+    expect(hero).toContain("chartHeight={190}");
+    expect(hero).not.toContain("returns={call.returns}");
+  });
+
   it("makes the signed-out Watchlist unmistakably sample data", () => {
     const states = source("components/radar-next/states.tsx");
 
     expect(states).toContain("Watchlist preview");
     expect(states).toContain("Sample data");
-    expect(states).toContain("opacity-70");
+    expect(states).toContain("opacity-75");
+    expect(states).toContain("blur-[1.5px]");
     expect(states).not.toContain("blur-[3px]");
     expect(states).toContain("Build your Watchlist");
     expect(states).toContain("Build my Watchlist");
     expect(states).not.toContain("This is not your Watchlist");
+  });
+
+  it("keeps the dark palette readable and its controls visibly bounded", () => {
+    const css = source("app/globals.css");
+    const dark = css.match(/\.dark \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const token = (name: string) => dark.match(new RegExp(`--${name}:\\s*(#[\\da-f]{6})`, "i"))?.[1] ?? "";
+
+    const background = token("background");
+    const surface = token("surface");
+
+    expect(contrastRatio(token("on-surface"), background)).toBeGreaterThanOrEqual(7);
+    expect(contrastRatio(token("on-surface-variant"), surface)).toBeGreaterThanOrEqual(7);
+    expect(contrastRatio(token("outline"), surface)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(token("outline-variant"), surface)).toBeGreaterThanOrEqual(1.2);
+    expect(contrastRatio(token("outline-variant"), surface)).toBeLessThan(3);
+    expect(contrastRatio(token("signal-bullish"), surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(token("signal-bearish"), surface)).toBeGreaterThanOrEqual(4.5);
   });
 });

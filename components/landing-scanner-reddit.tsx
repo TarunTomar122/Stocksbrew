@@ -145,7 +145,7 @@ export function LandingScannerReddit({
               description="See every mover and crowd read with Pro."
               signedOutLabel={HOMEPAGE_UNLOCK_LABEL}
               signedInLabel="Unlock every market read with Pro"
-              className="border-t border-outline-variant bg-[#f7f5ff]"
+              className="border-t border-outline-variant bg-surface-container-low"
             />
           ) : null}
 
