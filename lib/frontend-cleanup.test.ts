@@ -214,9 +214,12 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
   it("makes the signed-out Watchlist unmistakably sample data", () => {
     const states = source("components/radar-next/states.tsx");
 
-    expect(states).toContain("These stocks and decisions are examples, not yours");
-    expect(states).toContain("blur-[3px]");
-    expect(states).toContain("This is not your Watchlist");
+    expect(states).toContain("Watchlist preview");
+    expect(states).toContain("Sample data");
+    expect(states).toContain("opacity-70");
+    expect(states).not.toContain("blur-[3px]");
+    expect(states).toContain("Build your Watchlist");
     expect(states).toContain("Build my Watchlist");
+    expect(states).not.toContain("This is not your Watchlist");
   });
 });
