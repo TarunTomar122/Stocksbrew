@@ -81,6 +81,9 @@ table tbody tr:hover > * {
   --chart-trend:  #111827;
   --chart-geo:    #374151;
   --chart-track:  #eef0f3;
+  --chart-tooltip-bg:     #202427;
+  --chart-tooltip-text:   #f8fafc;
+  --chart-tooltip-border: #343a40;
 
   /* Semantic status colors — darker for WCAG AA text on white/light panels */
   --signal-bullish:  #047857;
@@ -180,6 +183,9 @@ table tbody tr:hover > * {
   --chart-trend:  #e5ebe7;
   --chart-geo:    #8ea49a;
   --chart-track:  #252d29;
+  --chart-tooltip-bg:     #222925;
+  --chart-tooltip-text:   #f4f7f5;
+  --chart-tooltip-border: #46514b;
 
   --landing-card-border: var(--outline-variant);
 
@@ -2085,9 +2091,14 @@ html.dark .stock-ai-decision-carousel {
 }
 
 html.dark .recharts-default-tooltip {
-  border-color: var(--outline-variant) !important;
-  background: var(--surface-container-high) !important;
-  color: var(--on-surface) !important;
+  border-color: var(--chart-tooltip-border) !important;
+  background: var(--chart-tooltip-bg) !important;
+  color: var(--chart-tooltip-text) !important;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+}
+
+html.dark .recharts-default-tooltip :is(.recharts-tooltip-label, .recharts-tooltip-item) {
+  color: var(--chart-tooltip-text) !important;
 }
 
 /* ── Base resets ─────────────────────────────────────────────────────────── */

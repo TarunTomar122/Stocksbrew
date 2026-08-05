@@ -121,9 +121,9 @@ function FinancialChart({
       <YAxis width={62} tickFormatter={(value) => valueLabel(Number(value))} tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }} axisLine={false} tickLine={false} />
       <Tooltip
         formatter={(value, name) => [valueLabel(Number(value)), series.find((item) => item.key === name)?.label ?? String(name)]}
-        labelStyle={{ color: "var(--inverse-on-surface)", fontWeight: 700 }}
-        contentStyle={{ background: "var(--inverse-surface)", border: 0, color: "var(--inverse-on-surface)", borderRadius: 4, fontSize: 12 }}
-        itemStyle={{ color: "var(--inverse-on-surface)" }}
+        labelStyle={{ color: "var(--chart-tooltip-text)", fontWeight: 700 }}
+        contentStyle={{ background: "var(--chart-tooltip-bg)", border: "1px solid var(--chart-tooltip-border)", color: "var(--chart-tooltip-text)", borderRadius: 8, fontSize: 12 }}
+        itemStyle={{ color: "var(--chart-tooltip-text)" }}
         cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }}
       />
     </>
@@ -280,17 +280,17 @@ function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; cur
 
   return (
     <div className="pt-4">
-      <div className="grid overflow-hidden rounded-xl border border-[#e5e7eb] bg-[#f8fafc] sm:grid-cols-2">
+      <div className="grid overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low sm:grid-cols-2">
         <div className="p-4 sm:p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Current price</p>
-          <p className="mt-1 text-[24px] font-bold tabular-nums text-[#111827]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Current price</p>
+          <p className="mt-1 text-[24px] font-bold tabular-nums text-on-surface">
             {finite(currentPrice) ? compactMoney(currentPrice, currency) : "-"}
           </p>
         </div>
-        <div className="border-t border-[#e5e7eb] p-4 sm:border-l sm:border-t-0 sm:p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Average analyst target</p>
+        <div className="border-t border-outline-variant p-4 sm:border-l sm:border-t-0 sm:p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Average analyst target</p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="text-[24px] font-bold tabular-nums text-[#111827]">{compactMoney(average, currency)}</p>
+            <p className="text-[24px] font-bold tabular-nums text-on-surface">{compactMoney(average, currency)}</p>
             {finite(averageMove) ? (
               <span className="text-[12px] font-semibold tabular-nums" style={{ color: averageAbove ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
                 {averageAbove ? "+" : ""}{averageMove.toFixed(1)}% from now
@@ -299,11 +299,11 @@ function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; cur
           </div>
         </div>
       </div>
-      <p className="mt-4 text-[11px] font-semibold text-[#374151]">Analyst target range</p>
-      <div className="mt-2 grid grid-cols-3 divide-x divide-[#e5e7eb] rounded-lg border border-[#e5e7eb] bg-white text-[11px]">
-        <div className="px-3 py-3"><span className="block text-[#9ca3af]">Low</span><b className="mt-0.5 block tabular-nums">{compactMoney(low, currency)}</b></div>
-        <div className="px-3 py-3 text-center"><span className="block text-[#9ca3af]">Median</span><b className="mt-0.5 block tabular-nums">{compactMoney(median, currency)}</b></div>
-        <div className="px-3 py-3 text-right"><span className="block text-[#9ca3af]">High</span><b className="mt-0.5 block tabular-nums">{compactMoney(high, currency)}</b></div>
+      <p className="mt-4 text-[11px] font-semibold text-on-surface">Analyst target range</p>
+      <div className="mt-2 grid grid-cols-3 divide-x divide-outline-variant rounded-lg border border-outline-variant bg-surface text-[11px] text-on-surface">
+        <div className="px-3 py-3"><span className="block text-on-surface-variant">Low</span><b className="mt-0.5 block tabular-nums">{compactMoney(low, currency)}</b></div>
+        <div className="px-3 py-3 text-center"><span className="block text-on-surface-variant">Median</span><b className="mt-0.5 block tabular-nums">{compactMoney(median, currency)}</b></div>
+        <div className="px-3 py-3 text-right"><span className="block text-on-surface-variant">High</span><b className="mt-0.5 block tabular-nums">{compactMoney(high, currency)}</b></div>
       </div>
     </div>
   );
@@ -321,8 +321,8 @@ function AnalystTrend({ facts }: { facts: StockFacts }) {
   return (
     <div className="mt-7">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-[#374151]">Recommendation trend</p>
-        <div className="flex gap-3 text-[10px] text-[#6b7280]">
+        <p className="text-[12px] font-semibold text-on-surface">Recommendation trend</p>
+        <div className="flex gap-3 text-[10px] text-on-surface-variant">
           <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#10b981]" />Buy</span>
           <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#d1d5db]" />Hold</span>
           <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#ef4444]" />Sell</span>
@@ -335,8 +335,9 @@ function AnalystTrend({ facts }: { facts: StockFacts }) {
             <YAxis hide allowDecimals={false} />
             <Tooltip
               formatter={(value, name) => [Number(value).toFixed(0), String(name)]}
-              contentStyle={{ background: "var(--inverse-surface)", border: 0, color: "var(--inverse-on-surface)", borderRadius: 4, fontSize: 12 }}
-              itemStyle={{ color: "var(--inverse-on-surface)" }}
+              labelStyle={{ color: "var(--chart-tooltip-text)", fontWeight: 700 }}
+              contentStyle={{ background: "var(--chart-tooltip-bg)", border: "1px solid var(--chart-tooltip-border)", color: "var(--chart-tooltip-text)", borderRadius: 8, fontSize: 12 }}
+              itemStyle={{ color: "var(--chart-tooltip-text)" }}
               cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }}
             />
             <Bar dataKey="Buy" fill="#10b981" radius={[3, 3, 0, 0]} />

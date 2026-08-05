@@ -238,7 +238,7 @@ export function FundamentalsBreakdown({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-7 md:grid-cols-2 md:gap-0 md:divide-x md:divide-outline-variant/50">
+          <div className="mt-5 grid gap-7 md:grid-cols-2 md:gap-0 md:divide-x md:divide-outline-variant">
             {groups.map((group) => (
               <section
                 key={group.title}
