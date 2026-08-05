@@ -658,7 +658,9 @@ export function StockDetail(props: Props) {
       finTiles.length > 0 ||
       hasFinancialDepth ||
       peerRows.length > 1 ||
-      (subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal)),
+      showAnalyst ||
+      hasExtendedAnalyst ||
+      hasCrowdSignal,
   );
   const hasSmartAlerts = directiveSmartAlerts.length > 0 || Boolean(earningsSmartAlertRail);
   const hasActivitySection = Boolean(recentNews?.length);
@@ -1090,7 +1092,7 @@ export function StockDetail(props: Props) {
               </aside>
 
               {pillars && (
-                <div className="min-w-0 p-5 sm:p-6 lg:p-7">
+                <div className={`min-w-0 ${subscribed ? "p-5 sm:p-6 lg:p-7" : ""}`}>
                   <FundamentalsBreakdown pillars={pillars} isSubscribed={subscribed} />
                 </div>
               )}
@@ -1108,7 +1110,7 @@ export function StockDetail(props: Props) {
           />
         )}
 
-        {subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (
+        {(showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (
           <section className={`${STOCK_SECTION} py-7 sm:py-9`}>
             <div className="mb-5">
               <span className={TIER}>market view</span>

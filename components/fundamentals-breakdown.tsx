@@ -196,23 +196,25 @@ export function FundamentalsBreakdown({
   const coverage = Math.round(pillarCoverage(p) * 100);
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Fundamental score category">
-        {KEYS.map((key) => {
-          const pl = pillars[key];
-          const coverage = pillarCoverage(pl);
-          return (
-            <PillarTab
-              key={key}
-              score={pl.score}
-              coverage={coverage}
-              color={scoreColor(pl.score, coverage >= 0.5)}
-              label={LABEL[key]}
-              active={key === active}
-              onClick={() => setActive(key)}
-            />
-          );
-        })}
+    <div className={isSubscribed ? "" : "flex h-full min-h-[32rem] flex-col"}>
+      <div className={isSubscribed ? "" : "p-5 pb-4 sm:p-6 sm:pb-5 lg:p-7 lg:pb-5"}>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Fundamental score category">
+          {KEYS.map((key) => {
+            const pl = pillars[key];
+            const coverage = pillarCoverage(pl);
+            return (
+              <PillarTab
+                key={key}
+                score={pl.score}
+                coverage={coverage}
+                color={scoreColor(pl.score, coverage >= 0.5)}
+                label={LABEL[key]}
+                active={key === active}
+                onClick={() => setActive(key)}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {metrics.length > 0 && isSubscribed && (
@@ -257,8 +259,8 @@ export function FundamentalsBreakdown({
       )}
 
       {!isSubscribed && (
-        <div className="relative mt-6 min-h-[17rem] overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-low">
-          <div aria-hidden className="pointer-events-none select-none space-y-5 p-5 blur-[6px]">
+        <div className="relative flex min-h-[22rem] flex-1 overflow-hidden border-t border-outline-variant bg-surface-container-low/70">
+          <div aria-hidden className="pointer-events-none absolute inset-0 select-none space-y-5 p-7 blur-[7px]">
             <div className="flex items-start justify-between gap-5">
               <div className="space-y-2">
                 <div className="h-5 w-24 rounded bg-surface-container-high" />
@@ -278,10 +280,11 @@ export function FundamentalsBreakdown({
               ))}
             </div>
           </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-surface/45 px-5 py-6 backdrop-blur-[2px]">
-            <div className="w-full max-w-[29rem] rounded-2xl border border-outline-variant bg-surface p-5 shadow-[0_18px_50px_rgba(17,24,39,0.10)] sm:p-6">
-              <p className="text-[18px] font-extrabold tracking-[-0.02em] text-on-surface">See the full financial picture</p>
-              <ul className="mt-3 grid gap-2 text-[12.5px] text-on-surface/85 sm:grid-cols-2">
+          <div className="relative z-10 flex w-full items-center bg-surface/88 px-6 py-8 backdrop-blur-[3px] sm:px-8 lg:px-10">
+            <div className="w-full">
+              <p className="text-[22px] font-extrabold tracking-[-0.03em] text-on-surface">See the full financial picture</p>
+              <p className="mt-2 max-w-[54ch] text-[12.5px] leading-relaxed text-on-surface-variant">Open the five-year record, valuation checks and Wall Street view behind these scores.</p>
+              <ul className="mt-5 grid gap-x-8 gap-y-3 text-[12.5px] text-on-surface/85 sm:grid-cols-2">
                 {["5 years of revenue, profit and cash flow", "Valuation and balance-sheet checks", "Business and geographic mix", "Analyst targets and recommendation trend"].map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <span className="mt-0.5 text-[var(--signal-bullish)]">✓</span>
@@ -295,9 +298,9 @@ export function FundamentalsBreakdown({
                 className="mt-4 !justify-start !p-0"
                 signedOutLabel="See full financials"
                 signedInLabel="Unlock full financials"
-                buttonClassName="!min-h-11 !w-full !rounded-lg !border-primary !bg-none !bg-primary !px-5 !py-3 !text-[13px] !text-on-primary !shadow-none"
+                buttonClassName="!min-h-11 !w-full !rounded-lg !border-primary !bg-none !bg-primary !px-5 !py-3 !text-[13px] !text-on-primary !shadow-none sm:!w-auto sm:!min-w-[15rem]"
               />
-              <p className="mt-2 text-center text-[10.5px] text-on-surface-variant">Free for 3 days, then $9/mo. Cancel anytime.</p>
+              <p className="mt-2 text-[10.5px] text-on-surface-variant">Free for 3 days, then $9/mo. Cancel anytime.</p>
             </div>
           </div>
         </div>

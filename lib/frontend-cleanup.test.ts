@@ -85,6 +85,8 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(fundamentals).toContain('aria-pressed={active}');
     expect(fundamentals).toContain("isSubscribed: boolean");
     expect(fundamentals).toContain("FeedUnlockBar");
+    expect(fundamentals).toContain('isSubscribed ? "" : "flex h-full min-h-[32rem] flex-col"');
+    expect(fundamentals).not.toContain("max-w-[29rem]");
     expect(fundamentals).not.toContain("bg-on-surface text-surface");
     expect(detail).toContain("lg:grid-cols-[minmax(15rem,0.32fr)_minmax(0,0.68fr)]");
     expect(detail).toContain("overflow-hidden rounded-2xl border border-outline-variant");
@@ -97,6 +99,8 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(detail).toContain("const levelMoney");
     expect(detail).toContain("style={{ color: scoreToneColor(hasReliableOverall");
     expect(detail).toContain("Street expectations and crowd signal");
+    expect(detail).toContain("{(showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (");
+    expect(detail).not.toContain("{subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (");
     expect(detail).toContain("hasCrowdSignal && hasMarketReddit");
     expect(detail).toContain('const showPeerRevenueGrowth = peerRows.some((peer) => peer.revGrowth !== "-");');
     expect(detail).toContain('{showPeerRevenueGrowth ? "rev growth" : "price"}');
@@ -196,5 +200,23 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(depth).toContain('negative: "#dc2626"');
     expect(depth).not.toContain('color: "#34d399"');
     expect(depth).not.toContain('color: "#047857"');
+  });
+
+  it("overlays a trend line on single-series financial bars", () => {
+    const depth = source("components/stock-financial-depth.tsx");
+
+    expect(depth).toContain("ComposedChart");
+    expect(depth).toContain("series.length === 1");
+    expect(depth).toContain('tooltipType="none"');
+    expect(depth).toContain(">Trend</span>");
+  });
+
+  it("makes the signed-out Watchlist unmistakably sample data", () => {
+    const states = source("components/radar-next/states.tsx");
+
+    expect(states).toContain("These stocks and decisions are examples, not yours");
+    expect(states).toContain("blur-[3px]");
+    expect(states).toContain("This is not your Watchlist");
+    expect(states).toContain("Build my Watchlist");
   });
 });

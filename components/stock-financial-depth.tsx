@@ -6,6 +6,7 @@ import {
   BarChart,
   Cell,
   CartesianGrid,
+  ComposedChart,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -45,6 +46,7 @@ const FINANCIAL_CHART_COLORS = {
   operating: "#d97706",
   net: "#059669",
   negative: "#dc2626",
+  trend: "#111827",
 } as const;
 
 function finite(value: unknown): value is number {
@@ -136,7 +138,7 @@ function FinancialChart({
             {series.map((item) => <Line key={item.key} dataKey={item.key} name={item.key} stroke={item.color} strokeWidth={3} dot={{ r: 3, fill: "var(--surface)", strokeWidth: 2 }} activeDot={{ r: 5 }} connectNulls />)}
           </LineChart>
         ) : (
-          <BarChart {...common} barGap={3}>
+          <ComposedChart {...common} barGap={3}>
             {axes}
             {series.map((item) => (
               <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56}>
@@ -147,7 +149,19 @@ function FinancialChart({
                 })}
               </Bar>
             ))}
-          </BarChart>
+            {series.length === 1 ? (
+              <Line
+                type="monotone"
+                dataKey={series[0].key}
+                stroke={FINANCIAL_CHART_COLORS.trend}
+                strokeWidth={2.25}
+                dot={{ r: 3, fill: "var(--surface)", stroke: FINANCIAL_CHART_COLORS.trend, strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: "var(--surface)", stroke: FINANCIAL_CHART_COLORS.trend, strokeWidth: 2 }}
+                tooltipType="none"
+                connectNulls
+              />
+            ) : null}
+          </ComposedChart>
         )}
       </ResponsiveContainer>
     </div>
@@ -404,6 +418,9 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }:
           <div className="pt-5">
             <div className="mb-1 flex flex-wrap gap-x-5 gap-y-2">
               {series.map((item) => <span key={item.label} className="text-[11px] font-medium text-[#6b7280]"><i className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</span>)}
+              {mode !== "margins" && series.length === 1 ? (
+                <span className="text-[11px] font-medium text-[#6b7280]"><i className="mr-1.5 inline-block h-0.5 w-4 align-middle" style={{ backgroundColor: FINANCIAL_CHART_COLORS.trend }} />Trend</span>
+              ) : null}
             </div>
             <FinancialChart periods={periods} series={series} mode={mode} currency={currency} />
           </div>

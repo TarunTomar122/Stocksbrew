@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { CommandHeader, type CommandHeaderProps } from "@/components/radar-next/command-header";
 import { DecisionQueue } from "@/components/radar-next/decision-queue";
 import { Book } from "@/components/radar-next/book";
@@ -18,9 +17,9 @@ export function RadarNextSignedOut() {
   return (
     <div className="radar-next mx-auto w-full max-w-[1240px] space-y-10 px-4 pb-10 pt-3 sm:space-y-14 sm:px-6 sm:pt-6">
       <CommandHeader
-        greeting="This is what a live Watchlist looks like"
-        dateLabel="Sample data"
-        statusLine="6 tracked · 3 decisions · 4 open checkpoints"
+        greeting="Preview only"
+        dateLabel="Example data"
+        statusLine="These stocks and decisions are examples, not yours"
         trackedCount={6}
         isSubscribed={false}
         mode="sample"
@@ -34,38 +33,39 @@ export function RadarNextSignedOut() {
         }
       />
 
-      <DecisionQueue items={DEMO_DECISIONS} openLoops={4} />
-      <Book holdings={DEMO_HOLDINGS} watching={DEMO_WATCHING} />
-      <Health
-        grade={DEMO_HEALTH.grade}
-        gradePct={DEMO_HEALTH.gradePct}
-        headline={DEMO_HEALTH.headline}
-        body={DEMO_HEALTH.body}
-        fixes={DEMO_HEALTH.fixes}
-        pillars={DEMO_HEALTH.pillars}
-      />
-
-      <section className="rounded-2xl bg-[var(--rn-ink)] px-5 py-7 text-center text-[var(--rn-card)] sm:px-8 sm:py-9">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] opacity-65">Make it yours</span>
-        <h2 className="mx-auto mt-2 max-w-xl text-[24px] font-extrabold leading-tight tracking-[-0.035em] sm:text-[32px]">
-          Keep the stocks you follow in one place.
-        </h2>
-        <p className="mx-auto mt-3 max-w-lg text-[13px] leading-relaxed opacity-70">
-          Add up to three stocks free. Your Watchlist keeps their price, research and important changes together.
-        </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
-          <StartRadarButton
-            surface="radar_page"
-            signedOutLabel="Track 3 stocks free"
-            signedInLabel="Add my first stock"
-            className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-card)] px-5 py-2.5 text-[13px] font-bold text-[var(--rn-ink)] no-underline disabled:opacity-60"
+      <div className="relative max-h-[48rem] overflow-hidden rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card-2)]">
+        <div aria-hidden className="pointer-events-none select-none space-y-10 p-4 opacity-45 blur-[3px] sm:space-y-14 sm:p-7">
+          <DecisionQueue items={DEMO_DECISIONS} openLoops={4} />
+          <Book holdings={DEMO_HOLDINGS} watching={DEMO_WATCHING} />
+          <Health
+            grade={DEMO_HEALTH.grade}
+            gradePct={DEMO_HEALTH.gradePct}
+            headline={DEMO_HEALTH.headline}
+            body={DEMO_HEALTH.body}
+            fixes={DEMO_HEALTH.fixes}
+            pillars={DEMO_HEALTH.pillars}
           />
-          <Link href="/subscribe" className="rounded-full px-4 py-2.5 text-[12.5px] font-semibold text-[var(--rn-card)] no-underline shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--rn-card)_25%,transparent)]">
-            See Pro
-          </Link>
         </div>
-        <p className="mt-3 font-mono text-[10px] opacity-55">Free for 3 stocks · no payment details</p>
-      </section>
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-white/20 via-white/30 to-white" />
+        <section aria-label="Sample Watchlist notice" className="absolute inset-x-4 top-8 z-10 mx-auto max-w-[27rem] rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card)] p-6 text-center shadow-[0_22px_60px_rgba(15,23,42,0.16)] sm:top-12 sm:p-7">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--rn-bear)]">Sample data</span>
+          <h2 className="mt-2 text-[24px] font-extrabold leading-tight tracking-[-0.035em] text-[var(--rn-ink)]">
+            This is not your Watchlist
+          </h2>
+          <p className="mt-3 text-[13px] leading-relaxed text-[var(--rn-muted)]">
+            Sign in and add your stocks to see your prices, decisions and checkpoints here.
+          </p>
+          <div className="mt-5 flex justify-center">
+            <StartRadarButton
+              surface="radar_page"
+              signedOutLabel="Build my Watchlist"
+              signedInLabel="Open my Watchlist"
+              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--rn-ink)] px-5 py-2.5 text-[13px] font-bold text-[var(--rn-card)] no-underline disabled:opacity-60"
+            />
+          </div>
+          <p className="mt-3 font-mono text-[10px] text-[var(--rn-muted)]">3 stocks free · no payment details</p>
+        </section>
+      </div>
     </div>
   );
 }
