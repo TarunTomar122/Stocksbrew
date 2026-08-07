@@ -13,6 +13,7 @@ import { StockAnalystDepth, StockFinancialDepth, StockOperatingRecord } from "@/
 import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
 import { TrackButton } from "@/components/track-button";
 import { StockShareCard } from "@/components/stock-share-card";
+import { StockPageAnalytics } from "@/components/stock-page-analytics";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import Link from "next/link";
 import type {
@@ -652,6 +653,14 @@ export function StockDetail(props: Props) {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1240px] px-4 pb-4 pt-8 sm:px-6 sm:pb-7 sm:pt-14">
+      <StockPageAnalytics
+        ticker={stock.ticker}
+        instrumentId={stock.instrument_id}
+        isSubscribed={subscribed}
+        isTracked={isTracked}
+        hasAiBrief={Boolean(directive?.text)}
+        hasCrowdSignal={hasCrowdSignal}
+      />
       {/* HEADER */}
       <header className="border-b border-outline-variant pb-5 sm:pb-6">
         <div className="flex items-start justify-between gap-2.5 sm:hidden">

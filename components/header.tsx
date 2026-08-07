@@ -241,7 +241,15 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   const picked = results[activeIndex];
                   if (picked) { navigateTo(picked); setMobileSearchOpen(false); }
                   else if (query.trim()) {
-                    router.push(`/stock/${encodeURIComponent(query.trim().toUpperCase())}`);
+                    const ticker = query.trim().toUpperCase();
+                    captureEvent("stock_search_selected", {
+                      ticker,
+                      instrument_id: null,
+                      market,
+                      source: "header_mobile",
+                      raw_submit: true,
+                    });
+                    router.push(`/stock/${encodeURIComponent(ticker)}`);
                     setMobileSearchOpen(false);
                     setQuery("");
                   }

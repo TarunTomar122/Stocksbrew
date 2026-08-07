@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useEffect, useCallback } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
+import { captureEvent } from "@/lib/posthog";
 
 export type TrendingStock = { ticker: string; name: string; price: number; changePct: number };
 
@@ -71,6 +72,7 @@ export function TrendingNow({ stocks }: { stocks: TrendingStock[] }) {
             <Link
               key={stock.ticker}
               href={`/stock/${stock.ticker}`}
+              onClick={() => captureEvent("explore_stock_clicked", { ticker: stock.ticker, section: "trending_now" })}
               className="flex w-40 shrink-0 flex-col gap-3 rounded-xl border border-outline-variant bg-surface p-4 hover:bg-surface-container-low sm:w-44"
             >
               <div className="flex items-center gap-2">

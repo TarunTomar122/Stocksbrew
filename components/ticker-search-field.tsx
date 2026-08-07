@@ -117,6 +117,13 @@ export function TickerSearchField({
     }
     if (!query.trim()) return;
     const ticker = query.trim().toUpperCase();
+    captureEvent("stock_search_selected", {
+      ticker,
+      instrument_id: null,
+      market,
+      source: analyticsSource,
+      raw_submit: true,
+    });
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();

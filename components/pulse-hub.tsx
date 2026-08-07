@@ -11,6 +11,7 @@ import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { StockLogo } from "@/components/stock-logo";
 import type { OpeningCue, OpeningReport, OpeningSession } from "@/lib/premarket-opening";
 import type { PremarketMovers } from "@/lib/premarket";
+import { captureEvent } from "@/lib/posthog";
 
 function pctLabel(value: number) {
   const up = value >= 0;
@@ -412,6 +413,7 @@ function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                       setTab(key);
                       setSelectedTicker(null);
                       setMobileDetailOpen(false);
+                      captureEvent("pulse_movers_tab_selected", { tab: key });
                     }}
                     className="rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors"
                     style={
@@ -440,6 +442,7 @@ function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                     onClick={() => {
                       setSelectedTicker(row.ticker);
                       setMobileDetailOpen(true);
+                      captureEvent("pulse_mover_selected", { ticker: row.ticker, tab, locked: rowLocked });
                     }}
                     className="flex w-full items-center gap-3 border-t border-outline-variant/70 px-4 py-3 text-left first:border-t-0 hover:bg-surface-container-low"
                     style={active ? { background: "color-mix(in srgb, var(--primary) 8%, var(--surface))" } : undefined}
@@ -485,6 +488,7 @@ function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                   </div>
                   <Link
                     href={`/stock/${selected.ticker}`}
+                    onClick={() => captureEvent("pulse_mover_open_stock_page", { ticker: selected.ticker, tab })}
                     className="shrink-0 rounded-full border border-outline-variant px-3.5 py-1.5 text-[13px] font-medium text-primary transition-colors hover:bg-surface-container-low sm:ml-auto"
                   >
                     Open stock page →
@@ -677,6 +681,7 @@ function RecentEarningsGrid({ items }: { items: RecentEarningsCard[] }) {
             <Link
               key={item.ticker}
               href={`/earnings-intel/${encodeURIComponent(item.ticker)}`}
+              onClick={() => captureEvent("pulse_earnings_card_clicked", { ticker: item.ticker })}
               className="rounded-xl border border-outline-variant bg-surface p-4 hover:bg-surface-container-low"
             >
               <div className="flex items-center gap-3">
@@ -724,6 +729,16 @@ export function PulseHub({
   isSubscribed?: boolean;
   recentEarnings?: RecentEarningsCard[];
 }) {
+  useEffect(() => {
+    captureEvent("market_viewed", {
+      mover_count: items.length,
+      subscribed: isSubscribed,
+      recent_earnings_count: recentEarnings.length,
+    });
+    // Fires once per mount to mark the page view; counts are a snapshot, not reactive state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="flex flex-col gap-8 pt-2">
       <PremarketStrip movers={premarketMovers ?? null} report={premarketReport ?? null} />

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
 import { TrendingNow, type TrendingStock } from "@/components/trending-now";
 import type { HeatRow } from "@/lib/heat";
 import type { Near52WeekRow } from "@/lib/near-52-week";
+import { captureEvent } from "@/lib/posthog";
 import type { RedditTicker } from "@/lib/reddit-cues";
 
 function money(v: number) {
@@ -133,6 +134,11 @@ function StockScreener({
   if (categories.length === 0) return null;
   const category = categories.find((c) => c.key === active) ?? categories[0];
 
+  function selectCategory(c: { key: ScreenerCategoryKey; label: string; rows: ScreenerRow[] }) {
+    setActive(c.key);
+    captureEvent("explore_category_selected", { category: c.key, row_count: c.rows.length });
+  }
+
   return (
     <section>
       <h2 className="text-[22px] font-semibold tracking-tight text-on-surface">Stock screener</h2>
@@ -145,7 +151,7 @@ function StockScreener({
               <button
                 key={c.key}
                 type="button"
-                onClick={() => setActive(c.key)}
+                onClick={() => selectCategory(c)}
                 className="shrink-0 rounded-full border px-3.5 py-1.5 text-[13.5px] font-medium transition-colors"
                 style={
                   isActive
@@ -169,7 +175,7 @@ function StockScreener({
               <button
                 key={c.key}
                 type="button"
-                onClick={() => setActive(c.key)}
+                onClick={() => selectCategory(c)}
                 className="flex w-full items-center border-t border-outline-variant/70 px-4 py-7 text-left first:border-t-0 hover:bg-surface-container-low md:border-t-0 md:border-b"
                 style={isActive ? { background: "color-mix(in srgb, var(--primary) 8%, var(--surface))" } : undefined}
               >
@@ -189,6 +195,7 @@ function StockScreener({
             <Link
               key={row.key}
               href={`/stock/${row.ticker}`}
+              onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "screener", category: category.key })}
               className="grid grid-cols-[2rem_7rem_1fr_5.5rem] items-center gap-3 border-t border-outline-variant/70 px-4 py-4 first:border-t-0 hover:bg-surface-container-low sm:grid-cols-[2rem_10rem_1fr_6rem] sm:px-5"
             >
               <StockLogo ticker={row.ticker} market="US" size={32} />
@@ -233,6 +240,7 @@ function RedditCard({ row }: { row: RedditRow }) {
   return (
     <Link
       href={`/stock/${row.ticker}`}
+      onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "reddit_buzz" })}
       className="rounded-xl border border-outline-variant bg-surface p-4 hover:bg-surface-container-low"
     >
       <div className="flex items-center gap-3">
@@ -300,6 +308,21 @@ export function ExploreHub({
   dipStocks: HeatRow[];
   redditTickers: RedditRow[];
 }) {
+  useEffect(() => {
+    captureEvent("explore_viewed", {
+      hot_count: hotStocks.length,
+      near_high_count: nearHighs.length,
+      near_low_count: nearLows.length,
+      momentum_count: momentumStocks.length,
+      news_spike_count: newsSpikes.length,
+      catalyst_count: catalystStocks.length,
+      dip_count: dipStocks.length,
+      reddit_count: redditTickers.length,
+    });
+    // Fires once per mount to mark the page view; category/row counts are a snapshot, not reactive state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="flex flex-col gap-10">
       <TrendingNow stocks={trending} />
