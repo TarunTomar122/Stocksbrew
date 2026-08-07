@@ -55,7 +55,7 @@ function FlagChip({ flag }: { flag: BookFlag }) {
   return (
     <span
       title={flag.title}
-      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold leading-none"
+      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none sm:text-[9px]"
       style={style}
     >
       {flag.label}
@@ -149,23 +149,23 @@ function MobileRow({ row }: { row: BookRow }) {
         <StockLogo ticker={row.ticker} market={row.market} size={30} className="shrink-0" />
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[13.5px] font-bold text-[var(--rn-ink)]">{row.ticker}</span>
-            <span className="font-mono text-[9px] font-semibold uppercase" style={{ color: stanceColor(row.stance) }}>
+            <span className="text-[15.5px] font-bold text-[var(--rn-ink)]">{row.ticker}</span>
+            <span className="font-mono text-[11px] font-semibold uppercase" style={{ color: stanceColor(row.stance) }}>
               {row.stance ?? "watch"}
             </span>
             {row.flags.map((flag, index) => (
               <FlagChip key={`${flag.label}-${index}`} flag={flag} />
             ))}
           </span>
-          <span className="mt-0.5 block truncate text-[10.5px] text-[var(--rn-muted)]">{row.name}</span>
+          <span className="mt-0.5 block truncate text-[12.5px] text-[var(--rn-muted)]">{row.name}</span>
         </span>
       </span>
 
       <span className="text-right">
-        <span className="block font-mono text-[12.5px] font-semibold tabular-nums text-[var(--rn-ink)]">
+        <span className="block font-mono text-[14.5px] font-semibold tabular-nums text-[var(--rn-ink)]">
           {priceText(row)}
         </span>
-        <span className="block font-mono text-[10.5px] font-semibold tabular-nums" style={{ color: changeColor(row.dayChangePct) }}>
+        <span className="block font-mono text-[12.5px] font-semibold tabular-nums" style={{ color: changeColor(row.dayChangePct) }}>
           {changeText(row.dayChangePct)}
         </span>
       </span>

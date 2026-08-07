@@ -372,7 +372,6 @@ const FREE_ROW_LIMIT = 3;
 function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscribed: boolean }) {
   const [tab, setTab] = useState<MoverTab>("gainers");
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const hasRealAnomaly = (i: ScannerItem) => {
     const headline = (i.headline || "").trim();
     const why = (i.whyItMatters || "").trim();
@@ -412,7 +411,6 @@ function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                     onClick={() => {
                       setTab(key);
                       setSelectedTicker(null);
-                      setMobileDetailOpen(false);
                       captureEvent("pulse_movers_tab_selected", { tab: key });
                     }}
                     className="rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors"
@@ -436,13 +434,18 @@ function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                 const active = selected?.ticker === row.ticker && activeIndex === index;
                 const rowLocked = !isSubscribed && index >= FREE_ROW_LIMIT;
                 return (
-                  <button
+                  <Link
                     key={row.ticker}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTicker(row.ticker);
-                      setMobileDetailOpen(true);
+                    href={`/stock/${row.ticker}`}
+                    onClick={(e) => {
                       captureEvent("pulse_mover_selected", { ticker: row.ticker, tab, locked: rowLocked });
+                      // Desktop keeps the inline master-detail pane; mobile navigates straight
+                      // to the real stock page instead of an overlay (which had bugs with
+                      // fixed-position stacking inside a scrolled ancestor).
+                      if (window.matchMedia("(min-width: 768px)").matches) {
+                        e.preventDefault();
+                        setSelectedTicker(row.ticker);
+                      }
                     }}
                     className="flex w-full items-center gap-3 border-t border-outline-variant/70 px-4 py-3 text-left first:border-t-0 hover:bg-surface-container-low"
                     style={active ? { background: "color-mix(in srgb, var(--primary) 8%, var(--surface))" } : undefined}
@@ -456,26 +459,15 @@ function TodayMovers({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                       <AnimatedIcon name="lock" size={14} className="shrink-0 text-on-surface-variant" aria-hidden />
                     ) : null}
                     <span className="shrink-0 text-[12.5px] font-medium">{pctLabel(row.changePct)}</span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
           </div>
 
-          <div
-            className={`min-w-0 bg-surface p-3 sm:p-6 md:static md:inset-auto md:z-auto md:block md:overflow-visible md:border-t md:border-outline-variant md:p-6 ${
-              mobileDetailOpen ? "fixed inset-0 z-50 overflow-y-auto" : "hidden"
-            }`}
-          >
+          <div className="hidden min-w-0 bg-surface p-6 md:block md:border-t md:border-outline-variant">
             {selected ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => setMobileDetailOpen(false)}
-                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-on-surface-variant md:hidden"
-                >
-                  <span aria-hidden>←</span> Back
-                </button>
                 <div className="flex flex-wrap items-center gap-3">
                   <StockLogo ticker={selected.ticker} market="US" size={40} />
                   <div className="min-w-0 flex-1">

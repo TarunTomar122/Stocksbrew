@@ -135,13 +135,9 @@ async function RadarNextStream() {
   const diagnosis = buildHoldingsDiagnosis(holdings);
   const radarStockStates = await getRadarStockStates(rows.map((r) => r.instrument_id)).catch(() => ({}));
 
-  const newsInstrumentIds = new Set(
-    (activeRadarUserView?.attention_items ?? []).map((item) => item.instrument_id.toUpperCase()),
-  );
-
   const decisions = buildDecisionCards(rows, activeRadarUserView).slice(0, 3);
   const openLoops = countOpenLoops(rows);
-  const book = buildBookRows(rows, { states: radarStockStates, newsInstrumentIds });
+  const book = buildBookRows(rows, { states: radarStockStates });
   const health = buildHealthProps(diagnosis, holdings.length);
   const ideasBase = buildIdeas(watchlistView?.suggestions);
   const ideaMarket = await getIdeaMarketData(collectIdeaInstrumentIds(ideasBase)).catch(
@@ -183,7 +179,7 @@ async function RadarNextStream() {
             <RadarBatchEditModal
               initialItems={editableItems}
               isSubscribed={isSubscribed}
-              ctaLabel="Update"
+              ctaLabel="Manage watchlist"
               triggerClassName="inline-flex items-center rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] transition-opacity hover:opacity-85"
             />
           }

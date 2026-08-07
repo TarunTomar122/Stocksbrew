@@ -194,27 +194,23 @@ function earningsFromCatalysts(row: WatchlistRow): string | null {
 
 // Raw SEC form codes ("8-K", "10-Q", ...) mean nothing to most users, so the
 // book table shows plain English instead; the code itself stays in the chip
-// title for anyone who does recognize it.
+// title for anyone who does recognize it. 8-K/6-K are generic "something
+// happened" filings with no specific signal, so they're not surfaced as chips.
 const FILING_KIND_LABEL: Record<string, string> = {
-  "8-K": "Major update",
   "10-Q": "Quarterly report",
   "10-K": "Annual report",
-  "6-K": "Company update",
 };
 
-function filingKindLabel(kind: string): string {
-  return FILING_KIND_LABEL[kind] ?? "New filing";
+function filingKindLabel(kind: string): string | null {
+  return FILING_KIND_LABEL[kind] ?? null;
 }
 
 /** Compact, high-signal chips for the book table. Capped so rows stay tight. */
 export function buildBookFlags(
   row: WatchlistRow,
   state: RadarStockStateDoc | undefined,
-  hasNews: boolean,
 ): BookFlag[] {
   const flags: BookFlag[] = [];
-
-  if (hasNews) flags.push({ label: "News", tone: "info", title: "A news driver is moving this name" });
 
   // Earnings within the next few weeks (state first, catalysts as fallback).
   const earnDate =
@@ -242,7 +238,8 @@ export function buildBookFlags(
 
   if (state?.last_filing_kind) {
     const kind = String(state.last_filing_kind).toUpperCase();
-    flags.push({ label: filingKindLabel(kind), tone: "info", title: `New SEC filing (${kind})` });
+    const label = filingKindLabel(kind);
+    if (label) flags.push({ label, tone: "info", title: `New SEC filing (${kind})` });
   }
 
   if (typeof row.target_upside_pct === "number" && row.target_upside_pct >= 25) {
@@ -260,19 +257,16 @@ export function buildBookRows(
   rows: WatchlistRow[],
   options: {
     states?: Record<string, RadarStockStateDoc>;
-    newsInstrumentIds?: Set<string>;
   } = {},
 ): { holdings: BookRow[]; watching: BookRow[] } {
   const states = options.states ?? {};
-  const newsIds = options.newsInstrumentIds ?? new Set<string>();
   const map = (row: WatchlistRow): BookRow => {
     const id = row.instrument_id.toUpperCase();
     const directive = getNormalizedDirective(row);
     const zone = isPriceZoneHit(row);
     const needsAttention = zone.hit;
     const currency = row.currency === "INR" ? "₹" : "$";
-    const baseFlags = buildBookFlags(row, states[id], newsIds.has(id));
-    const flags = baseFlags;
+    const flags = buildBookFlags(row, states[id]);
 
     return {
       ticker: row.ticker,

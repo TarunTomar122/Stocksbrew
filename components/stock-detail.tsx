@@ -172,22 +172,6 @@ const TIER = "font-mono text-[12px] font-semibold uppercase tracking-[0.1em] tex
 const CHIP = "rounded-lg bg-surface-container-low";
 const STOCK_SECTION = "border-t border-outline-variant bg-transparent";
 
-function CrowdRing({ score }: { score: number; label?: string }) {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - Math.max(0, Math.min(100, score)) / 100);
-  const color = score >= 60 ? "var(--signal-bullish)" : score >= 40 ? "var(--accent-terminal)" : "var(--signal-bearish)";
-  return (
-    <div className="relative grid shrink-0 place-items-center" style={{ width: 64, height: 64 }}>
-      <svg width="64" height="64" className="-rotate-90" aria-hidden>
-        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--surface-container-high)" strokeWidth="6" />
-        <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset} />
-      </svg>
-      <span className="absolute text-[16px] font-extrabold tabular-nums text-on-surface">{score}</span>
-    </div>
-  );
-}
-
 function formatEventDate(iso: string): string {
   const d = new Date(`${iso.trim().split("T", 1)[0]}T00:00:00.000Z`);
   if (!Number.isFinite(d.getTime())) return iso;
@@ -493,8 +477,7 @@ export function StockDetail(props: Props) {
   const crowdLabel =
     sentiment?.overall_label ||
     (reddit?.sentiment ? reddit.sentiment.charAt(0).toUpperCase() + reddit.sentiment.slice(1) : "Mixed");
-  const crowdColor =
-    crowdScore >= 60 ? "var(--signal-bullish)" : crowdScore >= 40 ? "var(--accent-terminal)" : "var(--signal-bearish)";
+  const crowdColor = crowdScore >= 50 ? "var(--signal-bullish)" : "var(--signal-bearish)";
   const hasCrowdSignal = Boolean(reddit || n(sentiment?.overall_score));
   const hasMarketReddit = Boolean(hasRedditBuzz && reddit);
 

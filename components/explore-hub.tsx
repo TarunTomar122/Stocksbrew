@@ -196,7 +196,7 @@ function StockScreener({
               key={row.key}
               href={`/stock/${row.ticker}`}
               onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "screener", category: category.key })}
-              className="grid grid-cols-[2rem_7rem_1fr_5.5rem] items-center gap-3 border-t border-outline-variant/70 px-4 py-4 first:border-t-0 hover:bg-surface-container-low sm:grid-cols-[2rem_10rem_1fr_6rem] sm:px-5"
+              className="grid grid-cols-[2rem_5rem_1fr_4.5rem] items-center gap-2 border-t border-outline-variant/70 px-3 py-4 first:border-t-0 hover:bg-surface-container-low sm:grid-cols-[2rem_10rem_1fr_6rem] sm:gap-3 sm:px-5"
             >
               <StockLogo ticker={row.ticker} market="US" size={32} />
               <div className="min-w-0">
@@ -207,7 +207,7 @@ function StockScreener({
                 {row.pills.map((pill) => (
                   <span
                     key={pill.text}
-                    className="rounded-full px-2.5 py-1 text-[12px] font-medium"
+                    className="rounded-lg px-2 py-1 text-[11.5px] font-medium leading-snug sm:rounded-full sm:px-2.5 sm:text-[12px]"
                     style={{ color: pill.color, background: `color-mix(in srgb, ${pill.color} 12%, var(--surface))` }}
                   >
                     {pill.text}
