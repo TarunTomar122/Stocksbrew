@@ -94,85 +94,98 @@ export function StockRedditBuzzRailCard({
   ticker,
   reddit,
   isSubscribed,
+  crowdScore,
+  crowdLabel,
+  crowdColor,
 }: {
   ticker: string;
   reddit: RedditCtx;
   isSubscribed: boolean;
+  /** Optional overall crowd-sentiment score (0-100), shown alongside the Reddit summary. */
+  crowdScore?: number | null;
+  crowdLabel?: string | null;
+  crowdColor?: string;
 }) {
   const mentions = n(reddit.mention_count) ? reddit.mention_count! : null;
   const catalysts = (reddit.catalysts ?? []).filter(Boolean).slice(0, 3);
 
   return (
-    <section className="min-w-0">
-      <div
-        className="border-b border-outline-variant pb-3.5"
-      >
-        <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 flex shrink-0 items-center justify-center">
-            <RedditMark size={20} />
+    <section className="min-w-0 rounded-xl border border-outline-variant bg-surface-container-low/50 p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex shrink-0 items-center justify-center">
+          <RedditMark size={22} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[16px] font-medium text-on-surface">Reddit buzz</p>
+            {reddit.sentiment && (
+              <span className={`${sentimentPillClass(reddit.sentiment)} shrink-0`}>{reddit.sentiment}</span>
+            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[13px] font-bold leading-tight tracking-[-0.01em] text-on-surface">Reddit Buzz</p>
-              {reddit.sentiment && (
-                <span className={`${sentimentPillClass(reddit.sentiment)} shrink-0`}>{reddit.sentiment}</span>
-              )}
-            </div>
-            <p className="mt-0.5 font-mono text-[10px] leading-snug text-on-surface-variant">
-              {mentions != null ? (
-                <>
-                  <span className="font-semibold text-on-surface">{mentions}</span> posts · {ticker}
-                </>
-              ) : (
-                <>Retail chatter · {ticker}</>
-              )}
-            </p>
-          </div>
+          <p className="mt-0.5 text-[13px] leading-snug text-on-surface-variant">
+            {mentions != null ? (
+              <>
+                <span className="font-medium text-on-surface">{mentions}</span> posts about {ticker}
+              </>
+            ) : (
+              <>Retail chatter about {ticker}</>
+            )}
+          </p>
         </div>
       </div>
 
-      <div className="pt-4">
+      <div className="mt-4 border-t border-outline-variant pt-4">
         {isSubscribed ? (
-          <>
-        {reddit.summary?.trim() && (
-          <p className="max-w-[65ch] text-[12.5px] leading-[1.58] text-on-surface/90">{reddit.summary}</p>
-        )}
+          <div className={n(crowdScore) ? "grid gap-6 sm:grid-cols-[auto_1fr]" : ""}>
+            {n(crowdScore) && (
+              <div className="shrink-0 sm:border-r sm:border-outline-variant sm:pr-6">
+                <p className="font-mono text-[30px] font-medium leading-none tabular-nums" style={{ color: crowdColor }}>
+                  {Math.round(crowdScore!)}
+                  <span className="text-[13px] font-normal text-on-surface-variant">/100</span>
+                </p>
+                {crowdLabel && (
+                  <p className="mt-1.5 text-[13px] font-medium capitalize" style={{ color: crowdColor }}>
+                    {crowdLabel}
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="min-w-0">
+              {reddit.summary?.trim() && (
+                <p className="max-w-[65ch] text-[14px] leading-relaxed text-on-surface">{reddit.summary}</p>
+              )}
 
-        {catalysts.length > 0 && (
-          <div
-            className="mt-3.5 border-l-2 pl-3"
-            style={{ borderColor: "#FF4500" }}
-          >
-            <p className="mb-2 font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-              talking points
-            </p>
-            <ul className="space-y-2">
-              {catalysts.map((c, i) => (
-                <li key={i} className="flex gap-2">
-                  <span
-                    aria-hidden
-                    className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ background: "#FF4500", boxShadow: "0 0 0 2px color-mix(in srgb, #FF4500 18%, transparent)" }}
-                  />
-                  <span className="text-[11px] leading-snug text-on-surface/85">{c}</span>
-                </li>
-              ))}
-            </ul>
+              {catalysts.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[13px] font-medium text-on-surface-variant">Talking points</p>
+                  <ul className="mt-2.5 space-y-2.5">
+                    {catalysts.map((c, i) => (
+                      <li key={i} className="flex gap-2.5">
+                        <span
+                          aria-hidden
+                          className="mt-[0.5rem] h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: "#FF4500" }}
+                        />
+                        <span className="text-[14px] leading-snug text-on-surface">{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <Link
+                href="/explore"
+                className="group mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors"
+                style={{ color: "#FF4500" }}
+              >
+                <RedditMark size={13} />
+                <span className="group-hover:underline">All reddit buzz</span>
+                <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+                  →
+                </span>
+              </Link>
+            </div>
           </div>
-        )}
-
-        <Link
-          href="/pulse"
-          className="group mt-4 inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold transition-colors"
-          style={{ color: "#FF4500" }}
-        >
-          <RedditMark size={12} />
-          <span className="group-hover:underline">all reddit buzz</span>
-          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-            →
-          </span>
-        </Link>
-          </>
         ) : (
           <div className="relative h-[9.5rem] overflow-hidden rounded-lg bg-surface-container-low">
             <div aria-hidden className="pointer-events-none select-none space-y-3 p-4 blur-[6px]">
@@ -188,7 +201,7 @@ export function StockRedditBuzzRailCard({
                 compact
                 signedOutLabel="Start your 3-day free trial"
                 signedInLabel="Unlock Reddit Buzz"
-                buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary !text-on-primary !shadow-none"
+                buttonClassName="!rounded-full !border-none !bg-none !bg-primary !text-on-primary !shadow-none"
               />
             </div>
           </div>

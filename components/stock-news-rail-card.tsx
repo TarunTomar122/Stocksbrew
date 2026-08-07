@@ -77,9 +77,9 @@ export function StockNewsRailCard({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-on-surface">
           <NewspaperIcon size={18} />
-          <h3 className="text-[15px] font-bold tracking-[-0.01em]">News</h3>
+          <h3 className="text-[16px] font-medium">News</h3>
         </div>
-        <span className="font-mono text-[9.5px] text-on-surface-variant">
+        <span className="text-[12px] text-on-surface-variant">
           {stories.length} {stories.length === 1 ? "story" : "stories"} · {days}d · {ticker}
         </span>
       </div>
@@ -96,7 +96,7 @@ export function StockNewsRailCard({
                 rel="noopener noreferrer"
                 className="group block"
               >
-                <span className="flex items-center gap-1.5 font-mono text-[9.5px] leading-snug text-on-surface-variant">
+                <span className="flex items-center gap-1.5 text-[12px] leading-snug text-on-surface-variant">
                   {article.tickers.length > 0 ? (
                     <span className="flex -space-x-1.5" aria-label={`Related stocks: ${article.tickers.slice(0, 3).join(", ")}`}>
                       {article.tickers.slice(0, 3).map((ticker) => (
@@ -112,10 +112,10 @@ export function StockNewsRailCard({
                   ) : null}
                   <span>{[time, source].filter(Boolean).join(" · ")}</span>
                 </span>
-                <p className="mt-2 line-clamp-3 text-[13px] font-semibold leading-[1.42] tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
+                <p className="mt-2 line-clamp-3 text-[15px] font-medium leading-[1.45] tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
                   {article.title}
                 </p>
-                <span className={`mt-2 inline-flex rounded-full px-2 py-1 font-mono text-[8.5px] font-bold uppercase tracking-[0.06em] ${sentimentTagClass(article.sentiment_label)}`}>
+                <span className={`mt-2.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.04em] ${sentimentTagClass(article.sentiment_label)}`}>
                   {displaySentiment(article.sentiment_label)}
                 </span>
               </a>
@@ -126,9 +126,9 @@ export function StockNewsRailCard({
 
       <Link
         href="/news"
-        className="group mt-7 inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold text-accent-terminal"
+        className="group mt-7 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary"
       >
-        <span className="group-hover:underline">all market news</span>
+        <span className="group-hover:underline">All market news</span>
         <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
       </Link>
     </section>

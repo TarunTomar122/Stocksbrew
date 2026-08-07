@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 type Props = {
   ticker: string;
@@ -10,7 +9,6 @@ type Props = {
 };
 
 export function StockViewTracker({ ticker, instrumentId, market }: Props) {
-  const router = useRouter();
   useEffect(() => {
     const storageKey = `tikrr_stock_view:${instrumentId}`;
     const anonKey = "tikrr_anon_id";
@@ -47,18 +45,11 @@ export function StockViewTracker({ ticker, instrumentId, market }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         keepalive: true,
-      })
-        .then((response) => response.json().catch(() => ({})))
-        .then((body) => {
-          if (body?.research_queued) {
-            window.setTimeout(() => router.refresh(), 2_000);
-          }
-        })
-        .catch(() => undefined);
+      }).catch(() => undefined);
     }, 4_000);
 
     return () => window.clearTimeout(timer);
-  }, [ticker, instrumentId, market, router]);
+  }, [ticker, instrumentId, market]);
 
   return null;
 }

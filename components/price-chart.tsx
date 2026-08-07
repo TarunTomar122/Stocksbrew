@@ -196,6 +196,30 @@ function ZoneBandLabel({
   );
 }
 
+function ZoneLineLabel({
+  viewBox,
+  text,
+  color,
+}: {
+  viewBox?: { x?: number; y?: number };
+  text: string;
+  color: string;
+}) {
+  if (viewBox?.x == null || viewBox?.y == null) return null;
+
+  return (
+    <text
+      x={viewBox.x + 8}
+      y={viewBox.y - 8}
+      fill={color}
+      fontSize={14}
+      fontWeight={600}
+    >
+      {text}
+    </text>
+  );
+}
+
 function ZoneLayers({
   zones,
   domainMin,
@@ -269,6 +293,11 @@ function ZoneLayers({
               strokeDasharray={zone.dashed ? "6 5" : "4 3"}
               strokeOpacity={zone.strokeOpacity ?? 0.7}
               strokeWidth={1.5}
+              label={
+                zone.label
+                  ? (props) => <ZoneLineLabel {...props} text={zone.label} color={zone.color} />
+                  : undefined
+              }
             />
           );
         }

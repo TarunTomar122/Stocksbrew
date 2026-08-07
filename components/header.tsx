@@ -26,10 +26,10 @@ type Props = {
 
 type NavItem = { href: string; label: string; icon: string; authOnly?: boolean; beta?: boolean; pro?: boolean };
 
-// Primary nav: market context, social attention, then the user's Watchlist.
+// Primary nav: market context, cross-market discovery, then the user's Watchlist.
 const NAV_ITEMS: NavItem[] = [
   { href: "/pulse",     label: "Market",  icon: "monitoring" },
-  { href: "/social",    label: "Social", icon: "forum" },
+  { href: "/explore",   label: "Explore", icon: "travel_explore" },
   { href: "/watchlist", label: "Watchlist", icon: "radar" },
 ];
 
@@ -125,11 +125,11 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   return (
     <header className="sticky top-0 z-[65] w-full border-b border-outline-variant bg-surface">
       <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16">
-        <div className="flex h-14 items-center gap-4 lg:gap-6">
+        <div className="flex h-16 items-center gap-4 lg:gap-6">
           <div className="flex min-w-0 shrink-0 items-center gap-4 lg:gap-6">
             <Link
               href="/"
-              className="shrink-0 font-display text-[17px] font-extrabold leading-none tracking-tight text-landing-brand"
+              className="shrink-0 font-display text-[19px] font-extrabold leading-none tracking-tight text-landing-brand"
             >
               stocksbrew
             </Link>
@@ -140,11 +140,11 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] font-medium transition-colors ${
                       active ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"
                     }`}
                   >
-                    <AnimatedIcon name={item.icon} size={16} className="shrink-0" aria-hidden />
+                    <AnimatedIcon name={item.icon} size={18} className="shrink-0" aria-hidden />
                     <span className="inline-flex items-center gap-1">
                       {item.label}
                       {item.beta && (
@@ -186,9 +186,9 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               type="button"
               aria-label="Search"
               onClick={() => setMobileSearchOpen(true)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant md:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant md:hidden"
             >
-              <AnimatedIcon name="search" size={20} />
+              <AnimatedIcon name="search" size={21} />
             </button>
             ) : null}
 
@@ -196,7 +196,7 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
           </div>
         </div>
 
-        <div className="border-t border-outline-variant py-2 md:hidden">
+        <div className="border-t border-outline-variant py-2.5 md:hidden">
           <nav className="flex items-center gap-0.5" aria-label="Primary">
             {navItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -204,11 +204,11 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] font-medium transition-colors ${
                     active ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"
                   }`}
                 >
-                  <AnimatedIcon name={item.icon} size={16} className="shrink-0" aria-hidden />
+                  <AnimatedIcon name={item.icon} size={18} className="shrink-0" aria-hidden />
                   {item.label}
                 </Link>
               );

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-export const CALL_KICK = "font-mono text-[11px] uppercase tracking-[0.13em] text-on-surface-variant";
-
 function convictionDots(confidence: string) {
   const level = confidence.toLowerCase();
   if (level === "high") return { filled: 3, color: "var(--signal-bullish)", label: "HIGH CONVICTION" };
@@ -41,47 +39,6 @@ export function highlightCallText(text: string) {
     ) : (
       part
     ),
-  );
-}
-
-export function CallInsightCard({
-  tone,
-  title,
-  bullets,
-  footer,
-}: {
-  tone: "bullish" | "bearish";
-  title: string;
-  bullets: string[];
-  footer?: string | null;
-}) {
-  const accent = tone === "bullish" ? "var(--signal-bullish)" : "var(--signal-bearish)";
-
-  const bulletList = (items: string[]) => (
-    <ul className="space-y-2.5">
-      {items.map((text, i) => (
-        <li key={i} className="flex gap-2.5 text-[15px] leading-6 text-on-surface/85 text-pretty">
-          <span
-            aria-hidden
-            className="mt-[0.5rem] h-1 w-1 shrink-0 rounded-full"
-            style={{ background: accent }}
-          />
-          <span>{highlightCallText(text)}</span>
-        </li>
-      ))}
-    </ul>
-  );
-
-  return (
-    <div className="flex h-full min-w-0 flex-col py-1">
-      <p className="mb-3 text-[13px] font-bold" style={{ color: accent }}>
-        {title}
-      </p>
-      {bulletList(bullets)}
-      {footer ? (
-        <p className="mt-4 text-[12px] leading-snug text-on-surface-variant">{highlightCallText(footer)}</p>
-      ) : null}
-    </div>
   );
 }
 

@@ -69,6 +69,12 @@ type Props = {
   untrackedLabel?: string;
   /** Optional copy before sign-in, used when the click starts a specific flow. */
   signedOutLabel?: string;
+  /** Render nothing once tracked, pair with a hideWhenUntracked instance elsewhere for the swap. */
+  hideWhenTracked?: boolean;
+  /** Render nothing until tracked, pair with a hideWhenTracked instance elsewhere for the swap. */
+  hideWhenUntracked?: boolean;
+  /** Use the primary brand color for the untracked fill button instead of the default black. */
+  accent?: boolean;
 };
 
 // Single source of truth for the radar / sign-in / subscribe flow used by every
@@ -85,6 +91,9 @@ export function TrackButton({
   trackedAsBadge = false,
   untrackedLabel,
   signedOutLabel,
+  hideWhenTracked = false,
+  hideWhenUntracked = false,
+  accent = false,
 }: Props) {
   const router = useRouter();
   const { user, loading } = useUser();
@@ -298,6 +307,10 @@ export function TrackButton({
     return null;
   }
 
+  if ((hideWhenTracked && localTracked) || (hideWhenUntracked && !localTracked)) {
+    return null;
+  }
+
   const trackedPillClass =
     variant === "compact"
       ? "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-on-surface bg-surface px-3 text-[11px] font-semibold tracking-tight text-on-surface"
@@ -372,7 +385,9 @@ export function TrackButton({
             } ${
               localTracked
                 ? "bg-surface text-on-surface border border-on-surface hover:-translate-y-[1px] active:translate-y-0"
-                : "bg-on-surface text-surface hover:-translate-y-[1px] active:translate-y-0"
+                : accent
+                  ? "bg-primary text-on-primary hover:-translate-y-[1px] active:translate-y-0"
+                  : "bg-on-surface text-surface hover:-translate-y-[1px] active:translate-y-0"
             }`}
           >
             {label}

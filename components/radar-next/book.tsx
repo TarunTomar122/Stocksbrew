@@ -124,12 +124,12 @@ function SortHeader({
       <button
         type="button"
         onClick={() => onPick(sortKey)}
-        className={`rn-kick inline-flex items-center gap-1 ${align === "right" ? "justify-end" : ""} ${
+        className={`inline-flex items-center gap-1 text-[13px] font-medium text-[var(--rn-muted)] ${align === "right" ? "justify-end" : ""} ${
           active ? "text-[var(--rn-ink)]" : "hover:text-[var(--rn-ink)]"
         }`}
       >
         {label}
-        <span className="text-[8px]" aria-hidden>
+        <span className="text-[9px]" aria-hidden>
           {direction === "desc" ? "▼" : "▲"}
         </span>
       </button>
@@ -191,7 +191,7 @@ function DesktopTable({
             <SortHeader label="Stock" sortKey="name" sort={sort} onPick={onPickSort} />
             <SortHeader label="Last" sortKey="last" align="right" sort={sort} onPick={onPickSort} />
             <SortHeader label="Day" sortKey="chg" align="right" sort={sort} onPick={onPickSort} />
-            <th className="px-3 py-3 text-left font-normal"><span className="rn-kick">Signals</span></th>
+            <th className="px-3 py-3 text-left font-normal"><span className="text-[13px] font-medium text-[var(--rn-muted)]">Signals</span></th>
             <SortHeader label="Score" sortKey="score" align="right" sort={sort} onPick={onPickSort} />
           </tr>
         </thead>
@@ -252,14 +252,8 @@ export function Book({ holdings, watching }: { holdings: BookRow[]; watching: Bo
   };
 
   return (
-    <section aria-labelledby="rn-book">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <span className="rn-kick">Your book</span>
-          <h2 id="rn-book" className="mt-1 text-[22px] font-bold tracking-[-0.025em] text-[var(--rn-ink)] sm:text-[26px]">
-            Every tracked stock, one consistent read
-          </h2>
-        </div>
+    <section aria-label="Watchlist positions">
+      <div className="mb-3 flex flex-wrap items-end justify-start gap-3">
         <div className="flex items-center gap-1.5" role="tablist" aria-label="Watchlist positions">
           {([
             ["holdings", "Holdings", holdings.length],

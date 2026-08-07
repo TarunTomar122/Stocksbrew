@@ -1,80 +1,68 @@
+import type { RecentEarningsCard } from "@/components/pulse-hub";
 import { PulseHub } from "@/components/pulse-hub";
-import { PulseHubHero } from "@/components/pulse-hub-header";
 import { getSessionUser } from "@/lib/auth-server";
-import { buildPulsePageData } from "@/lib/pulse-data";
+import { buildPulsePageData, epsTagFromReported } from "@/lib/pulse-data";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
-import { getInterestingStocks } from "@/lib/interesting-stocks";
-import { getEarnings } from "@/lib/earnings";
 import { listAllEarningsIntelDocs } from "@/lib/earnings-intel";
+import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
 import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
-import { getMarketSnapshot } from "@/lib/firestore";
 import { getCurrentMarket } from "@/lib/market";
 import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
 import { getPremarketOpeningReport } from "@/lib/premarket-opening";
 import { getRedditCues } from "@/lib/reddit-cues";
-import { getSectorRegimes } from "@/lib/sector-regimes";
-import { getUpcomingPreEarnings } from "@/lib/pre-earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export async function PulseHubStream() {
   const market = getCurrentMarket();
-  const weekOut = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  const [anomaliesData, redditData, interestingData, snapshotRows, earningsEvents, preEarnings, premarketDoc, premarketReport, regimes, recentIntelDocs, session] = await Promise.all([
+  const [anomaliesData, redditData, premarketDoc, premarketReport, earningsIntelDocs, session] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
-    getInterestingStocks(market).catch(() => null),
-    getMarketSnapshot(market).catch(() => []),
-    getEarnings(market, undefined, weekOut).catch(() => []),
-    getUpcomingPreEarnings(market).catch(() => []),
     getPremarketMovers(market).catch(() => null),
     getPremarketOpeningReport().catch(() => null),
-    getSectorRegimes(market).catch(() => ({ sectors: {}, macro: null })),
     listAllEarningsIntelDocs().catch(() => []),
     getSessionUser().catch(() => null),
   ]);
+  const premarketLive = isPremarketLive(premarketDoc, market);
+  const recentEarnings: RecentEarningsCard[] = earningsIntelDocs
+    .filter((doc) => doc.market === market && (doc.report?.headline?.trim() || doc.report?.summary?.trim()))
+    .slice(0, 6)
+    .map((doc) => {
+      const scenarios = mergeIntelScenarios(doc);
+      const lead = [...scenarios].sort((a, b) => b.probability_pct - a.probability_pct)[0] ?? null;
+      return {
+        ticker: doc.ticker,
+        eventDate: doc.event_date,
+        headline: doc.report?.headline?.trim() || doc.report?.summary?.trim() || `${doc.ticker} earnings report`,
+        epsTag: epsTagFromReported(doc.report?.facts?.reported_vs_expected),
+        leadCase: lead?.case ?? null,
+        leadPct: lead?.probability_pct ?? null,
+      };
+    });
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const feedAccess = resolveFeedAccess({
     signedIn: Boolean(session),
     isSubscribed: resolveIsSubscribed(userDoc),
   });
 
-  const predBy = new Map<string, { epsOutlook?: string; reaction?: string }>();
-  for (const p of preEarnings) {
-    if (p.ticker) {
-      predBy.set(p.ticker.toUpperCase(), {
-        epsOutlook: p.report?.call?.eps_outlook,
-        reaction: p.report?.call?.post_print_move,
-      });
-    }
-  }
-
   const data = buildPulsePageData({
     market,
     anomalies: anomaliesData?.anomalies ?? [],
     redditTickers: redditData?.tickers ?? [],
-    snapshotRows,
-    earningsEvents,
-    predBy,
-    recentIntelDocs,
-    premarketDoc: isPremarketLive(premarketDoc, market) ? premarketDoc : null,
+    snapshotRows: [],
+    earningsEvents: [],
+    predBy: new Map(),
+    recentIntelDocs: [],
+    premarketDoc: null,
   });
 
   return (
     <div className="landing-stream-in">
-      <PulseHubHero topline={data.topline} />
       <PulseHub
         items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit, { preservePreview: true })}
-        sectors={data.sectors}
-        reddit={data.reddit}
-        earnings={data.earnings}
-        recentEarnings={data.recentEarnings}
-        premarketMovers={premarketDoc}
-        premarketReport={premarketReport}
-        marketPhase={regimes.macro?.market_phase}
-        marketRisk={regimes.macro?.risk_appetite}
-        interestingStocks={interestingData?.rows ?? []}
-        fullItemLimit={feedAccess.fullItemLimit}
+        premarketMovers={premarketLive ? premarketDoc : null}
+        premarketReport={premarketLive ? premarketReport : null}
         isSubscribed={feedAccess.isSubscribed}
+        recentEarnings={recentEarnings}
       />
     </div>
   );

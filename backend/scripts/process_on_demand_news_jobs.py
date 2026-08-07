@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from google.cloud import firestore
 
+from backend.brief_ready_alerts import notify_brief_ready
 from backend.instrument_universe import get_instrument
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.news_pipeline import collect_per_ticker_articles
@@ -304,6 +305,15 @@ def process_job(
             return "no_brief"
 
         store.upsert_stock_intelligence_docs(market, universe_id, docs)
+        try:
+            notify_brief_ready(
+                store,
+                instrument_id=instrument_id,
+                ticker=str(instrument.get("ticker") or ""),
+                headline=docs[0].get("headline") if docs else None,
+            )
+        except Exception:
+            logger.exception("brief_ready notification failed job_id=%s instrument_id=%s", job_doc.id, instrument_id)
         finished = datetime.now(timezone.utc)
         ref.set({
             "status": "complete",

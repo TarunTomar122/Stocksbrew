@@ -11,7 +11,7 @@ function source(path: string): string {
 
 describe("product language", () => {
   it("keeps the approved first impression exact", () => {
-    expect(HERO_HEADLINE).toBe("Analyse and track US stocks");
+    expect(HERO_HEADLINE).toBe("Track and Analyse US stocks");
     expect(HERO_SUBHEAD).toBe("Financials, valuation, filings, earnings, analyst targets and news for any US stock.");
     expect(source("components/terminal-landing-hero-copy.tsx")).toContain("HERO_HEADLINE");
     expect(source("components/terminal-landing-hero-copy.tsx")).toContain("HERO_SUBHEAD");

@@ -20,7 +20,6 @@ import { SignalDeck } from "@/components/signal-deck";
 import { StockScorecard } from "@/components/stock-scorecard";
 import { StockLogo } from "@/components/stock-logo";
 import { StockDetail } from "@/components/stock-detail";
-import { StockSeoSummary } from "@/components/stock-seo-summary";
 import { StrategicDirective } from "@/components/strategic-directive";
 import { TierCTA } from "@/components/tier-cta";
 import { StockViewTracker } from "@/components/stock-view-tracker";
@@ -47,7 +46,6 @@ import {
   type StockIntelligenceDoc,
 } from "@/lib/stock";
 import { sectorSlugForIntel } from "@/lib/sector-slugs";
-import { resolveSeoSectorSlug } from "@/lib/seo/sector-pages";
 import { getCurrentMarket } from "@/lib/market";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getNewsForTicker } from "@/lib/news";
@@ -306,11 +304,6 @@ export async function StockPageStream({ params }: Props) {
           market,
           instrumentView?.related_tickers ?? [],
         ).catch(() => []);
-  const seoSectorSlug = resolveSeoSectorSlug({
-    candidate: sectorSlug,
-    sector: displayStock.sector,
-    industry: displayStock.industry,
-  });
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);
   const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
@@ -643,13 +636,6 @@ export async function StockPageStream({ params }: Props) {
             />
           ) : null
         }
-      />
-      <StockSeoSummary
-        stock={displayStock}
-        facts={stockFacts}
-        fundamentals={fundamentals}
-        sectorSlug={seoSectorSlug}
-        currency={currency}
       />
     </main>
   );

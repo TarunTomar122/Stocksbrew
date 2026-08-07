@@ -4,7 +4,7 @@
 
 export const BRAND_NAME = "stocksbrew";
 
-export const TAGLINE = "Analyse and track US stocks.";
+export const TAGLINE = "Track and Analyse US stocks.";
 
 export const SITE_TITLE_DEFAULT =
   "US Stock Analysis & Watchlist | stocksbrew";
@@ -18,8 +18,8 @@ export const MEDIUM_DESCRIPTION =
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "Analyse and track US stocks";
-export const HERO_HEADLINE_LEAD = "Analyse and track";
+export const HERO_HEADLINE = "Track and Analyse US stocks";
+export const HERO_HEADLINE_LEAD = "Track and Analyse";
 export const HERO_HEADLINE_EMPHASIS = "US stocks";
 
 export const HERO_SUBHEAD =

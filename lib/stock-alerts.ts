@@ -7,6 +7,7 @@ export const ALERT_KINDS = [
   "earnings_24h",
   "directive_change",
   "news_velocity",
+  "brief_ready",
 ] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 export type PriceCondition = "below" | "above";

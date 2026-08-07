@@ -77,7 +77,7 @@ export function TerminalLandingFaq() {
   return (
     <section className="border-t border-outline-variant bg-background">
       <div className="landing-inner py-16 lg:py-20">
-        <h2 className="mb-8 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">FAQ</h2>
+        <h2 className="mb-8 text-[26px] font-semibold tracking-tight text-on-surface sm:text-[32px]">FAQ</h2>
 
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-2.5">
           {FAQS.map((item, index) => (

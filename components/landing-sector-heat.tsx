@@ -24,8 +24,7 @@ export function LandingSectorHeat({
       <div className="landing-inner py-16 lg:py-20">
         <div className="landing-card overflow-hidden p-5 md:p-6">
           <div className="mb-8">
-            <p className="landing-section-kicker text-landing-brand">// Market Overview</p>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
+            <h2 className="text-[20px] font-semibold tracking-tight text-on-surface sm:text-[22px]">
               How the sectors are leaning
             </h2>
             <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-on-surface-variant">

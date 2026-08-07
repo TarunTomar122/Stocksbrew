@@ -51,6 +51,38 @@ export function metricContextLine(m: StockIntelMetric): string {
   return "Among weakest in sector";
 }
 
+// Short good/bad-vs-average read, for surfaces where the full sentence is too much text.
+// Only applies when there's an actual value-vs-benchmark comparison to make — rank/categorical
+// metrics (quant rank, analyst rating, beat likelihood) have no real "average" to be above or below.
+export function metricRelativeTier(m: StockIntelMetric): { text: string; favorable: boolean | null } {
+  const label = m.label ?? "";
+  const value = typeof m.value === "number" ? m.value : null;
+  const benchmark = typeof m.benchmark === "number" ? m.benchmark : null;
+
+  if (value !== null && benchmark !== null && benchmark !== 0) {
+    const diff = ((value - benchmark) / Math.abs(benchmark)) * 100;
+    const absDiff = Math.abs(diff);
+    const isHigherBetter = !isLowerBetterMetric(label);
+    const ahead = isHigherBetter ? diff > 0 : diff < 0;
+    const pct = absDiff < 1 ? "<1" : Math.round(absDiff).toString();
+    const direction = diff > 0 ? "above" : "below";
+
+    if (absDiff < 3) return { text: "In line with avg", favorable: null };
+    return { text: `${pct}% ${direction} avg`, favorable: ahead };
+  }
+
+  // No real average to compare against — just call out whether it's favorable.
+  if (m.signal === "green") return { text: "Favorable", favorable: true };
+  if (m.signal === "red") return { text: "Unfavorable", favorable: false };
+  if (m.signal === "yellow") return { text: "Mixed", favorable: null };
+
+  const score = m.score;
+  if (score == null) return { text: "", favorable: null };
+  if (score >= 70) return { text: "Favorable", favorable: true };
+  if (score >= 40) return { text: "Mixed", favorable: null };
+  return { text: "Unfavorable", favorable: false };
+}
+
 // Metrics where a lower number is better (leverage, payout, shorts, etc.)
 function isLowerBetterMetric(label: string): boolean {
   const l = label.toLowerCase();

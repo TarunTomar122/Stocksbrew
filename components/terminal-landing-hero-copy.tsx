@@ -1,6 +1,5 @@
 import { AnimatedIcon } from "@/components/animated-icon";
 
-import { StartRadarButton } from "@/components/start-radar-button";
 import { TickerSearchField } from "@/components/ticker-search-field";
 import { HERO_HEADLINE, HERO_SUBHEAD } from "@/lib/brand-copy";
 import type { Market } from "@/lib/types";
@@ -41,15 +40,6 @@ export function TerminalLandingHeroCopy({
           trackedIds={trackedIds}
           isSubscribed={isSubscribed}
           analyticsSource="landing_hero"
-        />
-      </div>
-
-      <div className="mt-4">
-        <StartRadarButton
-          surface="hero"
-          signedOutLabel="Track 3 stocks free"
-          signedInLabel="Open your Watchlist"
-          className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-5 py-2.5 text-[13px] font-bold text-on-surface transition-colors hover:border-on-surface disabled:opacity-60"
         />
       </div>
 

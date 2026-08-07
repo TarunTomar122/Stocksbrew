@@ -95,10 +95,10 @@ export function RsiZoneLabels() {
 }
 
 const RSI_TRACK_BG =
-  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 10%, var(--surface-container-high)) 0%, var(--surface-container-high) 30%, color-mix(in srgb, var(--signal-bullish) 8%, var(--surface-container-high)) 50%, var(--surface-container-high) 70%, color-mix(in srgb, var(--signal-bearish) 10%, var(--surface-container-high)) 100%)";
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 40%, var(--surface-container-high)) 0%, var(--surface-container-high) 30%, color-mix(in srgb, var(--signal-bullish) 35%, var(--surface-container-high)) 50%, var(--surface-container-high) 70%, color-mix(in srgb, var(--signal-bearish) 40%, var(--surface-container-high)) 100%)";
 
 const WEEK52_FILL_BG =
-  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 10%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 12%, var(--surface-container-high)))";
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 40%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 45%, var(--surface-container-high)))";
 
 export { RSI_TRACK_BG, WEEK52_FILL_BG };
 

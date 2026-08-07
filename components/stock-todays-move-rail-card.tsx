@@ -5,7 +5,7 @@ function moveConfidence(confidence?: string) {
   return { filled: 2, color: "var(--signal-neutral)", label: "med" };
 }
 
-function MoveConfidenceInline({ confidence }: { confidence?: string }) {
+export function MoveConfidenceInline({ confidence }: { confidence?: string }) {
   const { filled, color, label } = moveConfidence(confidence);
   return (
     <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-on-surface-variant">

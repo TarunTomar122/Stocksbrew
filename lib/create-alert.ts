@@ -1,7 +1,7 @@
 export type CreateAlertPayload = {
   instrument_id: string;
   ticker: string;
-  kind?: "price_threshold" | "earnings_24h";
+  kind?: "price_threshold" | "earnings_24h" | "brief_ready";
   condition?: "below" | "above";
   target_price?: number;
   directive_text?: string;
@@ -74,4 +74,8 @@ export function priceAlertKey(condition: string, price: number): string {
 
 export function earningsAlertKey(): string {
   return "earnings";
+}
+
+export function briefReadyAlertKey(): string {
+  return "brief_ready";
 }

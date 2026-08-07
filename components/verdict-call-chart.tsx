@@ -38,26 +38,23 @@ function ReturnsRow({
 
   return (
     <div className="mt-8">
-      <p className="text-[13px] font-bold text-on-surface">Price context</p>
-      <div className="mt-5">
-        <p className="text-[12px] font-medium text-on-surface-variant">Past returns</p>
-        <div className="mt-2 flex flex-wrap gap-x-8 gap-y-4">
-          {items.map(({ label, value }) => {
-            const up = value >= 0;
-            return (
-              <div key={label} className="min-w-[4.5rem]">
-                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">{label}</p>
-                <p
-                  className="mt-1 text-[17px] font-bold tabular-nums tracking-tight"
-                  style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
-                >
-                  {up ? "+" : ""}
-                  {value.toFixed(1)}%
-                </p>
-              </div>
-            );
-          })}
-        </div>
+      <p className="text-[13px] font-medium text-on-surface">Past performance</p>
+      <div className="mt-3 flex flex-wrap gap-x-8 gap-y-4">
+        {items.map(({ label, value }) => {
+          const up = value >= 0;
+          return (
+            <div key={label} className="min-w-[4.5rem]">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-on-surface-variant">{label}</p>
+              <p
+                className="mt-1 text-[17px] font-medium tabular-nums tracking-tight"
+                style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+              >
+                {up ? "+" : ""}
+                {value.toFixed(1)}%
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -76,8 +73,7 @@ function TechnicalLevelsRow({
   const resistance = technicalLevels?.resistance;
   if (!hasTechnicalLevels(technicalLevels)) return null;
 
-  const money = (value: number) =>
-    `${currency}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const money = (value: number) => `${currency}${Math.round(value).toLocaleString()}`;
   const distance = (value: number) => `${Math.abs(((value - currentPrice) / currentPrice) * 100).toFixed(1)}%`;
 
   return (
@@ -112,6 +108,7 @@ export function VerdictCallChart({
   zoneHint,
   columnsAt = "lg",
   chartHeight,
+  footerSlot,
 }: {
   callSlot: ReactNode;
   hist: Point[];
@@ -124,6 +121,8 @@ export function VerdictCallChart({
   zoneHint?: { label: string; color: string } | null;
   columnsAt?: "md" | "lg";
   chartHeight?: number;
+  /** Rendered below the past-performance row, in the same column. */
+  footerSlot?: ReactNode;
 }) {
   const chartHist = useMemo(() => sliceChartRange(hist, "1y"), [hist]);
   const hasChart = chartHist.length >= 5;
@@ -140,6 +139,7 @@ export function VerdictCallChart({
       <div className="flex min-w-0 flex-col">
         {callSlot}
         <ReturnsRow returns={returns} />
+        {footerSlot}
       </div>
 
       {(hasChart || hasLevels) && (

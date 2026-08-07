@@ -34,22 +34,23 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(feed).toContain("priceText(row.price)");
   });
 
-  it("renders recent earnings as a compact ledger and social insights as responsive cards", () => {
+  it("shows pre-market context and source-backed movers on the Pulse page", () => {
     const pulse = source("components/pulse-hub.tsx");
-    const social = source("components/social-page-stream.tsx");
 
-    expect(pulse).toContain("What changed after results");
-    expect(pulse).toContain("pulse-list-panel");
-    expect(social).toContain("snapshot.tickers.filter(hasRedditBrief)");
-    expect(social).toContain("sm:grid-cols-2 xl:grid-cols-3");
-    expect(social).not.toContain("snapshot.top_posts.map");
-    expect(social).not.toContain("Recent source posts");
+    expect(pulse).toContain("Pre-market");
+    expect(pulse).toContain("Today&apos;s gainers &amp; losers");
   });
 
-  it("keeps every user on home and removes Explore from navigation", () => {
+  it("folds Social into Explore instead of keeping a separate page", () => {
+    expect(source("app/social/page.tsx")).toContain('redirect("/explore")');
+    expect(source("app/reddit-buzz/page.tsx")).toContain('redirect("/explore")');
+    expect(source("components/footer.tsx")).not.toContain('href: "/social"');
+  });
+
+  it("keeps every user on home and gives Explore a real page in navigation", () => {
     expect(source("app/page.tsx")).not.toContain("redirect(");
-    expect(source("components/header.tsx")).not.toContain('href: "/explore"');
-    expect(source("app/explore/page.tsx")).toContain('redirect("/")');
+    expect(source("components/header.tsx")).toContain('href: "/explore"');
+    expect(source("app/explore/page.tsx")).not.toContain('redirect("/")');
   });
 
   it("groups Watchlist decisions and source-backed changes into compact cards", () => {
@@ -188,7 +189,7 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(lockedBrief).toContain("if (user)");
     expect(lockedBrief).not.toContain("Start your 3-day free trial");
     expect(lockedBrief).toContain("Generate AI analysis for {ticker}");
-    expect(detail).toContain("Generate AI analysis for ${ticker}");
+    expect(detail).toContain("Get the AI take on ${ticker}");
     expect(detail).toContain('untrackedLabel="Generate analysis"');
   });
 
@@ -236,13 +237,11 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
   it("makes the signed-out Watchlist unmistakably sample data", () => {
     const states = source("components/radar-next/states.tsx");
 
-    expect(states).toContain("Watchlist preview");
-    expect(states).toContain("Sample data");
     expect(states).toContain("opacity-75");
     expect(states).toContain("blur-[1.5px]");
     expect(states).not.toContain("blur-[3px]");
-    expect(states).toContain("Build your Watchlist");
-    expect(states).toContain("Build my Watchlist");
+    expect(states).toContain("Build your watchlist");
+    expect(states).toContain("Build my watchlist");
     expect(states).not.toContain("This is not your Watchlist");
   });
 

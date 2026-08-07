@@ -21,6 +21,8 @@ export type ScannerItem = {
   headline?: string;
   whyItMatters?: string;
   confidence?: string;
+  overallScore?: number | null;
+  overallLabel?: string | null;
 };
 
 export function MoversScanner({

@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
-import styles from "./footer.module.css";
 
 type Column = {
   title: string;
@@ -14,24 +13,19 @@ const COLUMNS: Column[] = [
     title: "Product",
     links: [
       { label: "Market today", href: "/pulse" },
-      { label: "Social", href: "/social" },
+      { label: "Explore", href: "/explore" },
       { label: "Watchlist", href: "/watchlist" },
-      { label: "Pre-market movers", href: "/premarket" },
-      { label: "Market Daily", href: "/market-daily" },
       { label: "Earnings", href: "/earnings" },
       { label: "US stocks", href: "/stocks" },
-      { label: "Stock sectors", href: "/sectors" },
       { label: "AI agent access", href: "/agents" },
     ],
   },
   {
     title: "Free tools",
     links: [
-      { label: "All free tools", href: "/free-tools" },
       { label: "Should I Buy?", href: "/should-i-buy" },
       { label: "Compare stocks", href: "/compare-stocks" },
       { label: "Portfolio Analyzer", href: "/portfolio" },
-      { label: "Position calculator", href: "/position-size-calculator" },
       { label: "Market Heat", href: "/heat" },
       { label: "Screens", href: "/screens" },
     ],
@@ -41,11 +35,7 @@ const COLUMNS: Column[] = [
     links: [
       { label: "Learn & guides", href: "/resources" },
       { label: "Blog", href: "/blog" },
-      { label: "Stock analysis apps", href: "/blog/best-stock-analysis-apps-2026" },
-      { label: "Fundamental analysis", href: "/blog/fundamental-stock-analysis-framework" },
-      { label: "Earnings template", href: "/blog/earnings-report-analysis-template" },
       { label: "Use cases", href: "/use-cases" },
-      { label: "Compare stocksbrew", href: "/compare" },
       { label: "Developer API", href: "/developers" },
     ],
   },
@@ -53,14 +43,10 @@ const COLUMNS: Column[] = [
     title: "Company",
     links: [
       { label: "About", href: "/about" },
-      { label: "Editorial policy", href: "/editorial-policy" },
-      { label: "Author", href: "/authors/tarun-tomar" },
       { label: "Pricing", href: "/subscribe" },
       { label: "Contact", href: "mailto:tomartarun2001@gmail.com", external: true },
       { label: "Terms of service", href: "/legal/terms" },
       { label: "Privacy policy", href: "/legal/privacy" },
-      { label: "Cookie policy", href: "/legal/cookies" },
-      { label: "Disclaimer", href: "/legal/disclaimer" },
     ],
   },
 ];
@@ -81,13 +67,6 @@ const BADGES = [
     height: 48,
   },
   {
-    href: "https://daniellaunches.com",
-    src: "https://daniellaunches.com/badge-light.svg",
-    alt: "Featured on DanielLaunches",
-    width: 220,
-    height: 48,
-  },
-  {
     href: "https://fazier.com",
     src: "https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light",
     alt: "Launched on Fazier",
@@ -102,65 +81,11 @@ const BADGES = [
     height: 36,
   },
   {
-    href: "https://www.toolpilot.ai",
-    src: "https://www.toolpilot.ai/cdn/shop/files/f-w_690x151_crop_center.png",
-    alt: "Featured on ToolPilot.ai",
-    width: 164,
-    height: 36,
-  },
-  {
     href: "https://wired.business",
     src: "https://wired.business/badge0-white.svg",
     alt: "Featured on Wired Business",
     width: 200,
     height: 54,
-  },
-  {
-    href: "https://twelve.tools",
-    src: "https://twelve.tools/badge0-white.svg",
-    alt: "Featured on Twelve Tools",
-    width: 200,
-    height: 54,
-  },
-  {
-    href: "https://auraplusplus.com",
-    src: "https://auraplusplus.com/images/badges/featured-on-light.svg",
-    alt: "Featured on Aura++",
-    width: 150,
-    height: 44,
-  },
-  {
-    href: "https://www.aitoolzdir.com",
-    label: "AI Toolz Dir",
-    alt: "Listed on AI Toolz Dir",
-  },
-  {
-    href: "https://dofollow.tools",
-    src: "https://dofollow.tools/badge/badge_light.svg",
-    alt: "Featured on Dofollow.Tools",
-    width: 180,
-    height: 44,
-  },
-  {
-    href: "https://hicyou.com",
-    src: "https://hicyou.com/badge/featured-light.svg",
-    alt: "Featured on Hi Cyou",
-    width: 180,
-    height: 44,
-  },
-  {
-    href: "https://www.directree.io",
-    src: "https://www.directree.io/badge/directree-badge-lightmode.svg",
-    alt: "Verified on directree",
-    width: 200,
-    height: 37,
-  },
-  {
-    href: "https://huzzler.so/products/egBl2GhqxW/stocksbrew?utm_source=huzzler_product_website&utm_medium=badge&utm_campaign=free_listing",
-    src: "https://huzzler.so/assets/images/embeddable-badges/featured.png",
-    alt: "Listed on Huzzler",
-    width: 159,
-    height: 55,
   },
 ] as const;
 
@@ -177,16 +102,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="max-w-[320px] text-[14px] leading-[1.55] text-white/65">{SHORT_DESCRIPTION}</p>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/85">
-                <span className="relative inline-flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                </span>
-                Live now
-              </span>
-            </div>
-            <div className="mt-1 flex w-fit items-center gap-2.5">
+            <div className="mt-2 flex w-fit items-center gap-2.5">
               <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-white/50">
                 Appearance
               </span>
@@ -224,47 +140,33 @@ export function Footer() {
           ))}
         </div>
 
-        <div className={`${styles.viewport} my-6 py-1`} aria-label="StocksBrew directory features">
-          <div className={styles.track}>
-            {[false, true].map((duplicate) => (
-              <div className={styles.group} key={duplicate ? "duplicate" : "primary"} aria-hidden={duplicate}>
-                {BADGES.map((badge) => (
-                  <a
-                    href={badge.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    tabIndex={duplicate ? -1 : undefined}
-                    className="shrink-0 opacity-85 transition-opacity hover:opacity-100"
-                    key={`${duplicate ? "duplicate" : "primary"}-${badge.alt}`}
-                  >
-                    {"src" in badge ? (
-                      <img
-                        src={badge.src}
-                        alt={duplicate ? "" : badge.alt}
-                        width={badge.width}
-                        height={badge.height}
-                        className="h-6 w-auto max-w-none object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className={styles.textBadge} aria-label={duplicate ? undefined : badge.alt}>
-                        <span className={styles.textBadgeEyebrow}>Listed on</span>
-                        {badge.label}
-                      </span>
-                    )}
-                  </a>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
           <p className="text-[12px] text-white/55">© {year} stocksbrew. All rights reserved.</p>
           <p className="max-w-[640px] text-[12px] text-white/45">
             stocksbrew provides market data and analytics for informational purposes only. Nothing here is investment
             advice. Past performance does not guarantee future results.
           </p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3" aria-label="StocksBrew directory features">
+          {BADGES.map((badge) => (
+            <a
+              href={badge.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 opacity-85 transition-opacity hover:opacity-100"
+              key={badge.alt}
+            >
+              <img
+                src={badge.src}
+                alt={badge.alt}
+                width={badge.width}
+                height={badge.height}
+                className="h-6 w-auto max-w-none object-contain"
+                loading="lazy"
+              />
+            </a>
+          ))}
         </div>
       </div>
     </footer>

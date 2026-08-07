@@ -24,31 +24,6 @@ export function MarketFeedStreamSkeleton() {
   );
 }
 
-/** Mirrors the Social feed: narrative-first rows rather than anonymous cards. */
-export function SocialFeedSkeleton() {
-  return (
-    <div className="space-y-5" aria-busy="true" aria-label="Loading social attention">
-      <div className="flex items-center justify-between border-y border-outline-variant py-3">
-        <Bone className="h-3 w-36" />
-        <Bone className="h-3 w-28" />
-      </div>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <article key={index} className="flex min-h-[12rem] flex-col rounded-xl border border-outline-variant bg-surface p-4">
-            <div className="flex items-center gap-2.5">
-              <Bone className="h-[30px] w-[30px] shrink-0 rounded-lg" />
-              <div className="space-y-1.5"><Bone className="h-3 w-12" /><Bone className="h-2.5 w-24" /></div>
-              <Bone className="ml-auto h-5 w-14 rounded-full" />
-            </div>
-            <div className="mt-5 space-y-2"><Bone className="h-3.5 w-[88%]" /><Bone className="h-3 w-full" /><Bone className="h-3 w-[72%]" /></div>
-            <div className="mt-auto flex justify-between pt-5"><Bone className="h-2.5 w-20" /><Bone className="h-2.5 w-12" /></div>
-          </article>
-        ))}
-      </section>
-    </div>
-  );
-}
-
 /** Generic market feed page — anomalies, reddit, events, premarket. */
 export function MarketFeedPageSkeleton() {
   return (

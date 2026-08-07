@@ -61,12 +61,15 @@ export function StockSmartAlertsRail({
   alerts,
   earningsAlert,
   isSubscribed,
+  neutralColor,
 }: {
   ticker: string;
   instrumentId: string;
   alerts: DirectiveSmartAlert[];
   earningsAlert: EarningsAlert | null;
   isSubscribed: boolean;
+  /** Use the same neutral text color for every price alert instead of per-tone colors. */
+  neutralColor?: boolean;
 }) {
   const { user, loading: authLoading, initialAuthed } = useUser();
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
@@ -315,7 +318,7 @@ export function StockSmartAlertsRail({
             href="/subscribe"
             aria-label="Unlock Pro alerts"
             title="Unlock Pro alerts"
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant transition-colors hover:border-[var(--signal-bullish)] hover:text-[var(--signal-bullish)]"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-outline-variant bg-surface-container-low text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             <AnimatedIcon name="bell" size={14} aria-hidden />
           </Link>
@@ -327,7 +330,7 @@ export function StockSmartAlertsRail({
   return (
     <>
       {alerts.map((alert) => {
-        const colors = smartAlertToneColors(alert.tone);
+        const colors = neutralColor ? { title: "var(--on-surface)" } : smartAlertToneColors(alert.tone);
         const key =
           alert.alertable && alert.price != null && alert.condition
             ? priceAlertKey(alert.condition, alert.price)
@@ -360,9 +363,9 @@ export function StockSmartAlertsRail({
                 style={
                   isActive
                     ? {
-                        color: "var(--signal-bullish)",
-                        borderColor: "color-mix(in srgb, var(--signal-bullish) 45%, var(--outline-variant))",
-                        background: "color-mix(in srgb, var(--signal-bullish) 12%, var(--surface))",
+                        color: "var(--primary)",
+                        borderColor: "color-mix(in srgb, var(--primary) 45%, var(--outline-variant))",
+                        background: "color-mix(in srgb, var(--primary) 12%, var(--surface))",
                       }
                     : {
                         color: "var(--on-surface-variant)",
@@ -406,9 +409,9 @@ export function StockSmartAlertsRail({
               style={
                 activeKeys.has(earningsAlertKey())
                   ? {
-                      color: "var(--signal-bullish)",
-                      borderColor: "color-mix(in srgb, var(--signal-bullish) 45%, var(--outline-variant))",
-                      background: "color-mix(in srgb, var(--signal-bullish) 12%, var(--surface))",
+                      color: "var(--primary)",
+                      borderColor: "color-mix(in srgb, var(--primary) 45%, var(--outline-variant))",
+                      background: "color-mix(in srgb, var(--primary) 12%, var(--surface))",
                     }
                   : {
                       color: "var(--on-surface-variant)",

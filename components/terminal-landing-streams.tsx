@@ -8,7 +8,7 @@ import { TerminalLandingProSection } from "@/components/terminal-landing-pro-sec
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
-import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
+import { resolveFeedAccess } from "@/lib/feed-access";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { anomalyTag, buildLandingSectorCards } from "@/lib/landing-sector-data";
 import {
@@ -18,10 +18,9 @@ import {
   stockSummaryToAnomaly,
 } from "@/lib/landing-hero-featured";
 import { buildLandingHeroCallData } from "@/lib/landing-hero-call";
-import { pickLandingHeroDriverRisk } from "@/lib/landing-hero-insights";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
-import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
+import { anomalyDetail, anomalyHeadline, hasUnverifiedNarrative, isWeakMoveExplanation } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -149,7 +148,6 @@ async function buildLandingHeroCommandProps(
     null;
   const analystTarget = stockFacts?.analyst?.target_price ?? null;
   const heroMetrics = buildLandingHeroMetrics(directive, featured.price, analystTarget);
-  const { driver, risk } = pickLandingHeroDriverRisk(featured, intelligence);
   const call = buildLandingHeroCallData(
     featured,
     intelligence,
@@ -168,8 +166,7 @@ async function buildLandingHeroCommandProps(
       day_change_pct: featured.day_change_pct,
       sector: featured.sector,
       catalyst: featured.catalyst?.trim() || null,
-      driver,
-      risk,
+      analyst: stockFacts?.analyst ?? null,
       price_history: priceHistory.slice(-252),
     },
     call,
@@ -207,7 +204,9 @@ export async function LandingScannerRedditStream() {
     getMarketSnapshot(market).catch(() => []),
     getLandingUserContext(),
   ]);
-  const anomalies = anomaliesDoc?.anomalies ?? [];
+  const anomalies = (anomaliesDoc?.anomalies ?? []).filter(
+    (a) => !isWeakMoveExplanation(a) && !hasUnverifiedNarrative(a),
+  );
   if (anomalies.length === 0) return null;
 
   const redditPicks = enrichRedditTickers(
@@ -221,7 +220,7 @@ export async function LandingScannerRedditStream() {
   return (
     <div className="landing-stream-in">
       <LandingScannerReddit
-      scannerItems={redactScannerItemsAfterLimit(anomalies.map((a) => ({
+      scannerItems={anomalies.map((a) => ({
         ticker: a.ticker,
         instrument_id: a.instrument_id,
         price: a.price,
@@ -230,10 +229,9 @@ export async function LandingScannerRedditStream() {
         headline: anomalyHeadline(a),
         whyItMatters: anomalyDetail(a) || undefined,
         confidence: a.move_explanation?.confidence,
-      })), user.fullItemLimit, { preservePreview: true })}
+      }))}
       redditPicks={redditPicks}
       dataAsOf={anomaliesDoc?.date ?? anomaliesDoc?.generated_at}
-      fullItemLimit={user.fullItemLimit}
       signedIn={user.signedIn}
       isSubscribed={user.isSubscribed}
       trackedIds={user.trackedIds}

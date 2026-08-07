@@ -154,7 +154,7 @@ export function TickerSearchField({
     : "Preparing search...";
 
   const inputClass = isHero
-    ? "h-12 w-full rounded-2xl border border-outline-variant bg-surface pl-12 pr-4 text-[15px] text-on-surface placeholder:text-on-surface-variant outline-none transition-colors focus:border-outline focus:bg-surface shadow-sm"
+    ? "h-12 w-full rounded-full border border-outline-variant bg-surface-container-low pl-12 pr-4 text-[15px] text-on-surface placeholder:text-on-surface-variant outline-none transition-colors focus:border-outline focus:bg-surface"
     : "h-10 w-full rounded-full border border-outline-variant bg-surface-container-low pl-11 pr-4 text-[14px] text-on-surface placeholder:text-on-surface-variant outline-none transition-colors focus:border-outline focus:bg-surface";
 
   const dropdown = showDropdown ? (

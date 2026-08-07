@@ -12,12 +12,9 @@ export function AttentionQueue({ items }: { items: RadarAttentionItem[] }) {
   return (
     <section aria-labelledby="rn-attention">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <span className="rn-kick">Material changes</span>
-          <h2 id="rn-attention" className="mt-1 text-[20px] font-bold tracking-[-0.02em] text-[var(--rn-ink)] sm:text-[23px]">
-            What changed and why it matters
-          </h2>
-        </div>
+        <h2 id="rn-attention" className="text-[16px] font-medium tracking-tight text-[var(--rn-ink)]">
+          What changed and why it matters
+        </h2>
         <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-[var(--rn-muted)]">
           verified changes only
         </span>

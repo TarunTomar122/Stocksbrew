@@ -6,16 +6,13 @@ import {
   BarChart,
   Cell,
   CartesianGrid,
-  ComposedChart,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
-import { metricContextLine } from "@/components/percentile-rail";
+import { metricRelativeTier } from "@/components/percentile-rail";
 import type { StockFacts, StockRevenueMix } from "@/lib/stock";
 import type { StockIntelMetric, StockIntelPro, StockIntelSignal } from "@/lib/types";
 
@@ -46,7 +43,6 @@ const FINANCIAL_CHART_COLORS = {
   operating: "#d97706",
   net: "#059669",
   negative: "#dc2626",
-  trend: "var(--chart-trend)",
 } as const;
 
 function finite(value: unknown): value is number {
@@ -121,9 +117,9 @@ function FinancialChart({
       <YAxis width={62} tickFormatter={(value) => valueLabel(Number(value))} tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }} axisLine={false} tickLine={false} />
       <Tooltip
         formatter={(value, name) => [valueLabel(Number(value)), series.find((item) => item.key === name)?.label ?? String(name)]}
-        labelStyle={{ color: "var(--chart-tooltip-text)", fontWeight: 700 }}
-        contentStyle={{ background: "var(--chart-tooltip-bg)", border: "1px solid var(--chart-tooltip-border)", color: "var(--chart-tooltip-text)", borderRadius: 8, fontSize: 12 }}
-        itemStyle={{ color: "var(--chart-tooltip-text)" }}
+        labelStyle={{ color: "var(--chart-tooltip-text)", fontWeight: 700, fontSize: 13, marginBottom: 4 }}
+        contentStyle={{ background: "var(--chart-tooltip-bg)", border: "1px solid var(--chart-tooltip-border)", color: "var(--chart-tooltip-text)", borderRadius: 8, fontSize: 13.5, padding: "10px 12px" }}
+        itemStyle={{ color: "var(--chart-tooltip-text)", fontWeight: 500, padding: "2px 0" }}
         cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }}
       />
     </>
@@ -132,37 +128,18 @@ function FinancialChart({
   return (
     <div className="h-[280px] w-full" role="img" aria-label={`${mode} history chart`}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 800, height: 280 }}>
-        {mode === "margins" ? (
-          <LineChart {...common}>
-            {axes}
-            {series.map((item) => <Line key={item.key} dataKey={item.key} name={item.key} stroke={item.color} strokeWidth={3} dot={{ r: 3, fill: "var(--surface)", strokeWidth: 2 }} activeDot={{ r: 5 }} connectNulls />)}
-          </LineChart>
-        ) : (
-          <ComposedChart {...common} barGap={3}>
-            {axes}
-            {series.map((item) => (
-              <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56}>
-                {data.map((row, index) => {
-                  const value = row[item.key];
-                  const fill = typeof value === "number" && value < 0 ? FINANCIAL_CHART_COLORS.negative : item.color;
-                  return <Cell key={`${item.key}-${index}`} fill={fill} />;
-                })}
-              </Bar>
-            ))}
-            {series.length === 1 ? (
-              <Line
-                type="monotone"
-                dataKey={series[0].key}
-                stroke={FINANCIAL_CHART_COLORS.trend}
-                strokeWidth={2.25}
-                dot={{ r: 3, fill: "var(--surface)", stroke: FINANCIAL_CHART_COLORS.trend, strokeWidth: 2 }}
-                activeDot={{ r: 4, fill: "var(--surface)", stroke: FINANCIAL_CHART_COLORS.trend, strokeWidth: 2 }}
-                tooltipType="none"
-                connectNulls
-              />
-            ) : null}
-          </ComposedChart>
-        )}
+        <BarChart {...common} barGap={3}>
+          {axes}
+          {series.map((item) => (
+            <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56}>
+              {data.map((row, index) => {
+                const value = row[item.key];
+                const fill = typeof value === "number" && value < 0 ? FINANCIAL_CHART_COLORS.negative : item.color;
+                return <Cell key={`${item.key}-${index}`} fill={fill} />;
+              })}
+            </Bar>
+          ))}
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
@@ -180,37 +157,60 @@ function practicalTakeaway(label: string, signal: StockIntelSignal): string {
   const positive = signal === "green";
   const negative = signal === "red";
 
-  if (metric.includes("p/e") || metric.includes("price / sales") || metric.includes("price / fcf") || metric.includes("ev / ebitda")) {
-    if (positive) return "The market is asking less of future results.";
-    if (negative) return "Future results need to keep beating expectations.";
-    return "Future results will drive the next move.";
+  if (metric.includes("forward p/e")) {
+    if (positive) return "Investors aren't pricing in much earnings growth, so there's room to be pleasantly surprised.";
+    if (negative) return "The price already assumes strong earnings growth that still has to show up.";
+    return "The multiple sits in normal territory for a business like this.";
   }
-  if (metric === "roic" || metric === "roe") {
-    if (positive) return "The business is turning its capital into profit efficiently.";
-    if (negative) return "The business is earning less from its capital.";
-    return "The business is earning a typical return on its capital.";
+  if (metric.includes("price / sales")) {
+    if (positive) return "You're paying a modest amount for each dollar of revenue coming in.";
+    if (negative) return "Revenue alone can't justify this price; profits need to catch up fast.";
+    return "The price and the top line are roughly in step.";
+  }
+  if (metric.includes("price / fcf")) {
+    if (positive) return "Real cash coming through the door backs up what you're paying.";
+    if (negative) return "Cash generation hasn't caught up to the price tag yet.";
+    return "Cash flow is keeping pace with the valuation, nothing more.";
+  }
+  if (metric.includes("ev / ebitda")) {
+    if (positive) return "Operating earnings comfortably cover what the market is charging.";
+    if (negative) return "The price leans on operating earnings that haven't materialized.";
+    return "Operating earnings and price are reasonably matched.";
+  }
+  if (metric === "roic") {
+    if (positive) return "Money put back into the business keeps coming back out as profit, a hallmark of a durable moat.";
+    if (negative) return "Capital plowed back into the business isn't earning much for its trouble.";
+    return "Capital is earning an unremarkable, middling return.";
+  }
+  if (metric === "roe") {
+    if (positive) return "Shareholder capital is compounding at a rate worth paying attention to.";
+    if (negative) return "Shareholders aren't seeing much return on the money tied up in this business.";
+    return "Returns to shareholders are steady but nothing special.";
   }
   if (metric.includes("debt")) {
-    if (positive) return "Low leverage leaves more room to handle a slowdown.";
-    if (negative) return "Higher debt can magnify the damage from a slowdown.";
-    return "Leverage is manageable, though it still needs monitoring.";
+    if (positive) return "Light borrowing means a rough patch wouldn't threaten the balance sheet.";
+    if (negative) return "Heavy borrowing means a downturn would hit harder than it otherwise would.";
+    return "Leverage runs a bit high, though not alarmingly so.";
   }
   if (metric.includes("current ratio")) {
-    if (positive) return "The company should be able to cover bills due over the next year.";
-    if (negative) return "Near-term funding could become a constraint.";
-    return "Near-term assets are covering near-term bills.";
+    if (positive) return "What's on hand comfortably covers the bills due over the next year.";
+    if (negative) return "Near-term bills are outrunning what's on hand to pay them.";
+    return "Short-term assets and near-term bills are roughly balanced.";
   }
   return "Compared with sector peers where available.";
 }
 
-function RatioRow({ label, value, note, guidance }: { label: string; value: string; note: string; guidance: Guidance }) {
+function RatioRow({ label, value, guidance }: { label: string; value: string; guidance: Guidance }) {
   return (
-    <div className="group grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-outline-variant py-3.5 transition-colors hover:bg-surface-container-low/60 last:border-b-0">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-outline-variant py-4 last:border-b-0">
       <div className="min-w-0">
-        <p className="text-[13px] font-semibold text-[#111827]">{label}</p>
-        <p className="mt-0.5 text-[12px] leading-relaxed text-[#6b7280]">{note}</p>
+        <p className="text-[14px] font-medium text-on-surface">{label}</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-on-surface-variant">
+          <span className="font-medium" style={{ color: SIGNAL_COLOR[guidance.signal] }}>{guidance.label}</span>
+          {guidance.detail ? <span> · {guidance.detail.replace(/[.]+$/, "")}</span> : null}
+        </p>
       </div>
-      <p className="self-center text-[17px] font-semibold tabular-nums" style={{ color: SIGNAL_COLOR[guidance.signal] }}>{value}</p>
+      <p className="self-center font-mono text-[16px] font-medium tabular-nums" style={{ color: SIGNAL_COLOR[guidance.signal] }}>{value}</p>
     </div>
   );
 }
@@ -220,17 +220,17 @@ function MixBreakdown({ title, mix, currency }: { title: string; mix?: StockReve
   if (!items.length) return null;
   return (
     <section className="min-w-0">
-      <div className="flex items-baseline justify-between gap-3 border-b border-outline-variant pb-2.5">
-        <h4 className="text-[15px] font-semibold text-on-surface">{title}</h4>
-        {mix?.period ? <span className="text-[11px] text-on-surface-variant">{mix.period}</span> : null}
+      <div className="flex items-baseline justify-between gap-3">
+        <h4 className="text-[15px] font-medium text-on-surface">{title}</h4>
+        {mix?.period ? <span className="text-[12px] text-on-surface-variant">{mix.period}</span> : null}
       </div>
-      <div className="divide-y divide-outline-variant">
+      <div className="mt-3 divide-y divide-outline-variant">
         {items.map((item, index) => (
-          <div key={item.name} className="py-3">
-            <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <span className="truncate text-[12px] font-medium text-on-surface-variant">{item.name}</span>
-              <span className="shrink-0 text-[12px] font-semibold tabular-nums text-on-surface">
-                {item.share_pct.toFixed(1)}% <span className="font-normal text-on-surface-variant">· {compactMoney(item.value, currency)}</span>
+          <div key={item.name} className="py-3.5">
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <span className="truncate text-[14px] font-medium text-on-surface">{item.name}</span>
+              <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-on-surface">
+                {item.share_pct.toFixed(1)}% <span className="text-on-surface-variant">· {compactMoney(item.value, currency)}</span>
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-[var(--chart-track)]">
@@ -247,6 +247,67 @@ function MixBreakdown({ title, mix, currency }: { title: string; mix?: StockReve
         ))}
       </div>
     </section>
+  );
+}
+
+/** Third page section: what the business has actually produced over time — revenue/profit/margins history plus business and geographic mix. */
+export function StockOperatingRecord({ facts, currency = "$" }: Pick<Props, "facts" | "currency">) {
+  const [mode, setMode] = useState<ChartMode>("revenue");
+  const history = useMemo(() => [...(facts?.financial_history ?? [])].reverse(), [facts?.financial_history]);
+  const series = useMemo(() => chartSeries(mode, history), [history, mode]);
+  const periods = history.map((row) => row.period);
+  const hasMix = Boolean(facts?.business_segments?.items?.length);
+
+  if (history.length < 2 && !hasMix) return null;
+
+  return (
+    <div className="flex flex-col gap-10">
+      {history.length > 1 ? (
+        <div>
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Financial chart metric">
+            {CHART_MODES.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={mode === item.key}
+                onClick={() => setMode(item.key)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-[13px] font-medium transition-colors ${
+                  mode === item.key
+                    ? "border-primary text-primary"
+                    : "border-outline-variant bg-surface text-on-surface-variant hover:border-on-surface hover:text-on-surface"
+                }`}
+                style={
+                  mode === item.key
+                    ? { background: "color-mix(in srgb, var(--primary) 10%, var(--surface))" }
+                    : undefined
+                }
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-6">
+            <div className="mb-2 flex flex-wrap gap-x-5 gap-y-2">
+              {series.map((item) => (
+                <span key={item.label} className="text-[12px] font-medium text-on-surface-variant">
+                  <i className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                  {item.label}
+                </span>
+              ))}
+            </div>
+            <FinancialChart periods={periods} series={series} mode={mode} currency={currency} />
+          </div>
+        </div>
+      ) : null}
+
+      {hasMix ? (
+        <div className="grid gap-10 sm:grid-cols-2 sm:gap-14">
+          <MixBreakdown title="Business mix" mix={facts?.business_segments} currency={currency} />
+          <MixBreakdown title="Geographic mix" mix={facts?.geographic_mix} currency={currency} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -272,7 +333,7 @@ function guidanceFromMetric(metric: StockIntelMetric | null): Guidance | null {
   };
   return {
     label: labels[metric.signal],
-    detail: metricContextLine(metric) || metric.summary || "Compared with sector peers",
+    detail: metricRelativeTier(metric).text || metric.summary || "Compared with sector peers",
     signal: metric.signal,
   };
 }
@@ -290,6 +351,67 @@ function bandGuidance(
   return { label: lowerIsBetter ? "Rich" : "Weak", detail: bands.redCopy, signal: "red" };
 }
 
+type TargetMarker = { label: string; value: number; color: string };
+
+function TargetSlider({ markers, currency }: { markers: TargetMarker[]; currency: string }) {
+  // Sort ascending and alternate between two heights so adjacent markers never
+  // collide, without the tall staircase four strictly-increasing tiers would need.
+  const sorted = [...markers].sort((a, b) => a.value - b.value);
+  // Position by rank, not by value: a lone high-side outlier (e.g. one analyst
+  // target far above the rest) would otherwise squeeze low/median/current into
+  // an unreadable cluster on a linear scale. Even ordinal spacing keeps every
+  // label legible; the gradient track still communicates low-to-high direction.
+  const step = sorted.length > 1 ? 80 / (sorted.length - 1) : 0;
+  const baseGap = 44;
+  const tierGap = 34;
+  const trackTop = baseGap + tierGap + 50; // extra room for the two-line pill labels
+
+  const barBottom = 4; // px offset of the track from the container floor
+  const barCenter = barBottom + 4; // track is 8px tall
+
+  return (
+    <div className="mt-4 overflow-x-hidden">
+      <div className="relative" style={{ height: trackTop + 12 }}>
+        <div
+          className="absolute inset-x-0 h-2 rounded-full"
+          style={{ bottom: barBottom, background: "linear-gradient(90deg, var(--signal-bullish), var(--signal-neutral), var(--signal-bearish))" }}
+        />
+        {sorted.map((marker, index) => {
+          const pct = 10 + step * index;
+          const lineHeight = baseGap + tierGap * (index % 2);
+          return (
+            <div key={marker.label} className="absolute bottom-0" style={{ left: `${pct}%` }}>
+              <div
+                className="absolute left-0 -translate-x-1/2 border-l border-dashed"
+                style={{ bottom: barCenter, height: lineHeight, borderColor: marker.color, opacity: 0.55 }}
+              />
+              <div
+                className="absolute left-0 -translate-x-1/2 whitespace-nowrap rounded-lg px-2 py-1 text-center sm:px-2.5 sm:py-1.5"
+                style={{ bottom: barCenter + lineHeight + 8, background: `color-mix(in srgb, ${marker.color} 12%, var(--surface))` }}
+              >
+                <p className="text-[9.5px] font-medium leading-tight sm:text-[11px]" style={{ color: marker.color }}>
+                  {marker.label}
+                </p>
+                <p className="font-mono text-[10.5px] font-medium leading-tight tabular-nums sm:text-[12.5px]" style={{ color: marker.color }}>
+                  {compactMoney(marker.value, currency)}
+                </p>
+              </div>
+              <span
+                className="absolute left-0 -translate-x-1/2 h-2.5 w-2.5 rounded-full border-2 border-surface"
+                style={{ bottom: barCenter - 5, background: marker.color }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between text-[12px] text-on-surface-variant">
+        <span>Low</span>
+        <span>High</span>
+      </div>
+    </div>
+  );
+}
+
 function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; currentPrice?: number | null; currency: string }) {
   const target = facts.analyst_trend?.target;
   const low = target?.low;
@@ -298,271 +420,130 @@ function TargetRange({ facts, currentPrice, currency }: { facts: StockFacts; cur
   const high = target?.high;
   if (![low, average, high].every(finite)) return null;
   const midpoint = finite(median) ? median : average;
-  const medianPosition = high === low ? 50 : Math.min(92, Math.max(8, ((midpoint! - low!) / (high! - low!)) * 100));
-  const averageMove = finite(currentPrice) && currentPrice !== 0
-    ? ((average! - currentPrice) / currentPrice) * 100
-    : null;
-  const averageAbove = finite(averageMove) && averageMove >= 0;
 
-  return (
-    <div className="pt-4">
-      <div className="grid overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low sm:grid-cols-2">
-        <div className="p-4 sm:p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Current price</p>
-          <p className="mt-1 text-[24px] font-bold tabular-nums text-on-surface">
-            {finite(currentPrice) ? compactMoney(currentPrice, currency) : "-"}
-          </p>
-        </div>
-        <div className="border-t border-outline-variant p-4 sm:border-l sm:border-t-0 sm:p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Average analyst target</p>
-          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="text-[24px] font-bold tabular-nums text-on-surface">{compactMoney(average, currency)}</p>
-            {finite(averageMove) ? (
-              <span className="text-[12px] font-semibold tabular-nums" style={{ color: averageAbove ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
-                {averageAbove ? "+" : ""}{averageMove.toFixed(1)}% from now
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <div className="mt-5">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold text-on-surface">Analyst target range</p>
-            <p className="mt-0.5 text-[12px] text-on-surface-variant">Where analysts think the stock could trade</p>
-          </div>
-          <p className="text-[12px] tabular-nums text-on-surface-variant"><span className="font-semibold text-on-surface">{compactMoney(low, currency)}</span> to <span className="font-semibold text-on-surface">{compactMoney(high, currency)}</span></p>
-        </div>
-        <div className="relative mt-8 h-2 rounded-full bg-surface-container-high">
-          <span className="absolute inset-y-0 left-0 rounded-l-full bg-surface-container-highest" style={{ width: `${medianPosition}%` }} />
-          <span className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-on-surface shadow-sm" style={{ left: `${medianPosition}%` }} />
-          <span className="absolute bottom-5 -translate-x-1/2 whitespace-nowrap rounded-md bg-on-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-surface" style={{ left: `${medianPosition}%` }}>Median {compactMoney(midpoint, currency)}</span>
-        </div>
-        <div className="mt-2 flex justify-between text-[11px] text-on-surface-variant"><span>Low</span><span>High</span></div>
-      </div>
-    </div>
-  );
-}
+  const markers: TargetMarker[] = [
+    { label: "Lowest", value: low!, color: "var(--on-surface-variant)" },
+    { label: "Highest", value: high!, color: "var(--on-surface-variant)" },
+    ...(finite(midpoint) ? [{ label: "Median target", value: midpoint!, color: "var(--primary)" }] : []),
+    ...(finite(currentPrice) ? [{ label: "Current price", value: currentPrice!, color: "var(--signal-bullish)" }] : []),
+  ];
 
-function AnalystTrend({ facts }: { facts: StockFacts }) {
-  const trend = facts.analyst_trend?.recommendation_trend ?? [];
-  if (!trend.length) return null;
-  const data = trend.slice(-6).map((row) => ({
-    period: row.period,
-    Buy: (row.strong_buy ?? 0) + (row.buy ?? 0),
-    Hold: row.hold ?? 0,
-    Sell: (row.sell ?? 0) + (row.strong_sell ?? 0),
-  }));
-  return (
-    <div className="mt-7">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold text-on-surface">Recommendation trend</p>
-        <div className="flex gap-3 text-[10px] text-on-surface-variant">
-          <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#10b981]" />Buy</span>
-          <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#d1d5db]" />Hold</span>
-          <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#ef4444]" />Sell</span>
-        </div>
-      </div>
-      <div className="h-28 w-full" role="img" aria-label="Analyst recommendation history">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 800, height: 112 }}>
-          <BarChart data={data} barGap={2} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-            <XAxis dataKey="period" tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis hide allowDecimals={false} />
-            <Tooltip
-              formatter={(value, name) => [Number(value).toFixed(0), String(name)]}
-              labelStyle={{ color: "var(--chart-tooltip-text)", fontWeight: 700 }}
-              contentStyle={{ background: "var(--chart-tooltip-bg)", border: "1px solid var(--chart-tooltip-border)", color: "var(--chart-tooltip-text)", borderRadius: 8, fontSize: 12 }}
-              itemStyle={{ color: "var(--chart-tooltip-text)" }}
-              cursor={{ fill: "color-mix(in srgb, var(--primary) 6%, transparent)" }}
-            />
-            <Bar dataKey="Buy" fill="#10b981" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="Hold" fill="#d1d5db" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="Sell" fill="#ef4444" radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
+  return <TargetSlider markers={markers} currency={currency} />;
 }
 
 export function StockAnalystDepth({ facts, currentPrice, currency = "$" }: Pick<Props, "facts" | "currentPrice" | "currency">) {
-  const hasAnalyst = Boolean(facts?.analyst_trend?.recommendation_trend?.length || facts?.analyst_trend?.target?.average);
+  const hasAnalyst = Boolean(facts?.analyst_trend?.target?.average);
   if (!facts || !hasAnalyst) return null;
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Wall Street</p>
-      <h3 className="border-b border-[#111827] pb-3 text-[19px] font-semibold text-[#111827]">Analyst targets and ratings</h3>
-      <TargetRange facts={facts} currentPrice={currentPrice} currency={currency} />
-      <AnalystTrend facts={facts} />
+      <h3 className="text-[16px] font-medium text-on-surface">Analyst price targets</h3>
+      <div className="mt-6">
+        <TargetRange facts={facts} currentPrice={currentPrice} currency={currency} />
+      </div>
     </div>
   );
 }
 
-export function StockFinancialDepth({ facts, currency = "$", intelPro, ticker }: Props) {
-  const [mode, setMode] = useState<ChartMode>("revenue");
-  const history = useMemo(() => [...(facts?.financial_history ?? [])].reverse(), [facts?.financial_history]);
-  const series = useMemo(() => chartSeries(mode, history), [history, mode]);
-  const periods = history.map((row) => row.period);
+export function StockFinancialDepth({ facts, currency = "$", intelPro }: Props) {
   const balance = facts?.balance;
   const valuation = facts?.valuation;
   const quality = facts?.quality;
   const hasBalance = [balance?.cash_and_investments, balance?.total_debt, balance?.net_cash].some(finite);
   const hasRatios = [...Object.values(valuation ?? {}), ...Object.values(quality ?? {})].some(finite);
-  const hasMix = Boolean(facts?.business_segments?.items?.length || facts?.geographic_mix?.items?.length);
 
-  if (!history.length && !hasBalance && !hasRatios && !hasMix) return null;
+  if (!hasBalance && !hasRatios) return null;
 
-  const maxCapital = Math.max(balance?.cash_and_investments ?? 0, balance?.total_debt ?? 0, 1);
-  const sourceSlug = ticker.toLowerCase();
-  const sources = new Set((facts?.source_status?.sources ?? []).map((source) => source.toLowerCase()));
-  const usesStockAnalysis = sources.has("stockanalysis") || sources.size === 0;
-  const usesYahoo = sources.has("yfinance");
-  const forwardPeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Forward P/E"])) ?? bandGuidance(valuation?.forward_pe, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Below 20x forward earnings", yellowCopy: "A moderate earnings multiple", redCopy: "Above 35x forward earnings" });
-  const priceSalesGuidance = bandGuidance(valuation?.price_to_sales, { green: 3, yellow: 8, lowerIsBetter: true, greenCopy: "Under 3x annual sales", yellowCopy: "Between 3x and 8x sales", redCopy: "Above 8x annual sales" });
-  const priceFcfGuidance = bandGuidance(valuation?.price_to_fcf, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Under 20x free cash flow", yellowCopy: "Between 20x and 35x free cash flow", redCopy: "Above 35x free cash flow" });
-  const evEbitdaGuidance = bandGuidance(valuation?.ev_to_ebitda, { green: 12, yellow: 22, lowerIsBetter: true, greenCopy: "Under 12x operating cash earnings", yellowCopy: "Between 12x and 22x EBITDA", redCopy: "Above 22x EBITDA" });
-  const roicGuidance = bandGuidance(quality?.roic_pct, { green: 15, yellow: 8, greenCopy: "At least 15% return on capital", yellowCopy: "An 8% to 15% return on capital", redCopy: "Below 8% return on capital" });
-  const roeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["ROE", "Return on equity"])) ?? bandGuidance(quality?.roe_pct, { green: 20, yellow: 10, greenCopy: "At least 20% return on equity", yellowCopy: "A 10% to 20% return on equity", redCopy: "Below 10% return on equity" });
-  const debtEquityGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Debt / Equity", "Debt to equity"])) ?? bandGuidance(quality?.debt_to_equity, { green: 0.5, yellow: 1.5, lowerIsBetter: true, greenCopy: "Debt is under half of equity", yellowCopy: "Manageable balance-sheet leverage", redCopy: "Debt is above 1.5x equity" });
-  const currentRatioGuidance = bandGuidance(quality?.current_ratio, { green: 1.5, yellow: 1, greenCopy: "Comfortable short-term liquidity", yellowCopy: "Assets still cover near-term liabilities", redCopy: "Near-term liabilities exceed current assets" });
-  const valuationPoint = [
+  const forwardPeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Forward P/E"])) ?? bandGuidance(valuation?.forward_pe, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Priced cheaper than most earnings-growth stocks", yellowCopy: "Priced about average for its growth rate", redCopy: "Priced for strong growth that still has to show up" });
+  const priceSalesGuidance = bandGuidance(valuation?.price_to_sales, { green: 3, yellow: 8, lowerIsBetter: true, greenCopy: "Priced modestly against the revenue it brings in", yellowCopy: "Priced reasonably against its revenue", redCopy: "Priced well above what its revenue alone supports" });
+  const priceFcfGuidance = bandGuidance(valuation?.price_to_fcf, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Priced well within what its cash flow supports", yellowCopy: "Priced a bit rich against its cash flow", redCopy: "Priced far above what its cash flow currently supports" });
+  const evEbitdaGuidance = bandGuidance(valuation?.ev_to_ebitda, { green: 12, yellow: 22, lowerIsBetter: true, greenCopy: "Operating earnings comfortably support this price", yellowCopy: "Operating earnings make this price a stretch but plausible", redCopy: "Operating earnings don't yet support this price" });
+  const roicGuidance = bandGuidance(quality?.roic_pct, { green: 15, yellow: 8, greenCopy: "Comfortably clears the bar for efficient capital use", yellowCopy: "A middling return on the capital it puts to work", redCopy: "Struggling to earn much on the capital it uses" });
+  const roeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["ROE", "Return on equity"])) ?? bandGuidance(quality?.roe_pct, { green: 20, yellow: 10, greenCopy: "Strong returns on shareholders' money", yellowCopy: "Average returns on shareholders' money", redCopy: "Weak returns on shareholders' money" });
+  const debtEquityGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Debt / Equity", "Debt to equity"])) ?? bandGuidance(quality?.debt_to_equity, { green: 0.5, yellow: 1.5, lowerIsBetter: true, greenCopy: "Very little debt relative to equity", yellowCopy: "A moderate amount of debt to manage", redCopy: "Carrying more debt than equity can comfortably absorb" });
+  const currentRatioGuidance = bandGuidance(quality?.current_ratio, { green: 1.5, yellow: 1, greenCopy: "Comfortable room to cover bills due within a year", yellowCopy: "Just enough on hand to cover near-term bills", redCopy: "Not enough on hand to cover near-term bills" });
+  const ratioPoints = [
     { label: "Forward P/E", guidance: forwardPeGuidance },
     { label: "Price / sales", guidance: priceSalesGuidance },
     { label: "Price / FCF", guidance: priceFcfGuidance },
     { label: "EV / EBITDA", guidance: evEbitdaGuidance },
-  ].find((item) => item.guidance.signal === "red") ?? { label: "Forward P/E", guidance: forwardPeGuidance };
-  const qualityPoint = [
     { label: "ROIC", guidance: roicGuidance },
     { label: "ROE", guidance: roeGuidance },
     { label: "Debt / equity", guidance: debtEquityGuidance },
     { label: "Current ratio", guidance: currentRatioGuidance },
-  ].find((item) => item.guidance.signal === "green") ?? { label: "ROIC", guidance: roicGuidance };
-  const pointCopy = ({ label, guidance }: { label: string; guidance: Guidance }) => {
-    const comparison = guidance.detail.replace(/[.]+$/, "");
-    return `${label}: ${practicalTakeaway(label, guidance.signal)}${comparison ? ` ${comparison}.` : ""}`;
-  };
-  const keyPoints = [
-    finite(balance?.net_cash)
-      ? {
-          signal: balance.net_cash >= 0 ? "green" : "red" as StockIntelSignal,
-          text: balance.net_cash >= 0
-            ? `Cash exceeds debt by ${compactMoney(balance.net_cash, currency)}, leaving a net cash buffer.`
-            : `Debt exceeds cash by ${compactMoney(Math.abs(balance.net_cash), currency)}, increasing balance-sheet pressure.`,
-        }
-      : null,
-    { signal: valuationPoint.guidance.signal, text: pointCopy(valuationPoint) },
-    { signal: qualityPoint.guidance.signal, text: pointCopy(qualityPoint) },
-  ].filter((point): point is { signal: StockIntelSignal; text: string } => Boolean(point));
+  ];
+  const pointCopy = ({ label, guidance }: { label: string; guidance: Guidance }) =>
+    `${label}: ${practicalTakeaway(label, guidance.signal)}`;
+  const netCashPoint = finite(balance?.net_cash)
+    ? {
+        signal: balance.net_cash >= 0 ? "green" : "red" as StockIntelSignal,
+        text: balance.net_cash >= 0
+          ? `Cash exceeds debt by ${compactMoney(balance.net_cash, currency)}, leaving a net cash buffer, a good sign.`
+          : `Debt exceeds cash by ${compactMoney(Math.abs(balance.net_cash), currency)}, increasing balance-sheet pressure, a warning sign.`,
+      }
+    : null;
+  const goodPoints = [
+    ...(netCashPoint?.signal === "green" ? [netCashPoint.text] : []),
+    ...ratioPoints.filter((item) => item.guidance.signal === "green").map(pointCopy),
+  ].slice(0, 2);
+  const badPoints = [
+    ...(netCashPoint?.signal === "red" ? [netCashPoint.text] : []),
+    ...ratioPoints.filter((item) => item.guidance.signal === "red").map(pointCopy),
+  ].slice(0, 2);
 
   return (
-    <section id="stock-financial-depth" className="flex flex-col gap-12 border-t border-outline-variant bg-transparent py-7 sm:py-9">
-      {history.length <= 1 ? (
-        <p className="border-b border-[#eceff3] pb-4 text-[11px] leading-relaxed text-[#6b7280]">
-          Five-year statements are not available from our current sources yet. Missing figures stay blank.
-        </p>
-      ) : null}
-      {history.length > 1 ? (
-        <section>
-          <div className="flex flex-col gap-4 border-b border-[#111827] pb-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7c3aed]">Operating record</p>
-              <h3 className="mt-1 text-[22px] font-semibold tracking-[-0.025em] text-[#111827]">What the business has actually produced</h3>
+    <section id="stock-financial-depth" className="flex flex-col gap-12 bg-transparent">
+      {(goodPoints.length > 0 || badPoints.length > 0) ? (
+        <section className="grid gap-6 sm:grid-cols-2">
+          {goodPoints.length ? (
+            <div className="rounded-xl border border-outline-variant bg-surface-container-low/50 p-5 sm:p-6">
+              <h3 className="text-[17px] font-medium text-on-surface">What&apos;s working</h3>
+              <ul className="mt-4 space-y-4 border-t border-outline-variant pt-4">
+                {goodPoints.map((text, index) => (
+                  <li key={index} className="flex gap-2.5 text-[15px] leading-relaxed text-on-surface text-pretty">
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SIGNAL_COLOR.green }} />
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="flex max-w-full gap-1 overflow-x-auto" role="tablist" aria-label="Financial chart metric">
-              {CHART_MODES.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === item.key}
-                  onClick={() => setMode(item.key)}
-                  className={`shrink-0 border-b-2 px-3 py-2 text-[12px] font-semibold transition-colors ${mode === item.key ? "border-[#7c3aed] text-[#111827]" : "border-transparent text-[#6b7280] hover:text-[#111827]"}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="pt-5">
-            <div className="mb-1 flex flex-wrap gap-x-5 gap-y-2">
-              {series.map((item) => <span key={item.label} className="text-[11px] font-medium text-[#6b7280]"><i className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</span>)}
-              {mode !== "margins" && series.length === 1 ? (
-                <span className="text-[11px] font-medium text-[#6b7280]"><i className="mr-1.5 inline-block h-0.5 w-4 align-middle" style={{ backgroundColor: FINANCIAL_CHART_COLORS.trend }} />Trend</span>
-              ) : null}
-            </div>
-            <FinancialChart periods={periods} series={series} mode={mode} currency={currency} />
-          </div>
-        </section>
-      ) : null}
-
-      {(hasBalance || hasRatios) ? (
-        <section className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
-          <div>
-            {hasBalance ? (
-              <>
-              <div className="border-b border-[#111827] pb-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Capital structure</p>
-                <h3 className="mt-1 text-[19px] font-semibold text-[#111827]">Cash versus debt</h3>
-              </div>
-              <div className="space-y-5 pt-5">
-                {finite(balance?.cash_and_investments) ? (
-                  <div><div className="mb-1.5 flex justify-between text-[12px]"><span>Cash & investments</span><b>{compactMoney(balance.cash_and_investments, currency)}</b></div><div className="h-2 rounded-full bg-[#eef0f3]"><div className="h-full rounded-full bg-[#10b981]" style={{ width: `${balance.cash_and_investments / maxCapital * 100}%` }} /></div></div>
-                ) : null}
-                {finite(balance?.total_debt) ? (
-                  <div><div className="mb-1.5 flex justify-between text-[12px]"><span>Total debt</span><b>{compactMoney(balance.total_debt, currency)}</b></div><div className="h-2 rounded-full bg-[#eef0f3]"><div className="h-full rounded-full bg-[#ef4444]" style={{ width: `${balance.total_debt / maxCapital * 100}%` }} /></div></div>
-                ) : null}
-                {finite(balance?.net_cash) ? <div className="flex items-baseline justify-between border-t border-[#eceff3] pt-4"><span className="text-[12px] text-[#6b7280]">Net cash after debt</span><b className={balance.net_cash >= 0 ? "text-[20px] text-[#10b981]" : "text-[20px] text-[#ef4444]"}>{compactMoney(balance.net_cash, currency)}</b></div> : null}
-              </div>
-              </>
-            ) : null}
-            {keyPoints.length ? (
-              <div className={hasBalance ? "mt-8 border-t border-outline-variant pt-5" : ""}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Key points</p>
-                <ul className="mt-3 space-y-3">
-                  {keyPoints.slice(0, 3).map((point, index) => (
-                    <li key={index} className="flex gap-2.5 text-[13px] leading-relaxed text-on-surface/85 text-pretty">
-                      <span aria-hidden className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SIGNAL_COLOR[point.signal] }} />
-                      <span>{point.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-          {hasRatios ? (
-            <div className="grid gap-8 sm:grid-cols-2">
-              <div>
-                <div className="border-b border-[#111827] pb-3"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Valuation</p><h3 className="mt-1 text-[19px] font-semibold text-[#111827]">What the market charges</h3></div>
-                <RatioRow label="Forward P/E" value={ratio(valuation?.forward_pe)} note="Price paid for each $1 of expected profit" guidance={forwardPeGuidance} />
-                <RatioRow label="Price / sales" value={ratio(valuation?.price_to_sales)} note="Market value per $1 of sales" guidance={priceSalesGuidance} />
-                <RatioRow label="Price / FCF" value={ratio(valuation?.price_to_fcf)} note="$ paid for each $1 of free cash flow" guidance={priceFcfGuidance} />
-                <RatioRow label="EV / EBITDA" value={ratio(valuation?.ev_to_ebitda)} note="Company value relative to operating earnings" guidance={evEbitdaGuidance} />
-              </div>
-              <div>
-                <div className="border-b border-[#111827] pb-3"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7c3aed]">Quality</p><h3 className="mt-1 text-[19px] font-semibold text-[#111827]">How efficiently it compounds</h3></div>
-                <RatioRow label="ROIC" value={pct(quality?.roic_pct)} note="Profit earned from the capital in the business" guidance={roicGuidance} />
-                <RatioRow label="ROE" value={pct(quality?.roe_pct)} note="Profit earned on shareholders’ capital" guidance={roeGuidance} />
-                <RatioRow label="Debt / equity" value={ratio(quality?.debt_to_equity)} note="Borrowing relative to shareholders’ capital" guidance={debtEquityGuidance} />
-                <RatioRow label="Current ratio" value={ratio(quality?.current_ratio)} note="Near-term assets available to pay near-term bills" guidance={currentRatioGuidance} />
-              </div>
+          ) : null}
+          {badPoints.length ? (
+            <div className="rounded-xl border border-outline-variant bg-surface-container-low/50 p-5 sm:p-6">
+              <h3 className="text-[17px] font-medium text-on-surface">What to watch</h3>
+              <ul className="mt-4 space-y-4 border-t border-outline-variant pt-4">
+                {badPoints.map((text, index) => (
+                  <li key={index} className="flex gap-2.5 text-[15px] leading-relaxed text-on-surface text-pretty">
+                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SIGNAL_COLOR.red }} />
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </section>
       ) : null}
 
-      {hasMix ? <section className="grid gap-10 lg:grid-cols-2 lg:gap-14"><MixBreakdown title="Business mix" mix={facts?.business_segments} currency={currency} /><MixBreakdown title="Geographic mix" mix={facts?.geographic_mix} currency={currency} /></section> : null}
+      {hasRatios ? (
+        <section>
+          <div className="grid gap-8 sm:grid-cols-2">
+            <div>
+              <h3 className="border-b border-outline-variant pb-2.5 text-[16px] font-medium text-on-surface">What the market charges</h3>
+              <RatioRow label="Forward P/E" value={ratio(valuation?.forward_pe)} guidance={forwardPeGuidance} />
+              <RatioRow label="Price / sales" value={ratio(valuation?.price_to_sales)} guidance={priceSalesGuidance} />
+              <RatioRow label="Price / FCF" value={ratio(valuation?.price_to_fcf)} guidance={priceFcfGuidance} />
+              <RatioRow label="EV / EBITDA" value={ratio(valuation?.ev_to_ebitda)} guidance={evEbitdaGuidance} />
+            </div>
+            <div>
+              <h3 className="border-b border-outline-variant pb-2.5 text-[16px] font-medium text-on-surface">How efficiently it compounds</h3>
+              <RatioRow label="ROIC" value={pct(quality?.roic_pct)} guidance={roicGuidance} />
+              <RatioRow label="ROE" value={pct(quality?.roe_pct)} guidance={roeGuidance} />
+              <RatioRow label="Debt / equity" value={ratio(quality?.debt_to_equity)} guidance={debtEquityGuidance} />
+              <RatioRow label="Current ratio" value={ratio(quality?.current_ratio)} guidance={currentRatioGuidance} />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
-      <p className="border-t border-[#eceff3] pt-4 text-[10px] leading-relaxed text-[#9ca3af]">
-        Selected financial data sourced from{" "}
-        {usesStockAnalysis ? (
-          <a className="underline decoration-[#c4b5fd] underline-offset-2 hover:text-[#6d28d9]" href={`https://stockanalysis.com/stocks/${sourceSlug}/`} target="_blank" rel="noreferrer">StockAnalysis</a>
-        ) : null}
-        {usesStockAnalysis && usesYahoo ? " and " : null}
-        {usesYahoo ? (
-          <a className="underline decoration-[#c4b5fd] underline-offset-2 hover:text-[#6d28d9]" href={`https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}/financials/`} target="_blank" rel="noreferrer">Yahoo Finance</a>
-        ) : null}
-        {" "}and refreshed weekly. Figures may be delayed and are for research context, not investment advice.
-      </p>
     </section>
   );
 }

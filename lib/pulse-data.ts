@@ -4,12 +4,33 @@ import {
   anomalyHeadline,
   isWeakMoveExplanation,
 } from "@/components/daily-anomalies-shared";
-import type { EarningsPick, PulseTopline, RecentEarningsPick, RedditPick, SectorCard } from "@/components/pulse-hub";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import { buildLandingSectorCards } from "@/lib/landing-sector-data";
 import type { PremarketMovers } from "@/lib/premarket";
 import type { SnapshotRow } from "@/lib/types";
+
+export type SectorCard = { label: string; avg: number; stocks: { ticker: string; changePct: number }[] };
+export type RedditPick = {
+  ticker: string;
+  sentiment: string;
+  summary: string;
+  mention_count?: number;
+  catalysts?: string[];
+  company?: string;
+  price?: number;
+  changePct?: number;
+  volume?: number;
+};
+export type EarningsPick = { ticker: string; company: string; eventDate: string; time: string; epsEstimate: number | null; epsOutlook?: string; reaction?: string };
+export type RecentEarningsPick = { ticker: string; company: string; eventDate: string; headline: string; epsTag?: string };
+export type PulseTopline = {
+  gainers: number;
+  losers: number;
+  lead?: { label: string; avg: number } | null;
+  lag?: { label: string; avg: number } | null;
+  crowd?: string | null;
+};
 
 export type PulsePageData = {
   items: ScannerItem[];
@@ -21,7 +42,7 @@ export type PulsePageData = {
   premarketItems: ScannerItem[];
 };
 
-function epsTagFromReported(reported?: string): string | undefined {
+export function epsTagFromReported(reported?: string): string | undefined {
   const r = (reported ?? "").toLowerCase();
   if (/\bbeat\b/.test(r)) return "beat";
   if (/\bmiss\b/.test(r)) return "miss";
@@ -38,6 +59,7 @@ function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>):
 
     return {
       ticker: a.ticker,
+      instrument_id: a.instrument_id,
       company: a.name,
       price: a.price,
       changePct: a.day_change_pct,
@@ -46,6 +68,8 @@ function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>):
       headline,
       whyItMatters,
       confidence: weakExplanation || a.narrative_status === "unverified" ? "low" : a.move_explanation?.confidence,
+      overallScore: a.overall_score,
+      overallLabel: a.overall_label,
     };
   });
 }

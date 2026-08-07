@@ -30,8 +30,7 @@ export function TerminalLandingTestimonials() {
     <section className="border-t border-outline-variant bg-background">
       <div className="landing-inner py-16 lg:py-20">
         <div className="mx-auto mb-10 max-w-2xl text-center">
-          <p className="landing-section-kicker text-landing-brand">What you can do</p>
-          <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl">
+          <h2 className="text-[26px] font-semibold tracking-tight text-on-surface sm:text-[32px]">
             Research it now. Keep following it later.
           </h2>
           <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant sm:text-[15px]">
@@ -45,10 +44,7 @@ export function TerminalLandingTestimonials() {
               <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-low text-landing-brand">
                 <AnimatedIcon name={card.icon} size={19} aria-hidden />
               </div>
-              <p className="mt-4 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-landing-brand">
-                {card.kicker}
-              </p>
-              <h3 className="mt-1.5 text-[16px] font-bold tracking-tight text-on-surface">{card.title}</h3>
+              <h3 className="mt-4 text-[16px] font-semibold tracking-tight text-on-surface">{card.title}</h3>
               <p className="mt-2 flex-1 text-[13px] leading-relaxed text-on-surface-variant">{card.body}</p>
               <p className="mt-5 rounded-xl bg-surface-container-low px-3 py-2.5 font-mono text-[11px] leading-relaxed text-on-surface-variant">
                 {card.sample}

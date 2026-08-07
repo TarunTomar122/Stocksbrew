@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
-import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 import {
   isLikelyHumanStockDemand,
   stockDemandDailyLimit,
@@ -166,12 +165,5 @@ export async function POST(req: NextRequest) {
 
   await maybePromoteOnFirstVisit(instrumentId, ticker, market).catch(() => undefined);
 
-  const researchQueued = await maybeQueueOnDemandNews(actorHash(actorId), instrumentId, {
-    source: "stock_page_view",
-    recordRequester: false,
-    publicBudget: true,
-    now,
-  }).catch(() => false);
-
-  return NextResponse.json({ ok: true, research_queued: researchQueued });
+  return NextResponse.json({ ok: true });
 }

@@ -107,7 +107,8 @@ const config: Config = {
         body: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
         label: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
         display: ["'Plus Jakarta Sans'", "Satoshi", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
+        // ponytail: was Geist Mono, made numbers look like a second font next to Satoshi body text
+        mono: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         sm: "0.375rem",   /* 6px */

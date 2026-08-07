@@ -1399,7 +1399,7 @@ html:not(.dark):has(.landing-page) body {
   width: 28%;
   pointer-events: none;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--primary) 5%, transparent), transparent);
-  animation: brief-research-scan 4.8s ease-in-out infinite;
+  animation: brief-research-scan 3s ease-in-out infinite;
   will-change: transform, opacity;
 }
 .brief-research-pulse {
@@ -1416,7 +1416,7 @@ html:not(.dark):has(.landing-page) body {
   inset: -4px;
   border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
   border-radius: inherit;
-  animation: brief-research-pulse 1.8s ease-out infinite;
+  animation: brief-research-pulse 1.3s ease-out infinite;
 }
 @keyframes brief-research-scan {
   0%, 12% { transform: translateX(-110%); opacity: 0; }

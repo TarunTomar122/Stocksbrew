@@ -1,9 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import { useUser } from "@/lib/auth-context";
 import { TrackButton } from "@/components/track-button";
+import { AnimatedIcon } from "@/components/animated-icon";
+import { briefReadyAlertKey, createStockAlert, deleteStockAlert, fetchStockAlerts } from "@/lib/create-alert";
 
 type Props = {
   ticker: string;
@@ -19,8 +22,6 @@ type Props = {
 export function LockedAiBrief({
   ticker,
   instrumentId,
-  currentPrice,
-  currency = "$",
   isSubscribed,
   isTracked = false,
   onDemandStatus = "",
@@ -34,8 +35,6 @@ export function LockedAiBrief({
       <ProBriefPreparingState
         ticker={ticker}
         instrumentId={instrumentId}
-        currentPrice={currentPrice}
-        currency={currency}
         isSubscribed={isSubscribed}
         isTracked={isTracked}
         onDemandStatus={onDemandStatus}
@@ -47,8 +46,6 @@ export function LockedAiBrief({
   return (
     <RadarBriefInvitation
       ticker={ticker}
-      currentPrice={currentPrice}
-      currency={currency}
       action={
         <TrackButton
           ticker={ticker}
@@ -67,8 +64,6 @@ export function LockedAiBrief({
 function ProBriefPreparingState({
   ticker,
   instrumentId,
-  currentPrice,
-  currency,
   isSubscribed,
   isTracked,
   onDemandStatus,
@@ -76,19 +71,23 @@ function ProBriefPreparingState({
 }: {
   ticker: string;
   instrumentId: string;
-  currentPrice?: number;
-  currency: string;
   isSubscribed: boolean;
   isTracked: boolean;
   onDemandStatus: string;
   onDemandError: string;
 }) {
+  const normalizedStatus = String(onDemandStatus || "").toLowerCase();
+  const isTerminalNoNews = normalizedStatus === "no_articles" || normalizedStatus === "no_brief";
+  const isFailed = normalizedStatus === "failed";
+  const isComplete = normalizedStatus === "complete";
+  const isRunningLike =
+    normalizedStatus === "queued" || normalizedStatus === "running" || normalizedStatus === "retry";
+
   if (!isTracked) {
+    if (isRunningLike) return <BriefGeneratingCard ticker={ticker} instrumentId={instrumentId} />;
     return (
       <RadarBriefInvitation
         ticker={ticker}
-        currentPrice={currentPrice}
-        currency={currency}
         action={
           <TrackButton
             ticker={ticker}
@@ -97,18 +96,12 @@ function ProBriefPreparingState({
             isSubscribed={isSubscribed}
             isTracked={false}
             untrackedLabel={`Track ${ticker}`}
+            accent
           />
         }
       />
     );
   }
-
-  const normalizedStatus = String(onDemandStatus || "").toLowerCase();
-  const isTerminalNoNews = normalizedStatus === "no_articles" || normalizedStatus === "no_brief";
-  const isFailed = normalizedStatus === "failed";
-  const isComplete = normalizedStatus === "complete";
-  const isRunningLike =
-    normalizedStatus === "queued" || normalizedStatus === "running" || normalizedStatus === "retry";
 
   if (isTerminalNoNews) {
     return <CoveragePausedBrief ticker={ticker} status={normalizedStatus} />;
@@ -169,41 +162,111 @@ function ProBriefPreparingState({
   );
 }
 
+function BriefGeneratingCard({ ticker, instrumentId }: { ticker: string; instrumentId: string }) {
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-outline-variant bg-surface px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
+      <div className="brief-research-scan" aria-hidden />
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[13px] font-medium text-primary">
+            <span className="brief-research-pulse" aria-hidden />
+            Research in progress
+          </div>
+          <h3 className="mt-2 text-[22px] font-medium tracking-tight text-on-surface sm:text-[24px]">
+            Researching {ticker}
+          </h3>
+          <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-on-surface-variant">
+            We're reading the latest filings, earnings and news, then building the brief here. Usually ready in 10-15 minutes, and this page will refresh automatically.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <BriefReadyAlertButton ticker={ticker} instrumentId={instrumentId} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BriefReadyAlertButton({ ticker, instrumentId }: { ticker: string; instrumentId: string }) {
+  const { user } = useUser();
+  const [state, setState] = useState<"idle" | "loading" | "on" | "error">("idle");
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchStockAlerts(instrumentId).then((rows) => {
+      if (!cancelled && rows.some((row) => row.kind === briefReadyAlertKey() && row.active !== false)) {
+        setState("on");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, instrumentId]);
+
+  if (!user) return null;
+
+  async function toggle() {
+    if (state === "on") {
+      setState("loading");
+      const rows = await fetchStockAlerts(instrumentId);
+      const row = rows.find((r) => r.kind === briefReadyAlertKey());
+      if (row?.id) await deleteStockAlert(row.id);
+      setState("idle");
+      return;
+    }
+    setState("loading");
+    const result = await createStockAlert({ instrument_id: instrumentId, ticker, kind: "brief_ready" });
+    setState(result.ok ? "on" : "error");
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={state === "loading"}
+      className="inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[13px] font-medium transition-colors disabled:cursor-default disabled:opacity-60"
+      style={
+        state === "on"
+          ? {
+              color: "var(--primary)",
+              borderColor: "color-mix(in srgb, var(--primary) 45%, var(--outline-variant))",
+              background: "color-mix(in srgb, var(--primary) 12%, var(--surface))",
+            }
+          : {
+              color: "var(--on-surface-variant)",
+              borderColor: "var(--outline-variant)",
+              background: "var(--surface-container-low)",
+            }
+      }
+    >
+      <AnimatedIcon name="bell" size={14} aria-hidden />
+      {state === "on" ? "We'll email you" : state === "error" ? "Could not set alert" : "Email me when ready"}
+    </button>
+  );
+}
+
 function RadarBriefInvitation({
   ticker,
-  currentPrice,
-  currency,
   action,
 }: {
   ticker: string;
-  currentPrice?: number;
-  currency: string;
   action: ReactNode;
 }) {
   return (
-    <section className="border-y border-outline-variant bg-surface px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
+    <section className="rounded-2xl border border-outline-variant bg-surface px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
-            AI brief
-            {typeof currentPrice === "number" ? (
-              <span className="ml-2 text-on-surface-variant">
-                {ticker} {currency}{currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            ) : null}
-          </p>
-          <h3 className="mt-2 text-[22px] font-semibold tracking-[-0.03em] text-on-surface sm:text-[24px]">
+          <h3 className="text-[22px] font-medium tracking-tight text-on-surface sm:text-[24px]">
             Generate AI analysis for {ticker}
           </h3>
-          <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
+          <p className="mt-2 max-w-[50ch] text-[13.5px] leading-relaxed text-on-surface-variant">
             Add it to your Watchlist. We’ll read the latest filings, earnings and news, then build the brief here.
           </p>
         </div>
         <div className="shrink-0">
           {action}
-          <p className="mt-2 text-center font-mono text-[9px] uppercase tracking-[0.06em] text-on-surface-variant">
-            usually 10–15 min
-          </p>
+          <p className="mt-2 text-center text-[12px] text-on-surface-variant">Usually 10-15 min</p>
         </div>
       </div>
     </section>

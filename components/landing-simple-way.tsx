@@ -1,15 +1,20 @@
+import { AnimatedIcon } from "@/components/animated-icon";
+
 const STEPS = [
   {
     title: "Search a stock",
     body: "Read its financials, valuation, filings, earnings, analyst targets and news.",
+    icon: "search",
   },
   {
     title: "Add it to your Watchlist",
     body: "Track a company you own or want to follow. Your first three are free.",
+    icon: "add",
   },
   {
     title: "We keep researching",
     body: "Get an alert when earnings, news or a price level gives you a reason to look again.",
+    icon: "notifications_active",
   },
 ] as const;
 
@@ -18,8 +23,7 @@ export function LandingSimpleWay() {
     <section className="border-b border-outline-variant bg-background">
       <div className="landing-inner py-14 lg:py-16">
         <div className="max-w-2xl">
-          <p className="landing-section-kicker text-landing-brand">How it works</p>
-          <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl">
+          <h2 className="text-[26px] font-semibold tracking-tight text-on-surface sm:text-[32px]">
             Search once. Track what matters.
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-on-surface-variant">
@@ -27,12 +31,17 @@ export function LandingSimpleWay() {
           </p>
         </div>
 
-        <div className="mt-10 grid border-y border-outline-variant sm:grid-cols-3 sm:divide-x sm:divide-outline-variant">
-          {STEPS.map((step, index) => (
-            <article key={step.title} className="px-0 py-6 first:pt-6 last:pb-6 sm:px-6 sm:first:pl-0 sm:last:pr-0">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">0{index + 1}</p>
-              <h3 className="mt-3 text-[17px] font-bold tracking-tight text-on-surface">{step.title}</h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-on-surface-variant">{step.body}</p>
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {STEPS.map((step) => (
+            <article
+              key={step.title}
+              className="landing-card flex flex-col gap-3 rounded-xl p-5"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-landing-brand/10">
+                <AnimatedIcon name={step.icon} size={20} className="text-landing-brand" aria-hidden />
+              </div>
+              <h3 className="text-[17px] font-semibold tracking-tight text-on-surface">{step.title}</h3>
+              <p className="text-[14px] leading-relaxed text-on-surface-variant">{step.body}</p>
             </article>
           ))}
         </div>

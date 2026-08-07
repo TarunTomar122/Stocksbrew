@@ -28,7 +28,6 @@ import {
   enrichIdeas,
 } from "@/lib/radar-next-data";
 import { CommandHeader } from "@/components/radar-next/command-header";
-import { DecisionQueue } from "@/components/radar-next/decision-queue";
 import { Book } from "@/components/radar-next/book";
 import { AttentionQueue } from "@/components/radar-next/attention-queue";
 import { Health } from "@/components/radar-next/health";
@@ -184,13 +183,12 @@ async function RadarNextStream() {
             <RadarBatchEditModal
               initialItems={editableItems}
               isSubscribed={isSubscribed}
-              ctaLabel="Add or manage"
+              ctaLabel="Update"
               triggerClassName="inline-flex items-center rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] transition-opacity hover:opacity-85"
             />
           }
         />
 
-        <DecisionQueue items={decisions} openLoops={openLoops} />
         <AttentionQueue items={activeRadarUserView?.attention_items ?? []} />
         <Book holdings={book.holdings} watching={book.watching} />
         <Health

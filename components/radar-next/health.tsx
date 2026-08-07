@@ -11,12 +11,12 @@ function PillarBar({ pillar }: { pillar: HealthPillar }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--rn-muted)]">{pillar.label}</span>
-        <span className="font-mono text-[11px] font-semibold tabular-nums text-[var(--rn-ink)]">
+        <span className="text-[13px] font-medium uppercase tracking-wide text-[var(--rn-muted)]">{pillar.label}</span>
+        <span className="font-mono text-[15px] font-semibold tabular-nums text-[var(--rn-ink)]">
           {Math.round(pillar.score)}
         </span>
       </div>
-      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--rn-card-2)]">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--rn-card-2)]">
         <span
           className="block h-full rounded-full"
           style={{ width: `${Math.max(4, Math.min(100, pillar.score))}%`, background: color }}
@@ -45,8 +45,7 @@ export function Health({
   return (
     <section aria-labelledby="rn-health">
       <div className="mb-3">
-        <span className="rn-kick">Book health</span>
-        <h2 id="rn-health" className="mt-1 text-[22px] font-bold tracking-[-0.025em] text-[var(--rn-ink)] sm:text-[26px]">
+        <h2 id="rn-health" className="text-[16px] font-medium tracking-tight text-[var(--rn-ink)]">
           The portfolio-level read
         </h2>
       </div>
@@ -74,12 +73,15 @@ export function Health({
         </div>
 
         {fixes.length > 0 ? (
-          <div className="border-t border-[var(--rn-line)] py-5 md:px-3">
-            <span className="rn-kick">What to improve first</span>
-            <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="border-t border-[var(--rn-line)] py-6 md:px-3">
+            <p className="text-[18px] font-medium text-[var(--rn-ink)]">What to improve first</p>
+            <ol className="mt-4 grid gap-3 sm:grid-cols-2">
               {fixes.slice(0, 4).map((fix, index) => (
-                <li key={`${fix}-${index}`} className="flex gap-2.5 text-[12.5px] leading-relaxed text-[var(--rn-muted)]">
-                  <span className="font-mono text-[10px] font-bold text-[var(--rn-ink)]">{String(index + 1).padStart(2, "0")}</span>
+                <li
+                  key={`${fix}-${index}`}
+                  className="flex items-start gap-3 rounded-xl border border-[var(--rn-line)] p-4 text-[14.5px] leading-relaxed text-[var(--rn-ink)]"
+                >
+                  <span className="font-mono text-[12px] font-bold text-[var(--rn-muted)]">{String(index + 1).padStart(2, "0")}</span>
                   <span>{fix}</span>
                 </li>
               ))}

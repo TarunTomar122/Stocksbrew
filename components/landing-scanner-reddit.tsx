@@ -4,7 +4,6 @@ import { AnimatedIcon } from "@/components/animated-icon";
 
 import Link from "next/link";
 import { MoversScanner, type ScannerItem } from "@/components/movers-scanner";
-import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { RedditBuzzFeed, redditPickToTicker } from "@/components/reddit-buzz-feed";
 import { RedditMark } from "@/components/reddit-mark";
 
@@ -32,16 +31,14 @@ function formatDataDate(raw?: string) {
 function SectionHeader({
   icon,
   tone,
-  kicker,
   title,
 }: {
   icon: string;
   tone: "scanner" | "reddit";
-  kicker: string;
   title: string;
 }) {
   return (
-    <div className="mb-5 flex items-start gap-3">
+    <div className="mb-5 flex items-center gap-3">
       <div className={`landing-section-icon landing-section-icon--${tone}`}>
         {tone === "reddit" ? (
           <RedditMark size={20} />
@@ -49,12 +46,7 @@ function SectionHeader({
           <AnimatedIcon name={icon} size={20} className="text-[20px]" aria-hidden />
         )}
       </div>
-      <div className="min-w-0 pt-0.5">
-        <p className={`landing-section-kicker ${tone === "reddit" ? "text-landing-reddit" : "text-landing-brand"}`}>
-          {kicker}
-        </p>
-        <h2 className="mt-1 text-xl font-bold tracking-tight text-on-surface sm:text-2xl">{title}</h2>
-      </div>
+      <h2 className="text-[20px] font-semibold tracking-tight text-on-surface sm:text-[22px]">{title}</h2>
     </div>
   );
 }
@@ -63,7 +55,6 @@ export function LandingScannerReddit({
   scannerItems,
   redditPicks,
   dataAsOf,
-  fullItemLimit,
   signedIn = false,
   isSubscribed = false,
   trackedIds = [],
@@ -71,7 +62,6 @@ export function LandingScannerReddit({
   scannerItems: ScannerItem[];
   redditPicks: RedditPick[];
   dataAsOf?: string;
-  fullItemLimit?: number;
   signedIn?: boolean;
   isSubscribed?: boolean;
   trackedIds?: string[];
@@ -84,35 +74,21 @@ export function LandingScannerReddit({
         <div className="landing-card overflow-clip">
           <div className="grid min-w-0 lg:grid-cols-2">
             <div className="min-w-0 border-b border-outline-variant p-5 md:p-6 lg:border-b-0 lg:border-r">
-              <SectionHeader
-                icon="trending_up"
-                tone="scanner"
-                kicker="Scanner"
-                title="Today's movers, and why"
-              />
+              <SectionHeader icon="trending_up" tone="scanner" title="Today's movers, and why" />
               <MoversScanner
                 items={scannerItems}
-                limit={isSubscribed ? 8 : 7}
+                limit={8}
                 showCount={false}
                 embedded
-                fullItemLimit={fullItemLimit}
-                unlockSignedOutLabel={HOMEPAGE_UNLOCK_LABEL}
                 trackedIds={trackedIds}
                 isSubscribed={isSubscribed}
                 trackedCount={trackedIds.length}
                 showUnlockCta={false}
-                hideLockedRows
-                lockedPreviewCount={2}
               />
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col p-5 md:p-6">
-              <SectionHeader
-                icon="forum"
-                tone="reddit"
-                kicker="Reddit Buzz"
-                title="What the crowd's saying"
-              />
+              <SectionHeader icon="forum" tone="reddit" title="What the crowd's saying" />
               <div className="flex min-h-0 flex-1 flex-col">
                 {redditPicks.length > 0 ? (
                   <RedditBuzzFeed
@@ -128,7 +104,7 @@ export function LandingScannerReddit({
                   />
                 ) : (
                   <Link
-                    href="/pulse"
+                    href="/explore"
                     className="landing-reddit-card text-[13px] text-on-surface-variant"
                   >
                     See what retail is debating on r/stocks →
@@ -137,17 +113,6 @@ export function LandingScannerReddit({
               </div>
             </div>
           </div>
-
-          {!isSubscribed ? (
-            <FeedUnlockBar
-              surface="market_anomalies"
-              compact
-              description="See every mover and crowd read with Pro."
-              signedOutLabel={HOMEPAGE_UNLOCK_LABEL}
-              signedInLabel="Unlock every market read with Pro"
-              className="border-t border-outline-variant bg-surface-container-low"
-            />
-          ) : null}
 
           <footer className="flex flex-col gap-2 border-t border-outline-variant px-5 py-4 text-[12px] text-on-surface-variant sm:flex-row sm:items-center sm:justify-between md:px-6">
             <div className="flex items-center gap-2">

@@ -192,6 +192,20 @@ function earningsFromCatalysts(row: WatchlistRow): string | null {
   return null;
 }
 
+// Raw SEC form codes ("8-K", "10-Q", ...) mean nothing to most users, so the
+// book table shows plain English instead; the code itself stays in the chip
+// title for anyone who does recognize it.
+const FILING_KIND_LABEL: Record<string, string> = {
+  "8-K": "Major update",
+  "10-Q": "Quarterly report",
+  "10-K": "Annual report",
+  "6-K": "Company update",
+};
+
+function filingKindLabel(kind: string): string {
+  return FILING_KIND_LABEL[kind] ?? "New filing";
+}
+
 /** Compact, high-signal chips for the book table. Capped so rows stay tight. */
 export function buildBookFlags(
   row: WatchlistRow,
@@ -227,7 +241,8 @@ export function buildBookFlags(
   else if (oversold) flags.push({ label: "Oversold", tone: "info", title: `RSI ${rsiValue?.toFixed(0) ?? "low"}` });
 
   if (state?.last_filing_kind) {
-    flags.push({ label: String(state.last_filing_kind).toUpperCase(), tone: "info", title: "New SEC filing" });
+    const kind = String(state.last_filing_kind).toUpperCase();
+    flags.push({ label: filingKindLabel(kind), tone: "info", title: `New SEC filing (${kind})` });
   }
 
   if (typeof row.target_upside_pct === "number" && row.target_upside_pct >= 25) {

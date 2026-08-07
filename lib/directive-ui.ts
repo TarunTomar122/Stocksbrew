@@ -341,7 +341,11 @@ export function pickVisibleChartZoneKeys(directive: Directive, currentPrice: num
     return ["break"];
   }
 
-  const ranked = (["add", "trim", "break"] as const)
+  // Never surface a buy/accumulate zone for a stance that's telling the user to sell or stay away.
+  const bearishStance = stance === "trim" || stance === "avoid";
+  const candidateKeys = bearishStance ? (["trim", "break"] as const) : (["add", "trim", "break"] as const);
+
+  const ranked = candidateKeys
     .map((key) => ({ key, distance: zoneProximityDistance(key, directive, currentPrice) }))
     .filter((row): row is { key: ChartZoneKey; distance: number } => row.distance != null)
     .sort((a, b) => a.distance - b.distance);
@@ -508,6 +512,8 @@ export function buildDirectiveSmartAlerts(
   const seen = new Set<string>();
   const stance = (directive.stance ?? "").trim().toLowerCase();
   const suppressAddZone = stance === "trim" || stance === "avoid";
+  // Avoid calls aren't telling you to trim a position — no zone alert applies at all, just earnings.
+  const suppressTrimZone = stance === "avoid";
 
   const pushPriceZone = (
     id: string,
@@ -536,7 +542,9 @@ export function buildDirectiveSmartAlerts(
   if (!suppressAddZone) {
     pushPriceZone("add", "Add zone", directive.add_on);
   }
-  pushPriceZone("trim", "Trim zone", directive.trim_on);
+  if (!suppressTrimZone) {
+    pushPriceZone("trim", "Trim zone", directive.trim_on);
+  }
 
   return rows;
 }
