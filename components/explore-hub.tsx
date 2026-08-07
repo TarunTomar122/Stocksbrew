@@ -52,11 +52,11 @@ function rowsFromNear52(rows: Near52WeekRow[], kind: "high" | "low"): ScreenerRo
     const pill =
       kind === "high"
         ? r.pctFromHigh >= 0
-          ? { text: `${r.pctFromHigh.toFixed(1)}% above its 52-week high`, color: "var(--signal-bullish)" }
-          : { text: `${Math.abs(r.pctFromHigh).toFixed(1)}% below its 52-week high`, color: "var(--primary)" }
+          ? { text: `${r.pctFromHigh.toFixed(1)}% above`, color: "var(--signal-bullish)" }
+          : { text: `${Math.abs(r.pctFromHigh).toFixed(1)}% below`, color: "var(--primary)" }
         : r.pctFromLow <= 0
-          ? { text: `${Math.abs(r.pctFromLow).toFixed(1)}% below its 52-week low`, color: "var(--signal-bearish)" }
-          : { text: `${r.pctFromLow.toFixed(1)}% above its 52-week low`, color: "var(--primary)" };
+          ? { text: `${Math.abs(r.pctFromLow).toFixed(1)}% below`, color: "var(--signal-bearish)" }
+          : { text: `${r.pctFromLow.toFixed(1)}% above`, color: "var(--primary)" };
     return {
       key: r.ticker,
       ticker: r.ticker,
@@ -207,7 +207,7 @@ function StockScreener({
                 {row.pills.map((pill) => (
                   <span
                     key={pill.text}
-                    className="rounded-lg px-2 py-1 text-[11.5px] font-medium leading-snug sm:rounded-full sm:px-2.5 sm:text-[12px]"
+                    className="rounded-full px-2.5 py-1 text-[12px] font-medium"
                     style={{ color: pill.color, background: `color-mix(in srgb, ${pill.color} 12%, var(--surface))` }}
                   >
                     {pill.text}
