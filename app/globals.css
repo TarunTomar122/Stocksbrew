@@ -69,11 +69,12 @@ table tbody tr:hover > * {
   /* On-surface / text */
   --on-background:       #111215;
   --on-surface:          #111215;
-  --on-surface-variant:  #3b4048;
+  --on-surface-variant:  #2c3138;
 
-  /* Outlines - softer */
-  --outline:          #b8bcc4;
-  --outline-variant:  #d5d9e0;
+  /* Outlines - darkened so card/section borders actually read as borders on
+     a pure white background, not just a shadow away from invisible. */
+  --outline:          #a7acb6;
+  --outline-variant:  #c2c7d1;
 
   /* Chart neutrals need their own theme-aware colors. */
   --chart-grid:   #d5d9e0;
@@ -111,8 +112,8 @@ table tbody tr:hover > * {
   --landing-reddit: #2563eb;
 
   /* Shadows as CSS vars for consistency */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
-  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.06);
   --shadow-dropdown: 0 12px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05);
   --shadow-modal: 0 24px 60px rgba(0,0,0,0.14), 0 8px 20px rgba(0,0,0,0.08);
 }
@@ -460,7 +461,7 @@ html:not(.dark) .landing-page {
   --surface-container-low: #ffffff;
   --surface-container: #f3f4f6;
   --surface-container-high: #e5e7eb;
-  --outline-variant: #e5e7eb;
+  --outline-variant: #c2c7d1;
   --landing-brand: var(--primary);
   --landing-brand-hover: var(--primary-container);
   --landing-mint: var(--primary);
@@ -473,7 +474,7 @@ html:not(.dark) .landing-page {
   --signal-bearish: #ef4444;
   --accent-terminal: #475569;
   --landing-reddit: #3b82f6;
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* The homepage is a single white canvas. The layout shell sits outside the

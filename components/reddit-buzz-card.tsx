@@ -28,7 +28,12 @@ function QuoteLine({ item, variant }: { item: RedditTicker; variant: "home" | "p
   if (!hasQuote) return null;
 
   const isThemed = variant === "pulse" || variant === "landing";
-  const metaClass = isThemed ? "text-[11px] text-on-surface-variant" : "text-[11px] text-[#6b7280]";
+  const metaClass =
+    variant === "landing"
+      ? "text-[13px] text-on-surface-variant"
+      : isThemed
+        ? "text-[11px] text-on-surface-variant"
+        : "text-[11px] text-[#6b7280]";
   const priceClass = isThemed
     ? "font-semibold tabular-nums text-on-surface"
     : "font-semibold tabular-nums text-[#111111]";
@@ -50,7 +55,7 @@ function QuoteLine({ item, variant }: { item: RedditTicker; variant: "home" | "p
     </p>
   );
 }
-function SentimentTag({ sentiment }: { sentiment: string }) {
+function SentimentTag({ sentiment, large = false }: { sentiment: string; large?: boolean }) {
   const s = sentiment.toLowerCase();
   const tone =
     s === "bullish"
@@ -60,7 +65,9 @@ function SentimentTag({ sentiment }: { sentiment: string }) {
         : "text-on-surface-variant";
 
   return (
-    <span className={`text-[10px] font-semibold uppercase tracking-[0.06em] ${tone}`}>{sentiment}</span>
+    <span className={`${large ? "text-[12px]" : "text-[10px]"} font-semibold uppercase tracking-[0.06em] ${tone}`}>
+      {sentiment}
+    </span>
   );
 }
 
@@ -107,9 +114,11 @@ export function RedditBuzzCard({
   const mentions = item.mention_count > 0 ? item.mention_count : null;
   const sentiment = item.sentiment?.toLowerCase() ?? "neutral";
   const sentimentMeta = getRedditSentimentMeta(sentiment);
-  const tickerClass = isLanding || isPulse
-    ? "text-[14px] font-bold tracking-[-0.01em] text-on-surface group-hover:text-landing-brand"
-    : "text-[14px] font-bold tracking-[-0.01em] text-[#111111] group-hover:text-[#0052ff]";
+  const tickerClass = isLanding
+    ? "text-[16px] font-bold tracking-[-0.01em] text-on-surface group-hover:text-landing-brand"
+    : isPulse
+      ? "text-[14px] font-bold tracking-[-0.01em] text-on-surface group-hover:text-landing-brand"
+      : "text-[14px] font-bold tracking-[-0.01em] text-[#111111] group-hover:text-[#0052ff]";
 
   const header = (
     <div className="min-w-0">
@@ -122,11 +131,11 @@ export function RedditBuzzCard({
               {!locked && mentions != null ? (
                 <div className="flex shrink-0 items-center gap-1" style={{ color: sentimentMeta.color }}>
                   <UpvoteArrow color={sentimentMeta.color} />
-                  <span className="text-[11px] font-bold tabular-nums">{mentions}</span>
+                  <span className={`${isLanding ? "text-[12.5px]" : "text-[11px]"} font-bold tabular-nums`}>{mentions}</span>
                 </div>
               ) : null}
             </div>
-            {!locked ? <SentimentTag sentiment={sentiment} /> : null}
+            {!locked ? <SentimentTag sentiment={sentiment} large={isLanding} /> : null}
           </div>
           {!locked ? <QuoteLine item={item} variant={variant} /> : null}
         </div>
@@ -141,7 +150,9 @@ export function RedditBuzzCard({
   ) : (
     <div className="mt-3 flex flex-1 flex-col">
       {item.summary?.trim() ? (
-        <p className="text-[12.5px] leading-[1.55] text-on-surface/90">{item.summary.trim()}</p>
+        <p className={`${isLanding ? "text-[14.5px]" : "text-[12.5px]"} leading-[1.55] text-on-surface/90`}>
+          {item.summary.trim()}
+        </p>
       ) : null}
       {showTalkingPoints ? <TalkingPoints catalysts={catalysts} /> : null}
       {showStockLink && !isLanding ? (
@@ -159,7 +170,7 @@ export function RedditBuzzCard({
       {header}
       {body}
       {showStockLink && isLanding && !locked ? (
-        <span className="mt-2.5 text-[11px] font-semibold text-landing-reddit">
+        <span className="mt-2.5 text-[12.5px] font-semibold text-landing-reddit">
           View {item.ticker} →
         </span>
       ) : null}

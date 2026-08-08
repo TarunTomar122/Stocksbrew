@@ -212,7 +212,7 @@ export async function LandingScannerRedditStream() {
   const redditPicks = enrichRedditTickers(
     (redditData?.tickers ?? [])
       .filter((t) => t.summary?.trim())
-      .slice(0, 4),
+      .slice(0, 3),
     anomalies,
     snapshotRows,
   );
