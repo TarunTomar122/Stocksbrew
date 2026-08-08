@@ -44,16 +44,98 @@ function paceTier(score: number | null | undefined): string {
   return "weak";
 }
 
-// The backend's "+14.9% - solid pace, below sector (+27.2%)" reads as two
-// unlabeled percentages fighting for attention. Spell out which number is
-// this stock's growth and which is the sector average instead.
-function growthClarityText(m: StockIntelMetric): string | null {
-  if (typeof m.value !== "number" || typeof m.benchmark !== "number") return null;
-  const tier = paceTier(m.score);
-  const diff = m.value - m.benchmark;
-  const direction = diff > 1 ? "ahead of" : diff < -1 ? "below" : "in line with";
-  const tierPhrase = tier ? `a ${tier} pace, ` : "";
-  return `${m.value.toFixed(1)}% growth is ${tierPhrase}${direction} the sector average of ${m.benchmark.toFixed(1)}%.`;
+function benchmarkDirection(value: number, benchmark: number): "ahead of" | "below" | "in line with" {
+  const diff = value - benchmark;
+  if (diff > 1) return "ahead of";
+  if (diff < -1) return "below";
+  return "in line with";
+}
+
+// Every metric here means something different — "is this stock's number better
+// or worse than the sector's" is only half the picture without saying *why that
+// matters*. These explain the metric in plain language instead of reusing one
+// generic "X is a Y pace vs sector" template for everything, and never restate
+// the row's own value (it's already shown in the value column on the right).
+function metricTakeaway(m: StockIntelMetric): string | null {
+  const { label, value, benchmark, score } = m;
+  if (value == null) return null;
+  const tier = paceTier(score);
+  const cmp = benchmark != null ? benchmarkDirection(value, benchmark) : null;
+
+  switch (label) {
+    case "Revenue growth (TTM)":
+    case "Revenue CAGR (3Y)":
+    case "Revenue CAGR (5Y)":
+      return cmp
+        ? `Sales growth is running ${cmp} the sector average of ${benchmark!.toFixed(1)}% — faster sales growth usually means the business is winning more customers or pricing power.`
+        : `Sales growth over the period; faster growth usually means the business is winning more customers or pricing power.`;
+    case "EPS growth (TTM)":
+    case "Profit CAGR (3Y)":
+    case "Profit CAGR (5Y)":
+    case "Profit CAGR (10Y)":
+      return cmp
+        ? `Earnings growth is running ${cmp} the sector average of ${benchmark!.toFixed(1)}% — this is what actually flows to shareholders, not just top-line sales.`
+        : `Earnings growth over the period — this is what actually flows to shareholders, not just top-line sales.`;
+    case "EPS forecast (5Y)":
+      return cmp
+        ? `Analysts' 5-year earnings growth forecast is ${cmp} the sector average of ${benchmark!.toFixed(1)}% — a read on how much growth the Street expects ahead, not just what's already happened.`
+        : `Analysts' 5-year earnings growth forecast — a read on how much growth the Street expects ahead, not just what's already happened.`;
+    case "EPS next year":
+      return `What analysts expect earnings to do next year. ${tier ? `That's a ${tier} outlook for the sector.` : ""}`.trim();
+    case "EPS growth (Q/Q)":
+      return `How much earnings grew versus the prior quarter. ${tier ? `That's a ${tier} pace.` : ""}`.trim();
+    case "P/E TTM":
+      return cmp
+        ? `The stock trades ${cmp === "below" ? "cheaper than" : cmp === "ahead of" ? "pricier than" : "roughly in line with"} the sector average of ${benchmark!.toFixed(1)}x trailing earnings — a lower multiple means you're paying less for each dollar of profit already earned.`
+        : `How much you're paying for each dollar of trailing profit.`;
+    case "Forward P/E":
+      return cmp
+        ? `Based on next year's expected earnings, the stock is ${cmp === "below" ? "cheaper than" : cmp === "ahead of" ? "pricier than" : "roughly in line with"} the sector average of ${benchmark!.toFixed(1)}x — this is the more forward-looking version of P/E.`
+        : `How much you're paying for each dollar of next year's expected profit.`;
+    case "PEG":
+      return value < 1
+        ? "Below 1, which suggests the price is reasonable relative to expected earnings growth."
+        : value <= 1.5
+          ? "Around fair value once expected earnings growth is factored in."
+          : "Above 1, which suggests the price is running ahead of expected earnings growth.";
+    case "Analyst target": {
+      const upside = benchmark ? ((value - benchmark) / benchmark) * 100 : null;
+      return upside != null
+        ? `Analysts' average target implies about ${upside >= 0 ? "+" : ""}${upside.toFixed(1)}% ${upside >= 0 ? "upside" : "downside"} from the current price.`
+        : "Analysts' average 12-month price target.";
+    }
+    case "ROE":
+      return `Return on equity — for every dollar shareholders have invested, ${tier || "this"} shows how much profit the business turns it into.`;
+    case "Operating margin":
+      return "How much operating profit is kept per dollar of revenue — a higher margin signals pricing power or cost discipline.";
+    case "Payout ratio":
+      return "The share of profit paid out as dividends. Staying under 60% generally leaves room to sustain or grow the payout through a rough patch.";
+    case "Debt / Equity":
+      return "How reliant the business is on debt versus shareholder capital — lower is generally safer if the business hits a downturn.";
+    case "Institutional ownership":
+      return "The share of shares held by funds and institutions. Higher ownership is often read as a vote of confidence from professional investors.";
+    case "Quant rank":
+      return "A model-driven Buy-to-Sell rank (1 = Strong Buy, 5 = Strong Sell), built from earnings estimate trends and surprises.";
+    case "Beat likelihood":
+      return "Estimates the odds of beating this quarter's consensus earnings estimate — positive leans toward a beat, negative toward a miss.";
+    case "Analyst rating":
+    case "Analyst consensus":
+      return "The average Wall Street rating across covering analysts.";
+    case "Short float":
+      return "The share of outstanding shares currently sold short. Higher levels mean more bearish bets outstanding — and more fuel for a squeeze if sentiment flips.";
+    case "Insider activity":
+      return "Net buying or selling by company insiders over the last six months. Sustained insider buying is often read as a confidence signal.";
+    case "1-month performance":
+    case "1-week performance":
+    case "1-year performance":
+      return "Price performance over the period — useful for spotting whether momentum is building or fading.";
+    case "5-year CAGR":
+      return "Annualized price return over 5 years.";
+    case "RSI (14)":
+      return "A momentum gauge from 0-100. Readings in the 50s-60s are typically considered healthy; extremes can signal overbought or oversold conditions.";
+    default:
+      return null;
+  }
 }
 
 type MetricGroup = {
@@ -92,11 +174,10 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
   const tone = metricTone(m.signal, m.score);
   const tierColor =
     tier.favorable == null ? "var(--on-surface-variant)" : tier.favorable ? "var(--signal-bullish)" : "var(--signal-bearish)";
-  // A backend-computed sentence like "11.8% - weak pace, below sector (16.7%)"
-  // is a lot more useful than a bare "good"/"bad" tag, so prefer it when present.
-  // When it's comparing this stock's value against a sector benchmark, rebuild
-  // it with explicit labels instead of two bare percentages side by side.
-  const summary = growthClarityText(m) ?? m.summary?.trim();
+  // Explain what this specific metric means and why the comparison matters,
+  // rather than a bare "good"/"bad" tag or one generic template reused for
+  // every row regardless of what it's actually measuring.
+  const summary = metricTakeaway(m);
 
   return (
     <div className="min-w-0 py-4">
