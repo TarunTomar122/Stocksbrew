@@ -163,9 +163,12 @@ function ChartTooltip({
   );
 }
 
+// These bands render for any stance whose directive happens to define an
+// add/trim price (not just an "Accumulate" or "Trim" stance), so the label
+// must describe the zone itself, not claim the overall call is that stance.
 function zoneBandTag(zone: PriceChartZone): string | null {
-  if (zone.zoneKey === "add") return "accumulate";
-  if (zone.zoneKey === "trim") return "trim";
+  if (zone.zoneKey === "add") return "buy zone";
+  if (zone.zoneKey === "trim") return "sell zone";
   return null;
 }
 

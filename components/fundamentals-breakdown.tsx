@@ -51,11 +51,9 @@ function benchmarkDirection(value: number, benchmark: number): "ahead of" | "bel
   return "in line with";
 }
 
-// Every metric here means something different — "is this stock's number better
-// or worse than the sector's" is only half the picture without saying *why that
-// matters*. These explain the metric in plain language instead of reusing one
-// generic "X is a Y pace vs sector" template for everything, and never restate
-// the row's own value (it's already shown in the value column on the right).
+// Every metric here means something different, so this explains what each one
+// actually is instead of reusing one generic template for every row. Never
+// restate the row's own value, since it's already shown in the value column.
 function metricTakeaway(m: StockIntelMetric): string | null {
   const { label, value, benchmark, score } = m;
   if (value == null) return null;
@@ -65,74 +63,76 @@ function metricTakeaway(m: StockIntelMetric): string | null {
   switch (label) {
     case "Revenue growth (TTM)":
     case "Revenue CAGR (3Y)":
-    case "Revenue CAGR (5Y)":
+    case "Revenue CAGR (5Y)": {
+      const share = cmp === "below" ? "losing ground to peers" : cmp === "ahead of" ? "taking share from peers" : "matching peers";
       return cmp
-        ? `Sales growth is running ${cmp} the sector average of ${benchmark!.toFixed(1)}% — faster sales growth usually means the business is winning more customers or pricing power.`
-        : `Sales growth over the period; faster growth usually means the business is winning more customers or pricing power.`;
+        ? `Sales are growing ${cmp} the sector average of ${benchmark!.toFixed(1)}%, meaning the business is ${share}.`
+        : "How fast sales are growing, a sign of demand for the business.";
+    }
     case "EPS growth (TTM)":
     case "Profit CAGR (3Y)":
     case "Profit CAGR (5Y)":
     case "Profit CAGR (10Y)":
       return cmp
-        ? `Earnings growth is running ${cmp} the sector average of ${benchmark!.toFixed(1)}% — this is what actually flows to shareholders, not just top-line sales.`
-        : `Earnings growth over the period — this is what actually flows to shareholders, not just top-line sales.`;
+        ? `Profit per share is growing ${cmp} the sector average of ${benchmark!.toFixed(1)}%.`
+        : "How fast profit per share is growing.";
     case "EPS forecast (5Y)":
       return cmp
-        ? `Analysts' 5-year earnings growth forecast is ${cmp} the sector average of ${benchmark!.toFixed(1)}% — a read on how much growth the Street expects ahead, not just what's already happened.`
-        : `Analysts' 5-year earnings growth forecast — a read on how much growth the Street expects ahead, not just what's already happened.`;
+        ? `Analysts expect earnings growth ${cmp} the sector average of ${benchmark!.toFixed(1)}% over the next 5 years.`
+        : "Analysts' 5-year earnings growth forecast.";
     case "EPS next year":
-      return `What analysts expect earnings to do next year. ${tier ? `That's a ${tier} outlook for the sector.` : ""}`.trim();
+      return tier ? `Analysts expect a ${tier} pace of earnings growth next year.` : "What analysts expect earnings to do next year.";
     case "EPS growth (Q/Q)":
-      return `How much earnings grew versus the prior quarter. ${tier ? `That's a ${tier} pace.` : ""}`.trim();
+      return tier ? `Earnings grew at a ${tier} pace versus last quarter.` : "How much earnings grew versus last quarter.";
     case "P/E TTM":
       return cmp
-        ? `The stock trades ${cmp === "below" ? "cheaper than" : cmp === "ahead of" ? "pricier than" : "roughly in line with"} the sector average of ${benchmark!.toFixed(1)}x trailing earnings — a lower multiple means you're paying less for each dollar of profit already earned.`
-        : `How much you're paying for each dollar of trailing profit.`;
+        ? `Trading ${cmp === "below" ? "cheaper than" : cmp === "ahead of" ? "pricier than" : "in line with"} the sector average of ${benchmark!.toFixed(1)}x, so you pay ${cmp === "below" ? "less" : cmp === "ahead of" ? "more" : "about the same"} per dollar of profit already earned.`
+        : "What you pay per dollar of profit already earned.";
     case "Forward P/E":
       return cmp
-        ? `Based on next year's expected earnings, the stock is ${cmp === "below" ? "cheaper than" : cmp === "ahead of" ? "pricier than" : "roughly in line with"} the sector average of ${benchmark!.toFixed(1)}x — this is the more forward-looking version of P/E.`
-        : `How much you're paying for each dollar of next year's expected profit.`;
+        ? `Trading ${cmp === "below" ? "cheaper than" : cmp === "ahead of" ? "pricier than" : "in line with"} the sector average of ${benchmark!.toFixed(1)}x, so you pay ${cmp === "below" ? "less" : cmp === "ahead of" ? "more" : "about the same"} per dollar of next year's expected profit.`
+        : "What you pay per dollar of next year's expected profit.";
     case "PEG":
       return value < 1
-        ? "Below 1, which suggests the price is reasonable relative to expected earnings growth."
+        ? "Below 1, meaning the price looks reasonable for how fast it's expected to grow."
         : value <= 1.5
-          ? "Around fair value once expected earnings growth is factored in."
-          : "Above 1, which suggests the price is running ahead of expected earnings growth.";
+          ? "Around 1, a fair price for how fast it's expected to grow."
+          : "Above 1, meaning the price is running ahead of how fast it's expected to grow.";
     case "Analyst target": {
       const upside = benchmark ? ((value - benchmark) / benchmark) * 100 : null;
       return upside != null
-        ? `Analysts' average target implies about ${upside >= 0 ? "+" : ""}${upside.toFixed(1)}% ${upside >= 0 ? "upside" : "downside"} from the current price.`
+        ? `About ${upside >= 0 ? "+" : ""}${upside.toFixed(1)}% ${upside >= 0 ? "upside" : "downside"} to the average target.`
         : "Analysts' average 12-month price target.";
     }
     case "ROE":
-      return `Return on equity — for every dollar shareholders have invested, ${tier || "this"} shows how much profit the business turns it into.`;
+      return "How efficiently shareholder money turns into profit.";
     case "Operating margin":
-      return "How much operating profit is kept per dollar of revenue — a higher margin signals pricing power or cost discipline.";
+      return "Profit kept per dollar of revenue. Higher means more pricing power.";
     case "Payout ratio":
-      return "The share of profit paid out as dividends. Staying under 60% generally leaves room to sustain or grow the payout through a rough patch.";
+      return "Share of profit paid as dividends. Under 60% is usually sustainable.";
     case "Debt / Equity":
-      return "How reliant the business is on debt versus shareholder capital — lower is generally safer if the business hits a downturn.";
+      return "How much the business relies on debt versus equity. Lower is safer.";
     case "Institutional ownership":
-      return "The share of shares held by funds and institutions. Higher ownership is often read as a vote of confidence from professional investors.";
+      return "Share of stock held by funds and institutions, often read as a vote of confidence.";
     case "Quant rank":
-      return "A model-driven Buy-to-Sell rank (1 = Strong Buy, 5 = Strong Sell), built from earnings estimate trends and surprises.";
+      return "A model rank from 1 (Strong Buy) to 5 (Strong Sell).";
     case "Beat likelihood":
-      return "Estimates the odds of beating this quarter's consensus earnings estimate — positive leans toward a beat, negative toward a miss.";
+      return "Odds of beating this quarter's earnings estimate.";
     case "Analyst rating":
     case "Analyst consensus":
-      return "The average Wall Street rating across covering analysts.";
+      return "Average Wall Street rating, from Buy to Sell.";
     case "Short float":
-      return "The share of outstanding shares currently sold short. Higher levels mean more bearish bets outstanding — and more fuel for a squeeze if sentiment flips.";
+      return "Share of shares sold short. Higher means more bearish bets outstanding.";
     case "Insider activity":
-      return "Net buying or selling by company insiders over the last six months. Sustained insider buying is often read as a confidence signal.";
+      return "Insider buying or selling over the last six months.";
     case "1-month performance":
     case "1-week performance":
     case "1-year performance":
-      return "Price performance over the period — useful for spotting whether momentum is building or fading.";
+      return "Price performance over the period.";
     case "5-year CAGR":
       return "Annualized price return over 5 years.";
     case "RSI (14)":
-      return "A momentum gauge from 0-100. Readings in the 50s-60s are typically considered healthy; extremes can signal overbought or oversold conditions.";
+      return "A momentum gauge from 0 to 100. 50s to 60s is typically healthy.";
     default:
       return null;
   }
@@ -188,7 +188,7 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
         </span>
       </div>
       {summary ? (
-        <p className="mt-1.5 text-[13px] leading-snug text-on-surface-variant">{summary}</p>
+        <p className="mt-1.5 text-[14.5px] leading-relaxed text-on-surface-variant">{summary}</p>
       ) : tier.text ? (
         <div className="mt-1.5 text-[13px] leading-snug text-on-surface-variant">
           {tier.text.includes("avg") ? (

@@ -331,11 +331,14 @@ function guidanceFromMetric(metric: StockIntelMetric | null): Guidance | null {
     yellow: "Middle ground",
     red: "Needs attention",
   };
-  return {
-    label: labels[metric.signal],
-    detail: metricRelativeTier(metric).text || metric.summary || "Compared with sector peers",
-    signal: metric.signal,
-  };
+  const label = labels[metric.signal];
+  const tierText = metricRelativeTier(metric).text;
+  const detail = tierText && tierText.toLowerCase() !== label.toLowerCase() ? tierText : metric.summary?.trim();
+  // When there's no real number or sentence to show, "Favorable · Favorable"
+  // just repeats the label. Bail out so the caller's hand-written bandGuidance
+  // copy (real, specific detail) is used instead.
+  if (!detail || detail.toLowerCase() === label.toLowerCase()) return null;
+  return { label, detail, signal: metric.signal };
 }
 
 function bandGuidance(
