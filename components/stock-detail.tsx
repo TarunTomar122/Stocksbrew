@@ -396,13 +396,14 @@ export function StockDetail(props: Props) {
         ? target
         : null;
   // Accumulate calls highlight the target price on the chart directly, instead of the trim/add/break bands.
+  const targetUpsidePct = n(profitTarget) && stock.price > 0 ? ((profitTarget! - stock.price) / stock.price) * 100 : null;
   const targetZone: PriceChartZone | null =
     stance === "accumulate" && n(profitTarget)
       ? {
           price: profitTarget!,
           mode: "line",
           color: "var(--signal-bullish)",
-          label: `Target ${levelMoney(profitTarget!)}`,
+          label: `Target ${levelMoney(profitTarget!)}${n(targetUpsidePct) ? ` (${targetUpsidePct! >= 0 ? "+" : ""}${targetUpsidePct!.toFixed(1)}%)` : ""}`,
           dashed: true,
           strokeOpacity: 0.9,
         }

@@ -35,6 +35,27 @@ function formatMetricValue(v: number | null): string {
   return v.toFixed(1);
 }
 
+function paceTier(score: number | null | undefined): string {
+  if (score == null) return "";
+  if (score >= 75) return "strong";
+  if (score >= 55) return "solid";
+  if (score >= 40) return "average";
+  if (score >= 20) return "below average";
+  return "weak";
+}
+
+// The backend's "+14.9% - solid pace, below sector (+27.2%)" reads as two
+// unlabeled percentages fighting for attention. Spell out which number is
+// this stock's growth and which is the sector average instead.
+function growthClarityText(m: StockIntelMetric): string | null {
+  if (typeof m.value !== "number" || typeof m.benchmark !== "number") return null;
+  const tier = paceTier(m.score);
+  const diff = m.value - m.benchmark;
+  const direction = diff > 1 ? "ahead of" : diff < -1 ? "below" : "in line with";
+  const tierPhrase = tier ? `a ${tier} pace, ` : "";
+  return `${m.value.toFixed(1)}% growth is ${tierPhrase}${direction} the sector average of ${m.benchmark.toFixed(1)}%.`;
+}
+
 type MetricGroup = {
   title: string;
   metrics: StockIntelMetric[];
@@ -71,6 +92,11 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
   const tone = metricTone(m.signal, m.score);
   const tierColor =
     tier.favorable == null ? "var(--on-surface-variant)" : tier.favorable ? "var(--signal-bullish)" : "var(--signal-bearish)";
+  // A backend-computed sentence like "11.8% - weak pace, below sector (16.7%)"
+  // is a lot more useful than a bare "good"/"bad" tag, so prefer it when present.
+  // When it's comparing this stock's value against a sector benchmark, rebuild
+  // it with explicit labels instead of two bare percentages side by side.
+  const summary = growthClarityText(m) ?? m.summary?.trim();
 
   return (
     <div className="min-w-0 py-4">
@@ -80,7 +106,9 @@ function MetricRow({ metric: m }: { metric: StockIntelMetric }) {
           {m.value != null ? formatMetricValue(m.value) : "--"}
         </span>
       </div>
-      {tier.text ? (
+      {summary ? (
+        <p className="mt-1.5 text-[13px] leading-snug text-on-surface-variant">{summary}</p>
+      ) : tier.text ? (
         <div className="mt-1.5 text-[13px] leading-snug text-on-surface-variant">
           {tier.text.includes("avg") ? (
             <>
