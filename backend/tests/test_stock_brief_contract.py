@@ -6,7 +6,9 @@ from unittest.mock import patch
 
 from backend.llm_client import schema_system_prompt
 from backend.stock_intelligence import (
+    NO_NEWS_BRIEF_SYSTEM_PROMPT,
     STOCK_BRIEF_SCHEMA,
+    STOCK_BRIEF_SYSTEM_PROMPT,
     _clean_sentence,
     _llm_synthesize_brief,
     _validate_stock_brief_payload,
@@ -59,6 +61,13 @@ class _Store:
 
 
 class StockBriefContractTest(unittest.TestCase):
+    def test_prompts_rank_visible_cards_as_directive_reasoning(self) -> None:
+        for prompt in (STOCK_BRIEF_SYSTEM_PROMPT, NO_NEWS_BRIEF_SYSTEM_PROMPT):
+            self.assertIn("drivers[0:2]", prompt)
+            self.assertIn("risk_cards[0:2]", prompt)
+            self.assertIn("This call holds because", prompt)
+            self.assertIn("generic", prompt.lower())
+
     def test_stock_brief_uses_shared_deepseek_model_by_default(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(stock_brief_model(), "gpt-5.6-luna")

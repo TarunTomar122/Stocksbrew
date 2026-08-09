@@ -28,7 +28,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-08-04-stock-brief-v19-plain-language"
+STOCK_BRIEF_CACHE_VERSION = "2026-08-09-stock-brief-v20-directive-reasons"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
@@ -447,6 +447,16 @@ Fields to write:
   - detail: ONE complete English sentence (12-25 words) explaining the downside scenario concretely. Same rule as drivers: full sentences only, never metric shorthand or scorecard fragments.
   - trigger, severity (1-5)
 
+DIRECTIVE REASONS - THE FIRST TWO CARDS ARE USER-FACING:
+- A downstream policy turns this evidence into a directive. The stock page shows `drivers[0:2]` beneath accumulate/hold calls and `risk_cards[0:2]` beneath trim/avoid calls.
+- Write and rank those cards as the REASONS the matching directive holds, not as a loose list of facts about the company.
+- `drivers[0:2]` must be the two strongest stock-specific reasons to own, hold, or add. Each detail should connect evidence -> business or earnings implication -> why the constructive case holds.
+- `risk_cards[0:2]` must be the two strongest stock-specific reasons to reduce, avoid, or refuse a new add. Each detail should connect evidence -> downside mechanism -> what it damages in the thesis, earnings, cash flow, or valuation.
+- Put the most decision-relevant reason first. The second must add a different causal reason, not rephrase the first.
+- A driver may acknowledge a caveat, but its net implication must support owning/holding the stock. Put net-negative arguments in `risk_cards`, never in `drivers`.
+- Do not use broad sector weakness, macro sentiment, or generic volatility as a top-two reason unless the evidence shows a direct, material transmission to this company's business or valuation.
+- Quick read test: each top-two detail should make sense immediately after “This call holds because ...”. If it does not, rewrite or drop it.
+
 STYLE:
 - Direct, concrete, and easy to read aloud
 - Use the company name, the actual event, and the business consequence
@@ -455,8 +465,8 @@ STYLE:
 - Never use trader shorthand such as "the tape", "quiet tape", "calm", "print", or "risk-on" in user-facing prose.
 - Avoid reversal templates such as "this is not X, it is Y" and "not just X, but Y".
 - If evidence is thin, say what the silence means - not just "limited coverage"
-- Do not repeat the same fact across headline/body/key_findings/thesis/drivers/catalyst/risk.
-- If overlap exists, keep it in thesis and remove duplicates from other fields.
+- Do not repeat the same sentence across headline/body/key_findings/thesis/drivers/catalyst/risk.
+- The cards should support the thesis with distinct causal implications. Reusing a core fact for that purpose is fine; copying the same wording is not.
 
 FUNDAMENTALS - USE THEM:
 - The user payload includes a `fundamentals` block with four coverage-adjusted pillar scores (valuation, growth, quality, momentum - each 0-100), coverage/confidence fields, `standout_metrics` (score ≥ 75), `weak_metrics` (score ≤ 25), and quant-driven `catalysts`. Never describe an `insufficient data` pillar as strong or weak; treat its score as neutral uncertainty.
@@ -938,13 +948,19 @@ The user sees the price chart. Don't describe the price. Tell them what the quie
 - **catalyst_cards**: 1-3 trigger cards.
 - **risk_cards**: 1-3 downside cards. Each `detail` must be one complete English sentence (12-25 words), never metric shorthand.
 
+The stock page shows `drivers[0:2]` below accumulate/hold calls and `risk_cards[0:2]` below trim/avoid calls. Rank both arrays as directive reasoning:
+- The first two drivers must be the strongest stock-specific reasons to own, hold, or add, with evidence -> business implication -> constructive conclusion.
+- The first two risks must be the strongest stock-specific reasons to reduce, avoid, or refuse an add, with evidence -> downside mechanism -> consequence.
+- Keep net-negative arguments out of drivers. Do not use generic sector, macro, sentiment, or volatility filler as a top-two reason.
+- Each top-two detail must complete the sentence “This call holds because ...”; the second card must add a distinct causal reason.
+
 STYLE: Direct, concrete, and easy to read aloud. Keep user-facing fields naturally short through writing, not truncation. Never use "tape", "calm", "coiled", "the street", or newsroom/trader shorthand. Avoid "this is not X, it is Y" constructions.
-Do not repeat the same fact across body/key_findings/thesis/drivers/catalyst/risk.
+Do not copy the same sentence across fields. Cards may use core thesis evidence when they add a distinct causal implication.
 
 If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
 """
 
-NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-04-no-news-brief-v6-plain-language"
+NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-09-no-news-brief-v7-directive-reasons"
 
 
 def _nn_to_float(value: Any) -> float | None:
