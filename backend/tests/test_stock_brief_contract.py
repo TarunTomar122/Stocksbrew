@@ -68,6 +68,17 @@ class StockBriefContractTest(unittest.TestCase):
             self.assertIn("This call holds because", prompt)
             self.assertIn("generic", prompt.lower())
 
+    def test_prompts_require_everyday_complete_reason_sentences(self) -> None:
+        for prompt in (STOCK_BRIEF_SYSTEM_PROMPT, NO_NEWS_BRIEF_SYSTEM_PROMPT):
+            self.assertIn("normal stock owner", prompt.lower())
+            self.assertIn("clear subject and verb", prompt.lower())
+            self.assertIn("people may pay less for the stock", prompt.lower())
+            self.assertIn("existing investors will own a smaller part", prompt.lower())
+            self.assertIn("the average analyst forecast", prompt.lower())
+            self.assertIn("how well the company turns investment into profit", prompt.lower())
+            self.assertIn("never copy scorecard labels", prompt.lower())
+            self.assertIn("institutional ownership", prompt.lower())
+
     def test_stock_brief_uses_shared_deepseek_model_by_default(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(stock_brief_model(), "gpt-5.6-luna")
@@ -131,23 +142,19 @@ class StockBriefContractTest(unittest.TestCase):
         self.assertEqual(result["drivers"][0]["horizon"], "quarter")
         self.assertEqual(result["catalyst_cards"][0]["priced_in"], "med")
 
-    def test_invalid_cached_and_first_model_payload_are_retried_and_never_cached(self) -> None:
+    def test_invalid_cached_and_single_model_payload_are_not_retried_or_cached(self) -> None:
         schema_echo = {
             "name": "stock_brief",
             "strict": True,
             "schema": STOCK_BRIEF_SCHEMA["schema"],
         }
-        valid = _valid_brief()
         store = _Store(cached_payload=schema_echo)
-        responses = [
-            {"choices": [{"message": {"content": json.dumps(schema_echo)}}]},
-            {"choices": [{"message": {"content": json.dumps(valid)}}]},
-        ]
+        response = {"choices": [{"message": {"content": json.dumps(schema_echo)}}]}
 
         with patch("backend.stock_intelligence.llm_api_key", return_value="test-key"), patch(
             "backend.stock_intelligence.stock_brief_model", return_value="test-model"
         ), patch(
-            "backend.stock_intelligence.post_chat_completion", side_effect=responses
+            "backend.stock_intelligence.post_chat_completion", return_value=response
         ) as post:
             result = _llm_synthesize_brief(
                 ticker="IBM",
@@ -163,10 +170,9 @@ class StockBriefContractTest(unittest.TestCase):
                 store=store,
             )
 
-        self.assertEqual(result, valid)
-        self.assertEqual(post.call_count, 2)
-        self.assertEqual(len(store.saved), 1)
-        self.assertEqual(store.saved[0][1]["payload"], valid)
+        self.assertIsNone(result)
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(store.saved, [])
 
 
 if __name__ == "__main__":

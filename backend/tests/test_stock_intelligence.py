@@ -37,13 +37,11 @@ class StockIntelligenceTest(unittest.TestCase):
             "risk_cards": [],
         }
         invalid = {"choices": [{"message": {"content": ""}}]}
-        valid = {"choices": [{"message": {"content": json.dumps(valid_brief)}}]}
-
         with patch("backend.stock_intelligence.llm_api_key", return_value="test-key"), patch(
             "backend.stock_intelligence.stock_brief_model", return_value="test-model"
         ), patch(
             "backend.stock_intelligence.post_chat_completion",
-            side_effect=[invalid, invalid, invalid, valid],
+            return_value=invalid,
         ) as completion:
             result = generate_no_news_brief(
                 {"instrument_id": "US_SNAP", "ticker": "SNAP", "name": "Snap Inc."},
@@ -52,8 +50,8 @@ class StockIntelligenceTest(unittest.TestCase):
                 None,
             )
 
-        self.assertEqual(result, valid_brief)
-        self.assertEqual(completion.call_count, 4)
+        self.assertIsNone(result)
+        self.assertEqual(completion.call_count, 1)
 
     def test_build_stock_intelligence_docs_normalizes_earnings_cards_even_with_risk_cards(self) -> None:
         instruments = [

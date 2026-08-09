@@ -28,7 +28,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-08-09-stock-brief-v20-directive-reasons"
+STOCK_BRIEF_CACHE_VERSION = "2026-08-09-stock-brief-v21-everyday-reasons"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
@@ -432,7 +432,7 @@ Fields to write:
 - **setup_state**: one of ["accumulation", "breakout", "trend", "rotation", "exhaustion", "unclear"].
 - **drivers**: 2-4 objects with keys:
   - label: short driver statement (3-6 words)
-  - detail: ONE complete English sentence (12-25 words) for a retail investor. Explain the implication in plain language — not a metric dump. NEVER output scorecard shorthand like "2 - Buy signal", "3.5% - moderate short interest", or "41% vs target". BAD detail: "2 - Buy signal (2.0)." GOOD detail: "Quant models rate this a Buy, supporting constructive momentum even after the recent pullback."
+  - detail: ONE standalone English sentence (16-30 words) for a regular stock owner. Use a clear subject and verb, then explain why the fact helps the company or stock. Never write fragments or metric shorthand.
   - direction: "up" | "down" | "mixed"
   - strength: integer 1-5
   - horizon: "today" | "week" | "quarter"
@@ -444,7 +444,7 @@ Fields to write:
   - If earnings are reported or missing, do not put a date in the catalyst card. Use a non-date window like "near-term", "week", or "quarter" instead.
 - **risk_cards**: 1-3 objects with keys:
   - risk: short risk name (3-6 words)
-  - detail: ONE complete English sentence (12-25 words) explaining the downside scenario concretely. Same rule as drivers: full sentences only, never metric shorthand or scorecard fragments.
+  - detail: ONE standalone English sentence (16-30 words) explaining what can go wrong and why that would hurt the company or stock. Never write fragments or metric shorthand.
   - trigger, severity (1-5)
 
 DIRECTIVE REASONS - THE FIRST TWO CARDS ARE USER-FACING:
@@ -456,6 +456,16 @@ DIRECTIVE REASONS - THE FIRST TWO CARDS ARE USER-FACING:
 - A driver may acknowledge a caveat, but its net implication must support owning/holding the stock. Put net-negative arguments in `risk_cards`, never in `drivers`.
 - Do not use broad sector weakness, macro sentiment, or generic volatility as a top-two reason unless the evidence shows a direct, material transmission to this company's business or valuation.
 - Quick read test: each top-two detail should make sense immediately after “This call holds because ...”. If it does not, rewrite or drop it.
+
+PLAIN LANGUAGE - WRITE FOR A NORMAL STOCK OWNER:
+- Assume the reader knows what revenue, profit, debt, and shares are, but does not speak analyst jargon.
+- Every detail must stand on its own as a normal spoken sentence. Name the company or a concrete business fact, use an active verb, and finish the thought.
+- Translate finance language into the consequence. Say “existing investors will own a smaller part of the company,” not “dilution reduces per-share ownership claims.”
+- Say “analysts may raise their profit forecasts,” not “positive earnings revisions.” Say “people may pay less for the stock,” not “multiple compression.”
+- Translate “consensus” into “the average analyst forecast,” “capital efficiency” into “how well the company turns investment into profit,” and “financial flexibility” into “cash and borrowing room.”
+- Avoid vague phrases such as “durable support,” “limits conviction,” “constructive setup,” “premium valuation case,” “valuation premium,” “earnings engine,” “risk/reward has weakened,” and “the thesis remains intact.”
+- NEVER copy scorecard labels or analyst shorthand into the top-two details. Forbidden there: “consensus,” “capital efficiency,” “institutional ownership,” “valuation premium,” “durable franchise,” “earnings engine,” “estimate revisions,” “sector participation,” “constructive,” “conviction,” “setup,” and “thesis.” Explain the underlying fact in everyday words instead.
+- Prefer one useful cause-and-effect sentence over two compressed clauses. Read it aloud and rewrite anything a friend would ask you to explain.
 
 STYLE:
 - Direct, concrete, and easy to read aloud
@@ -472,7 +482,7 @@ FUNDAMENTALS - USE THEM:
 - The user payload includes a `fundamentals` block with four coverage-adjusted pillar scores (valuation, growth, quality, momentum - each 0-100), coverage/confidence fields, `standout_metrics` (score ≥ 75), `weak_metrics` (score ≤ 25), and quant-driven `catalysts`. Never describe an `insufficient data` pillar as strong or weak; treat its score as neutral uncertainty.
 - Use fundamentals to explain the setup, but do NOT treat rich valuation by itself as a sell signal. Expensive leaders can stay attractive when growth, revisions, narrative strength, and price structure all support the move.
 - A beaten-down name with strong growth and a Buy-tilted quant rank can be "accumulate on dips". A high-multiple winner with strong evidence can still be "accumulate" or "watch for breakout" if the setup remains constructive.
-- Drivers and risk_cards should weave fundamentals + news into full sentences a human would say aloud. BAD detail: "16% - strong pace, ahead of sector". GOOD detail: "Revenue is compounding 16% YoY, ahead of the sector, which keeps the growth story intact."
+- Drivers and risk_cards should weave fundamentals + news into full sentences a human would say aloud. BAD detail: "16% - strong pace, ahead of sector". GOOD detail: "Revenue is growing faster than similar companies, which gives the business more room to increase profit."
 - Do NOT restate raw metric numbers that the scorecard already renders. Instead, interpret them. BAD: "P/E is 28.5". GOOD: "Valuation is rich but growth is pricing it fairly - PEG under 1.2 keeps the setup constructive."
 - If fundamentals contradict the news sentiment, surface the tension in the body/thesis - that's the insight the user can't get elsewhere.
 
@@ -626,7 +636,7 @@ STOCK_BRIEF_SCHEMA = {
     },
 }
 
-STOCK_BRIEF_SEMANTIC_ATTEMPTS = 4
+STOCK_BRIEF_SEMANTIC_ATTEMPTS = 1
 
 
 def _json_schema_errors(value: Any, schema: dict[str, Any], *, path: str = "$") -> list[str]:
@@ -851,7 +861,7 @@ def _llm_synthesize_brief(
                 # storms and could exhaust the enclosing shard's 8m ceiling.
                 timeout=300,
                 stage="stock_brief",
-                max_attempts=3,
+                max_attempts=1,
                 provider=provider,
                 reasoning_effort=stock_brief_reasoning_effort(),
             )
@@ -944,9 +954,9 @@ The user sees the price chart. Don't describe the price. Tell them what the quie
 - **risk**: What the lack of coverage might be hiding.
 - **thesis**: One line, max 12 words.
 - **setup_state**: one of ["accumulation", "breakout", "trend", "rotation", "exhaustion", "unclear"].
-- **drivers**: 2-4 concise driver objects. Each `detail` must be one complete English sentence (12-25 words), never metric shorthand.
+- **drivers**: 2-4 concise driver objects. Each `detail` must be one standalone English sentence (16-30 words) that explains why the fact helps the company or stock.
 - **catalyst_cards**: 1-3 trigger cards.
-- **risk_cards**: 1-3 downside cards. Each `detail` must be one complete English sentence (12-25 words), never metric shorthand.
+- **risk_cards**: 1-3 downside cards. Each `detail` must be one standalone English sentence (16-30 words) that explains what can go wrong and why it hurts.
 
 The stock page shows `drivers[0:2]` below accumulate/hold calls and `risk_cards[0:2]` below trim/avoid calls. Rank both arrays as directive reasoning:
 - The first two drivers must be the strongest stock-specific reasons to own, hold, or add, with evidence -> business implication -> constructive conclusion.
@@ -954,13 +964,15 @@ The stock page shows `drivers[0:2]` below accumulate/hold calls and `risk_cards[
 - Keep net-negative arguments out of drivers. Do not use generic sector, macro, sentiment, or volatility filler as a top-two reason.
 - Each top-two detail must complete the sentence “This call holds because ...”; the second card must add a distinct causal reason.
 
+Write for a normal stock owner, not an analyst. Use familiar words and complete spoken sentences with a clear subject and verb. Translate jargon into consequences: “existing investors will own a smaller part of the company,” not “dilution reduces per-share ownership claims”; “people may pay less for the stock,” not “multiple compression.” Replace “consensus” with “the average analyst forecast,” “capital efficiency” with “how well the company turns investment into profit,” and “financial flexibility” with “cash and borrowing room.” NEVER copy scorecard labels into the visible reasons. Forbidden there: “consensus,” “capital efficiency,” “institutional ownership,” “valuation premium,” “durable franchise,” “earnings engine,” “estimate revisions,” “sector participation,” “constructive,” “conviction,” “setup,” and “thesis.”
+
 STYLE: Direct, concrete, and easy to read aloud. Keep user-facing fields naturally short through writing, not truncation. Never use "tape", "calm", "coiled", "the street", or newsroom/trader shorthand. Avoid "this is not X, it is Y" constructions.
 Do not copy the same sentence across fields. Cards may use core thesis evidence when they add a distinct causal implication.
 
 If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
 """
 
-NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-09-no-news-brief-v7-directive-reasons"
+NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-09-no-news-brief-v8-everyday-reasons"
 
 
 def _nn_to_float(value: Any) -> float | None:
@@ -1137,7 +1149,7 @@ def generate_no_news_brief(
                 response_format=json_response_format(),
                 timeout=300,
                 stage="no_news_brief",
-                max_attempts=3,
+                max_attempts=1,
                 provider=provider,
                 reasoning_effort=stock_brief_reasoning_effort(),
             )
