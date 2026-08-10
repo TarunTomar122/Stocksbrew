@@ -29,7 +29,6 @@ import {
 } from "@/lib/radar-next-data";
 import { CommandHeader } from "@/components/radar-next/command-header";
 import { Book } from "@/components/radar-next/book";
-import { AttentionQueue } from "@/components/radar-next/attention-queue";
 import { Health } from "@/components/radar-next/health";
 import { Ideas } from "@/components/radar-next/ideas";
 import { RadarNextSkeleton } from "@/components/radar-next/skeleton";
@@ -185,7 +184,6 @@ async function RadarNextStream() {
           }
         />
 
-        <AttentionQueue items={activeRadarUserView?.attention_items ?? []} />
         <Book holdings={book.holdings} watching={book.watching} />
         <Health
           grade={health.grade}
