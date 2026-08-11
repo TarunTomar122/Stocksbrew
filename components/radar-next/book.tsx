@@ -55,7 +55,7 @@ function FlagChip({ flag }: { flag: BookFlag }) {
   return (
     <span
       title={flag.title}
-      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none sm:text-[9px]"
+      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none"
       style={style}
     >
       {flag.label}
@@ -124,7 +124,7 @@ function SortHeader({
       <button
         type="button"
         onClick={() => onPick(sortKey)}
-        className={`inline-flex items-center gap-1 text-[13px] font-medium text-[var(--rn-muted)] ${align === "right" ? "justify-end" : ""} ${
+        className={`inline-flex items-center gap-1 text-[14px] font-medium text-[var(--rn-muted)] ${align === "right" ? "justify-end" : ""} ${
           active ? "text-[var(--rn-ink)]" : "hover:text-[var(--rn-ink)]"
         }`}
       >
@@ -191,7 +191,7 @@ function DesktopTable({
             <SortHeader label="Stock" sortKey="name" sort={sort} onPick={onPickSort} />
             <SortHeader label="Last" sortKey="last" align="right" sort={sort} onPick={onPickSort} />
             <SortHeader label="Day" sortKey="chg" align="right" sort={sort} onPick={onPickSort} />
-            <th className="px-3 py-3 text-left font-normal"><span className="text-[13px] font-medium text-[var(--rn-muted)]">Signals</span></th>
+            <th className="px-3 py-3 text-left font-normal"><span className="text-[14px] font-medium text-[var(--rn-muted)]">Signals</span></th>
             <SortHeader label="Score" sortKey="score" align="right" sort={sort} onPick={onPickSort} />
           </tr>
         </thead>
@@ -209,16 +209,21 @@ function DesktopTable({
                     <StockLogo ticker={row.ticker} market={row.market} size={28} className="shrink-0" />
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-[var(--rn-ink)] group-hover:underline">{row.ticker}</span>
+                        <span className="text-[15px] font-bold text-[var(--rn-ink)] group-hover:underline">{row.ticker}</span>
+                        {row.needsAttention && row.stance && (
+                          <span className="font-mono text-[11px] font-semibold uppercase tracking-wide" style={{ color: stanceColor(row.stance) }}>
+                            {row.stance}
+                          </span>
+                        )}
                       </span>
-                      <span className="block max-w-[12rem] truncate text-[10.5px] text-[var(--rn-muted)]">{row.name}</span>
+                      <span className="block max-w-[12rem] truncate text-[12px] text-[var(--rn-muted)]">{row.name}</span>
                     </span>
                   </Link>
                 </td>
-                <td className="px-3 py-3.5 text-right font-mono text-[12.5px] font-semibold tabular-nums text-[var(--rn-ink)]">
+                <td className="px-3 py-3.5 text-right font-mono text-[14px] font-semibold tabular-nums text-[var(--rn-ink)]">
                   {priceText(row)}
                 </td>
-                <td className="px-3 py-3.5 text-right font-mono text-[12px] font-semibold tabular-nums" style={{ color: changeColor(row.dayChangePct) }}>
+                <td className="px-3 py-3.5 text-right font-mono text-[13px] font-semibold tabular-nums" style={{ color: changeColor(row.dayChangePct) }}>
                   {changeText(row.dayChangePct)}
                 </td>
                 <td className="px-3 py-3.5">
@@ -226,7 +231,7 @@ function DesktopTable({
                     {row.flags.length > 0 ? row.flags.map((flag, index) => <FlagChip key={`${flag.label}-${index}`} flag={flag} />) : <span className="text-[10.5px] text-[var(--rn-muted)]">On plan</span>}
                   </span>
                 </td>
-                <td className="px-3 py-3.5 text-right font-mono text-[12px] font-bold tabular-nums" style={{ color: scoreColor(row.score) }}>
+                <td className="px-3 py-3.5 text-right font-mono text-[13px] font-bold tabular-nums" style={{ color: scoreColor(row.score) }}>
                   {row.score === null ? "–" : Math.round(row.score)}
                 </td>
               </tr>

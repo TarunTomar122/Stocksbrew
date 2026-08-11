@@ -44,28 +44,28 @@ function IdeaRow({ idea }: { idea: IdeaCard }) {
       <span className="flex min-w-0 items-center gap-2.5">
         <StockLogo ticker={idea.ticker} market={idea.market} size={30} className="shrink-0" />
         <span className="min-w-0">
-          <span className="block text-[14.5px] font-semibold text-[var(--rn-ink)] group-hover:underline">{idea.ticker}</span>
-          <span className="block truncate text-[12px] text-[var(--rn-muted)]">{idea.name}</span>
+          <span className="block text-[16px] font-semibold text-[var(--rn-ink)] group-hover:underline">{idea.ticker}</span>
+          <span className="block truncate text-[13px] text-[var(--rn-muted)]">{idea.name}</span>
         </span>
       </span>
 
-      <span className="min-w-0 text-[13px] leading-relaxed text-[var(--rn-muted)]">
+      <span className="min-w-0 text-[14px] leading-relaxed text-[var(--rn-muted)]">
         {idea.reason}
         {idea.tag ? <span className="ml-1 font-medium text-[var(--rn-ink)]">· {idea.tag}</span> : null}
       </span>
 
       <span className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
-        <span className="font-mono text-[14px] font-semibold tabular-nums text-[var(--rn-ink)]">{priceText(idea)}</span>
-        <span className="font-mono text-[12px] font-medium tabular-nums sm:mt-1 sm:block" style={{ color: moveColor }}>
+        <span className="font-mono text-[15px] font-semibold tabular-nums text-[var(--rn-ink)]">{priceText(idea)}</span>
+        <span className="font-mono text-[13px] font-medium tabular-nums sm:mt-1 sm:block" style={{ color: moveColor }}>
           {changeText(idea.dayChangePct)}
         </span>
       </span>
 
-      <span className="hidden text-right font-mono text-[15px] font-semibold tabular-nums sm:block" style={{ color: scoreColor(idea.score) }}>
+      <span className="hidden text-right font-mono text-[16px] font-semibold tabular-nums sm:block" style={{ color: scoreColor(idea.score) }}>
         {idea.score === null ? "–" : Math.round(idea.score)}
       </span>
 
-      <span className="hidden text-right font-mono text-[12px] font-medium tabular-nums sm:block" style={{ color: (idea.targetUpsidePct ?? 0) >= 0 ? "var(--rn-bull)" : "var(--rn-bear)" }}>
+      <span className="hidden text-right font-mono text-[13px] font-medium tabular-nums sm:block" style={{ color: (idea.targetUpsidePct ?? 0) >= 0 ? "var(--rn-bull)" : "var(--rn-bear)" }}>
         {idea.targetUpsidePct === null ? "–" : `${idea.targetUpsidePct >= 0 ? "+" : ""}${Math.round(idea.targetUpsidePct)}% target`}
       </span>
     </Link>
@@ -93,18 +93,18 @@ export function Ideas({
   return (
     <section aria-labelledby="rn-ideas">
       <div className="mb-3">
-        <h2 id="rn-ideas" className="text-[16px] font-medium tracking-tight text-[var(--rn-ink)]">
+        <h2 id="rn-ideas" className="text-[18px] font-medium tracking-tight text-[var(--rn-ink)]">
           Ideas to explore
         </h2>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-[var(--rn-line)]">
         <div className="hidden grid-cols-[minmax(9rem,0.8fr)_minmax(15rem,1.5fr)_7rem_5rem_7rem] gap-3 border-b border-[var(--rn-line)] bg-[var(--rn-card-2)] px-4 py-3 sm:grid">
-          <span className="text-[13px] font-medium text-[var(--rn-muted)]">Company</span>
-          <span className="text-[13px] font-medium text-[var(--rn-muted)]">Why it fits</span>
-          <span className="text-right text-[13px] font-medium text-[var(--rn-muted)]">Price</span>
-          <span className="text-right text-[13px] font-medium text-[var(--rn-muted)]">Score</span>
-          <span className="text-right text-[13px] font-medium text-[var(--rn-muted)]">Target</span>
+          <span className="text-[14px] font-medium text-[var(--rn-muted)]">Company</span>
+          <span className="text-[14px] font-medium text-[var(--rn-muted)]">Why it fits</span>
+          <span className="text-right text-[14px] font-medium text-[var(--rn-muted)]">Price</span>
+          <span className="text-right text-[14px] font-medium text-[var(--rn-muted)]">Score</span>
+          <span className="text-right text-[14px] font-medium text-[var(--rn-muted)]">Target</span>
         </div>
         <div className="divide-y divide-[var(--rn-line)]">
           {ideas.map((idea) => <IdeaRow key={`${idea.market}-${idea.ticker}`} idea={idea} />)}
