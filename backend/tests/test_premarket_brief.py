@@ -58,6 +58,8 @@ class PremarketBriefTemplateTests(unittest.TestCase):
         self.assertIn("Top gainers", html)
         self.assertIn("Top losers", html)
         self.assertIn("Sectors pre-market", html)
+        self.assertIn("https://www.stocksbrew.online/pulse", html)
+        self.assertNotIn("https://www.stocksbrew.online/premarket", html)
         self.assertIn("Nvidia launched a new data-center platform", html)
         self.assertNotIn("action_now", html.lower())
         self.assertNotIn("trim", html.lower())

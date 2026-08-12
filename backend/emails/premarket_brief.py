@@ -262,7 +262,7 @@ def build_premarket_brief_email(
           <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;padding:13px 28px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open Watchlist</a>
         </td></tr></table>
         <div style="margin-top:12px;text-align:center;font-size:13px;color:#9ca3af">
-          <a href="{html.escape(APP_URL)}/premarket" style="color:#065f46;text-decoration:none;font-weight:600">Full pre-market board →</a>
+          <a href="{html.escape(APP_URL)}/pulse" style="color:#065f46;text-decoration:none;font-weight:600">Full pre-market board →</a>
         </div>
       </td></tr>"""
 
