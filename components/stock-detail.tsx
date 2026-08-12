@@ -380,7 +380,7 @@ export function StockDetail(props: Props) {
   const priceAwareCall = directive ? resolvePriceAwareCall(directive, stock.price, money, levelMoney) : null;
   const directiveSmartAlerts = directive ? buildDirectiveSmartAlerts(directive, levelMoney) : [];
 
-  const hasAnomalyMove = Boolean(overview || overviewHeadline);
+  const hasAnomalyMove = Boolean(overview?.trim());
 
   const moveNarrative = overview;
 
