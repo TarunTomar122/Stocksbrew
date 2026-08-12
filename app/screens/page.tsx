@@ -20,21 +20,21 @@ const SCREEN_LINKS = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: "Thematic Screens",
+  title: "Free Stock Screener: Thematic US Stock Screens",
   description:
-    "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
+    "Browse daily US stock screens for quality, value, growth, momentum, oversold stocks, 52-week highs, and institutional ownership. Free, no sign-in.",
   alternates: { canonical: "/screens" },
   openGraph: {
-    title: "Thematic Screens · stocksbrew",
+    title: "Free Stock Screener: Thematic US Stock Screens · stocksbrew",
     description:
-      "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
+      "Browse daily US stock screens for quality, value, growth, momentum, oversold stocks, 52-week highs, and institutional ownership.",
     url: "https://www.stocksbrew.online/screens",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Thematic Screens · stocksbrew",
+    title: "Free Stock Screener: Thematic US Stock Screens · stocksbrew",
     description:
-      "Curated stock screens based on growth, momentum, quality and valuation. Quality compounders, momentum leaders, oversold quality and more.",
+      "Browse daily US stock screens for quality, value, growth, momentum, oversold stocks, 52-week highs, and institutional ownership.",
   },
 };
 

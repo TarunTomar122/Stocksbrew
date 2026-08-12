@@ -9,19 +9,19 @@ import { getStockSummary } from "@/lib/stock";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Earnings Reports: What Changed & What to Do Next",
+  title: "Free Earnings Analysis: What Changed After Results",
   description:
     "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
   alternates: { canonical: "/earnings-intel" },
   openGraph: {
-    title: "Earnings Reports: What Changed & What to Do Next · stocksbrew",
+    title: "Free Earnings Analysis: What Changed After Results · stocksbrew",
     description:
       "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
     url: "https://www.stocksbrew.online/earnings-intel",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Earnings Reports: What Changed & What to Do Next · stocksbrew",
+    title: "Free Earnings Analysis: What Changed After Results · stocksbrew",
     description:
       "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
   },
@@ -75,7 +75,7 @@ export default async function EarningsIntelPage() {
       <header className="px-4 sm:px-0">
         <span className="text-xs font-semibold uppercase tracking-widest text-[#6b38d4]">Free</span>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#111111] sm:text-4xl">
-          Earnings Intel
+          What changed after earnings
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#6b7280] sm:text-lg">
           Post-earnings reports for every name we&apos;ve published. What happened, so what, and what

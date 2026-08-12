@@ -69,16 +69,16 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
     tools: [
       {
         href: "/heat",
-        title: "Market Heat",
-        description: "Ranked list of names getting unusual attention today.",
+        title: "Stock Market Heatmap",
+        description: "See the US stocks getting unusual attention today, why they moved, and how the setup reads.",
         icon: "local_fire_department",
         accent: "#ea580c",
         featured: true,
       },
       {
         href: "/screens",
-        title: "Screens",
-        description: "Curated thematic screens updated with the market.",
+        title: "Free Stock Screener",
+        description: "Browse daily US stock screens for quality, value, growth, momentum, and technical setups.",
         icon: "grid_view",
         accent: "#4f46e5",
       },

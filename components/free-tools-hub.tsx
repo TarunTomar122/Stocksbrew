@@ -182,6 +182,22 @@ export function FreeToolsHub() {
         </section>
       ))}
 
+      <section>
+        <h2 className="text-xl font-bold text-on-surface">Free research guides</h2>
+        <p className="mt-1 text-[14px] text-on-surface-variant">Choose the tools, then use them with a repeatable process.</p>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {[
+            ["Build a $0 stock research stack", "/blog/free-stock-market-analysis-tools"],
+            ["Compare stock watchlist apps", "/blog/best-stock-watchlist-apps-2026"],
+            ["Read analyst targets correctly", "/blog/analyst-ratings-price-targets-explained"],
+          ].map(([label, href]) => (
+            <Link key={href} href={href} className="free-tools-card text-[15px] font-semibold text-on-surface hover:text-landing-brand">
+              {label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="free-tools-quick-links">
         <h2 className="text-lg font-bold text-on-surface">All {ALL_FREE_TOOLS.length} tools</h2>
         <ul className="mt-4 flex flex-wrap gap-2">

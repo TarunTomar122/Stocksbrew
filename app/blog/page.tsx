@@ -4,9 +4,9 @@ import { indexableBlogPosts } from "@/lib/blog-data";
 import { ALL_COMPARE_LINKS } from "@/lib/seo/compare-links";
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: "Stock Analysis Guides: Fundamentals, Earnings & Tools",
   description:
-    "Researched guides to stock analysis, financial statements, earnings, watchlists, and the tools investors use.",
+    "Evidence-based guides to fundamental stock analysis, earnings reports, analyst targets, research tools, and watchlist workflows.",
   alternates: { canonical: "/blog" },
   openGraph: {
     title: "Stock research guides · stocksbrew",
