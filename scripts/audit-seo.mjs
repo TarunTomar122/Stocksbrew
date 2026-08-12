@@ -25,6 +25,7 @@ const rawEntries = parsed?.urlset?.url ?? [];
 const entries = Array.isArray(rawEntries) ? rawEntries : [rawEntries];
 const urls = entries.map((entry) => String(entry.loc || ""));
 if (urls.length < 20) fail(`sitemap unexpectedly small: ${urls.length} URLs`);
+if (urls.length > 150) fail(`sitemap exceeds the curated limit: ${urls.length} URLs`);
 if (new Set(urls).size !== urls.length) fail("sitemap contains duplicate URLs");
 if (sitemapResult.text.includes("<changefreq>") || sitemapResult.text.includes("<priority>")) {
   fail("sitemap contains ignored changefreq/priority fields");
@@ -33,6 +34,7 @@ if (sitemapResult.text.includes("<changefreq>") || sitemapResult.text.includes("
 for (const entry of entries) {
   const loc = new URL(String(entry.loc));
   if (loc.host !== canonicalHost) fail(`non-canonical sitemap host: ${loc.href}`);
+  if (loc.search || loc.hash) fail(`sitemap URL contains query or hash noise: ${loc.href}`);
   if (entry.lastmod && new Date(entry.lastmod).getTime() > Date.now() + 86_400_000) {
     fail(`future lastmod: ${loc.href} (${entry.lastmod})`);
   }

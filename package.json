@@ -50,6 +50,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "seo:indexnow": "node scripts/submit-indexnow.mjs",
+    "seo:opportunities": "node scripts/seo-opportunities.mjs",
     "seo:audit": "node scripts/audit-seo.mjs"
   },
   "dependencies": {
