@@ -6,13 +6,13 @@ import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { COMPARISON_PAGES } from "@/lib/compare-data";
 
 export const metadata: Metadata = {
-  title: "Compare stocksbrew",
+  title: "Compare Stock Research Tools: stocksbrew vs Finviz & TradingView",
   description:
-    "Side-by-side comparisons of stocksbrew with Tickertape, Finviz, and other stock research tools. Pick the right workflow for US investing.",
+    "Compare stocksbrew with Finviz, TradingView, and other stock research tools across screening, evidence, monitoring, alerts, and cost.",
   alternates: { canonical: "/compare" },
   openGraph: {
-    title: "Compare stocksbrew · stocksbrew",
-    description: "Honest tool comparisons for US stock research workflows.",
+    title: "Compare stock research tools · stocksbrew",
+    description: "See which stock research workflow fits your investing process.",
     url: "https://www.stocksbrew.online/compare",
   },
 };

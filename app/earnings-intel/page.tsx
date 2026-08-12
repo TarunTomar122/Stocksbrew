@@ -9,21 +9,20 @@ import { getStockSummary } from "@/lib/stock";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Free Earnings Analysis: What Changed After Results",
+  title: "Post-Earnings Analysis: What Changed After Results",
   description:
-    "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
+    "Read post-earnings reports that explain revenue, margins, guidance, price reaction, and the next question for each stock.",
   alternates: { canonical: "/earnings-intel" },
   openGraph: {
-    title: "Free Earnings Analysis: What Changed After Results · stocksbrew",
+    title: "Post-earnings analysis · stocksbrew",
     description:
-      "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
+      "See what changed after results and what matters next.",
     url: "https://www.stocksbrew.online/earnings-intel",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Free Earnings Analysis: What Changed After Results · stocksbrew",
-    description:
-      "Free post-earnings reports that explain what changed in revenue, margins, guidance, and the stock's setup — plus what to watch next.",
+    title: "Post-earnings analysis · stocksbrew",
+    description: "See what changed after results and what matters next.",
   },
 };
 

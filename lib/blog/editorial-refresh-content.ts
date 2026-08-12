@@ -1,4 +1,98 @@
 export const editorialRefreshBlogContent: Record<string, string> = {
+  "ai-infrastructure-power-capex-utilization": `
+<div class="blog-meta">Updated August 12, 2026 · 12 min read</div>
+
+<p>The easy version of the AI trade is a chip story: demand is strong, so chip companies should win. The harder version is an infrastructure story. AI systems need data-center space, electricity, networking, cooling, financing, and customers who will pay enough to cover all of it.</p>
+
+<p>That distinction matters because the investment cycle is getting large. The International Energy Agency expects data-center electricity consumption to more than double to about 945 TWh by 2030, with AI the most important driver. Microsoft, meanwhile, expects roughly $190 billion of capital expenditure in calendar 2026. The opportunity is real, but so is the bill.</p>
+
+<p>Here is a practical way to analyze an AI infrastructure stock without treating every new capacity announcement as proof of durable earnings growth.</p>
+
+<h2 id="demand">1. Start with demand, not the headline</h2>
+
+<p>Ask what is already contracted, what is merely expected, and who is paying. A cloud provider can report strong AI demand while still carrying a large amount of capacity that has not reached productive utilization. A chip supplier can report excellent orders while customers work through inventory or delay deployments.</p>
+
+<p>Separate three layers:</p>
+
+<ul>
+  <li><strong>Committed demand.</strong> Multi-year contracts, customer deposits, booked capacity, or backlog with clear delivery terms.</li>
+  <li><strong>Installed demand.</strong> Hardware and data-center capacity that is live and producing revenue today.</li>
+  <li><strong>Speculative demand.</strong> Management optimism, customer interest, or a market-size estimate without a purchase commitment.</li>
+</ul>
+
+<p>The third layer can be useful for finding future candidates. It should not be valued like the first two.</p>
+
+<h2 id="capex">2. Make capex earn its place</h2>
+
+<p>Capital expenditure is not automatically good or bad. It is a bet that future cash generation will exceed the cost of building capacity now. For each company, track capex in dollars, capex growth, depreciation, operating cash flow, and the revenue or gross profit expected from the new assets.</p>
+
+<p>A useful first-pass calculation is:</p>
+
+<div class="callout"><strong>Incremental return on infrastructure</strong><br />Estimated incremental operating profit from new AI capacity ÷ the capital required to build and equip it.</div>
+
+<p>This is not a perfect return measure. It is a discipline against looking only at revenue. If capex rises much faster than gross profit for several periods, the company may still be building a valuable network, but the market needs evidence that utilization and pricing can catch up.</p>
+
+<p>Microsoft’s FY2026 Q3 materials are a useful example of the tension. The company described strong AI demand and new capacity coming online, while also acknowledging investor concern about the gap between capital-expenditure growth and revenue growth. That gap is not a verdict. It is the question an investor should keep asking.</p>
+
+<h2 id="power">3. Treat power as a production constraint</h2>
+
+<p>AI capacity cannot generate revenue if it cannot get reliable electricity. Read disclosures for megawatts, grid interconnection, power-purchase agreements, construction timing, and the location of new facilities. A planned gigawatt is not the same thing as energized capacity.</p>
+
+<p>Power also changes the economics. The IEA expects renewables to be the fastest-growing source of electricity for data centers, while natural gas and coal together supply more than 40% of the additional demand through 2030 in its base case. That creates different exposure for utilities, independent power producers, gas suppliers, and data-center operators.</p>
+
+<p>For a stock thesis, ask:</p>
+
+<ul>
+  <li>When will the site receive power, not just when will construction finish?</li>
+  <li>Is the electricity price fixed, hedged, or exposed to spot markets?</li>
+  <li>Who pays for transmission upgrades and delays?</li>
+  <li>Does the company have enough power density and cooling for the intended hardware?</li>
+</ul>
+
+<h2 id="utilization">4. Look for utilization before another capacity promise</h2>
+
+<p>Utilization is where infrastructure becomes a business. The exact metric differs by company, but the principle is the same: how much of the installed system is doing paid work, at what price, and with what margin?</p>
+
+<p>For cloud and data-center operators, look for revenue per megawatt, committed capacity, lease-up timing, backlog conversion, and customer concentration. For chip and networking suppliers, look for sell-through, lead times, product mix, and whether customers are buying for deployment or inventory. For utilities, look for load growth, contracted demand, rate recovery, and the capital needed to serve it.</p>
+
+<p>A capacity announcement can be positive while utilization is still low. That is why a stock can rise on a large order and later fall when investors realize the customer needs months or years to turn the order into profitable usage.</p>
+
+<h2 id="winners">5. Map the bottleneck, then ask who captures the value</h2>
+
+<p>AI infrastructure has several bottlenecks at once: advanced compute, high-speed networking, memory, transformers and power equipment, cooling, land, permits, and electricity. A bottleneck can create pricing power, but the power usually belongs to the supplier that is hardest to replace, not to every company in the same theme.</p>
+
+<p>Build a simple value-chain map for each candidate:</p>
+
+<div class="table-scroll"><table>
+  <thead><tr><th>Layer</th><th>Evidence to check</th><th>Failure mode</th></tr></thead>
+  <tbody>
+    <tr><td>Compute</td><td>Orders, mix, supply, customer concentration</td><td>Customer concentration or a product transition</td></tr>
+    <tr><td>Data centers</td><td>Power, occupancy, pricing, delivery dates</td><td>Grid delays, financing, or slow lease-up</td></tr>
+    <tr><td>Power</td><td>Load contracts, rate base, generation and transmission spend</td><td>Permits, connection delays, or cost overruns</td></tr>
+    <tr><td>Software and services</td><td>Paid workloads, retention, gross margin, cash conversion</td><td>Usage grows faster than monetization</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="checklist">A five-minute AI infrastructure checklist</h2>
+
+<ol>
+  <li><strong>What is already earning revenue?</strong> Name the product, customer, and current contribution.</li>
+  <li><strong>What is being built?</strong> Record capex, power capacity, delivery timing, and financing.</li>
+  <li><strong>What must improve?</strong> Choose utilization, pricing, margins, or power availability.</li>
+  <li><strong>What would disprove the thesis?</strong> Write one measurable checkpoint before buying the story.</li>
+  <li><strong>What is the valuation assuming?</strong> Compare the implied growth with the company’s ability to fund and operate the infrastructure.</li>
+</ol>
+
+<p>This framework is useful for comparing names such as <a href="/stock/NVDA">NVIDIA</a> and <a href="/stock/MSFT">Microsoft</a>, but it also applies to networking, memory, data-center, utility, and power-equipment companies. The right comparison is not “which stock is most associated with AI?” It is “which company can turn a scarce input into durable cash flow at a return that justifies the capital?”</p>
+
+<div class="cta-section">
+  <h3>Turn the AI story into a stock question</h3>
+  <p>Compare the names you are following, then keep the unresolved questions in Watchlist.</p>
+  <a href="/compare-stocks" class="cta-button">Compare stocks →</a>
+</div>
+
+<div class="source-note"><strong>Sources and method.</strong> Research checked August 12, 2026 against the <a href="https://www.iea.org/reports/energy-and-ai/executive-summary" rel="nofollow">International Energy Agency’s Energy and AI report</a>, its <a href="https://www.iea.org/reports/key-questions-on-energy-and-ai" rel="nofollow">Key Questions on Energy and AI follow-up</a>, <a href="https://www.microsoft.com/en-us/investor/events/fy-2026/earnings-fy-2026-q3" rel="nofollow">Microsoft’s FY2026 Q3 investor materials</a>, and <a href="https://abc.xyz/investor/events/event-details/default.aspx" rel="nofollow">Alphabet’s investor events and filings</a>. This is research context, not financial advice. Check the original filings before making an investment decision.</div>
+`,
   "watchlist-vs-portfolio-tracker": `
 <div class="blog-meta">Updated August 2026 · 9 min read</div>
 

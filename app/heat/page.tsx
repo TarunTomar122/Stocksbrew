@@ -12,21 +12,20 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Free Stock Market Heatmap: Daily Movers & Setups",
+  title: "US Stock Market Movers: Daily Heatmap & Setups",
   description:
-    "See the US stocks getting unusual attention today, why they moved, and whether each setup looks bullish, bearish, or mixed. Free, no sign-in.",
+    "Scan today's biggest US stock movers, the reason behind each move, and whether the setup looks bullish, bearish, or mixed.",
   alternates: { canonical: "/heat" },
   openGraph: {
-    title: "Free Stock Market Heatmap: Daily Movers & Setups · stocksbrew",
+    title: "US stock market movers · stocksbrew",
     description:
-      "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",
+      "Scan today's biggest movers and understand why they are moving.",
     url: "https://www.stocksbrew.online/heat",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Free Stock Market Heatmap: Daily Movers & Setups · stocksbrew",
-    description:
-      "Daily ranked list of stocks getting unusual attention. Scan top setups, understand why they are moving.",
+    title: "US stock market movers · stocksbrew",
+    description: "Scan today's biggest movers and understand why they are moving.",
   },
 };
 

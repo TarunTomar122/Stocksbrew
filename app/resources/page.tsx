@@ -7,13 +7,13 @@ import { ResourcesCiteSection } from "@/components/marketing/resources-cite-sect
 import { ALL_RESOURCES, RESOURCE_GROUPS } from "@/lib/resources-hub-data";
 
 export const metadata: Metadata = {
-  title: "Learn, guides & resources",
+  title: "Stock Investing Resources: Guides, Tools & Research",
   description:
-    "Learn investing basics, read the blog, follow research workflows, compare tools, and browse use cases — all stocksbrew learning resources in one place.",
+    "Browse StocksBrew's stock investing guides, research workflows, tool comparisons, and practical use cases in one place.",
   alternates: { canonical: "/resources" },
   openGraph: {
-    title: "Learn & resources · stocksbrew",
-    description: "Learn library, blog, guides, use cases, and tool comparisons.",
+    title: "Stock investing resources · stocksbrew",
+    description: "Guides, research workflows, tool comparisons, and practical investing use cases.",
     url: "https://www.stocksbrew.online/resources",
   },
 };

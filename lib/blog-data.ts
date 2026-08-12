@@ -13,6 +13,32 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "ai-infrastructure-power-capex-utilization",
+    title: "AI Infrastructure Stocks: The Power, Capex, and Utilization Test",
+    seoTitle: "AI Infrastructure Stocks: How to Analyze the AI Power Trade",
+    description:
+      "AI infrastructure is becoming an electricity, capex, and utilization story. Learn how to test the economics before buying the narrative.",
+    category: "intelligence",
+    tags: ["ai-infrastructure", "data-centers", "power-demand", "capex", "stock-analysis", "semiconductors"],
+    date: "2026-08-12",
+    updated: "2026-08-12",
+    readTime: "12 min read",
+    faqs: [
+      {
+        question: "Why does electricity matter for AI stocks?",
+        answer: "Data centers need reliable power to run increasingly dense AI systems. Power availability, grid timing, and energy cost can limit how quickly capacity turns into revenue.",
+      },
+      {
+        question: "What should investors check besides AI revenue growth?",
+        answer: "Check capital expenditure, depreciation, power capacity, customer commitments, utilization, and cash generation together. Revenue growth without returns on the required infrastructure is incomplete evidence.",
+      },
+      {
+        question: "Does higher AI capex automatically make a company attractive?",
+        answer: "No. Capex can create future capacity, but it also raises depreciation, financing needs, and execution risk. The question is whether future gross profit can justify the capital deployed.",
+      },
+    ],
+  },
+  {
     slug: "best-stock-research-websites-2026",
     title: "Best Stock Research Websites in 2026: Pick the Right Tool for the Job",
     seoTitle: "8 Best Stock Research Websites in 2026",
@@ -905,6 +931,7 @@ export const REVIEWED_BLOG_SLUGS = new Set([
   "free-stock-market-analysis-tools",
   "watchlist-vs-portfolio-tracker",
   "earnings-season-watchlist-playbook",
+  "ai-infrastructure-power-capex-utilization",
   "track-stock-news-for-your-portfolio",
 ]);
 

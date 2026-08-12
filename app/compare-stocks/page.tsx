@@ -7,12 +7,12 @@ import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free
 import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
 
 export const metadata: Metadata = {
-  title: "Compare Stocks Side by Side — Free",
+  title: "Compare Stocks: Valuation, Quality, Momentum & Returns",
   description:
-    "Compare 2 to 5 US stocks across current price, valuation, quality, momentum and returns. See the trade-offs in one clean view.",
+    "Compare 2 to 5 US stocks across price, valuation, quality, momentum, and returns to see the trade-offs clearly.",
   alternates: { canonical: "/compare-stocks" },
   openGraph: {
-    title: "Free Stock Comparison Tool · stocksbrew",
+    title: "Compare stocks side by side · stocksbrew",
     description:
       "Pick two stocks and see the trade-offs across price, fundamentals, scores and returns.",
     url: "https://www.stocksbrew.online/compare-stocks",

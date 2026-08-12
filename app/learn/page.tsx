@@ -4,19 +4,18 @@ import { allLearnPosts } from "@/lib/learn-data";
 import { getLearnImage } from "@/lib/learn/images";
 
 export const metadata: Metadata = {
-  title: "Learn to Invest",
-  description: "50 free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
+  title: "Stock Analysis Guides: Fundamentals, Valuation & Earnings",
+  description: "Free stock analysis guides covering fundamentals, valuation, earnings, portfolios, and market strategy for US investors.",
   alternates: { canonical: "/learn" },
-  robots: { index: false, follow: true },
   openGraph: {
-    title: "Learn to Invest - Free Guides & Tutorials · stocksbrew",
-    description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
+    title: "Stock analysis guides · stocksbrew",
+    description: "Free guides to fundamentals, valuation, earnings, portfolios, and market strategy.",
     url: "https://www.stocksbrew.online/learn",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Learn to Invest - Free Guides & Tutorials · stocksbrew",
-    description: "Free investing guides for beginners and intermediate investors. Stock analysis, portfolio building, market strategy, and more.",
+    title: "Stock analysis guides · stocksbrew",
+    description: "Free guides to fundamentals, valuation, earnings, portfolios, and market strategy.",
   },
 };
 

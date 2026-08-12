@@ -19,7 +19,7 @@ type Props = {
 };
 
 export async function generateStaticParams() {
-  return allBlogPosts.map((post) => ({ slug: post.slug }));
+  return allBlogPosts.filter((post) => isIndexableBlogPost(post.slug)).map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
