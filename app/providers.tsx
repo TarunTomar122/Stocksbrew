@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { GoogleAnalyticsPageview } from "@/components/google-analytics";
 import { AttributionTrigger } from "@/components/attribution-trigger";
 import { PostHogPageview } from "@/components/posthog-pageview";
+import { PostSignupOnboarding } from "@/components/post-signup-onboarding";
 
 type ProvidersProps = {
   children: ReactNode;
@@ -19,6 +20,7 @@ export function Providers({ children, initialAuthed }: ProvidersProps) {
       <PostHogPageview />
       <GoogleAnalyticsPageview />
       <AttributionTrigger />
+      <PostSignupOnboarding />
       <NextTopLoader
         color="var(--primary)"
         initialPosition={0.12}
