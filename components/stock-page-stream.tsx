@@ -63,6 +63,7 @@ import { isWithinPreEarningsWindow, shouldShowPreEarningsIntel } from "@/lib/pre
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getLivePremarketQuote, getPremarketMovers } from "@/lib/premarket";
+import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 
 export const revalidate = 60;
 
@@ -196,6 +197,8 @@ export async function StockPageStream({ params }: Props) {
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
     : [];
   const subscribed = resolveIsSubscribed(userDoc);
+  const isFeaturedStock = isFeaturedStockTicker(stock.ticker);
+  const hasFullAnalysisAccess = subscribed || isFeaturedStock;
   const currency = currencySymbolFor(stock.instrument_id.split("_", 1)[0]);
   // Non-Pro users see the real page with facts free and the call masked (the
   // trial CTA lives in the locked verdict), not a bare full-page wall.
@@ -206,7 +209,7 @@ export async function StockPageStream({ params }: Props) {
   // Tiering: factual sections are free to all. The AI layer (The Call, drivers,
   // sentiment) loads for Pro only. Non-Pro users see chart + returns + free shelf
   // with a compact unlock card where the call would be.
-  const shouldLoadAI = subscribed;
+  const shouldLoadAI = hasFullAnalysisAccess;
 
   // fundamentals come free from getStockSummary (same tm_latest_prices doc) -
   // no extra Firestore read needed.
@@ -245,10 +248,10 @@ export async function StockPageStream({ params }: Props) {
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
     getRedditContextForTicker(market, stock.ticker).catch(() => null),
     getOnDemandNewsJob(stock.instrument_id).catch(() => null),
-    subscribed
+    hasFullAnalysisAccess
       ? getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null)
       : Promise.resolve(null),
-    subscribed
+    hasFullAnalysisAccess
       ? getPreEarningsIntelDoc(market, stock.instrument_id).catch(() => null)
       : Promise.resolve(null),
     getNextEarningsCalendarEvent(market, stock.ticker).catch(() => null),
@@ -309,7 +312,7 @@ export async function StockPageStream({ params }: Props) {
   const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
   const isHighFrequencyEligible = inPriorityCohort || inExtendedOverrides;
   const showPriorityNotice = priorityIds.length > 0 && !isHighFrequencyEligible;
-  const hasAI = isLaunchBrief || (subscribed && Boolean(intelligence));
+  const hasAI = isLaunchBrief || (hasFullAnalysisAccess && Boolean(intelligence));
   const displayAnomaly = anomaly
     ? mergeAnomalyWithLatestPrice(
         anomaly,
@@ -334,11 +337,12 @@ export async function StockPageStream({ params }: Props) {
       "",
   ).trim();
   const showAiPreparationState =
-    subscribed &&
+    hasFullAnalysisAccess &&
     isTracked &&
     !hasBriefText(intelligence) &&
     isActiveOnDemandBriefStatus(resolvedOnDemandStatus);
-  const showAiStartCoverageState = subscribed && !isTracked && !hasBriefText(intelligence);
+  const showAiStartCoverageState =
+    hasFullAnalysisAccess && !isTracked && !hasBriefText(intelligence);
 
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
@@ -371,9 +375,12 @@ export async function StockPageStream({ params }: Props) {
   const overviewContent = (
     <section className="flex flex-col gap-10">
       {displayAnomaly && (
-        <AnomalyBanner anomaly={displayAnomaly} isSubscribed={subscribed} />
+        <AnomalyBanner
+          anomaly={displayAnomaly}
+          isSubscribed={hasFullAnalysisAccess}
+        />
       )}
-      {subscribed && activePreEarningsIntel ? (
+      {hasFullAnalysisAccess && activePreEarningsIntel ? (
         <a href="#stock-section-earnings" className="block scroll-mt-32">
           <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} compact />
         </a>
@@ -416,16 +423,18 @@ export async function StockPageStream({ params }: Props) {
         currency={currency}
         ticker={stock.ticker}
         priceHistory={priceHistory}
-        isSubscribed={subscribed}
+        isSubscribed={hasFullAnalysisAccess}
         fundamentalsUpdatedAt={stockFacts?.captured_at}
       />
-      <TierCTA
-        tier={tier}
-        ticker={stock.ticker}
-        instrumentId={stock.instrument_id}
-        isSubscribed={subscribed}
-        isTracked={isTracked}
-      />
+      {!isFeaturedStock ? (
+        <TierCTA
+          tier={tier}
+          ticker={stock.ticker}
+          instrumentId={stock.instrument_id}
+          isSubscribed={subscribed}
+          isTracked={isTracked}
+        />
+      ) : null}
     </section>
   );
 
@@ -437,7 +446,11 @@ export async function StockPageStream({ params }: Props) {
 
   const fundamentalsContent = (
     <section className="flex flex-col gap-6">
-      <StockScorecard intel={intelPro} ticker={stock.ticker} isSubscribed={subscribed} />
+      <StockScorecard
+        intel={intelPro}
+        ticker={stock.ticker}
+        isSubscribed={hasFullAnalysisAccess}
+      />
       {hasAI && (
         <>
           <ComparativeContextRow context={intelligence?.comparative_context} />
@@ -474,7 +487,7 @@ export async function StockPageStream({ params }: Props) {
   const showSentiment = hasAI && !isPriceStaleBrief && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
 
   const hasEarningsContent = Boolean(activePreEarningsIntel || earningsIntel);
-  const earningsContent = !hasEarningsContent ? null : subscribed ? (
+  const earningsContent = !hasEarningsContent ? null : hasFullAnalysisAccess ? (
     <div className="flex flex-col gap-10">
       {activePreEarningsIntel ? (
         <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} />
@@ -499,7 +512,7 @@ export async function StockPageStream({ params }: Props) {
     </section>
   );
 
-  const aiContent = subscribed ? (
+  const aiContent = hasFullAnalysisAccess ? (
     hasAI ? (
       <section className="flex flex-col gap-6">
         {showBriefStatus && (
@@ -572,9 +585,9 @@ export async function StockPageStream({ params }: Props) {
         stock={displayStock}
         market={market}
         currency={currency}
-        directive={subscribed ? normalizedDirective : null}
-        setupState={subscribed ? intelligence?.setup_state : null}
-        visual={subscribed ? intelligence?.visual_summary : null}
+        directive={hasFullAnalysisAccess ? normalizedDirective : null}
+        setupState={hasFullAnalysisAccess ? intelligence?.setup_state : null}
+        visual={hasFullAnalysisAccess ? intelligence?.visual_summary : null}
         overview={displayAnomaly ? (anomalyDetail(displayAnomaly) ?? undefined) : undefined}
         overviewHeadline={displayAnomaly ? anomalyHeadline(displayAnomaly) : undefined}
         preEarnings={activePreEarningsIntel ?? undefined}
@@ -592,7 +605,7 @@ export async function StockPageStream({ params }: Props) {
         sma50={sma50}
         sma200={sma200}
         earnings={earningsIntel}
-        cards={subscribed ? intelligence?.visual_cards : null}
+        cards={hasFullAnalysisAccess ? intelligence?.visual_cards : null}
         sentiment={instrumentView?.sentiment_breakdown}
         timeline={hasAI ? instrumentView?.timeline : null}
         peers={instrumentView?.related_tickers}
@@ -610,7 +623,7 @@ export async function StockPageStream({ params }: Props) {
             : null
         }
         recentNews={recentNews}
-        subscribed={subscribed}
+        subscribed={hasFullAnalysisAccess}
         isTracked={isTracked}
         tier={tier}
         premarketQuote={premarketQuote}

@@ -5,7 +5,11 @@ import { Suspense } from "react";
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockPageSkeleton } from "@/components/page-stream-skeletons";
 import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
-import { getSeoStockPage, stockSeoDescription } from "@/lib/seo/stock-pages";
+import {
+  getSeoStockPage,
+  isFeaturedStockTicker,
+  stockSeoDescription,
+} from "@/lib/seo/stock-pages";
 
 export const revalidate = 60;
 
@@ -53,7 +57,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         ].filter((value): value is string => Boolean(value))
       : undefined,
     alternates: { canonical: `/stock/${upper}` },
-    robots: { index: Boolean(identity), follow: true },
+    robots: {
+      index: Boolean(identity) && isFeaturedStockTicker(upper),
+      follow: true,
+    },
     openGraph: {
       title: `${title} · stocksbrew`,
       description,

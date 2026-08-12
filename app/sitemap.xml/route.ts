@@ -1,11 +1,8 @@
 import { indexableBlogPosts } from "@/lib/blog-data";
 import { COMPARISON_PAGES } from "@/lib/compare-data";
-import { getThematicScreens } from "@/lib/screens";
 import { USE_CASES } from "@/lib/use-cases-data";
-import { SEO_STOCK_PAGES } from "@/lib/seo/stock-pages";
+import { FEATURED_STOCK_TICKERS, getSeoStockPage } from "@/lib/seo/stock-pages";
 import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
-import { listMarketDailyEditions } from "@/lib/market-daily";
-import { getSearchIndexForApi } from "@/lib/search";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -16,16 +13,14 @@ function url(path: string, lastmod?: string) {
   return `  <url><loc>${BASE}${path}</loc>${modified}</url>`;
 }
 
-export async function GET() {
+export function GET() {
   const entries: string[] = [];
 
-  // Core pages (always included)
+  // Public pages with substantial standalone content.
   for (const path of [
     "/",
-    "/radar",
     "/pulse",
     "/explore",
-    "/heat",
     "/premarket",
     "/market-daily",
     "/events",
@@ -36,28 +31,21 @@ export async function GET() {
     "/resources",
     "/free-tools",
     "/blog",
-    "/subscribe",
     "/about",
     "/authors/tarun-tomar",
     "/editorial-policy",
     "/guides",
     "/compare",
     "/use-cases",
-    "/legal/terms",
-    "/legal/privacy",
-    "/legal/cookies",
-    "/legal/disclaimer",
     "/should-i-buy",
     "/earnings",
     "/upcoming-events",
     "/earnings-intel",
     "/ipos",
-    "/portfolio",
     "/position-size-calculator",
     "/compare-stocks",
     "/developers",
     "/agents",
-    "/trump-logic",
   ] as const) {
     entries.push(url(path));
   }
@@ -75,72 +63,15 @@ export async function GET() {
     entries.push(url(`/blog/${p.slug}`, p.updated ?? p.date));
   }
 
-  try {
-    const dailyEditions = await listMarketDailyEditions(90);
-    for (const edition of dailyEditions) {
-      entries.push(
-        url(
-          `/market-daily/${edition.edition_date}`,
-          edition.updated_at || edition.edition_date,
-        ),
-      );
-    }
-  } catch {
-    /* Firestore may be unreachable */
-  }
-
-  // Every supported company page is indexable. Runtime/AI cohort membership
-  // controls refresh spend, not whether a valid stock page can earn traffic.
-  for (const stock of SEO_STOCK_PAGES) {
-    entries.push(
-      url(
-        `/stock/${encodeURIComponent(stock.ticker)}`,
-        stock.updatedAt,
-      ),
-    );
-  }
-
-  // The Firestore search catalogue can be ahead of the checked-in coverage
-  // file after a user-requested ticker is fulfilled. Include those real stock
-  // routes on the next daily sitemap render without waiting for a deployment.
-  try {
-    const known = new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker));
-    const liveCatalog = await getSearchIndexForApi("US");
-    for (const stock of liveCatalog) {
-      if (!stock.ticker || known.has(stock.ticker)) continue;
-      known.add(stock.ticker);
-      entries.push(url(`/stock/${encodeURIComponent(stock.ticker)}`));
-    }
-  } catch {
-    /* Static company catalogue remains available. */
+  for (const ticker of FEATURED_STOCK_TICKERS) {
+    const stock = getSeoStockPage(ticker);
+    entries.push(url(`/stock/${ticker}`, stock?.updatedAt));
   }
 
   // Deterministic editorial sector slugs. Firestore-generated IDs can be stale
   // or market-specific and previously produced soft-404 sitemap entries.
   for (const sector of SEO_SECTOR_PAGES) {
     entries.push(url(`/sector/${encodeURIComponent(sector.slug)}`));
-  }
-
-  // Screen pages
-  try {
-    const scrSeen = new Set<string>();
-    for (const market of ["US", "IN"] as const) {
-      try {
-        const doc = await getThematicScreens(market);
-        if (!doc) continue;
-        for (const s of doc.screens) {
-          if (!s.id || scrSeen.has(s.id)) continue;
-          scrSeen.add(s.id);
-          entries.push(
-            url(`/screens/${encodeURIComponent(s.id)}`),
-          );
-        }
-      } catch {
-        /* market may not exist */
-      }
-    }
-  } catch {
-    /* Firestore may be unreachable */
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>`;

@@ -82,10 +82,18 @@ export function stockSeoDescription(stock: Pick<SeoStockPage, "name" | "ticker" 
 export const FEATURED_STOCK_TICKERS = [
   "NVDA",
   "MSFT",
-  "GOOGL",
   "AAPL",
   "AMZN",
+  "GOOGL",
   "META",
   "TSLA",
+  "AVGO",
   "AMD",
+  "PLTR",
 ] as const;
+
+const FEATURED_STOCKS = new Set<string>(FEATURED_STOCK_TICKERS);
+
+export function isFeaturedStockTicker(ticker: string): boolean {
+  return FEATURED_STOCKS.has(String(ticker || "").trim().toUpperCase());
+}

@@ -4,6 +4,7 @@ import {
   FEATURED_STOCK_TICKERS,
   SEO_STOCK_PAGES,
   getSeoStockPage,
+  isFeaturedStockTicker,
   stockSeoDescription,
 } from "@/lib/seo/stock-pages";
 
@@ -15,12 +16,26 @@ describe("indexable US stock pages", () => {
   });
 
   it("contains the high-intent featured companies with unique metadata", () => {
+    expect(FEATURED_STOCK_TICKERS).toEqual([
+      "NVDA",
+      "MSFT",
+      "AAPL",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "TSLA",
+      "AVGO",
+      "AMD",
+      "PLTR",
+    ]);
     for (const ticker of FEATURED_STOCK_TICKERS) {
       const stock = getSeoStockPage(ticker);
       expect(stock, ticker).toBeDefined();
       expect(stockSeoDescription(stock!), ticker).toContain(stock!.name);
       expect(stockSeoDescription(stock!), ticker).toContain(ticker);
+      expect(isFeaturedStockTicker(ticker)).toBe(true);
     }
+    expect(isFeaturedStockTicker("JPM")).toBe(false);
   });
 
   it("does not treat an arbitrary ticker route as indexable", () => {
