@@ -1223,6 +1223,15 @@ class TraceMoneyStore:
         for article in articles:
             article_id = str(article.get("id") or "")
             if article_id:
+                # Firestore fields are limited to 1 MiB. Enriched articles can
+                # carry the original article body, so apply the same safe cap
+                # used by the raw-article write path before upserting.
+                if "body_text" in article:
+                    bt = article["body_text"]
+                    max_bytes = 900_000
+                    if isinstance(bt, str) and len(bt.encode("utf-8")) > max_bytes:
+                        article["body_text"] = bt.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
+                        article["body_text_truncated"] = True
                 namespace.collection("enrichments").document(article_id).set(article, merge=True)
         namespace.set({
             "market": market,
