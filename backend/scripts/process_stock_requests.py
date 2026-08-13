@@ -31,6 +31,9 @@ import requests
 from google.cloud import firestore
 
 from backend.instrument_universe import list_instruments
+from backend.email import send_email
+from backend.email_runtime import log_email_send
+from backend.emails.brief_ready import build_brief_ready_email
 from backend.llm_client import (
     json_response_format,
     llm_api_key,
@@ -674,6 +677,41 @@ def _requester_emails(data: dict[str, Any]) -> set[str]:
     return emails
 
 
+def _notify_requesters(
+    store: TraceMoneyStore,
+    ref: Any,
+    data: dict[str, Any],
+    ticker: str,
+    override_email: str = "",
+) -> int:
+    """Send each requester's one-time ready email after the stock is live."""
+    already_sent = {str(e).strip().lower() for e in (data.get("notification_sent_to") or []) if str(e).strip()}
+    sent = 0
+    subject, html_body = build_brief_ready_email(ticker=ticker)
+    recipients = _requester_emails(data)
+    if override_email.strip():
+        recipients = {override_email.strip().lower()}
+    for email in sorted(recipients - already_sent):
+        if not send_email(email, subject, html_body):
+            continue
+        log_email_send(
+            store,
+            uid="",
+            email=email,
+            email_type="stock_request_ready",
+            subject=subject,
+            dedupe_key=f"stock_request_ready:{ref.id}:{email}",
+            trigger_type="stock_request_ready",
+            trigger_id=str(ref.id),
+            meta={"ticker": ticker, "query": str(data.get("query") or ref.id)},
+        )
+        already_sent.add(email)
+        sent += 1
+    if sent:
+        ref.set({"notification_sent_to": sorted(already_sent), "notification_sent_at": _now()}, merge=True)
+    return sent
+
+
 def _pending_requests(
     store: TraceMoneyStore,
     limit: int,
@@ -834,6 +872,16 @@ def _process_one_request(
             },
             merge=True,
         )
+        fulfilled_data = {**data, "resolved_symbol": str(instrument.get("ticker") or "").upper()}
+        notified = _notify_requesters(
+            store,
+            ref,
+            fulfilled_data,
+            fulfilled_data["resolved_symbol"],
+            override_email=to_email,
+        )
+        if notified:
+            print(f"  [email] {query}: notified={notified}")
         print(f"  [ok] {query} -> {instrument.get('instrument_id')}")
         return "ok"
     except Exception as exc:

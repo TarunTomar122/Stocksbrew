@@ -11,6 +11,9 @@ type Props = {
 
 export function StockRequestModal({ query, onClose }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [email, setEmail] = useState("");
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
 
   // Auto-submit on mount
   useEffect(() => {
@@ -21,7 +24,10 @@ export function StockRequestModal({ query, onClose }: Props) {
       body: JSON.stringify({ query }),
     })
       .then((r) => {
-        setStatus(r.ok ? "done" : "error");
+        if (r.ok) {
+          setStatus("done");
+          r.json().then((data) => setEmailSaved(Boolean(data.emailAttached))).catch(() => {});
+        } else setStatus("error");
         captureEvent(r.ok ? "stock_request_succeeded" : "stock_request_failed", {
           query,
           status: r.status,
@@ -32,6 +38,17 @@ export function StockRequestModal({ query, onClose }: Props) {
         captureEvent("stock_request_failed", { query, error: "network" });
       });
   }, [query]);
+
+  async function saveEmail() {
+    setEmailSaving(true);
+    const response = await fetch("/api/stock-request", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, email }),
+    }).catch(() => null);
+    setEmailSaving(false);
+    if (response?.ok) setEmailSaved(true);
+  }
 
   // ESC to close
   useEffect(() => {
@@ -80,8 +97,25 @@ export function StockRequestModal({ query, onClose }: Props) {
                 <span className="font-bold">{query}</span>
               </p>
               <p className="text-[14px] text-[#6b7280] leading-relaxed">
-                We queued this request. We’ll email you as soon as this stock is available in stocksbrew.
+                We queued this request. Add an email if you want a note when the research is ready.
               </p>
+              {!emailSaved && (
+                <form onSubmit={(event) => { event.preventDefault(); void saveEmail(); }} className="mt-3 flex gap-2">
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    aria-label="Email for stock request updates"
+                    className="min-w-0 flex-1 rounded-full border border-[#d1d5db] px-4 text-[13px] outline-none focus:border-[#111111]"
+                  />
+                  <button type="submit" disabled={emailSaving} className="rounded-full bg-[#111111] px-4 text-[13px] font-semibold text-white disabled:opacity-50">
+                    {emailSaving ? "Saving" : "Email me"}
+                  </button>
+                </form>
+              )}
+              {emailSaved && <p className="text-[12px] font-medium text-[#047857]">We’ll email you when it’s ready.</p>}
             </>
           )}
           {status === "error" && (
