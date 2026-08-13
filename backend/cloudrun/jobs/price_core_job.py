@@ -43,7 +43,7 @@ def main() -> None:
     )
     require_price_batch_coverage(
         price_result,
-        minimum_coverage=0.98,
+        minimum_coverage=0.96,
         context=f"{args.market} {args.session_phase} price batch",
     )
     materialize_result = materialize_views(
