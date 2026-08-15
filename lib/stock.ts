@@ -69,6 +69,13 @@ export type StockIntelligenceDoc = {
   generated_at?: string;
 };
 
+export type StockBusinessQuestionsDoc = {
+  instrument_id: string;
+  ticker: string;
+  generated_at?: string;
+  questions?: Array<{ question: string; answer: string }>;
+};
+
 export type StockFundamentals = {
   week_52_high?: number;
   week_52_low?: number;
@@ -578,6 +585,21 @@ export async function getStockIntelligenceDoc(
     .get();
   if (!doc.exists) return null;
   return doc.data() as StockIntelligenceDoc;
+}
+
+export async function getStockBusinessQuestions(
+  instrumentId: string,
+  market: "US" | "IN" = "US",
+): Promise<StockBusinessQuestionsDoc | null> {
+  const universe = await getAiUniverse(market);
+  const doc = await adminFirestore
+    .collection("tm_news_runs")
+    .doc(`${market}__${universe}`)
+    .collection("business_questions")
+    .doc(instrumentId)
+    .get();
+  if (!doc.exists) return null;
+  return doc.data() as StockBusinessQuestionsDoc;
 }
 
 export async function getStockIntelPro(

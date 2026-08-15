@@ -50,6 +50,7 @@ import type { NewsArticle } from "@/lib/news";
 import type { LivePremarketQuote } from "@/lib/premarket-shared";
 import type { StockIntelPro } from "@/lib/types";
 import type { StockTechnicalLevels } from "@/lib/technicals";
+import type { StockBusinessQuestionsDoc } from "@/lib/stock";
 
 type RedditCtx = { sentiment?: string; summary?: string; mention_count?: number; catalysts?: string[] } | null;
 
@@ -135,6 +136,7 @@ type Props = {
   premarketQuote?: LivePremarketQuote | null;
   updatedLabel?: string;
   researchPulse?: { text?: string; generatedAt?: string; status?: string | null } | null;
+  businessQuestions?: StockBusinessQuestionsDoc | null;
   lockedCall: ReactNode;
 };
 
@@ -343,7 +345,7 @@ function LongTailResearchCard({
 }
 
 export function StockDetail(props: Props) {
-  const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, technicalLevels, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, researchPulse, lockedCall } = props;
+  const { stock, market, currency, directive, setupState, visual, overview, overviewHeadline, overviewConfidence, facts, intelPro, analyst, fundamentals, rsi, rsiState, technicalLevels, priceHistory, sma50, sma200, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, timeline, peers, betterPeers, sectorPeers, sectorLabel, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, researchPulse, businessQuestions, lockedCall } = props;
 
   const money = (v: number) => `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const levelMoney = (v: number) => `${currency}${Math.round(v).toLocaleString()}`;
@@ -863,6 +865,28 @@ export function StockDetail(props: Props) {
 
         </section>
       )}
+
+      {businessQuestions?.questions?.length ? (
+        <section className={`${STOCK_SECTION} py-7 sm:py-9`}>
+          <h2 className="mb-5 text-balance text-[22px] font-semibold tracking-tight text-on-surface">Understand {stock.ticker}</h2>
+          <div>
+            {businessQuestions.questions.map(({ question, answer }, index) => (
+              <details name={`${stock.instrument_id}-business-questions`} key={question} open={index === 0} className="group border-t border-outline-variant">
+                <summary className="cursor-pointer list-none py-4 marker:content-none">
+                  <span className="flex items-center justify-between gap-4 text-[16px] font-medium text-on-surface">
+                    <span className="flex items-baseline gap-3">
+                      <span className="tabular-nums text-on-surface-variant">{index + 1}.</span>
+                      {question}
+                    </span>
+                    <span aria-hidden className="text-xl leading-none text-on-surface-variant group-open:rotate-45">+</span>
+                  </span>
+                  <span className="hidden max-w-3xl pt-5 text-pretty text-[15px] font-normal leading-relaxed text-on-surface-variant group-open:block">{answer}</span>
+                </summary>
+              </details>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* EVIDENCE */}
       {hasEvidenceSection && (

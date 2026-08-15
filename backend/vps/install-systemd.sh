@@ -124,6 +124,7 @@ write_service market-daily market_daily "" "" "10min"
 # mover snapshot and its evidence-backed reasons have been written. It must
 # not wait for optional heat/divergence/sentiment read models.
 write_pair weekly-email "Sat *-*-* 04:30:00" weekly_email
+write_pair business-questions "Sat *-*-* 02:00:00" business_questions "--max-workers 4"
 write_pair contrarian-calls-open "Mon..Fri *-*-* 14:00:00" contrarian_calls
 write_pair contrarian-calls-close "Mon..Fri *-*-* 20:30:00" contrarian_calls
 write_pair radar-official-open "Mon..Fri *-*-* 12:35:00" radar_official_sources "--recent-days 3 --include-ir" "" "5min"

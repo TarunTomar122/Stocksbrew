@@ -1411,6 +1411,52 @@ class TraceMoneyStore:
                     rows[doc.id] = _serialize(doc.to_dict()) or {}
         return rows
 
+    def save_business_questions_docs(
+        self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]
+    ) -> int:
+        collection = self._news_namespace(market, universe_id).collection("business_questions")
+        saved = 0
+        for start in range(0, len(docs_payload), 400):
+            batch = self.db.batch()
+            for payload in docs_payload[start : start + 400]:
+                instrument_id = str(payload.get("instrument_id") or "").strip().upper()
+                if not instrument_id:
+                    continue
+                batch.set(collection.document(instrument_id), payload, merge=False)
+                saved += 1
+            batch.commit()
+        self._news_namespace(market, universe_id).set({
+            "last_business_questions_at": datetime.now(timezone.utc).isoformat(),
+            "business_questions_count": saved,
+        }, merge=True)
+        return saved
+
+    def get_business_questions_doc(
+        self, market: str, universe_id: str, instrument_id: str
+    ) -> dict[str, Any] | None:
+        doc = (
+            self._news_namespace(market, universe_id)
+            .collection("business_questions")
+            .document(str(instrument_id).strip().upper())
+            .get()
+        )
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def get_business_questions_docs_batch(
+        self, market: str, universe_id: str, instrument_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        collection = self._news_namespace(market, universe_id).collection("business_questions")
+        rows: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(instrument_ids), 500):
+            refs = [
+                collection.document(str(instrument_id).strip().upper())
+                for instrument_id in instrument_ids[start : start + 500]
+            ]
+            for doc in self.db.get_all(refs):
+                if doc.exists:
+                    rows[doc.id] = _serialize(doc.to_dict()) or {}
+        return rows
+
     def get_daily_anomaly_ticker_docs_batch(self, market: str, tickers: list[str]) -> dict[str, dict[str, Any]]:
         collection = self.db.collection("tm_daily_anomaly_tickers")
         market_key = str(market or "").strip().upper()

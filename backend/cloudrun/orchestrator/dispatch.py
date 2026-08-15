@@ -439,6 +439,7 @@ def main() -> None:
             "premarket_pipeline",
             "open_email",
             "weekly_email",
+            "business_questions",
             "newsletter_email",
             "newsletter_pipeline",
             "contrarian_calls",
@@ -549,6 +550,7 @@ def main() -> None:
         "premarket_pipeline": os.getenv("PREMARKET_PIPELINE_JOB_NAME", "tikrr-premarket-pipeline"),
         "open_email": os.getenv("OPEN_EMAIL_JOB_NAME", "tikrr-open-email"),
         "weekly_email": os.getenv("WEEKLY_EMAIL_JOB_NAME", "tikrr-weekly-email"),
+        "business_questions": os.getenv("BUSINESS_QUESTIONS_JOB_NAME", "tikrr-business-questions"),
         "newsletter_email": os.getenv("NEWSLETTER_EMAIL_JOB_NAME", "tikrr-newsletter-email"),
         "newsletter_pipeline": os.getenv("NEWSLETTER_PIPELINE_JOB_NAME", "tikrr-newsletter-pipeline"),
         "contrarian_calls": os.getenv("CONTRARIAN_CALLS_JOB_NAME", "tikrr-contrarian-calls"),
@@ -786,6 +788,8 @@ def main() -> None:
                 "--max-workers",
                 str(max(1, args.max_workers)),
             ]
+        elif args.lane == "business_questions":
+            single_extra_args = ["--max-workers", str(max(1, args.max_workers))]
         elif args.lane == "premarket_pipeline":
             single_extra_args = ["--limit", str(max(0, args.limit))]
         elif args.lane == "newsletter_pipeline":
@@ -848,6 +852,7 @@ def main() -> None:
         "premarket_pipeline",
         "open_email",
         "weekly_email",
+        "business_questions",
         "newsletter_email",
         "newsletter_pipeline",
         "contrarian_calls",

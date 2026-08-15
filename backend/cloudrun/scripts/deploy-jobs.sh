@@ -84,6 +84,7 @@ PREMARKET_INTEL_JOB_NAME="${PREMARKET_INTEL_JOB_NAME:-tikrr-premarket-intel}"
 PREMARKET_EMAIL_JOB_NAME="${PREMARKET_EMAIL_JOB_NAME:-tikrr-premarket-email}"
 OPEN_EMAIL_JOB_NAME="${OPEN_EMAIL_JOB_NAME:-tikrr-open-email}"
 WEEKLY_EMAIL_JOB_NAME="${WEEKLY_EMAIL_JOB_NAME:-tikrr-weekly-email}"
+BUSINESS_QUESTIONS_JOB_NAME="${BUSINESS_QUESTIONS_JOB_NAME:-tikrr-business-questions}"
 NEWSLETTER_EMAIL_JOB_NAME="${NEWSLETTER_EMAIL_JOB_NAME:-tikrr-newsletter-email}"
 NEWSLETTER_PIPELINE_JOB_NAME="${NEWSLETTER_PIPELINE_JOB_NAME:-tikrr-newsletter-pipeline}"
 CONTRARIAN_CALLS_JOB_NAME="${CONTRARIAN_CALLS_JOB_NAME:-tikrr-contrarian-calls}"
@@ -264,6 +265,7 @@ JOB_REGISTRY[premarket-intel]="${PREMARKET_INTEL_JOB_NAME} 3Gi 2 3600s"
 JOB_REGISTRY[premarket-email]="${PREMARKET_EMAIL_JOB_NAME} 512Mi 1 600s"
 JOB_REGISTRY[open-email]="${OPEN_EMAIL_JOB_NAME} 512Mi 1 600s"
 JOB_REGISTRY[weekly-email]="${WEEKLY_EMAIL_JOB_NAME} 1Gi 1 1800s"
+JOB_REGISTRY[business-questions]="${BUSINESS_QUESTIONS_JOB_NAME} 2Gi 1 3600s"
 JOB_REGISTRY[newsletter-email]="${NEWSLETTER_EMAIL_JOB_NAME} 512Mi 1 900s"
 JOB_REGISTRY[newsletter-pipeline]="${NEWSLETTER_PIPELINE_JOB_NAME} 512Mi 1 900s"
 JOB_REGISTRY[contrarian-calls]="${CONTRARIAN_CALLS_JOB_NAME} 1Gi 1 900s"
@@ -339,6 +341,9 @@ run_deploy() {
       ;;
     weekly-email)
       job_args="-m,backend.cloudrun.jobs.weekly_email_job,--run-id,manual,--lane,weekly_email,--market,US"
+      ;;
+    business-questions)
+      job_args="-m,backend.cloudrun.jobs.business_questions_job,--run-id,manual,--lane,business_questions,--market,US,--max-workers,4"
       ;;
   esac
   deploy_job "${job_name}" "${memory}" "${cpu}" "${timeout}" "${job_args}"

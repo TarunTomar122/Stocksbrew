@@ -39,6 +39,7 @@ import {
   enrichRelatedTickersForComparison,
   type SectorPeerRow,
   getStockIntelligenceDoc,
+  getStockBusinessQuestions,
   getStockPriceHistory,
   getStockSummary,
   normalizeStockSymbolParam,
@@ -217,6 +218,7 @@ export async function StockPageStream({ params }: Props) {
 
   const [
     intelligence,
+    businessQuestions,
     instrumentView,
     technicals,
     intelPro,
@@ -235,6 +237,9 @@ export async function StockPageStream({ params }: Props) {
     premarketDoc,
   ] = await Promise.all([
     getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null),
+    shouldLoadAI
+      ? getStockBusinessQuestions(stock.instrument_id, market).catch(() => null)
+      : Promise.resolve(null),
     shouldLoadAI
       ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
@@ -588,6 +593,7 @@ export async function StockPageStream({ params }: Props) {
         directive={hasFullAnalysisAccess ? normalizedDirective : null}
         setupState={hasFullAnalysisAccess ? intelligence?.setup_state : null}
         visual={hasFullAnalysisAccess ? intelligence?.visual_summary : null}
+        businessQuestions={businessQuestions}
         overview={displayAnomaly ? (anomalyDetail(displayAnomaly) ?? undefined) : undefined}
         overviewHeadline={displayAnomaly ? anomalyHeadline(displayAnomaly) : undefined}
         preEarnings={activePreEarningsIntel ?? undefined}
