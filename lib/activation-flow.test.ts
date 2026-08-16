@@ -64,4 +64,14 @@ describe("first Watchlist activation flow", () => {
     expect(bulkTrack).toContain("const isLoading = loading && !initialAuthed");
     expect(bulkTrack).not.toContain("const isLoading = !initialAuthed");
   });
+
+  it("starts new users with one real stock task and records the chosen path", () => {
+    const onboarding = source("components/post-signup-onboarding.tsx");
+    expect(onboarding).toContain('id: "research"');
+    expect(onboarding).toContain('id: "watchlist"');
+    expect(onboarding).toContain('id: "holdings"');
+    expect(onboarding).toContain('captureEvent("onboarding_path_selected"');
+    expect(onboarding).toContain('captureEvent("onboarding_stock_researched"');
+    expect(onboarding).toContain('captureEvent("onboarding_stock_added"');
+  });
 });

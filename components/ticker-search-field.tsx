@@ -17,6 +17,9 @@ type Props = {
   trackedIds?: string[];
   isSubscribed?: boolean;
   analyticsSource: string;
+  /** Lets a contextual surface use the search results without navigating away. */
+  onStockSelected?: (entry: SearchEntry) => void;
+  onTickerSubmitted?: (ticker: string) => void;
 };
 
 export function TickerSearchField({
@@ -25,6 +28,8 @@ export function TickerSearchField({
   trackedIds = [],
   isSubscribed = false,
   analyticsSource,
+  onStockSelected,
+  onTickerSubmitted,
 }: Props) {
   const router = useRouter();
   const [searchIndex, setSearchIndex] = useState<SearchEntry[]>([]);
@@ -106,6 +111,10 @@ export function TickerSearchField({
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();
+    if (onStockSelected) {
+      onStockSelected(entry);
+      return;
+    }
     router.push(`/stock/${encodeURIComponent(entry.ticker)}`);
   }
 
@@ -127,6 +136,10 @@ export function TickerSearchField({
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();
+    if (onTickerSubmitted) {
+      onTickerSubmitted(ticker);
+      return;
+    }
     router.push(`/stock/${encodeURIComponent(ticker)}`);
   }
 
