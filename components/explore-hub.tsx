@@ -9,6 +9,7 @@ import type { HeatRow } from "@/lib/heat";
 import type { Near52WeekRow } from "@/lib/near-52-week";
 import { captureEvent } from "@/lib/posthog";
 import type { RedditTicker } from "@/lib/reddit-cues";
+import { formatTrumpLogicDate } from "@/lib/trump-logic-format";
 
 function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,11 +33,22 @@ type ScreenerRow = {
   price?: number;
   changePct?: number;
   pills: Pill[];
+  detail?: string;
 };
 
 export type RedditRow = RedditTicker & { price?: number; changePct?: number };
+export type TrumpMentionRow = {
+  ticker: string;
+  name: string;
+  price?: number;
+  changePct?: number;
+  sentiment: string;
+  latestSaid: string;
+  latestPublishedAt: string;
+  mentionCount: number;
+};
 
-type ScreenerCategoryKey = "hot" | "near_high" | "near_low" | "momentum" | "news_spike" | "catalyst" | "dip";
+type ScreenerCategoryKey = "hot" | "near_high" | "near_low" | "momentum" | "news_spike" | "catalyst" | "dip" | "trump";
 
 // Mirrors heat-list.tsx's extractCatalystHint: pulls the specific "why" out of
 // the reason sentence instead of showing the generic "Upcoming catalyst" driver label.
@@ -102,6 +114,30 @@ function rowsFromHeat(rows: HeatRow[], kind: "hot" | "momentum" | "news_spike" |
   });
 }
 
+function rowsFromTrump(rows: TrumpMentionRow[]): ScreenerRow[] {
+  return rows.map((row) => {
+    const sentiment = row.sentiment.toLowerCase();
+    const sentimentColor = sentiment === "bullish"
+      ? "var(--signal-bullish)"
+      : sentiment === "bearish"
+        ? "var(--signal-bearish)"
+        : "var(--on-surface-variant)";
+    const date = formatTrumpLogicDate(row.latestPublishedAt);
+    return {
+      key: `trump-${row.ticker}`,
+      ticker: row.ticker,
+      name: row.name,
+      price: row.price,
+      changePct: row.changePct,
+      detail: row.latestSaid,
+      pills: [
+        { text: sentiment ? sentiment[0].toUpperCase() + sentiment.slice(1) : "Neutral", color: sentimentColor },
+        { text: `${date} · ${row.mentionCount} mention${row.mentionCount === 1 ? "" : "s"}`, color: "var(--on-surface-variant)" },
+      ],
+    };
+  });
+}
+
 function StockScreener({
   hotStocks,
   nearHighs,
@@ -110,6 +146,7 @@ function StockScreener({
   newsSpikes,
   catalystStocks,
   dipStocks,
+  trumpMentions,
 }: {
   hotStocks: HeatRow[];
   nearHighs: Near52WeekRow[];
@@ -118,6 +155,7 @@ function StockScreener({
   newsSpikes: HeatRow[];
   catalystStocks: HeatRow[];
   dipStocks: HeatRow[];
+  trumpMentions: TrumpMentionRow[];
 }) {
   const allCategories: { key: ScreenerCategoryKey; label: string; rows: ScreenerRow[] }[] = [
     { key: "hot", label: "Hot stocks", rows: rowsFromHeat(hotStocks, "hot") },
@@ -127,6 +165,7 @@ function StockScreener({
     { key: "news_spike", label: "Elevated news mentions", rows: rowsFromHeat(newsSpikes, "news_spike") },
     { key: "catalyst", label: "Catalysts", rows: rowsFromHeat(catalystStocks, "catalyst") },
     { key: "dip", label: "Oversold (dip)", rows: rowsFromHeat(dipStocks, "dip") },
+    { key: "trump", label: "Trump mentions", rows: rowsFromTrump(trumpMentions) },
   ];
   const categories = allCategories.filter((c) => c.rows.length > 0);
 
@@ -142,7 +181,7 @@ function StockScreener({
   return (
     <section>
       <h2 className="text-[22px] font-semibold tracking-tight text-on-surface">Stock screener</h2>
-      <div className="mt-4 overflow-hidden rounded-xl border border-outline-variant bg-surface md:grid md:grid-cols-[16rem_1fr]">
+      <div className="mt-4 overflow-hidden rounded-xl border border-outline-variant bg-surface md:grid md:grid-cols-[16rem_1fr] md:items-start">
         {/* Mobile: horizontal scrollable pill tabs. Desktop: left sidebar list. */}
         <div className="flex gap-2 overflow-x-auto border-b border-outline-variant px-4 py-3 md:hidden" style={{ scrollbarWidth: "none" }}>
           {categories.map((c) => {
@@ -168,7 +207,7 @@ function StockScreener({
             );
           })}
         </div>
-        <div className="hidden min-w-0 md:block md:max-h-[32rem] md:overflow-y-auto md:border-r md:border-outline-variant">
+        <div className="hidden min-w-0 md:block md:max-h-[40rem] md:overflow-y-auto md:border-r md:border-outline-variant">
           {categories.map((c) => {
             const isActive = c.key === category.key;
             return (
@@ -190,7 +229,7 @@ function StockScreener({
           })}
         </div>
 
-        <div className="max-h-[26rem] min-w-0 overflow-y-auto bg-surface md:max-h-[32rem]">
+        <div key={category.key} className="max-h-[34rem] min-w-0 overflow-y-auto bg-surface md:max-h-[40rem]">
           {category.rows.map((row) => (
             <Link
               key={row.key}
@@ -213,6 +252,7 @@ function StockScreener({
                     {pill.text}
                   </span>
                 ))}
+                {row.detail ? <p className="w-full text-[12.5px] leading-relaxed text-on-surface-variant">{row.detail}</p> : null}
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 {typeof row.price === "number" ? (
@@ -297,6 +337,7 @@ export function ExploreHub({
   catalystStocks,
   dipStocks,
   redditTickers,
+  trumpMentions,
 }: {
   trending: TrendingStock[];
   hotStocks: HeatRow[];
@@ -307,6 +348,7 @@ export function ExploreHub({
   catalystStocks: HeatRow[];
   dipStocks: HeatRow[];
   redditTickers: RedditRow[];
+  trumpMentions: TrumpMentionRow[];
 }) {
   useEffect(() => {
     captureEvent("explore_viewed", {
@@ -318,6 +360,7 @@ export function ExploreHub({
       catalyst_count: catalystStocks.length,
       dip_count: dipStocks.length,
       reddit_count: redditTickers.length,
+      trump_count: trumpMentions.length,
     });
     // Fires once per mount to mark the page view; category/row counts are a snapshot, not reactive state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,6 +378,7 @@ export function ExploreHub({
         newsSpikes={newsSpikes}
         catalystStocks={catalystStocks}
         dipStocks={dipStocks}
+        trumpMentions={trumpMentions}
       />
     </div>
   );

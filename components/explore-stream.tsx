@@ -5,17 +5,20 @@ import { getHeatList } from "@/lib/heat";
 import { getCurrentMarket } from "@/lib/market";
 import { getNear52WeekLists } from "@/lib/near-52-week";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
+import { getTrumpLogic } from "@/lib/trump-logic";
+import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
 
 // ponytail: hardcoded "most traded" list for now, swap for a real ranking source later
 const TRENDING_TICKERS = ["NVDA", "TSM", "MSFT", "GOOGL", "AAPL", "PLTR", "MU", "AMZN", "TSLA", "AMD", "COIN"];
 
 export async function ExploreStream() {
   const market = getCurrentMarket();
-  const [snapshotRows, heatList, redditData, near52] = await Promise.all([
+  const [snapshotRows, heatList, redditData, near52, trumpLogic] = await Promise.all([
     getMarketSnapshot(market).catch(() => []),
     getHeatList(market).catch(() => null),
     getRedditCues(market).catch(() => null),
     getNear52WeekLists(market, 20).catch(() => ({ nearHighs: [], nearLows: [] })),
+    getTrumpLogic(market).catch(() => null),
   ]);
 
   const bySymbol = new Map(snapshotRows.map((row) => [row.symbol.toUpperCase(), row]));
@@ -47,6 +50,23 @@ export async function ExploreStream() {
       const snap = bySymbol.get(row.ticker.toUpperCase());
       return { ...row, price: snap?.price.current, changePct: snap?.price.changePct };
     });
+  const now = Date.now();
+  const trumpMentions = (trumpLogic?.tickers ?? [])
+    .filter((row) => isTrumpMentionRecent(row.latest_published_at, now))
+    .sort((a, b) => String(b.latest_published_at).localeCompare(String(a.latest_published_at)))
+    .map((row) => {
+      const snap = bySymbol.get(row.ticker.toUpperCase());
+      return {
+        ticker: row.ticker,
+        name: snap?.name ?? row.ticker,
+        price: snap?.price.current,
+        changePct: snap?.price.changePct,
+        sentiment: row.latest_sentiment,
+        latestSaid: row.latest_said,
+        latestPublishedAt: row.latest_published_at,
+        mentionCount: row.mention_count,
+      };
+    });
 
   return (
     <div className="landing-stream-in">
@@ -60,6 +80,7 @@ export async function ExploreStream() {
         catalystStocks={catalystStocks}
         dipStocks={dipStocks}
         redditTickers={redditTickers}
+        trumpMentions={trumpMentions}
       />
     </div>
   );

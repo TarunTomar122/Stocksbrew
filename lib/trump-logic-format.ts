@@ -104,6 +104,17 @@ export function formatTrumpLogicDate(iso: string, ref = new Date()): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+export function isTrumpMentionRecent(
+  iso: string,
+  now = Date.now(),
+  windowDays = 60,
+): boolean {
+  const publishedAt = Date.parse(iso);
+  if (!Number.isFinite(publishedAt)) return false;
+  const age = now - publishedAt;
+  return age >= 0 && age <= windowDays * 86_400_000;
+}
+
 export type TrumpLogicSortKey = "mentions" | "bullish" | "bearish" | "move" | "latest";
 
 export const TRUMP_LOGIC_SORT_OPTIONS: { key: TrumpLogicSortKey; label: string }[] = [

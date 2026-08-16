@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   flattenTrumpLogicMentions,
   formatTrumpLogicDate,
+  isTrumpMentionRecent,
   mergeTrumpLogicTableRows,
   splitTrumpLogicTableRows,
 } from "@/lib/trump-logic-format";
@@ -47,6 +48,13 @@ const mentions: TrumpLogicMention[] = [
 ];
 
 describe("trump-logic-format", () => {
+  it("only treats mentions from the last two months as recent", () => {
+    const now = Date.parse("2026-08-16T12:00:00.000Z");
+    expect(isTrumpMentionRecent("2026-06-17T12:00:00.000Z", now)).toBe(true);
+    expect(isTrumpMentionRecent("2026-06-16T11:59:59.000Z", now)).toBe(false);
+    expect(isTrumpMentionRecent("2026-08-16T13:00:00.000Z", now)).toBe(false);
+  });
+
   it("flattens mentions by ticker and sorts newest first", () => {
     const rows = flattenTrumpLogicMentions(mentions);
     expect(rows.map((row) => row.ticker)).toEqual(["CVX", "XOM", "BA"]);
