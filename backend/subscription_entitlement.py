@@ -1,6 +1,7 @@
 """Shared Pro entitlement rules for backend work."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Mapping
 
 
@@ -18,6 +19,16 @@ def has_current_pro_entitlement(user: Mapping[str, Any]) -> bool:
     terminal webhook removes the entitlement. Gifted users have no provider
     subscription ID, so ``is_subscribed`` plus a non-terminal status is enough.
     """
+    if bool(user.get("proGifted")):
+        raw_expiry = str(user.get("proGiftExpiresAt") or "").strip()
+        try:
+            expiry = datetime.fromisoformat(raw_expiry.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry > datetime.now(timezone.utc)
+
     if not bool(user.get("is_subscribed")):
         return False
 

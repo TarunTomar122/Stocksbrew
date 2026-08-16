@@ -47,6 +47,8 @@ export type UserDoc = {
   subscriptionId?: string | null;
   subscriptionStatus?: string | null;
   subscriptionPlan?: string | null;
+  proGifted?: boolean;
+  proGiftExpiresAt?: string | null;
   cancelAtPeriodEnd?: boolean;
   /** Set on first subscription activation; blocks repeat free trials at checkout. */
   hasUsedTrial?: boolean;
@@ -81,6 +83,10 @@ const DEV_UNLOCK_PRO =
 export function resolveIsSubscribed(doc: UserDoc | null | undefined): boolean {
   if (DEV_UNLOCK_PRO && doc) return true;
   if (!doc) return false;
+  if (doc.proGifted) {
+    const expiresAt = Date.parse(String(doc.proGiftExpiresAt || ""));
+    return Number.isFinite(expiresAt) && expiresAt > Date.now();
+  }
   const status = String(doc.subscriptionStatus || "").trim().toLowerCase();
   if (
     status === "payment_failed" ||

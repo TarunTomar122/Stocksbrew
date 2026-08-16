@@ -60,6 +60,18 @@ class SubscriptionEntitlementTest(unittest.TestCase):
             )
         )
 
+    def test_active_gift_is_eligible_until_expiry(self) -> None:
+        self.assertTrue(
+            has_current_pro_entitlement(
+                {"proGifted": True, "proGiftExpiresAt": "2099-01-01T00:00:00+00:00"}
+            )
+        )
+        self.assertFalse(
+            has_current_pro_entitlement(
+                {"proGifted": True, "proGiftExpiresAt": "2020-01-01T00:00:00+00:00"}
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

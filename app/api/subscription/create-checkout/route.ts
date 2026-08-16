@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
-import { getUserDoc } from "@/lib/watchlist";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { isDodoConfigured, DODO_BASE, dodoHeaders, productIdFor } from "@/lib/dodo";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { captureServerEvent } from "@/lib/posthog-server-capture";
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   // 4. Don't create a new checkout if already subscribed
   const userDoc = await getUserDoc(uid);
-  if (userDoc?.is_subscribed) {
+  if (resolveIsSubscribed(userDoc)) {
     return NextResponse.json({ error: "Already subscribed" }, { status: 409 });
   }
 
