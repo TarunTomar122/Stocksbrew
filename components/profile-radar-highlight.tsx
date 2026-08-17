@@ -48,8 +48,8 @@ export function ProfileRadarHighlight({ trackedCount }: ProfileRadarHighlightPro
             )}
             <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
               {hasStocks
-                ? "Alerts, digest summaries, and call refreshes follow this roster."
-                : "Add a few symbols to turn on AI calls, alerts, and your morning summary."}
+                ? "Alerts, market briefs, and call refreshes follow this roster."
+                : "Add a few symbols to turn on AI calls, alerts, and market briefs."}
             </p>
           </div>
         </div>

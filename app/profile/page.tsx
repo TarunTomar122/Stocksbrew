@@ -133,7 +133,7 @@ export default async function ProfilePage() {
               {
                 label: "Inbox",
                 value: alertsOn || digestOn ? "On" : "Off",
-                sub: alertsOn && digestOn ? "alerts + digest" : alertsOn ? "alerts" : digestOn ? "digest" : "paused",
+                sub: alertsOn && digestOn ? "alerts + briefs" : alertsOn ? "alerts" : digestOn ? "briefs" : "paused",
               },
             ].map((stat, i) => (
               <div
@@ -193,8 +193,8 @@ export default async function ProfilePage() {
                 <PreferenceToggle
                   field="email_digest_enabled"
                   icon="mail"
-                  label="Email digest"
-                  description="Watchlist summary and call updates delivered to your inbox"
+                  label="Market briefs"
+                  description="Short updates before the open, after the close, and each week"
                   initialValue={userDoc?.email_digest_enabled ?? true}
                 />
               </PreferenceRow>

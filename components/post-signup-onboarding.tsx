@@ -20,6 +20,12 @@ const PATHS: Array<{ id: OnboardingPath; title: string; detail: string }> = [
   { id: "holdings", title: "Follow stocks I own", detail: "See what needs attention in your portfolio." },
 ];
 
+const EMAIL_RHYTHM = [
+  { title: "Before the open", body: "Overnight moves and what to watch." },
+  { title: "After the close", body: "What changed today." },
+  { title: "Every week", body: "The bigger Watchlist picture." },
+] as const;
+
 export function PostSignupOnboarding() {
   const { user, initialAuthed } = useUser();
   const router = useRouter();
@@ -132,6 +138,20 @@ export function PostSignupOnboarding() {
                   <span aria-hidden className="text-xl text-on-surface-variant">→</span>
                 </button>
               ))}
+            </div>
+            <div className="mt-7 border-t border-outline-variant pt-6">
+              <p className="text-[15px] font-semibold text-on-surface">Keep up without another tab</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">
+                StocksBrew can send the important changes to your inbox.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {EMAIL_RHYTHM.map((item) => (
+                  <div key={item.title}>
+                    <p className="text-[13px] font-semibold text-on-surface">{item.title}</p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">{item.body}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         ) : (

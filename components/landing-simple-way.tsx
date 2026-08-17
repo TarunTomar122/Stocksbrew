@@ -18,6 +18,12 @@ const STEPS = [
   },
 ] as const;
 
+const EMAIL_RHYTHM = [
+  { title: "Before the open", body: "Overnight moves and what deserves a look today." },
+  { title: "After the close", body: "What changed, and which stocks need your attention." },
+  { title: "Every week", body: "The bigger shifts across your Watchlist." },
+] as const;
+
 export function LandingSimpleWay() {
   return (
     <section className="border-b border-outline-variant bg-background">
@@ -44,6 +50,29 @@ export function LandingSimpleWay() {
               <p className="text-[14px] leading-relaxed text-on-surface-variant">{step.body}</p>
             </article>
           ))}
+        </div>
+
+        <div className="mt-12 border-t border-outline-variant pt-10">
+          <div className="max-w-2xl">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-landing-brand">
+              Market briefs
+            </p>
+            <h3 className="mt-2 text-[22px] font-semibold tracking-tight text-on-surface sm:text-[26px]">
+              Let StocksBrew keep you posted.
+            </h3>
+            <p className="mt-3 text-[15px] leading-relaxed text-on-surface-variant">
+              We send short, useful emails around the market, so you do not have to keep checking.
+            </p>
+          </div>
+
+          <div className="mt-7 grid border-y border-outline-variant sm:grid-cols-3 sm:divide-x sm:divide-outline-variant">
+            {EMAIL_RHYTHM.map((item) => (
+              <div key={item.title} className="py-4 sm:px-5 sm:py-5">
+                <p className="text-[15px] font-semibold text-on-surface">{item.title}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">{item.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
