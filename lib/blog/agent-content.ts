@@ -20,7 +20,7 @@ export const agentBlogContent: Record<string, string> = {
   <li>A comparison tool for evaluating a short list of candidates.</li>
 </ul>
 
-<p>Those three tools cover the core job while avoiding a bulk data-export surface. Optional market and account-scoped endpoints are documented separately in the developer reference.</p>
+<p>Those three tools cover the core stock lookup job. The same connection also exposes the full stock-page detail, Explore sections, Market Daily history, curated screens, and account-scoped Watchlist and alert tools in the developer reference.</p>
 
 <h2 id="connection-flow">The connection flow in plain English</h2>
 
@@ -182,9 +182,9 @@ export const agentBlogContent: Record<string, string> = {
 
 <h2 id="connection">How to give the prompts current context</h2>
 
-<p>A prompt alone does not make an answer current. The agent needs a data connection. Stocksbrew Pro members can add the hosted MCP URL to a compatible client or create a personal token for the REST API. The core stock tools cover search, one-stock intelligence, and comparisons.</p>
+<p>A prompt alone does not make an answer current. The agent needs a data connection. Stocksbrew Pro members can add the hosted MCP URL to a compatible client or create a personal token for the REST API. The stock connection covers search, concise intelligence, full stock-page detail, comparisons, Explore sections, Market Daily history, and curated screens.</p>
 
-<p>Every successful response includes a schema version, as-of time, freshness information, an informational-use notice, and current usage. The agent cannot trade or change your account through these tools.</p>
+<p>Every successful response includes a schema version, as-of time, freshness information, an informational-use notice, and current usage. The agent cannot trade or access a brokerage; Watchlist and alert changes require their explicit write scopes.</p>
 
 <div class="cta-section">
   <h3>Use these prompts with current Stocksbrew data</h3>

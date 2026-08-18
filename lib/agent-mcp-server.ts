@@ -53,7 +53,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     name: AGENT_MCP_SERVER_NAME,
     version: AGENT_MCP_SERVER_VERSION,
     title: "Stocksbrew for Agents",
-    description: "Stock research, Watchlist tracking and alert tools for Stocksbrew Pro members.",
+    description: "Full stock detail, Explore, Market Daily history, curated screens, Watchlist tracking and alert tools for Stocksbrew Pro members.",
   });
 
   const readOnly = {
@@ -90,6 +90,16 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     annotations: readOnly,
   }, toolHandler(principal, "get_stock_intelligence"));
 
+  server.registerTool("get_stock_detail", {
+    title: "Get full stock detail",
+    description: "Get the complete materialized stock-page data for one stock: facts, financial history, valuation, balance sheet, dividends, business mix, institutions, price history, technicals, the five business questions, earnings, recent news, Reddit context and anomalies. Missing fields remain null or empty; say not enough current evidence instead of inferring them.",
+    inputSchema: {
+      ticker: z.string().min(1).max(20).describe("Ticker symbol or stocksbrew instrument ID"),
+      market: z.enum(["US", "IN"]).default("US"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_stock_detail"));
+
   server.registerTool("compare_stocks", {
     title: "Compare stocks",
     description: "Compare 2 to 5 stocks across valuation, growth, quality, momentum, targets, returns, and technical context.",
@@ -107,6 +117,34 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     },
     annotations: readOnly,
   }, toolHandler(principal, "get_market_brief"));
+
+  server.registerTool("get_market_history", {
+    title: "Get Market Daily history",
+    description: "Get the last seven published US Stocksbrew Market Daily editions, including each edition's article, tape, premarket view, anomalies and sources. Use days to request up to 30 editions. If fewer editions exist, the response marks that as not enough current evidence.",
+    inputSchema: {
+      market: z.enum(["US", "IN"]).default("US"),
+      days: z.number().int().min(1).max(30).default(7).describe("Number of published editions to return"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_market_history"));
+
+  server.registerTool("get_explore", {
+    title: "Get Explore data",
+    description: "Get the current Explore page sections: trending names, hot and momentum setups, news spikes, catalyst and dip setups, 52-week highs and lows, Reddit buzz and recent Trump mentions.",
+    inputSchema: {
+      market: z.enum(["US", "IN"]).default("US"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_explore"));
+
+  server.registerTool("get_screens", {
+    title: "Get stock screens",
+    description: "Get Stocksbrew's curated thematic screen catalog, coverage metadata and every current match with the fields used by the Screens page.",
+    inputSchema: {
+      market: z.enum(["US", "IN"]).default("US"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_screens"));
 
   server.registerTool("get_my_radar", {
     title: "Get my Watchlist",

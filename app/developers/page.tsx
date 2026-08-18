@@ -6,7 +6,7 @@ import { AGENT_MONTHLY_CALL_LIMIT, AGENT_PER_MINUTE_CALL_LIMIT, publicAppUrl } f
 
 export const metadata: Metadata = {
   title: "Stocksbrew MCP Server and Stock API for AI Agents",
-  description: "Connect Claude Code, Hermes, OpenClaw or your own agent to stock research, Watchlist changes and alerts through MCP or REST.",
+  description: "Connect Claude Code, Hermes, OpenClaw or your own agent to Stocksbrew stock detail, Explore, Market Daily history, screens, Watchlist changes and alerts through MCP or REST.",
   keywords: ["stock market MCP server", "Hermes stock market data", "OpenClaw stock alerts", "AI agent stock API", "MCP finance"],
   alternates: { canonical: "/developers" },
 };
@@ -14,8 +14,12 @@ export const metadata: Metadata = {
 const TOOLS = [
   ["search_stocks", "stocks:read", "Find a ticker or company."],
   ["get_stock_intelligence", "stocks:read", "Read baseline data, detailed research when available, freshness, and the next action."],
+  ["get_stock_detail", "stocks:read", "Read the full materialized stock page, including facts, history, business questions, earnings, news and Reddit context."],
   ["compare_stocks", "stocks:read", "Compare two to five stocks."],
   ["get_market_brief", "market:read", "Read the current market, sectors, and movers."],
+  ["get_market_history", "market:read", "Read the last seven published Market Daily editions."],
+  ["get_explore", "market:read", "Read the Explore page sections and current discovery data."],
+  ["get_screens", "market:read", "Read curated screens and every current match."],
   ["get_my_radar", "radar:read", "Read the authorized member's Watchlist."],
   ["get_radar_changes", "radar:read", "Read unseen Watchlist changes from an optional cursor."],
   ["add_to_radar", "radar:write", "Track a stock and queue or refresh missing research."],
@@ -28,8 +32,12 @@ const TOOLS = [
 const ENDPOINTS = [
   ["GET", "/stocks/search?q=CCL", "Search stocks"],
   ["GET", "/stocks/CCL", "Read stock intelligence and research state"],
+  ["GET", "/stocks/CCL/detail", "Read full stock-page detail"],
   ["POST", "/compare", "Compare stocks"],
   ["GET", "/market", "Read market context"],
+  ["GET", "/market/history?days=7", "Read Market Daily history"],
+  ["GET", "/explore", "Read Explore sections"],
+  ["GET", "/screens", "Read curated screens"],
   ["GET", "/radar?limit=50&offset=0", "Read Watchlist"],
   ["POST", "/radar", "Add to Watchlist"],
   ["DELETE", "/radar", "Remove from Watchlist"],
@@ -100,7 +108,7 @@ Content-Type: application/json
       <article className="mx-auto min-w-0 max-w-[920px] border-x border-outline-variant bg-surface">
         <header id="overview" className="px-5 py-10 sm:px-10 sm:py-14 lg:px-12">
           <Label>Agent API</Label>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-on-surface sm:text-[2.75rem]">Stock research, Watchlist and alerts for your agent</h1>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-on-surface sm:text-[2.75rem]">Stock detail, market context, Watchlist and alerts for your agent</h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-on-surface-variant">
             Connect Claude Code, Hermes, OpenClaw, or your own client through remote MCP with OAuth. Scripts can use the matching REST API with a personal token.
           </p>
@@ -141,6 +149,8 @@ openclaw mcp doctor stocksbrew --probe`}</Code>
         <Section id="recipes" label="Common recipes" title="The jobs agents can do">
           <div className="mt-6 divide-y divide-outline-variant border-y border-outline-variant text-[12px]">
             <div className="py-4"><strong>Answer about any covered stock.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_stock_intelligence</code>. Baseline data remains available when the detailed brief is missing.</p></div>
+            <div className="py-4"><strong>Read full stock evidence.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_stock_detail</code> for the stock page's financial history, business questions, price history, technicals, earnings, news, Reddit context and materialized source documents.</p></div>
+            <div className="py-4"><strong>Understand the broader market.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_explore</code>, <code>get_market_history</code> and <code>get_screens</code>. Market history returns seven published US editions by default and marks shorter history as not enough current evidence.</p></div>
             <div className="py-4"><strong>Queue missing research.</strong><p className="mt-1 text-on-surface-variant">Read <code>coverage.next_action</code>, ask the user, then call <code>add_to_radar</code>. Recheck the same stock later.</p></div>
             <div className="py-4"><strong>Report only new Watchlist changes.</strong><p className="mt-1 text-on-surface-variant">Call <code>get_radar_changes</code> with the last cursor. Save the returned cursor only after delivery succeeds.</p></div>
             <div className="py-4"><strong>Create or review price alerts.</strong><p className="mt-1 text-on-surface-variant">Ask before any write, then use the alert tools. Earnings, RSI, call, anomaly and news updates come through Watchlist changes.</p></div>
@@ -158,7 +168,7 @@ Message me only when earnings, a directive, a risk, or a tracked price level cha
 Keep the returned cursor for the next check.`}</Code>
         </Section>
 
-        <Section id="tools" label="MCP reference" title="Eleven explicit tools">
+        <Section id="tools" label="MCP reference" title="Fifteen explicit tools">
           <div className="mt-6 overflow-x-auto border-y border-outline-variant">
             <table className="w-full min-w-[650px] text-left text-[11px]">
               <thead className="bg-surface-container-low/60 font-mono text-[8px] uppercase tracking-[0.1em] text-on-surface-variant"><tr><th className="px-3 py-2.5">Tool</th><th className="px-3 py-2.5">Scope</th><th className="px-3 py-2.5">Job</th></tr></thead>

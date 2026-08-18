@@ -245,12 +245,16 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
 <p>This is enough for a real workflow. A generic “stock action” tool would make permissions, confirmation, and audit logs harder to understand. Explicit tools let the agent discover the exact job and let the user grant only the relevant scope.</p>
 
 <h2 id="tools">Use explicit tools for explicit jobs</h2>
-<p>A complete personal stock agent can use eleven Stocksbrew MCP tools:</p>
+<p>A complete personal stock agent can use fifteen Stocksbrew MCP tools:</p>
 <ul>
   <li><code>search_stocks</code></li>
   <li><code>get_stock_intelligence</code></li>
+  <li><code>get_stock_detail</code></li>
   <li><code>compare_stocks</code></li>
   <li><code>get_market_brief</code></li>
+  <li><code>get_market_history</code></li>
+  <li><code>get_explore</code></li>
+  <li><code>get_screens</code></li>
   <li><code>get_my_radar</code></li>
   <li><code>get_radar_changes</code></li>
   <li><code>add_to_radar</code></li>
@@ -260,7 +264,7 @@ openclaw mcp doctor stocksbrew --probe</code></pre>
   <li><code>delete_alert</code></li>
 </ul>
 
-<p>The first four answer research questions. The next four manage the watchlist and incremental changes. The final three manage alert configuration. There are no brokerage or trading tools.</p>
+<p>The first eight answer stock, market, Explore and screen questions. The next four manage the Watchlist and incremental changes. The final three manage alert configuration. There are no brokerage or trading tools.</p>
 
 <h2 id="any-stock">Make every supported stock answerable</h2>
 <p>The most common bad design is returning a hard error whenever a generated brief is absent. That makes the agent useless for newly discovered stocks. A better response returns the baseline record and a separate coverage object.</p>

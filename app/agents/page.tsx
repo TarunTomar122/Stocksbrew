@@ -23,21 +23,24 @@ export const metadata: Metadata = {
   alternates: { canonical: "/agents" },
   openGraph: {
     title: "Let your AI agent keep up with your stocks",
-    description: "Ask about any stock, manage your Watchlist and track alerts with current Stocksbrew data.",
+    description: "Give your AI agent your Watchlist, Explore data, Market Daily history, full stock detail and curated screens through current Stocksbrew data.",
     url: "https://www.stocksbrew.online/agents",
     type: "website",
   },
-  twitter: { card: "summary_large_image", title: "Stocksbrew for AI agents", description: "Stock research, Watchlist and alerts through MCP or REST." },
+  twitter: { card: "summary_large_image", title: "Stocksbrew for AI agents", description: "Stock detail, Explore, Market Daily history, screens, Watchlist and alerts through MCP or REST." },
 };
 
 const JOBS = [
-  ["Research any stock", "Get current price context, fundamentals, scores, news, and the latest Stocksbrew view. Missing research is returned as a clear state, never invented."],
+  ["Read the whole market context", "Give your agent the current Explore sections, seven published Market Daily editions, and Stocksbrew's curated screens."],
+  ["Research any stock in depth", "Get the stock page's facts, financial history, valuation, business questions, price history, earnings, news and Reddit context. Missing evidence stays visible."],
   ["Keep your Watchlist current", "Read holdings and watchlist names, add or remove stocks and ask what changed since the last check."],
-  ["Manage alerts by asking", "Create or remove price alerts, and ask what changed across earnings, RSI, calls, anomalies, and news."],
 ] as const;
 
 const CAPABILITIES = [
-  "Read stock research and market data",
+  "Read Explore: heat, momentum, Reddit, Trump and 52-week sections",
+  "Read the last 7 Market Daily editions",
+  "Read curated screens and every current match",
+  "Read full stock-page detail and five business questions",
   "Read and update your Watchlist",
   "Read alerts and manage price alerts",
   "Check Watchlist changes with a reusable cursor",
@@ -46,7 +49,9 @@ const CAPABILITIES = [
 ] as const;
 
 const FAQS = [
+  ["What can my agent read?", "It can read your Watchlist and holdings, the current Explore sections, the last seven published US Market Daily editions, Stocksbrew's curated screens, and full materialized stock-page detail. That detail includes facts, financial history, valuation, business questions, price history, technicals, earnings, recent news and Reddit context."],
   ["Can my agent answer questions about a stock that is not in my Watchlist?", "Yes. It returns the baseline market, fundamental, score and technical data Stocksbrew has. If detailed research is missing, it says so and offers to add the stock to Watchlist so research can be queued."],
+  ["What happens when a field is missing?", "Stocksbrew marks the missing section, and the agent should say \"not enough current evidence\". It must not turn an empty field into a confident thesis."],
   ["What happens while research is being generated?", "The stock response reports queued or running. Your agent can give a clearly labeled baseline answer, then call the same tool again later. Watchlist changes also return a cursor for incremental checks."],
   ["Can an agent change my Watchlist or alerts?", "Yes, when you grant the write scopes. The tools can add or remove Watchlist stocks and create or deactivate price alerts. Other changes are read through Watchlist. A well-behaved client should ask before each write. You can revoke access from Profile."],
   ["Can it message me on Telegram, WhatsApp, or Discord?", "OpenClaw, Hermes, or another agent can relay Stocksbrew results through channels you configure. Stocksbrew supplies the research and alert state. Your agent owns chat delivery."],
@@ -61,7 +66,7 @@ function JsonLd() {
       "@context": "https://schema.org",
       "@graph": [
         { "@type": "SoftwareApplication", name: "Stocksbrew for AI Agents", applicationCategory: "FinanceApplication", operatingSystem: "Web", url: "https://www.stocksbrew.online/agents", description: metadata.description, offers: { "@type": "Offer", price: "9", priceCurrency: "USD" } },
-        { "@type": "WebAPI", name: "Stocksbrew Agent API", url: "https://www.stocksbrew.online/developers", documentation: "https://www.stocksbrew.online/developers", description: "Stock research, Watchlist and alert tools through MCP and REST." },
+        { "@type": "WebAPI", name: "Stocksbrew Agent API", url: "https://www.stocksbrew.online/developers", documentation: "https://www.stocksbrew.online/developers", description: "Stock detail, Explore, Market Daily history, curated screens, Watchlist and alert tools through MCP and REST." },
         { "@type": "FAQPage", mainEntity: FAQS.map(([question, answer]) => ({ "@type": "Question", name: question, acceptedAnswer: { "@type": "Answer", text: answer } })) },
       ],
     }) }} />

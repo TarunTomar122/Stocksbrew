@@ -11,6 +11,21 @@ import { getHomeView } from "@/lib/home-view";
 import { resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { filterSearchEntries, getSearchIndexForApi } from "@/lib/search";
 import { getOnDemandNewsStatus } from "@/lib/on-demand-queue";
+import { getInstrument, getMarketSnapshot } from "@/lib/firestore";
+import { getHeatList } from "@/lib/heat";
+import { getNear52WeekLists } from "@/lib/near-52-week";
+import { getRedditCues, hasRedditBrief, getRedditContextForTicker } from "@/lib/reddit-cues";
+import { getTrumpLogic } from "@/lib/trump-logic";
+import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
+import { getThematicScreens } from "@/lib/screens";
+import { listMarketDailyEditions } from "@/lib/market-daily";
+import { getNewsForTicker } from "@/lib/news";
+import { getLatestTechnicals } from "@/lib/technicals";
+import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
+import { getNextEarningsCalendarEvent } from "@/lib/earnings";
+import { getPreEarningsIntelDoc } from "@/lib/pre-earnings-intel";
+import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
+import { getPremarketMovers } from "@/lib/premarket";
 import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
 import {
   createStockAlert,
@@ -21,9 +36,11 @@ import {
 } from "@/lib/stock-alerts";
 import {
   getInstrumentViewDoc,
+  getStockBusinessQuestions,
   getStockFacts,
   getStockIntelPro,
   getStockIntelligenceDoc,
+  getStockPriceHistory,
   getStockSummary,
 } from "@/lib/stock";
 import { getRadarUserView, getWatchlistView } from "@/lib/watchlist-view";
@@ -33,8 +50,12 @@ export type AgentMarket = "US" | "IN";
 export type AgentToolName =
   | "search_stocks"
   | "get_stock_intelligence"
+  | "get_stock_detail"
   | "compare_stocks"
   | "get_market_brief"
+  | "get_market_history"
+  | "get_explore"
+  | "get_screens"
   | "get_my_radar"
   | "get_radar_changes"
   | "add_to_radar"
@@ -88,7 +109,7 @@ function envelope<T extends Record<string, unknown>>(data: T, asOf?: string | nu
 }
 
 function requiredScopeForTool(tool: AgentToolName): AgentScope {
-  if (tool === "get_market_brief") return "market:read";
+  if (tool === "get_market_brief" || tool === "get_market_history" || tool === "get_explore" || tool === "get_screens") return "market:read";
   if (tool === "add_to_radar" || tool === "remove_from_radar") return "radar:write";
   if (tool === "get_my_alerts") return "alerts:read";
   if (tool === "create_alert" || tool === "delete_alert") return "alerts:write";
@@ -253,6 +274,86 @@ export async function getStockAgentIntelligence(input: {
   }, asOf);
 }
 
+export async function getStockAgentDetail(input: {
+  ticker: string;
+  market?: AgentMarket;
+  uid?: string;
+}) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const stock = await resolveAgentStock(input.ticker, market);
+  const base = await getStockAgentIntelligence(input);
+  const [summary, instrumentMeta, instrumentView, intelligence, intelPro, facts, businessQuestions, priceHistory, technicals, news, reddit, earnings, preEarnings, nextEarnings, anomaly, premarket] = await Promise.all([
+    getStockSummary(stock.ticker, market).catch(() => null),
+    getInstrument(stock.instrument_id).catch(() => null),
+    getInstrumentViewDoc(stock.instrument_id, market).catch(() => null),
+    getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null),
+    getStockIntelPro(stock.instrument_id, market).catch(() => null),
+    getStockFacts(stock.instrument_id).catch(() => null),
+    getStockBusinessQuestions(stock.instrument_id, market).catch(() => null),
+    getStockPriceHistory(stock.instrument_id).catch(() => []),
+    getLatestTechnicals(stock.instrument_id).catch(() => null),
+    getNewsForTicker(market, stock.ticker, { days: 7, limit: 7 }).catch(() => []),
+    getRedditContextForTicker(market, stock.ticker).catch(() => null),
+    getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null),
+    getPreEarningsIntelDoc(market, stock.instrument_id).catch(() => null),
+    getNextEarningsCalendarEvent(market, stock.ticker).catch(() => null),
+    getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
+    getPremarketMovers(market).catch(() => null),
+  ]);
+  const detailAsOf = latestIso([
+    summary?.captured_at,
+    instrumentView?.generated_at,
+    intelligence?.generated_at,
+    intelPro?.generated_at,
+    facts?.captured_at,
+    businessQuestions?.generated_at,
+    technicals?.generated_at,
+    ...news.map((article) => article.published_at),
+  ]);
+
+  return {
+    ...base,
+    detail_as_of: detailAsOf,
+    stock_page: {
+      evidence_status: {
+        instrument: instrumentMeta ? "available" : "not_enough_current_evidence",
+        financials: facts?.financial_history?.length || facts?.financials ? "available" : "not_enough_current_evidence",
+        business_questions: businessQuestions ? "available" : "not_enough_current_evidence",
+        price_history: priceHistory.length ? "available" : "not_enough_current_evidence",
+        technicals: technicals ? "available" : "not_enough_current_evidence",
+        news: news.length ? "available" : "not_enough_current_evidence",
+        reddit: reddit ? "available" : "not_enough_current_evidence",
+        earnings: earnings ? "available" : "not_enough_current_evidence",
+        pre_earnings: preEarnings ? "available" : "not_enough_current_evidence",
+        next_earnings: nextEarnings ? "available" : "not_enough_current_evidence",
+        anomaly: anomaly ? "available" : "not_enough_current_evidence",
+        premarket: premarket ? "available" : "not_enough_current_evidence",
+      },
+      evidence_message: "Missing sections are reported as not enough current evidence.",
+      business_questions: businessQuestions?.questions ?? [],
+      business_questions_status: businessQuestions ? "available" : "not_enough_current_evidence",
+      price_history: priceHistory,
+      technicals,
+      news,
+      reddit,
+      earnings,
+      pre_earnings: preEarnings,
+      next_earnings: nextEarnings,
+      anomaly,
+      premarket,
+      source_documents: {
+        summary,
+        instrument: instrumentMeta,
+        instrument_view: instrumentView,
+        intelligence,
+        intel_pro: intelPro,
+        facts,
+        business_questions: businessQuestions,
+      },
+    },
+  };
+}
+
 export async function compareAgentStocks(input: { tickers: string[] }) {
   const tickers = [...new Set(input.tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean))];
   if (tickers.length < 2 || tickers.length > 5) {
@@ -322,13 +423,157 @@ export async function getMarketAgentBrief(input: { market?: AgentMarket }) {
   }, asOf);
 }
 
+const EXPLORE_TRENDING_TICKERS = ["NVDA", "TSM", "MSFT", "GOOGL", "AAPL", "PLTR", "MU", "AMZN", "TSLA", "AMD", "COIN"];
+
+export async function getAgentExplore(input: { market?: AgentMarket }) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const [snapshotRows, heat, reddit, near52, trump] = await Promise.all([
+    getMarketSnapshot(market).catch(() => []),
+    getHeatList(market).catch(() => null),
+    getRedditCues(market).catch(() => null),
+    getNear52WeekLists(market, 20).catch(() => ({ nearHighs: [], nearLows: [] })),
+    getTrumpLogic(market).catch(() => null),
+  ]);
+  const bySymbol = new Map(snapshotRows.map((row) => [row.symbol.toUpperCase(), row]));
+  const trending = EXPLORE_TRENDING_TICKERS.map((ticker) => {
+    const row = bySymbol.get(ticker);
+    return row
+      ? {
+          ticker,
+          name: row.name,
+          price: row.price.current,
+          change_pct: row.price.changePct ?? null,
+        }
+      : null;
+  }).filter((row): row is NonNullable<typeof row> => row !== null);
+  const heatRows = heat?.rows ?? [];
+  const sortedHeat = [...heatRows].sort((a, b) => (b.heat_score ?? 0) - (a.heat_score ?? 0));
+  const recentTrump = (trump?.tickers ?? [])
+    .filter((row) => isTrumpMentionRecent(row.latest_published_at))
+    .sort((a, b) => String(b.latest_published_at).localeCompare(String(a.latest_published_at)))
+    .map((row) => ({
+      ...row,
+      mentions: row.mentions.filter((mention) => isTrumpMentionRecent(mention.published_at)),
+    }));
+  const redditRows = (reddit?.tickers ?? [])
+    .filter(hasRedditBrief)
+    .sort((a, b) => (b.mention_count ?? 0) - (a.mention_count ?? 0))
+    .slice(0, 20);
+  const asOf = latestIso([
+    heat?.generated_at,
+    reddit?.generated_at,
+    trump?.generated_at,
+    ...snapshotRows.map((row) => row.lastUpdated),
+  ]);
+
+  return envelope({
+    market,
+    evidence_status: {
+      snapshot: snapshotRows.length ? "available" : "not_enough_current_evidence",
+      heat: heat ? "available" : "not_enough_current_evidence",
+      reddit: reddit ? "available" : "not_enough_current_evidence",
+      near_52_week: near52.nearHighs.length || near52.nearLows.length ? "available" : "not_enough_current_evidence",
+      trump: trump ? "available" : "not_enough_current_evidence",
+    },
+    evidence_message: "Empty Explore sections mean not enough current evidence for that source.",
+    sections: {
+      trending,
+      hot: sortedHeat.slice(0, 20),
+      momentum: [...heatRows]
+        .filter((row) => typeof row.momentum_score === "number")
+        .sort((a, b) => (b.momentum_score ?? 0) - (a.momentum_score ?? 0))
+        .slice(0, 20),
+      news_spikes: [...heatRows]
+        .filter((row) => row.multiplier > 1.5 && row.mention_count_7d > 0)
+        .sort((a, b) => b.multiplier - a.multiplier)
+        .slice(0, 20),
+      catalyst_watch: heatRows.filter((row) => (row.setup_type ?? "momentum_watch") === "catalyst_watch").slice(0, 20),
+      dip_setup: heatRows.filter((row) => (row.setup_type ?? "momentum_watch") === "dip_setup").slice(0, 20),
+      near_52_week_highs: near52.nearHighs,
+      near_52_week_lows: near52.nearLows,
+      reddit_buzz: redditRows,
+      trump_mentions: recentTrump,
+    },
+    source_freshness: {
+      heat_generated_at: heat?.generated_at ?? null,
+      reddit_generated_at: reddit?.generated_at ?? null,
+      trump_generated_at: trump?.generated_at ?? null,
+    },
+  }, asOf);
+}
+
+export async function getMarketAgentHistory(input: { market?: AgentMarket; days?: number }) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const requestedDays = typeof input.days === "number" && Number.isFinite(input.days)
+    ? Math.min(30, Math.max(1, Math.floor(input.days)))
+    : 7;
+  if (market !== "US") {
+    return envelope({
+      market,
+      requested_days: requestedDays,
+      returned_editions: 0,
+      evidence_status: "not_enough_current_evidence",
+      evidence_message: "Market Daily history is currently available for the US market only.",
+      editions: [],
+    }, null);
+  }
+  const editions = await listMarketDailyEditions(requestedDays);
+  if (!editions.length) {
+    return envelope({
+      market,
+      requested_days: requestedDays,
+      returned_editions: 0,
+      evidence_status: "not_enough_current_evidence",
+      evidence_message: "not enough current evidence: no Market Daily editions are available.",
+      editions: [],
+    }, null);
+  }
+  const asOf = latestIso(editions.map((edition) => edition.updated_at || edition.published_at || edition.generated_at));
+  return envelope({
+    market,
+    requested_days: requestedDays,
+    returned_editions: editions.length,
+    evidence_status: editions.length >= requestedDays ? "available" : "not_enough_current_evidence",
+    evidence_message: editions.length >= requestedDays
+      ? null
+      : `not enough current evidence for ${requestedDays} published editions; only ${editions.length} are available.`,
+    missing_editions: Math.max(0, requestedDays - editions.length),
+    window_start: editions[editions.length - 1]?.edition_date ?? null,
+    window_end: editions[0]?.edition_date ?? null,
+    editions,
+  }, asOf);
+}
+
+export async function getAgentScreens(input: { market?: AgentMarket }) {
+  const market = input.market === "IN" ? "IN" : "US";
+  const doc = await getThematicScreens(market);
+  if (!doc) throw new AgentDataError(`The ${market} screen catalog is unavailable.`, "screens_unavailable", 503);
+  return envelope({
+    market,
+    generated_at: doc.generated_at,
+    universe_id: doc.universe_id,
+    coverage: doc.coverage,
+    screens: doc.screens,
+  }, doc.generated_at);
+}
+
 export async function getMyAgentRadar(uid: string, input: { limit?: number; offset?: number } = {}) {
   const view = await getWatchlistView(uid);
-  if (!view) return envelope({ tracked_count: 0, rows: [], brief: null, pulse: null }, null);
+  if (!view) {
+    return envelope({
+      data_status: "not_enough_current_evidence",
+      evidence_message: "not enough current evidence to load this Watchlist view.",
+      tracked_count: 0,
+      rows: [],
+      brief: null,
+      pulse: null,
+    }, null);
+  }
   const limit = Math.min(100, Math.max(1, Math.floor(input.limit || 50)));
   const offset = Math.max(0, Math.floor(input.offset || 0));
   const asOf = latestIso([view.updated_at, view.built_at, view.brief?.generated_at, view.today_setup?.generated_at]);
   return envelope({
+    data_status: "available",
     tracked_count: view.tracked_count,
     holdings_count: view.holdings_count ?? null,
     watchlist_count: view.watchlist_count ?? null,
@@ -339,21 +584,43 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
       status: view.brief.status,
     } : null,
     today_setup: view.today_setup ?? null,
+    portfolio: view.portfolio ?? null,
+    attention_items: view.attention_items ?? [],
+    suggestions: view.suggestions ?? [],
+    blind_spot_suggestions: view.blind_spot_suggestions ?? [],
+    momentum_lift_suggestions: view.momentum_lift_suggestions ?? [],
+    pillar_lift_suggestions: view.pillar_lift_suggestions ?? null,
+    risk_summary: view.risk_summary ?? null,
+    event_radar: view.event_radar ?? [],
+    changes: view.changes ?? null,
     returned_count: Math.min(limit, Math.max(0, (view.rows?.length || 0) - offset)),
     next_offset: offset + limit < (view.rows?.length || 0) ? offset + limit : null,
     rows: (view.rows ?? []).slice(offset, offset + limit).map((row) => ({
       instrument_id: row.instrument_id,
       ticker: row.ticker,
       name: row.instrument_name ?? row.ticker,
+      logo_url: row.logo_url ?? null,
       position_type: row.position_type,
       market: row.market,
       sector: row.sector_label,
+      industry: row.industry_label,
+      currency: row.currency,
       price: row.price,
       day_change_pct: row.day_change_pct,
+      day_change_abs: row.day_change_abs,
       scores: row.scores,
       target_upside_pct: row.target_upside_pct ?? null,
       call: row.directive_v2 ?? row.ai_directive ?? null,
       summary: row.brief_tile?.micro ?? null,
+      facts: row.facts ?? null,
+      technicals: row.technicals ?? null,
+      alerts: row.alerts ?? [],
+      catalysts: row.catalysts ?? [],
+      news_velocity: row.news_velocity ?? null,
+      premium_signals: row.premium_signals ?? [],
+      top_metric_summaries: row.top_metric_summaries ?? [],
+      holding_status: row.holding_status ?? null,
+      has_intel_pro: row.has_intel_pro,
       attention: row.attention_reason ? {
         kind: row.attention_kind ?? null,
         reason: row.attention_reason,
@@ -527,6 +794,13 @@ export async function executeAgentTool(
         uid: principal.uid,
       });
       break;
+    case "get_stock_detail":
+      data = await getStockAgentDetail({
+        ticker: String(args.ticker || ""),
+        market: args.market === "IN" ? "IN" : "US",
+        uid: principal.uid,
+      });
+      break;
     case "compare_stocks":
       data = await compareAgentStocks({
         tickers: Array.isArray(args.tickers) ? args.tickers.map(String) : [],
@@ -534,6 +808,18 @@ export async function executeAgentTool(
       break;
     case "get_market_brief":
       data = await getMarketAgentBrief({ market: args.market === "IN" ? "IN" : "US" });
+      break;
+    case "get_market_history":
+      data = await getMarketAgentHistory({
+        market: args.market === "IN" ? "IN" : "US",
+        days: typeof args.days === "number" ? args.days : undefined,
+      });
+      break;
+    case "get_explore":
+      data = await getAgentExplore({ market: args.market === "IN" ? "IN" : "US" });
+      break;
+    case "get_screens":
+      data = await getAgentScreens({ market: args.market === "IN" ? "IN" : "US" });
       break;
     case "get_my_radar":
       data = await getMyAgentRadar(principal.uid, {

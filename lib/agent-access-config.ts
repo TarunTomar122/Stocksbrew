@@ -1,6 +1,6 @@
-export const AGENT_ACCESS_VERSION = "2026-08-01";
+export const AGENT_ACCESS_VERSION = "2026-08-18";
 export const AGENT_MCP_SERVER_NAME = "stocksbrew";
-export const AGENT_MCP_SERVER_VERSION = "1.1.0";
+export const AGENT_MCP_SERVER_VERSION = "1.2.0";
 
 export const AGENT_SCOPES = [
   "stocks:read",
@@ -27,7 +27,7 @@ export const AGENT_OAUTH_REGISTRATION_LIMIT_COLLECTION = "tm_agent_oauth_registr
 export const AGENT_OAUTH_REGISTRATIONS_PER_DAY = 25;
 
 export const AGENT_DATA_NOTICE =
-  "Informational and educational use only. Data may be delayed, incomplete, or wrong. Not investment advice and not a broker.";
+  "Informational and educational use only. Data may be delayed, incomplete, or wrong. If a field is missing, say \"not enough current evidence\" instead of inferring it. Not investment advice and not a broker.";
 
 export function publicAppUrl(): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();

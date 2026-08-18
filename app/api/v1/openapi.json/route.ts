@@ -6,8 +6,8 @@ export async function GET() {
     openapi: "3.1.0",
     info: {
       title: "Stocksbrew Agent API",
-      version: "1.1.0",
-      description: "Stock research, Watchlist tracking and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
+      version: "1.2.0",
+      description: "Stock research, full stock detail, Explore, Screens, Market Daily history, Watchlist tracking and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
     },
     servers: [{ url: `${base}/api/v1` }],
     security: [{ bearerAuth: [] }],
@@ -35,6 +35,17 @@ export async function GET() {
           responses: { "200": { description: "Stock intelligence", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
+      "/stocks/{symbol}/detail": {
+        get: {
+          operationId: "getStockDetail",
+          summary: "Get full materialized stock-page detail",
+          parameters: [
+            { name: "symbol", in: "path", required: true, schema: { type: "string" } },
+            { name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } },
+          ],
+          responses: { "200": { description: "Full stock-page detail", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
       "/compare": {
         post: {
           operationId: "compareStocks",
@@ -52,6 +63,33 @@ export async function GET() {
           summary: "Get the current Stocksbrew market brief",
           parameters: [{ name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } }],
           responses: { "200": { description: "Market brief", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/market/history": {
+        get: {
+          operationId: "getMarketHistory",
+          summary: "Get the last seven published US Market Daily editions",
+          parameters: [
+            { name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } },
+            { name: "days", in: "query", schema: { type: "integer", minimum: 1, maximum: 30, default: 7 } },
+          ],
+          responses: { "200": { description: "Market Daily history", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/explore": {
+        get: {
+          operationId: "getExplore",
+          summary: "Get the current Explore page sections",
+          parameters: [{ name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } }],
+          responses: { "200": { description: "Explore data", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/screens": {
+        get: {
+          operationId: "getScreens",
+          summary: "Get curated Stocksbrew screens and matches",
+          parameters: [{ name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } }],
+          responses: { "200": { description: "Curated stock screens", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
       "/radar": {

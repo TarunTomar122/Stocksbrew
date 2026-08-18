@@ -42,8 +42,12 @@ describe("Stocksbrew MCP server", () => {
     expect(result.tools.map((tool) => tool.name)).toEqual([
       "search_stocks",
       "get_stock_intelligence",
+      "get_stock_detail",
       "compare_stocks",
       "get_market_brief",
+      "get_market_history",
+      "get_explore",
+      "get_screens",
       "get_my_radar",
       "get_radar_changes",
       "add_to_radar",
@@ -52,8 +56,22 @@ describe("Stocksbrew MCP server", () => {
       "create_alert",
       "delete_alert",
     ]);
-    for (const tool of result.tools.slice(0, 6)) {
-      expect(tool.annotations).toMatchObject({
+    for (const name of [
+      "search_stocks",
+      "get_stock_intelligence",
+      "get_stock_detail",
+      "compare_stocks",
+      "get_market_brief",
+      "get_market_history",
+      "get_explore",
+      "get_screens",
+      "get_my_radar",
+      "get_radar_changes",
+      "get_my_alerts",
+    ]) {
+      const tool = result.tools.find((item) => item.name === name);
+      expect(tool).toBeDefined();
+      expect(tool?.annotations).toMatchObject({
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
