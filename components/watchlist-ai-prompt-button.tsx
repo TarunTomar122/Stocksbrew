@@ -92,7 +92,7 @@ export function WatchlistAiPromptButton({
               </button>
             </div>
             <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant">
-              Paste the prompt into ChatGPT, Claude, or another AI assistant. If Stocksbrew is not connected yet, it will guide you through connecting it first.
+              Paste it into Codex or Claude Code for direct setup. ChatGPT and Claude mobile need Stocksbrew connected from their web settings first.
             </p>
             <p className="mt-3 rounded-xl bg-surface-container-low px-3.5 py-3 text-[13px] leading-relaxed text-on-surface">
               It asks for a clear, plain-English read on {ticker ? `${ticker} using current Stocksbrew evidence` : "your Watchlist using current Stocksbrew evidence"}.

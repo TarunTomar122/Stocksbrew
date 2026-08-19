@@ -1,4 +1,6 @@
-export const AGENT_SETUP_PROMPT = `Connect to Stocksbrew's remote MCP server:
+export const AGENT_SETUP_PROMPT = `Use this prompt in Codex or Claude Code for direct MCP setup. ChatGPT and Claude mobile apps cannot add Stocksbrew from a pasted prompt; connect it from their web app settings first.
+
+Connect to Stocksbrew's remote MCP server:
 
 https://www.stocksbrew.online/api/mcp
 

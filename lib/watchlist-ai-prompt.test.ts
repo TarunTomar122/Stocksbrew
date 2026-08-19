@@ -7,6 +7,8 @@ describe("buildWatchlistAiPrompt", () => {
     const prompt = buildWatchlistAiPrompt("NVDA");
 
     expect(prompt).toContain("https://www.stocksbrew.online/api/mcp");
+    expect(prompt).toContain("Codex or Claude Code");
+    expect(prompt).toContain("cannot add Stocksbrew from a pasted prompt");
     expect(prompt).toContain("NVDA");
     expect(prompt).toContain("not enough current evidence");
   });
