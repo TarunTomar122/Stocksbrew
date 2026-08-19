@@ -35,6 +35,7 @@ import { RadarNextSkeleton } from "@/components/radar-next/skeleton";
 import { RadarNextSignedOut, RadarNextEmpty } from "@/components/radar-next/states";
 import { RadarPageAnalytics } from "@/components/radar-page-analytics";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
+import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
 
 export const dynamic = "force-dynamic";
 
@@ -175,12 +176,17 @@ async function RadarNextStream() {
           trackedCount={rows.length}
           isSubscribed={isSubscribed}
           actions={
-            <RadarBatchEditModal
-              initialItems={editableItems}
-              isSubscribed={isSubscribed}
-              ctaLabel="Manage watchlist"
-              triggerClassName="inline-flex items-center rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] transition-opacity hover:opacity-85"
-            />
+            <>
+              <WatchlistAiPromptButton
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#D97757]/45 bg-[#D97757]/10 px-2.5 text-[13px] font-medium text-[#D97757] shadow-none transition-colors hover:bg-[#D97757]/15 dark:border-[#D97757]/60 dark:bg-[#D97757]/15 dark:text-[#F1B19B] dark:hover:bg-[#D97757]/20"
+              />
+              <RadarBatchEditModal
+                initialItems={editableItems}
+                isSubscribed={isSubscribed}
+                ctaLabel="Manage watchlist"
+                triggerClassName="inline-flex items-center rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] transition-opacity hover:opacity-85"
+              />
+            </>
           }
         />
 
