@@ -30,21 +30,28 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: "Stocksbrew for AI agents", description: "Stock detail, Explore, Market Daily history, screens, Watchlist and alerts through MCP or REST." },
 };
 
-const JOBS = [
-  ["Read the whole market context", "Give your agent the current Explore sections, seven published Market Daily editions, and Stocksbrew's curated screens."],
-  ["Research any stock in depth", "Get the stock page's facts, financial history, valuation, business questions, price history, earnings, news and Reddit context. Missing evidence stays visible."],
-  ["Keep your Watchlist current", "Read holdings and watchlist names, add or remove stocks and ask what changed since the last check."],
+const ACCESS_AREAS = [
+  ["01", "Watchlist + holdings", "get_my_radar · get_radar_changes", "Read the authenticated member's tracked names, holdings context, alerts, pulse, attention items and latest changes."],
+  ["02", "Explore", "get_explore", "Bring in the current discovery view: trending names, heat, momentum, news spikes, 52-week moves, Reddit buzz and recent Trump mentions."],
+  ["03", "Market history", "get_market_history", "Read the last seven published US Market Daily editions, including the article, tape, premarket view, anomalies and sources."],
+  ["04", "Full stock detail", "get_stock_detail", "Read facts, financial history, valuation, balance sheet, dividends, business mix, institutions, technicals, earnings, news, Reddit and the five business questions."],
+  ["05", "Curated screens", "get_screens", "Browse Stocksbrew's thematic screen catalog, coverage metadata and every current match."],
+] as const;
+
+const WORKFLOW = [
+  ["01", "Connect once", "Use the remote MCP URL with OAuth. Your agent gets scoped access while the token stays out of the conversation."],
+  ["02", "Research any stock", "Start with get_stock_intelligence for a quick read, then use get_stock_detail when the question needs the full page and deeper evidence."],
+  ["03", "Answer honestly", "Missing fields stay visible as not enough current evidence. The agent can ask before queuing research or changing your Watchlist."],
 ] as const;
 
 const CAPABILITIES = [
-  "Read Explore: heat, momentum, Reddit, Trump and 52-week sections",
-  "Read the last 7 Market Daily editions",
-  "Read curated screens and every current match",
-  "Read full stock-page detail and five business questions",
-  "Read and update your Watchlist",
-  "Read alerts and manage price alerts",
-  "Check Watchlist changes with a reusable cursor",
-  "Queue missing research by adding a stock to Watchlist",
+  "MCP over OAuth at stocksbrew.online/api/mcp",
+  "Read the five Stocksbrew context areas",
+  "Use get_stock_intelligence for a concise current read",
+  "Keep missing evidence labeled and visible",
+  "Read alerts and Watchlist changes",
+  "Ask before adding or removing a Watchlist stock",
+  "Ask before creating or deleting a price alert",
   "No trading, money movement, or brokerage access",
 ] as const;
 
@@ -75,89 +82,123 @@ function JsonLd() {
 
 export default function AgentsPage() {
   return (
-    <main className="min-w-0 flex-grow bg-surface text-on-surface">
+    <main className="landing-page min-w-0 flex-grow bg-surface text-on-surface">
       <JsonLd />
       <header className="border-b border-outline-variant">
-        <div className="mx-auto max-w-[1180px] px-5 py-14 sm:px-8 sm:py-20">
-          <h1 className="max-w-3xl text-[32px] font-semibold leading-[1.1] tracking-tight sm:text-[46px]">
-            Let your agent keep up with your stocks.
-          </h1>
-          <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-on-surface-variant sm:text-[18px]">
-            Ask about any stock, keep your Watchlist current and manage alerts with the AI you already use.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="#connect" className="landing-btn-primary px-5 py-2.5 text-[13px]">Connect your agent</Link>
-            <Link href="#example" className="rounded-xl border border-outline-variant px-5 py-2.5 text-[13px] font-semibold">See a real flow</Link>
+        <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
+          <div className="border-b border-outline-variant py-4">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant">stocksbrew <span className="text-landing-brand">/</span> agent access</p>
           </div>
-          <AgentClientLogos compact className="mt-7" />
-          <p className="mt-4 text-[12px] text-on-surface-variant">MCP or REST. Included with Pro. No trading or brokerage access.</p>
+          <div className="grid gap-10 py-14 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:py-24">
+            <div>
+              <p className="landing-section-kicker text-landing-brand">Structured context for your AI</p>
+              <h1 className="mt-4 max-w-2xl text-[38px] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-[58px]">Let your agent keep up with your stocks.</h1>
+              <p className="mt-6 max-w-xl text-[16px] leading-[1.7] text-on-surface-variant sm:text-[18px]">Ask Claude or ChatGPT about a stock with Stocksbrew&apos;s structured market data, analyst signals and research already in the conversation.</p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="#connect" className="landing-btn-primary px-5 py-3 text-[13px]">Connect your agent</Link>
+                <Link href="#access" className="landing-btn-secondary px-5 py-3 text-[13px]">See what it can read</Link>
+              </div>
+              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-on-surface-variant">
+                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-signal-bullish" />MCP over OAuth</span>
+                <span>Included with Pro</span><span>No brokerage access</span>
+              </div>
+              <AgentClientLogos compact className="mt-7" />
+            </div>
+            <div className="landing-card overflow-hidden rounded-xl">
+              <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
+                <div><p className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">Claude Code · ChatGPT</p><p className="mt-1 font-mono text-[12px] text-on-surface">Connected through remote MCP</p></div>
+                <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-signal-bullish"><span className="h-1.5 w-1.5 rounded-full bg-signal-bullish" />OAuth</span>
+              </div>
+              <div className="bg-surface-container-low px-5 py-6 sm:px-7 sm:py-8">
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-on-surface-variant"><span className="grid h-5 w-5 place-items-center rounded bg-on-surface text-[9px] text-surface">C</span>Claude Code</div>
+                <div className="mt-5 space-y-4 text-[13px] leading-relaxed"><div className="border-l-2 border-landing-brand pl-4 text-on-surface">Give me the full read on NVDA. What matters right now?</div><div className="border-l-2 border-outline-variant pl-4 text-on-surface-variant">I&apos;ll pull the current stock detail, analyst context, valuation, technicals and recent market signals, then call out anything that lacks current evidence.</div></div>
+                <div className="mt-7 grid gap-2 sm:grid-cols-2">{["get_stock_intelligence", "get_stock_detail"].map((tool) => <div key={tool} className="border border-outline-variant bg-surface px-3 py-3 font-mono text-[10px] text-landing-brand">{tool}()</div>)}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <section id="example" className="scroll-mt-24 border-b border-outline-variant">
-        <div className="mx-auto grid max-w-[1180px] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.75fr_1.25fr] lg:py-16">
-          <div>
-            <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">From an unknown stock to monitored research.</h2>
-            <p className="mt-4 text-[14px] leading-relaxed text-on-surface-variant">The agent uses the same Watchlist and alert services as the app. Missing research stays visible and can be queued with your approval.</p>
-          </div>
-          <div className="landing-card flex flex-col gap-4 rounded-xl p-5 text-[14px] leading-relaxed sm:p-6">
-            <div><p className="font-medium text-landing-brand">You</p><p className="mt-1">What do we know about CCL?</p></div>
-            <div><p className="font-medium text-on-surface">Agent</p><p className="mt-1 text-on-surface-variant">I have current price, fundamentals, scores and technicals. The detailed research is missing. Add CCL to Watchlist and queue it?</p></div>
-            <div><p className="font-medium text-landing-brand">You</p><p className="mt-1">yes, and alert me below $25</p></div>
-            <div><p className="font-medium text-on-surface">Agent</p><p className="mt-1 text-on-surface-variant">CCL is in Watchlist, research is queued and the price alert is active. I can check again later.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-outline-variant">
-        <div className="mx-auto max-w-[1180px] px-5 py-12 sm:px-8 lg:py-16">
-          <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">What it can do</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {JOBS.map(([title, body]) => (
-              <article key={title} className="landing-card flex flex-col gap-2 rounded-xl p-5">
-                <h3 className="text-[16px] font-semibold text-on-surface">{title}</h3>
-                <p className="text-[13px] leading-relaxed text-on-surface-variant">{body}</p>
+      <section id="access" className="scroll-mt-24 border-b border-outline-variant">
+        <div className="mx-auto max-w-[1180px] px-5 py-14 sm:px-8 lg:py-20">
+          <p className="landing-section-kicker text-landing-brand">Five kinds of context</p>
+          <h2 className="mt-3 max-w-2xl text-[28px] font-semibold tracking-[-0.03em] sm:text-[36px]">Your agent gets the useful parts of Stocksbrew.</h2>
+          <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-on-surface-variant sm:text-[15px]">Each tool maps to a real product surface. The response includes freshness and evidence status, so a missing section never becomes a made-up thesis.</p>
+          <div className="mt-10 grid gap-3 md:grid-cols-2">
+            {ACCESS_AREAS.map(([number, title, tool, body], index) => (
+              <article key={title} className={`landing-card rounded-xl p-5 sm:p-6 ${index === ACCESS_AREAS.length - 1 ? "md:col-span-2" : ""}`}>
+                <div className="flex items-start justify-between gap-5"><span className="font-mono text-[11px] font-semibold text-landing-brand">{number}</span><span className="font-mono text-right text-[10px] text-on-surface-variant">{tool}</span></div>
+                <h3 className="mt-8 text-[18px] font-semibold tracking-[-0.02em]">{title}</h3>
+                <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-on-surface-variant">{body}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="border-b border-outline-variant">
-        <div className="mx-auto grid max-w-[1180px] gap-9 px-5 py-12 sm:px-8 lg:grid-cols-2 lg:py-16">
-          <div>
-            <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">Use it where your agent already talks to you.</h2>
-            <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-on-surface-variant">OpenClaw, Hermes, or another agent can relay Stocksbrew answers through channels you configure.</p>
-            <AgentChannelLogos className="mt-5" />
-            <p className="mt-4 text-[12px] text-on-surface-variant">Stocksbrew supplies stock data and alert state. Your agent owns message delivery.</p>
-          </div>
-          <div className="landing-card rounded-xl p-5 sm:p-6">
-            <h2 className="text-[16px] font-semibold text-on-surface">Permissions</h2>
-            <ul className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2">
-              {CAPABILITIES.map((item) => <li key={item} className="flex gap-2"><span className="text-landing-brand">✓</span><span>{item}</span></li>)}
-            </ul>
-            <p className="mt-5 text-[12px] leading-relaxed text-on-surface-variant">Your agent should ask before changing Watchlist or alerts. OAuth scopes stay visible and revocable.</p>
+      <section className="border-b border-outline-variant bg-surface-container-low/35">
+        <div className="mx-auto max-w-[1180px] px-5 py-14 sm:px-8 lg:py-20">
+          <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
+            <div>
+              <p className="landing-section-kicker text-landing-brand">How it works</p>
+              <h2 className="mt-3 max-w-md text-[28px] font-semibold tracking-[-0.03em] sm:text-[36px]">A better stock answer starts before the answer.</h2>
+              <p className="mt-4 max-w-md text-[14px] leading-relaxed text-on-surface-variant">Connect once, give the agent the right context, and keep the line between evidence and inference clear.</p>
+            </div>
+            <div className="divide-y divide-outline-variant border-y border-outline-variant">
+              {WORKFLOW.map(([number, title, body]) => (
+                <article key={number} className="grid gap-3 py-5 sm:grid-cols-[52px_180px_1fr] sm:items-start sm:gap-5">
+                  <span className="font-mono text-[11px] font-semibold text-landing-brand">{number}</span>
+                  <h3 className="text-[15px] font-semibold">{title}</h3>
+                  <p className="text-[13px] leading-relaxed text-on-surface-variant">{body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       <section id="connect" className="scroll-mt-24 border-b border-outline-variant">
-        <div className="mx-auto max-w-[860px] px-5 py-12 sm:px-8 lg:py-16">
-          <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">Paste one prompt into your agent.</h2>
-          <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant">It contains the MCP URL, safe missing-research behavior, confirmation rules, and a verification step.</p>
-          <AgentSetupPrompt className="mt-6" />
-          <div className="mt-5 flex flex-wrap gap-4 text-[13px] font-semibold">
-            <Link href="/developers" className="text-landing-brand">Complete setup and API reference →</Link>
-            <Link href="/profile#agent-access">Manage tokens and access →</Link>
+        <div className="mx-auto grid max-w-[1180px] gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-16 lg:py-20">
+          <div>
+            <p className="landing-section-kicker text-landing-brand">Connect once</p>
+            <h2 className="mt-3 max-w-xl text-[28px] font-semibold tracking-[-0.03em] sm:text-[36px]">Give your agent a safe, current research layer.</h2>
+            <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-on-surface-variant">Paste the prompt into Claude Code, ChatGPT, Cursor, Codex, Hermes, OpenClaw or another OAuth-capable client. It tells the agent what Stocksbrew can provide and how to behave when evidence is missing.</p>
+            <AgentClientLogos className="mt-6" />
+            <p className="mt-8 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-on-surface-variant">Works with channels you configure</p>
+            <AgentChannelLogos className="mt-3" />
+          </div>
+          <div>
+            <AgentSetupPrompt />
+            <div className="mt-6 landing-card rounded-xl p-5 sm:p-6">
+              <p className="landing-section-kicker text-landing-brand">Permissions</p>
+              <ul className="mt-4 grid gap-3 text-[13px]">
+                {CAPABILITIES.map((item) => <li key={item} className="flex gap-2"><span className="text-landing-brand">✓</span><span>{item}</span></li>)}
+              </ul>
+              <p className="mt-5 border-t border-outline-variant pt-4 text-[12px] leading-relaxed text-on-surface-variant">OAuth scopes stay visible and revocable. Ask before every Watchlist or alert write.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-outline-variant bg-surface-container-low/35">
+        <div className="mx-auto max-w-[1180px] px-5 py-14 sm:px-8 lg:py-20">
+          <div className="flex flex-col gap-6 border-y border-outline-variant py-8 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="landing-section-kicker text-landing-brand">For developers</p>
+              <h2 className="mt-3 text-[24px] font-semibold tracking-[-0.03em] sm:text-[30px]">Need the full tool map?</h2>
+              <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-on-surface-variant">See every MCP tool, scope, REST endpoint, quota and error shape in the developer reference.</p>
+            </div>
+            <Link href="/developers" className="landing-btn-secondary shrink-0 px-5 py-3 text-[13px]">Open the developer docs →</Link>
           </div>
         </div>
       </section>
 
       <section className="border-b border-outline-variant">
-        <div className="mx-auto max-w-[1180px] px-5 py-12 sm:px-8 lg:py-16">
-          <div className="landing-card flex flex-col gap-5 rounded-xl p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+        <div className="mx-auto max-w-[1180px] px-5 py-14 sm:px-8 lg:py-20">
+          <div className="landing-card flex flex-col gap-6 rounded-xl p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
             <div>
-              <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">For when your watchlist gets serious.</h2>
+              <p className="landing-section-kicker text-landing-brand">Ready when you are</p>
+              <h2 className="mt-3 text-[24px] font-semibold tracking-[-0.03em] sm:text-[30px]">Give your agent the same context you use.</h2>
               <p className="mt-3 text-[14px] text-on-surface-variant">$9/month. Three days free. Detailed calls, unlimited Watchlist, alerts, research generation and agent access.</p>
             </div>
             <Link href="/subscribe" className="landing-btn-primary shrink-0 self-start px-5 py-2.5 text-[13px] sm:self-auto">Start your 3-day free trial</Link>
@@ -165,14 +206,18 @@ export default function AgentsPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[860px] px-5 py-12 sm:px-8 lg:py-16">
-        <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">Questions</h2>
-        <div className="mt-5 divide-y divide-outline-variant border-y border-outline-variant">
+      <section className="mx-auto max-w-[860px] px-5 py-14 sm:px-8 lg:py-20">
+        <p className="landing-section-kicker text-landing-brand">Questions</p>
+        <h2 className="mt-3 text-[28px] font-semibold tracking-[-0.03em] sm:text-[34px]">Before you connect</h2>
+        <div className="mt-6 divide-y divide-outline-variant border-y border-outline-variant">
           {FAQS.map(([question, answer]) => (
-            <article key={question} className="py-5">
-              <h3 className="text-[15px] font-semibold text-on-surface">{question}</h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">{answer}</p>
-            </article>
+            <details key={question} className="group py-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-[15px] font-semibold text-on-surface [&::-webkit-details-marker]:hidden">
+                {question}
+                <span aria-hidden className="font-mono text-[18px] font-normal text-on-surface-variant transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-on-surface-variant">{answer}</p>
+            </details>
           ))}
         </div>
       </section>
