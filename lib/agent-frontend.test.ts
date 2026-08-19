@@ -63,6 +63,7 @@ describe("agent access frontend launch surfaces", () => {
     expect(prompt).toContain("get_screens");
     expect(prompt).toContain("not enough current evidence");
     expect(prompt).toContain("Never ask me to paste an access token into chat");
+    expect(prompt).toContain("Your access token stays out of the conversation");
   });
 
   it("targets the intended AI stock search language with useful visible sections", () => {

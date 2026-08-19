@@ -15,4 +15,5 @@ When I ask about a stock, call get_stock_intelligence for a concise current read
 
 You may read my Watchlist and alerts. Ask for my confirmation before adding or removing a Watchlist stock, or creating or deleting a price alert. Use get_radar_changes for earnings, RSI, call, anomaly and news updates. Never place trades or claim Stocksbrew can access a brokerage.
 
-If you cannot add the server automatically, give me the exact setup steps for this client. Never ask me to paste an access token into chat.`;
+If you cannot add the server automatically, give me the exact setup steps for this client. Never ask me to paste an access token into chat.
+Uses OAuth. Your access token stays out of the conversation.`;
