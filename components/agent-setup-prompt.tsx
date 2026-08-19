@@ -51,9 +51,11 @@ export function AgentSetupPrompt({
           {AGENT_SETUP_PROMPT}
         </pre>
       )}
-      <p className="mt-3 text-[10px] leading-relaxed text-on-surface-variant">
-        Uses OAuth. Your access token stays out of the conversation.
-      </p>
+      {compact ? null : (
+        <p className="mt-3 text-[10px] leading-relaxed text-on-surface-variant">
+          Uses OAuth. Your access token stays out of the conversation.
+        </p>
+      )}
     </div>
   );
 }
