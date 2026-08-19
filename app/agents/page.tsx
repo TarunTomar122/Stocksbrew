@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { AgentClientLogos } from "@/components/agent-client-logos";
 import { AgentSetupPrompt } from "@/components/agent-setup-prompt";
+import { getSessionUser } from "@/lib/auth-server";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const metadata: Metadata = {
   title: "AI Stock Agent for Research, Watchlist, and Alerts",
@@ -86,7 +88,11 @@ function ChatDemo() {
   );
 }
 
-export default function AgentsPage() {
+export default async function AgentsPage() {
+  const session = await getSessionUser();
+  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
+  const subscribed = resolveIsSubscribed(userDoc);
+
   return (
     <main className="landing-page min-w-0 flex-grow bg-surface text-on-surface">
       <JsonLd />
@@ -172,7 +178,9 @@ export default function AgentsPage() {
               <h2 className="mt-3 text-[24px] font-semibold tracking-[-0.03em] sm:text-[30px]">Give your agent the same context you use.</h2>
               <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-on-surface-variant">$9/month. Three days free. Detailed calls, unlimited Watchlist, alerts, research generation and agent access.</p>
             </div>
-            <Link href="/subscribe" className="landing-btn-primary shrink-0 self-start px-5 py-3 text-[13px] sm:self-auto">Start your 3-day free trial</Link>
+            <Link href={subscribed ? "#connect" : "/subscribe"} className="landing-btn-primary shrink-0 self-start px-5 py-3 text-[13px] sm:self-auto">
+              {subscribed ? "Connect your agent" : "Start your 3-day free trial"}
+            </Link>
           </div>
         </div>
       </section>
