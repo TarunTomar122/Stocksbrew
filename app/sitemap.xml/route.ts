@@ -3,6 +3,7 @@ import { COMPARISON_PAGES } from "@/lib/compare-data";
 import { USE_CASES } from "@/lib/use-cases-data";
 import { FEATURED_STOCK_TICKERS, getSeoStockPage } from "@/lib/seo/stock-pages";
 import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
+import { listMarketDailyEditions } from "@/lib/market-daily";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -13,7 +14,7 @@ function url(path: string, lastmod?: string) {
   return `  <url><loc>${BASE}${path}</loc>${modified}</url>`;
 }
 
-export function GET() {
+export async function GET() {
   const entries: string[] = [];
 
   // Public pages with substantial standalone content.
@@ -61,6 +62,16 @@ export function GET() {
   // Blog posts
   for (const p of indexableBlogPosts) {
     entries.push(url(`/blog/${p.slug}`, p.updated ?? p.date));
+  }
+
+  const marketDailyEditions = await listMarketDailyEditions(365).catch(() => []);
+  for (const edition of marketDailyEditions) {
+    entries.push(
+      url(
+        `/market-daily/${edition.edition_date}`,
+        edition.updated_at || edition.published_at,
+      ),
+    );
   }
 
   for (const ticker of FEATURED_STOCK_TICKERS) {

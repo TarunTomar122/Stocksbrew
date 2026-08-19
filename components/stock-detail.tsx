@@ -13,6 +13,7 @@ import { StockAnalystDepth, StockFinancialDepth, StockOperatingRecord } from "@/
 import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
 import { TrackButton } from "@/components/track-button";
 import { StockShareCard } from "@/components/stock-share-card";
+import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
 import { StockPageAnalytics } from "@/components/stock-page-analytics";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import Link from "next/link";
@@ -666,8 +667,12 @@ export function StockDetail(props: Props) {
               <p className="mt-0.5 font-mono text-[12px] leading-none text-on-surface-variant">{identifierLine}</p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 flex-col items-end gap-2">
             <TrackButton {...trackButtonProps} variant="compact" hideWhenTracked />
+            <WatchlistAiPromptButton
+              ticker={stock.ticker}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#D97757]/45 bg-[#D97757]/10 px-2.5 text-[13px] font-medium text-[#D97757] shadow-none transition-colors hover:bg-[#D97757]/15 dark:border-[#D97757]/60 dark:bg-[#D97757]/15 dark:text-[#F1B19B] dark:hover:bg-[#D97757]/20"
+            />
             <StockShareCard ticker={stock.ticker} market={market} />
           </div>
         </div>
@@ -737,6 +742,10 @@ export function StockDetail(props: Props) {
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             <TrackButton {...trackButtonProps} variant="compact" hideWhenTracked />
+            <WatchlistAiPromptButton
+              ticker={stock.ticker}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#D97757]/45 bg-[#D97757]/10 px-2.5 text-[13px] font-medium text-[#D97757] shadow-none transition-colors hover:bg-[#D97757]/15 dark:border-[#D97757]/60 dark:bg-[#D97757]/15 dark:text-[#F1B19B] dark:hover:bg-[#D97757]/20"
+            />
             <StockShareCard ticker={stock.ticker} market={market} />
           </div>
         </div>

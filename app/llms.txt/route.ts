@@ -36,6 +36,7 @@ Market coverage: US-listed stocks and US market context
 - [About stocksbrew](${BASE}/about): Product purpose and ownership.
 - [Author: Tarun Tomar](${BASE}/authors/tarun-tomar): Author and reviewer profile.
 - [Developer reference](${BASE}/developers): Stocksbrew MCP and REST behavior.
+- [AI agent access](${BASE}/agents): Connect Claude, ChatGPT, Codex and other OAuth-capable agents to current Stocksbrew context.
 - [OpenAPI document](${BASE}/api/v1/openapi.json): Machine-readable REST contract.
 
 ## Current market analysis

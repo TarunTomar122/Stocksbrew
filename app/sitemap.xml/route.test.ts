@@ -5,7 +5,7 @@ import { FEATURED_STOCK_TICKERS } from "@/lib/seo/stock-pages";
 
 describe("public sitemap", () => {
   it("stays curated and includes only the ten flagship stock pages", async () => {
-    const xml = await GET().text();
+    const xml = await (await GET()).text();
     const locations = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
     const stockLocations = locations.filter((location) => location.includes("/stock/"));
 
@@ -14,6 +14,8 @@ describe("public sitemap", () => {
     expect(stockLocations).toEqual(
       FEATURED_STOCK_TICKERS.map((ticker) => `https://www.stocksbrew.online/stock/${ticker}`),
     );
+    expect(locations).toContain("https://www.stocksbrew.online/market-daily");
+    expect(locations).toContain("https://www.stocksbrew.online/agents");
     expect(locations).not.toContain("https://www.stocksbrew.online/radar");
     expect(locations).not.toContain("https://www.stocksbrew.online/subscribe");
   });

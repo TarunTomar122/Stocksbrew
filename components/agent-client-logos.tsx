@@ -1,5 +1,5 @@
 const CLIENTS = [
-  { label: "Claude Code", detail: "MCP", icon: "https://claude.ai/favicon.ico", invertInDark: false },
+  { label: "Claude Code", detail: "MCP", icon: "/agent-logos/claude-code.svg", invertInDark: false },
   { label: "Cursor", detail: "MCP", icon: "https://www.cursor.com/assets/images/logo.svg", invertInDark: false },
   { label: "Codex", detail: "MCP", icon: "https://upload.wikimedia.org/wikipedia/commons/6/66/OpenAI_logo_2025_%28symbol%29.svg", invertInDark: true },
   { label: "Hermes", detail: "Remote MCP", icon: "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/website/static/img/logo.png", invertInDark: false },

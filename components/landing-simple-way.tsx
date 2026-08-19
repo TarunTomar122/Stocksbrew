@@ -2,26 +2,32 @@ import { AnimatedIcon } from "@/components/animated-icon";
 
 const STEPS = [
   {
-    title: "Search a stock",
-    body: "Read its financials, valuation, filings, earnings, analyst targets and news.",
+    title: "Research any stock",
+    body: "Search a ticker, then add it to your Watchlist.",
+    points: [
+      "Fundamentals, sentiment, analyst views and news in one place.",
+      "Automated alerts so you know when to look again.",
+    ],
     icon: "search",
   },
   {
-    title: "Add it to your Watchlist",
-    body: "Track a company you own or want to follow. Your first three are free.",
-    icon: "add",
+    title: "Bring your AI up to speed",
+    body: "Connect Stocksbrew to Claude or ChatGPT.",
+    points: [
+      "Ask about your Watchlist or any stock in plain English.",
+      "Give your AI current, structured market context.",
+    ],
+    icon: "auto_awesome",
   },
   {
-    title: "We keep researching",
-    body: "Get an alert when earnings, news or a price level gives you a reason to look again.",
-    icon: "notifications_active",
+    title: "Stay in the loop",
+    body: "Get the market sent to you.",
+    points: [
+      "Before-open, after-close and weekly emails.",
+      "Alerts for earnings, news and price levels.",
+    ],
+    icon: "mail-check",
   },
-] as const;
-
-const EMAIL_RHYTHM = [
-  { title: "Before the open", body: "Overnight moves and what deserves a look today." },
-  { title: "After the close", body: "What changed, and which stocks need your attention." },
-  { title: "Every week", body: "The bigger shifts across your Watchlist." },
 ] as const;
 
 export function LandingSimpleWay() {
@@ -29,11 +35,11 @@ export function LandingSimpleWay() {
     <section className="border-b border-outline-variant bg-background">
       <div className="landing-inner py-14 lg:py-16">
         <div className="max-w-2xl">
-          <h2 className="text-[26px] font-semibold tracking-tight text-on-surface sm:text-[32px]">
-            Search once. Track what matters.
+          <h2 className="text-balance text-[26px] font-semibold tracking-tight text-on-surface sm:text-[32px]">
+            Search, track, stay updated.
           </h2>
-          <p className="mt-4 text-[15px] leading-relaxed text-on-surface-variant">
-            Start with a company page. Add it to your Watchlist when you want us to keep checking it.
+          <p className="text-pretty mt-4 text-[15px] leading-relaxed text-on-surface-variant">
+            Everything you need to follow a stock without doing the same work every day.
           </p>
         </div>
 
@@ -41,38 +47,23 @@ export function LandingSimpleWay() {
           {STEPS.map((step) => (
             <article
               key={step.title}
-              className="landing-card flex flex-col gap-3 rounded-xl p-5"
+              className="landing-card flex flex-col rounded-xl p-5"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-landing-brand/10">
-                <AnimatedIcon name={step.icon} size={20} className="text-landing-brand" aria-hidden />
+              <div className="flex size-11 items-center justify-center rounded-xl bg-landing-brand/10">
+                <AnimatedIcon name={step.icon} size={22} className="text-landing-brand" aria-hidden />
               </div>
-              <h3 className="text-[17px] font-semibold tracking-tight text-on-surface">{step.title}</h3>
-              <p className="text-[14px] leading-relaxed text-on-surface-variant">{step.body}</p>
+              <h3 className="text-balance mt-5 text-[17px] font-semibold tracking-tight text-on-surface">{step.title}</h3>
+              <p className="text-pretty mt-2 text-[14px] leading-relaxed text-on-surface-variant">{step.body}</p>
+              <ul className="text-pretty mt-4 space-y-2 text-[13px] leading-relaxed text-on-surface-variant">
+                {step.points.map((point) => (
+                  <li key={point} className="flex gap-2">
+                    <span aria-hidden className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-landing-brand" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
             </article>
           ))}
-        </div>
-
-        <div className="mt-12 border-t border-outline-variant pt-10">
-          <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-landing-brand">
-              Market briefs
-            </p>
-            <h3 className="mt-2 text-[22px] font-semibold tracking-tight text-on-surface sm:text-[26px]">
-              Let StocksBrew keep you posted.
-            </h3>
-            <p className="mt-3 text-[15px] leading-relaxed text-on-surface-variant">
-              We send short, useful emails around the market, so you do not have to keep checking.
-            </p>
-          </div>
-
-          <div className="mt-7 grid border-y border-outline-variant sm:grid-cols-3 sm:divide-x sm:divide-outline-variant">
-            {EMAIL_RHYTHM.map((item) => (
-              <div key={item.title} className="py-4 sm:px-5 sm:py-5">
-                <p className="text-[15px] font-semibold text-on-surface">{item.title}</p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">{item.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </section>
