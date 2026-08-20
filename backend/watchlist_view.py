@@ -58,6 +58,17 @@ def _active_universe_cache(store: TraceMoneyStore) -> dict[str, str]:
     }
 
 
+def _instrument_meta_by_id(store: TraceMoneyStore, ids: list[str]) -> dict[str, dict[str, Any]]:
+    """Load instrument metadata keyed by the document ID, never response order."""
+    return {
+        snap.id: (snap.to_dict() or {})
+        for snap in store.db.get_all(
+            [store.db.collection("tm_instruments").document(instrument_id) for instrument_id in ids]
+        )
+        if snap.exists and snap.id in ids
+    }
+
+
 def _safe_float(value: Any) -> float | None:
     try:
         v = float(value)
@@ -2995,21 +3006,7 @@ def build_watchlist_view(
     facts_by_id = store.get_stock_facts_batch(ids)
     technical_by_id = store.get_latest_stock_technicals_batch(ids)
     mention_by_id = store.get_mention_stats_batch(ids)
-    instrument_meta_by_id = {
-        instrument_id: (doc.to_dict() or {})
-        for instrument_id, doc in (
-            (
-                instrument_id,
-                snap,
-            )
-            for instrument_id, snap in zip(
-                ids,
-                store.db.get_all([store.db.collection("tm_instruments").document(instrument_id) for instrument_id in ids]),
-                strict=False,
-            )
-        )
-        if doc.exists
-    }
+    instrument_meta_by_id = _instrument_meta_by_id(store, ids)
     markets = sorted({_market_from_instrument_id(instrument_id) for instrument_id in ids if _market_from_instrument_id(instrument_id)})
 
     intel_by_id: dict[str, dict[str, Any]] = {}

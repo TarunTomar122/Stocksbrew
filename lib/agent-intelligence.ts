@@ -8,10 +8,11 @@ import { consumeAgentQuota } from "@/lib/agent-quota";
 import { compareStocks } from "@/lib/compare-stocks";
 import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
 import { getHomeView } from "@/lib/home-view";
-import { resolveInstrumentByTicker } from "@/lib/instrument-resolver";
+import { getInstrumentLabels, resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { filterSearchEntries, getSearchIndexForApi } from "@/lib/search";
 import { getOnDemandNewsStatus } from "@/lib/on-demand-queue";
 import { getInstrument, getMarketSnapshot } from "@/lib/firestore";
+import { canonicalAgentRadarLabel } from "@/lib/agent-radar-labels";
 import { getHeatList } from "@/lib/heat";
 import { getNear52WeekLists } from "@/lib/near-52-week";
 import { getRedditCues, hasRedditBrief, getRedditContextForTicker } from "@/lib/reddit-cues";
@@ -572,6 +573,8 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
   const limit = Math.min(100, Math.max(1, Math.floor(input.limit || 50)));
   const offset = Math.max(0, Math.floor(input.offset || 0));
   const asOf = latestIso([view.updated_at, view.built_at, view.brief?.generated_at, view.today_setup?.generated_at]);
+  const selectedRows = (view.rows ?? []).slice(offset, offset + limit);
+  const labelsById = await getInstrumentLabels(selectedRows.map((row) => row.instrument_id)).catch(() => new Map());
   return envelope({
     data_status: "available",
     tracked_count: view.tracked_count,
@@ -595,46 +598,49 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
     changes: view.changes ?? null,
     returned_count: Math.min(limit, Math.max(0, (view.rows?.length || 0) - offset)),
     next_offset: offset + limit < (view.rows?.length || 0) ? offset + limit : null,
-    rows: (view.rows ?? []).slice(offset, offset + limit).map((row) => ({
-      instrument_id: row.instrument_id,
-      ticker: row.ticker,
-      name: row.instrument_name ?? row.ticker,
-      logo_url: row.logo_url ?? null,
-      position_type: row.position_type,
-      market: row.market,
-      sector: row.sector_label,
-      industry: row.industry_label,
-      currency: row.currency,
-      price: row.price,
-      day_change_pct: row.day_change_pct,
-      day_change_abs: row.day_change_abs,
-      scores: row.scores,
-      target_upside_pct: row.target_upside_pct ?? null,
-      call: row.directive_v2 ?? row.ai_directive ?? null,
-      summary: row.brief_tile?.micro ?? null,
-      facts: row.facts ?? null,
-      technicals: row.technicals ?? null,
-      alerts: row.alerts ?? [],
-      catalysts: row.catalysts ?? [],
-      news_velocity: row.news_velocity ?? null,
-      premium_signals: row.premium_signals ?? [],
-      top_metric_summaries: row.top_metric_summaries ?? [],
-      holding_status: row.holding_status ?? null,
-      has_intel_pro: row.has_intel_pro,
-      attention: row.attention_reason ? {
-        kind: row.attention_kind ?? null,
-        reason: row.attention_reason,
-        suggested_action: row.suggested_action ?? null,
-      } : null,
-      holding: row.holding ? {
-        quantity: row.holding.quantity ?? null,
-        market_value: row.holding.market_value ?? row.holding.computed_market_value ?? null,
-        average_cost: row.holding.average_cost ?? null,
-        portfolio_weight_pct: row.holding.portfolio_weight_pct ?? null,
-        unrealized_gain_pct: row.holding.unrealized_gain_pct ?? null,
-      } : null,
-      coverage_status: row.coverage_status,
-    })),
+    rows: selectedRows.map((row) => {
+      const label = canonicalAgentRadarLabel(row, labelsById.get(row.instrument_id));
+      return {
+        instrument_id: row.instrument_id,
+        ticker: label.ticker,
+        name: label.name,
+        logo_url: row.logo_url ?? null,
+        position_type: row.position_type,
+        market: row.market,
+        sector: row.sector_label,
+        industry: row.industry_label,
+        currency: row.currency,
+        price: row.price,
+        day_change_pct: row.day_change_pct,
+        day_change_abs: row.day_change_abs,
+        scores: row.scores,
+        target_upside_pct: row.target_upside_pct ?? null,
+        call: row.directive_v2 ?? row.ai_directive ?? null,
+        summary: row.brief_tile?.micro ?? null,
+        facts: row.facts ?? null,
+        technicals: row.technicals ?? null,
+        alerts: row.alerts ?? [],
+        catalysts: row.catalysts ?? [],
+        news_velocity: row.news_velocity ?? null,
+        premium_signals: row.premium_signals ?? [],
+        top_metric_summaries: row.top_metric_summaries ?? [],
+        holding_status: row.holding_status ?? null,
+        has_intel_pro: row.has_intel_pro,
+        attention: row.attention_reason ? {
+          kind: row.attention_kind ?? null,
+          reason: row.attention_reason,
+          suggested_action: row.suggested_action ?? null,
+        } : null,
+        holding: row.holding ? {
+          quantity: row.holding.quantity ?? null,
+          market_value: row.holding.market_value ?? row.holding.computed_market_value ?? null,
+          average_cost: row.holding.average_cost ?? null,
+          portfolio_weight_pct: row.holding.portfolio_weight_pct ?? null,
+          unrealized_gain_pct: row.holding.unrealized_gain_pct ?? null,
+        } : null,
+        coverage_status: row.coverage_status,
+      };
+    }),
   }, asOf);
 }
 
