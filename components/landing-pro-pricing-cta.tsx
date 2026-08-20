@@ -1,23 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
-import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { proCtaClassName } from "@/components/pro-cta";
 import { type AuthSurface, trackLandingCtaClicked } from "@/lib/product-analytics";
-
-async function syncServerSession(): Promise<void> {
-  const u = getFirebaseAuth().currentUser;
-  if (!u) return;
-  const idToken = await u.getIdToken();
-  await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
-  });
-}
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 export function LandingProPricingCta({
   isSignedIn,
@@ -36,7 +24,7 @@ export function LandingProPricingCta({
     trackLandingCtaClicked({
       surface,
       signedIn: false,
-      destination: "/subscribe",
+      destination: "dodo_checkout",
     });
     setBusy(true);
     try {
@@ -46,11 +34,10 @@ export function LandingProPricingCta({
       return;
     }
     try {
-      await syncServerSession();
+      window.location.assign(await startDodoCheckout());
     } catch {
-      // cookie may still be set by AuthProvider; continue to subscribe
+      setBusy(false);
     }
-    window.location.assign("/subscribe");
   }
 
   const className = proCtaClassName({
@@ -61,22 +48,25 @@ export function LandingProPricingCta({
 
   if (isSignedIn) {
     return (
-      <Link
-        href="/subscribe"
+      <button
+        type="button"
         className={className}
-        onClick={() =>
-          trackLandingCtaClicked({
-            surface,
-            signedIn: true,
-            destination: "/subscribe",
-          })
-        }
+        onClick={async () => {
+          trackLandingCtaClicked({ surface, signedIn: true, destination: "dodo_checkout" });
+          setBusy(true);
+          try {
+            window.location.assign(await startDodoCheckout());
+          } catch {
+            setBusy(false);
+          }
+        }}
+        disabled={busy}
       >
-        {ctaLabel}
+        {busy ? "Opening checkout…" : ctaLabel}
         <span aria-hidden className="ml-1">
           →
         </span>
-      </Link>
+      </button>
     );
   }
 

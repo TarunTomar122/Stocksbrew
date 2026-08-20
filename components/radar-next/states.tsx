@@ -37,7 +37,7 @@ export function RadarNextSignedOut() {
           />
         </div>
         <div aria-hidden className="rn-sample-fade absolute inset-0" />
-        <section aria-label="Sample Watchlist notice" className="absolute inset-x-4 top-8 z-10 mx-auto max-w-[27rem] rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card)]/95 p-7 text-center shadow-[0_22px_60px_rgba(0,0,0,0.24)] backdrop-blur-md sm:top-12 sm:p-8">
+        <section aria-label="Sample Watchlist notice" className="absolute inset-x-4 top-8 z-10 mx-auto max-w-[27rem] rounded-2xl border border-[var(--rn-line)] bg-[var(--rn-card)] p-7 text-center shadow-[0_22px_60px_rgba(0,0,0,0.24)] sm:top-12 sm:p-8">
           <h2 className="text-[26px] font-semibold leading-tight tracking-tight text-[var(--rn-ink)]">
             Build your watchlist
           </h2>

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { StockLogo } from "@/components/stock-logo";
 import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 type Slide = {
   id: string;
@@ -314,7 +314,6 @@ const SLIDES: Slide[] = [
 
 export function WatchlistShowcase() {
   const { user } = useUser();
-  const router = useRouter();
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
@@ -329,7 +328,11 @@ export function WatchlistShowcase() {
 
   async function handleCta() {
     if (user) {
-      router.push("/subscribe");
+      try {
+        window.location.assign(await startDodoCheckout());
+      } catch {
+        // Keep the CTA available for another attempt.
+      }
       return;
     }
     if (signingIn) return;
@@ -339,7 +342,7 @@ export function WatchlistShowcase() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       await signInWithPopup(auth, provider);
-      router.refresh();
+      window.location.assign(await startDodoCheckout());
     } catch {
       /* user cancelled */
     } finally {

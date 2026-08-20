@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
 import { TrendingNow, type TrendingStock } from "@/components/trending-now";
+import { ProCtaLink } from "@/components/pro-cta";
 import type { HeatRow } from "@/lib/heat";
 import type { Near52WeekRow } from "@/lib/near-52-week";
 import { captureEvent } from "@/lib/posthog";
@@ -147,6 +149,7 @@ function StockScreener({
   catalystStocks,
   dipStocks,
   trumpMentions,
+  isSubscribed,
 }: {
   hotStocks: HeatRow[];
   nearHighs: Near52WeekRow[];
@@ -156,6 +159,7 @@ function StockScreener({
   catalystStocks: HeatRow[];
   dipStocks: HeatRow[];
   trumpMentions: TrumpMentionRow[];
+  isSubscribed: boolean;
 }) {
   const allCategories: { key: ScreenerCategoryKey; label: string; rows: ScreenerRow[] }[] = [
     { key: "hot", label: "Hot stocks", rows: rowsFromHeat(hotStocks, "hot") },
@@ -172,6 +176,7 @@ function StockScreener({
   const [active, setActive] = useState<ScreenerCategoryKey | null>(categories[0]?.key ?? null);
   if (categories.length === 0) return null;
   const category = categories.find((c) => c.key === active) ?? categories[0];
+  const visibleRows = category.key === "trump" && !isSubscribed ? category.rows.slice(0, 3) : category.rows;
 
   function selectCategory(c: { key: ScreenerCategoryKey; label: string; rows: ScreenerRow[] }) {
     setActive(c.key);
@@ -219,9 +224,12 @@ function StockScreener({
                 style={isActive ? { background: "color-mix(in srgb, var(--primary) 8%, var(--surface))" } : undefined}
               >
                 <span
-                  className="text-[15.5px] font-medium"
+                  className="flex items-center gap-2 text-[15.5px] font-medium"
                   style={{ color: isActive ? "var(--primary)" : "var(--on-surface)" }}
                 >
+                  {c.key === "trump" ? (
+                    <Image src="/trump-avatar.png" alt="" width={24} height={24} className="rounded-full" />
+                  ) : null}
                   {c.label}
                 </span>
               </button>
@@ -230,7 +238,7 @@ function StockScreener({
         </div>
 
         <div key={category.key} className="max-h-[34rem] min-w-0 overflow-y-auto bg-surface md:max-h-[40rem]">
-          {category.rows.map((row) => (
+          {visibleRows.map((row) => (
             <Link
               key={row.key}
               href={`/stock/${row.ticker}`}
@@ -264,6 +272,19 @@ function StockScreener({
               </div>
             </Link>
           ))}
+          {category.key === "trump" && !isSubscribed && category.rows.length > 3 ? (
+            <div className="mx-3 my-3 flex items-center justify-between gap-4 rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-on-surface">
+                  {category.rows.length - 3} more Trump mention{category.rows.length - 3 === 1 ? "" : "s"}
+                </p>
+                <p className="mt-0.5 text-[12px] text-on-surface-variant">Unlock the full row with Pro</p>
+              </div>
+              <ProCtaLink href="/subscribe" size="sm" showStar className="shrink-0">
+                Unlock Pro
+              </ProCtaLink>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -312,7 +333,7 @@ function RedditCard({ row }: { row: RedditRow }) {
 }
 
 function RedditBuzz({ redditTickers }: { redditTickers: RedditRow[] }) {
-  const top = redditTickers.slice(0, 6);
+  const top = redditTickers.slice(0, 9);
   if (top.length === 0) return null;
 
   return (
@@ -338,6 +359,7 @@ export function ExploreHub({
   dipStocks,
   redditTickers,
   trumpMentions,
+  isSubscribed,
 }: {
   trending: TrendingStock[];
   hotStocks: HeatRow[];
@@ -349,6 +371,7 @@ export function ExploreHub({
   dipStocks: HeatRow[];
   redditTickers: RedditRow[];
   trumpMentions: TrumpMentionRow[];
+  isSubscribed: boolean;
 }) {
   useEffect(() => {
     captureEvent("explore_viewed", {
@@ -369,7 +392,6 @@ export function ExploreHub({
   return (
     <div className="flex flex-col gap-10">
       <TrendingNow stocks={trending} />
-      <RedditBuzz redditTickers={redditTickers} />
       <StockScreener
         hotStocks={hotStocks}
         nearHighs={nearHighs}
@@ -379,7 +401,9 @@ export function ExploreHub({
         catalystStocks={catalystStocks}
         dipStocks={dipStocks}
         trumpMentions={trumpMentions}
+        isSubscribed={isSubscribed}
       />
+      <RedditBuzz redditTickers={redditTickers} />
     </div>
   );
 }

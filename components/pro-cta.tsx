@@ -1,5 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from "react";
+import { useState } from "react";
+
+import { useUser } from "@/lib/auth-context";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
+import { signInWithGoogle } from "@/lib/sign-in";
+import { trackCheckoutClicked, trackCheckoutStarted } from "@/lib/product-analytics";
 
 export type ProCtaSize = "sm" | "md" | "lg";
 
@@ -70,6 +78,44 @@ export function ProCtaLink({
   className = "",
   ...props
 }: SharedProps & Omit<ComponentProps<typeof Link>, "href" | "className" | "children"> & { href?: string }) {
+  const { user } = useUser();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (href === "/subscribe") {
+    async function openCheckout() {
+      if (busy) return;
+      setBusy(true);
+      setError(false);
+      trackCheckoutClicked({ period: "monthly", market: "US", signedIn: Boolean(user) });
+      try {
+        if (!user) await signInWithGoogle({ surface: "paywall" });
+        const checkoutUrl = await startDodoCheckout();
+        trackCheckoutStarted({ period: "monthly", market: "US" });
+        window.location.assign(checkoutUrl);
+      } catch (err) {
+        console.error("direct checkout failed", err);
+        setError(true);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    return (
+      <button
+        type="button"
+        className={proCtaClassName({ size, fullWidth, variant, className })}
+        onClick={() => void openCheckout()}
+        disabled={busy}
+        aria-busy={busy}
+        {...(props as ButtonHTMLAttributes<HTMLButtonElement>)}
+      >
+        {showStar ? <ProCtaStar className="text-white" /> : null}
+        {busy ? "Opening checkout…" : error ? "Try again" : children}
+      </button>
+    );
+  }
+
   return (
     <Link href={href} className={proCtaClassName({ size, fullWidth, variant, className })} {...props}>
       {showStar ? <ProCtaStar className="text-white" /> : null}

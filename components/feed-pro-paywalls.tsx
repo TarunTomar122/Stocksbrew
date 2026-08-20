@@ -3,7 +3,6 @@
 import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
 import { useUser } from "@/lib/auth-context";
@@ -17,6 +16,7 @@ import {
 } from "@/lib/product-analytics";
 import type { RedditTicker } from "@/lib/reddit-cues-shared";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 type Benefit = { icon: string; title: string; body: string };
 
@@ -106,7 +106,6 @@ function fmtPrice(v: number): string {
 
 function useProPaywallCta(surface: PaywallSurface) {
   const { user } = useUser();
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -125,7 +124,7 @@ function useProPaywallCta(surface: PaywallSurface) {
       setBusy(true);
       try {
         await signInWithGoogle({ surface: "paywall" });
-        router.push("/subscribe");
+        window.location.assign(await startDodoCheckout());
       } catch (err) {
         console.error("sign-in failed", err);
       } finally {
@@ -133,7 +132,11 @@ function useProPaywallCta(surface: PaywallSurface) {
       }
       return;
     }
-    router.push("/subscribe");
+    try {
+      window.location.assign(await startDodoCheckout());
+    } catch (err) {
+      console.error("direct checkout failed", err);
+    }
   }
 
   return { user, busy, handleUnlock };

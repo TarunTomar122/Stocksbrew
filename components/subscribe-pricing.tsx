@@ -18,6 +18,7 @@ import { ProBenefitsGrid } from "@/components/pro-benefits-grid";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
 import { SUBSCRIBE_BENEFITS } from "@/lib/subscribe-benefits";
 import { US_PRO_MONTHLY_LABEL, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 const DEV_FAKE_SUBSCRIBE = process.env.NODE_ENV === "development";
 
@@ -90,28 +91,6 @@ function redirectDevSubscribeSuccess(subscriptionId: string) {
   window.location.href = `/subscribe?${params.toString()}`;
 }
 
-async function startCheckout(period: "monthly" | "yearly", market: "US" | "IN"): Promise<string> {
-  const auth = getFirebaseAuth();
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error("Not signed in");
-
-  const idToken = await currentUser.getIdToken();
-  const res = await fetch("/api/subscription/create-checkout", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
-    },
-    body: JSON.stringify({ period, market }),
-  });
-
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? "Checkout failed");
-  if (!json.checkoutUrl) throw new Error("No checkout URL returned");
-
-  return json.checkoutUrl;
-}
-
 export function SubscribePricing({
   isSubscribed,
   justSubscribed = false,
@@ -149,7 +128,7 @@ export function SubscribePricing({
           });
           redirectDevSubscribeSuccess(subscriptionId);
         } else {
-          const checkoutUrl = await startCheckout(period, market);
+          const checkoutUrl = await startDodoCheckout(period, market);
           trackCheckoutStarted({ period, market });
           window.location.href = checkoutUrl;
         }
@@ -178,7 +157,7 @@ export function SubscribePricing({
         });
         redirectDevSubscribeSuccess(subscriptionId);
       } else {
-        const checkoutUrl = await startCheckout(period, market);
+        const checkoutUrl = await startDodoCheckout(period, market);
         trackCheckoutStarted({ period, market });
         window.location.href = checkoutUrl;
       }

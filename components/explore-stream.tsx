@@ -7,19 +7,24 @@ import { getNear52WeekLists } from "@/lib/near-52-week";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { getTrumpLogic } from "@/lib/trump-logic";
 import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
+import { getSessionUser } from "@/lib/auth-server";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 // ponytail: hardcoded "most traded" list for now, swap for a real ranking source later
 const TRENDING_TICKERS = ["NVDA", "TSM", "MSFT", "GOOGL", "AAPL", "PLTR", "MU", "AMZN", "TSLA", "AMD", "COIN"];
 
 export async function ExploreStream() {
   const market = getCurrentMarket();
-  const [snapshotRows, heatList, redditData, near52, trumpLogic] = await Promise.all([
+  const [session, snapshotRows, heatList, redditData, near52, trumpLogic] = await Promise.all([
+    getSessionUser(),
     getMarketSnapshot(market).catch(() => []),
     getHeatList(market).catch(() => null),
     getRedditCues(market).catch(() => null),
     getNear52WeekLists(market, 20).catch(() => ({ nearHighs: [], nearLows: [] })),
     getTrumpLogic(market).catch(() => null),
   ]);
+  const userDoc = session ? await getUserDoc(session.uid) : null;
+  const isSubscribed = resolveIsSubscribed(userDoc);
 
   const bySymbol = new Map(snapshotRows.map((row) => [row.symbol.toUpperCase(), row]));
   const trending: TrendingStock[] = TRENDING_TICKERS.map((ticker) => {
@@ -45,7 +50,7 @@ export async function ExploreStream() {
   const redditTickers = (redditData?.tickers ?? [])
     .filter(hasRedditBrief)
     .sort((a, b) => (b.mention_count ?? 0) - (a.mention_count ?? 0))
-    .slice(0, 6)
+    .slice(0, 9)
     .map((row) => {
       const snap = bySymbol.get(row.ticker.toUpperCase());
       return { ...row, price: snap?.price.current, changePct: snap?.price.changePct };
@@ -81,6 +86,7 @@ export async function ExploreStream() {
         dipStocks={dipStocks}
         redditTickers={redditTickers}
         trumpMentions={trumpMentions}
+        isSubscribed={isSubscribed}
       />
     </div>
   );

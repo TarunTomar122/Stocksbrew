@@ -57,6 +57,21 @@ export function StockLogo({
   const dim = `${size}px`;
   const bg = fallbackBg === "#1c1c1e" ? fallbackColor(upper) : fallbackBg;
 
+  // Invesco's QQQ mark is inconsistent across the remote logo providers.
+  // Keep a recognisable local mark instead of showing a blank placeholder.
+  if (upper === "QQQ") {
+    return (
+      <div
+        className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md font-semibold ${className}`}
+        style={{ width: dim, height: dim, background: "#165DFF", color: "#ffffff", fontSize: Math.round(size * 0.27) }}
+        role="img"
+        aria-label={alt}
+      >
+        QQQ
+      </div>
+    );
+  }
+
   const fallback = (
     <div
       className="absolute inset-0 flex items-center justify-center rounded-md font-semibold"

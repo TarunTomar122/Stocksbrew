@@ -3,6 +3,7 @@
 import { AnimatedIcon } from "@/components/animated-icon";
 
 import { useRadarChat } from "@/components/radar-chat-context";
+import { trackAskAiClicked } from "@/lib/product-analytics";
 
 export function RadarAskButton({
   ticker,
@@ -20,6 +21,7 @@ export function RadarAskButton({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        trackAskAiClicked({ surface: "radar_row", ticker });
         askAbout(ticker);
       }}
       className={

@@ -158,3 +158,10 @@ export function trackAgentAccessAction(props: {
 }) {
   captureEvent("agent_access_action", props);
 }
+
+export function trackAskAiClicked(props: {
+  surface: "watchlist" | "stock" | "radar_row";
+  ticker?: string;
+}) {
+  captureEvent("ask_ai_clicked", props);
+}
