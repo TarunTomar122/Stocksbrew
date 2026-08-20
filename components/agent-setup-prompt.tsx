@@ -28,12 +28,7 @@ export function AgentSetupPrompt({
   return (
     <div className={`border-y border-outline-variant py-4 sm:py-5 ${className}`}>
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
-            Connect Stocksbrew
-          </p>
-          <p className="mt-1 text-[14px] font-bold text-on-surface">Copy this into your agent</p>
-        </div>
+        <p className="text-[14px] font-bold text-on-surface">Copy the setup prompt</p>
         <button
           type="button"
           onClick={() => void copyPrompt()}
