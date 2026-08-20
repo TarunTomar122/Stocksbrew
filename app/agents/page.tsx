@@ -10,7 +10,7 @@ import {
 } from "@/components/agents-page-demo";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { StockLogo } from "@/components/stock-logo";
-import { AGENT_DAILY_CALL_LIMIT } from "@/lib/agent-access-config";
+import { AGENT_MONTHLY_CALL_LIMIT } from "@/lib/agent-access-config";
 import {
   getAgentRadarChanges,
   getMarketAgentBrief,
@@ -63,7 +63,7 @@ const FAQS = [
   ["Can Stocksbrew place trades?", "No. Stocksbrew is research infrastructure. It cannot place trades or access a brokerage."],
   ["Is my Watchlist available to my agent?", "Yes, with the Watchlist permission. Your agent can read tracked stocks, holdings context, alerts and changes. It should ask before making a change."],
   ["Is this real-time market data?", "Prices and third-party figures can be delayed. Responses include the freshness information Stocksbrew has for each source."],
-  ["What does it cost?", `Stocksbrew Pro is $9 per month and includes ${AGENT_DAILY_CALL_LIMIT} agent calls per UTC day.`],
+  ["What does it cost?", `Stocksbrew Pro is $9 per month and includes ${AGENT_MONTHLY_CALL_LIMIT} agent calls per month.`],
   ["Is there an API?", "Yes. Use remote MCP with OAuth for compatible agents, or the REST API with a personal token for custom integrations."],
 ] as const;
 
@@ -355,7 +355,7 @@ export default async function AgentsPage() {
         </div>
       </section>
 
-      <section className="border-b border-outline-variant"><div className="mx-auto grid max-w-[1120px] gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:py-20"><div><h2 className="max-w-xl text-balance text-[32px] font-semibold leading-tight tracking-[-0.04em] sm:text-[42px]">Included with Pro.</h2><p className="mt-4 max-w-xl text-pretty text-[15px] leading-relaxed text-on-surface-variant">Current stock research, market context, Watchlist changes, MCP and REST access.</p></div><div className="lg:text-right"><p className="font-mono text-[42px] font-semibold tracking-[-0.05em]">$9<span className="text-[15px] font-normal tracking-normal text-on-surface-variant"> / month</span></p><p className="mt-2 text-[11px] text-on-surface-variant">{AGENT_DAILY_CALL_LIMIT} agent calls per day · cancel anytime</p><Link href={subscribed ? "#connect" : "/subscribe"} className="landing-btn-primary mt-6 px-5 py-3 text-[13px]">{subscribed ? "Connect your agent" : "Start with Pro"}</Link></div></div></section>
+      <section className="border-b border-outline-variant"><div className="mx-auto grid max-w-[1120px] gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:py-20"><div><h2 className="max-w-xl text-balance text-[32px] font-semibold leading-tight tracking-[-0.04em] sm:text-[42px]">Included with Pro.</h2><p className="mt-4 max-w-xl text-pretty text-[15px] leading-relaxed text-on-surface-variant">Current stock research, market context, Watchlist changes, MCP and REST access.</p></div><div className="lg:text-right"><p className="font-mono text-[42px] font-semibold tracking-[-0.05em]">$9<span className="text-[15px] font-normal tracking-normal text-on-surface-variant"> / month</span></p><p className="mt-2 text-[11px] text-on-surface-variant">{AGENT_MONTHLY_CALL_LIMIT} agent calls per month · cancel anytime</p><Link href={subscribed ? "#connect" : "/subscribe"} className="landing-btn-primary mt-6 px-5 py-3 text-[13px]">{subscribed ? "Connect your agent" : "Start with Pro"}</Link></div></div></section>
 
       <section className="mx-auto max-w-[820px] px-5 py-16 sm:px-8 lg:py-24"><h2 className="text-[32px] font-semibold tracking-[-0.04em] sm:text-[42px]">Questions before you connect.</h2><div className="mt-8 divide-y divide-outline-variant border-y border-outline-variant">{FAQS.map(([question, answer]) => <details key={question} className="group py-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">{question}<span aria-hidden className="font-mono text-[18px] font-normal text-on-surface-variant transition-transform group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-on-surface-variant">{answer}</p></details>)}</div></section>
 
