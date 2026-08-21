@@ -13,6 +13,7 @@ export type PortfolioBookRow = {
   position_type: "holding" | "watchlist";
   price: number | null;
   day_change_pct: number | null;
+  target_upside_pct: number | null;
   scores: WatchlistRow["scores"];
   directive_v2?: WatchlistRow["directive_v2"];
   ai_directive?: WatchlistRow["ai_directive"];
@@ -44,6 +45,7 @@ export function buildPortfolioBook(rows: WatchlistRow[]): PortfolioBookRow[] {
     position_type: row.position_type === "holding" ? ("holding" as const) : ("watchlist" as const),
     price: finiteNumber(row.price),
     day_change_pct: finiteNumber(row.day_change_pct),
+    target_upside_pct: finiteNumber(row.target_upside_pct),
     scores: row.scores,
     directive_v2: row.directive_v2,
     ai_directive: row.ai_directive,

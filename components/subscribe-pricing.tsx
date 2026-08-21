@@ -1,11 +1,9 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
 import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
-import { ProCtaButton } from "@/components/pro-cta";
 import { captureEvent } from "@/lib/posthog";
 import {
   trackCheckoutClicked,
@@ -16,6 +14,7 @@ import {
 } from "@/lib/product-analytics";
 import { ProBenefitsGrid } from "@/components/pro-benefits-grid";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
+import { StartFreeButton } from "@/components/oa/start-free-button";
 import { SUBSCRIBE_BENEFITS } from "@/lib/subscribe-benefits";
 import { US_PRO_MONTHLY_LABEL, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
@@ -27,17 +26,8 @@ const PLANS_US = [
     id: "monthly" as const,
     label: "Monthly",
     price: US_PRO_MONTHLY_LABEL,
-    period: "per month",
-    save: null,
-    trial: "3 days free",
-  },
-  {
-    id: "yearly" as const,
-    label: "Yearly",
-    price: US_PRO_YEARLY_LABEL,
-    period: "per year",
-    save: `Save ${US_YEARLY_SAVE_PCT}%`,
-    badge: "Best value",
+    period: "/mo",
+    save: null as string | null,
     trial: "3 days free",
   },
 ];
@@ -47,17 +37,18 @@ const PLANS_IN = [
     id: "monthly" as const,
     label: "Monthly",
     price: "₹99",
-    period: "per month",
+    period: "/mo",
     strike: "₹149",
     save: "Save 33%",
-    badge: "Best value",
+    trial: null as string | null,
   },
 ];
 
-const PRO_HIGHLIGHTS = [
-  { icon: "verified", text: "Deeper research, drivers, and risks" },
-  { icon: "flag", text: "Analyst targets in context" },
-  { icon: "notifications_active", text: "Unlimited Watchlist tracking" },
+const PRO_FEATURES = [
+  "Unlimited tracked stocks",
+  "Calls, price zones and targets",
+  "Earnings and price-level alerts",
+  "Use it inside your AI agent",
 ];
 
 async function devActivateSubscription(period: "monthly" | "yearly"): Promise<string> {
@@ -104,8 +95,7 @@ export function SubscribePricing({
 }) {
   const { user } = useUser();
   const plans = market === "IN" ? PLANS_IN : PLANS_US;
-  const defaultPlan = plans.find((plan) => plan.id === "monthly") ?? plans[0];
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">(defaultPlan.id);
+  const selectedPlan = "monthly" as const;
   const [loadingPlan, setLoadingPlan] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -177,10 +167,7 @@ export function SubscribePricing({
   if (isSubscribed) {
     if (justSubscribed) {
       return (
-        <div
-          className="mx-auto w-full max-w-[560px] rounded-2xl border border-outline-variant bg-surface p-6 md:p-10"
-          style={{ boxShadow: "var(--shadow-card)" }}
-        >
+        <div className="mx-auto w-full max-w-[560px] rounded-[22px] border border-oa-border bg-oa-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.06)] md:p-10">
           <ProWelcomePanel variant="page" />
         </div>
       );
@@ -189,11 +176,13 @@ export function SubscribePricing({
     return (
       <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6 py-4">
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full tint-bull">
-            <AnimatedIcon name="check_circle" size={24} className="text-[var(--signal-bullish)]" aria-hidden />
+          <span className="inline-flex size-12 items-center justify-center rounded-full bg-oa-accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-6">
+              <path d="m5 13 4 4L19 7" />
+            </svg>
           </span>
-          <p className="text-[16px] font-semibold text-on-surface">You&apos;re on Pro</p>
-          <p className="text-[14px] text-on-surface-variant">Everything below is included with your plan.</p>
+          <p className="text-base font-medium text-oa-fg">You&apos;re on Pro</p>
+          <p className="text-sm text-oa-muted-fg">Everything below is included with your plan.</p>
         </div>
         <ProBenefitsGrid benefits={SUBSCRIBE_BENEFITS.filter((b) => b.title !== "Cancel anytime")} />
       </div>
@@ -202,122 +191,115 @@ export function SubscribePricing({
 
   const activePlan = plans.find((plan) => plan.id === selectedPlan) ?? plans[0];
   const isLoading = loadingPlan !== null;
-  const trialNote = market === "US" ? "3 days free · " : "";
+
+  const ctaLabel = isLoading
+    ? user
+      ? DEV_FAKE_SUBSCRIBE
+        ? "Activating Pro…"
+        : "Opening checkout…"
+      : "Signing you in…"
+    : user
+      ? DEV_FAKE_SUBSCRIBE
+        ? `Activate Pro (dev)`
+        : market === "US"
+          ? "Start 3-day free trial"
+          : `Subscribe for ${activePlan.price}`
+      : DEV_FAKE_SUBSCRIBE
+        ? "Sign in and activate Pro"
+        : market === "US"
+          ? "Start your 3-day free trial"
+          : "Sign in and subscribe";
 
   return (
-    <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-5 md:gap-6">
-      <header className="flex flex-col items-center gap-2 text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface-container-low px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-          <AnimatedIcon name="shield" size={14} className="text-[var(--signal-neutral)]" aria-hidden />
-          stocksbrew Pro
-        </span>
-        <h1 className="font-mono text-[26px] font-extrabold leading-tight tracking-tight text-on-surface md:text-[30px]">
-          Choose your plan
+    <div className="mx-auto flex w-full max-w-[880px] flex-col gap-10">
+      <header className="flex flex-col items-center gap-4 text-center">
+        <p className="text-xs uppercase tracking-[0.12em] text-oa-muted-fg">Pricing</p>
+        <h1 className="max-w-[560px] text-balance text-[26px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl">
+          Free to start. Pro when you follow more names.
         </h1>
+        {trackedCount > 0 ? (
+          <p className="text-sm tabular-nums text-oa-muted-fg">
+            You&apos;re tracking {trackedCount} {trackedCount === 1 ? "stock" : "stocks"} right now.
+          </p>
+        ) : null}
       </header>
 
-      <section className="flex w-full flex-col gap-5">
-        <div className={`grid gap-2.5 ${plans.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-          {plans.map((plan) => {
-            const selected = selectedPlan === plan.id;
-            return (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => setSelectedPlan(plan.id)}
-                className={`flex flex-col rounded-xl border p-3 text-left transition-colors ${
-                  selected
-                    ? "border-on-surface bg-surface-container-low shadow-[0_8px_20px_rgba(17,24,39,0.05)]"
-                    : "border-outline-variant bg-surface-container-low/40 hover:border-outline-variant/80"
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-on-surface">
-                    {plan.label}
-                  </span>
-                  {"badge" in plan && plan.badge ? (
-                    <span className="rounded-full bg-on-surface px-1.5 py-px font-mono text-[8px] font-semibold uppercase tracking-[0.06em] text-surface">
-                      {plan.badge}
-                    </span>
-                  ) : null}
-                  {plan.save ? (
-                    <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.04em] text-[var(--signal-bullish)]">
-                      {plan.save}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mt-2 flex items-end justify-between gap-2">
-                  <div className="font-mono text-[10px] leading-tight text-on-surface-variant">
-                    {plan.period}
-                    {"trial" in plan && plan.trial ? (
-                      <span className="mt-0.5 block font-semibold text-[var(--signal-bullish)]">{plan.trial}</span>
-                    ) : null}
-                  </div>
-                  <span className="flex items-baseline gap-1.5">
-                    {"strike" in plan && plan.strike ? (
-                      <span className="font-mono text-[11px] text-on-surface-variant line-through">{plan.strike}</span>
-                    ) : null}
-                    <span className="font-mono text-[28px] font-extrabold leading-none tracking-tight text-on-surface">
-                      {plan.price}
-                    </span>
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="border-y border-outline-variant py-4">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-            {trackedCount > 0 ? "What Pro adds to Watchlist" : "What Pro includes"}
-          </p>
-          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-x-4">
-            {PRO_HIGHLIGHTS.map((line) => (
-              <li key={line.text} className="flex items-start gap-2">
-                <AnimatedIcon name={line.icon} size={15} className="mt-0.5 shrink-0 text-[var(--signal-bullish)]" aria-hidden />
-                <span className="text-[12px] leading-snug text-on-surface">{line.text}</span>
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Free plate */}
+        <div className="flex flex-col gap-5 rounded-[22px] border border-oa-border bg-oa-bg p-6">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-[17px] font-medium tracking-tight text-oa-fg">Free</h2>
+            <p className="flex items-baseline gap-1.5">
+              <span className="text-[28px] font-medium leading-none tracking-tight tabular-nums text-oa-fg">$0</span>
+              <span className="text-sm text-oa-muted-fg">forever</span>
+            </p>
+          </div>
+          <ul className="flex flex-col gap-2.5">
+            {["Search any US stock", "Plain-English briefs", "Track 3 stocks"].map((f) => (
+              <li key={f} className="flex items-start gap-2 text-sm text-oa-fg/80">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 size-4 shrink-0 text-oa-muted-fg">
+                  <path d="m5 13 4 4L19 7" />
+                </svg>
+                {f}
               </li>
             ))}
           </ul>
+          <StartFreeButton surface="pricing_free" variant="secondary" className="mt-auto w-full" />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <ProCtaButton
+        {/* Pro plate */}
+        <div className="flex flex-col gap-5 rounded-[22px] border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-oa-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[17px] font-medium tracking-tight text-oa-fg">Pro</h2>
+              {"save" in activePlan && activePlan.save ? (
+                <span className="rounded-full bg-oa-accent px-2.5 py-0.5 text-xs font-medium text-oa-fg">{activePlan.save}</span>
+              ) : null}
+            </div>
+            <p className="flex items-baseline gap-1.5">
+              <span className="text-[28px] font-medium leading-none tracking-tight tabular-nums text-oa-fg">{activePlan.price}</span>
+              <span className="text-sm text-oa-muted-fg">{activePlan.period}</span>
+              {"strike" in activePlan && activePlan.strike ? (
+                <span className="ml-1 text-sm text-oa-muted-fg line-through tabular-nums">{activePlan.strike}</span>
+              ) : null}
+            </p>
+          </div>
+          <ul className="flex flex-col gap-2.5">
+            {PRO_FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-2 text-sm text-oa-fg/80">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 size-4 shrink-0 text-oa-primary">
+                  <path d="m5 13 4 4L19 7" />
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+          <button
             type="button"
             disabled={isLoading}
             onClick={() => void handleSubscribe(selectedPlan)}
-            size="lg"
-            fullWidth
-            showStar
+            className="mt-auto inline-flex h-11 items-center justify-center rounded-full bg-oa-primary px-5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98] disabled:opacity-50"
           >
-            {isLoading
-              ? user
-                ? DEV_FAKE_SUBSCRIBE
-                  ? "Activating Pro…"
-                  : "Opening checkout…"
-                : "Signing you in…"
-              : user
-                ? DEV_FAKE_SUBSCRIBE
-                  ? `Activate Pro (dev) · ${activePlan.price}`
-                  : market === "US"
-                    ? "Start 3-day free trial"
-                    : `Subscribe for ${activePlan.price}`
-                : DEV_FAKE_SUBSCRIBE
-                  ? "Sign in and activate Pro"
-                  : market === "US"
-                    ? "Start your 3-day free trial"
-                    : "Sign in and subscribe"}
-          </ProCtaButton>
-          <p className="text-center font-mono text-[10px] leading-relaxed text-on-surface-variant">
-            {trialNote}
-            {market === "US"
-              ? `${activePlan.price} after the trial`
-              : "Starts today"}
-          </p>
-          <p className="text-center font-mono text-[10px] text-on-surface-variant">7-day refund · cancel anytime</p>
+            {ctaLabel}
+          </button>
         </div>
+      </section>
 
-        {error ? <p className="text-center text-[13px] font-medium text-[#ef4444]">{error}</p> : null}
+      <section className="flex flex-col items-center gap-1.5 text-center">
+        <p className="text-[13px] leading-relaxed text-oa-muted-fg">
+          {market === "US"
+            ? `${activePlan.trial ?? "3 days free"}. Then ${activePlan.price}${activePlan.period}. Cancel anytime, keep access until the period ends.`
+            : "Starts today. Cancel anytime."}
+        </p>
+        <p className="text-[13px] leading-relaxed text-oa-muted-fg">7-day refund · no questions asked.</p>
+        {error ? <p className="mt-1 text-[13px] font-medium text-red-600">{error}</p> : null}
+      </section>
+
+      <section className="flex flex-col gap-5 rounded-[22px] border border-oa-border bg-oa-bg p-6 sm:p-8" aria-labelledby="pro-includes">
+        <h2 id="pro-includes" className="text-[17px] font-medium tracking-tight text-oa-fg">
+          What Pro includes
+        </h2>
+        <ProBenefitsGrid benefits={SUBSCRIBE_BENEFITS} />
       </section>
     </div>
   );

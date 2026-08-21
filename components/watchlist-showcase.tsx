@@ -1,470 +1,303 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { useUser } from "@/lib/auth-context";
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import { AnimatedIcon } from "@/components/animated-icon";
+import { SquircleSurface } from "@/components/oa/squircle";
 import { StockLogo } from "@/components/stock-logo";
-import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
-import { startDodoCheckout } from "@/lib/dodo-checkout-client";
+import { StartFreeButton } from "@/components/oa/start-free-button";
+import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
+import { signInWithGoogle } from "@/lib/sign-in";
 
-type Slide = {
-  id: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  visual: () => React.ReactNode;
-};
+const EYEBROW = "text-xs uppercase tracking-[0.12em] text-oa-muted-fg";
 
-function PulseDot({ color = "#10b981" }: { color?: string }) {
+function pctLabel(value: number) {
+  const up = value >= 0;
   return (
-    <span className="relative inline-flex h-2 w-2">
-      <span
-        className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-        style={{ background: color }}
-      />
-      <span
-        className="relative inline-flex h-2 w-2 rounded-full"
-        style={{ background: color }}
-      />
+    <span className="tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+      {up ? "+" : "−"}
+      {Math.abs(value).toFixed(2)}%
     </span>
   );
 }
 
-const SAMPLE_TICKERS: { ticker: string; name: string; pct: number }[] = [
-  { ticker: "NVDA",  name: "NVIDIA",     pct: 2.4 },
-  { ticker: "MSFT",  name: "Microsoft",  pct: -0.6 },
-  { ticker: "AAPL",  name: "Apple",      pct: 0.3 },
-  { ticker: "GOOGL", name: "Alphabet",   pct: 1.7 },
-  { ticker: "AMZN",  name: "Amazon",     pct: 0.9 },
-  { ticker: "TSLA",  name: "Tesla",      pct: -2.8 },
-  { ticker: "AVGO",  name: "Broadcom",   pct: 1.1 },
-  { ticker: "META",  name: "Meta",       pct: 0.5 },
+const SAMPLE_BOOK: {
+  ticker: string;
+  name: string;
+  price: number;
+  changePct: number;
+  reason: string;
+  tone: "bull" | "bear" | "neutral";
+}[] = [
+  { ticker: "NVDA", name: "Nvidia Corp", price: 178.32, changePct: 2.14, reason: "Data center demand still outrunning supply, third quarter in a row.", tone: "bull" },
+  { ticker: "AAPL", name: "Apple Inc", price: 231.05, changePct: -0.42, reason: "iPhone 17 orders trimmed at two Asian suppliers ahead of the print.", tone: "bear" },
+  { ticker: "TSLA", name: "Tesla Inc", price: 412.88, changePct: 5.61, reason: "Robotaxi expansion cleared in two more states this week.", tone: "bull" },
 ];
 
-function StocksGridVisual() {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-[#6b7280] tracking-[0.08em] uppercase">
-          Watchlist tracking 28 stocks
-        </span>
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-[#6b7280]">
-          <PulseDot />
-          Live
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {SAMPLE_TICKERS.map((s, i) => {
-          const up = s.pct >= 0;
-          return (
-            <div
-              key={s.ticker}
-              className="flex items-center gap-2.5 rounded-xl border border-[#e5e7eb] bg-white px-2.5 py-2 animate-[fade-up_0.6s_ease-out_both]"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <StockLogo ticker={s.ticker} size={28} />
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[12px] font-semibold text-[#111111] truncate">
-                  {s.ticker}
-                </span>
-                <span className="text-[10px] text-[#6b7280] truncate">
-                  {s.name}
-                </span>
-              </div>
-              <span
-                className={`text-[11px] font-semibold tabular-nums ${
-                  up ? "text-[#10b981]" : "text-[#ef4444]"
-                }`}
-              >
-                {up ? "▲" : "▼"} {Math.abs(s.pct).toFixed(2)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex items-center justify-center rounded-xl border border-dashed border-[#e5e7eb] bg-[#f8f9fa] py-2 text-[11px] font-medium text-[#6b7280]">
-        + 20 more · scroll your full list
-      </div>
-    </div>
-  );
-}
-
-function BriefVisual() {
-  const lines = [
-    "S&P opened flat after CPI; semis leading.",
-    "NVDA testing prior breakout - watch $138 close.",
-    "MSFT muted ahead of Copilot guidance Thursday.",
-    "Healthcare lagging; AI Drug names hit by FDA delay.",
-  ];
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0052ff] text-white text-[12px] font-semibold">
-            T
-          </div>
-          <span className="text-[13px] font-semibold text-[#111111]">
-            Morning brief
-          </span>
-        </div>
-        <span className="text-[11px] text-[#6b7280] tabular-nums">7:30 AM</span>
-      </div>
-      <div className="flex flex-col gap-2">
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-2 animate-[fade-up_0.5s_ease-out_both]"
-            style={{ animationDelay: `${i * 220}ms` }}
-          >
-            <span className="mt-1.5 h-1 w-1 rounded-full bg-[#0052ff] shrink-0" />
-            <p className="text-[13px] text-[#111111] leading-snug">{line}</p>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-1.5 pt-1 text-[11px] text-[#4a4d55]">
-        <PulseDot color="#0052ff" />
-        Refreshes again at 4:30 PM ET
-      </div>
-    </div>
-  );
-}
-
-function AlertsVisual() {
-  const alerts = [
-    { ticker: "TSLA", name: "Tesla",    kind: "Overbought", detail: "RSI 78 · 3rd day above",  color: "#ef4444" },
-    { ticker: "AVGO", name: "Broadcom", kind: "Earnings",   detail: "Reports Thursday after close", color: "#f59e0b" },
-    { ticker: "MU",   name: "Micron",   kind: "52w low",    detail: "Broke below 84.30 support", color: "#ef4444" },
-  ];
-  return (
-    <div className="flex flex-col gap-2.5">
-      {alerts.map((a, i) => (
-        <div
-          key={a.ticker}
-          className="flex items-start gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 animate-[fade-up_0.55s_ease-out_both]"
-          style={{ animationDelay: `${i * 200}ms` }}
-        >
-          <StockLogo ticker={a.ticker} size={36} />
-          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold text-[#111111]">
-                {a.ticker}
-              </span>
-              <span className="text-[11px] text-[#6b7280] truncate">
-                {a.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white"
-                style={{ background: a.color }}
-              >
-                {a.kind}
-              </span>
-              <span className="text-[12px] text-[#4a4d55]">{a.detail}</span>
-            </div>
-          </div>
-          <PulseDot color={a.color} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BlindspotsVisual() {
-  const items = [
-    {
-      ticker: "INTC",
-      name: "Intel",
-      label: "Buried downgrade",
-      detail: "Mizuho cut PT $32 → $24 · not picked up by majors",
-      color: "#7c3aed",
-    },
-    {
-      ticker: "AAPL",
-      name: "Apple",
-      label: "Options flow flip",
-      detail: "Put/call jumped 1.8× at noon · institutional hedging",
-      color: "#0052ff",
-    },
-    {
-      ticker: "BBY",
-      name: "Best Buy",
-      label: "Insider sell",
-      detail: "Director sold 12k shares Friday · Form 4 just filed",
-      color: "#ef4444",
-    },
-  ];
-  return (
-    <div className="flex flex-col gap-2.5">
-      {items.map((it, i) => (
-        <div
-          key={it.ticker}
-          className="flex items-start gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 animate-[fade-up_0.55s_ease-out_both]"
-          style={{ animationDelay: `${i * 200}ms` }}
-        >
-          <StockLogo ticker={it.ticker} size={36} />
-          <div className="flex flex-col gap-1 min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold text-[#111111]">
-                {it.ticker}
-              </span>
-              <span className="text-[11px] text-[#6b7280] truncate">
-                {it.name}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span
-                className="text-[11px] font-semibold uppercase tracking-[0.08em]"
-                style={{ color: it.color }}
-              >
-                {it.label}
-              </span>
-              <span className="text-[12px] text-[#4a4d55]">{it.detail}</span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PulseVisual() {
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-[#6b7280] tracking-[0.08em] uppercase">
-          Today's pulse
-        </span>
-        <span className="text-[11px] text-[#6b7280] tabular-nums">28 stocks</span>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Up", value: 18, color: "#10b981" },
-          { label: "Down", value: 8, color: "#ef4444" },
-          { label: "Flat", value: 2, color: "#6b7280" },
-        ].map((s, i) => (
-          <div
-            key={s.label}
-            className="flex flex-col gap-1 rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-3 py-2.5 animate-[fade-up_0.5s_ease-out_both]"
-            style={{ animationDelay: `${i * 120}ms` }}
-          >
-            <span className="text-[10px] font-semibold text-[#6b7280] uppercase tracking-[0.1em]">
-              {s.label}
-            </span>
-            <span
-              className="text-[24px] font-semibold tabular-nums leading-none"
-              style={{ color: s.color }}
-            >
-              {s.value}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-start gap-2.5 rounded-xl bg-[#f8f9fa] p-3">
-        <StockLogo ticker="NVDA" size={28} />
-        <p className="text-[13px] text-[#111111] leading-snug">
-          <span className="font-semibold">NVDA</span> is the standout - up{" "}
-          <span className="font-semibold text-[#10b981]">4.2%</span> on AI conference
-          buzz. Tech leads, Healthcare drags.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-const SLIDES: Slide[] = [
-  {
-    id: "track",
-    eyebrow: "Track",
-    title: "Your list, one place.",
-    body: "Stocks you care about - earnings, price, news - without juggling tabs.",
-    visual: StocksGridVisual,
-  },
-  {
-    id: "blindspots",
-    eyebrow: "Blindspots",
-    title: "Stuff that moves before the headline.",
-    body: "Insiders, downgrades, flow, quiet technical setups.",
-    visual: BlindspotsVisual,
-  },
-  {
-    id: "alerts",
-    eyebrow: "Alerts",
-    title: "Pinged when it matters.",
-    body: "Overbought, 52-week breaks, earnings tomorrow - ranked by urgency.",
-    visual: AlertsVisual,
-  },
-  {
-    id: "brief",
-    eyebrow: "Brief",
-    title: "A clear call on every name.",
-    body: "Fundamentals, news, Reddit and earnings support the current call on each Watchlist stock.",
-    visual: BriefVisual,
-  },
-  {
-    id: "pulse",
-    eyebrow: "Pulse",
-    title: "What changed in your Watchlist today.",
-    body: "One AI paragraph: drivers, laggards, what to watch next.",
-    visual: PulseVisual,
-  },
+const SAMPLE_EARNINGS = [
+  { ticker: "AMZN", days: 4, date: "Oct 24", eps: "Beat likely", move: "Rally odds elevated" },
+  { ticker: "PLTR", days: 9, date: "Oct 29", eps: "In line", move: "Muted move expected" },
 ];
 
-export function WatchlistShowcase() {
-  const { user } = useUser();
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
+const SAMPLE_PILLARS = [
+  { label: "valuation", score: 38 },
+  { label: "growth", score: 82 },
+  { label: "quality", score: 61 },
+  { label: "momentum", score: 76 },
+];
 
-  useEffect(() => {
-    if (paused) return;
-    const t = setInterval(() => {
-      setActive((i) => (i + 1) % SLIDES.length);
-    }, 3500);
-    return () => clearInterval(t);
-  }, [paused]);
+const SAMPLE_IDEAS = [
+  { ticker: "AVGO", reason: "Same AI infrastructure trade, cheaper multiple than your book's average.", price: 184.2, changePct: 1.05 },
+  { ticker: "LLY", reason: "Adds a defensive lean your book is currently missing.", price: 912.4, changePct: 0.3 },
+];
 
-  async function handleCta() {
-    if (user) {
-      try {
-        window.location.assign(await startDodoCheckout());
-      } catch {
-        // Keep the CTA available for another attempt.
-      }
-      return;
-    }
-    if (signingIn) return;
-    setSigningIn(true);
+function ScoreDialDemo() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid size-20 shrink-0 place-items-center rounded-full"
+      style={{ background: "conic-gradient(var(--signal-bullish) 0 74%, var(--oa-secondary) 74% 100%)" }}
+    >
+      <span className="grid size-[62px] place-items-center rounded-full bg-oa-bg text-center">
+        <strong className="text-[20px] font-medium tabular-nums leading-none text-oa-fg">74</strong>
+      </span>
+    </div>
+  );
+}
+
+function SampleTag() {
+  return (
+    <span className="rounded-full bg-oa-secondary px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-oa-muted-fg">
+      Example
+    </span>
+  );
+}
+
+function SignInCta({ label }: { label: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function handleClick() {
+    if (busy) return;
+    setBusy(true);
     try {
-      const auth = getFirebaseAuth();
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithPopup(auth, provider);
-      window.location.assign(await startDodoCheckout());
+      await signInWithGoogle({ surface: "radar_page" });
+      router.refresh();
     } catch {
-      /* user cancelled */
+      /* cancelled */
     } finally {
-      setSigningIn(false);
+      setBusy(false);
     }
   }
 
-  const slide = SLIDES[active];
-
   return (
-    <section
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      className="relative overflow-hidden rounded-[24px] bg-[#0b1228] text-white p-7 md:p-10"
+    <button
+      type="button"
+      disabled={busy}
+      onClick={handleClick}
+      className="inline-flex h-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-oa-primary px-7 text-[16px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_1px_2px_rgba(0,0,0,0.12)] transition-[filter] hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98] disabled:opacity-70"
     >
-      {/* Decorative glow */}
-      <div
-        className="pointer-events-none absolute -top-40 -right-32 h-[360px] w-[360px] rounded-full opacity-60"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(59,130,246,0.45) 0%, rgba(59,130,246,0) 70%)",
-        }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -bottom-32 -left-32 h-[320px] w-[320px] rounded-full opacity-40"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(124,58,237,0.5) 0%, rgba(124,58,237,0) 70%)",
-        }}
-        aria-hidden
-      />
+      {busy ? "Signing in…" : label}
+    </button>
+  );
+}
 
-      <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] gap-10 items-center">
-        {/* Copy column */}
-        <div className="flex flex-col gap-6 max-w-[480px]">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm">
-              <PulseDot color="#a5b4fc" />
-              Watchlist · Pro
-            </span>
-          </div>
-
-          <div className="min-h-[200px]" key={slide.id}>
-            <span className="block text-[12px] font-semibold tracking-[0.14em] uppercase text-[#c7d2fe] animate-[fade-up_0.45s_ease-out_both]">
-              {slide.eyebrow}
-            </span>
-            <h2
-              className="mt-3 text-[28px] md:text-[34px] font-semibold leading-[1.1] tracking-[-0.03em] text-white animate-[fade-up_0.5s_ease-out_both]"
-              style={{ animationDelay: "60ms" }}
-            >
-              {slide.title}
-            </h2>
-            <p
-              className="mt-3 text-[15px] text-white/85 leading-[1.55] animate-[fade-up_0.55s_ease-out_both]"
-              style={{ animationDelay: "120ms" }}
-            >
-              {slide.body}
-            </p>
-          </div>
-
-          {/* Indicators */}
-          <div className="flex items-center gap-2">
-            {SLIDES.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setActive(i)}
-                aria-label={`Show ${s.eyebrow}`}
-                className="group relative h-1.5 w-10 rounded-full bg-white/20 overflow-hidden"
-              >
-                <span
-                  className={`absolute inset-y-0 left-0 bg-white transition-all duration-300 ${
-                    i === active ? "w-full" : i < active ? "w-full opacity-30" : "w-0"
-                  }`}
-                  style={{
-                    transitionDuration: i === active && !paused ? "3500ms" : "300ms",
-                  }}
-                />
-              </button>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div className="flex items-center gap-3 pt-1 flex-wrap">
-            <button
-              type="button"
-              onClick={handleCta}
-              disabled={signingIn}
-              className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform disabled:opacity-60"
-            >
-              {user ? "Get Pro" : signingIn ? "Signing in…" : "Start your 3-day free trial"}
-            </button>
-            <span className="text-[12px] text-white/65">
-              Pro {US_PRO_MONTHLY_MO} · cancel anytime
-            </span>
-          </div>
-        </div>
-
-        {/* Visual column */}
-        <div
-          key={slide.id + "-v"}
-          className="relative animate-[fade-up_0.6s_ease-out_both]"
-        >
-          <div className="rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-md p-5 md:p-6">
-            <slide.visual />
-          </div>
+/**
+ * Shown when there's nothing real to render yet: signed-out visitors, or a
+ * signed-in account with an empty book. Renders the exact same sections the
+ * real page would (book, reporting soon, portfolio analysis, ideas) filled
+ * with clearly-marked example data, so the value is obvious before anyone
+ * types a ticker.
+ */
+export function WatchlistShowcase({ mode }: { mode: "signed_out" | "empty" }) {
+  return (
+    <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 pb-36 pt-8 sm:gap-12 sm:px-6 sm:pt-10">
+      <div className="max-w-2xl">
+        <p className={EYEBROW}>Your watchlist</p>
+        <h1 className="mt-2 text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight">
+          {mode === "signed_out"
+            ? "This is what your book looks like, read for you."
+            : "Add your stocks. This is what happens next."}
+        </h1>
+        <p className="mt-2 text-lg leading-7 text-oa-muted-fg">
+          One line per stock, an earnings calendar with our pre-print call, and a read on what
+          your whole book actually leans toward. Free to start with three stocks.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          {mode === "signed_out" ? (
+            <SignInCta label="Track 3 stocks free" />
+          ) : (
+            <RadarBatchEditModal
+              initialItems={[]}
+              isSubscribed={false}
+              ctaLabel="Add your first stocks"
+              triggerClassName="inline-flex h-12 shrink-0 cursor-pointer items-center rounded-full bg-oa-primary px-7 text-[16px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_1px_2px_rgba(0,0,0,0.12)] transition-[filter] hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98]"
+            />
+          )}
+          <a
+            href="/explore"
+            className="inline-flex h-12 items-center rounded-full border border-oa-border px-6 text-[16px] font-medium text-oa-fg transition-colors hover:bg-oa-accent focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+          >
+            See what's moving first
+          </a>
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes fade-up {
-          0% {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </section>
+      {/* reporting soon, sample */}
+      <section aria-label="Reporting soon example">
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[22px] leading-tight sm:text-[26px]">
+            Reporting soon
+          </h2>
+          <SampleTag />
+        </div>
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {SAMPLE_EARNINGS.map((card) => (
+            <div
+              key={card.ticker}
+              className="flex min-w-[15.5rem] shrink-0 flex-col gap-3 rounded-[18px] border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:min-w-[17rem]"
+            >
+              <div className="flex items-center gap-2.5">
+                <StockLogo ticker={card.ticker} market="US" size={28} circle className="shrink-0" />
+                <p className="text-[14.5px] font-medium leading-5 text-oa-fg">{card.ticker}</p>
+                <span className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-oa-secondary px-2 py-0.5 text-[11px] font-medium tabular-nums text-oa-muted-fg">
+                  <AnimatedIcon name="event" size={11} aria-hidden />
+                  {card.date} · {card.days}d
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: "var(--signal-bullish)", background: "color-mix(in srgb, var(--signal-bullish) 12%, transparent)" }}>
+                  {card.eps}
+                </span>
+                <span className="rounded-full bg-oa-secondary px-2 py-0.5 text-[11px] font-medium text-oa-muted-fg">
+                  {card.move}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* the book, sample */}
+      <section aria-label="The book example">
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[22px] leading-tight sm:text-[26px]">
+            The book
+          </h2>
+          <SampleTag />
+        </div>
+        <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <SquircleSurface className="divide-y divide-oa-border/60 overflow-hidden rounded-[22px] border border-oa-border bg-oa-bg shadow-[0_1px_2px_rgba(0,0,0,0.06)] [--card-clip-radius:12px] sm:rounded-[44px] sm:[--card-clip-radius:17px]">
+            {SAMPLE_BOOK.map((row) => (
+              <div key={row.ticker} className="flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-5">
+                <StockLogo ticker={row.ticker} market="US" size={32} circle className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="truncate text-[15px] font-medium leading-5 text-oa-fg">{row.ticker}</span>
+                    <span className="hidden truncate text-[13px] leading-5 text-oa-muted-fg md:inline">{row.name}</span>
+                  </div>
+                  <p
+                    className="mt-0.5 line-clamp-1 text-[13px] leading-5 sm:text-[13.5px]"
+                    style={{ color: row.tone === "bull" ? "var(--signal-bullish)" : row.tone === "bear" ? "var(--signal-bearish)" : "var(--signal-neutral)" }}
+                  >
+                    {row.reason}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[14px] font-medium tabular-nums leading-5 text-oa-fg">${row.price.toFixed(2)}</p>
+                  <p className="text-[13px] font-medium leading-5">{pctLabel(row.changePct)}</p>
+                </div>
+              </div>
+            ))}
+          </SquircleSurface>
+        </SquircleSurface>
+      </section>
+
+      {/* portfolio analysis, sample */}
+      <section aria-label="Portfolio analysis example">
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[22px] leading-tight sm:text-[26px]">
+            Portfolio analysis
+          </h2>
+          <SampleTag />
+        </div>
+        <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <SquircleSurface className="rounded-[22px] border border-oa-border bg-oa-bg px-4 py-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [--card-clip-radius:12px] sm:px-6 sm:py-6 sm:[--card-clip-radius:17px]">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <ScoreDialDemo />
+              <div className="min-w-0">
+                <p className="text-balance text-[19px] font-medium leading-snug text-oa-fg sm:text-[21px]">
+                  This book would lean growth and momentum, thin on defensives.
+                </p>
+                <p className="mt-1.5 text-[14px] leading-6 text-oa-muted-fg">
+                  Not a guess — a read on the same signals every stock on this page carries.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-4 border-t border-oa-border pt-5 sm:grid-cols-4">
+              {SAMPLE_PILLARS.map((pillar) => (
+                <div key={pillar.label}>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[12px] capitalize text-oa-muted-fg">{pillar.label}</span>
+                    <span className="text-[12px] font-medium tabular-nums text-oa-fg">{pillar.score}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-oa-secondary">
+                    <div className="h-full rounded-full bg-oa-primary" style={{ width: `${pillar.score}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SquircleSurface>
+        </SquircleSurface>
+      </section>
+
+      {/* suggested stocks, sample */}
+      <section aria-label="Suggested stocks example">
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[22px] leading-tight sm:text-[26px]">
+            Based on what you already own
+          </h2>
+          <SampleTag />
+        </div>
+        <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <SquircleSurface className="divide-y divide-oa-border/60 overflow-hidden rounded-[22px] border border-oa-border bg-oa-bg shadow-[0_1px_2px_rgba(0,0,0,0.06)] [--card-clip-radius:12px] sm:rounded-[44px] sm:[--card-clip-radius:17px]">
+            {SAMPLE_IDEAS.map((idea) => (
+              <div key={idea.ticker} className="flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-5">
+                <StockLogo ticker={idea.ticker} market="US" size={32} circle className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[15px] font-medium leading-5 text-oa-fg">{idea.ticker}</span>
+                  <p className="mt-0.5 line-clamp-1 text-[13px] leading-5 text-oa-muted-fg">{idea.reason}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[14px] font-medium tabular-nums leading-5 text-oa-fg">${idea.price.toFixed(2)}</p>
+                  <p className="text-[13px] font-medium leading-5">{pctLabel(idea.changePct)}</p>
+                </div>
+              </div>
+            ))}
+          </SquircleSurface>
+        </SquircleSurface>
+      </section>
+
+      <div className="flex flex-col items-center gap-4 rounded-[28px] border border-oa-border bg-oa-card px-6 py-10 text-center">
+        <p className="text-balance text-[22px] font-medium leading-snug text-oa-fg sm:text-[26px]">
+          Put your own stocks in here.
+        </p>
+        <p className="max-w-md text-[15px] leading-6 text-oa-muted-fg">
+          Three stocks free, no card required. This whole page rebuilds itself around your book
+          the moment you add one.
+        </p>
+        {mode === "signed_out" ? (
+          <SignInCta label="Track 3 stocks free" />
+        ) : (
+          <RadarBatchEditModal
+            initialItems={[]}
+            isSubscribed={false}
+            ctaLabel="Add your first stocks"
+            triggerClassName="inline-flex h-12 shrink-0 cursor-pointer items-center rounded-full bg-oa-primary px-7 text-[16px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_1px_2px_rgba(0,0,0,0.12)] transition-[filter] hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98]"
+          />
+        )}
+      </div>
+    </div>
   );
 }

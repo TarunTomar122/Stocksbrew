@@ -67,7 +67,7 @@ export const agentBlogContent: Record<string, string> = {
 
 <h3>Clear limits</h3>
 
-<p>A consumer research plan should not behave like an unlimited market-data redistribution license. Bounded list sizes, monthly usage, and per-minute limits keep the interface useful for personal workflows without turning it into an extraction endpoint.</p>
+<p>A consumer research plan should not behave like an unlimited market-data redistribution license. Bounded list sizes, daily usage, and per-minute limits keep the interface useful for personal workflows without turning it into an extraction endpoint.</p>
 
 <h2 id="use-cases">Four useful agent workflows</h2>
 

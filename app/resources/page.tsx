@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 
 import { MarketingSchema } from "@/components/seo/marketing-schema";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { ResourcesCiteSection } from "@/components/marketing/resources-cite-section";
 import { ALL_RESOURCES, RESOURCE_GROUPS } from "@/lib/resources-hub-data";
 
@@ -18,75 +18,84 @@ export const metadata: Metadata = {
   },
 };
 
+const EYEBROW = "text-xs uppercase tracking-[0.12em] text-oa-muted-fg";
+const H1 =
+  "text-balance font-medium tracking-tight text-oa-fg text-[2.5rem] leading-[1.06] sm:text-5xl sm:leading-[1.04]";
+const H2 = "text-[22px] font-medium tracking-tight text-oa-fg";
+
 function ResourceCard({
   href,
   title,
   description,
-  icon,
   badge,
 }: {
   href: string;
   title: string;
   description: string;
-  icon: string;
+  icon?: string;
   badge?: string;
 }) {
   return (
     <Link
       href={href}
-      className="group flex h-full flex-col gap-3 rounded-2xl border border-outline-variant bg-surface p-6 shadow-sm transition-all hover:border-on-surface/20 hover:shadow-card-hover"
+      className="group flex h-full flex-col gap-2 rounded-[22px] border border-oa-border bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-container text-landing-brand">
-          <AnimatedIcon name={icon} size={20} className="text-[20px]" aria-hidden />
-        </span>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[16px] font-medium leading-snug tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
+          {title}
+        </h3>
         {badge ? (
-          <span className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-on-surface-variant">
+          <span className="shrink-0 rounded-full bg-oa-accent px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-oa-muted-fg">
             {badge}
           </span>
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col gap-2">
-        <h3 className="text-[17px] font-semibold text-on-surface group-hover:text-landing-brand transition-colors">
-          {title}
-        </h3>
-        <p className="flex-1 text-[14px] leading-relaxed text-on-surface-variant">{description}</p>
-        <span className="text-[13px] font-medium text-on-surface">Open →</span>
-      </div>
+      <p className="flex-1 text-sm leading-relaxed text-oa-muted-fg">{description}</p>
+      <span className="mt-1 flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">
+        Open
+        <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+      </span>
     </Link>
   );
 }
 
 export default function ResourcesPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <MarketingSchema
         path="/resources"
         name="Learn and resources"
         description="Learning resources and guides from stocksbrew."
         breadcrumbLabel="Resources"
       />
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-14 px-6 py-12 md:px-10 md:py-16 lg:px-16">
-        <header className="flex max-w-[720px] flex-col gap-4">
-          <span className="landing-section-kicker text-landing-brand">Resources</span>
-          <h1 className="text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl md:text-[2.75rem] md:leading-tight">
-            Learn, read, and pick your workflow.
-          </h1>
-          <p className="text-[16px] leading-relaxed text-on-surface-variant">
-            Long-form guides, blog posts, and workflow maps — plus honest comparisons when you are choosing a research stack.
+      <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-14 px-4 pb-20 pt-10 sm:px-6 sm:pt-16">
+        <header className="max-w-[640px]">
+          <p className={EYEBROW}>Resources</p>
+          <h1 className={`mt-4 ${H1}`}>Learn, read, and pick your workflow</h1>
+          <p className="mt-4 text-[15px] leading-relaxed text-oa-muted-fg sm:text-base">
+            Long-form guides, blog posts and workflow maps, plus honest comparisons when you are choosing a research stack.
           </p>
-          <Link href="/free-tools" className="landing-btn-secondary w-fit px-4 py-2 text-sm">
-            Browse free tools →
+          <Link
+            href="/free-tools"
+            className="mt-7 inline-flex h-11 w-fit items-center rounded-full border border-oa-border bg-oa-card px-5 text-sm font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+          >
+            Browse free tools ›
           </Link>
         </header>
 
         {RESOURCE_GROUPS.map((group) => (
-          <section key={group.title}>
+          <section key={group.title} aria-labelledby={`resources-${group.title.replace(/\s+/g, "-").toLowerCase()}`}>
             <div className="mb-5 max-w-2xl">
-              <h2 className="text-xl font-bold text-on-surface">{group.title}</h2>
-              <p className="mt-1 text-[14px] text-on-surface-variant">{group.description}</p>
+              <h2
+                id={`resources-${group.title.replace(/\s+/g, "-").toLowerCase()}`}
+                className={H2}
+              >
+                {group.title}
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-oa-muted-fg">{group.description}</p>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {group.items.map((item) => (
                 <ResourceCard key={item.href} {...item} />
               ))}
@@ -96,12 +105,15 @@ export default function ResourcesPage() {
 
         <ResourcesCiteSection />
 
-        <section className="rounded-2xl border border-outline-variant bg-surface-container-low p-6 md:p-8">
-          <h2 className="text-lg font-bold text-on-surface">All resources</h2>
-          <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+        <section className="flex flex-col gap-4 rounded-[22px] border border-oa-border bg-oa-bg p-6 sm:p-8" aria-labelledby="all-resources">
+          <h2 id="all-resources" className="text-[17px] font-medium tracking-tight text-oa-fg">All resources</h2>
+          <ul className="flex flex-wrap gap-2">
             {ALL_RESOURCES.map((r) => (
               <li key={r.href}>
-                <Link href={r.href} className="text-[14px] font-medium text-landing-brand hover:underline">
+                <Link
+                  href={r.href}
+                  className="inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
+                >
                   {r.title}
                 </Link>
               </li>

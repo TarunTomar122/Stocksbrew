@@ -79,15 +79,11 @@ export function TodaysMoveCard({
   );
 }
 
-function sentimentPillClass(sentiment: string) {
-  if (sentiment === "bearish") return "reddit-sentiment-pill reddit-sentiment-pill--bearish";
-  if (sentiment === "bullish") return "reddit-sentiment-pill reddit-sentiment-pill--bullish";
-  return "reddit-sentiment-pill reddit-sentiment-pill--neutral";
-}
-
 export function hasRedditBuzzData(reddit: RedditCtx | null | undefined): boolean {
   return Boolean(reddit?.summary?.trim() || n(reddit?.mention_count));
 }
+
+const REDDIT_ORANGE = "#fa4303";
 
 /** Cohesive Reddit buzz card for the stock page activity cluster. */
 export function StockRedditBuzzRailCard({
@@ -108,24 +104,31 @@ export function StockRedditBuzzRailCard({
 }) {
   const mentions = n(reddit.mention_count) ? reddit.mention_count! : null;
   const catalysts = (reddit.catalysts ?? []).filter(Boolean).slice(0, 3);
+  const sentimentClr = sentimentColor(reddit.sentiment ?? "");
+  const labelColor = crowdColor ?? sentimentClr;
 
   return (
-    <section className="min-w-0 rounded-xl border border-outline-variant bg-surface-container-low/50 p-5 sm:p-6">
+    <section className="mt-6 min-w-0 rounded-[20px] border border-oa-border bg-oa-card p-4 sm:mt-8 sm:rounded-[26px] sm:p-6">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex shrink-0 items-center justify-center">
-          <RedditMark size={22} />
-        </div>
+        <span className="mt-0.5 shrink-0" style={{ color: REDDIT_ORANGE }} aria-hidden>
+          <RedditMark size={20} />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-[16px] font-medium text-on-surface">Reddit buzz</p>
+            <p className="text-[16px] font-medium text-oa-fg">r/stocks · Reddit buzz</p>
             {reddit.sentiment && (
-              <span className={`${sentimentPillClass(reddit.sentiment)} shrink-0`}>{reddit.sentiment}</span>
+              <span
+                className="shrink-0 rounded-full border border-oa-border bg-oa-bg px-2.5 py-0.5 text-[12px] font-medium capitalize"
+                style={{ color: sentimentClr }}
+              >
+                {reddit.sentiment}
+              </span>
             )}
           </div>
-          <p className="mt-0.5 text-[13px] leading-snug text-on-surface-variant">
+          <p className="mt-0.5 text-[14px] leading-snug text-oa-muted-fg">
             {mentions != null ? (
               <>
-                <span className="font-medium text-on-surface">{mentions}</span> posts about {ticker}
+                <span className="font-medium text-oa-fg">{mentions}</span> posts about {ticker}
               </>
             ) : (
               <>Retail chatter about {ticker}</>
@@ -134,74 +137,70 @@ export function StockRedditBuzzRailCard({
         </div>
       </div>
 
-      <div className="mt-4 border-t border-outline-variant pt-4">
+      <div className="mt-4 border-t border-oa-border pt-4">
         {isSubscribed ? (
-          <div className={n(crowdScore) ? "grid gap-6 sm:grid-cols-[auto_1fr]" : ""}>
+          <div className="space-y-3.5">
+            {reddit.summary?.trim() && (
+              <p className="max-w-[62ch] text-[15px] leading-7 text-oa-fg/90">{reddit.summary}</p>
+            )}
+
+            {catalysts.length > 0 && (
+              <ul className="space-y-2.5">
+                {catalysts.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: REDDIT_ORANGE }}
+                    />
+                    <span className="text-[14px] leading-snug text-oa-fg/80">{c}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {n(crowdScore) && (
-              <div className="shrink-0 sm:border-r sm:border-outline-variant sm:pr-6">
-                <p className="font-mono text-[30px] font-medium leading-none tabular-nums" style={{ color: crowdColor }}>
+              <div className="flex items-baseline gap-3">
+                <span
+                  className="oa-mono text-3xl font-medium leading-none tabular-nums text-oa-fg"
+                  style={{ color: labelColor }}
+                >
                   {Math.round(crowdScore!)}
-                  <span className="text-[13px] font-normal text-on-surface-variant">/100</span>
-                </p>
+                  <span className="text-[13px] font-normal text-oa-muted-fg">/100</span>
+                </span>
                 {crowdLabel && (
-                  <p className="mt-1.5 text-[13px] font-medium capitalize" style={{ color: crowdColor }}>
+                  <span className="text-xs font-medium capitalize text-oa-muted-fg">
                     {crowdLabel}
-                  </p>
+                  </span>
                 )}
               </div>
             )}
-            <div className="min-w-0">
-              {reddit.summary?.trim() && (
-                <p className="max-w-[65ch] text-[14px] leading-relaxed text-on-surface">{reddit.summary}</p>
-              )}
 
-              {catalysts.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-[13px] font-medium text-on-surface-variant">Talking points</p>
-                  <ul className="mt-2.5 space-y-2.5">
-                    {catalysts.map((c, i) => (
-                      <li key={i} className="flex gap-2.5">
-                        <span
-                          aria-hidden
-                          className="mt-[0.5rem] h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: "#FF4500" }}
-                        />
-                        <span className="text-[14px] leading-snug text-on-surface">{c}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <Link
-                href="/explore"
-                className="group mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors"
-                style={{ color: "#FF4500" }}
-              >
-                <RedditMark size={13} />
-                <span className="group-hover:underline">All reddit buzz</span>
-                <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-                  →
-                </span>
-              </Link>
-            </div>
+            <Link
+              href="/pulse"
+              className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:text-oa-fg"
+            >
+              <span className="group-hover:underline">See all Reddit buzz</span>
+              <span aria-hidden className="transition-transform group-hover:translate-x-0.5" style={{ color: REDDIT_ORANGE }}>
+                ›
+              </span>
+            </Link>
           </div>
         ) : (
-          <div className="relative h-[9.5rem] overflow-hidden rounded-lg bg-surface-container-low">
+          <div className="relative h-40 overflow-hidden rounded-[16px] bg-oa-secondary">
             <div aria-hidden className="pointer-events-none select-none space-y-3 p-4 blur-[6px]">
-              <div className="h-3 w-full rounded bg-surface-container-high" />
-              <div className="h-3 w-10/12 rounded bg-surface-container-high" />
-              <div className="mt-5 h-2.5 w-24 rounded bg-surface-container-high" />
-              <div className="h-2.5 w-3/5 rounded bg-surface-container-high" />
-              <div className="h-2.5 w-2/3 rounded bg-surface-container-high" />
+              <div className="h-3 w-full rounded bg-oa-fg/20" />
+              <div className="h-3 w-10/12 rounded bg-oa-fg/20" />
+              <div className="mt-5 h-2.5 w-24 rounded bg-oa-fg/20" />
+              <div className="h-2.5 w-3/5 rounded bg-oa-fg/20" />
             </div>
-            <div className="absolute inset-0 flex items-center justify-center bg-surface/20 px-4">
+            <div className="absolute inset-0 flex items-center justify-center bg-oa-bg/75 px-4">
               <FeedUnlockBar
                 surface="stock_tab"
                 compact
                 signedOutLabel="Start your 3-day free trial"
-                signedInLabel="Unlock Reddit Buzz"
-                buttonClassName="!rounded-full !border-none !bg-none !bg-primary !text-on-primary !shadow-none"
+                signedInLabel="Unlock Reddit buzz"
+                buttonClassName="!rounded-full !border-none !bg-none !bg-primary !px-4 !py-2 !text-xs !font-semibold !text-on-primary"
               />
             </div>
           </div>

@@ -26,28 +26,30 @@ export function AgentSetupPrompt({
   }
 
   return (
-    <div className={`border-y border-outline-variant py-4 sm:py-5 ${className}`}>
+    <div
+      className={`rounded-[18px] border border-[color-mix(in_srgb,var(--oa-fg,#17181a)_12%,transparent)] bg-[color-mix(in_srgb,var(--oa-fg,#17181a)_3%,transparent)] p-4 sm:p-5 ${className}`}
+    >
       <div className="flex items-center justify-between gap-4">
-        <p className="text-[14px] font-bold text-on-surface">Copy the setup prompt</p>
+        <p className="text-sm font-medium text-[var(--oa-fg,#17181a)]">Copy the setup prompt</p>
         <button
           type="button"
           onClick={() => void copyPrompt()}
-          className="shrink-0 rounded-full bg-on-surface px-4 py-2 text-[11px] font-bold text-surface transition-opacity hover:opacity-80"
+          className="inline-flex h-8 shrink-0 items-center rounded-full bg-[var(--oa-fg,#17181a)] px-4 text-xs font-medium text-[var(--oa-card,#ffffff)] transition-all hover:opacity-85 active:translate-y-px active:scale-[0.98]"
         >
-          {copied ? "Copied ✓" : "Copy prompt"}
+          {copied ? "Copied" : "Copy prompt"}
         </button>
       </div>
       {compact ? (
-        <p className="mt-3 font-mono text-[10px] leading-relaxed text-on-surface-variant">
+        <p className="oa-mono mt-3 text-[11px] leading-relaxed text-[color-mix(in_srgb,var(--oa-fg,#17181a)_55%,transparent)]">
           Connect to stocksbrew.online/api/mcp with OAuth, then show my Watchlist and latest changes.
         </p>
       ) : (
-        <pre className="mt-4 whitespace-pre-wrap font-mono text-[11px] leading-[1.75] text-on-surface-variant">
+        <pre className="oa-mono mt-4 whitespace-pre-wrap text-[12px] leading-relaxed text-[color-mix(in_srgb,var(--oa-fg,#17181a)_70%,transparent)]">
           {AGENT_SETUP_PROMPT}
         </pre>
       )}
       {compact ? null : (
-        <p className="mt-3 text-[10px] leading-relaxed text-on-surface-variant">
+        <p className="mt-3 text-xs leading-relaxed text-[color-mix(in_srgb,var(--oa-fg,#17181a)_55%,transparent)]">
           Uses OAuth. Your access token stays out of the conversation.
         </p>
       )}

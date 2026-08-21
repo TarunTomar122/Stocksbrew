@@ -37,21 +37,21 @@ function DayModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-[24px] shadow-2xl w-full max-w-[480px] max-h-[80vh] flex flex-col overflow-hidden"
+        className="bg-oa-card rounded-[24px] shadow-2xl w-full max-w-[480px] max-h-[80vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#f3f4f6]">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[var(--oa-bg)]">
           <div>
-            <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">
+            <p className="text-[11px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">
               IPO
             </p>
-            <h3 className="text-[18px] font-bold tracking-[-0.02em] text-[#111111]">
+            <h3 className="text-[18px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">
               {heading}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[#f3f4f6] flex items-center justify-center text-[#6b7280] hover:bg-[#e5e7eb] transition-colors"
+            className="w-8 h-8 rounded-full bg-[var(--oa-bg)] flex items-center justify-center text-[var(--oa-muted-fg)] hover:bg-[var(--oa-border)] transition-colors"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -63,23 +63,23 @@ function DayModal({
           {events.map((ipo) => (
             <div
               key={ipo.ticker}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[#f9fafb] transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[var(--oa-bg)] transition-colors"
             >
               <StockLogo ticker={ipo.ticker} size={36} market="US" />
               <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                <span className="text-[13px] font-bold text-[#111111] leading-tight">
+                <span className="text-[13px] font-medium text-[var(--oa-fg)] leading-tight">
                   {ipo.ticker}
                 </span>
-                <span className="text-[11px] text-[#6b7280] leading-tight truncate">
+                <span className="text-[11px] text-[var(--oa-muted-fg)] leading-tight truncate">
                   {ipo.company}
                 </span>
               </div>
               <div className="flex flex-col items-end gap-0.5 shrink-0">
-                <span className="text-[11px] text-[#9ca3af]">
+                <span className="text-[11px] text-[var(--oa-muted-fg)]">
                   {exchangeLabel(ipo.exchange)}
                 </span>
                 {ipo.price_range_low != null && (
-                  <span className="text-[13px] font-semibold tabular-nums text-[#111111]">
+                  <span className="text-[13px] font-medium tabular-nums text-[var(--oa-fg)]">
                     ${ipo.price_range_low}–${ipo.price_range_high}
                   </span>
                 )}
@@ -144,7 +144,7 @@ export function IpoCalendar() {
         <div className="flex items-center justify-between w-full">
           <button
             onClick={prevMonth}
-            className="flex items-center gap-1.5 rounded-full border border-[#e5e7eb] px-4 py-2 text-[13px] font-medium text-[#6b7280] hover:border-[#374151] hover:text-[#374151] transition-colors"
+            className="flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] px-4 py-2 text-[13px] font-medium text-[var(--oa-muted-fg)] hover:border-[var(--oa-fg)] hover:text-[var(--oa-fg)] transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
               <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -152,13 +152,13 @@ export function IpoCalendar() {
             Prev
           </button>
 
-          <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">
+          <h2 className="text-[20px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">
             {MONTHS[month]} {year}
           </h2>
 
           <button
             onClick={nextMonth}
-            className="flex items-center gap-1.5 rounded-full border border-[#e5e7eb] px-4 py-2 text-[13px] font-medium text-[#6b7280] hover:border-[#374151] hover:text-[#374151] transition-colors"
+            className="flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] px-4 py-2 text-[13px] font-medium text-[var(--oa-muted-fg)] hover:border-[var(--oa-fg)] hover:text-[var(--oa-fg)] transition-colors"
           >
             Next
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
@@ -168,20 +168,20 @@ export function IpoCalendar() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-[14px] text-[#9ca3af]">
+          <div className="flex items-center justify-center py-20 text-[14px] text-[var(--oa-muted-fg)]">
             Loading…
           </div>
         ) : events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[14px] text-[#9ca3af] gap-2">
+          <div className="flex flex-col items-center justify-center py-20 text-[14px] text-[var(--oa-muted-fg)] gap-2">
             <span className="text-[32px]">🎯</span>
             <p>No IPOs scheduled for {MONTHS[month]} {year}.</p>
           </div>
         ) : (
-          <div className="w-full rounded-2xl border border-[#e5e7eb] overflow-hidden">
+          <div className="w-full rounded-2xl border border-[var(--oa-border)] overflow-hidden">
             {/* Day headers */}
-            <div className="grid grid-cols-7 border-b border-[#e5e7eb]">
+            <div className="grid grid-cols-7 border-b border-[var(--oa-border)]">
               {DAYS.map((d) => (
-                <div key={d} className="py-2.5 text-center text-[11px] font-semibold tracking-[0.07em] uppercase text-[#9ca3af] bg-[#fafafa]">
+                <div key={d} className="py-2.5 text-center text-[11px] font-medium tracking-[0.07em] uppercase text-[var(--oa-muted-fg)] bg-[#fafafa]">
                   {d}
                 </div>
               ))}
@@ -190,7 +190,7 @@ export function IpoCalendar() {
             {/* Grid */}
             <div className="grid grid-cols-7">
               {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[110px] bg-[#fafafa] border-r border-b border-[#f3f4f6]" />
+                <div key={`empty-${i}`} className="min-h-[110px] bg-[#fafafa] border-r border-b border-[var(--oa-bg)]" />
               ))}
 
               {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -209,20 +209,20 @@ export function IpoCalendar() {
                   <div
                     key={dateStr}
                     onClick={() => hasEvents && setSelectedDate(dateStr)}
-                    className={`min-h-[110px] p-2 flex flex-col gap-1 border-r border-b border-[#f3f4f6] transition-colors ${
-                      isWeekend ? "bg-[#fafafa]" : "bg-white"
+                    className={`min-h-[110px] p-2 flex flex-col gap-1 border-r border-b border-[var(--oa-bg)] transition-colors ${
+                      isWeekend ? "bg-[#fafafa]" : "bg-oa-card"
                     } ${hasEvents ? "cursor-pointer hover:bg-[#f0f4ff]" : ""} ${
                       isSelected ? "bg-[#eef2ff]" : ""
                     }`}
                   >
                     <div className="flex items-center justify-end mb-0.5">
                       <span
-                        className={`text-[12px] font-semibold leading-none w-6 h-6 flex items-center justify-center rounded-full ${
+                        className={`text-[12px] font-medium leading-none w-6 h-6 flex items-center justify-center rounded-full ${
                           isToday
-                            ? "bg-[#0052ff] text-white"
+                            ? "bg-[var(--oa-primary)] text-white"
                             : isWeekend
                             ? "text-[#c4c4c4]"
-                            : "text-[#9ca3af]"
+                            : "text-[var(--oa-muted-fg)]"
                         }`}
                       >
                         {day}
@@ -232,17 +232,17 @@ export function IpoCalendar() {
                     {dayEvents.slice(0, MAX_SHOW).map((ipo) => (
                       <div key={ipo.ticker} className="flex items-center gap-1.5 px-1.5 py-1 rounded-md">
                         <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-[#6366f1]" />
-                        <span className="text-[11px] font-semibold text-[#111111] leading-none truncate flex-1">
+                        <span className="text-[11px] font-medium text-[var(--oa-fg)] leading-none truncate flex-1">
                           {ipo.ticker}
                         </span>
-                        <span className="text-[10px] text-[#9ca3af] leading-none tabular-nums shrink-0">
+                        <span className="text-[10px] text-[var(--oa-muted-fg)] leading-none tabular-nums shrink-0">
                           {exchangeLabel(ipo.exchange)}
                         </span>
                       </div>
                     ))}
 
                     {overflow > 0 && (
-                      <span className="text-[10px] font-medium text-[#0052ff] px-1.5">
+                      <span className="text-[10px] font-medium text-[var(--oa-primary)] px-1.5">
                         +{overflow} more
                       </span>
                     )}

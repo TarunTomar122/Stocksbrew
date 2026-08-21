@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { EarningsIntelReport } from "@/components/earnings-intel-report";
@@ -65,7 +66,8 @@ export default async function EarningsIntelTickerPage({ params }: Props) {
   const tier = session ? resolveStockTier(doc.instrument_id, trackedIds) : "free";
 
   return (
-    <main className="flex-grow overflow-x-hidden">
+    <main className="oa-landing flex-grow overflow-x-hidden">
+      <OaSiteHeader />
       <div className="mx-auto flex w-full max-w-6xl flex-col px-0 py-6 sm:px-10 sm:py-10 md:px-14 md:py-12 lg:px-16">
         <EarningsIntelReport
           doc={doc}

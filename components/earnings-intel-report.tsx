@@ -70,9 +70,9 @@ const FACT_ITEMS: {
   iconFg: string;
 }[] = [
   { key: "reported_vs_expected", label: "Earnings print", icon: "receipt_long", iconBg: "bg-[#f5f0ff]", iconFg: "text-[#6b38d4]" },
-  { key: "guidance_signal", label: "Guidance", icon: "signpost", iconBg: "bg-[#eff6ff]", iconFg: "text-[#0052ff]" },
+  { key: "guidance_signal", label: "Guidance", icon: "signpost", iconBg: "bg-[#eff6ff]", iconFg: "text-[var(--oa-primary)]" },
   { key: "price_reaction", label: "Price reaction", icon: "candlestick_chart", iconBg: "bg-[#fef3c7]", iconFg: "text-[#b45309]" },
-  { key: "post_earnings_narrative", label: "Street narrative", icon: "newspaper", iconBg: "bg-[#f3f4f6]", iconFg: "text-[#374151]" },
+  { key: "post_earnings_narrative", label: "Street narrative", icon: "newspaper", iconBg: "bg-[var(--oa-bg)]", iconFg: "text-[var(--oa-fg)]" },
 ];
 
 const INTERP_ITEMS: {
@@ -99,11 +99,11 @@ function scenarioStyle(caseName: EarningsIntelScenario["case"], isLead: boolean)
 
   if (!isLead) {
     return {
-      card: "bg-[#fafafa] border-[#e5e7eb]",
-      chip: "bg-[#f3f4f6] text-[#6b7280]",
-      bar: "bg-[#d1d5db]",
+      card: "bg-[#fafafa] border-[var(--oa-border)]",
+      chip: "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)]",
+      bar: "bg-[var(--oa-border)]",
       icon: icons[caseName],
-      iconFg: "text-[#9ca3af]",
+      iconFg: "text-[var(--oa-muted-fg)]",
       label: labels[caseName],
     };
   }
@@ -130,10 +130,10 @@ function scenarioStyle(caseName: EarningsIntelScenario["case"], isLead: boolean)
     default:
       return {
         card: "bg-[#eff6ff] border-[#bfdbfe]",
-        chip: "bg-[#0052ff] text-white",
-        bar: "bg-[#0052ff]",
+        chip: "bg-[var(--oa-primary)] text-white",
+        bar: "bg-[var(--oa-primary)]",
         icon: icons.base,
-        iconFg: "text-[#0052ff]",
+        iconFg: "text-[var(--oa-primary)]",
         label: labels.base,
       };
   }
@@ -159,23 +159,23 @@ function InsightCard({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] p-5 ${className}`}>
+    <div className={`flex flex-col gap-3 rounded-2xl border border-[var(--oa-border)] p-5 ${className}`}>
       <div className="flex items-center gap-2.5">
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconBg ?? "bg-[#f3f4f6]"} ${iconFg ?? "text-[#111111]"}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconBg ?? "bg-[var(--oa-bg)]"} ${iconFg ?? "text-[var(--oa-fg)]"}`}
         >
           <MaterialIcon name={icon} className="text-base" />
         </span>
-        <p className="text-sm font-semibold text-[#111111]">{label}</p>
+        <p className="text-sm font-medium text-[var(--oa-fg)]">{label}</p>
       </div>
-      <div className="w-full text-base leading-relaxed text-[#374151]">{children}</div>
+      <div className="w-full text-base leading-relaxed text-[var(--oa-fg)]">{children}</div>
     </div>
   );
 }
 
 function confidenceTone(score: number) {
   if (score >= 75) return { ring: "#10b981", label: "High conviction" };
-  if (score >= 50) return { ring: "#0052ff", label: "Moderate" };
+  if (score >= 50) return { ring: "var(--oa-primary)", label: "Moderate" };
   return { ring: "#f59e0b", label: "Use caution" };
 }
 
@@ -187,10 +187,10 @@ function orderedScenarios(scenarios: EarningsIntelScenario[]) {
 function SectionHeading({ icon, children }: { icon: string; children: ReactNode }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f3f4f6] text-[#111111]">
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--oa-bg)] text-[var(--oa-fg)]">
         <MaterialIcon name={icon} />
       </span>
-      <p className="text-xs font-semibold uppercase tracking-widest text-[#6b7280]">
+      <p className="text-xs font-medium uppercase tracking-widest text-[var(--oa-muted-fg)]">
         {children}
       </p>
     </div>
@@ -226,19 +226,19 @@ export function EarningsIntelReport({
     confidence !== null && Number.isFinite(confidence) ? confidenceTone(confidence) : null;
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-5 text-base text-[#374151] sm:gap-8">
+    <div className="flex w-full min-w-0 flex-col gap-5 text-base text-[var(--oa-fg)] sm:gap-8">
       <div className="flex flex-col gap-3 px-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3 sm:gap-y-2 sm:px-0">
-        <div className="flex flex-col gap-1.5 text-sm text-[#6b7280] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
+        <div className="flex flex-col gap-1.5 text-sm text-[var(--oa-muted-fg)] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
           <Link
             href="/earnings-intel"
-            className="font-semibold uppercase tracking-wide text-[#6b7280] transition-colors hover:text-[#111111]"
+            className="font-medium uppercase tracking-wide text-[var(--oa-muted-fg)] transition-colors hover:text-[var(--oa-fg)]"
           >
             ← Earnings Intel
           </Link>
-          <span className="hidden text-[#d1d5db] sm:inline">·</span>
-          <span className="text-[#6b7280]">Event {formatEventDate(doc.event_date)}</span>
-          <span className="hidden text-[#d1d5db] sm:inline">·</span>
-          <span className="text-[#9ca3af]">Generated {formatGeneratedAt(doc.generated_at)}</span>
+          <span className="hidden text-[var(--oa-border)] sm:inline">·</span>
+          <span className="text-[var(--oa-muted-fg)]">Event {formatEventDate(doc.event_date)}</span>
+          <span className="hidden text-[var(--oa-border)] sm:inline">·</span>
+          <span className="text-[var(--oa-muted-fg)]">Generated {formatGeneratedAt(doc.generated_at)}</span>
         </div>
         <div className="hidden sm:block">
           <EarningsIntelShare ticker={doc.ticker} headline={doc.report?.headline} />
@@ -247,7 +247,7 @@ export function EarningsIntelReport({
 
       <article
         id="earnings-intel-report"
-        className="w-full min-w-0 divide-y divide-[#e5e7eb] border-y border-[#e5e7eb] bg-white sm:rounded-[20px] sm:border"
+        className="w-full min-w-0 divide-y divide-[var(--oa-border)] border-y border-[var(--oa-border)] bg-oa-card sm:rounded-[20px] sm:border"
       >
         <header className="px-4 py-5 sm:px-8 sm:py-8 md:p-10">
           <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-8">
@@ -258,11 +258,11 @@ export function EarningsIntelReport({
               >
                 <StockLogo ticker={doc.ticker} logoUrl={stock?.logo_url} market={market} size={44} />
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-xl font-semibold leading-tight tracking-tight text-[#111111] transition-colors group-hover:text-[#0052ff] sm:text-2xl md:text-3xl">
+                  <h1 className="text-xl font-medium leading-tight tracking-tight text-[var(--oa-fg)] transition-colors group-hover:text-[var(--oa-primary)] sm:text-2xl md:text-3xl">
                     {stock?.name || doc.ticker}
                   </h1>
-                  <p className="mt-1 text-sm font-semibold leading-snug text-[#6b7280]">
-                    <span className="text-[#111111] transition-colors group-hover:text-[#0052ff]">
+                  <p className="mt-1 text-sm font-medium leading-snug text-[var(--oa-muted-fg)]">
+                    <span className="text-[var(--oa-fg)] transition-colors group-hover:text-[var(--oa-primary)]">
                       {doc.ticker}
                     </span>
                     {stock?.exchange ? ` · ${stock.exchange}` : ""}
@@ -274,11 +274,11 @@ export function EarningsIntelReport({
               {stock ? (
                 <div className="mt-4 sm:mt-5">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-2">
-                    <span className="text-[1.75rem] font-semibold tabular-nums tracking-tight text-[#111111] sm:text-3xl md:text-4xl">
+                    <span className="text-[1.75rem] font-medium tabular-nums tracking-tight text-[var(--oa-fg)] sm:text-3xl md:text-4xl">
                       {fmtPrice(stock.price, currency)}
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold tabular-nums ${changeBg} ${changeFg}`}
+                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium tabular-nums ${changeBg} ${changeFg}`}
                     >
                       {positive ? "▲" : "▼"} {fmtPct(pct)}
                     </span>
@@ -288,7 +288,7 @@ export function EarningsIntelReport({
                       {fmtAbs(abs, currency)} today
                     </p>
                   ) : null}
-                  <ul className="mt-3 flex flex-col gap-1 text-sm text-[#6b7280] sm:mt-2 sm:flex-row sm:flex-wrap sm:gap-x-3 sm:gap-y-1">
+                  <ul className="mt-3 flex flex-col gap-1 text-sm text-[var(--oa-muted-fg)] sm:mt-2 sm:flex-row sm:flex-wrap sm:gap-x-3 sm:gap-y-1">
                     {mcap ? <li className="sm:list-none">Mkt cap {currency}{mcap}</li> : null}
                     {typeof pe === "number" && Number.isFinite(pe) ? (
                       <li className="sm:list-none">P/E {pe.toFixed(1)}</li>
@@ -303,24 +303,24 @@ export function EarningsIntelReport({
               ) : null}
             </div>
 
-            <div className="mt-5 flex flex-col gap-4 border-t border-[#f3f4f6] pt-5 lg:mt-0 lg:border-t-0 lg:pt-0 lg:items-end">
+            <div className="mt-5 flex flex-col gap-4 border-t border-[var(--oa-bg)] pt-5 lg:mt-0 lg:border-t-0 lg:pt-0 lg:items-end">
             {confidence !== null && confTone ? (
               <div className="flex w-full items-center gap-3 rounded-xl bg-[#f8f9fa] px-4 py-3 sm:w-auto sm:bg-transparent sm:px-0 sm:py-0">
                 <div
                   className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14"
                   style={{
-                    background: `conic-gradient(${confTone.ring} ${Math.round(confidence)}%, #e5e7eb 0)`,
+                    background: `conic-gradient(${confTone.ring} ${Math.round(confidence)}%, var(--oa-border) 0)`,
                   }}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold tabular-nums text-[#111111] sm:h-11 sm:w-11">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-oa-card text-sm font-medium tabular-nums text-[var(--oa-fg)] sm:h-11 sm:w-11">
                     {Math.round(confidence)}
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#9ca3af]">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--oa-muted-fg)]">
                     Confidence
                   </p>
-                  <p className="text-sm font-semibold text-[#111111]">{confTone.label}</p>
+                  <p className="text-sm font-medium text-[var(--oa-fg)]">{confTone.label}</p>
                 </div>
               </div>
             ) : null}
@@ -343,15 +343,15 @@ export function EarningsIntelReport({
 
         <section className="px-4 py-5 sm:px-8 sm:py-8 md:p-10">
           <SectionHeading icon="menu_book">The read</SectionHeading>
-          <h2 className="mt-4 text-xl font-semibold leading-snug tracking-tight text-[#111111] sm:mt-5 sm:text-2xl md:text-[1.75rem]">
+          <h2 className="mt-4 text-xl font-medium leading-snug tracking-tight text-[var(--oa-fg)] sm:mt-5 sm:text-2xl md:text-[1.75rem]">
             {doc.report?.headline}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-[#374151] sm:mt-5 sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-[var(--oa-fg)] sm:mt-5 sm:text-lg">
             {doc.report?.summary}
           </p>
           {confidenceReason ? (
-            <p className="mt-5 text-base leading-relaxed text-[#6b7280]">
-              <span className="font-semibold text-[#111111]">Confidence note: </span>
+            <p className="mt-5 text-base leading-relaxed text-[var(--oa-muted-fg)]">
+              <span className="font-medium text-[var(--oa-fg)]">Confidence note: </span>
               {confidenceReason}
             </p>
           ) : null}
@@ -392,7 +392,7 @@ export function EarningsIntelReport({
                   iconBg="bg-[#f5f0ff]"
                   iconFg="text-[#6b38d4]"
                   label={label}
-                  className="bg-white md:p-6"
+                  className="bg-oa-card md:p-6"
                 >
                   {text}
                 </InsightCard>
@@ -414,29 +414,29 @@ export function EarningsIntelReport({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 ${style.iconFg}`}
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-oa-card/80 ${style.iconFg}`}
                         >
                           <MaterialIcon name={style.icon} />
                         </span>
                         <span
-                          className={`rounded-md px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${style.chip}`}
+                          className={`rounded-md px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide ${style.chip}`}
                         >
                           {style.label}
                         </span>
                       </div>
-                      <span className="text-xl font-semibold tabular-nums text-[#111111]">
+                      <span className="text-xl font-medium tabular-nums text-[var(--oa-fg)]">
                         {Math.round(prob)}%
                       </span>
                     </div>
-                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/70">
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-oa-card/70">
                       <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${prob}%` }} />
                     </div>
-                    <p className="mt-4 flex-1 text-base leading-relaxed text-[#374151]">{s.thesis}</p>
+                    <p className="mt-4 flex-1 text-base leading-relaxed text-[var(--oa-fg)]">{s.thesis}</p>
                     {s.triggers?.length ? (
-                      <ul className="mt-4 space-y-2 border-t border-black/5 pt-4 text-sm leading-snug text-[#4b5563]">
+                      <ul className="mt-4 space-y-2 border-t border-black/5 pt-4 text-sm leading-snug text-[var(--oa-muted-fg)]">
                         {s.triggers.slice(0, 2).map((t) => (
                           <li key={t} className="flex gap-2">
-                            <MaterialIcon name="bolt" className="mt-0.5 shrink-0 text-[#9ca3af]" />
+                            <MaterialIcon name="bolt" className="mt-0.5 shrink-0 text-[var(--oa-muted-fg)]" />
                             <span>{t}</span>
                           </li>
                         ))}
@@ -464,7 +464,7 @@ export function EarningsIntelReport({
             <InsightCard
               icon="visibility"
               iconBg="bg-[#eff6ff]"
-              iconFg="text-[#0052ff]"
+              iconFg="text-[var(--oa-primary)]"
               label="If you're watching"
               className="bg-[#fafafa] md:p-6"
             >
@@ -472,10 +472,10 @@ export function EarningsIntelReport({
             </InsightCard>
           </div>
           {monitorList.length > 0 ? (
-            <div className="mt-5 rounded-2xl border border-dashed border-[#d1d5db] bg-[#fafafa] p-5">
+            <div className="mt-5 rounded-2xl border border-dashed border-[var(--oa-border)] bg-[#fafafa] p-5">
               <div className="flex items-center gap-2">
-                <MaterialIcon name="radar" className="text-[#6b7280]" />
-                <p className="text-xs font-semibold uppercase tracking-widest text-[#9ca3af]">
+                <MaterialIcon name="radar" className="text-[var(--oa-muted-fg)]" />
+                <p className="text-xs font-medium uppercase tracking-widest text-[var(--oa-muted-fg)]">
                   Add to Watchlist
                 </p>
               </div>
@@ -483,7 +483,7 @@ export function EarningsIntelReport({
                 {monitorList.map((item) => (
                   <li
                     key={item}
-                    className="rounded-full border border-[#e5e7eb] bg-white px-3.5 py-1.5 text-sm text-[#374151]"
+                    className="rounded-full border border-[var(--oa-border)] bg-oa-card px-3.5 py-1.5 text-sm text-[var(--oa-fg)]"
                   >
                     {item}
                   </li>
@@ -495,7 +495,7 @@ export function EarningsIntelReport({
       </article>
 
       <div className="px-4 sm:hidden">
-        <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+        <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--oa-muted-fg)]">
           Share this report
         </p>
         <EarningsIntelShare
@@ -505,7 +505,7 @@ export function EarningsIntelReport({
         />
       </div>
 
-      <p className="px-4 text-center text-xs text-[#9ca3af] sm:px-0">
+      <p className="px-4 text-center text-xs text-[var(--oa-muted-fg)] sm:px-0">
         Stocksbrew post-earnings read · not investment advice
       </p>
     </div>

@@ -38,13 +38,13 @@ function ReturnsRow({
 
   return (
     <div className="mt-8">
-      <p className="text-[13px] font-medium text-on-surface">Past performance</p>
+      <p className="text-[13px] font-medium text-oa-fg/80">Past performance</p>
       <div className="mt-3 flex flex-wrap gap-x-8 gap-y-4">
         {items.map(({ label, value }) => {
           const up = value >= 0;
           return (
             <div key={label} className="min-w-[4.5rem]">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-on-surface-variant">{label}</p>
+              <p className="oa-mono text-[11px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg">{label}</p>
               <p
                 className="mt-1 text-[17px] font-medium tabular-nums tracking-tight"
                 style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
@@ -77,19 +77,19 @@ function TechnicalLevelsRow({
   const distance = (value: number) => `${Math.abs(((value - currentPrice) / currentPrice) * 100).toFixed(1)}%`;
 
   return (
-    <div className="mt-5 flex flex-wrap gap-x-10 gap-y-4 border-t border-outline-variant/60 pt-4">
+    <div className="mt-5 flex flex-wrap gap-x-10 gap-y-4 border-t border-oa-border pt-4">
       <div className="min-w-[11rem]">
-        <p className="text-[12px] font-medium text-on-surface-variant">Support{technicalLevels?.support_label ? ` · ${technicalLevels.support_label}` : ""}</p>
+        <p className="text-[12px] font-medium text-oa-muted-fg">Support{technicalLevels?.support_label ? ` · ${technicalLevels.support_label}` : ""}</p>
         <div className="mt-1 flex items-baseline gap-2">
-          <p className="text-[17px] font-bold tabular-nums text-[var(--signal-bullish)]">{typeof support === "number" ? money(support) : "—"}</p>
-          {typeof support === "number" ? <span className="text-[11px] font-medium text-on-surface-variant">{distance(support)} below</span> : null}
+          <p className="text-[17px] font-medium tabular-nums" style={{ color: "var(--signal-bullish)" }}>{typeof support === "number" ? money(support) : "—"}</p>
+          {typeof support === "number" ? <span className="text-[11px] font-medium text-oa-muted-fg">{distance(support)} below</span> : null}
         </div>
       </div>
       <div className="min-w-[11rem]">
-        <p className="text-[12px] font-medium text-on-surface-variant">Resistance{technicalLevels?.resistance_label ? ` · ${technicalLevels.resistance_label}` : ""}</p>
+        <p className="text-[12px] font-medium text-oa-muted-fg">Resistance{technicalLevels?.resistance_label ? ` · ${technicalLevels.resistance_label}` : ""}</p>
         <div className="mt-1 flex items-baseline gap-2">
-          <p className="text-[17px] font-bold tabular-nums text-[var(--signal-bearish)]">{typeof resistance === "number" ? money(resistance) : "—"}</p>
-          {typeof resistance === "number" ? <span className="text-[11px] font-medium text-on-surface-variant">{distance(resistance)} above</span> : null}
+          <p className="text-[17px] font-medium tabular-nums" style={{ color: "var(--signal-bearish)" }}>{typeof resistance === "number" ? money(resistance) : "—"}</p>
+          {typeof resistance === "number" ? <span className="text-[11px] font-medium text-oa-muted-fg">{distance(resistance)} above</span> : null}
         </div>
       </div>
     </div>

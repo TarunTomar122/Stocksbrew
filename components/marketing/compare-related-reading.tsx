@@ -2,16 +2,15 @@ import Link from "next/link";
 
 import { getBlogCompareLinks, getCompareRelated, type SeoLink } from "@/lib/seo/compare-links";
 
+const PILL =
+  "inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg";
+
 function LinkPills({ items }: { items: SeoLink[] }) {
   if (items.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors"
-        >
+        <Link key={item.href} href={item.href} className={PILL}>
           {item.label}
         </Link>
       ))}
@@ -24,18 +23,18 @@ export function CompareRelatedReading({ slug }: { slug: string }) {
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[18px] font-semibold text-[#111111]">Related reading</h2>
-      <div className="flex flex-col gap-3">
+      <h2 className="text-[18px] font-medium tracking-tight text-oa-fg">Related reading</h2>
+      <div className="flex flex-col gap-4">
         <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#9ca3af]">Guides</p>
+          <p className="oa-mono mb-2 text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Guides</p>
           <LinkPills items={blogs} />
         </div>
         <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#9ca3af]">Comparisons</p>
+          <p className="oa-mono mb-2 text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Comparisons</p>
           <LinkPills items={compares} />
         </div>
-        <Link href="/compare" className="text-[13px] font-medium text-[#0052ff] hover:underline w-fit">
-          All comparisons →
+        <Link href="/compare" className="w-fit text-[13px] font-medium text-oa-primary underline-offset-4 hover:underline">
+          All comparisons ›
         </Link>
       </div>
     </section>
@@ -47,11 +46,11 @@ export function BlogCompareStrip({ slug }: { slug: string }) {
   if (compareLinks.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-5 flex flex-col gap-3">
-      <h3 className="text-[15px] font-semibold text-[#111111]">Compare stocksbrew</h3>
+    <section className="flex flex-col gap-3 rounded-[22px] border border-oa-border bg-oa-bg p-5">
+      <h3 className="text-[15px] font-medium tracking-tight text-oa-fg">Compare stocksbrew</h3>
       <LinkPills items={compareLinks} />
-      <Link href="/compare" className="text-[13px] font-medium text-[#0052ff] hover:underline w-fit">
-        All comparisons →
+      <Link href="/compare" className="w-fit text-[13px] font-medium text-oa-primary underline-offset-4 hover:underline">
+        All comparisons ›
       </Link>
     </section>
   );

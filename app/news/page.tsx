@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -37,10 +38,10 @@ export const metadata: Metadata = {
 function NewsFeedFallback() {
   return (
     <div className="grid animate-pulse grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
-      <div className="h-72 rounded-[24px] border border-outline-variant bg-surface" />
+      <div className="h-72 rounded-[24px] border border-oa-border bg-oa-card" />
       <div className="flex flex-col gap-3">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-[18px] border border-outline-variant bg-surface" />
+          <div key={i} className="h-24 rounded-[18px] border border-oa-border bg-oa-card" />
         ))}
       </div>
     </div>
@@ -56,7 +57,8 @@ async function NewsFeedStream() {
 
 export default function NewsPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <MarketingSchema
         path="/news"
         name="US Stock Market News Today"
@@ -67,23 +69,23 @@ export default function NewsPage() {
         <Suspense fallback={<NewsFeedFallback />}>
           <NewsFeedStream />
         </Suspense>
-        <section className="grid gap-7 border-y border-outline-variant py-9 lg:grid-cols-[0.75fr_1.25fr]">
+        <section className="grid gap-7 border-y border-oa-border py-9 lg:grid-cols-[0.75fr_1.25fr]">
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-oa-primary">
               From headline to evidence
             </p>
-            <h2 className="mt-2 text-xl font-bold tracking-[-0.02em] text-on-surface">
+            <h2 className="mt-2 text-xl font-medium tracking-[-0.02em] text-oa-fg">
               How to read stock news without chasing noise
             </h2>
           </div>
-          <div className="text-[14px] leading-6 text-on-surface-variant">
+          <div className="text-[14px] leading-6 text-oa-muted-fg">
             <p>
               A useful headline identifies what changed, when it changed, and which company metric it could
               affect. Confirm material announcements in the company&apos;s investor-relations release or SEC
               filing, compare the claim with prior guidance, and separate a lasting thesis change from a
               one-session price reaction.
             </p>
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-semibold text-landing-brand">
+            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-medium text-oa-primary">
               <Link href="/blog/stock-news-catalyst-analysis" className="hover:underline">Catalyst analysis guide</Link>
               <Link href="/stocks" className="hover:underline">Research a ticker</Link>
               <Link href="/pulse" className="hover:underline">Market analysis today</Link>

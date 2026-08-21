@@ -59,11 +59,11 @@ export async function EventsPageStream() {
         />
       ) : null}
       {isEmpty ? (
-        <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-10 text-center">
-          <p className="text-[12px] font-semibold tracking-[0.12em] uppercase text-[#111111]">
+        <div className="rounded-[20px] border border-[var(--oa-border)] bg-oa-card p-10 text-center">
+          <p className="text-[12px] font-medium tracking-[0.12em] uppercase text-[var(--oa-fg)]">
             Quiet right now
           </p>
-          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[#6b7280]">
+          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[var(--oa-muted-fg)]">
             No fresh earnings reports yet. Check back after the next reporting wave.
           </p>
         </div>

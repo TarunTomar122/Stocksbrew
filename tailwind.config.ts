@@ -101,6 +101,21 @@ const config: Config = {
         "landing-brand": "var(--landing-brand)",
         "landing-mint": "var(--landing-mint)",
         "landing-reddit": "var(--landing-reddit)",
+
+        /* oa-design landing palette (scoped to .oa-landing, see globals.css) */
+        oa: {
+          bg: "var(--oa-bg)",
+          card: "var(--oa-card)",
+          fg: "var(--oa-fg)",
+          border: "var(--oa-border)",
+          accent: "var(--oa-accent)",
+          "muted-fg": "var(--oa-muted-fg)",
+          primary: "var(--oa-primary)",
+          "primary-fg": "var(--oa-primary-fg)",
+          ring: "var(--oa-ring)",
+          secondary: "var(--oa-secondary)",
+          "secondary-fg": "var(--oa-secondary-fg)",
+        },
       },
       fontFamily: {
         headline: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],

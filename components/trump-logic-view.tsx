@@ -52,30 +52,30 @@ function MentionTable({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#e5e7eb] bg-[#fafafa] px-4 py-10 text-center">
-        <p className="text-[13px] text-[#9ca3af]">No {meta.label.toLowerCase()} mentions in this window.</p>
+      <div className="rounded-2xl border border-dashed border-[var(--oa-border)] bg-[#fafafa] px-4 py-10 text-center">
+        <p className="text-[13px] text-[var(--oa-muted-fg)]">No {meta.label.toLowerCase()} mentions in this window.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
+    <div className="overflow-hidden rounded-2xl border border-[var(--oa-border)] bg-oa-card">
       {showHeader ? (
         <div
           className="flex items-center justify-between border-b px-4 py-3"
           style={{ borderColor: meta.border, background: meta.bg }}
         >
-          <span className="text-[13px] font-semibold" style={{ color: meta.color }}>
+          <span className="text-[13px] font-medium" style={{ color: meta.color }}>
             {meta.label}
           </span>
-          <span className="text-[12px] font-medium tabular-nums text-[#6b7280]">
+          <span className="text-[12px] font-medium tabular-nums text-[var(--oa-muted-fg)]">
             {rows.length} mention{rows.length === 1 ? "" : "s"}
           </span>
         </div>
       ) : null}
 
       <div className="max-h-[min(620px,70vh)] overflow-y-auto">
-        <div className="flex flex-col divide-y divide-[#f3f4f6] lg:hidden">
+        <div className="flex flex-col divide-y divide-[var(--oa-bg)] lg:hidden">
           {rows.map((row) => {
             const since = formatSincePct(row.change_since_pct);
             const when = relativeTime(row.published_at);
@@ -89,11 +89,11 @@ function MentionTable({
                   >
                     <StockLogo ticker={row.ticker} market="US" size={34} />
                     <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="text-[15px] font-bold text-[#111111] group-hover:text-[#0052ff] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--oa-fg)] group-hover:text-[var(--oa-primary)] transition-colors">
                         {row.ticker}
                       </span>
                       {dateLabel || when || row.mention_count > 1 ? (
-                        <span className="text-[12px] text-[#9ca3af]">
+                        <span className="text-[12px] text-[var(--oa-muted-fg)]">
                           {[dateLabel, when, row.mention_count > 1 ? `${row.mention_count} posts` : ""]
                             .filter(Boolean)
                             .join(" · ")}
@@ -103,7 +103,7 @@ function MentionTable({
                   </Link>
                   {since ? (
                     <span
-                      className="shrink-0 text-[15px] font-bold tabular-nums"
+                      className="shrink-0 text-[15px] font-medium tabular-nums"
                       style={{ color: since.positive ? "#10b981" : "#ef4444" }}
                     >
                       {since.text}
@@ -111,14 +111,14 @@ function MentionTable({
                   ) : null}
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--oa-muted-fg)]">
                     What he said
                   </span>
                   <a
                     href={row.truth_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[14px] leading-relaxed text-[#374151] hover:text-[#0052ff] hover:underline"
+                    className="text-[14px] leading-relaxed text-[var(--oa-fg)] hover:text-[var(--oa-primary)] hover:underline"
                   >
                     {row.said}
                   </a>
@@ -130,11 +130,11 @@ function MentionTable({
 
         <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[360px] border-collapse text-left">
-          <thead className="sticky top-0 z-10 bg-white">
-            <tr className="border-b border-[#f3f4f6] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af] shadow-[0_1px_0_#f3f4f6]">
-              <th className="px-4 py-2.5 font-semibold">Stock</th>
-              <th className="px-4 py-2.5 font-semibold">What he said</th>
-              <th className="px-4 py-2.5 text-right font-semibold">Since</th>
+          <thead className="sticky top-0 z-10 bg-oa-card">
+            <tr className="border-b border-[var(--oa-bg)] text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--oa-muted-fg)] shadow-[0_1px_0_var(--oa-bg)]">
+              <th className="px-4 py-2.5 font-medium">Stock</th>
+              <th className="px-4 py-2.5 font-medium">What he said</th>
+              <th className="px-4 py-2.5 text-right font-medium">Since</th>
             </tr>
           </thead>
           <tbody>
@@ -145,7 +145,7 @@ function MentionTable({
               return (
                 <tr
                   key={row.id}
-                  className="border-b border-[#f3f4f6] last:border-b-0 align-top hover:bg-[#fafafa]"
+                  className="border-b border-[var(--oa-bg)] last:border-b-0 align-top hover:bg-[#fafafa]"
                 >
                   <td className="whitespace-nowrap px-4 py-3">
                     <Link
@@ -154,11 +154,11 @@ function MentionTable({
                     >
                       <StockLogo ticker={row.ticker} market="US" size={28} />
                       <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-[13px] font-bold text-[#111111] group-hover:text-[#0052ff] transition-colors">
+                        <span className="text-[13px] font-medium text-[var(--oa-fg)] group-hover:text-[var(--oa-primary)] transition-colors">
                           {row.ticker}
                         </span>
                         {dateLabel || when || row.mention_count > 1 ? (
-                          <span className="text-[11px] text-[#9ca3af]">
+                          <span className="text-[11px] text-[var(--oa-muted-fg)]">
                             {[dateLabel, when, row.mention_count > 1 ? `${row.mention_count} posts` : ""]
                               .filter(Boolean)
                               .join(" · ")}
@@ -167,12 +167,12 @@ function MentionTable({
                       </div>
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-[13px] leading-snug text-[#374151]">
+                  <td className="px-4 py-3 text-[13px] leading-snug text-[var(--oa-fg)]">
                     <a
                       href={row.truth_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-[#0052ff] hover:underline"
+                      className="hover:text-[var(--oa-primary)] hover:underline"
                     >
                       {row.said}
                     </a>
@@ -180,7 +180,7 @@ function MentionTable({
                   <td className="whitespace-nowrap px-4 py-3 text-right">
                     {since ? (
                       <span
-                        className="text-[13px] font-bold tabular-nums"
+                        className="text-[13px] font-medium tabular-nums"
                         style={{ color: since.positive ? "#10b981" : "#ef4444" }}
                       >
                         {since.text}
@@ -214,15 +214,15 @@ export function TrumpLogicView({ data, hideHeader = false }: Props) {
       <div className="flex max-w-2xl flex-col gap-4">
         {!hideHeader ? (
           <>
-            <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-on-surface md:text-[40px]">
+            <h1 className="text-[32px] font-medium tracking-[-0.03em] text-oa-fg md:text-[40px]">
               Trump Logic
             </h1>
-            <p className="text-[15px] leading-relaxed text-on-surface-variant">
+            <p className="text-[15px] leading-relaxed text-oa-muted-fg">
               Stocks Trump mentioned on Truth Social and how they moved after.
             </p>
           </>
         ) : (
-          <p className="text-[15px] leading-relaxed text-on-surface-variant">
+          <p className="text-[15px] leading-relaxed text-oa-muted-fg">
             Stocks Trump mentioned on Truth Social and how they moved after.
           </p>
         )}
@@ -234,18 +234,18 @@ export function TrumpLogicView({ data, hideHeader = false }: Props) {
     <div className="flex flex-col gap-8 md:gap-10">
       {!hideHeader ? (
         <header className="flex max-w-2xl flex-col gap-2">
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-on-surface md:text-[40px]">
+          <h1 className="text-[32px] font-medium tracking-[-0.03em] text-oa-fg md:text-[40px]">
             Trump Logic
           </h1>
-          <p className="text-[15px] leading-relaxed text-on-surface-variant">
+          <p className="text-[15px] leading-relaxed text-oa-muted-fg">
             Stocks Trump mentioned on Truth Social, split bullish vs bearish, with price change after each post.
           </p>
           {relativeTime(data.generated_at) ? (
-            <p className="text-[12px] text-on-surface-variant">Updated {relativeTime(data.generated_at)}</p>
+            <p className="text-[12px] text-oa-muted-fg">Updated {relativeTime(data.generated_at)}</p>
           ) : null}
         </header>
       ) : relativeTime(data.generated_at) ? (
-        <p className="text-[12px] text-on-surface-variant">Updated {relativeTime(data.generated_at)}</p>
+        <p className="text-[12px] text-oa-muted-fg">Updated {relativeTime(data.generated_at)}</p>
       ) : null}
 
       {/* Desktop: side-by-side tables */}
@@ -256,7 +256,7 @@ export function TrumpLogicView({ data, hideHeader = false }: Props) {
 
       {/* Mobile: tabs */}
       <div className="flex flex-col gap-4 lg:hidden">
-        <div className="flex rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-1">
+        <div className="flex rounded-xl border border-[var(--oa-border)] bg-[var(--oa-bg)] p-1">
           {(["bullish", "bearish"] as const).map((tab) => {
             const active = mobileTab === tab;
             const meta = SIDE_META[tab];
@@ -266,13 +266,13 @@ export function TrumpLogicView({ data, hideHeader = false }: Props) {
                 key={tab}
                 type="button"
                 onClick={() => setMobileTab(tab)}
-                className={`flex-1 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition-colors ${
-                  active ? "bg-white shadow-sm" : "text-[#6b7280]"
+                className={`flex-1 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors ${
+                  active ? "bg-oa-card shadow-sm" : "text-[var(--oa-muted-fg)]"
                 }`}
                 style={active ? { color: meta.color } : undefined}
               >
                 {meta.label}
-                <span className="ml-1.5 tabular-nums text-[12px] font-medium text-[#9ca3af]">
+                <span className="ml-1.5 tabular-nums text-[12px] font-medium text-[var(--oa-muted-fg)]">
                   {count}
                 </span>
               </button>

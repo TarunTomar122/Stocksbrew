@@ -41,35 +41,8 @@ export function RadarNextSkeleton() {
       </header>
 
       <section>
-        <Bone className="h-5 w-64" />
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="flex min-h-[10.5rem] flex-col rounded-xl border border-[var(--rn-line)] bg-[var(--rn-card)] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Bone className="h-7 w-7 rounded-full" />
-                  <Bone className="h-3 w-16" />
-                </div>
-                <Bone className="h-3 w-14" />
-              </div>
-              <Bone className="mt-5 h-4 w-28" />
-              <Bone className="mt-3 h-3 w-full" />
-              <div className="mt-3 flex gap-2">
-                <Bone className="h-6 w-24 rounded-full" />
-                <Bone className="h-6 w-20 rounded-full" />
-              </div>
-              <div className="mt-auto flex justify-between pt-4">
-                <Bone className="h-2.5 w-20" />
-                <Bone className="h-2.5 w-12" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
         <Bone className="mb-3 h-8 w-40 rounded-full" />
-        <TableSkeleton rows={6} />
+        <TableSkeleton rows={8} />
       </section>
 
       <section>
@@ -102,7 +75,7 @@ export function RadarNextSkeleton() {
 
       <section>
         <Bone className="mb-3 h-5 w-40" />
-        <TableSkeleton rows={4} />
+        <TableSkeleton rows={5} />
       </section>
     </div>
   );

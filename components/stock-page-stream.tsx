@@ -180,7 +180,7 @@ export async function StockPageStream({ params }: Props) {
     const subscribed = resolveIsSubscribed(userDoc);
 
     return (
-      <main className="flex min-w-0 w-full flex-grow flex-col bg-surface">
+      <main className="flex min-w-0 w-full flex-grow flex-col">
         <UnlistedStockShell
           ticker={normalizedTicker}
           market={cookieMarket}
@@ -351,122 +351,8 @@ export async function StockPageStream({ params }: Props) {
 
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
-  // Trend card inputs - 50D/200D MA and beta come from Yahoo's `.info`
-  // (stashed on fundamentals by the price-sync job), so every listed stock
-  // renders a real Trend card even though we only carry ~60 sessions of our
-  // own price history.
-  const sma50 =
-    technicals?.moving_averages?.sma_50 ??
-    fundamentals?.fifty_day_average ??
-    undefined;
-  const sma200 =
-    technicals?.moving_averages?.sma_200 ??
-    fundamentals?.two_hundred_day_average ??
-    undefined;
-  const beta = fundamentals?.beta;
-  const analystConsensus = instrumentView?.analyst_consensus ?? stockFacts?.analyst;
-
-  const week52High = fundamentals?.week_52_high;
-  const week52Low = fundamentals?.week_52_low;
   const rsiValue = technicals?.rsi_14?.value;
-  const formatPriceForBar = (v: number): string =>
-    `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const has52W =
-    Number.isFinite(week52High) &&
-    Number.isFinite(week52Low) &&
-    week52High! > week52Low!;
-  const hasRsi = Number.isFinite(rsiValue);
-
-  const overviewContent = (
-    <section className="flex flex-col gap-10">
-      {displayAnomaly && (
-        <AnomalyBanner
-          anomaly={displayAnomaly}
-          isSubscribed={hasFullAnalysisAccess}
-        />
-      )}
-      {hasFullAnalysisAccess && activePreEarningsIntel ? (
-        <a href="#stock-section-earnings" className="block scroll-mt-32">
-          <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} compact />
-        </a>
-      ) : null}
-      <SignalDeck
-        facts={stockFacts}
-        intelPro={intelPro}
-        technicals={technicals}
-        fundamentals={fundamentals}
-        currentPrice={stock.price}
-        market={market}
-      />
-
-      {(has52W || hasRsi) && (
-        <section className="flex flex-col gap-6 panel p-6 md:p-7">
-          <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">
-            Where it sits today
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
-            {has52W && (
-              <RangeBar
-                label="52-week price range"
-                low={week52Low!}
-                high={week52High!}
-                current={stock.price}
-                format={formatPriceForBar}
-              />
-            )}
-            {hasRsi && (
-              <RsiStrength value={rsiValue!} state={technicals?.rsi_14?.state} />
-            )}
-          </div>
-        </section>
-      )}
-
-      <StockFactsPanel
-        facts={stockFacts}
-        fundamentals={fundamentals}
-        currentPrice={stock.price}
-        currency={currency}
-        ticker={stock.ticker}
-        priceHistory={priceHistory}
-        isSubscribed={hasFullAnalysisAccess}
-        fundamentalsUpdatedAt={stockFacts?.captured_at}
-      />
-      {!isFeaturedStock ? (
-        <TierCTA
-          tier={tier}
-          ticker={stock.ticker}
-          instrumentId={stock.instrument_id}
-          isSubscribed={subscribed}
-          isTracked={isTracked}
-        />
-      ) : null}
-    </section>
-  );
-
-  const analystContent = (
-    <section className="flex flex-col gap-6">
-      <AnalystConsensus consensus={analystConsensus} currentPrice={stock.price} />
-    </section>
-  );
-
-  const fundamentalsContent = (
-    <section className="flex flex-col gap-6">
-      <StockScorecard
-        intel={intelPro}
-        ticker={stock.ticker}
-        isSubscribed={hasFullAnalysisAccess}
-      />
-      {hasAI && (
-        <>
-          <ComparativeContextRow context={intelligence?.comparative_context} />
-          <PeersRow
-            peers={instrumentView?.related_tickers}
-            related={intelligence?.related_instruments}
-          />
-        </>
-      )}
-    </section>
-  );
+  const analystConsensus = instrumentView?.analyst_consensus ?? stockFacts?.analyst;
 
   const aiSource = intelligence?.source ?? "";
   const aiCoverageType = intelligence?.coverage_type ?? "";
@@ -487,98 +373,12 @@ export async function StockPageStream({ params }: Props) {
     !isPriceStaleBrief &&
     !showBriefStatus &&
     (hasNewsBackedBrief || (hasBriefText(intelligence) && !isNoMajorNewsTagged));
-  const showSynthesis = showFullNewsBrief;
-  const showCards = hasAI && !isPriceStaleBrief && hasVisualCards(intelligence) && !showNoMajorNewsPanel;
-  const showSentiment = hasAI && !isPriceStaleBrief && hasSentimentBreakdown(instrumentView?.sentiment_breakdown) && !showNoMajorNewsPanel;
-
-  const hasEarningsContent = Boolean(activePreEarningsIntel || earningsIntel);
-  const earningsContent = !hasEarningsContent ? null : hasFullAnalysisAccess ? (
-    <div className="flex flex-col gap-10">
-      {activePreEarningsIntel ? (
-        <PreEarningsSetupCard doc={activePreEarningsIntel} ticker={stock.ticker} />
-      ) : null}
-      {activePreEarningsIntel && earningsIntel ? (
-        <div className="flex flex-col gap-2 pt-4 border-t-2 border-outline-variant">
-          <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
-            After the print
-          </p>
-        </div>
-      ) : null}
-      {earningsIntel ? <StockEarningsTab doc={earningsIntel} ticker={stock.ticker} /> : null}
-    </div>
-  ) : (
-    <section className="flex items-center justify-center overflow-hidden panel p-6 sm:p-8">
-      <ProLockCard
-        surface="stock_tab"
-        ticker={stock.ticker}
-        title="Earnings intel is Pro-only"
-        description="Unlock pre-earnings setups and post-earnings reads: expected EPS, likely stock move, and what to do."
-      />
-    </section>
-  );
-
-  const aiContent = hasFullAnalysisAccess ? (
-    hasAI ? (
-      <section className="flex flex-col gap-6">
-        {showBriefStatus && (
-          <AiBriefStatus
-            ticker={stock.ticker}
-            generatedAt={intelligence?.generated_at}
-          />
-        )}
-        {isPriceStaleBrief && (
-          <AiBriefStatus
-            ticker={stock.ticker}
-            generatedAt={intelligence?.generated_at}
-            mode="price_stale"
-          />
-        )}
-        {showNoMajorNewsPanel && (
-          <AiBriefStatus
-            ticker={stock.ticker}
-            generatedAt={intelligence?.generated_at}
-            mode="no_major_news"
-            brief={intelligence?.today_brief ?? intelligence?.body}
-          />
-        )}
-        {showFullNewsBrief && (
-          <>
-            <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
-              Updated {formatRelative(intelligence?.generated_at) || "-"}
-            </p>
-            <StrategicDirective ticker={stock.ticker} directive={normalizedDirective} instrumentId={stock.instrument_id} />
-          </>
-        )}
-        {showSynthesis && <AiSynthesis intelligence={intelligence} />}
-        {showCards && <CatalystsDriversRisks cards={intelligence?.visual_cards} />}
-        {showSentiment && <SentimentLanes sentiment={instrumentView?.sentiment_breakdown} />}
-        {(showFullNewsBrief || showNoMajorNewsPanel) && intelligence?.data_quality && (
-          <DataQualityStrip quality={intelligence.data_quality} />
-        )}
-      </section>
-    ) : showAiPreparationState || showAiStartCoverageState ? (
-      <LockedAiBrief
-        ticker={stock.ticker}
-        instrumentId={stock.instrument_id}
-        currentPrice={stock.price}
-        currency={currency}
-        isSubscribed={subscribed}
-        isTracked={isTracked}
-        onDemandStatus={resolvedOnDemandStatus}
-        onDemandError={onDemandJob?.error}
-      />
-    ) : null
-  ) : null;
-
-  const dayPct = stock.day_change_pct ?? 0;
-  const dayAbs = stock.day_change_abs ?? 0;
-  const dayPositive = dayPct >= 0;
-  const fmtMoney = (v: number) =>
-    `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const headerMeta = [displayStock.ticker, displayStock.exchange, displayStock.sector].filter(Boolean).join(" · ");
+  void showBriefStatus;
+  void showNoMajorNewsPanel;
+  void showFullNewsBrief;
 
   return (
-    <main className="flex min-w-0 w-full flex-grow flex-col bg-surface">
+    <main className="flex min-w-0 w-full flex-grow flex-col">
       <StockViewTracker ticker={displayStock.ticker} instrumentId={displayStock.instrument_id} market={market} />
       <OnDemandResearchRefresh status={resolvedOnDemandStatus} />
       <PriorityStockModal

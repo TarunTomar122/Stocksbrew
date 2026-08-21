@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -61,15 +62,16 @@ export default function EditorialPolicyPage() {
   };
 
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
       <article className="mx-auto flex w-full max-w-[800px] flex-col gap-12 px-6 py-16 md:px-10 md:py-24 lg:px-16">
         <header className="flex flex-col gap-4">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#6b7280]">Trust & methodology</span>
-          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.04em] text-[#111111] md:text-[52px]">
+          <span className="text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--oa-muted-fg)]">Trust & methodology</span>
+          <h1 className="text-[40px] font-medium leading-[1.05] tracking-[-0.04em] text-[var(--oa-fg)] md:text-[52px]">
             Editorial & comparison policy
           </h1>
-          <p className="text-[16px] leading-[1.65] text-[#374151]">
+          <p className="text-[16px] leading-[1.65] text-[var(--oa-fg)]">
             The standard behind stocksbrew&apos;s indexable articles and software comparisons. Last materially reviewed July 22, 2026.
           </p>
         </header>
@@ -77,22 +79,22 @@ export default function EditorialPolicyPage() {
         <div className="flex flex-col gap-10">
           {sections.map((section) => (
             <section key={section.title} className="flex flex-col gap-3">
-              <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-[#111111]">{section.title}</h2>
-              <p className="text-[15px] leading-[1.75] text-[#374151]">{section.body}</p>
+              <h2 className="text-[22px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">{section.title}</h2>
+              <p className="text-[15px] leading-[1.75] text-[var(--oa-fg)]">{section.body}</p>
             </section>
           ))}
         </div>
 
-        <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6">
-          <h2 className="mb-2 text-[18px] font-semibold text-[#111111]">Report a correction</h2>
-          <p className="text-[14px] leading-relaxed text-[#6b7280]">
-            Email <a href="mailto:tomartarun2001@gmail.com" className="font-medium text-[#111111] underline underline-offset-2">tomartarun2001@gmail.com</a> with the page URL, the claim, and the best primary source you have.
+        <section className="rounded-2xl border border-[var(--oa-border)] bg-[#fafaf7] p-6">
+          <h2 className="mb-2 text-[18px] font-medium text-[var(--oa-fg)]">Report a correction</h2>
+          <p className="text-[14px] leading-relaxed text-[var(--oa-muted-fg)]">
+            Email <a href="mailto:tomartarun2001@gmail.com" className="font-medium text-[var(--oa-fg)] underline underline-offset-2">tomartarun2001@gmail.com</a> with the page URL, the claim, and the best primary source you have.
           </p>
         </section>
 
         <nav className="flex flex-wrap gap-3">
-          <Link href="/authors/tarun-tomar" className="inline-flex h-10 items-center rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white">About the author</Link>
-          <Link href="/compare" className="inline-flex h-10 items-center rounded-full border border-[#e5e7eb] px-5 text-[13px] font-semibold text-[#111111]">View comparisons</Link>
+          <Link href="/authors/tarun-tomar" className="inline-flex h-10 items-center rounded-full bg-[var(--oa-fg)] px-5 text-[13px] font-medium text-white">About the author</Link>
+          <Link href="/compare" className="inline-flex h-10 items-center rounded-full border border-[var(--oa-border)] px-5 text-[13px] font-medium text-[var(--oa-fg)]">View comparisons</Link>
         </nav>
       </article>
     </main>

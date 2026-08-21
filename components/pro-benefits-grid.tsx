@@ -1,43 +1,39 @@
 import Link from "next/link";
 
-import { AnimatedIcon } from "@/components/animated-icon";
 import type { SubscribeBenefit } from "@/lib/subscribe-benefits";
 
-function BenefitCard({
-  benefit,
-  compact,
-}: {
-  benefit: SubscribeBenefit;
-  compact: boolean;
-}) {
+function BenefitCard({ benefit }: { benefit: SubscribeBenefit }) {
   const content = (
     <>
-      <AnimatedIcon name={benefit.icon} size={20} className="mt-0.5 shrink-0 text-[#111111]" aria-hidden />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-[13px] font-semibold text-[#111111]">{benefit.title}</span>
-        <span className="text-[12px] leading-snug text-[#6b7280]">{benefit.body}</span>
+      <span aria-hidden="true" className="mt-[9px] size-1.5 shrink-0 rounded-full bg-oa-primary" />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-sm font-medium text-oa-fg">{benefit.title}</span>
+        <span className="text-sm leading-6 text-oa-muted-fg">{benefit.body}</span>
         {benefit.href ? (
-          <span className="text-[11px] font-semibold text-[#0052ff] group-hover:underline">
-            {benefit.linkLabel ?? "Open"} →
+          <span className="text-sm font-medium text-oa-fg underline decoration-oa-border underline-offset-4">
+            {benefit.linkLabel ?? "Open"}
           </span>
         ) : null}
       </div>
     </>
   );
 
-  const className = `group flex gap-3 rounded-2xl bg-[#fafafa] ${
-    compact ? "px-3.5 py-3" : "px-4 py-3"
-  } ${benefit.href ? "transition-colors hover:border hover:border-[#e5e7eb] hover:bg-white" : ""}`;
-
   if (benefit.href) {
     return (
-      <Link href={benefit.href} className={className}>
+      <Link
+        href={benefit.href}
+        className="group flex gap-3 rounded-[18px] border border-oa-border bg-oa-bg px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+      >
         {content}
       </Link>
     );
   }
 
-  return <div className={className}>{content}</div>;
+  return (
+    <div className="flex gap-3 rounded-[18px] border border-oa-border bg-oa-bg px-4 py-3">
+      {content}
+    </div>
+  );
 }
 
 export function ProBenefitsGrid({
@@ -50,7 +46,7 @@ export function ProBenefitsGrid({
   return (
     <div className={`grid grid-cols-1 gap-3 ${compact ? "" : "sm:grid-cols-2"}`}>
       {benefits.map((benefit) => (
-        <BenefitCard key={benefit.title} benefit={benefit} compact={compact} />
+        <BenefitCard key={benefit.title} benefit={benefit} />
       ))}
     </div>
   );

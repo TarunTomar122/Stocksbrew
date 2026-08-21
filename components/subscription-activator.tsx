@@ -137,17 +137,17 @@ export function SubscriptionActivator({
           type="button"
           disabled={syncing}
           onClick={() => void refresh()}
-          className="self-start text-[12px] font-semibold text-primary hover:underline disabled:opacity-50"
+          className="self-start cursor-pointer rounded-lg text-sm font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:opacity-50"
         >
           {syncing ? "Checking…" : "Refresh subscription status"}
         </button>
         {message && (
-          <p className="text-[12px] text-on-surface-variant leading-snug">{message}</p>
+          <p className="text-sm leading-6 text-oa-muted-fg">{message}</p>
         )}
         {message && (
           <Link
             href={supportHref}
-            className="text-[12px] font-semibold text-primary hover:underline"
+            className="text-sm font-medium text-oa-fg underline decoration-oa-border underline-offset-4 outline-none transition-colors hover:decoration-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
           >
             Email support
           </Link>
@@ -159,23 +159,23 @@ export function SubscriptionActivator({
   return (
     <div className="flex flex-col items-center gap-2">
       {syncing && (
-        <p className="text-[13px] text-[#6b7280]">Activating Pro on your account…</p>
+        <p className="text-sm leading-6 text-oa-muted-fg">Activating Pro on your account…</p>
       )}
       {message && (
-        <p className="text-[13px] text-[#6b7280] text-center max-w-sm">{message}</p>
+        <p className="max-w-sm text-center text-sm leading-6 text-oa-muted-fg">{message}</p>
       )}
       <button
         type="button"
         disabled={syncing}
         onClick={() => void refresh()}
-        className="text-[13px] font-semibold text-[#0052ff] hover:underline disabled:opacity-50"
+        className="cursor-pointer rounded-lg text-sm font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:opacity-50"
       >
         Refresh subscription status
       </button>
       {message && (
         <Link
           href={supportHref}
-          className="text-[13px] font-semibold text-[#0052ff] hover:underline"
+          className="text-sm font-medium text-oa-fg underline decoration-oa-border underline-offset-4 outline-none transition-colors hover:decoration-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
           Email support
         </Link>

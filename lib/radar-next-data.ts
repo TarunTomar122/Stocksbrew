@@ -34,7 +34,7 @@ function directionFromCallKind(callKind: "buy_dip" | "entry" | "trim" | "exit"):
 }
 
 /** Highlight only when live price is inside an AI buy-below or trim-above zone. */
-function isPriceZoneHit(row: WatchlistRow): {
+export function isPriceZoneHit(row: WatchlistRow): {
   hit: boolean;
   action: string | null;
   direction: Direction | null;

@@ -32,44 +32,44 @@ export function CompareStocksLandingSections() {
         breadcrumbLabel="Compare Stocks"
       />
 
-      <div className="border-t border-outline-variant bg-surface-container-low">
-        <div className="mx-auto grid w-full max-w-[1240px] gap-12 px-5 py-14 sm:px-8 md:grid-cols-[0.8fr_1.2fr] md:py-20 lg:px-10">
-          <section>
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-bullish">
+      <div className="bg-oa-bg">
+        <div className="mx-auto grid w-full max-w-[76rem] gap-12 px-4 py-14 sm:px-6 md:grid-cols-[0.8fr_1.2fr] sm:py-20">
+          <section aria-labelledby="compare-after">
+            <p className="oa-mono text-[10px] uppercase tracking-[0.14em] text-oa-muted-fg">
               After the comparison
-            </span>
-            <h2 className="mt-3 max-w-sm text-[28px] font-semibold leading-[1.05] tracking-[-0.04em] text-on-surface sm:text-[34px]">
+            </p>
+            <h2 id="compare-after" className="mt-3 max-w-sm text-balance text-[26px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl">
               Compare once. Track what changes.
             </h2>
-            <p className="mt-4 max-w-sm text-[14px] leading-6 text-on-surface-variant">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-oa-muted-fg">
               Add the names you care about to your Watchlist and we&apos;ll keep their research current.
             </p>
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/watchlist"
-                className="rounded-full bg-on-surface px-4 py-2.5 text-[11px] font-semibold text-surface"
+                className="inline-flex h-10 items-center rounded-full bg-oa-primary px-5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98]"
               >
                 Open Watchlist
               </Link>
               <Link
                 href="/should-i-buy"
-                className="rounded-full border border-outline-variant bg-surface px-4 py-2.5 text-[11px] font-semibold text-on-surface"
+                className="inline-flex h-10 items-center rounded-full border border-oa-border bg-oa-card px-5 text-sm font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
               >
                 Single-stock verdict
               </Link>
             </div>
           </section>
 
-          <section>
-            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-on-surface">Quick questions</h2>
-            <div className="mt-4 divide-y divide-outline-variant border-y border-outline-variant">
+          <section aria-labelledby="compare-faq">
+            <h2 id="compare-faq" className="text-[17px] font-medium tracking-tight text-oa-fg">Quick questions</h2>
+            <div className="mt-4 flex flex-col rounded-[18px] border border-oa-border bg-oa-card px-5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
               {FAQS.map((faq) => (
-                <details key={faq.question} className="group py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[13px] font-semibold text-on-surface">
+                <details key={faq.question} className="group border-b border-oa-border py-4 last:border-b-0">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-oa-fg">
                     {faq.question}
-                    <span className="text-[18px] font-normal text-on-surface-variant transition-transform group-open:rotate-45">+</span>
+                    <span className="text-lg font-normal text-oa-muted-fg transition-transform group-open:rotate-45">+</span>
                   </summary>
-                  <p className="max-w-xl pt-3 text-[12px] leading-5 text-on-surface-variant">{faq.answer}</p>
+                  <p className="max-w-xl pt-3 text-[13px] leading-relaxed text-oa-muted-fg">{faq.answer}</p>
                 </details>
               ))}
             </div>

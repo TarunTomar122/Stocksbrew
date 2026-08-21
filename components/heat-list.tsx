@@ -33,13 +33,13 @@ const SETUP_META: Record<string, SetupMeta> = {
   catalyst_watch: { label: "Catalyst watch", short: "Catalyst",   desc: "An upcoming event (earnings, FDA ruling, or macro data) could be a significant price mover.",      color: "#b45309", bg: "#fffbeb", order: 2 },
   breakout:       { label: "Breakout",       short: "Breakout",   desc: "Price breaking above a key level with confirmation. Momentum is building on the upside.",            color: "#047857", bg: "#ecfdf5", order: 3 },
   news_spike:     { label: "News spike",     short: "News",       desc: "A sudden surge in news coverage or press mentions is driving unusual attention to this stock.",      color: "#7c3aed", bg: "#f5f3ff", order: 4 },
-  dip_setup:      { label: "Dip setup",      short: "Dip",        desc: "Stock is pulling back within an uptrend, a potential re-entry point if the thesis still holds.",    color: "#0052ff", bg: "#eff6ff", order: 5 },
-  momentum_watch: { label: "Momentum watch", short: "Momentum",   desc: "Consistent signal strength without a single trigger. Worth watching for a cleaner entry.",          color: "#475569", bg: "#f8fafc", order: 6 },
+  dip_setup:      { label: "Dip setup",      short: "Dip",        desc: "Stock is pulling back within an uptrend, a potential re-entry point if the thesis still holds.",    color: "var(--oa-primary)", bg: "#eff6ff", order: 5 },
+  momentum_watch: { label: "Momentum watch", short: "Momentum",   desc: "Consistent signal strength without a single trigger. Worth watching for a cleaner entry.",          color: "var(--oa-muted-fg)", bg: "#f8fafc", order: 6 },
 };
 
 function getSetupMeta(key?: string): SetupMeta {
   if (key && SETUP_META[key]) return SETUP_META[key];
-  return { label: key ? key.replaceAll("_", " ") : "Watching", short: "Watching", desc: "", color: "#6b7280", bg: "#f3f4f6", order: 99 };
+  return { label: key ? key.replaceAll("_", " ") : "Watching", short: "Watching", desc: "", color: "var(--oa-muted-fg)", bg: "var(--oa-bg)", order: 99 };
 }
 
 function extractCatalystHint(sentence: string | undefined, ticker: string): string | null {
@@ -58,23 +58,23 @@ function fmtPct(v: number | null | undefined): { text: string; positive: boolean
 
 function heatScoreColor(score: number): string {
   if (score >= 80) return "var(--signal-bearish)";
-  if (score >= 60) return "var(--on-surface)";
-  return "var(--on-surface-variant)";
+  if (score >= 60) return "var(--oa-fg)";
+  return "var(--oa-muted-fg)";
 }
 
 type DriverMeta = { label: string; color: string; bg: string };
 const DRIVER_META: Record<string, DriverMeta> = {
-  "Momentum score":      { label: "Momentum",     color: "#0052ff", bg: "#eff6ff" },
+  "Momentum score":      { label: "Momentum",     color: "var(--oa-primary)", bg: "#eff6ff" },
   "News velocity":       { label: "News",         color: "#7c3aed", bg: "#f5f3ff" },
   "Upcoming catalyst":   { label: "Catalyst",     color: "#b45309", bg: "#fffbeb" },
   "Stretched RSI":       { label: "Stretched",    color: "#c2410c", bg: "#fff7ed" },
   "Price breakout":      { label: "Breakout",     color: "#047857", bg: "#ecfdf5" },
-  "Washed-out quality":  { label: "Washed-out",   color: "#475569", bg: "#f8fafc" },
+  "Washed-out quality":  { label: "Washed-out",   color: "var(--oa-muted-fg)", bg: "#f8fafc" },
 };
 
 function driverMeta(key?: string | null): DriverMeta | null {
   if (!key) return null;
-  return DRIVER_META[key] ?? { label: key, color: "#6b7280", bg: "#f3f4f6" };
+  return DRIVER_META[key] ?? { label: key, color: "var(--oa-muted-fg)", bg: "var(--oa-bg)" };
 }
 
 function DriverTag({ driver }: { driver?: string | null }) {
@@ -82,7 +82,7 @@ function DriverTag({ driver }: { driver?: string | null }) {
   if (!meta) return null;
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.04em] uppercase"
+      className="inline-flex shrink-0 items-center rounded-md px-2 py-1 text-[10px] font-medium tracking-[0.04em] uppercase"
       style={{ background: meta.bg, color: meta.color }}
     >
       {meta.label}
@@ -107,15 +107,15 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
   const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
 
   return (
-    <div className="flex items-center gap-2.5 py-2.5 border-t border-[#f3f4f6] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-[#f8f9fa] transition-colors">
+    <div className="flex items-center gap-2.5 py-2.5 border-t border-[var(--oa-bg)] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-oa-bg transition-colors">
       <a href={`/stock/${encodeURIComponent(row.ticker)}`} className="flex items-center gap-2.5 flex-1 min-w-0">
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} />
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[13px] font-semibold tracking-[-0.01em] text-[#111111] hover:text-[#0052ff] transition-colors">
+          <span className="text-[13px] font-medium tracking-[-0.01em] text-[var(--oa-fg)] hover:text-[var(--oa-primary)] transition-colors">
             {row.ticker}
           </span>
           {row.first_appearance && (
-            <span className="text-[9px] font-bold tracking-[0.08em] uppercase text-[#0052ff] bg-[#eff6ff] px-1.5 py-0.5 rounded-md">New</span>
+            <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-[#eff6ff] px-1.5 py-0.5 rounded-md">New</span>
           )}
         </div>
       </a>
@@ -139,23 +139,23 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
   const rsiBadge = rsiMeta(row.rsi_14_state);
 
   return (
-    <div className="flex items-center gap-4 py-3 border-t border-[#f3f4f6] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-[#f8f9fa] transition-colors">
+    <div className="flex items-center gap-4 py-3 border-t border-[var(--oa-bg)] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-oa-bg transition-colors">
       {/* Ticker */}
       <a href={`/stock/${encodeURIComponent(row.ticker)}`} className="flex items-center gap-2.5 flex-1 min-w-0">
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="flex flex-col min-w-0 gap-0.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-semibold tracking-[-0.01em] text-[#111111] hover:text-[#0052ff] transition-colors">
+            <span className="text-[14px] font-medium tracking-[-0.01em] text-[var(--oa-fg)] hover:text-[var(--oa-primary)] transition-colors">
               {row.ticker}
             </span>
             {row.first_appearance && (
-              <span className="text-[9px] font-bold tracking-[0.08em] uppercase text-[#0052ff] bg-[#eff6ff] px-1.5 py-0.5 rounded-md">New</span>
+              <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-[#eff6ff] px-1.5 py-0.5 rounded-md">New</span>
             )}
           </div>
           {showReason && (() => {
             const hint = extractCatalystHint(row.reason_sentence, row.ticker) ?? row.primary_driver;
             return hint ? (
-              <span className="text-[11px] text-[#6b7280] truncate">{hint}</span>
+              <span className="text-[11px] text-[var(--oa-muted-fg)] truncate">{hint}</span>
             ) : null;
           })()}
         </div>
@@ -165,21 +165,21 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
       <div className="shrink-0 flex items-center justify-end gap-1.5 w-[36px] sm:w-[160px]">
         {rsi !== null ? (
           <>
-            <span className="text-[13px] font-semibold tabular-nums text-[#111111]">{rsi}</span>
+            <span className="text-[13px] font-medium tabular-nums text-[var(--oa-fg)]">{rsi}</span>
             {rsiBadge && (
-              <span className="hidden sm:inline text-[10px] font-semibold rounded-md px-1.5 py-0.5" style={{ background: rsiBadge.bg, color: rsiBadge.color }}>
+              <span className="hidden sm:inline text-[10px] font-medium rounded-md px-1.5 py-0.5" style={{ background: rsiBadge.bg, color: rsiBadge.color }}>
                 {rsiBadge.label}
               </span>
             )}
           </>
         ) : (
-          <span className="text-[12px] text-[#d1d5db]">-</span>
+          <span className="text-[12px] text-[var(--oa-border)]">-</span>
         )}
       </div>
 
       {/* Heat - hidden on mobile */}
       <div className={`${COL_HEAT} hidden sm:flex shrink-0 justify-end`}>
-        <span className="text-[14px] font-semibold tabular-nums" style={{ color: heatColor }}>
+        <span className="text-[14px] font-medium tabular-nums" style={{ color: heatColor }}>
           {Math.round(row.heat_score)}
         </span>
       </div>
@@ -206,11 +206,11 @@ function HotStocksCard({
   isSubscribed: boolean;
 }) {
   return (
-    <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-4">
+    <div className="rounded-[20px] border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">Hot stocks</h3>
+        <h3 className="text-[14px] font-medium text-[var(--oa-fg)] tracking-[-0.01em]">Hot stocks</h3>
         {count > 0 && (
-          <span className="text-[12px] font-medium tabular-nums text-[#9ca3af]">{count}</span>
+          <span className="text-[12px] font-medium tabular-nums text-[var(--oa-muted-fg)]">{count}</span>
         )}
       </div>
       <div className="flex flex-col">
@@ -235,19 +235,19 @@ function DivergenceRow({
   return (
     <a
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="flex items-start gap-3 py-3 border-t border-[#f3f4f6] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-[#f8f9fa] transition-colors"
+      className="flex items-start gap-3 py-3 border-t border-[var(--oa-bg)] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-oa-bg transition-colors"
     >
       <div className="flex flex-col flex-1 min-w-0 gap-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-[14px] font-semibold tracking-[-0.01em] text-[#111111] hover:text-[#0052ff] transition-colors">
+          <span className="text-[14px] font-medium tracking-[-0.01em] text-[var(--oa-fg)] hover:text-[var(--oa-primary)] transition-colors">
             {row.ticker}
           </span>
           {row.name && (
-            <span className="text-[11px] text-[#9ca3af] truncate">{row.name}</span>
+            <span className="text-[11px] text-[var(--oa-muted-fg)] truncate">{row.name}</span>
           )}
         </div>
         <span
-          className="text-[10px] font-semibold tracking-[0.04em] uppercase rounded-md px-1.5 py-0.5 w-fit"
+          className="text-[10px] font-medium tracking-[0.04em] uppercase rounded-md px-1.5 py-0.5 w-fit"
           style={{
             background: isBullishNewsDown ? "#ecfdf5" : "#fef2f2",
             color: isBullishNewsDown ? "#047857" : "#b91c1c",
@@ -258,7 +258,7 @@ function DivergenceRow({
       </div>
       {pct && (
         <span
-          className="shrink-0 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-semibold tabular-nums"
+          className="shrink-0 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-medium tabular-nums"
           style={{
             background: pct.positive ? "#ecfdf5" : "#fef2f2",
             color: pct.positive ? "#10b981" : "#ef4444",
@@ -276,12 +276,12 @@ function MixedSignalsCard({ divergence }: { divergence: DivergenceList }) {
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-4">
+    <div className="rounded-[20px] border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-4">
       <div className="flex flex-col gap-0.5">
-        <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+        <h3 className="text-[14px] font-medium text-[var(--oa-fg)] tracking-[-0.01em]">
           Mixed signals
         </h3>
-        <p className="text-[11px] text-[#9ca3af]">News and price moving in opposite directions</p>
+        <p className="text-[11px] text-[var(--oa-muted-fg)]">News and price moving in opposite directions</p>
       </div>
       <div className="flex flex-col">
         {rows.map((r) => (
@@ -314,14 +314,14 @@ function SetupPills({
           type="button"
           key={k}
           onClick={() => onSelect(k)}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors ${
             active === k
-              ? "bg-[#111111] text-white"
-              : "bg-[#f3f4f6] text-[#374151] hover:bg-[#e5e7eb]"
+              ? "bg-[var(--oa-fg)] text-white"
+              : "bg-[var(--oa-bg)] text-[var(--oa-fg)] hover:bg-[var(--oa-border)]"
           }`}
         >
           {m.short}
-          <span className={`text-[10px] font-semibold tabular-nums ${active === k ? "text-white/70" : "text-[#9ca3af]"}`}>
+          <span className={`text-[10px] font-medium tabular-nums ${active === k ? "text-white/70" : "text-[var(--oa-muted-fg)]"}`}>
             {(counts[k] ?? 0) > 10 ? "10+" : counts[k] ?? 0}
           </span>
         </button>
@@ -334,11 +334,11 @@ function SetupPills({
 
 function EmptyState() {
   return (
-    <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-10 text-center">
-      <p className="text-[12px] font-semibold tracking-[0.12em] uppercase text-[#111111]">
+    <div className="rounded-[20px] border border-[var(--oa-border)] bg-oa-card p-10 text-center">
+      <p className="text-[12px] font-medium tracking-[0.12em] uppercase text-[var(--oa-fg)]">
         Quiet day
       </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-[#6b7280] max-w-md mx-auto">
+      <p className="mt-2 text-[13px] leading-relaxed text-[var(--oa-muted-fg)] max-w-md mx-auto">
         Today&apos;s ranked signals haven&apos;t been generated yet. Check back after the next
         market refresh.
       </p>
@@ -399,7 +399,7 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
       <section className="flex flex-col gap-4 min-w-0">
         {relativeTime(data.generated_at) && (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] text-[#9ca3af]">
+            <span className="text-[11px] text-[var(--oa-muted-fg)]">
               Updated {relativeTime(data.generated_at)}
             </span>
             {SHOW_DATA_FRESHNESS_UI && freshness?.status === "stale" && (
@@ -414,21 +414,21 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
         />
 
         {SETUP_META[activeTab] && (
-          <p className="text-[12px] text-[#6b7280] leading-relaxed">
+          <p className="text-[12px] text-[var(--oa-muted-fg)] leading-relaxed">
             {SETUP_META[activeTab].desc}
           </p>
         )}
 
         {/* Column headers */}
-        <div className="flex items-center gap-4 px-1 pb-1 border-b border-[#f3f4f6]">
+        <div className="flex items-center gap-4 px-1 pb-1 border-b border-[var(--oa-bg)]">
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Ticker</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]">Ticker</span>
           </div>
           <div className="shrink-0 flex justify-end w-[36px] sm:w-[160px]">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">RSI</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]">RSI</span>
           </div>
           <div className={`${COL_HEAT} hidden sm:flex shrink-0 justify-end`}>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#9ca3af]">Heat</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]">Heat</span>
           </div>
           <div className={`${COL_TRACK} shrink-0`} />
         </div>

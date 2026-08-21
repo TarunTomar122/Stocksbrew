@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { OaButton } from "@/components/oa/button";
+
 export function ProfileFounderFeedback({ embedded = false }: { embedded?: boolean }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -30,18 +32,16 @@ export function ProfileFounderFeedback({ embedded = false }: { embedded?: boolea
     }
   }
 
-  const shellClass = embedded ? "" : "border-t border-outline-variant/20 pt-4";
-
   if (sent) {
     return (
-      <div className={shellClass}>
-        <p className="text-[13px] leading-relaxed text-on-surface">
-          Got it — thanks for the note. I read every message.
+      <div role="status">
+        <p className="text-sm leading-6 text-oa-fg">
+          Got it, thanks for the note. I read every message.
         </p>
         <button
           type="button"
           onClick={() => setSent(false)}
-          className="mt-2 text-[12px] font-semibold text-on-surface-variant transition-colors hover:text-on-surface"
+          className="mt-2 cursor-pointer text-sm font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
           Send another
         </button>
@@ -50,38 +50,30 @@ export function ProfileFounderFeedback({ embedded = false }: { embedded?: boolea
   }
 
   return (
-    <div className={`${shellClass} flex flex-col gap-3`}>
-      <p className="text-[13px] leading-relaxed text-on-surface-variant">
-        How&apos;s stocksbrew working for you? Bug, idea, or something you want built — send it
+    <div className="flex flex-col gap-3">
+      <p className="text-sm leading-6 text-oa-muted-fg">
+        How&apos;s stocksbrew working for you? Bug, idea, or something you want built, send it
         here and I&apos;ll get on it.
       </p>
-
-      <div className="flex flex-col gap-2">
-        <textarea
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setError(null);
-          }}
-          placeholder="What's working, what's broken, what you wish existed…"
-          rows={3}
-          className="w-full resize-none rounded-xl border border-outline-variant bg-surface-container-low px-3.5 py-3 text-[13px] text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/60 focus:border-on-surface/35"
-        />
-        {error ? (
-          <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={!text.trim() || sending}
-            className="inline-flex h-10 items-center justify-center rounded-full bg-on-surface px-5 text-[13px] font-semibold text-surface transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
-        </div>
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setError(null);
+        }}
+        placeholder="What's working, what's broken, what you wish existed…"
+        rows={3}
+        className="w-full resize-none rounded-2xl border border-oa-border bg-oa-bg px-3.5 py-3 text-sm leading-6 text-oa-fg outline-none transition-colors placeholder:text-oa-muted-fg/70 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+      />
+      {error ? (
+        <p className="text-xs leading-5 text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex justify-end">
+        <OaButton onClick={() => void handleSubmit()} loading={sending} size="sm">
+          {sending ? "Sending…" : "Send"}
+        </OaButton>
       </div>
     </div>
   );

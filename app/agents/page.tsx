@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -134,8 +135,8 @@ function number(value: number | null, suffix = ""): string {
 function SectionIntro({ title, description }: { title: string; description: string }) {
   return (
     <div>
-      <h2 className="max-w-3xl text-balance text-[32px] font-semibold leading-[1.08] tracking-[-0.045em] sm:text-[46px]">{title}</h2>
-      <p className="mt-5 max-w-2xl text-pretty text-[15px] leading-relaxed text-on-surface-variant sm:text-[16px]">{description}</p>
+      <h2 className="max-w-3xl text-balance text-[32px] font-medium leading-[1.08] tracking-[-0.045em] sm:text-[46px]">{title}</h2>
+      <p className="mt-5 max-w-2xl text-pretty text-[15px] leading-relaxed text-oa-muted-fg sm:text-[16px]">{description}</p>
     </div>
   );
 }
@@ -143,9 +144,9 @@ function SectionIntro({ title, description }: { title: string; description: stri
 function ScoreBar({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="grid grid-cols-[90px_1fr_34px] items-center gap-3 py-2 text-[11px]">
-      <span className="text-on-surface-variant">{label}</span>
-      <span className="h-1.5 overflow-hidden rounded-full bg-surface-container"><span className="block h-full rounded-full bg-landing-brand" style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></span>
-      <span className="text-right font-semibold">{value === null ? "N/A" : Math.round(value)}</span>
+      <span className="text-oa-muted-fg">{label}</span>
+      <span className="h-1.5 overflow-hidden rounded-full bg-oa-accent"><span className="block h-full rounded-full bg-oa-primary" style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></span>
+      <span className="text-right font-medium">{value === null ? "N/A" : Math.round(value)}</span>
     </div>
   );
 }
@@ -153,54 +154,54 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
 function StockResearchView({ stock, showcase }: { stock: AgentDemoStock; showcase: StockShowcase }) {
   const maxRevenue = Math.max(1, ...showcase.financialHistory.map((item) => item.revenue ?? 0));
   return (
-    <div className="mt-10 overflow-hidden rounded-[1.5rem] border border-outline-variant bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-outline-variant px-5 py-5 sm:px-7">
+    <div className="mt-10 overflow-hidden rounded-[1.5rem] border border-oa-border bg-oa-card">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-oa-border px-5 py-5 sm:px-7">
         <div className="flex items-center gap-3">
           <StockLogo ticker={stock.ticker} logoUrl={stock.logoUrl} size={42} eager />
-          <div><p className="text-[17px] font-semibold">{stock.name}</p><p className="mt-0.5 text-[11px] text-on-surface-variant">{stock.ticker} · live Stocksbrew stock detail</p></div>
+          <div><p className="text-[17px] font-medium">{stock.name}</p><p className="mt-0.5 text-[11px] text-oa-muted-fg">{stock.ticker} · live Stocksbrew stock detail</p></div>
         </div>
-        <div className="text-right"><p className="font-mono text-[22px] font-semibold">{money(stock.price, stock.currency)}</p><p className={`text-[11px] ${stock.dayChangePct !== null && stock.dayChangePct < 0 ? "text-signal-bearish" : "text-signal-bullish"}`}>{stock.dayChangePct === null ? "Change unavailable" : `${stock.dayChangePct >= 0 ? "+" : ""}${stock.dayChangePct.toFixed(2)}% today`}</p></div>
+        <div className="text-right"><p className="font-mono text-[22px] font-medium">{money(stock.price, stock.currency)}</p><p className={`text-[11px] ${stock.dayChangePct !== null && stock.dayChangePct < 0 ? "text-signal-bearish" : "text-signal-bullish"}`}>{stock.dayChangePct === null ? "Change unavailable" : `${stock.dayChangePct >= 0 ? "+" : ""}${stock.dayChangePct.toFixed(2)}% today`}</p></div>
       </div>
 
       <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="p-5 sm:p-7 lg:border-r lg:border-outline-variant">
-          <div className="flex items-center gap-2"><AnimatedIcon name="corporate_fare" size={18} className="text-landing-brand" /><h3 className="text-[14px] font-semibold">Business and current read</h3></div>
+        <div className="p-5 sm:p-7 lg:border-r lg:border-oa-border">
+          <div className="flex items-center gap-2"><AnimatedIcon name="corporate_fare" size={18} className="text-oa-primary" /><h3 className="text-[14px] font-medium">Business and current read</h3></div>
           <p className="mt-5 text-[17px] font-medium leading-relaxed">{stock.headline || "Not enough current evidence for a current headline."}</p>
-          {stock.thesis && stock.thesis !== stock.headline ? <p className="mt-4 text-[13px] leading-relaxed text-on-surface-variant">{stock.thesis}</p> : null}
-          <div className="mt-6 divide-y divide-on-surface/15 border-y border-on-surface/15 text-[13px] leading-relaxed">
-            <div className="grid gap-2 py-5 sm:grid-cols-[140px_1fr]"><strong>What changed</strong><span className="font-medium text-on-surface-variant">{stock.changed || "Not enough current evidence"}</span></div>
-            <div className="grid gap-2 py-5 sm:grid-cols-[140px_1fr]"><strong>What supports it</strong><span className="font-medium text-on-surface-variant">{stock.drivers[0] || "Not enough current evidence"}</span></div>
-            <div className="grid gap-2 py-5 sm:grid-cols-[140px_1fr]"><strong>What could hurt</strong><span className="font-medium text-on-surface-variant">{stock.risks[0] || "Not enough current evidence"}</span></div>
+          {stock.thesis && stock.thesis !== stock.headline ? <p className="mt-4 text-[13px] leading-relaxed text-oa-muted-fg">{stock.thesis}</p> : null}
+          <div className="mt-6 divide-y divide-oa-border border-y border-oa-border text-[13px] leading-relaxed">
+            <div className="grid gap-2 py-5 sm:grid-cols-[140px_1fr]"><strong>What changed</strong><span className="font-medium text-oa-muted-fg">{stock.changed || "Not enough current evidence"}</span></div>
+            <div className="grid gap-2 py-5 sm:grid-cols-[140px_1fr]"><strong>What supports it</strong><span className="font-medium text-oa-muted-fg">{stock.drivers[0] || "Not enough current evidence"}</span></div>
+            <div className="grid gap-2 py-5 sm:grid-cols-[140px_1fr]"><strong>What could hurt</strong><span className="font-medium text-oa-muted-fg">{stock.risks[0] || "Not enough current evidence"}</span></div>
           </div>
         </div>
 
-        <div className="border-t border-outline-variant p-5 sm:p-7 lg:border-t-0">
-          <div className="flex items-center gap-2"><AnimatedIcon name="analytics" size={18} className="text-landing-brand" /><h3 className="text-[14px] font-semibold">Current numbers</h3></div>
-          <dl className="mt-4 divide-y divide-outline-variant text-[12px]">
-            {showcase.valuation.map((item) => <div key={item.label} className="flex items-center justify-between gap-4 py-3"><dt className="text-on-surface-variant">{item.label}</dt><dd className="font-semibold">{number(item.value, item.suffix)}</dd></div>)}
-            <div className="flex items-center justify-between gap-4 py-3"><dt className="text-on-surface-variant">Analyst view</dt><dd className="font-semibold">{showcase.analystLabel || "Not enough current evidence"}{showcase.analystCount ? ` · ${showcase.analystCount}` : ""}</dd></div>
+        <div className="border-t border-oa-border p-5 sm:p-7 lg:border-t-0">
+          <div className="flex items-center gap-2"><AnimatedIcon name="analytics" size={18} className="text-oa-primary" /><h3 className="text-[14px] font-medium">Current numbers</h3></div>
+          <dl className="mt-4 divide-y divide-oa-border text-[12px]">
+            {showcase.valuation.map((item) => <div key={item.label} className="flex items-center justify-between gap-4 py-3"><dt className="text-oa-muted-fg">{item.label}</dt><dd className="font-medium">{number(item.value, item.suffix)}</dd></div>)}
+            <div className="flex items-center justify-between gap-4 py-3"><dt className="text-oa-muted-fg">Analyst view</dt><dd className="font-medium">{showcase.analystLabel || "Not enough current evidence"}{showcase.analystCount ? ` · ${showcase.analystCount}` : ""}</dd></div>
           </dl>
-          <div className="mt-6 flex items-center gap-2"><AnimatedIcon name="query_stats" size={18} className="text-landing-brand" /><h3 className="text-[14px] font-semibold">Stocksbrew scores</h3></div>
+          <div className="mt-6 flex items-center gap-2"><AnimatedIcon name="query_stats" size={18} className="text-oa-primary" /><h3 className="text-[14px] font-medium">Stocksbrew scores</h3></div>
           <div className="mt-3">{showcase.scores.map((item) => <ScoreBar key={item.label} {...item} />)}</div>
         </div>
       </div>
 
-      <div className="grid border-t border-outline-variant lg:grid-cols-2">
-        <div className="p-5 sm:p-7 lg:border-r lg:border-outline-variant">
-          <div className="flex items-center gap-2"><AnimatedIcon name="show_chart" size={18} className="text-landing-brand" /><h3 className="text-[14px] font-semibold">Revenue history</h3></div>
+      <div className="grid border-t border-oa-border lg:grid-cols-2">
+        <div className="p-5 sm:p-7 lg:border-r lg:border-oa-border">
+          <div className="flex items-center gap-2"><AnimatedIcon name="show_chart" size={18} className="text-oa-primary" /><h3 className="text-[14px] font-medium">Revenue history</h3></div>
           <div className="mt-5 space-y-4">
             {showcase.financialHistory.length ? showcase.financialHistory.map((item) => (
               <div key={item.period} className="grid grid-cols-[54px_1fr_auto] items-center gap-3 text-[11px]">
-                <span className="text-on-surface-variant">{item.period}</span>
-                <span className="h-2 overflow-hidden rounded-full bg-surface-container"><span className="block h-full rounded-full bg-signal-bullish" style={{ width: `${Math.max(8, ((item.revenue ?? 0) / maxRevenue) * 100)}%` }} /></span>
-                <span className="font-semibold">{compactMoney(item.revenue)}</span>
+                <span className="text-oa-muted-fg">{item.period}</span>
+                <span className="h-2 overflow-hidden rounded-full bg-oa-accent"><span className="block h-full rounded-full bg-signal-bullish" style={{ width: `${Math.max(8, ((item.revenue ?? 0) / maxRevenue) * 100)}%` }} /></span>
+                <span className="font-medium">{compactMoney(item.revenue)}</span>
               </div>
-            )) : <p className="text-[12px] text-on-surface-variant">Not enough current evidence.</p>}
+            )) : <p className="text-[12px] text-oa-muted-fg">Not enough current evidence.</p>}
           </div>
         </div>
-        <div className="border-t border-outline-variant p-5 sm:p-7 lg:border-t-0">
-          <div className="flex items-center gap-2"><AnimatedIcon name="psychology" size={18} className="text-landing-brand" /><h3 className="text-[14px] font-semibold">A business question</h3></div>
-          {showcase.businessQuestion ? <><p className="mt-5 text-[14px] font-semibold leading-relaxed">{showcase.businessQuestion.question}</p><p className="mt-3 text-[12px] leading-relaxed text-on-surface-variant">{showcase.businessQuestion.answer}</p></> : <p className="mt-5 text-[12px] text-on-surface-variant">Not enough current evidence.</p>}
+        <div className="border-t border-oa-border p-5 sm:p-7 lg:border-t-0">
+          <div className="flex items-center gap-2"><AnimatedIcon name="psychology" size={18} className="text-oa-primary" /><h3 className="text-[14px] font-medium">A business question</h3></div>
+          {showcase.businessQuestion ? <><p className="mt-5 text-[14px] font-medium leading-relaxed">{showcase.businessQuestion.question}</p><p className="mt-3 text-[12px] leading-relaxed text-oa-muted-fg">{showcase.businessQuestion.answer}</p></> : <p className="mt-5 text-[12px] text-oa-muted-fg">Not enough current evidence.</p>}
         </div>
       </div>
     </div>
@@ -209,12 +210,12 @@ function StockResearchView({ stock, showcase }: { stock: AgentDemoStock; showcas
 
 function WatchlistView({ preview }: { preview: WatchlistPreview }) {
   return (
-    <div className="mt-10 overflow-hidden rounded-[1.5rem] border border-outline-variant bg-surface">
-      <div className="border-b border-outline-variant px-5 py-5 sm:px-7"><p className="font-mono text-[10px] text-landing-brand">get_radar_changes()</p><p className="mt-4 text-[18px] font-semibold">{preview.headline}</p><p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-on-surface-variant">{preview.body}</p></div>
-      <div className="divide-y divide-outline-variant">
-        {preview.items.map((item) => <div key={`${item.ticker}-${item.headline}`} className="grid gap-4 px-5 py-5 sm:grid-cols-[150px_1fr] sm:px-7"><div className="flex items-center gap-3"><StockLogo ticker={item.ticker} size={32} /><strong>{item.ticker}</strong></div><div><p className="text-[13px] font-semibold">{item.headline}</p><p className="mt-2 text-[12px] leading-relaxed text-on-surface-variant">{item.changed}</p><p className="mt-2 text-[12px] leading-relaxed"><strong>Why it matters:</strong> {item.matters}</p></div></div>)}
+    <div className="mt-10 overflow-hidden rounded-[1.5rem] border border-oa-border bg-oa-card">
+      <div className="border-b border-oa-border px-5 py-5 sm:px-7"><p className="font-mono text-[10px] text-oa-primary">get_radar_changes()</p><p className="mt-4 text-[18px] font-medium">{preview.headline}</p><p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-oa-muted-fg">{preview.body}</p></div>
+      <div className="divide-y divide-oa-border">
+        {preview.items.map((item) => <div key={`${item.ticker}-${item.headline}`} className="grid gap-4 px-5 py-5 sm:grid-cols-[150px_1fr] sm:px-7"><div className="flex items-center gap-3"><StockLogo ticker={item.ticker} size={32} /><strong>{item.ticker}</strong></div><div><p className="text-[13px] font-medium">{item.headline}</p><p className="mt-2 text-[12px] leading-relaxed text-oa-muted-fg">{item.changed}</p><p className="mt-2 text-[12px] leading-relaxed"><strong>Why it matters:</strong> {item.matters}</p></div></div>)}
       </div>
-      <p className="border-t border-outline-variant px-5 py-4 text-[10px] text-on-surface-variant sm:px-7">Actual signed-in Watchlist changes · {preview.asOf || "freshness unavailable"}</p>
+      <p className="border-t border-oa-border px-5 py-4 text-[10px] text-oa-muted-fg sm:px-7">Actual signed-in Watchlist changes · {preview.asOf || "freshness unavailable"}</p>
     </div>
   );
 }
@@ -323,41 +324,42 @@ export default async function AgentsPage() {
   } : null;
 
   return (
-    <main className="landing-page min-w-0 flex-grow bg-surface text-on-surface">
+    <main className="landing-page oa-landing min-w-0 flex-grow bg-oa-card text-oa-fg">
+      <OaSiteHeader />
       <JsonLd />
 
-      <section className="border-b border-outline-variant">
+      <section className="border-b border-oa-border">
         <div className="mx-auto grid max-w-[1120px] gap-12 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-16 lg:py-24">
           <div>
-            <h1 className="max-w-xl text-balance text-[40px] font-semibold leading-[1.02] tracking-[-0.055em] sm:text-[60px]">Your AI finally understands your stocks.</h1>
-            <p className="mt-6 max-w-lg text-pretty text-[16px] leading-[1.65] text-on-surface-variant sm:text-[18px]">Stocksbrew gives Claude, Codex or Cursor the current research, market context and Watchlist data behind every answer.</p>
+            <h1 className="max-w-xl text-balance text-[40px] font-medium leading-[1.02] tracking-[-0.055em] sm:text-[60px]">Your AI finally understands your stocks.</h1>
+            <p className="mt-6 max-w-lg text-pretty text-[16px] leading-[1.65] text-oa-muted-fg sm:text-[18px]">Stocksbrew gives Claude, Codex or Cursor the current research, market context and Watchlist data behind every answer.</p>
             <div className="mt-8 flex flex-wrap gap-3"><Link href={subscribed ? "#connect" : "/subscribe"} className="landing-btn-primary px-5 py-3 text-[13px]">{subscribed ? "Connect Stocksbrew" : "Start with Stocksbrew Pro"}</Link><Link href="#real-data" className="landing-btn-secondary px-5 py-3 text-[13px]">See the real data ↓</Link></div>
           </div>
           <AgentsPageDemo data={demoData} />
         </div>
       </section>
 
-      <section id="real-data" className="scroll-mt-24 border-b border-outline-variant bg-surface-container-low/20">
+      <section id="real-data" className="scroll-mt-24 border-b border-oa-border bg-oa-bg/20">
         <div className="mx-auto max-w-[1120px] px-5 py-16 sm:px-8 lg:py-24">
           <SectionIntro title="What changed at NVIDIA?" description="See the live research behind the answer, including financials, valuation, analysts and signals." />
           <StockResearchView stock={stock} showcase={showcase} />
         </div>
       </section>
 
-      {watchlist && watchlist.items.length ? <section className="border-b border-outline-variant"><div className="mx-auto max-w-[1120px] px-5 py-16 sm:px-8 lg:py-24"><SectionIntro title="What changed on my Watchlist?" description="Your answer explains what changed, why it matters and what deserves another look." /><WatchlistView preview={watchlist} /></div></section> : null}
+      {watchlist && watchlist.items.length ? <section className="border-b border-oa-border"><div className="mx-auto max-w-[1120px] px-5 py-16 sm:px-8 lg:py-24"><SectionIntro title="What changed on my Watchlist?" description="Your answer explains what changed, why it matters and what deserves another look." /><WatchlistView preview={watchlist} /></div></section> : null}
 
-      <section id="connect" className="scroll-mt-24 border-b border-outline-variant bg-surface-container-low/20">
+      <section id="connect" className="scroll-mt-24 border-b border-oa-border bg-oa-bg/20">
         <div className="mx-auto max-w-[820px] px-5 py-16 sm:px-8 lg:py-24">
           <SectionIntro title="Connect your agent." description="Copy one prompt into Claude Code, Codex, Cursor or another MCP client." />
           <AgentClientLogos compact className="mt-7" />
           <AgentSetupPrompt compact className="mt-8" />
-          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-on-surface-variant"><span>OAuth keeps your token out of the chat.</span><Link href="/developers" className="font-semibold text-landing-brand">Full tool reference →</Link></div>
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-oa-muted-fg"><span>OAuth keeps your token out of the chat.</span><Link href="/developers" className="font-medium text-oa-primary">Full tool reference →</Link></div>
         </div>
       </section>
 
-      <section className="border-b border-outline-variant"><div className="mx-auto grid max-w-[1120px] gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:py-20"><div><h2 className="max-w-xl text-balance text-[32px] font-semibold leading-tight tracking-[-0.04em] sm:text-[42px]">Included with Pro.</h2><p className="mt-4 max-w-xl text-pretty text-[15px] leading-relaxed text-on-surface-variant">Current stock research, market context, Watchlist changes, MCP and REST access.</p></div><div className="lg:text-right"><p className="font-mono text-[42px] font-semibold tracking-[-0.05em]">$9<span className="text-[15px] font-normal tracking-normal text-on-surface-variant"> / month</span></p><p className="mt-2 text-[11px] text-on-surface-variant">{AGENT_MONTHLY_CALL_LIMIT} agent calls per month · cancel anytime</p><Link href={subscribed ? "#connect" : "/subscribe"} className="landing-btn-primary mt-6 px-5 py-3 text-[13px]">{subscribed ? "Connect your agent" : "Start with Pro"}</Link></div></div></section>
+      <section className="border-b border-oa-border"><div className="mx-auto grid max-w-[1120px] gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:py-20"><div><h2 className="max-w-xl text-balance text-[32px] font-medium leading-tight tracking-[-0.04em] sm:text-[42px]">Included with Pro.</h2><p className="mt-4 max-w-xl text-pretty text-[15px] leading-relaxed text-oa-muted-fg">Current stock research, market context, Watchlist changes, MCP and REST access.</p></div><div className="lg:text-right"><p className="font-mono text-[42px] font-medium tracking-[-0.05em]">$9<span className="text-[15px] font-normal tracking-normal text-oa-muted-fg"> / month</span></p><p className="mt-2 text-[11px] text-oa-muted-fg">{AGENT_MONTHLY_CALL_LIMIT} agent calls per month · cancel anytime</p><Link href={subscribed ? "#connect" : "/subscribe"} className="landing-btn-primary mt-6 px-5 py-3 text-[13px]">{subscribed ? "Connect your agent" : "Start with Pro"}</Link></div></div></section>
 
-      <section className="mx-auto max-w-[820px] px-5 py-16 sm:px-8 lg:py-24"><h2 className="text-[32px] font-semibold tracking-[-0.04em] sm:text-[42px]">Questions before you connect.</h2><div className="mt-8 divide-y divide-outline-variant border-y border-outline-variant">{FAQS.map(([question, answer]) => <details key={question} className="group py-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">{question}<span aria-hidden className="font-mono text-[18px] font-normal text-on-surface-variant transition-transform group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-on-surface-variant">{answer}</p></details>)}</div></section>
+      <section className="mx-auto max-w-[820px] px-5 py-16 sm:px-8 lg:py-24"><h2 className="text-[32px] font-medium tracking-[-0.04em] sm:text-[42px]">Questions before you connect.</h2><div className="mt-8 divide-y divide-oa-border border-y border-oa-border">{FAQS.map(([question, answer]) => <details key={question} className="group py-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-[15px] font-medium [&::-webkit-details-marker]:hidden">{question}<span aria-hidden className="font-mono text-[18px] font-normal text-oa-muted-fg transition-transform group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-oa-muted-fg">{answer}</p></details>)}</div></section>
 
     </main>
   );

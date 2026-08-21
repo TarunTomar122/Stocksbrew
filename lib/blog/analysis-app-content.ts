@@ -42,7 +42,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="table-scroll"><table>
   <thead><tr><th>App</th><th>Best for</th><th>Free access</th><th>Representative paid price</th><th>Main limitation</th></tr></thead>
   <tbody>
-    <tr><td><strong>Stocksbrew</strong></td><td>Interpreted US-stock calls, targets, risks, Watchlist monitoring</td><td>Market pages and up to 3 Watchlist names</td><td>$9/month; $99/year</td><td>US-focused; not a trading terminal or deep charting suite</td></tr>
+    <tr><td><strong>Stocksbrew</strong></td><td>Interpreted US-stock calls, targets, risks, Watchlist monitoring</td><td>Market pages and up to 3 Watchlist names</td><td>$9/month</td><td>US-focused; not a trading terminal or deep charting suite</td></tr>
     <tr><td><strong>Stock Analysis</strong></td><td>Clean financial data, screeners, broad coverage</td><td>Substantial free tier</td><td>$9.99/month or $79/year for Pro</td><td>Primarily a data and research interface, not a thesis monitor</td></tr>
     <tr><td><strong>Finviz</strong></td><td>US screening, heat maps, idea generation</td><td>Useful free screener and market maps</td><td>$39.50/month or $299.50/year for Elite</td><td>Better at finding candidates than developing a full company thesis</td></tr>
     <tr><td><strong>TradingView</strong></td><td>Technical analysis, charts, alerts, community scripts</td><td>Free plan</td><td>Paid plans start at $12.95/month billed annually</td><td>Extra exchange data may cost more; fundamentals are not its central strength</td></tr>
@@ -383,7 +383,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <p><a href="/agents">Stocksbrew for Agents</a> exposes research, Watchlist, and alert tools through MCP and a REST API. A compatible agent can search for a ticker, retrieve current intelligence, track a stock with permission, read changes, and manage alert rules. The response includes a schema version, as-of timestamp, freshness status, and usage information.</p>
 
-<p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/radar">Watchlist</a> monitoring selected names. Pro is $9 per month and includes 500 combined agent calls per calendar month.</p>
+<p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/radar">Watchlist</a> monitoring selected names. Pro is $9 per month and includes 200 combined agent calls per day.</p>
 
 <p><strong>Best fit:</strong> someone who already uses an AI agent or wants a focused web workflow for US stocks and does not want to paste screenshots or manually restate current context.</p>
 

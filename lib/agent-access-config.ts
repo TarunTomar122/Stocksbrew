@@ -12,7 +12,9 @@ export const AGENT_SCOPES = [
 ] as const;
 export type AgentScope = (typeof AGENT_SCOPES)[number];
 
-export const AGENT_MONTHLY_CALL_LIMIT = 500;
+export const AGENT_DAILY_CALL_LIMIT = 200;
+/** @deprecated Use the daily allowance. Kept as an alias for older integrations. */
+export const AGENT_MONTHLY_CALL_LIMIT = AGENT_DAILY_CALL_LIMIT;
 export const AGENT_PER_MINUTE_CALL_LIMIT = 30;
 export const AGENT_MAX_ACTIVE_TOKENS = 5;
 export const AGENT_ACCESS_TOKEN_TTL_SECONDS = 60 * 60;

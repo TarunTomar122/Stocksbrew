@@ -18,6 +18,8 @@ type Props = {
   fallbackFg?: string;
   /** Load immediately for above-the-fold logos (hero, etc.). */
   eager?: boolean;
+  /** Circular crop instead of the default rounded square. */
+  circle?: boolean;
 };
 
 function fallbackColor(ticker: string): string {
@@ -38,8 +40,10 @@ export function StockLogo({
   fallbackBg = "#1c1c1e",
   fallbackFg = "#ffffff",
   eager = false,
+  circle = false,
 }: Props) {
   const upper = ticker.toUpperCase();
+  const shape = circle ? "rounded-full" : "rounded-md";
 
   // Source chain: ticker CDN/domain providers → FMP → monogram. FMP sometimes
   // returns a 200 response with a mostly empty placeholder, so keep it last.
@@ -62,7 +66,7 @@ export function StockLogo({
   if (upper === "QQQ") {
     return (
       <div
-        className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md font-semibold ${className}`}
+        className={`flex shrink-0 items-center justify-center overflow-hidden ${shape} font-semibold ${className}`}
         style={{ width: dim, height: dim, background: "#165DFF", color: "#ffffff", fontSize: Math.round(size * 0.27) }}
         role="img"
         aria-label={alt}
@@ -74,7 +78,7 @@ export function StockLogo({
 
   const fallback = (
     <div
-      className="absolute inset-0 flex items-center justify-center rounded-md font-semibold"
+      className={`absolute inset-0 flex items-center justify-center ${shape} font-semibold`}
       style={{
         background: bg,
         color: fallbackFg,
@@ -89,7 +93,7 @@ export function StockLogo({
   if (sourceIndex >= sources.length) {
     return (
       <div
-        className={`relative shrink-0 overflow-hidden rounded-md ${className}`}
+        className={`relative shrink-0 overflow-hidden ${shape} ${className}`}
         style={{ width: dim, height: dim }}
         role="img"
         aria-label={alt}
@@ -101,7 +105,7 @@ export function StockLogo({
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-md ring-1 ring-[#e5e7eb] ${className}`}
+      className={`relative shrink-0 overflow-hidden ${shape} ring-1 ring-[color-mix(in_srgb,var(--oa-fg,#17181a)_12%,transparent)] ${className}`}
       style={{ width: dim, height: dim }}
     >
       {fallback}
@@ -127,7 +131,7 @@ export function StockLogo({
           }
           setLoaded(true);
         }}
-        className="relative h-full w-full rounded-md bg-white object-contain transition-opacity"
+        className={`relative h-full w-full ${shape} bg-white object-contain transition-opacity`}
         style={{ padding: 2, opacity: loaded ? 1 : 0 }}
       />
     </div>

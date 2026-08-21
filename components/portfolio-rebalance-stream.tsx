@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { PortfolioBookView } from "@/components/portfolio-book-view";
 import { DemoRadar } from "@/components/demo-radar";
+import { WatchlistMixPlanner } from "@/components/watchlist-mix-planner";
 import { getSessionUser } from "@/lib/auth-server";
 import { buildPortfolioBook } from "@/lib/portfolio-book";
 import { loadRadarRowsForUser } from "@/lib/radar-rows";
@@ -15,6 +15,7 @@ export async function PortfolioRebalanceStream() {
   const payload = await loadRadarRowsForUser(session.uid);
   const rows = payload?.rows ?? [];
   const book = buildPortfolioBook(rows);
+  const holdings = book.filter((row) => row.position_type === "holding");
 
   if (rows.length === 0) {
     return (
@@ -42,7 +43,12 @@ export async function PortfolioRebalanceStream() {
   return (
     <main className="flex-grow">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-6 py-10 md:px-10 md:py-12 lg:px-12">
-        <PortfolioBookView rows={book} builtAt={payload?.builtAt} />
+        {holdings.length > 0 ? <WatchlistMixPlanner rows={holdings} /> : (
+          <section className="border-y border-[#e5e7eb] py-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6d3be8]">Portfolio distribution</p>
+            <h2 className="mt-2 text-[24px] font-semibold tracking-[-0.025em] text-[#111111]">Add a holding to see your $1,000 distribution.</h2>
+          </section>
+        )}
       </div>
     </main>
   );

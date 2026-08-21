@@ -1,85 +1,88 @@
 import Link from "next/link";
 
+import { StockLogo } from "@/components/stock-logo";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getStockSummary, type StockSummary } from "@/lib/stock";
 
 type Market = "US" | "IN";
 
-function ConstituentCard({ stock }: { stock: StockSummary }) {
-  const pct = stock.day_change_pct;
-  const hasPct = typeof pct === "number";
-  const positive = hasPct && pct! >= 0;
-  const arrow = positive ? "▲" : "▼";
-  const color = positive ? "text-signal-bullish" : "text-signal-bearish";
-  return (
-    <Link
-      href={`/stock/${encodeURIComponent(stock.ticker)}`}
-      className="group bg-surface-container-low p-4 brutalist-border hover:-translate-y-0.5 transition-transform"
-    >
-      <div className="text-[14px] font-bold text-on-surface group-hover:text-primary transition-colors">
-        {stock.ticker}
-      </div>
-      <div className="text-[11px] font-semibold text-on-surface-variant truncate">
-        {stock.name}
-      </div>
-      {typeof stock.price === "number" && (
-        <div className="mt-3 flex items-baseline justify-between gap-2">
-          <span className="text-[14px] font-semibold text-on-surface tabular-nums">
-            {stock.price.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-          {hasPct && (
-            <span className={`text-[12px] font-bold tabular-nums ${color}`}>
-              {arrow} {Math.abs(pct!).toFixed(2)}%
-            </span>
-          )}
-        </div>
-      )}
-    </Link>
-  );
+const GRID = "grid grid-cols-[minmax(0,1fr)_96px_88px] items-center sm:grid-cols-[minmax(140px,0.9fr)_minmax(0,1.3fr)_110px_100px_minmax(0,1.6fr)]";
+
+function fmtPrice(n: number): string {
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function SectorTableRow({
   stock,
   signal,
+  showSignal,
 }: {
   stock: StockSummary;
   signal: string | null;
+  showSignal: boolean;
 }) {
   const pct = stock.day_change_pct;
   const hasPct = typeof pct === "number";
   const positive = hasPct && pct! >= 0;
-  const color = positive ? "text-signal-bullish" : "text-signal-bearish";
 
   return (
     <Link
       href={`/stock/${encodeURIComponent(stock.ticker)}`}
-      className="grid gap-3 border-t px-4 py-3 transition-colors first:border-t-0 hover:bg-surface-container sm:grid-cols-[96px_minmax(0,1.4fr)_120px_120px_minmax(0,2fr)] sm:items-center"
-      style={{ borderColor: "var(--outline-variant)" }}
+      className={`group gap-3 border-t border-oa-border px-5 py-3 transition-colors first:border-t-0 hover:bg-oa-accent ${GRID}`}
     >
-      <div className="font-mono text-[13px] font-bold text-on-surface">{stock.ticker}</div>
-      <div className="min-w-0">
-        <p className="truncate text-[13px] text-on-surface">{stock.name}</p>
-        {stock.industry ? (
-          <p className="truncate text-[11px] text-on-surface-variant">{stock.industry}</p>
-        ) : null}
+      <div className="flex min-w-0 items-center gap-2.5">
+        <StockLogo ticker={stock.ticker} size={22} circle />
+        <span className="oa-mono shrink-0 text-[13px] font-medium text-oa-fg">{stock.ticker}</span>
+        <span className="hidden min-w-0 truncate text-[13px] text-oa-muted-fg sm:block">
+          {stock.name}
+        </span>
       </div>
-      <div className="font-mono text-[13px] tabular-nums text-on-surface">
-        {typeof stock.price === "number"
-          ? stock.price.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          : "—"}
+      <span className="hidden min-w-0 truncate text-[13px] text-oa-muted-fg sm:block">
+        {stock.industry ?? ""}
+      </span>
+      <span className="text-right text-[13px] tabular-nums text-oa-fg">
+        {typeof stock.price === "number" ? fmtPrice(stock.price) : "—"}
+      </span>
+      <span className={`text-right text-[13px] font-medium tabular-nums ${hasPct ? (positive ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400") : "text-oa-muted-fg"}`}>
+        {hasPct ? `${positive ? "+" : "−"}${Math.abs(pct!).toFixed(2)}%` : "—"}
+      </span>
+      {showSignal ? (
+        <span className="col-span-3 min-w-0 truncate text-[12px] text-oa-fg/70 sm:col-span-1">
+          {signal ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-1.5 shrink-0 rounded-full bg-oa-primary" aria-hidden />
+              <span className="truncate">{signal}</span>
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function QuickTile({ stock }: { stock: StockSummary }) {
+  const pct = stock.day_change_pct;
+  const hasPct = typeof pct === "number";
+  const positive = hasPct && pct! >= 0;
+  return (
+    <Link
+      href={`/stock/${encodeURIComponent(stock.ticker)}`}
+      className="group flex flex-col gap-2.5 rounded-[18px] bg-oa-bg p-3.5 transition-colors hover:bg-oa-accent"
+    >
+      <div className="flex items-center gap-2">
+        <StockLogo ticker={stock.ticker} size={20} circle />
+        <span className="oa-mono text-xs font-medium text-oa-fg">{stock.ticker}</span>
       </div>
-      <div className={`font-mono text-[13px] font-bold tabular-nums ${hasPct ? color : "text-on-surface-variant"}`}>
-        {hasPct ? `${positive ? "▲" : "▼"} ${Math.abs(pct!).toFixed(2)}%` : "—"}
-      </div>
-      <div className="min-w-0 text-[12px] text-on-surface-variant">
-        <p className="truncate">{signal || "No standout anomaly read today."}</p>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-sm font-medium tabular-nums text-oa-fg">
+          {typeof stock.price === "number" ? fmtPrice(stock.price) : "—"}
+        </span>
+        {hasPct && (
+          <span className={`text-xs font-medium tabular-nums ${positive ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
+            {positive ? "+" : "−"}{Math.abs(pct!).toFixed(2)}%
+          </span>
+        )}
       </div>
     </Link>
   );
@@ -133,50 +136,53 @@ export async function SectorConstituentsStream({
       row.move_explanation?.headline || row.headline || row.catalyst || row.visual_summary?.what_changed || null,
     ]),
   );
+  const signals = constituents.map(
+    (stock) => signalByTicker.get(stock.ticker.toUpperCase()) ?? null,
+  );
+  const showSignal = signals.some(Boolean);
 
   return (
     <>
-      <section className="bg-surface-container-lowest brutalist-border p-6">
-        <div className="mb-4 flex items-center justify-between gap-4">
+      <section aria-labelledby="sector-names">
+        <div className="mb-4 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-[14px] font-semibold text-on-surface">
+            <h2 id="sector-names" className="text-[17px] font-medium tracking-tight text-oa-fg">
               Tracked names in this sector
             </h2>
-            <p className="mt-1 text-[12px] text-on-surface-variant">
-              Live price action plus today&apos;s anomaly read when we have one.
+            <p className="mt-1 text-sm text-oa-muted-fg">
+              Live prices, plus today&apos;s read when we have one.
             </p>
           </div>
-          <span className="font-mono text-[11px] text-on-surface-variant">
-            {constituents.length} tracked names
+          <span className="text-xs tabular-nums text-oa-muted-fg">
+            {constituents.length} names
           </span>
         </div>
-        <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--outline-variant)" }}>
-          <div
-            className="hidden bg-surface-container px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-on-surface-variant sm:grid sm:grid-cols-[96px_minmax(0,1.4fr)_120px_120px_minmax(0,2fr)]"
-          >
+        <div className="overflow-hidden rounded-[22px] border border-oa-border bg-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <div className={`hidden gap-3 border-b border-oa-border bg-oa-bg px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-oa-muted-fg sm:grid ${GRID}`}>
             <span>Ticker</span>
-            <span>Company</span>
-            <span>Price</span>
-            <span>Day</span>
-            <span>Signal</span>
+            <span className="hidden sm:block">Company</span>
+            <span className="text-right">Price</span>
+            <span className="text-right">Day</span>
+            {showSignal ? <span>Today&apos;s read</span> : null}
           </div>
           <div>
-            {constituents.map((stock) => (
+            {constituents.map((stock, i) => (
               <SectorTableRow
                 key={stock.instrument_id}
                 stock={stock}
-                signal={signalByTicker.get(stock.ticker.toUpperCase()) ?? null}
+                signal={signals[i]}
+                showSignal={showSignal}
               />
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-surface-container-lowest brutalist-border p-6">
-        <h2 className="mb-4 text-[14px] font-semibold text-on-surface">Quick tiles</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      <section aria-labelledby="sector-tiles">
+        <h2 id="sector-tiles" className="mb-4 text-[17px] font-medium tracking-tight text-oa-fg">Quick tiles</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {constituents.map((s) => (
-            <ConstituentCard key={s.instrument_id} stock={s} />
+            <QuickTile key={s.instrument_id} stock={s} />
           ))}
         </div>
       </section>

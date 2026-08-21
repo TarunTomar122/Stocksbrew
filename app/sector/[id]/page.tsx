@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -110,11 +111,11 @@ function ContextCard({
   accent: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 p-5 bg-surface-container-low brutalist-border">
-      <span className="text-[11px] font-semibold" style={{ color: accent }}>
+    <div className="flex flex-col gap-2 rounded-[18px] bg-oa-bg p-5">
+      <span className="text-[11px] font-medium" style={{ color: accent }}>
         {label}
       </span>
-      <p className="text-[14px] text-on-surface leading-relaxed">{body}</p>
+      <p className="text-sm leading-relaxed text-oa-fg">{body}</p>
     </div>
   );
 }
@@ -147,7 +148,8 @@ export default async function SectorPage({ params }: Props) {
   const heroBrief = doc?.today_brief ?? null;
 
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       {seoSector ? (
         <MarketingSchema
           path={`/sector/${sectorId}`}
@@ -157,30 +159,30 @@ export default async function SectorPage({ params }: Props) {
           parent={{ name: "US Stock Market Sectors", path: "/sectors" }}
         />
       ) : null}
-      <div className="mx-auto w-full max-w-screen-2xl px-6 md:px-10 lg:px-16 py-12 flex flex-col gap-8">
-        <nav className="text-[11px] text-on-surface-variant">
-          <Link href="/" className="hover:text-on-surface">
+      <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 pb-20 pt-8 sm:px-6 sm:pt-10">
+        <nav className="flex items-center gap-2 text-[13px] text-oa-muted-fg">
+          <Link href="/" className="transition-colors hover:text-oa-fg">
             Markets
           </Link>
-          <span className="px-2">/</span>
-          <span className="text-on-surface">{sectorLabel}</span>
+          <span aria-hidden>›</span>
+          <span className="font-medium text-oa-fg">{sectorLabel}</span>
         </nav>
 
-        <section className="bg-surface-container-lowest brutalist-border p-8 md:p-10 flex flex-col gap-8">
+        <section className="flex flex-col gap-7">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span
-                className="w-2 h-2 animate-pulse"
+                className="size-2 animate-pulse rounded-full"
                 style={{ backgroundColor: tone.color }}
                 aria-hidden="true"
               />
-              <h3 className="text-[12px] font-semibold tracking-wide uppercase text-on-surface-variant">
-                Sector Briefing · Today
-              </h3>
+              <p className="text-xs uppercase tracking-[0.12em] text-oa-muted-fg">
+                Sector briefing · Today
+              </p>
             </div>
             {doc?.today_label && (
               <span
-                className={`px-3 py-1 text-[11px] font-semibold tracking-wide uppercase rounded-sm ${tone.chipBg}`}
+                className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide ${tone.chipBg}`}
                 style={{ color: tone.color }}
               >
                 {doc.today_label}
@@ -189,26 +191,26 @@ export default async function SectorPage({ params }: Props) {
           </div>
 
           <div className="flex items-baseline gap-4 flex-wrap">
-            <h1 className="text-[40px] md:text-[52px] font-bold tracking-[-0.02em] leading-none text-on-surface">
+            <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[2.5rem] leading-[1.04] sm:text-5xl sm:leading-[1.02]">
               {sectorLabel}
             </h1>
             {typeof doc?.today_score === "number" && (
               <div className="flex items-baseline gap-1.5">
                 <span
-                  className="text-[32px] font-bold tabular-nums leading-none"
+                  className="text-[32px] font-medium tabular-nums leading-none"
                   style={{ color: tone.color }}
                 >
                   {Math.round(doc.today_score)}
                 </span>
-                <span className="text-[12px] font-semibold text-on-surface-variant">
-                  / 100
+                <span className="text-xs font-medium tabular-nums text-oa-muted-fg">
+                  /100
                 </span>
               </div>
             )}
           </div>
 
           {heroBrief && (
-            <p className="text-[20px] md:text-[22px] leading-snug text-on-surface font-medium tracking-[-0.01em] max-w-[68ch]">
+            <p className="text-[20px] md:text-[22px] leading-snug text-oa-fg font-medium tracking-[-0.01em] max-w-[68ch]">
               {heroBrief}
             </p>
           )}
@@ -219,7 +221,7 @@ export default async function SectorPage({ params }: Props) {
                 <ContextCard
                   label="What changed"
                   body={visual.what_changed}
-                  accent="var(--primary)"
+                  accent="var(--oa-primary)"
                 />
               )}
               {visual.why_it_matters && (
@@ -240,14 +242,14 @@ export default async function SectorPage({ params }: Props) {
           )}
 
           {hasWeek && (
-            <div className={`flex flex-col gap-3 p-6 brutalist-border ${weekTone.softBg}`}>
+            <div className={`flex flex-col gap-3 rounded-[18px] p-6 ${weekTone.softBg}`}>
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
+                <span className="text-[11px] font-medium tracking-wide uppercase text-oa-muted-fg">
                   This week
                 </span>
                 {doc?.week_label && (
                   <span
-                    className={`px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-sm ${weekTone.chipBg}`}
+                    className={`px-2.5 py-0.5 text-[10px] font-medium tracking-wide uppercase rounded-sm ${weekTone.chipBg}`}
                     style={{ color: weekTone.color }}
                   >
                     {doc.week_label}
@@ -255,7 +257,7 @@ export default async function SectorPage({ params }: Props) {
                 )}
                 {typeof doc?.week_score === "number" && (
                   <span
-                    className="text-[12px] font-bold tabular-nums"
+                    className="text-[12px] font-medium tabular-nums"
                     style={{ color: weekTone.color }}
                   >
                     {Math.round(doc.week_score)} / 100
@@ -263,14 +265,14 @@ export default async function SectorPage({ params }: Props) {
                 )}
               </div>
               {doc?.week_brief && (
-                <p className="text-[14px] text-on-surface leading-relaxed max-w-[68ch]">
+                <p className="text-[14px] text-oa-fg leading-relaxed max-w-[68ch]">
                   {doc.week_brief}
                 </p>
               )}
             </div>
           )}
 
-          <div className="flex items-center justify-between text-[11px] text-on-surface-variant pt-2">
+          <div className="flex items-center justify-between text-[11px] text-oa-muted-fg pt-2">
             <span>
               {typeof doc?.article_count === "number"
                 ? `${doc.article_count} verified sources`
@@ -291,33 +293,33 @@ export default async function SectorPage({ params }: Props) {
         ) : null}
 
         {seoSector ? (
-          <section className="grid gap-8 border-y border-outline-variant py-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <section className="grid gap-8 border-y border-oa-border py-10 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">
+              <p className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-oa-primary">
                 Research framework
               </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-on-surface">
+              <h2 className="mt-2 text-2xl font-medium tracking-[-0.025em] text-oa-fg">
                 How to analyze {seoSector.name.toLowerCase()}
               </h2>
-              <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">
+              <p className="mt-3 text-[14px] leading-6 text-oa-muted-fg">
                 {seoSector.description}
               </p>
             </div>
             <div className="flex flex-col gap-5">
-              <p className="text-[15px] leading-7 text-on-surface-variant">
-                <strong className="text-on-surface">Start with the shared drivers:</strong>{" "}
+              <p className="text-[15px] leading-7 text-oa-muted-fg">
+                <strong className="text-oa-fg">Start with the shared drivers:</strong>{" "}
                 {seoSector.focus} Then compare each company on its own growth, margins, balance sheet,
                 valuation, earnings revisions, and company-specific risks.
               </p>
               {sectorId === "semiconductors" ? (
-                <p className="text-[14px] leading-6 text-on-surface-variant">
+                <p className="text-[14px] leading-6 text-oa-muted-fg">
                   Chip companies do different jobs. Designers such as GPU and CPU vendors, foundries,
                   memory suppliers, networking companies, and fabrication-equipment makers can sit at
                   different points of the same demand cycle. Compare each company with the closest peers
                   before drawing a conclusion from a sector-wide move.
                 </p>
               ) : null}
-              <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-semibold text-landing-brand">
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium text-oa-primary">
                 <Link href="/sectors" className="hover:underline">All US sectors</Link>
                 <Link href="/stocks" className="hover:underline">US stock directory</Link>
                 <Link href="/compare-stocks" className="hover:underline">Compare sector peers</Link>

@@ -1,5 +1,6 @@
 import { PortfolioAnalyzer } from "@/components/portfolio-analyzer";
-import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
+import { FreeToolRelated } from "@/components/marketing/free-tool-chrome";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { getSearchIndex } from "@/lib/search";
 import { getCurrentMarket } from "@/lib/market";
 
@@ -23,12 +24,10 @@ export default async function PortfolioPage() {
   const searchIndex = await getSearchIndex(market);
 
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 pt-8 md:px-10 lg:px-16">
-        <FreeToolBreadcrumb title="Portfolio Analyzer" />
-      </div>
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <PortfolioAnalyzer searchIndex={searchIndex} />
-      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
+      <div className="mx-auto w-full max-w-[76rem] px-4 pb-14 sm:px-6">
         <FreeToolRelated currentHref="/portfolio" />
       </div>
     </main>

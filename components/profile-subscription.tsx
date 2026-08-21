@@ -1,14 +1,20 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
-
 import { useRouter } from "next/navigation";
-
-import { ProCtaLink } from "@/components/pro-cta";
 import { useState } from "react";
+
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { profileStatusLine } from "@/lib/subscription-recovery-copy";
 import { SubscriptionActivator } from "@/components/subscription-activator";
+import { OaButton } from "@/components/oa/button";
+import { SquircleSurface } from "@/components/oa/squircle";
+import { useUser } from "@/lib/auth-context";
+import { signInWithGoogle } from "@/lib/sign-in";
+import {
+  trackCheckoutClicked,
+  trackCheckoutStarted,
+} from "@/lib/product-analytics";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 const RETENTION_CODE = "XWDPFXVBZHV0UHEY";
 
@@ -52,29 +58,47 @@ const PRO_FEATURES = [
 
 function PlanFeatureList({ subscribed }: { subscribed: boolean }) {
   return (
-    <div
-      className="rounded-xl border p-3.5 sm:p-4"
-      style={{
-        borderColor: subscribed
-          ? "color-mix(in srgb, var(--signal-bullish) 22%, var(--outline-variant))"
-          : "var(--outline-variant)",
-        background: subscribed
-          ? "color-mix(in srgb, var(--signal-bullish) 5%, var(--surface-container-low))"
-          : "var(--surface-container-low)",
-      }}
-    >
-      <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
+    <div className="rounded-[18px] border border-oa-border bg-oa-bg p-4">
+      <p className="text-xs text-oa-muted-fg">
         {subscribed ? "Included in your plan" : "Unlock with Pro"}
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 sm:gap-x-4">
         {PRO_FEATURES.map((feature) => (
-          <li key={feature} className="flex items-start gap-2 text-[12px] leading-snug text-on-surface sm:text-[13px]">
-            <AnimatedIcon name="check_circle" size={15} className="mt-px shrink-0 text-[15px] text-landing-brand" aria-hidden />
+          <li key={feature} className="flex items-start gap-2 text-sm leading-6 text-oa-fg/80">
+            <span aria-hidden="true" className="mt-[9px] size-1.5 shrink-0 rounded-full bg-oa-primary" />
             {feature}
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Checkout button in the OA system: sign in if needed, then straight to Dodo. */
+function GetProButton() {
+  const { user } = useUser();
+  const [busy, setBusy] = useState(false);
+
+  async function openCheckout() {
+    if (busy) return;
+    setBusy(true);
+    trackCheckoutClicked({ period: "monthly", market: "US", signedIn: Boolean(user) });
+    try {
+      if (!user) await signInWithGoogle({ surface: "paywall" });
+      const checkoutUrl = await startDodoCheckout();
+      trackCheckoutStarted({ period: "monthly", market: "US" });
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      console.error("direct checkout failed", err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <OaButton onClick={() => void openCheckout()} loading={busy} size="sm">
+      Get Pro
+    </OaButton>
   );
 }
 
@@ -145,68 +169,58 @@ export function ProfileSubscription({
       return profileStatusLine(isSubscribed, subscriptionStatus);
     }
     if (cancelAtPeriodEnd) {
-      return "Pro - scheduled to cancel at the end of this billing period.";
+      return "Scheduled to cancel at the end of this billing period.";
     }
     if (subscriptionStatus && subscriptionStatus !== "active") {
       return `Status: ${subscriptionStatus.replace(/_/g, " ")}`;
     }
-    return "Pro - full access to stocksbrew.";
+    return "Full access to stocksbrew.";
   })();
 
   const plan = planLabel(subscriptionPlan ?? undefined);
 
   return (
-    <div className={`flex flex-col gap-3 ${embedded ? "" : "border-t border-outline-variant/20 pt-4"}`}>
+    <div className={`flex flex-col gap-4 ${embedded ? "" : "border-t border-oa-border pt-4"}`}>
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <span
-            className={`text-[22px] font-extrabold tracking-tight ${isSubscribed ? "text-landing-brand" : "text-on-surface"}`}
-          >
+          <span className="text-2xl font-medium tracking-tight text-oa-fg">
             {isSubscribed ? "Pro" : "Free"}
           </span>
           {isSubscribed && plan ? (
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-              {plan}
-            </span>
+            <span className="text-xs text-oa-muted-fg">{plan}</span>
           ) : null}
         </div>
-        <p className="text-[13px] leading-relaxed text-on-surface-variant">{statusLine}</p>
+        <p className="text-sm leading-6 text-oa-muted-fg">{statusLine}</p>
       </div>
 
       <PlanFeatureList subscribed={isSubscribed} />
 
       {error && (
-        <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">
+        <p className="text-xs leading-5 text-red-600 dark:text-red-400" role="alert">
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {!isSubscribed && (
-          <ProCtaLink href="/subscribe" size="sm" showStar>
-            {subscriptionStatus === "payment_failed" || subscriptionStatus === "processing"
-              ? "Try subscribing again"
-              : "Get Pro"}
-          </ProCtaLink>
-        )}
+      <div className="flex flex-wrap items-center gap-2">
+        {!isSubscribed && <GetProButton />}
         {isSubscribed && hasBillableSubscription && !cancelAtPeriodEnd && (
-          <button
-            type="button"
-            disabled={loading}
+          <OaButton
+            variant="secondary"
+            size="sm"
+            loading={loading}
             onClick={() => {
               setError(null);
               setCancelStep("feedback");
               setCopiedCode(false);
               setShowCancelFlow(true);
             }}
-            className="inline-flex items-center justify-center rounded-full border border-outline-variant px-4 py-2 text-[13px] font-semibold text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50"
           >
-            {loading ? "Working…" : "Cancel subscription"}
-          </button>
+            Cancel subscription
+          </OaButton>
         )}
         {isSubscribed && cancelAtPeriodEnd && (
-          <span className="text-[12px] text-on-surface-variant self-center">
-            You’ll keep Pro until the period ends. No further action needed.
+          <span className="text-sm leading-6 text-oa-muted-fg">
+            You&rsquo;ll keep Pro until the period ends. No further action needed.
           </span>
         )}
       </div>
@@ -220,24 +234,28 @@ export function ProfileSubscription({
       )}
 
       {showCancelFlow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 py-8">
-          <div className="w-full max-w-[520px] rounded-3xl border border-outline-variant bg-surface p-5 shadow-[var(--shadow-modal)] md:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/35 px-4 py-8">
+          <SquircleSurface className="my-auto w-full max-w-[520px] border border-oa-border p-5 shadow-[0_24px_60px_rgba(0,0,0,0.14),0_8px_20px_rgba(0,0,0,0.08)] md:p-7">
             <div className="flex items-start justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                  {cancelStep === "feedback" ? "Before you cancel" : "One last thing"}
-                </p>
-                <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
-                  {cancelStep === "feedback" ? "What made Pro not worth it?" : "Want a free month first?"}
+              <div>
+                <h2 className="text-balance font-medium tracking-tight text-oa-fg text-xl leading-tight sm:text-2xl">
+                  {cancelStep === "feedback"
+                    ? "What made Pro not worth it?"
+                    : "Want a free month first?"}
                 </h2>
+                <p className="mt-1 text-sm leading-6 text-oa-muted-fg">
+                  {cancelStep === "feedback"
+                    ? "It helps us fix the product."
+                    : "Yours to use before you decide."}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCancelFlow(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container-low"
+                className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
                 aria-label="Close cancellation flow"
               >
-                <AnimatedIcon name="close" size={20} />
+                ×
               </button>
             </div>
 
@@ -254,10 +272,10 @@ export function ProfileSubscription({
                           setCancelReason(reason.id);
                           setError(null);
                         }}
-                        className={`rounded-2xl border px-3.5 py-3 text-left text-[13px] font-semibold transition-colors ${
+                        className={`cursor-pointer rounded-lg border px-3.5 py-2.5 text-left text-sm outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] ${
                           selected
-                            ? "border-on-surface bg-on-surface text-surface"
-                            : "border-outline-variant bg-surface-container-low text-on-surface hover:border-outline"
+                            ? "border-transparent bg-oa-secondary font-medium text-oa-fg"
+                            : "border-oa-border bg-oa-bg text-oa-fg/80 hover:bg-oa-accent"
                         }`}
                       >
                         {reason.label}
@@ -267,64 +285,55 @@ export function ProfileSubscription({
                 </div>
 
                 <label className="mt-4 flex flex-col gap-2">
-                  <span className="text-[12px] font-semibold text-on-surface">Anything we should fix?</span>
+                  <span className="text-sm font-medium text-oa-fg">Anything we should fix?</span>
                   <textarea
                     value={cancelFeedback}
                     onChange={(event) => setCancelFeedback(event.target.value)}
                     rows={3}
                     maxLength={1000}
                     placeholder="Optional feedback"
-                    className="resize-none rounded-2xl border border-outline-variant bg-surface-container-low px-3.5 py-3 text-[13px] text-on-surface outline-none focus:border-on-surface/40"
+                    className="resize-none rounded-2xl border border-oa-border bg-oa-bg px-3.5 py-3 text-sm leading-6 text-oa-fg outline-none transition-colors placeholder:text-oa-muted-fg/70 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
                   />
                 </label>
               </>
             ) : (
-              <div
-                className="mt-5 rounded-3xl border p-5"
-                style={{
-                  borderColor: "color-mix(in srgb, var(--signal-bullish) 28%, var(--outline-variant))",
-                  background: "color-mix(in srgb, var(--signal-bullish) 8%, var(--surface))",
-                }}
-              >
-                <p className="text-[15px] font-semibold text-landing-brand">
+              <div className="mt-5 rounded-[18px] border border-oa-border bg-oa-bg p-5">
+                <p className="font-medium text-emerald-700 dark:text-emerald-400">
                   Use this code for one free month before you decide.
                 </p>
-                <p className="mt-1 text-[13px] leading-relaxed text-on-surface-variant">
+                <p className="mt-1 text-sm leading-6 text-oa-muted-fg">
                   You can keep Pro now and apply the code, or continue cancellation.
                 </p>
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <code className="flex-1 rounded-xl border border-outline-variant bg-surface px-3 py-3 text-center text-[13px] font-bold tracking-[0.12em] text-on-surface">
+                  <code className="oa-mono flex-1 rounded-lg border border-oa-border bg-oa-card px-3 py-2.5 text-center text-sm tracking-[0.12em] text-oa-fg">
                     {RETENTION_CODE}
                   </code>
-                  <button
-                    type="button"
-                    onClick={() => void copyRetentionCode()}
-                    className="rounded-xl bg-on-surface px-4 py-2 text-[12px] font-semibold text-surface"
-                  >
+                  <OaButton variant="secondary" size="sm" onClick={() => void copyRetentionCode()}>
                     {copiedCode ? "Copied" : "Copy code"}
-                  </button>
+                  </OaButton>
                 </div>
               </div>
             )}
 
             {error && (
-              <p className="mt-3 text-[12px] font-medium text-red-600" role="alert">
+              <p className="mt-3 text-xs font-medium text-red-600 dark:text-red-400" role="alert">
                 {error}
               </p>
             )}
 
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowCancelFlow(false)}
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <OaButton
+                variant="secondary"
+                size="sm"
                 disabled={loading}
-                className="inline-flex h-11 items-center justify-center rounded-full border border-outline-variant px-5 text-[13px] font-semibold text-on-surface disabled:opacity-50"
+                onClick={() => setShowCancelFlow(false)}
               >
                 Keep Pro
-              </button>
+              </OaButton>
               {cancelStep === "feedback" ? (
-                <button
-                  type="button"
+                <OaButton
+                  size="sm"
+                  disabled={!cancelReason}
                   onClick={() => {
                     if (!cancelReason) {
                       setError("Pick a reason before continuing.");
@@ -333,23 +342,21 @@ export function ProfileSubscription({
                     setError(null);
                     setCancelStep("offer");
                   }}
-                  disabled={!cancelReason}
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-on-surface px-5 text-[13px] font-semibold text-surface disabled:opacity-50"
                 >
                   Continue
-                </button>
+                </OaButton>
               ) : (
-                <button
-                  type="button"
+                <OaButton
+                  size="sm"
+                  loading={loading}
+                  disabled={!cancelReason}
                   onClick={() => void handleCancel()}
-                  disabled={loading || !cancelReason}
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-on-surface px-5 text-[13px] font-semibold text-surface disabled:opacity-50"
                 >
                   {loading ? "Cancelling…" : "Continue cancellation"}
-                </button>
+                </OaButton>
               )}
             </div>
-          </div>
+          </SquircleSurface>
         </div>
       )}
     </div>

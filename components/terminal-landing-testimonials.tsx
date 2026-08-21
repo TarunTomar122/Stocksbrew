@@ -30,12 +30,9 @@ export function TerminalLandingTestimonials() {
     <section className="border-t border-outline-variant bg-background">
       <div className="landing-inner py-16 lg:py-20">
         <div className="mx-auto mb-10 max-w-2xl text-center">
-          <h2 className="text-[26px] font-semibold tracking-tight text-on-surface sm:text-[32px]">
-            Research it now. Keep following it later.
+          <h2 className="text-balance font-display text-[26px] font-medium tracking-tight text-on-surface sm:text-[32px]">
+            Do the research once. We keep it current.
           </h2>
-          <p className="mt-3 text-[14px] leading-relaxed text-on-surface-variant sm:text-[15px]">
-            Research the company now. Track it when you want the work to stay current.
-          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3 md:items-stretch">

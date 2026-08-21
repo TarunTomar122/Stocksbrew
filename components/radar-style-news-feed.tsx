@@ -50,7 +50,7 @@ function sentimentTagStyles(label: string): string {
   if (s === "bullish") return "text-[#10b981] tint-bull";
   if (s === "bearish") return "text-[#ef4444] tint-bear";
   if (s === "mixed") return "text-[#f59e0b] tint-warn";
-  return "text-on-surface-variant bg-surface-container";
+  return "text-oa-muted-fg bg-oa-accent";
 }
 
 function ChevronDown({ className }: { className?: string }) {
@@ -116,11 +116,11 @@ function SymbolPicker({
         aria-haspopup="listbox"
         id={triggerId}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface px-3 text-left text-[13px] font-medium text-on-surface outline-none transition-colors hover:border-outline focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-oa-border bg-oa-card px-3 text-left text-[13px] font-medium text-oa-fg outline-none transition-colors hover:border-outline focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         <span className="truncate">{triggerLabel}</span>
         <ChevronDown
-          className={`shrink-0 text-on-surface-variant transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`shrink-0 text-oa-muted-fg transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -128,7 +128,7 @@ function SymbolPicker({
         <div
           role="listbox"
           aria-labelledby={triggerId}
-          className="absolute left-0 top-[calc(100%+6px)] z-[80] w-full max-h-[min(260px,45vh)] overflow-auto rounded-xl border border-outline-variant bg-surface py-1 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)]"
+          className="absolute left-0 top-[calc(100%+6px)] z-[80] w-full max-h-[min(260px,45vh)] overflow-auto rounded-xl border border-oa-border bg-oa-card py-1 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)]"
         >
           {options.map((opt) => {
             const selected =
@@ -141,8 +141,8 @@ function SymbolPicker({
                 aria-selected={selected}
                 className={`flex w-full min-w-[148px] items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
                   selected
-                    ? "bg-surface-container font-semibold text-on-surface"
-                    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
+                    ? "bg-oa-accent font-medium text-oa-fg"
+                    : "text-oa-muted-fg hover:bg-oa-bg hover:text-oa-fg"
                 }`}
                 onClick={() => {
                   onChange(opt.value);
@@ -150,7 +150,7 @@ function SymbolPicker({
                 }}
               >
                 {selected ? (
-                  <span className="inline-block w-3 shrink-0 text-[11px] text-on-surface">✓</span>
+                  <span className="inline-block w-3 shrink-0 text-[11px] text-oa-fg">✓</span>
                 ) : (
                   <span className="inline-block w-3 shrink-0" aria-hidden />
                 )}
@@ -209,30 +209,30 @@ function ArticleCard({ article, radarSet, tickerMetaMode, compact }: ArticleCard
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group block w-full border-b border-dashed border-outline-variant px-1.5 py-5 outline-none transition-colors hover:bg-surface-container focus-visible:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#111111]/10 sm:px-2"
+        className="group block w-full border-b border-dashed border-oa-border px-1.5 py-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-bg focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--oa-fg)]/10 sm:px-2"
       >
         <h3
-          className={`font-bold tracking-[-0.02em] text-on-surface leading-snug group-hover:text-[#22d3ee] transition-colors ${
+          className={`font-medium tracking-[-0.02em] text-oa-fg leading-snug group-hover:text-[#22d3ee] transition-colors ${
             compact ? "text-[14px]" : "text-[15px] sm:text-[16px]"
           }`}
         >
           {article.title}
         </h3>
         <span
-          className={`mt-1.5 inline-block rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-[0.07em] ${sentimentTagStyles(article.sentiment_label)}`}
+          className={`mt-1.5 inline-block rounded px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.07em] ${sentimentTagStyles(article.sentiment_label)}`}
         >
           {displaySentiment(article.sentiment_label)}
         </span>
         {showSummary && (
           <p
-            className={`mt-2 text-[13px] leading-relaxed text-on-surface-variant ${
+            className={`mt-2 text-[13px] leading-relaxed text-oa-muted-fg ${
               compact ? "line-clamp-2" : "line-clamp-4"
             }`}
           >
             {rawSummary}
           </p>
         )}
-        <p className="mt-3 text-[11px] leading-normal text-on-surface-variant">{metaParts.join(" - ")}</p>
+        <p className="mt-3 text-[11px] leading-normal text-oa-muted-fg">{metaParts.join(" - ")}</p>
       </a>
     </article>
   );
@@ -369,17 +369,17 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
 
   const emptyBody =
     variant === "radar" ? (
-      <div className="flex flex-col gap-2 text-[13px] leading-relaxed text-on-surface-variant">
+      <div className="flex flex-col gap-2 text-[13px] leading-relaxed text-oa-muted-fg">
         <p>
           No recent news matched your Watchlist.
           refreshes, or open the full market feed.
         </p>
-        <Link href="/news" className="w-fit font-semibold text-[#22d3ee] hover:underline">
+        <Link href="/news" className="w-fit font-medium text-[#22d3ee] hover:underline">
           Market news →
         </Link>
       </div>
     ) : (
-      <p className="text-[13px] leading-relaxed text-on-surface-variant">
+      <p className="text-[13px] leading-relaxed text-oa-muted-fg">
         No articles are available for this market in the latest news run yet - check back after the
         pipeline refreshes.
       </p>
@@ -391,20 +391,20 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       : "No stories match this tone - try All or another tone.";
 
   return (
-    <section className="flex flex-col gap-4 bg-surface p-3 md:p-5">
-      <div className="flex shrink-0 flex-col gap-4 border-b border-outline-variant pb-4 lg:flex-row lg:items-end lg:justify-between">
+    <section className="flex flex-col gap-4 bg-oa-card p-3 md:p-5">
+      <div className="flex shrink-0 flex-col gap-4 border-b border-oa-border pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
           {!hideTitle ? (
             <>
-              <HeadingTag className="text-[18px] font-bold tracking-[-0.03em] text-on-surface md:text-[20px]">
+              <HeadingTag className="text-[18px] font-medium tracking-[-0.03em] text-oa-fg md:text-[20px]">
                 {title}
               </HeadingTag>
-              <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant">{subtitle}</p>
+              <p className="max-w-xl text-[13px] leading-relaxed text-oa-muted-fg">{subtitle}</p>
             </>
           ) : (
-            <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant">{subtitle}</p>
+            <p className="max-w-xl text-[13px] leading-relaxed text-oa-muted-fg">{subtitle}</p>
           )}
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-on-surface-variant">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-oa-muted-fg">
             {articles.length === 0
               ? "-"
               : filtered.length === articles.length
@@ -417,7 +417,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             {showSymbolPicker ? (
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+                <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg">
                   Symbol
                 </span>
                 <SymbolPicker
@@ -429,7 +429,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
             ) : null}
 
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+              <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg">
                 Tone
               </span>
               <div className="flex flex-wrap gap-1">
@@ -441,10 +441,10 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                       key={key}
                       type="button"
                       onClick={() => setSentiment(key)}
-                      className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors ${
+                      className={`rounded-full px-3 py-1.5 text-[11px] font-medium tracking-wide transition-colors ${
                         active
-                          ? "bg-on-surface text-surface"
-                          : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                          ? "bg-oa-fg text-oa-card"
+                          : "bg-oa-accent text-oa-muted-fg hover:bg-oa-accent-high hover:text-oa-fg"
                       }`}
                     >
                       <span className="inline-flex items-baseline gap-1">
@@ -452,8 +452,8 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                         <span
                           className={
                             active
-                              ? "font-medium tabular-nums text-surface/70"
-                              : "font-medium tabular-nums text-on-surface-variant"
+                              ? "font-medium tabular-nums text-oa-card/70"
+                              : "font-medium tabular-nums text-oa-muted-fg"
                           }
                         >
                           · {count}
@@ -475,10 +475,10 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
           <button
             type="button"
             onClick={() => setTickerFilter("")}
-            className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+            className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
               tickerFilter === ""
-                ? "bg-on-surface text-surface"
-                : "bg-surface-container text-on-surface hover:bg-surface-container-high"
+                ? "bg-oa-fg text-oa-card"
+                : "bg-oa-accent text-oa-fg hover:bg-oa-accent-high"
             }`}
           >
             All stocks
@@ -490,17 +490,17 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
                 key={ticker}
                 type="button"
                 onClick={() => setTickerFilter(active ? "" : ticker)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-[12px] font-semibold transition-colors ${
+                className={`flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-[12px] font-medium transition-colors ${
                   active
-                    ? "bg-on-surface text-surface"
-                    : "bg-surface-container text-on-surface hover:bg-surface-container-high"
+                    ? "bg-oa-fg text-oa-card"
+                    : "bg-oa-accent text-oa-fg hover:bg-oa-accent-high"
                 }`}
               >
                 <StockLogo
                   ticker={ticker}
                   size={20}
-                  fallbackBg={active ? "var(--surface)" : "var(--surface-container-high)"}
-                  fallbackFg={active ? "var(--on-surface)" : "var(--on-surface)"}
+                  fallbackBg={active ? "var(--oa-card)" : "var(--oa-accent)"}
+                  fallbackFg={active ? "var(--oa-fg)" : "var(--oa-fg)"}
                 />
                 {ticker}
               </button>
@@ -512,7 +512,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
       {articles.length === 0 ? (
         emptyBody
       ) : filtered.length === 0 ? (
-        <p className="text-[13px] leading-relaxed text-on-surface-variant">{filteredEmptyHint}</p>
+        <p className="text-[13px] leading-relaxed text-oa-muted-fg">{filteredEmptyHint}</p>
       ) : (
         <div className={`w-full ${gridClass} gap-x-8 gap-y-0 lg:gap-x-10`}>
           {columns.map((col, ci) => (

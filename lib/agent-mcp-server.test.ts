@@ -10,7 +10,7 @@ vi.mock("@/lib/agent-intelligence", () => {
       schema_version: "test",
       tool,
       args,
-      usage: { used: 1, remaining: 499, limit: 500 },
+      usage: { used: 1, remaining: 199, limit: 200, period: "day" },
     })),
   };
 });

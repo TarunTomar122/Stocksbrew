@@ -7,6 +7,8 @@ export type AuthSurface =
   | "hero"
   | "landing_final_cta"
   | "landing_pro_preview"
+  | "footer"
+  | "pricing_free"
   | "paywall"
   | "locked_ai_brief"
   | "locked_verdict_call"

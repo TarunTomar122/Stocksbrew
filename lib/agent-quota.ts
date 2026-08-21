@@ -1,5 +1,5 @@
 import {
-  AGENT_MONTHLY_CALL_LIMIT,
+  AGENT_DAILY_CALL_LIMIT,
   AGENT_PER_MINUTE_CALL_LIMIT,
   AGENT_USAGE_COLLECTION,
 } from "@/lib/agent-access-config";
@@ -9,15 +9,15 @@ export class AgentQuotaError extends Error {
   constructor(
     message: string,
     public readonly retryAfterSeconds: number,
-    public readonly code: "minute_limit" | "monthly_limit",
+    public readonly code: "minute_limit" | "daily_limit",
   ) {
     super(message);
     this.name = "AgentQuotaError";
   }
 }
 
-function monthKey(now: Date): string {
-  return now.toISOString().slice(0, 7).replace("-", "_");
+function dayKey(now: Date): string {
+  return now.toISOString().slice(0, 10).replaceAll("-", "_");
 }
 
 function minuteKey(now: Date): string {
@@ -28,8 +28,9 @@ export async function consumeAgentQuota(uid: string, tool: string, now = new Dat
   used: number;
   remaining: number;
   limit: number;
+  period: "day";
 }> {
-  const ref = adminFirestore.collection(AGENT_USAGE_COLLECTION).doc(`${uid}_${monthKey(now)}`);
+  const ref = adminFirestore.collection(AGENT_USAGE_COLLECTION).doc(`${uid}_${dayKey(now)}`);
   return adminFirestore.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
@@ -40,12 +41,12 @@ export async function consumeAgentQuota(uid: string, tool: string, now = new Dat
       ? data.minute_calls
       : 0;
 
-    if (calls >= AGENT_MONTHLY_CALL_LIMIT) {
-      const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    if (calls >= AGENT_DAILY_CALL_LIMIT) {
+      const nextDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
       throw new AgentQuotaError(
-        `Monthly agent allowance of ${AGENT_MONTHLY_CALL_LIMIT} calls reached.`,
-        Math.max(60, Math.ceil((nextMonth.getTime() - now.getTime()) / 1000)),
-        "monthly_limit",
+        `Daily agent allowance of ${AGENT_DAILY_CALL_LIMIT} calls reached.`,
+        Math.max(60, Math.ceil((nextDay.getTime() - now.getTime()) / 1000)),
+        "daily_limit",
       );
     }
     if (minuteCalls >= AGENT_PER_MINUTE_CALL_LIMIT) {
@@ -63,7 +64,7 @@ export async function consumeAgentQuota(uid: string, tool: string, now = new Dat
     const nextCalls = calls + 1;
     tx.set(ref, {
       uid,
-      month: monthKey(now),
+      day: dayKey(now),
       calls: nextCalls,
       minute_key: currentMinute,
       minute_calls: minuteCalls + 1,
@@ -72,8 +73,9 @@ export async function consumeAgentQuota(uid: string, tool: string, now = new Dat
     }, { merge: true });
     return {
       used: nextCalls,
-      remaining: Math.max(0, AGENT_MONTHLY_CALL_LIMIT - nextCalls),
-      limit: AGENT_MONTHLY_CALL_LIMIT,
+      remaining: Math.max(0, AGENT_DAILY_CALL_LIMIT - nextCalls),
+      limit: AGENT_DAILY_CALL_LIMIT,
+      period: "day",
     };
   });
 }
@@ -82,9 +84,10 @@ export async function getAgentUsage(uid: string, now = new Date()): Promise<{
   used: number;
   remaining: number;
   limit: number;
+  period: "day";
 }> {
-  const ref = adminFirestore.collection(AGENT_USAGE_COLLECTION).doc(`${uid}_${monthKey(now)}`);
+  const ref = adminFirestore.collection(AGENT_USAGE_COLLECTION).doc(`${uid}_${dayKey(now)}`);
   const snap = await ref.get();
   const used = snap.exists && typeof snap.data()?.calls === "number" ? snap.data()!.calls : 0;
-  return { used, remaining: Math.max(0, AGENT_MONTHLY_CALL_LIMIT - used), limit: AGENT_MONTHLY_CALL_LIMIT };
+  return { used, remaining: Math.max(0, AGENT_DAILY_CALL_LIMIT - used), limit: AGENT_DAILY_CALL_LIMIT, period: "day" };
 }

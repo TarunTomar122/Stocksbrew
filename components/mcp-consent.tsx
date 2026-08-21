@@ -60,23 +60,23 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
   }
 
   return (
-    <div className="rounded-2xl border border-outline-variant bg-surface p-5 shadow-sm sm:p-7">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-landing-brand">Stocksbrew for Agents</p>
-      <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-on-surface">Connect {clientName}</h1>
-      <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant">
+    <div className="rounded-2xl border border-oa-border bg-oa-card p-5 shadow-sm sm:p-7">
+      <p className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-oa-primary">Stocksbrew for Agents</p>
+      <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-oa-fg">Connect {clientName}</h1>
+      <p className="mt-2 text-[13px] leading-relaxed text-oa-muted-fg">
         This client is asking to use your Stocksbrew Pro research workflow. Stocksbrew never gives it trading access.
       </p>
 
       <ul className="mt-5 space-y-2.5">
         {scopes.map((scope) => (
-          <li key={scope} className="flex gap-2 rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-3 text-[12px] text-on-surface">
-            <span aria-hidden className="text-landing-brand">✓</span>
+          <li key={scope} className="flex gap-2 rounded-xl border border-oa-border/70 bg-oa-bg/60 p-3 text-[12px] text-oa-fg">
+            <span aria-hidden className="text-oa-primary">✓</span>
             {SCOPE_COPY[scope] || scope}
           </li>
         ))}
       </ul>
 
-      <p className="mt-4 text-[11px] leading-relaxed text-on-surface-variant">
+      <p className="mt-4 text-[11px] leading-relaxed text-oa-muted-fg">
         Only approve clients you trust. Watchlist and alert changes still require your instruction in the agent. You can revoke access from your profile.
       </p>
 
@@ -84,17 +84,17 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
 
       <div className="mt-6 flex flex-wrap gap-2">
         {!signedIn ? (
-          <button type="button" disabled={busy} onClick={signIn} className="rounded-full bg-landing-brand px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={signIn} className="rounded-full bg-oa-primary px-5 py-2.5 text-[13px] font-medium text-white disabled:opacity-50">
             {busy ? "Signing in…" : "Sign in to continue"}
           </button>
         ) : !subscribed ? (
-          <a href="/subscribe" className="rounded-full bg-landing-brand px-5 py-2.5 text-[13px] font-bold text-white">Get Pro to connect</a>
+          <a href="/subscribe" className="rounded-full bg-oa-primary px-5 py-2.5 text-[13px] font-medium text-white">Get Pro to connect</a>
         ) : (
-          <button type="button" disabled={busy} onClick={() => decide("approve")} className="rounded-full bg-landing-brand px-5 py-2.5 text-[13px] font-bold text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => decide("approve")} className="rounded-full bg-oa-primary px-5 py-2.5 text-[13px] font-medium text-white disabled:opacity-50">
             {busy ? "Connecting…" : "Approve connection"}
           </button>
         )}
-        <button type="button" disabled={busy} onClick={() => decide("deny")} className="rounded-full border border-outline-variant px-5 py-2.5 text-[13px] font-semibold text-on-surface disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={() => decide("deny")} className="rounded-full border border-oa-border px-5 py-2.5 text-[13px] font-medium text-oa-fg disabled:opacity-50">
           Cancel
         </button>
       </div>

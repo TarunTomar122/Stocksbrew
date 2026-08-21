@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { AnimatedIcon } from "@/components/animated-icon";
 import type { ReactNode } from "react";
 
 import { getSessionUser } from "@/lib/auth-server";
@@ -11,14 +10,17 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { PreferenceToggle } from "@/components/preference-toggle";
 import { ProfileRadarHighlight } from "@/components/profile-radar-highlight";
 import { AgentAccessCard } from "@/components/agent-access-card";
+import { SquircleSurface } from "@/components/oa/squircle";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { listPersonalAgentTokens } from "@/lib/agent-auth";
 import { getAgentUsage } from "@/lib/agent-quota";
-import { publicAppUrl } from "@/lib/agent-access-config";
+import { AGENT_DAILY_CALL_LIMIT, publicAppUrl } from "@/lib/agent-access-config";
 
 export const revalidate = 0;
 
-const KICK =
-  "font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant sm:text-[9.5px] sm:tracking-[0.12em]";
+const FRAME = "mx-auto w-full max-w-6xl px-4 sm:px-6";
+const H1 =
+  "text-balance font-medium tracking-tight text-oa-fg text-[2rem] leading-[1.08] sm:text-4xl sm:leading-[1.06]";
 
 function ProfileCard({
   title,
@@ -30,12 +32,12 @@ function ProfileCard({
   className?: string;
 }) {
   return (
-    <section
-      className={`rounded-2xl border border-outline-variant bg-surface p-5 sm:p-6 ${className}`}
+    <SquircleSurface
+      className={`border border-oa-border p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-7 ${className}`}
     >
-      <p className={KICK}>{title}</p>
-      <div className="mt-4">{children}</div>
-    </section>
+      <h2 className="text-sm font-medium text-oa-fg/80">{title}</h2>
+      <div className="mt-3">{children}</div>
+    </SquircleSurface>
   );
 }
 
@@ -52,8 +54,6 @@ export default async function ProfilePage() {
   );
   const displayName = session.displayName || userDoc?.display_name || null;
   const email = session.email || userDoc?.email || null;
-  const photoURL = session.photoURL || userDoc?.photo_url || null;
-  const initial = (displayName || email || "?").trim().charAt(0).toUpperCase();
 
   const created = userDoc?.created_at ? new Date(userDoc.created_at) : null;
   const joinedAt =
@@ -64,93 +64,60 @@ export default async function ProfilePage() {
           day: "numeric",
         })
       : null;
-  const trackedCount = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks!.length : 0;
-  const alertsOn = userDoc?.email_alerts_enabled ?? true;
-  const digestOn = userDoc?.email_digest_enabled ?? true;
+  const trackedCount = Array.isArray(userDoc?.tracked_stocks)
+    ? userDoc!.tracked_stocks!.length
+    : 0;
   const [agentTokens, agentUsage] = subscribed
     ? await Promise.all([
         listPersonalAgentTokens(session.uid).catch(() => []),
-        getAgentUsage(session.uid).catch(() => ({ used: 0, remaining: 500, limit: 500 })),
+        getAgentUsage(session.uid).catch(() => ({
+          used: 0,
+          remaining: AGENT_DAILY_CALL_LIMIT,
+          limit: AGENT_DAILY_CALL_LIMIT,
+          period: "day" as const,
+        })),
       ])
-    : [[], { used: 0, remaining: 500, limit: 500 }];
+    : [[], { used: 0, remaining: 200, limit: 200, period: "day" as const }];
 
   return (
-    <main className="flex-grow bg-background">
-      <div className="mx-auto w-full min-w-0 max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7">
-        <header className="mb-5 sm:mb-7">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-3.5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-outline-variant bg-surface">
-                {photoURL ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoURL} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-xl font-extrabold text-on-surface">{initial}</span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate text-2xl font-extrabold tracking-tight text-on-surface">
-                    {displayName || "Your profile"}
-                  </h1>
-                  <span
-                    className="inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em]"
-                    style={
-                      subscribed
-                        ? {
-                            color: "var(--signal-bullish)",
-                            borderColor:
-                              "color-mix(in srgb, var(--signal-bullish) 28%, var(--outline-variant))",
-                            background:
-                              "color-mix(in srgb, var(--signal-bullish) 8%, var(--surface))",
-                          }
-                        : {
-                            color: "var(--on-surface-variant)",
-                            borderColor: "var(--outline-variant)",
-                            background: "var(--surface-container-low)",
-                          }
-                    }
-                  >
-                    {subscribed ? "Pro" : "Free"}
-                  </span>
-                </div>
-                {email ? (
-                  <p className="mt-1 truncate font-mono text-[12px] text-on-surface-variant">{email}</p>
-                ) : null}
-                {joinedAt ? (
-                  <p className="mt-0.5 font-mono text-[10.5px] text-on-surface-variant">
-                    Member since {joinedAt}
-                  </p>
-                ) : null}
-              </div>
-            </div>
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <div className={`${FRAME} flex flex-col gap-6 pb-24 pt-6 sm:gap-8`}>
+        {/* title row: h1 + one control */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className={H1}>
+              {displayName ? (
+                <>
+                  {displayName}
+                  <span className="text-oa-muted-fg">, here&apos;s your account.</span>
+                </>
+              ) : (
+                "Your profile"
+              )}
+            </h1>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-6 text-oa-muted-fg">
+              {email ? <span>{email}</span> : null}
+              {joinedAt ? <span>Member since {joinedAt}</span> : null}
+            </p>
           </div>
-
-          <div className="mt-5 grid grid-cols-3 divide-x divide-outline-variant/40 rounded-2xl border border-outline-variant bg-surface">
-            {[
-              { label: "Tracked", value: String(trackedCount), sub: trackedCount === 1 ? "stock" : "stocks" },
-              { label: "Plan", value: subscribed ? "Pro" : "Free", sub: subscribed ? "active" : "3-stock limit" },
-              {
-                label: "Inbox",
-                value: alertsOn || digestOn ? "On" : "Off",
-                sub: alertsOn && digestOn ? "alerts + briefs" : alertsOn ? "alerts" : digestOn ? "briefs" : "paused",
-              },
-            ].map((stat, i) => (
-              <div
-                key={stat.label}
-                className={`min-w-0 px-3 py-3.5 text-center sm:px-4 sm:py-4 ${i === 0 ? "pl-4 sm:pl-5" : ""} ${i === 2 ? "pr-4 sm:pr-5" : ""}`}
-              >
-                <p className={KICK}>{stat.label}</p>
-                <p className="mt-1 text-[18px] font-extrabold tabular-nums tracking-tight text-on-surface sm:text-[20px]">
-                  {stat.value}
-                </p>
-                <p className="mt-0.5 font-mono text-[10px] text-on-surface-variant">{stat.sub}</p>
-              </div>
-            ))}
-          </div>
+          <span
+            className="inline-flex h-fit shrink-0 items-center rounded-full border px-3 py-1 text-xs font-medium"
+            style={
+              subscribed
+                ? {
+                    color: "var(--signal-bullish)",
+                    borderColor: "color-mix(in srgb, var(--signal-bullish) 30%, transparent)",
+                  }
+                : { color: "var(--oa-muted-fg)", borderColor: "var(--oa-border)" }
+            }
+          >
+            {subscribed ? "Pro plan" : "Free plan"}
+          </span>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        {/* plates; the page background between them is the only divider */}
+        <div className="flex flex-col gap-6 sm:gap-8">
           <ProfileCard title="Watchlist">
             <ProfileRadarHighlight trackedCount={trackedCount} />
           </ProfileCard>
@@ -167,75 +134,61 @@ export default async function ProfilePage() {
             />
           </ProfileCard>
 
-          <div id="agent-access" className="scroll-mt-24 lg:col-span-2">
-          <ProfileCard title="Agent access">
-            <AgentAccessCard
-              isSubscribed={subscribed}
-              serverUrl={`${publicAppUrl()}/api/mcp`}
-              initialTokens={agentTokens}
-              initialUsage={agentUsage}
-            />
-          </ProfileCard>
+          <div id="agent-access" className="scroll-mt-24">
+            <ProfileCard title="Agent access">
+              <AgentAccessCard
+                isSubscribed={subscribed}
+                serverUrl={`${publicAppUrl()}/api/mcp`}
+                initialTokens={agentTokens}
+                initialUsage={agentUsage}
+              />
+            </ProfileCard>
           </div>
 
-          <ProfileCard title="Preferences" className="lg:col-span-2">
-            <div className="flex flex-col gap-3">
-              <PreferenceRow>
-                <PreferenceToggle
-                  field="email_alerts_enabled"
-                  icon="notifications"
-                  label="Alerts"
-                  description="Red-flag alerts for overbought RSI, 52-week lows, earnings next day"
-                  initialValue={userDoc?.email_alerts_enabled ?? true}
-                />
-              </PreferenceRow>
-              <PreferenceRow>
-                <PreferenceToggle
-                  field="email_digest_enabled"
-                  icon="mail"
-                  label="Market briefs"
-                  description="Short updates before the open, after the close, and each week"
-                  initialValue={userDoc?.email_digest_enabled ?? true}
-                />
-              </PreferenceRow>
-              <PreferenceRow>
-                <PreferenceStatic
-                  icon="schedule"
-                  label="Refresh cadence"
-                  description="How often your Watchlist calls refresh"
-                  badge="Coming soon"
-                />
-              </PreferenceRow>
+          <ProfileCard title="Preferences">
+            <div className="flex flex-col divide-y divide-oa-border">
+              <PreferenceToggle
+                field="email_alerts_enabled"
+                label="Alerts"
+                description="Red-flag alerts for overbought RSI, 52-week lows, earnings next day"
+                initialValue={userDoc?.email_alerts_enabled ?? true}
+              />
+              <PreferenceToggle
+                field="email_digest_enabled"
+                label="Market briefs"
+                description="Short updates before the open, after the close, and each week"
+                initialValue={userDoc?.email_digest_enabled ?? true}
+              />
+              <StaticRow
+                label="Refresh cadence"
+                description="How often your Watchlist calls refresh"
+                badge="Coming soon"
+              />
             </div>
           </ProfileCard>
 
-          <ProfileCard title="Founder line" className="lg:col-span-2">
+          <ProfileCard title="Feedback">
             <ProfileFounderFeedback embedded />
           </ProfileCard>
 
-          <ProfileCard title="Session & account" className="lg:col-span-2">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-on-surface">Sign out</p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-                    You&apos;ll need to sign back in to access your account and Pro features.
-                  </p>
-                </div>
+          <ProfileCard title="Session & account">
+            <div className="flex flex-col divide-y divide-oa-border">
+              <AccountRow
+                title="Sign out"
+                description="You'll need to sign back in to access your account and Pro features."
+              >
                 <SignOutButton />
-              </div>
-              <div className="flex flex-col gap-4 rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-on-surface">Delete account</p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-                    Permanently removes your account, Watchlist and saved preferences.
-                    {hasBillableSubscription
-                      ? " Your subscription will be scheduled to cancel at period end."
-                      : ""}
-                  </p>
-                </div>
+              </AccountRow>
+              <AccountRow
+                title="Delete account"
+                description={`Permanently removes your account, Watchlist and saved preferences.${
+                  hasBillableSubscription
+                    ? " Your subscription will be scheduled to cancel at period end."
+                    : ""
+                }`}
+              >
                 <DeleteAccountButton hasBillableSubscription={hasBillableSubscription} />
-              </div>
+              </AccountRow>
             </div>
           </ProfileCard>
         </div>
@@ -244,39 +197,46 @@ export default async function ProfilePage() {
   );
 }
 
-function PreferenceRow({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-xl border border-outline-variant/70 bg-surface-container-low/60 p-4">
-      {children}
-    </div>
-  );
-}
-
-function PreferenceStatic({
-  icon,
+function StaticRow({
   label,
   description,
   badge,
 }: {
-  icon: string;
   label: string;
   description: string;
   badge?: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <AnimatedIcon name={icon} size={18} className="mt-0.5 shrink-0 text-[18px] text-on-surface-variant" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[14px] font-semibold text-on-surface">{label}</span>
-          {badge ? (
-            <span className="rounded-md border border-outline-variant px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-              {badge}
-            </span>
-          ) : null}
-        </div>
-        <p className="mt-0.5 text-[12px] leading-relaxed text-on-surface-variant">{description}</p>
+    <div className="py-4 first:pt-1 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[15px] font-medium text-oa-fg">{label}</span>
+        {badge ? (
+          <span className="rounded-full border border-oa-border px-2 py-0.5 text-xs text-oa-muted-fg">
+            {badge}
+          </span>
+        ) : null}
       </div>
+      <p className="mt-0.5 text-sm leading-6 text-oa-muted-fg">{description}</p>
+    </div>
+  );
+}
+
+function AccountRow({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 py-4 first:pt-1 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-[15px] font-medium text-oa-fg">{title}</p>
+        <p className="mt-0.5 text-sm leading-6 text-oa-muted-fg">{description}</p>
+      </div>
+      {children}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { ScreensTableView } from "@/components/screens-table-view";
 import { getCurrentMarket } from "@/lib/market";
 import { getThematicScreens } from "@/lib/screens";
@@ -40,11 +41,11 @@ export const metadata: Metadata = {
 
 function ScreensFallback() {
   return (
-    <div className="animate-pulse rounded-[24px] border border-outline-variant bg-surface p-4">
-      <div className="mb-4 h-8 w-64 rounded bg-surface-container" />
+    <div className="animate-pulse rounded-[22px] border border-oa-border bg-oa-card p-4">
+      <div className="mb-4 h-8 w-64 rounded-full border border-oa-border bg-oa-bg" />
       <div className="flex flex-col gap-3">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-xl bg-surface-container" />
+          <div key={i} className="h-16 rounded-[18px] border border-oa-border bg-oa-bg" />
         ))}
       </div>
     </div>
@@ -58,9 +59,9 @@ async function ScreensContentStream() {
 
   if (screens.length === 0) {
     return (
-      <div className="rounded-[24px] border border-outline-variant bg-surface px-6 py-16 text-center">
-        <h2 className="text-[18px] font-semibold text-on-surface">No screens are populated yet.</h2>
-        <p className="mx-auto mt-2 max-w-[480px] text-[14px] text-on-surface-variant">
+      <div className="rounded-[22px] border border-oa-border bg-oa-card px-6 py-16 text-center shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <h2 className="text-[17px] font-medium tracking-tight text-oa-fg">No screens are populated yet.</h2>
+        <p className="mx-auto mt-2 max-w-[480px] text-sm leading-relaxed text-oa-muted-fg">
           We&apos;re computing the latest scores. Check back in a few minutes.
         </p>
       </div>
@@ -72,19 +73,20 @@ async function ScreensContentStream() {
 
 export default function ScreensIndexPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <FreeToolPageFrame toolHref="/screens">
-        <div className="flex items-center gap-3 text-[12px] text-on-surface-variant">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-2.5 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" />
+        <div className="flex items-center gap-3 text-xs text-oa-muted-fg">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-oa-accent px-2.5 py-1 font-medium text-oa-fg">
+            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
             Updated daily
           </span>
         </div>
         <Suspense fallback={<ScreensFallback />}>
           <ScreensContentStream />
         </Suspense>
-        <nav className="rounded-2xl border border-outline-variant bg-surface px-5 py-4" aria-label="Browse stock screens">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+        <nav className="rounded-[22px] border border-oa-border bg-oa-bg px-5 py-4" aria-label="Browse stock screens">
+          <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">
             Browse stock screens
           </p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
@@ -92,7 +94,7 @@ export default function ScreensIndexPage() {
               <Link
                 key={id}
                 href={`/screens/${id}`}
-                className="text-[13px] font-medium text-landing-brand hover:underline"
+                className="text-[13px] font-medium text-oa-primary underline-offset-4 hover:underline"
               >
                 {label}
               </Link>

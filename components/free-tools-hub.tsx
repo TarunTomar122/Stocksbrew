@@ -1,8 +1,7 @@
-import type { CSSProperties } from "react";
-import { AnimatedIcon } from "@/components/animated-icon";
 import Link from "next/link";
 
 import { FaqSection } from "@/components/marketing/faq-section";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import {
   ALL_FREE_TOOLS,
   FEATURED_FREE_TOOLS,
@@ -11,27 +10,27 @@ import {
   type HubLink,
 } from "@/lib/free-tools-hub-data";
 
+const EYEBROW = "text-xs uppercase tracking-[0.12em] text-oa-muted-fg";
+const H1 =
+  "text-balance font-medium tracking-tight text-oa-fg text-[2.5rem] leading-[1.06] sm:text-5xl sm:leading-[1.04]";
+const H2 = "text-[22px] font-medium tracking-tight text-oa-fg";
+
+const CARD =
+  "group flex flex-col gap-2 rounded-[22px] border border-oa-border bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)] h-full";
+
 function FeaturedToolCard({ tool }: { tool: HubLink }) {
   return (
-    <Link
-      href={tool.href}
-      className="free-tools-featured-card group"
-      style={{ "--tool-accent": tool.accent } as CSSProperties}
-    >
-      <div className="free-tools-featured-glow" aria-hidden />
-      <span className="free-tools-card-icon free-tools-card-icon--lg">
-        <AnimatedIcon name={tool.icon} size={22} aria-hidden />
+    <Link href={tool.href} className={CARD}>
+      <span className="oa-mono w-fit rounded-full bg-oa-accent px-2.5 py-0.5 text-[10px] uppercase tracking-wide text-oa-muted-fg">
+        Popular
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="free-tools-featured-label">Popular</span>
-        <h3 className="mt-1 text-[17px] font-bold tracking-tight text-on-surface group-hover:text-landing-brand transition-colors">
-          {tool.title}
-        </h3>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">{tool.description}</p>
-        <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-landing-brand">
-          Open tool
-          <AnimatedIcon name="arrow_forward" size={16} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
-        </span>
+      <h3 className="text-[17px] font-medium leading-snug tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
+        {tool.title}
+      </h3>
+      <p className="flex-1 text-[13px] leading-relaxed text-oa-muted-fg">{tool.description}</p>
+      <span className="mt-1 flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">
+        Open tool
+        <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
       </span>
     </Link>
   );
@@ -41,191 +40,144 @@ function ToolCard({ tool }: { tool: HubLink }) {
   return (
     <Link
       href={tool.href}
-      className="free-tools-card group"
-      style={{ "--tool-accent": tool.accent } as CSSProperties}
+      className="group flex items-center justify-between gap-4 rounded-[18px] border border-oa-border bg-oa-bg p-4 transition-colors duration-200 hover:bg-oa-card"
     >
-      <span className="free-tools-card-icon">
-        <AnimatedIcon name={tool.icon} size={20} aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <h3 className="text-[15px] font-semibold text-on-surface group-hover:text-landing-brand transition-colors">
+      <span className="min-w-0">
+        <h3 className="text-[15px] font-medium tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
           {tool.title}
         </h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-on-surface-variant">{tool.description}</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-oa-muted-fg">{tool.description}</p>
       </span>
-      <AnimatedIcon
-        name="arrow_forward"
-        size={18}
-        className="shrink-0 text-on-surface-variant/50 transition-all group-hover:translate-x-0.5 group-hover:text-landing-brand"
-        aria-hidden
-      />
+      <span aria-hidden className="shrink-0 text-oa-muted-fg transition-transform duration-200 group-hover:translate-x-0.5">
+        ›
+      </span>
     </Link>
   );
 }
 
 export function FreeToolsHub() {
   return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-14 px-6 py-12 md:px-10 md:py-16 lg:px-16">
-      <header className="free-tools-hub-hero">
-        <div className="free-tools-hub-hero-copy">
-          <span className="landing-section-kicker text-landing-brand">Free tools</span>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl md:text-[2.75rem] md:leading-tight">
-            Every free research tool, one place.
-          </h1>
-          <p className="mt-4 max-w-[540px] text-[16px] leading-relaxed text-on-surface-variant">
-            Check a ticker, scan the market, or size a trade. Add your favorites to Watchlist when you are
-            ready to track them daily.
+    <>
+      <OaSiteHeader />
+      <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-14 px-4 pb-20 pt-10 sm:px-6 sm:pt-16">
+        <header className="max-w-[640px]">
+          <p className={EYEBROW}>Free tools</p>
+          <h1 className={`mt-4 ${H1}`}>Every free research tool, one place</h1>
+          <p className="mt-4 text-[15px] leading-relaxed text-oa-muted-fg sm:text-base">
+            Check a ticker, scan the market, or size a trade. Add your favorites to Watchlist when you are ready to track them daily.
           </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link href="/pulse" className="landing-btn-secondary px-4 py-2 text-sm">
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Link
+              href="/pulse"
+              className="inline-flex h-11 items-center rounded-full border border-oa-border bg-oa-card px-5 text-sm font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+            >
               Market Pulse
             </Link>
-            <Link href="/watchlist" className="landing-btn-primary px-4 py-2 text-sm">
+            <Link
+              href="/watchlist"
+              className="inline-flex h-11 items-center rounded-full bg-oa-primary px-5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98]"
+            >
               Open Watchlist
             </Link>
           </div>
-          <div className="mt-8 flex flex-wrap gap-4 text-[12px] text-on-surface-variant">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" />
-              No credit card
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" />
-              US tickers
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-landing-brand" />
-              Updated daily
-            </span>
-          </div>
-        </div>
-
-        <div className="free-tools-hub-visual" aria-hidden>
-          <div className="free-tools-mock free-tools-mock--score">
-            <span className="free-tools-mock-kicker">Should I Buy?</span>
-            <div className="mt-3 flex items-end justify-between gap-3">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">NVDA</span>
-                <span className="mt-1 block text-3xl font-bold text-landing-brand">82</span>
-              </div>
-              <div className="free-tools-mock-ring" />
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {["Growth", "Quality", "Value"].map((label, i) => (
-                <div key={label} className="rounded-lg bg-surface-container-high/80 px-2 py-1.5">
-                  <span className="block text-[9px] font-medium text-on-surface-variant">{label}</span>
-                  <span className="text-[13px] font-bold text-on-surface">{[88, 76, 71][i]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="free-tools-mock free-tools-mock--heat">
-            <span className="free-tools-mock-kicker">Market Heat</span>
-            <ul className="mt-3 space-y-2">
-              {[
-                { t: "SMCI", s: 94 },
-                { t: "ARM", s: 88 },
-                { t: "PLTR", s: 81 },
-              ].map((row) => (
-                <li key={row.t} className="flex items-center justify-between gap-2 text-[12px]">
-                  <span className="font-semibold text-on-surface">{row.t}</span>
-                  <span className="rounded-full bg-orange-500/10 px-2 py-0.5 font-bold text-orange-600">{row.s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="free-tools-mock free-tools-mock--compare">
-            <span className="free-tools-mock-kicker">Compare</span>
-            <div className="mt-3 grid grid-cols-3 gap-1 text-center text-[10px] font-semibold text-on-surface-variant">
-              <span />
-              <span>AAPL</span>
-              <span className="text-landing-brand">MSFT</span>
-            </div>
-            {["P/E", "Score", "1Y"].map((row) => (
-              <div key={row} className="mt-1.5 grid grid-cols-3 gap-1 text-center text-[11px]">
-                <span className="text-left text-on-surface-variant">{row}</span>
-                <span className="text-on-surface">28.4</span>
-                <span className="rounded-md bg-landing-brand/10 font-bold text-landing-brand">32.1</span>
-              </div>
+          <div className="mt-8 flex flex-wrap gap-4 text-xs text-oa-muted-fg">
+            {["No credit card", "US tickers", "Updated daily"].map((label) => (
+              <span key={label} className="inline-flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                {label}
+              </span>
             ))}
           </div>
-        </div>
-      </header>
+        </header>
 
-      <section>
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-on-surface">Start here</h2>
-            <p className="mt-1 text-[14px] text-on-surface-variant">The tools people open most often.</p>
+        <section aria-labelledby="tools-start">
+          <div className="mb-5">
+            <h2 id="tools-start" className={H2}>Start here</h2>
+            <p className="mt-1 text-sm text-oa-muted-fg">The tools people open most often.</p>
           </div>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {FEATURED_FREE_TOOLS.map((tool) => (
-            <FeaturedToolCard key={tool.href} tool={tool} />
-          ))}
-        </div>
-      </section>
-
-      {FREE_TOOL_GROUPS.map((group) => (
-        <section key={group.title}>
-          <div className="mb-5 max-w-2xl">
-            <h2 className="text-xl font-bold text-on-surface">{group.title}</h2>
-            <p className="mt-1 text-[14px] text-on-surface-variant">{group.description}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {group.tools.map((tool) => (
-              <ToolCard key={tool.href} tool={tool} />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {FEATURED_FREE_TOOLS.map((tool) => (
+              <FeaturedToolCard key={tool.href} tool={tool} />
             ))}
           </div>
         </section>
-      ))}
 
-      <section>
-        <h2 className="text-xl font-bold text-on-surface">Free research guides</h2>
-        <p className="mt-1 text-[14px] text-on-surface-variant">Choose the tools, then use them with a repeatable process.</p>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {[
-            ["Build a $0 stock research stack", "/blog/free-stock-market-analysis-tools"],
-            ["Compare stock watchlist apps", "/blog/best-stock-watchlist-apps-2026"],
-            ["Read analyst targets correctly", "/blog/analyst-ratings-price-targets-explained"],
-          ].map(([label, href]) => (
-            <Link key={href} href={href} className="free-tools-card text-[15px] font-semibold text-on-surface hover:text-landing-brand">
-              {label}
-            </Link>
-          ))}
-        </div>
-      </section>
+        {FREE_TOOL_GROUPS.map((group) => (
+          <section key={group.title} aria-labelledby={`tools-${group.title.replace(/\s+/g, "-").toLowerCase()}`}>
+            <div className="mb-5 max-w-2xl">
+              <h2 id={`tools-${group.title.replace(/\s+/g, "-").toLowerCase()}`} className={H2}>
+                {group.title}
+              </h2>
+              <p className="mt-1 text-sm text-oa-muted-fg">{group.description}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {group.tools.map((tool) => (
+                <ToolCard key={tool.href} tool={tool} />
+              ))}
+            </div>
+          </section>
+        ))}
 
-      <section className="free-tools-quick-links">
-        <h2 className="text-lg font-bold text-on-surface">All {ALL_FREE_TOOLS.length} tools</h2>
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {ALL_FREE_TOOLS.map((t) => (
-            <li key={t.href}>
-              <Link href={t.href} className="free-tools-pill">
-                {t.title}
+        <section aria-labelledby="tools-guides">
+          <h2 id="tools-guides" className={H2}>Free research guides</h2>
+          <p className="mt-1 text-sm text-oa-muted-fg">Choose the tools, then use them with a repeatable process.</p>
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {[
+              ["Build a $0 stock research stack", "/blog/free-stock-market-analysis-tools"],
+              ["Compare stock watchlist apps", "/blog/best-stock-watchlist-apps-2026"],
+              ["Read analyst targets correctly", "/blog/analyst-ratings-price-targets-explained"],
+            ].map(([label, href]) => (
+              <Link
+                key={href}
+                href={href}
+                className="group flex items-center justify-between gap-3 rounded-[18px] border border-oa-border bg-oa-bg p-4 text-[15px] font-medium tracking-tight text-oa-fg transition-colors hover:bg-oa-card"
+              >
+                {label}
+                <span aria-hidden className="shrink-0 text-oa-muted-fg transition-transform duration-200 group-hover:translate-x-0.5">
+                  ›
+                </span>
               </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      <section className="free-tools-radar-cta">
-        <div className="free-tools-radar-cta-inner">
-          <div>
-            <h2 className="text-xl font-bold text-on-surface">Found a stock? Add it to Watchlist.</h2>
-            <p className="mt-2 max-w-md text-[14px] leading-relaxed text-on-surface-variant">
-              Free for up to three US tickers — daily briefs, alerts, and earnings intel when you are ready to go deeper.
+        <section className="flex flex-col gap-4 rounded-[22px] border border-oa-border bg-oa-bg p-6 sm:p-8" aria-labelledby="all-tools">
+          <h2 id="all-tools" className="text-[17px] font-medium tracking-tight text-oa-fg">
+            All {ALL_FREE_TOOLS.length} tools
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {ALL_FREE_TOOLS.map((t) => (
+              <li key={t.href}>
+                <Link
+                  href={t.href}
+                  className="inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
+                >
+                  {t.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="flex flex-col gap-6 rounded-[22px] border border-oa-border bg-oa-bg p-7 sm:flex-row sm:items-center sm:justify-between sm:p-10">
+          <div className="max-w-md">
+            <h2 className="text-balance text-[26px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl">
+              Found a stock? Add it to Watchlist.
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-oa-muted-fg">
+              Free for up to three US tickers. Daily briefs, alerts, and earnings intel when you are ready to go deeper.
             </p>
           </div>
-          <Link href="/watchlist" className="landing-btn-primary shrink-0 px-5 py-2.5 text-sm">
+          <Link
+            href="/watchlist"
+            className="inline-flex h-11 shrink-0 items-center rounded-full bg-oa-primary px-6 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98]"
+          >
             Open Watchlist
           </Link>
-        </div>
-      </section>
+        </section>
 
-      <FaqSection title="Free tools FAQ" faqs={FREE_TOOLS_FAQS} />
-    </div>
+        <FaqSection title="Free tools FAQ" faqs={FREE_TOOLS_FAQS} />
+      </div>
+    </>
   );
 }

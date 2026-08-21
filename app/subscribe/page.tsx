@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { AnimatedIcon } from "@/components/animated-icon";
 import { headers } from "next/headers";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { SubscribePricing } from "@/components/subscribe-pricing";
 import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
 import { SubscriptionActivator } from "@/components/subscription-activator";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 export const metadata: Metadata = {
   title: "Pricing & Plans",
@@ -49,20 +49,24 @@ export default async function SubscribePage({ searchParams }: Props) {
   const market: "US" | "IN" = ipCountry === "IN" ? "IN" : "US";
 
   return (
-    <main className="flex-grow bg-background">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <SubscriptionSuccessModal
         open={callbackSuccess && isSubscribed}
         subscriptionId={subscriptionId ?? undefined}
       />
-      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6 px-4 py-10 sm:px-6 md:py-12">
+      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6 px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
 
         {justSubscribed && !isSubscribed && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full tint-info">
-              <AnimatedIcon name="hourglass_top" size={24} className="text-accent-terminal" aria-hidden />
+            <span className="inline-flex size-12 items-center justify-center rounded-full bg-oa-accent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden className="size-6 text-oa-primary">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 3" />
+              </svg>
             </span>
-            <p className="text-[16px] font-semibold text-on-surface">Payment received. Activating your Pro…</p>
-            <p className="max-w-sm text-[14px] text-on-surface-variant">
+            <p className="text-base font-medium text-oa-fg">Payment received. Activating your Pro…</p>
+            <p className="max-w-sm text-sm leading-relaxed text-oa-muted-fg">
               We&apos;re syncing your subscription with Dodo. This usually takes a few seconds.
             </p>
             <SubscriptionActivator
@@ -75,9 +79,9 @@ export default async function SubscribePage({ searchParams }: Props) {
         )}
 
         {searchParams.from === "radar_limit" && !isSubscribed ? (
-          <div className="rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-center">
-            <p className="text-[14px] font-semibold text-on-surface">You&apos;ve hit the free 3-stock limit</p>
-            <p className="mt-1 text-[13px] text-on-surface-variant">
+          <div className="rounded-[18px] border border-oa-border bg-oa-bg px-4 py-3 text-center">
+            <p className="text-sm font-medium text-oa-fg">You&apos;ve hit the free 3-stock limit</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-oa-muted-fg">
               Upgrade to Pro to track every name you hold, or remove a stock from your Watchlist first.
             </p>
           </div>

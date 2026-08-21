@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 import { StockLogo } from "@/components/stock-logo";
 import { ShouldIBuyShare } from "@/components/should-i-buy-share";
@@ -238,7 +239,7 @@ function VerdictBadge({ verdict }: { verdict: string }) {
   const s = map[verdict] ?? map["mixed"];
   return (
     <span
-      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium"
       style={{ background: s.bg, color: s.text }}
     >
       {s.label}
@@ -256,8 +257,9 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
 
   if (!normalized) {
     return (
-      <main className="flex-grow">
-        <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16">
+      <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+        <div className="mx-auto w-full max-w-[76rem] px-4 py-10 sm:px-6 sm:py-14">
           <NoCoverageCard ticker={ticker.toUpperCase().slice(0, 16)} />
         </div>
       </main>
@@ -271,8 +273,9 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
 
   if (!stock) {
     return (
-      <main className="flex-grow">
-        <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16">
+      <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+        <div className="mx-auto w-full max-w-[76rem] px-4 py-10 sm:px-6 sm:py-14">
           <NoCoverageCard ticker={upper} />
         </div>
       </main>
@@ -287,8 +290,9 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
   // Price-only state
   if (!intel) {
     return (
-      <main className="flex-grow">
-        <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16">
+      <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+        <div className="mx-auto w-full max-w-[76rem] px-4 py-10 sm:px-6 sm:py-14">
           <PriceOnlyCard stock={stock} />
         </div>
       </main>
@@ -314,16 +318,17 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
   ] as const;
 
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-10 md:py-14">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <div className="mx-auto w-full max-w-[76rem] px-4 py-10 sm:px-6 sm:py-14">
 
         {/* Breadcrumb */}
-        <nav className="mb-8 flex items-center gap-2 text-[13px] text-[#9ca3af]">
-          <Link href="/should-i-buy" className="hover:text-[#6b7280] transition-colors">
+        <nav className="mb-8 flex items-center gap-2 text-[13px] text-[var(--oa-muted-fg)]">
+          <Link href="/should-i-buy" className="hover:text-[var(--oa-muted-fg)] transition-colors">
             Should I buy?
           </Link>
           <span>/</span>
-          <span className="text-[#374151] font-medium">{upper}</span>
+          <span className="text-[var(--oa-fg)] font-medium">{upper}</span>
         </nav>
 
         {/* ── TWO-COLUMN LAYOUT ── */}
@@ -344,22 +349,22 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
                   <StockLogo ticker={upper} logoUrl={stock.logo_url} size={48} market="US" />
                   <div className="flex flex-col gap-1">
                     <h1
-                      className="text-[15px] font-bold tracking-[-0.015em] leading-tight"
+                      className="text-[15px] font-medium tracking-[-0.015em] leading-tight"
                       style={{ color: verdict.textColor }}
                     >
                       {stock.name}
                     </h1>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[12px] font-semibold" style={{ color: verdict.textColor, opacity: 0.55 }}>
+                      <span className="text-[12px] font-medium" style={{ color: verdict.textColor, opacity: 0.55 }}>
                         {upper}
                       </span>
                       <span className="h-3 w-px" style={{ background: verdict.textColor, opacity: 0.2 }} aria-hidden />
-                      <span className="text-[13px] font-bold tabular-nums" style={{ color: verdict.textColor }}>
+                      <span className="text-[13px] font-medium tabular-nums" style={{ color: verdict.textColor }}>
                         {priceStr}
                       </span>
                       {priceChangeStr && (
                         <span
-                          className="text-[12px] font-semibold tabular-nums"
+                          className="text-[12px] font-medium tabular-nums"
                           style={{ color: (priceChange ?? 0) >= 0 ? "#059669" : "#dc2626" }}
                         >
                           {priceChangeStr}
@@ -373,13 +378,13 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
 
                 <div className="flex flex-col items-center gap-2">
                   <h2
-                    className="text-[28px] md:text-[32px] font-bold tracking-[-0.03em] leading-[1.1]"
+                    className="text-[28px] md:text-[32px] font-medium tracking-[-0.03em] leading-[1.1]"
                     style={{ color: verdict.textColor }}
                   >
                     {verdict.level}
                   </h2>
                   <div data-score-pill className="flex items-center gap-1 rounded-full px-3.5 py-1.5" style={{ background: verdict.color + "22" }}>
-                    <span className="text-[20px] font-bold leading-none tracking-[-0.03em]" style={{ color: verdict.textColor }}>
+                    <span className="text-[20px] font-medium leading-none tracking-[-0.03em]" style={{ color: verdict.textColor }}>
                       {intel.overall.score}
                     </span>
                     <span className="text-[12px] font-medium" style={{ color: verdict.textColor, opacity: 0.55 }}>
@@ -390,16 +395,16 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
               </div>
 
               {/* White bottom: reasons + action buttons */}
-              <div className="bg-white px-6 pt-6 pb-5 flex flex-col gap-5">
+              <div className="bg-oa-card px-6 pt-6 pb-5 flex flex-col gap-5">
                 {/* Tinder action row */}
                 <div data-screenshot-exclude className="flex items-center justify-center gap-10 pt-1 pb-1">
                   <Link href="/should-i-buy" className="group flex flex-col items-center gap-1.5" title="Try another">
-                    <div className="w-[52px] h-[52px] rounded-full border-2 border-[#e5e7eb] bg-white flex items-center justify-center shadow-sm group-hover:border-[#ef4444] group-hover:shadow-md transition-all">
+                    <div className="w-[52px] h-[52px] rounded-full border-2 border-[var(--oa-border)] bg-oa-card flex items-center justify-center shadow-sm group-hover:border-[#ef4444] group-hover:shadow-md transition-all">
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                        <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="#d1d5db" strokeWidth="2.2" strokeLinecap="round" />
+                        <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="var(--oa-border)" strokeWidth="2.2" strokeLinecap="round" />
                       </svg>
                     </div>
-                    <span className="text-[10px] font-semibold text-[#9ca3af] group-hover:text-[#ef4444] transition-colors">
+                    <span className="text-[10px] font-medium text-[var(--oa-muted-fg)] group-hover:text-[#ef4444] transition-colors">
                       Try another
                     </span>
                   </Link>
@@ -413,7 +418,7 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
                         <path d="M13 22.5C13 22.5 3.5 17 3.5 10C3.5 7.1 5.85 4.8 8.75 4.8C10.4 4.8 11.9 5.65 12.85 6.95C12.95 7.08 13.05 7.08 13.15 6.95C14.1 5.65 15.6 4.8 17.25 4.8C20.15 4.8 22.5 7.1 22.5 10C22.5 17 13 22.5 13 22.5Z" fill="white" />
                       </svg>
                     </div>
-                    <span className="text-[10px] font-semibold transition-colors" style={{ color: verdict.color }}>
+                    <span className="text-[10px] font-medium transition-colors" style={{ color: verdict.color }}>
                       Deep dive
                     </span>
                   </Link>
@@ -427,26 +432,26 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
 
             {/* Four-pillar grid */}
             <div>
-              <h2 className="text-[15px] font-semibold text-[#111111] tracking-[-0.01em] mb-4">
+              <h2 className="text-[15px] font-medium text-[var(--oa-fg)] tracking-[-0.01em] mb-4">
                 Four-pillar breakdown
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {pillars.map(({ label, pillar }) => (
                   <div
                     key={label}
-                    className="rounded-[16px] border border-[#e5e7eb] bg-white p-4 flex flex-col gap-3"
+                    className="rounded-[16px] border border-[var(--oa-border)] bg-oa-card p-4 flex flex-col gap-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-[#6b7280]">{label}</span>
+                      <span className="text-[12px] font-medium text-[var(--oa-muted-fg)]">{label}</span>
                       <VerdictBadge verdict={pillar.verdict} />
                     </div>
                     <div className="flex items-end gap-1">
-                      <span className="text-[32px] font-bold tracking-[-0.03em] text-[#111111] leading-none">
+                      <span className="text-[32px] font-medium tracking-[-0.03em] text-[var(--oa-fg)] leading-none">
                         {pillar.score}
                       </span>
-                      <span className="text-[13px] text-[#9ca3af] mb-0.5">/100</span>
+                      <span className="text-[13px] text-[var(--oa-muted-fg)] mb-0.5">/100</span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-[#f3f4f6] overflow-hidden">
+                    <div className="h-1.5 w-full rounded-full bg-[var(--oa-bg)] overflow-hidden">
                       <div
                         className="h-full rounded-full"
                         style={{
@@ -467,15 +472,15 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
                 style={{ background: rsi >= 70 ? "#fef2f2" : "#ecfdf5", border: `1px solid ${rsi >= 70 ? "#fecaca" : "#a7f3d0"}` }}
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] font-bold tracking-[0.06em] uppercase" style={{ color: rsi >= 70 ? "#991b1b" : "#065f46", opacity: 0.6 }}>
+                  <span className="text-[11px] font-medium tracking-[0.06em] uppercase" style={{ color: rsi >= 70 ? "#991b1b" : "#065f46", opacity: 0.6 }}>
                     Technical RSI-14
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[24px] font-bold tabular-nums" style={{ color: rsi >= 70 ? "#991b1b" : "#065f46" }}>
+                    <span className="text-[24px] font-medium tabular-nums" style={{ color: rsi >= 70 ? "#991b1b" : "#065f46" }}>
                       {rsi.toFixed(1)}
                     </span>
                     <span
-                      className="text-[11px] font-semibold rounded-full px-2.5 py-0.5"
+                      className="text-[11px] font-medium rounded-full px-2.5 py-0.5"
                       style={{ background: rsi >= 70 ? "#fecaca" : "#a7f3d0", color: rsi >= 70 ? "#991b1b" : "#065f46" }}
                     >
                       {rsi >= 70 ? "Overbought" : "Oversold"}
@@ -492,16 +497,16 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
 
             {/* Share */}
             <div className="flex flex-col gap-3">
-              <p className="text-[11px] font-semibold text-[#9ca3af] tracking-[0.08em] uppercase">
+              <p className="text-[11px] font-medium text-[var(--oa-muted-fg)] tracking-[0.08em] uppercase">
                 Share this signal
               </p>
               <ShouldIBuyShare ticker={upper} />
             </div>
 
             {/* CTA */}
-            <div className="rounded-[20px] bg-[#0052ff] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+            <div className="rounded-[20px] bg-[var(--oa-primary)] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
               <div className="flex flex-col gap-1">
-                <h2 className="text-[16px] font-bold text-white tracking-[-0.01em]">
+                <h2 className="text-[16px] font-medium text-white tracking-[-0.01em]">
                   Want this for your whole watchlist?
                 </h2>
                 <p className="text-[13px] text-white/75 leading-[1.5]">
@@ -510,14 +515,14 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
               </div>
               <Link
                 href="/"
-                className="shrink-0 rounded-[10px] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#0052ff] hover:bg-white/90 transition-colors"
+                className="shrink-0 rounded-[10px] bg-oa-card px-5 py-2.5 text-[13px] font-medium text-[var(--oa-primary)] hover:bg-oa-card/90 transition-colors"
               >
                 Explore stocksbrew →
               </Link>
             </div>
 
             {/* Disclaimer */}
-            <p className="text-[11px] text-[#9ca3af] leading-[1.6]">
+            <p className="text-[11px] text-[var(--oa-muted-fg)] leading-[1.6]">
               Not investment advice. Data-driven signals only - always do your own research.
             </p>
           </div>
@@ -534,17 +539,17 @@ export default async function ShouldIBuyTickerPage({ params }: Props) {
 function NoCoverageCard({ ticker }: { ticker: string }) {
   return (
     <div className="flex flex-col items-center text-center gap-6 py-16">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f3f4f6]">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--oa-bg)]">
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
-          <circle cx="14" cy="14" r="12" stroke="#9ca3af" strokeWidth="1.5" />
-          <path d="M14 9v5M14 18h.01" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="14" cy="14" r="12" stroke="var(--oa-muted-fg)" strokeWidth="1.5" />
+          <path d="M14 9v5M14 18h.01" stroke="var(--oa-muted-fg)" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       </div>
       <div className="flex flex-col gap-2">
-        <h1 className="text-[24px] font-bold tracking-[-0.02em] text-[#111111]">
+        <h1 className="text-[24px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">
           We don't have {ticker} yet
         </h1>
-        <p className="text-[15px] text-[#6b7280] max-w-[440px] leading-[1.55]">
+        <p className="text-[15px] text-[var(--oa-muted-fg)] max-w-[440px] leading-[1.55]">
           This ticker isn't in our coverage universe yet. You can request it and
           we'll add it to the queue.
         </p>
@@ -552,13 +557,13 @@ function NoCoverageCard({ ticker }: { ticker: string }) {
       <div className="flex flex-wrap justify-center gap-3">
         <Link
           href={`/stock/${ticker}`}
-          className="rounded-[12px] bg-[#0052ff] px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-[#0041cc] transition-colors"
+          className="rounded-[12px] bg-[var(--oa-primary)] px-5 py-2.5 text-[14px] font-medium text-white hover:bg-[#0041cc] transition-colors"
         >
           Request this stock
         </Link>
         <Link
           href="/should-i-buy"
-          className="rounded-[12px] border border-[#e5e7eb] bg-white px-5 py-2.5 text-[14px] font-medium text-[#374151] hover:bg-[#f9fafb] transition-colors"
+          className="rounded-[12px] border border-[var(--oa-border)] bg-oa-card px-5 py-2.5 text-[14px] font-medium text-[var(--oa-fg)] hover:bg-[var(--oa-bg)] transition-colors"
         >
           Try another ticker
         </Link>
@@ -587,20 +592,20 @@ function PriceOnlyCard({
 
   return (
     <div className="flex flex-col gap-8">
-      <nav className="flex items-center gap-2 text-[13px] text-[#9ca3af]">
-        <Link href="/should-i-buy" className="hover:text-[#6b7280] transition-colors">
+      <nav className="flex items-center gap-2 text-[13px] text-[var(--oa-muted-fg)]">
+        <Link href="/should-i-buy" className="hover:text-[var(--oa-muted-fg)] transition-colors">
           Should I buy?
         </Link>
         <span>/</span>
-        <span className="text-[#374151] font-medium">{stock.ticker}</span>
+        <span className="text-[var(--oa-fg)] font-medium">{stock.ticker}</span>
       </nav>
 
       <div className="flex items-center gap-4">
         <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} size={48} market="US" />
         <div>
-          <h1 className="text-[20px] font-bold text-[#111111]">{stock.name}</h1>
+          <h1 className="text-[20px] font-medium text-[var(--oa-fg)]">{stock.name}</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[15px] font-semibold text-[#111111]">
+            <span className="text-[15px] font-medium text-[var(--oa-fg)]">
               ${stock.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             {priceChangeStr && (
@@ -615,32 +620,32 @@ function PriceOnlyCard({
         </div>
       </div>
 
-      <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-6 flex flex-col gap-3">
+      <div className="rounded-[20px] border border-[var(--oa-border)] bg-oa-card p-6 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-[#f59e0b]" aria-hidden />
-          <h2 className="text-[16px] font-semibold text-[#111111]">
+          <h2 className="text-[16px] font-medium text-[var(--oa-fg)]">
             Limited analysis available
           </h2>
         </div>
-        <p className="text-[14px] text-[#6b7280] leading-[1.55]">
+        <p className="text-[14px] text-[var(--oa-muted-fg)] leading-[1.55]">
           We have price data for {stock.ticker} but our full scoring model (valuation,
           growth, quality, momentum) is still being built for this stock. Check
           back soon or explore the full stock page for more detail.
         </p>
         <Link
           href={`/stock/${stock.ticker}`}
-          className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-semibold text-[#0052ff] hover:underline"
+          className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--oa-primary)] hover:underline"
         >
           View full stock page
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-            <path d="M3 7h8M8 4l3 3-3 3" stroke="#0052ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M3 7h8M8 4l3 3-3 3" stroke="var(--oa-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
       </div>
 
       <Link
         href="/should-i-buy"
-        className="text-[14px] text-[#6b7280] hover:text-[#374151] transition-colors"
+        className="text-[14px] text-[var(--oa-muted-fg)] hover:text-[var(--oa-fg)] transition-colors"
       >
         Try another ticker
       </Link>

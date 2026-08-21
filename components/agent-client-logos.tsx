@@ -12,14 +12,14 @@ export function AgentClientLogos({ compact = false, className = "" }: { compact?
       {CLIENTS.map((client) => (
         <div
           key={client.label}
-          className={`inline-flex items-center rounded-xl border border-outline-variant bg-surface ${compact ? "gap-2 px-2.5 py-1.5" : "gap-2.5 px-3 py-2"}`}
+          className={`inline-flex items-center rounded-xl border border-oa-border bg-oa-card ${compact ? "gap-2 px-2.5 py-1.5" : "gap-2.5 px-3 py-2"}`}
         >
           <span className={compact ? "h-4 w-4" : "h-5 w-5"}>
             <img src={client.icon} alt="" className={`h-full w-full object-contain ${client.invertInDark ? "dark:invert" : ""}`} />
           </span>
           <span className="text-left">
-            <span className={`block font-semibold leading-none text-on-surface ${compact ? "text-[11px]" : "text-[12px]"}`}>{client.label}</span>
-            {!compact ? <span className="mt-1 block font-mono text-[8px] uppercase tracking-[0.08em] text-on-surface-variant">{client.detail}</span> : null}
+            <span className={`block font-medium leading-none text-oa-fg ${compact ? "text-[11px]" : "text-[12px]"}`}>{client.label}</span>
+            {!compact ? <span className="mt-1 block font-mono text-[8px] uppercase tracking-[0.08em] text-oa-muted-fg">{client.detail}</span> : null}
           </span>
         </div>
       ))}
@@ -37,7 +37,7 @@ export function AgentChannelLogos({ className = "" }: { className?: string }) {
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`} aria-label="Agent delivery channels">
       {CHANNELS.map((channel) => (
-        <span key={channel.label} className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-on-surface">
+        <span key={channel.label} className="inline-flex items-center gap-2 rounded-xl border border-oa-border bg-oa-card px-2.5 py-1.5 text-[11px] font-medium text-oa-fg">
           <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" style={{ color: channel.color }}><path d={channel.path} fill="currentColor" /></svg>
           {channel.label}
         </span>

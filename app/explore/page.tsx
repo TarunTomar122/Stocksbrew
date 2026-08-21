@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 
 import { ExploreStream } from "@/components/explore-stream";
 import { ExplorePageSkeleton } from "@/components/explore-skeleton";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: "Explore Stocks",
   description:
-    "Discover stocks: most traded names, stocks near their 52-week high or low, breakout setups, and what's trending on Reddit.",
+    "See what's moving before the crowd does: live scans for hot stocks, momentum, 52-week breakouts, news spikes, oversold dips, Reddit buzz and Trump mentions.",
   keywords: [
     "stock screener",
     "most traded stocks",
@@ -21,24 +22,25 @@ export const metadata: Metadata = {
   alternates: { canonical: "/explore" },
   openGraph: {
     title: "Explore Stocks · stocksbrew",
-    description: "Most traded names, 52-week range, breakouts, and Reddit stocks in one place.",
+    description:
+      "Live market scans: heat, momentum, breakouts and Reddit buzz. See what's moving before the crowd does.",
     url: "https://www.stocksbrew.online/explore",
   },
   twitter: {
     card: "summary_large_image",
     title: "Explore Stocks · stocksbrew",
-    description: "Most traded names, 52-week range, breakouts, and Reddit stocks in one place.",
+    description:
+      "Live market scans: heat, momentum, breakouts and Reddit buzz. See what's moving before the crowd does.",
   },
 };
 
 export default function ExplorePage() {
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-[72rem] px-5 py-8 md:px-8 md:py-10">
-        <Suspense fallback={<ExplorePageSkeleton />}>
-          <ExploreStream />
-        </Suspense>
-      </div>
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <Suspense fallback={<ExplorePageSkeleton />}>
+        <ExploreStream />
+      </Suspense>
     </main>
   );
 }

@@ -69,7 +69,9 @@ const getLandingAnomalies = cache(async () => {
   return doc?.anomalies ?? [];
 });
 
-async function resolveLandingHeroFeatured(
+export { getLandingAnomalies };
+
+export async function resolveLandingHeroFeatured(
   anomalies: AnomalyItem[],
 ): Promise<{ anomaly: AnomalyItem; priceHistory: PriceHistoryPoint[] } | null> {
   const market = getCurrentMarket();

@@ -1,10 +1,11 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
-
 import { signOut } from "firebase/auth";
 import { useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase-client";
+
+const GHOST_PILL =
+  "inline-flex h-8 cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 text-sm font-medium outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
 
 export function SignOutButton() {
   const [busy, setBusy] = useState(false);
@@ -27,9 +28,8 @@ export function SignOutButton() {
       type="button"
       onClick={handleSignOut}
       disabled={busy}
-      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-signal-bearish border border-signal-bearish/30 hover:bg-signal-bearish/10 transition-colors rounded-full disabled:opacity-60"
+      className={`${GHOST_PILL} shrink-0 text-oa-muted-fg hover:text-oa-fg`}
     >
-      <AnimatedIcon name="logout" size={16} className="text-base" />
       {busy ? "Signing out…" : "Sign out"}
     </button>
   );

@@ -43,7 +43,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
-  const isHome = pathname === "/";
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -168,7 +167,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             </nav>
           </div>
 
-          {!isHome ? (
           <div className="hidden min-w-0 flex-1 justify-end px-2 md:flex">
             <TickerSearchField
               variant="header"
@@ -178,10 +176,8 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
               analyticsSource="desktop_header"
             />
           </div>
-          ) : null}
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            {!isHome ? (
             <button
               type="button"
               aria-label="Search"
@@ -190,7 +186,6 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
             >
               <AnimatedIcon name="search" size={21} />
             </button>
-            ) : null}
 
             <AuthButton />
           </div>

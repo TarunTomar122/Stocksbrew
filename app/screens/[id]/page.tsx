@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { ScreenMatchesTable } from "@/components/screen-matches-table";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { getCurrentMarket } from "@/lib/market";
 import { scrubLegacyBrand } from "@/lib/brand";
 import { getScreenById } from "@/lib/screens";
@@ -61,8 +62,8 @@ const SCREEN_META: Record<
 > = {
   tikrr_top:           { icon: "✦",  color: "#7c3aed", fg: "#ffffff", kicker: "Composite" },
   quality_compounders: { icon: "Q",  color: "#10b981", fg: "#ffffff", kicker: "Quality" },
-  cheap_growth:        { icon: "↗",  color: "#0052ff", fg: "#ffffff", kicker: "Growth value" },
-  momentum_leaders:    { icon: "▲",  color: "#f59e0b", fg: "#111111", kicker: "Momentum" },
+  cheap_growth:        { icon: "↗",  color: "var(--oa-primary)", fg: "#ffffff", kicker: "Growth value" },
+  momentum_leaders:    { icon: "▲",  color: "#f59e0b", fg: "var(--oa-fg)", kicker: "Momentum" },
   oversold_quality:    { icon: "↓",  color: "#ef4444", fg: "#ffffff", kicker: "Mean reversion" },
   near_52w_high:       { icon: "↑",  color: "#10b981", fg: "#ffffff", kicker: "Breakouts" },
   smart_money:         { icon: "●",  color: "#1c1c1e", fg: "#ffffff", kicker: "Institutional" },
@@ -123,62 +124,63 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
   };
 
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-12 md:py-16 flex flex-col gap-10">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <div className="mx-auto w-full max-w-[76rem] px-4 py-10 flex flex-col gap-10 sm:px-6 sm:py-14">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-[13px] text-[#6b7280]">
+        <nav className="flex items-center gap-1.5 text-[13px] text-[var(--oa-muted-fg)]">
           <Link
             href="/screens"
-            className="hover:text-[#111111] transition-colors"
+            className="hover:text-[var(--oa-fg)] transition-colors"
           >
             Screens
           </Link>
-          <span className="text-[#d1d5db]">/</span>
-          <span className="text-[#111111]">{display.title}</span>
+          <span className="text-[var(--oa-border)]">/</span>
+          <span className="text-[var(--oa-fg)]">{display.title}</span>
         </nav>
 
         {/* Header */}
         <header className="flex flex-col gap-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-[0.05em] uppercase"
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium tracking-[0.05em] uppercase"
               style={{ background: `${meta.color}1A`, color: meta.color }}
             >
               <span aria-hidden>{meta.icon}</span>
               {meta.kicker}
             </span>
-            <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+            <span className="text-[11px] font-medium tracking-[0.1em] uppercase text-[var(--oa-muted-fg)]">
               {market}
             </span>
           </div>
 
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div className="flex flex-col gap-2 max-w-[680px]">
-              <h1 className="text-[30px] md:text-[36px] font-semibold tracking-[-0.02em] text-[#111111] leading-[1.15]">
+              <h1 className="text-[30px] md:text-[36px] font-medium tracking-[-0.02em] text-[var(--oa-fg)] leading-[1.15]">
                 {display.title}
               </h1>
-              <p className="text-[15px] text-[#4a4d55] leading-[1.55]">
+              <p className="text-[15px] text-oa-muted-fg leading-[1.55]">
                 {display.subtitle}
               </p>
             </div>
             <div className="flex items-baseline gap-2 tabular-nums">
-              <span className="text-[28px] font-semibold text-[#111111] leading-none">
+              <span className="text-[28px] font-medium text-[var(--oa-fg)] leading-none">
                 {screen.match_count}
               </span>
-              <span className="text-[12px] font-medium text-[#6b7280]">
+              <span className="text-[12px] font-medium text-[var(--oa-muted-fg)]">
                 {screen.match_count === 1 ? "match" : "matches"}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[13px] text-[#6b7280] flex-wrap pt-1 border-t border-[#f3f4f6]">
-            <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+          <div className="flex items-center gap-2 text-[13px] text-[var(--oa-muted-fg)] flex-wrap pt-1 border-t border-[var(--oa-bg)]">
+            <span className="text-[11px] font-medium tracking-[0.1em] uppercase text-[var(--oa-muted-fg)]">
               Rule
             </span>
-            <span className="text-[13px] text-[#374151]">
+            <span className="text-[13px] text-[var(--oa-fg)]">
               {screen.hook}
             </span>
-            <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-[#6b7280]">
+            <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-[var(--oa-muted-fg)]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
               Refreshes daily
             </span>
@@ -188,10 +190,10 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
         {/* Column legend */}
         <section className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <h2 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h2 className="text-[14px] font-medium text-[var(--oa-fg)] tracking-[-0.01em]">
               How to read this table
             </h2>
-            <span className="text-[12px] text-[#6b7280]">
+            <span className="text-[12px] text-[var(--oa-muted-fg)]">
               All scores 0–100 · higher is better
             </span>
           </div>
@@ -199,17 +201,17 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
             {COLUMN_LEGEND.map((c) => (
               <div
                 key={c.label}
-                className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-4"
+                className="flex flex-col gap-2 rounded-2xl border border-[var(--oa-border)] bg-oa-card p-4"
               >
-                <span className="text-[13px] font-semibold text-[#111111] tracking-[-0.01em]">
+                <span className="text-[13px] font-medium text-[var(--oa-fg)] tracking-[-0.01em]">
                   {c.label}
                 </span>
-                <p className="text-[12px] text-[#6b7280] leading-snug">
+                <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug">
                   {c.body}
                 </p>
                 <span
                   className={`inline-flex items-center gap-1 text-[11px] font-medium mt-1 ${
-                    c.label === "Signal" ? "text-[#6b7280]" : "text-[#10b981]"
+                    c.label === "Signal" ? "text-[var(--oa-muted-fg)]" : "text-[#10b981]"
                   }`}
                 >
                   {c.label !== "Signal" && <span aria-hidden>↑</span>}
@@ -227,18 +229,18 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
         />
 
         {/* CTA */}
-        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-5">
+        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-[24px] border border-[var(--oa-border)] bg-oa-card px-6 py-5">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#6b7280]">
+            <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)]">
               Want this screen in your inbox?
             </span>
-            <span className="text-[14px] text-[#111111] leading-snug max-w-[520px]">
+            <span className="text-[14px] text-[var(--oa-fg)] leading-snug max-w-[520px]">
               Subscribers get daily updates on new matches, drop-offs and Watchlist alerts when a screen they follow changes.
             </span>
           </div>
           <Link
             href="/subscribe"
-            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0 w-fit"
+            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[var(--oa-fg)] text-white text-[13px] font-medium tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0 w-fit"
           >
             Save this screen
           </Link>

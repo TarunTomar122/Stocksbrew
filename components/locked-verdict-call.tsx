@@ -11,7 +11,7 @@ import type { StockReturns } from "@/lib/chart-range";
 import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
 import type { StockTechnicalLevels } from "@/lib/technicals";
 
-const KICK = "font-mono text-[11px] uppercase tracking-[0.13em] text-on-surface-variant";
+const KICK = "text-xs uppercase tracking-[0.12em] text-oa-muted-fg";
 
 type Point = { date: string; close: number };
 
@@ -40,9 +40,9 @@ function LockIcon() {
 function MaskedRow({ label, width = "3.5rem" }: { label: string; width?: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-on-surface-variant">{label}</span>
+      <span className={KICK}>{label}</span>
       <span
-        className="h-[15px] rounded-[3px] bg-[repeating-linear-gradient(-45deg,var(--surface-container-high),var(--surface-container-high)_5px,var(--surface-container)_5px,var(--surface-container)_10px)]"
+        className="h-[15px] rounded-[3px] bg-[repeating-linear-gradient(-45deg,var(--oa-secondary),var(--oa-secondary)_5px,var(--oa-bg)_5px,var(--oa-bg)_10px)]"
         style={{ width }}
         aria-hidden
       />
@@ -56,27 +56,27 @@ function MaskedCall() {
   return (
     <div className="relative select-none" aria-hidden>
       <div className="flex items-center gap-2">
-        <span className={KICK} style={{ color: "color-mix(in srgb, var(--primary) 55%, var(--on-surface-variant))" }}>
-          our call
+        <span className={KICK} style={{ color: "var(--oa-primary)" }}>
+          Our call
         </span>
         <LockIcon />
       </div>
       <div className="mt-2 flex items-end gap-3">
-        <span className="h-[2.1rem] w-[8.5rem] rounded-md bg-[repeating-linear-gradient(-45deg,var(--surface-container-high),var(--surface-container-high)_6px,var(--surface-container)_6px,var(--surface-container)_12px)]" />
+        <span className="h-[2.1rem] w-[8.5rem] rounded-md bg-[repeating-linear-gradient(-45deg,var(--oa-secondary),var(--oa-secondary)_6px,var(--oa-bg)_6px,var(--oa-bg)_12px)]" />
         <span className="mb-1 flex gap-1">
           {[0, 1, 2, 3, 4].map((i) => (
-            <span key={i} className="h-1.5 w-1.5 rounded-full bg-surface-container-high" />
+            <span key={i} className="h-1.5 w-1.5 rounded-full bg-oa-secondary" />
           ))}
         </span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-4">
-        <MaskedRow label="entry zone" width="4.5rem" />
-        <MaskedRow label="target" width="3.5rem" />
-        <MaskedRow label="risk / stop" width="3.5rem" />
+        <MaskedRow label="Add zone" width="4.5rem" />
+        <MaskedRow label="Target" width="3.5rem" />
+        <MaskedRow label="Trim zone" width="3.5rem" />
       </div>
       <div className="mt-5 space-y-2">
-        <span className="block h-[11px] w-full max-w-md rounded-[3px] bg-surface-container" />
-        <span className="block h-[11px] w-[82%] max-w-md rounded-[3px] bg-surface-container" />
+        <span className="block h-[11px] w-full max-w-md rounded-[3px] bg-oa-secondary" />
+        <span className="block h-[11px] w-[82%] max-w-md rounded-[3px] bg-oa-secondary" />
       </div>
     </div>
   );
@@ -108,13 +108,13 @@ function VerdictUnlockCard({
   return (
     <div className="mx-auto w-full max-w-[24rem] text-left">
       <div className="flex items-center gap-2.5">
-        <span className="grid h-8 w-8 place-items-center rounded-full border border-outline-variant bg-surface"><LockIcon /></span>
-        <p className="text-[17px] font-extrabold tracking-[-0.015em] text-on-surface">See the full {ticker} research</p>
+        <span className="grid size-8 place-items-center rounded-full border border-oa-border bg-oa-bg"><LockIcon /></span>
+        <p className="text-[17px] font-medium tracking-tight text-oa-fg">See the full {ticker} research</p>
       </div>
-      <ul className="mt-4 space-y-2 text-[12.5px] text-on-surface/85">
+      <ul className="mt-4 space-y-2 text-sm leading-6 text-oa-muted-fg">
         {["Buy, hold or avoid view", "Entry, target and exit prices", "News, earnings and price alerts"].map((item) => (
-          <li key={item} className="flex items-center gap-2">
-            <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--signal-bullish)_13%,transparent)] text-[10px] font-bold text-[var(--signal-bullish)]">✓</span>
+          <li key={item} className="flex items-start gap-2">
+            <span className="mt-[9px] size-1.5 shrink-0 rounded-full" style={{ background: "var(--signal-bullish)" }} aria-hidden />
             {item}
           </li>
         ))}
@@ -122,13 +122,13 @@ function VerdictUnlockCard({
       <button
         type="button"
         onClick={() => onClick()}
-        className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-lg bg-primary px-5 py-3 text-[13px] font-bold leading-none text-on-primary transition-opacity hover:opacity-90"
+        className="mt-4 inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] px-5 py-2.5 text-sm font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(58,52,128,0.30)] transition-all hover:bg-oa-primary active:translate-y-px active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:pointer-events-none disabled:opacity-50"
       >
         {label}
       </button>
-      <p className="mt-2 text-center text-[10.5px] text-on-surface-variant">{subtext}</p>
+      <p className="mt-2 text-center text-xs text-oa-muted-fg">{subtext}</p>
       {error ? (
-        <p className="mt-2 text-[12px] font-medium text-[#ef4444]">{error}</p>
+        <p className="mt-2 text-center text-sm font-medium text-[#ef4444]">{error}</p>
       ) : null}
     </div>
   );
@@ -156,25 +156,25 @@ function FreeShelf({
     <div className="space-y-2.5">
       {hasScore ? (
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span className={KICK}>fundamentals</span>
-          <span className="font-mono text-[13px] font-bold tabular-nums text-on-surface">
+          <span className={KICK}>Fundamentals</span>
+          <span className="oa-mono text-[13px] font-medium tabular-nums text-oa-fg">
             {score}
-            <span className="font-normal text-on-surface-variant"> /100 vs peers</span>
+            <span className="font-normal text-oa-muted-fg"> /100 vs peers</span>
           </span>
         </div>
       ) : null}
 
       {overviewHeadline ? (
         <div>
-          <p className={KICK}>why it matters</p>
-          <p className="mt-1 text-[14px] font-semibold leading-snug tracking-[-0.01em] text-on-surface">
+          <p className={KICK}>Why it matters</p>
+          <p className="mt-1 text-[15px] font-medium leading-snug text-oa-fg">
             {overviewHeadline}
           </p>
         </div>
       ) : null}
 
       {earningsSoon && !overviewHeadline ? (
-        <p className="text-[13px] leading-relaxed text-on-surface-variant">
+        <p className="text-sm leading-6 text-oa-muted-fg">
           Earnings in {preEarningsDays}d on {ticker}. Pro unlocks our setup and levels to watch.
         </p>
       ) : null}
@@ -242,11 +242,11 @@ export function LockedVerdictCall({
         fundamentalsScore={fundamentalsScore}
         preEarningsDays={preEarningsDays}
       />
-      <div className="relative min-h-[250px] overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low/35">
+      <div className="relative min-h-[250px] overflow-hidden rounded-[22px] border border-oa-border bg-oa-bg sm:rounded-[44px] sm:[--card-clip-radius:17px]">
         <div className="pointer-events-none p-5 opacity-80 blur-[4px]" aria-hidden>
           <MaskedCall />
         </div>
-        <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--surface)_86%,transparent)_0%,color-mix(in_srgb,var(--surface)_68%,transparent)_58%,color-mix(in_srgb,var(--surface-container-low)_42%,transparent)_100%)] p-5">
+        <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--oa-bg)_86%,transparent)_0%,color-mix(in_srgb,var(--oa-bg)_68%,transparent)_58%,color-mix(in_srgb,var(--oa-bg)_42%,transparent)_100%)] p-5">
           <VerdictUnlockCard
             ticker={ticker}
             signedIn={signedIn}
@@ -267,7 +267,7 @@ export function LockedVerdictCall({
       returns={returns}
       currency={currency}
       zones={[]}
-      lineColor="var(--on-surface-variant)"
+      lineColor="var(--oa-muted-fg)"
       currentPrice={currentPrice}
       technicalLevels={technicalLevels}
     />

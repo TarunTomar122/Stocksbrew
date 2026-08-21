@@ -235,12 +235,12 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
 
   const imgBtnStyle =
     imgState === "copied"
-      ? "bg-[#10b981] border-[#10b981] text-white"
+      ? "bg-emerald-600 border-emerald-600 text-white"
       : imgState === "error"
-      ? "bg-[#fef2f2] border-[#fca5a5] text-[#991b1b]"
+      ? "bg-red-50 border-red-200 text-red-700"
       : imgState === "loading"
-      ? "bg-[#f9fafb] border-[#e5e7eb] text-[#6b7280] cursor-wait"
-      : "bg-[#111111] border-[#111111] text-white hover:bg-[#1f1f1f]";
+      ? "bg-oa-bg border-oa-border text-oa-muted-fg cursor-wait"
+      : "bg-oa-primary border-oa-primary text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)]";
 
   return (
     <div className="flex flex-col gap-3">
@@ -248,7 +248,7 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
       <button
         onClick={handleCopyImage}
         disabled={imgState === "loading"}
-        className={`w-full flex items-center justify-center gap-2 rounded-[14px] border px-5 py-3.5 text-[14px] font-semibold transition-all ${imgBtnStyle}`}
+        className={`flex w-full items-center justify-center gap-2 rounded-full border px-5 py-3.5 text-sm font-medium transition-all active:translate-y-px active:scale-[0.98] ${imgBtnStyle}`}
       >
         {imgBtnContent}
       </button>
@@ -257,11 +257,11 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
       <div className="flex gap-2">
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1.5 rounded-[11px] border border-[#e5e7eb] bg-white px-4 py-2.5 text-[12px] font-medium text-[#374151] hover:bg-[#f9fafb] transition-colors"
+          className="flex items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-4 py-2.5 text-xs font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
-            <path d="M6.5 1v7M4.5 6.5l2 2 2-2" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M1.5 10.5h10" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M6.5 1v7M4.5 6.5l2 2 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M1.5 10.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
           Download
         </button>
@@ -269,12 +269,12 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
         <button
           onClick={handleShareOnX}
           disabled={xState === "loading"}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-[11px] px-4 py-2.5 text-[12px] font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-medium transition-colors ${
             xState === "done"
-              ? "bg-[#10b981] text-white"
+              ? "bg-emerald-600 text-white"
               : xState === "loading"
-              ? "bg-[#333] text-white cursor-wait"
-              : "bg-black text-white hover:bg-[#1a1a1a]"
+              ? "bg-neutral-700 text-white cursor-wait"
+              : "bg-neutral-900 text-white hover:bg-neutral-800"
           }`}
         >
           {xState === "loading" ? (
@@ -303,20 +303,20 @@ export function ShouldIBuyShare({ ticker, cardElementId = "should-i-buy-card" }:
 
         <button
           onClick={handleCopyLink}
-          className="flex items-center gap-1.5 rounded-[11px] border border-[#e5e7eb] bg-white px-4 py-2.5 text-[12px] font-medium text-[#374151] hover:bg-[#f9fafb] transition-colors"
+          className="flex items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-4 py-2.5 text-xs font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
         >
           {linkCopied ? (
             <>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
                 <path d="M2 6.5l2.5 2.5 5.5-5" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Copied!
+              Copied
             </>
           ) : (
             <>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
-                <path d="M5 6.5a2.5 2.5 0 003.7.3l1.3-1.3a2.5 2.5 0 00-3.5-3.5l-.7.7" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
-                <path d="M8 6.5a2.5 2.5 0 01-3.7-.3L3 4.9a2.5 2.5 0 013.5 3.5l-.7.7" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M5 6.5a2.5 2.5 0 003.7.3l1.3-1.3a2.5 2.5 0 00-3.5-3.5l-.7.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M8 6.5a2.5 2.5 0 01-3.7-.3L3 4.9a2.5 2.5 0 013.5 3.5l-.7.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
               Copy link
             </>

@@ -7,7 +7,7 @@ Stocksbrew exposes its existing Pro intelligence through a hosted MCP server and
 - Remote MCP endpoint: `https://www.stocksbrew.online/api/mcp`
 - REST base: `https://www.stocksbrew.online/api/v1`
 - OpenAPI: `https://www.stocksbrew.online/api/v1/openapi.json`
-- Pro allowance: 500 tool/API calls per calendar month and 30 calls per minute
+- Pro allowance: 200 tool/API calls per UTC day and 30 calls per minute
 - Personal tokens: up to five active tokens; raw secrets are displayed once and stored only as SHA-256 hashes
 - OAuth: Authorization Code with PKCE S256, rate-limited Dynamic Client Registration, one-hour access tokens, and rotating 30-day refresh tokens
 - Access is scoped and rechecked against current Pro subscription state on every authenticated request
@@ -52,7 +52,7 @@ The agent contract returns bounded product context and Stocksbrew synthesis. It 
 ## Firestore collections
 
 - `tm_agent_tokens`: hash-only personal, OAuth access, and refresh tokens
-- `tm_agent_usage`: transactional monthly and per-minute call counters
+- `tm_agent_usage`: transactional daily and per-minute call counters
 - `tm_agent_oauth_clients`: dynamically registered public OAuth clients
 - `tm_agent_oauth_codes`: short-lived, single-use PKCE authorization codes
 - `tm_agent_oauth_registration_limits`: hashed-network daily registration counters

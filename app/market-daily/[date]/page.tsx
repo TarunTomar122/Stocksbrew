@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -264,7 +265,8 @@ export default async function MarketDailyEditionPage({ params }: Props) {
   };
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} oa-landing`}>
+      <OaSiteHeader />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
