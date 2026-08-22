@@ -6,9 +6,11 @@ import { OaHeroSearch } from "@/components/oa/oa-hero-search";
 import { OaButton } from "@/components/oa/button";
 import { StartFreeButton } from "@/components/oa/start-free-button";
 import { SquircleCard, SquircleSurface } from "@/components/oa/squircle";
+import { AnimatedIcon } from "@/components/animated-icon";
 import { Reveal } from "@/components/reveal";
 import { allBlogPosts } from "@/lib/blog-data";
 import { listMarketDailyEditions } from "@/lib/market-daily";
+import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import {
   HERO_HEADLINE_EMPHASIS,
   HERO_HEADLINE_LEAD,
@@ -471,51 +473,40 @@ export async function OaLanding() {
           {!user.isSubscribed ? (
             <section id="pricing" className="scroll-mt-24">
             <Reveal>
-              <SquircleSurface className="border border-oa-border p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-10">
-                <div className="mx-auto mb-8 max-w-xl text-center">
-                  <h2 className={H2}>Free to start. Pro when you follow more names.</h2>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-[18px] border border-oa-border bg-oa-bg p-5 sm:p-6">
-                    <p className="text-base font-medium text-oa-fg">Free</p>
-                    <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight text-oa-fg">
-                      $0
-                      <span className="ml-1 text-base font-normal text-oa-muted-fg">forever</span>
-                    </p>
-                    <ul className="mt-5 space-y-2.5 text-base leading-6 text-oa-muted-fg">
-                      <li>Search any US stock</li>
-                      <li>Plain-English briefs</li>
-                      <li>Track 3 stocks</li>
-                    </ul>
-                    <div className="mt-6">
-                      <StartFreeButton surface="landing_pro_preview" size="sm" variant="secondary" label="Start free" />
-                    </div>
+              <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                <div className="rounded-[22px] bg-oa-bg px-6 py-10 sm:rounded-[44px] sm:px-10 sm:py-14">
+                  <div className="mx-auto max-w-xl text-center">
+                    <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl">
+                      Free to start. Pro when you follow more names.
+                    </h2>
                   </div>
-                  <div className="rounded-[18px] border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-oa-bg p-5 sm:p-6">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-base font-medium text-oa-fg">Pro</p>
-                      <span className="rounded-full bg-oa-secondary px-2 py-0.5 text-base text-oa-secondary-fg">
-                        3-day full trial
-                      </span>
-                    </div>
-                    <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight text-oa-fg">
-                      ${US_PRO_MONTHLY}
-                      <span className="ml-1 text-base font-normal text-oa-muted-fg">/mo</span>
+                  <ul className="mx-auto mt-10 grid max-w-3xl gap-x-8 gap-y-8 sm:grid-cols-2">
+                    {PRO_POINTS.map((point) => (
+                      <li key={point.icon} className="flex items-start gap-3.5">
+                        <span
+                          aria-hidden="true"
+                          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-oa-card text-oa-fg/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [&_svg]:size-[18px]"
+                        >
+                          <AnimatedIcon name={point.icon} size={18} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[17px] font-medium leading-6 text-oa-fg">{point.title}</span>
+                          <span className="mt-0.5 block text-[16px] leading-6 text-oa-muted-fg">{point.body}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                    <StartFreeButton surface="landing_pro_preview" size="sm" label="Try Pro" className="h-11 px-6 text-base" />
+                    <p className="text-[16.5px] text-oa-muted-fg">
+                      <span className="font-medium tabular-nums text-oa-fg">${US_PRO_MONTHLY}/mo</span> · 3-day full trial · cancel anytime
                     </p>
-                    <ul className="mt-5 space-y-2.5 text-base leading-6 text-oa-muted-fg">
-                      <li>Unlimited tracked stocks</li>
-                      <li>Calls, price zones and targets</li>
-                      <li>Earnings and price-level alerts</li>
-                      <li>Use it inside your AI agent</li>
-                    </ul>
-                    <div className="mt-6">
-                      <StartFreeButton surface="landing_pro_preview" size="sm" label="Try Pro" />
-                    </div>
                   </div>
+                  <p className="mt-6 text-center text-[13px] text-oa-muted-fg">
+                    Free forever: search any US stock, plain-English briefs, track 3 stocks.{" "}
+                    <StartFreeButton surface="landing_pro_preview" size="sm" variant="secondary" label="Start free" className="ml-1 h-8 px-3 text-[13px] align-middle" />
+                  </p>
                 </div>
-                <p className="mt-6 text-center text-base text-oa-muted-fg">
-                  Cancel anytime, keep access until the period ends.
-                </p>
               </SquircleSurface>
             </Reveal>
           </section>
