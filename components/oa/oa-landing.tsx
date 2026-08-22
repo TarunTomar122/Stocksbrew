@@ -8,6 +8,7 @@ import { StartFreeButton } from "@/components/oa/start-free-button";
 import { SquircleCard, SquircleSurface } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
 import { allBlogPosts } from "@/lib/blog-data";
+import { listMarketDailyEditions } from "@/lib/market-daily";
 import {
   HERO_HEADLINE_EMPHASIS,
   HERO_HEADLINE_LEAD,
@@ -202,50 +203,52 @@ async function HeroBriefCard() {
   }
 
   return (
-    <figure className="w-full">
-      <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center justify-between gap-2 pb-2 pl-3.5 pr-2 pt-1.5">
-          <h2 className="ml-1 flex items-center gap-2 text-base font-medium text-oa-fg/80">
-            <span className="relative flex size-2" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+    <a href={`/stock/${anomaly.ticker}`} className="group w-full block">
+      <figure className="w-full">
+        <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors group-hover:border-oa-accent">
+          <div className="flex items-center justify-between gap-2 pb-2 pl-3.5 pr-2 pt-1.5">
+            <h2 className="ml-1 flex items-center gap-2 text-base font-medium text-oa-fg/80">
+              <span className="relative flex size-2" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+              </span>
+              Live brief
+            </h2>
+            <span className="oa-mono rounded-full bg-oa-accent px-2 py-1 text-base text-oa-muted-fg">
+              {anomaly.ticker}
             </span>
-            Live brief
-          </h2>
-          <span className="oa-mono rounded-full bg-oa-accent px-2 py-1 text-base text-oa-muted-fg">
-            {anomaly.ticker}
-          </span>
-        </div>
-        <SquircleSurface
-          className="rounded-[22px] border border-oa-border bg-oa-bg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [--card-clip-radius:12px] sm:p-5 sm:rounded-[44px] sm:[--card-clip-radius:17px]"
-        >
-          <div className="flex items-center gap-2.5">
-            <StockLogo ticker={anomaly.ticker} market={market === "IN" ? "IN" : "US"} size={26} circle eager />
-            <p className="min-w-0 truncate text-base text-oa-muted-fg">{anomaly.name}</p>
           </div>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-3xl font-medium tabular-nums tracking-tight text-oa-fg sm:text-4xl">
-              ${anomaly.price?.toFixed(2)}
-            </span>
-            <ChangeText pct={anomaly.day_change_pct ?? 0} className="text-base font-medium" />
-          </div>
-          <p className="mt-3 line-clamp-2 text-base leading-6 text-oa-fg/80">{why}</p>
-          {stats.length > 0 ? (
-            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-oa-border pt-3 sm:grid-cols-4">
-              {stats.map((s) => (
-                <BriefStat key={s.label} {...s} />
-              ))}
+          <SquircleSurface
+            className="rounded-[22px] border border-oa-border bg-oa-bg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [--card-clip-radius:12px] sm:p-5 sm:rounded-[44px] sm:[--card-clip-radius:17px]"
+          >
+            <div className="flex items-center gap-2.5">
+              <StockLogo ticker={anomaly.ticker} market={market === "IN" ? "IN" : "US"} size={26} circle eager />
+              <p className="min-w-0 truncate text-base text-oa-muted-fg">{anomaly.name}</p>
             </div>
-          ) : null}
-          <div className="mt-3">
-            <Sparkline closes={closes} />
-          </div>
+            <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-3xl font-medium tabular-nums tracking-tight text-oa-fg sm:text-4xl">
+                ${anomaly.price?.toFixed(2)}
+              </span>
+              <ChangeText pct={anomaly.day_change_pct ?? 0} className="text-base font-medium" />
+            </div>
+            <p className="mt-3 line-clamp-2 text-base leading-6 text-oa-fg/80">{why}</p>
+            {stats.length > 0 ? (
+              <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-oa-border pt-3 sm:grid-cols-4">
+                {stats.map((s) => (
+                  <BriefStat key={s.label} {...s} />
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-3">
+              <Sparkline closes={closes} />
+            </div>
+          </SquircleSurface>
         </SquircleSurface>
-      </SquircleSurface>
-      <figcaption className="mt-3 text-center text-base text-oa-muted-fg">
-        A real brief from today&apos;s market. Every stock gets one.
-      </figcaption>
-    </figure>
+        <figcaption className="mt-3 text-center text-base text-oa-muted-fg">
+          A real brief from today&apos;s market. Every stock gets one.
+        </figcaption>
+      </figure>
+    </a>
   );
 }
 
@@ -390,7 +393,10 @@ const FAQS = [
 ];
 
 export async function OaLanding() {
-  const user = await getLandingUserContext();
+  const [user, marketDailyEditions] = await Promise.all([
+    getLandingUserContext(),
+    listMarketDailyEditions(3).catch(() => []),
+  ]);
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
@@ -529,29 +535,46 @@ export async function OaLanding() {
             </Reveal>
           </section>
 
-          {/* daily blog section */}
+          {/* daily dispatch section */}
           <section>
             <Reveal>
               <div className="mb-6 flex items-center justify-between">
                 <h2 className={H2}>Daily dispatch</h2>
-                <a href="/blog" className="text-base font-medium text-oa-primary hover:underline">View all →</a>
+                <a href="/market-daily" className="text-base font-medium text-oa-primary hover:underline">View all →</a>
               </div>
             </Reveal>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {allBlogPosts.slice(0, 3).map((post, i) => (
-                <Reveal key={post.slug} delay={80 * (i + 1)}>
-                  <a href={`/blog/${post.slug}`}>
-                    <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
-                      <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">{post.category}</span>
-                        <h3 className="mt-3 line-clamp-2 text-[17px] font-medium tracking-tight text-oa-fg">{post.title}</h3>
-                        <p className="mt-2 line-clamp-2 flex-grow text-base leading-5 text-oa-muted-fg">{post.description}</p>
-                        <p className="mt-3 text-[13px] text-oa-muted-fg">{post.date}</p>
-                      </div>
-                    </SquircleSurface>
-                  </a>
-                </Reveal>
-              ))}
+              {marketDailyEditions.length > 0 ? (
+                marketDailyEditions.map((edition, i) => (
+                  <Reveal key={edition.edition_date} delay={80 * (i + 1)}>
+                    <a href={`/market-daily/${edition.edition_date}`}>
+                      <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
+                        <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">Market Daily</span>
+                          <h3 className="mt-3 line-clamp-2 text-[17px] font-medium tracking-tight text-oa-fg">{edition.headline}</h3>
+                          <p className="mt-2 line-clamp-2 flex-grow text-base leading-5 text-oa-muted-fg">{edition.dek}</p>
+                          <p className="mt-3 text-[13px] text-oa-muted-fg">{edition.edition_date}</p>
+                        </div>
+                      </SquircleSurface>
+                    </a>
+                  </Reveal>
+                ))
+              ) : (
+                allBlogPosts.slice(0, 3).map((post, i) => (
+                  <Reveal key={post.slug} delay={80 * (i + 1)}>
+                    <a href={`/blog/${post.slug}`}>
+                      <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
+                        <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">{post.category}</span>
+                          <h3 className="mt-3 line-clamp-2 text-[17px] font-medium tracking-tight text-oa-fg">{post.title}</h3>
+                          <p className="mt-2 line-clamp-2 flex-grow text-base leading-5 text-oa-muted-fg">{post.description}</p>
+                          <p className="mt-3 text-[13px] text-oa-muted-fg">{post.date}</p>
+                        </div>
+                      </SquircleSurface>
+                    </a>
+                  </Reveal>
+                ))
+              )}
             </div>
           </section>
 
