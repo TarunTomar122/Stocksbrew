@@ -7,20 +7,21 @@ from backend.email import APP_URL, first_name_from_profile
 from backend.email_content import clean_optional_email_text
 from backend.emails._assets import logo_img
 from backend.emails._shell import email_shell
+from backend.emails._theme import BEARISH, BODY, BULLISH, DIVIDER, INK, MUTED, PRIMARY
 from backend.emails.price_alert import _fmt_price, quote_ticker
 from backend.premarket_intel import PREMARKET_GAP_THRESHOLD, context_row_matches_ticker
 
 DIGEST_WIDTH = 640
 DIGEST_FOOTER = (
     "You receive the pre-market brief as a Pro subscriber. "
-    f"<a href='{APP_URL}/profile' style='color:#065f46;text-decoration:none;font-weight:600'>"
+    f"<a href='{APP_URL}/profile' style='color:{PRIMARY};text-decoration:none;font-weight:600'>"
     "Email preferences</a>"
     " · Not investment advice."
 )
 
 
 def _gap_color(gap: float) -> str:
-    return "#065f46" if gap >= 0 else "#b91c1c"
+    return BULLISH if gap >= 0 else BEARISH
 
 
 def _gap_arrow(gap: float) -> str:
@@ -34,7 +35,7 @@ def _context_tape_line(ctx: dict[str, Any]) -> str:
 def _table_header(cells: list[tuple[str, str]]) -> str:
     heads = "".join(
         f"<th align='{align}' style='padding:8px 6px;font-size:10px;font-weight:700;"
-        f"letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb'>"
+        f"letter-spacing:0.08em;color:{MUTED};text-transform:uppercase;border-bottom:1px solid {DIVIDER}'>"
         f"{html.escape(label)}</th>"
         for label, align in cells
     )
@@ -49,9 +50,9 @@ def _market_table_rows(gappers: list[dict[str, Any]], *, limit: int = 5) -> str:
         pre = _fmt_price(row.get("pre_market_price")) or "—"
         rows.append(
             "<tr>"
-            f"<td style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:14px;font-weight:700;color:#111827'>{html.escape(ticker)}</td>"
-            f"<td align='right' style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:13px;font-weight:700;color:{_gap_color(gap)}'>{_gap_arrow(gap)} {abs(gap):.1f}%</td>"
-            f"<td align='right' style='padding:9px 6px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151'>{html.escape(pre)}</td>"
+            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{html.escape(ticker)}</td>"
+            f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;font-weight:700;color:{_gap_color(gap)}'>{_gap_arrow(gap)} {abs(gap):.1f}%</td>"
+            f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;color:{BODY}'>{html.escape(pre)}</td>"
             "</tr>"
         )
     return "".join(rows)
@@ -61,15 +62,15 @@ def _movers_section(gainers: list[dict[str, Any]], losers: list[dict[str, Any]])
     if not gainers and not losers:
         return ""
     parts: list[str] = [
-        "<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid #f3f4f6'>"
-        "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
+        f"<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid {DIVIDER}'>"
+        f"<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:{MUTED};text-transform:uppercase'>"
         "Biggest pre-market movers</div></td></tr>",
     ]
     header = _table_header([("Ticker", "left"), ("Gap", "right"), ("Pre-mkt", "right")])
     if gainers:
         parts.append(
             "<tr><td style='padding:4px 20px 2px 20px'>"
-            "<div style='font-size:12px;font-weight:700;color:#065f46'>Top gainers</div></td></tr>"
+            f"<div style='font-size:12px;font-weight:700;color:{BULLISH}'>Top gainers</div></td></tr>"
             "<tr><td style='padding:0 20px 10px 20px'>"
             f"<table width='100%' cellpadding='0' cellspacing='0'>{header}{_market_table_rows(gainers)}</table>"
             "</td></tr>"
@@ -77,7 +78,7 @@ def _movers_section(gainers: list[dict[str, Any]], losers: list[dict[str, Any]])
     if losers:
         parts.append(
             "<tr><td style='padding:4px 20px 2px 20px'>"
-            "<div style='font-size:12px;font-weight:700;color:#b91c1c'>Top losers</div></td></tr>"
+            f"<div style='font-size:12px;font-weight:700;color:{BEARISH}'>Top losers</div></td></tr>"
             "<tr><td style='padding:0 20px 8px 20px'>"
             f"<table width='100%' cellpadding='0' cellspacing='0'>{header}{_market_table_rows(losers)}</table>"
             "</td></tr>"
@@ -113,9 +114,9 @@ def _news_section_rows(
             continue
         seen.add(sym)
         items.append(
-            "<tr><td style='padding:8px 0;border-top:1px solid #f3f4f6'>"
-            f"<span style='font-size:14px;font-weight:800;color:#111827'>{html.escape(sym)}</span>"
-            f"<span style='font-size:13px;color:#4b5563'> — {html.escape(tape_line)}</span>"
+            f"<tr><td style='padding:8px 0;border-top:1px solid {DIVIDER}'>"
+            f"<span style='font-size:14px;font-weight:800;color:{INK}'>{html.escape(sym)}</span>"
+            f"<span style='font-size:13px;color:{BODY}'> — {html.escape(tape_line)}</span>"
             "</td></tr>"
         )
         if len(items) >= 6:
@@ -131,9 +132,9 @@ def _sector_rows(sector_summary: list[dict[str, Any]]) -> str:
         count = int(item.get("count") or 0)
         rows.append(
             "<tr>"
-            f"<td style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151'>{html.escape(sector)}</td>"
-            f"<td align='right' style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:13px;font-weight:700;color:{_gap_color(avg)}'>{_gap_arrow(avg)} {abs(avg):.1f}%</td>"
-            f"<td align='right' style='padding:8px 6px;border-top:1px solid #f3f4f6;font-size:12px;color:#9ca3af'>{count} names</td>"
+            f"<td style='padding:8px 6px;border-top:1px solid {DIVIDER};font-size:13px;color:{BODY}'>{html.escape(sector)}</td>"
+            f"<td align='right' style='padding:8px 6px;border-top:1px solid {DIVIDER};font-size:13px;font-weight:700;color:{_gap_color(avg)}'>{_gap_arrow(avg)} {abs(avg):.1f}%</td>"
+            f"<td align='right' style='padding:8px 6px;border-top:1px solid {DIVIDER};font-size:12px;color:{MUTED}'>{count} names</td>"
             "</tr>"
         )
     return "".join(rows)
@@ -219,7 +220,7 @@ def build_premarket_brief_email(
     phase_block = ""
     if phase_line:
         phase_block = (
-            f"<div style='margin-top:10px;font-size:13px;color:#065f46;font-weight:600'>"
+            f"<div style='margin-top:10px;font-size:13px;color:{PRIMARY};font-weight:600'>"
             f"{html.escape(phase_line)}</div>"
         )
 
@@ -228,7 +229,7 @@ def build_premarket_brief_email(
     if news_rows:
         sections.append(
             "<tr><td style='padding:18px 20px 6px 20px'>"
-            "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
+            f"<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:{MUTED};text-transform:uppercase'>"
             "News on your book</div></td></tr>"
             f"<tr><td style='padding:0 20px 8px 20px'><table width='100%' cellpadding='0' cellspacing='0'>{news_rows}</table></td></tr>"
         )
@@ -239,8 +240,8 @@ def build_premarket_brief_email(
 
     if sector_summary:
         sections.append(
-            "<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid #f3f4f6'>"
-            "<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase'>"
+            f"<tr><td style='padding:18px 20px 6px 20px;border-top:1px solid {DIVIDER}'>"
+            f"<div style='font-size:11px;font-weight:700;letter-spacing:0.1em;color:{MUTED};text-transform:uppercase'>"
             "Sectors pre-market</div></td></tr>"
             "<tr><td style='padding:0 20px 12px 20px'>"
             "<table width='100%' cellpadding='0' cellspacing='0'>"
@@ -251,18 +252,18 @@ def build_premarket_brief_email(
 
     body = f"""
       <tr><td style="padding:24px 20px 8px 20px">
-        <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase">Pre-market brief</div>
-        <div style="margin-top:8px;font-size:24px;font-weight:800;color:#111827;letter-spacing:-0.03em">Before the open</div>
-        <p style="margin:12px 0 0;font-size:15px;line-height:1.55;color:#374151">{html.escape(intro)}</p>
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:{MUTED};text-transform:uppercase">Pre-market brief</div>
+        <div style="margin-top:8px;font-size:24px;font-weight:800;color:{INK};letter-spacing:-0.03em">Before the open</div>
+        <p style="margin:12px 0 0;font-size:15px;line-height:1.55;color:{BODY}">{html.escape(intro)}</p>
         {phase_block}
       </td></tr>
       {''.join(sections)}
-      <tr><td style="padding:16px 20px 24px 20px;border-top:1px solid #f3f4f6">
+      <tr><td style="padding:16px 20px 24px 20px;border-top:1px solid {DIVIDER}">
         <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-          <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;padding:13px 28px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open Watchlist</a>
+          <a href="{html.escape(APP_URL)}/watchlist" style="display:inline-block;padding:13px 28px;background:{PRIMARY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open Watchlist</a>
         </td></tr></table>
-        <div style="margin-top:12px;text-align:center;font-size:13px;color:#9ca3af">
-          <a href="{html.escape(APP_URL)}/pulse" style="color:#065f46;text-decoration:none;font-weight:600">Full pre-market board →</a>
+        <div style="margin-top:12px;text-align:center;font-size:13px;color:{MUTED}">
+          <a href="{html.escape(APP_URL)}/pulse" style="color:{PRIMARY};text-decoration:none;font-weight:600">Full pre-market board →</a>
         </div>
       </td></tr>"""
 

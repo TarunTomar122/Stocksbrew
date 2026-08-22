@@ -698,11 +698,8 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                       )}
                     </div>
 
-                    {selected.headline ? (
-                      <p className="mt-4 text-[17px] font-medium leading-snug text-oa-fg">{selected.headline}</p>
-                    ) : null}
                     {selected.whyItMatters ? (
-                      <p className="mt-2 text-[16px] leading-7 text-oa-muted-fg">{selected.whyItMatters}</p>
+                      <p className="mt-4 text-[16px] leading-7 text-oa-muted-fg">{selected.whyItMatters}</p>
                     ) : null}
 
                     {chartLoading ? (

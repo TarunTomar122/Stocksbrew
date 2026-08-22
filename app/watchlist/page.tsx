@@ -36,9 +36,11 @@ export default function WatchlistPage() {
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader />
-      <Suspense fallback={<WatchlistHubSkeleton />}>
-        <WatchlistStream />
-      </Suspense>
+      <div className="mx-auto w-full max-w-[76rem] px-4 sm:px-6">
+        <Suspense fallback={<WatchlistHubSkeleton />}>
+          <WatchlistStream />
+        </Suspense>
+      </div>
     </main>
   );
 }
