@@ -393,7 +393,6 @@ export async function StockPageStream({ params }: Props) {
         market={market}
         currency={currency}
         directive={hasFullAnalysisAccess ? normalizedDirective : null}
-        setupState={hasFullAnalysisAccess ? intelligence?.setup_state : null}
         visual={hasFullAnalysisAccess ? intelligence?.visual_summary : null}
         businessQuestions={businessQuestions}
         overview={displayAnomaly ? (anomalyDetail(displayAnomaly) ?? undefined) : undefined}
@@ -401,7 +400,6 @@ export async function StockPageStream({ params }: Props) {
         preEarnings={activePreEarningsIntel ?? undefined}
         preEarningsDoc={preEarningsDoc ?? undefined}
         calendarEarnings={calendarEarnings ?? undefined}
-        overviewConfidence={displayAnomaly?.move_explanation?.confidence}
         facts={stockFacts}
         intelPro={intelPro}
         analyst={analystConsensus}
@@ -410,16 +408,12 @@ export async function StockPageStream({ params }: Props) {
         rsiState={technicals?.rsi_14?.state}
         technicalLevels={technicals?.levels}
         priceHistory={priceHistory}
-        sma50={sma50}
-        sma200={sma200}
         earnings={earningsIntel}
         cards={hasFullAnalysisAccess ? intelligence?.visual_cards : null}
         sentiment={instrumentView?.sentiment_breakdown}
-        timeline={hasAI ? instrumentView?.timeline : null}
         peers={instrumentView?.related_tickers}
         betterPeers={betterSectorPeers}
         sectorPeers={sectorPeers}
-        sectorLabel={sectorLabel || undefined}
         reddit={
           redditTickerContext?.cue
             ? {
@@ -436,11 +430,6 @@ export async function StockPageStream({ params }: Props) {
         tier={tier}
         premarketQuote={premarketQuote}
         updatedLabel={stock.captured_at ? `updated ${formatRelative(stock.captured_at)}` : undefined}
-        researchPulse={{
-          text: publicResearchText || undefined,
-          generatedAt: intelligence?.generated_at,
-          status: resolvedOnDemandStatus,
-        }}
         lockedCall={
           hasBriefText(intelligence) ? (
             <AiSynthesis intelligence={intelligence} />
