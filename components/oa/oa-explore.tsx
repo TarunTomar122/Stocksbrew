@@ -417,19 +417,11 @@ function MarketScans({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
           >
-            {isSubscribed ? (
-              <div className="h-[40rem] overflow-y-auto">
-                {visibleRows.map((row) => (
-                  <ScanRow key={row.key} row={row} category={active.key} />
-                ))}
-              </div>
-            ) : (
-              <div>
-                {visibleRows.map((row) => (
-                  <ScanRow key={row.key} row={row} category={active.key} />
-                ))}
-              </div>
-            )}
+            <div className="h-[40rem] overflow-y-auto">
+              {visibleRows.map((row) => (
+                <ScanRow key={row.key} row={row} category={active.key} />
+              ))}
+            </div>
             {hiddenCount > 0 ? (
               <GateStrip hiddenCount={hiddenCount} />
             ) : (
@@ -531,10 +523,12 @@ function RedditBuzz({ redditTickers }: { redditTickers: RedditRow[] }) {
           Summarized from today&rsquo;s top posts, so you never have to scroll the thread again.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {top.map((row) => (
-          <RedditCard key={row.ticker} row={row} />
-        ))}
+      <div className="h-[40rem] overflow-y-auto rounded-[22px] border border-oa-border bg-oa-card p-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {top.map((row) => (
+            <RedditCard key={row.ticker} row={row} />
+          ))}
+        </div>
       </div>
     </section>
   );
