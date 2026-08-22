@@ -7,13 +7,31 @@ from backend.email import APP_URL
 from backend.email_content import clean_optional_email_text
 from backend.emails._assets import logo_img
 from backend.emails._shell import email_shell
+from backend.emails._theme import (
+    BEARISH,
+    BEARISH_BG,
+    BODY,
+    BULLISH,
+    BULLISH_BG,
+    DIVIDER,
+    INK,
+    INSET,
+    MUTED,
+    NEUTRAL,
+    NEUTRAL_BG,
+    PRIMARY,
+    PRIMARY_BG,
+    RADIUS_INNER,
+    RADIUS_PILL,
+)
 
+# mirrors STANCE_ACCENT in components/stock-detail.tsx
 STANCE_META: dict[str, tuple[str, str, str]] = {
-    "accumulate": ("ACCUMULATE", "#065f46", "#ecfdf5"),
-    "hold": ("HOLD", "#065f46", "#ecfdf5"),
-    "trim": ("TRIM", "#b91c1c", "#fef2f2"),
-    "avoid": ("AVOID", "#b91c1c", "#fef2f2"),
-    "watch": ("WATCH", "#0e7490", "#ecfeff"),
+    "accumulate": ("ACCUMULATE", BULLISH, BULLISH_BG),
+    "hold": ("HOLD", MUTED, "#f0f0f0"),
+    "trim": ("TRIM", NEUTRAL, NEUTRAL_BG),
+    "avoid": ("AVOID", BEARISH, BEARISH_BG),
+    "watch": ("WATCH", PRIMARY, PRIMARY_BG),
 }
 
 
@@ -52,7 +70,7 @@ def _stance_chip(stance: str | None) -> str:
     key = str(stance or "watch").strip().lower()
     label, fg, bg = STANCE_META.get(key, STANCE_META["watch"])
     return (
-        f"<span style='display:inline-block;padding:4px 10px;border-radius:999px;"
+        f"<span style='display:inline-block;padding:4px 10px;border-radius:{RADIUS_PILL}px;"
         f"font-size:11px;font-weight:700;letter-spacing:0.06em;color:{fg};background:{bg}'>"
         f"{html.escape(label)}</span>"
     )
@@ -63,7 +81,7 @@ def _score_badge(score: Any) -> str:
         n = int(round(float(score)))
     except (TypeError, ValueError):
         return ""
-    color = "#065f46" if n >= 60 else "#0e7490" if n >= 40 else "#9ca3af"
+    color = BULLISH if n >= 60 else PRIMARY if n >= 40 else MUTED
     return (
         f"<span style='font-size:12px;font-weight:700;color:{color};margin-left:8px'>"
         f"Score {n}</span>"
@@ -128,9 +146,9 @@ def build_price_alert_email(
     trim_line = _zone_line(directive.get("trim_on"), fallback_prefix="Trim")
     break_line = _zone_line(directive.get("breaks_if"), fallback_prefix="Reassess")
     for label, line, accent in (
-        ("Add zone", add_line, "#065f46"),
-        ("Trim zone", trim_line, "#b45309"),
-        ("Break level", break_line, "#b91c1c"),
+        ("Add zone", add_line, BULLISH),
+        ("Trim zone", trim_line, NEUTRAL),
+        ("Break level", break_line, BEARISH),
     ):
         if line:
             levels.append((label, line, accent))
@@ -143,9 +161,9 @@ def build_price_alert_email(
         items = []
         for label, line, accent in levels:
             items.append(
-                f"<tr><td style='padding:10px 0;border-top:1px solid #f3f4f6'>"
-                f"<div style='font-size:10px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase'>{html.escape(label)}</div>"
-                f"<div style='margin-top:4px;font-size:14px;line-height:1.45;color:#111827'>{html.escape(line)}</div>"
+                f"<tr><td style='padding:10px 0;border-top:1px solid {DIVIDER}'>"
+                f"<div style='font-size:10px;font-weight:700;letter-spacing:0.08em;color:{MUTED};text-transform:uppercase'>{html.escape(label)}</div>"
+                f"<div style='margin-top:4px;font-size:14px;line-height:1.45;color:{INK}'>{html.escape(line)}</div>"
                 f"</td></tr>"
             )
         level_rows = (
@@ -157,7 +175,7 @@ def build_price_alert_email(
     directive_block = ""
     if directive_text:
         directive_block = (
-            f"<p style='margin:14px 0 0;font-size:15px;line-height:1.55;color:#374151;font-weight:500'>"
+            f"<p style='margin:14px 0 0;font-size:15px;line-height:1.55;color:{BODY};font-weight:500'>"
             f"{html.escape(directive_text)}</p>"
         )
 
@@ -166,19 +184,19 @@ def build_price_alert_email(
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
           <td width="52" valign="top">{logo_img(ticker=sym, logo_url=logo_url, size=44)}</td>
           <td valign="middle" style="padding-left:12px">
-            <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#9ca3af;text-transform:uppercase">Price alert</div>
-            <div style="margin-top:4px;font-size:20px;font-weight:800;color:#111827;letter-spacing:-0.03em;line-height:1.2">{headline}</div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:{MUTED};text-transform:uppercase">Price alert</div>
+            <div style="margin-top:4px;font-size:20px;font-weight:800;color:{INK};letter-spacing:-0.03em;line-height:1.2">{headline}</div>
           </td>
         </tr></table>
       </td></tr>
       <tr><td style="padding:8px 24px 20px 24px">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:{INSET};border-radius:{RADIUS_INNER}px">
           <tr><td style="padding:14px 16px">
             <table width="100%"><tr>
-              <td style="font-size:13px;color:#6b7280">Now</td>
-              <td align="right" style="font-size:22px;font-weight:800;color:#111827;letter-spacing:-0.03em">{html.escape(current_fmt)}</td>
+              <td style="font-size:13px;color:{MUTED}">Now</td>
+              <td align="right" style="font-size:22px;font-weight:800;color:{INK};letter-spacing:-0.03em">{html.escape(current_fmt)}</td>
             </tr>
-            <tr><td colspan="2" style="padding-top:8px;font-size:12px;color:#9ca3af">Your alert: {html.escape(condition)} {html.escape(target_fmt)}</td></tr>
+            <tr><td colspan="2" style="padding-top:8px;font-size:12px;color:{MUTED}">Your alert: {html.escape(condition)} {html.escape(target_fmt)}</td></tr>
             </table>
           </td></tr>
         </table>
@@ -186,7 +204,7 @@ def build_price_alert_email(
         {directive_block}
         {level_rows}
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px"><tr><td align="center">
-          <a href="{html.escape(stock_url)}" style="display:inline-block;padding:12px 22px;background:#065f46;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open stock</a>
+          <a href="{html.escape(stock_url)}" style="display:inline-block;padding:12px 22px;background:{PRIMARY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px">Open stock</a>
         </td></tr></table>
       </td></tr>"""
 

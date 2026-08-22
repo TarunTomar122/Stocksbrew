@@ -4,6 +4,7 @@ import html
 from urllib.parse import quote
 
 from backend.email import APP_URL
+from backend.emails._theme import BORDER
 
 
 def _is_bad_logo_url(raw: str) -> bool:
@@ -38,5 +39,5 @@ def logo_img(*, ticker: str, logo_url: str | None = None, size: int = 44) -> str
     return (
         f"<img src='{html.escape(src)}' width='{size}' height='{size}' alt='' "
         f"style='border-radius:{radius}px;object-fit:contain;background:#fff;"
-        f"border:1px solid #e5e7eb;padding:2px;display:block' />"
+        f"border:1px solid {BORDER};padding:2px;display:block' />"
     )
