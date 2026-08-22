@@ -55,24 +55,24 @@ export const PRO_VALUE_PILLARS: ProValuePillar[] = [
 /** Four reasons to upgrade — shown consistently across Pulse, Explore, and Watchlist. */
 export const PRO_POINTS: ProPoint[] = [
   {
-    icon: "eye-off",
-    title: "Every mover, nothing held back",
-    body: "All the reads on this page, not just the first few.",
-  },
-  {
     icon: "layout-grid",
-    title: "Track unlimited stocks",
+    title: "Unlimited tracked stocks",
     body: "Free stops at 3. Pro never asks you to choose.",
   },
   {
     icon: "gauge",
-    title: "Calls with zones and targets",
+    title: "Calls, price zones and targets",
     body: "Add zones, trim zones and a target for every name.",
   },
   {
     icon: "bell",
-    title: "Alerts that reach you first",
+    title: "Earnings and price-level alerts",
     body: "Earnings and price levels, without watching the tape.",
+  },
+  {
+    icon: "smart_toy",
+    title: "Use it inside your AI agent",
+    body: "Connect a compatible agent to Stocksbrew calls, targets, drivers, and risks.",
   },
 ];
 
