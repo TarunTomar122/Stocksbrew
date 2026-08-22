@@ -18,6 +18,7 @@ import {
   trackCheckoutStarted,
 } from "@/lib/product-analytics";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
+import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import type { IdeaCard } from "@/components/radar-next/types";
 import type { HealthProps } from "@/lib/radar-next-data";
 import type { EarningsCard, HubRow } from "@/lib/watchlist-hub-data";
@@ -588,14 +589,6 @@ function AgentPlate({ isSubscribed }: { isSubscribed: boolean }) {
 
 /* ── the pro plate: the value stack ──────────────────────────────────────── */
 
-const PRO_ITEMS: [string, string][] = [
-  ["Unlimited book", "Free stops at 3 stocks. Pro never does."],
-  ["Alerts", "Price levels and earnings warnings, checked all session."],
-  ["Agent access", "Your AI reads your book over MCP, 200 calls a day."],
-  ["Every answer line", "All movers explained, not just the first few."],
-  ["Full intel", "Earnings readouts, Reddit buzz, analyst targets on every row."],
-];
-
 function ProPlate({ isSubscribed }: { isSubscribed: boolean }) {
   if (isSubscribed) return null;
   return (
@@ -607,8 +600,8 @@ function ProPlate({ isSubscribed }: { isSubscribed: boolean }) {
           background: "color-mix(in srgb, var(--oa-primary) 4%, var(--oa-bg))",
         }}
       >
-        <div className="grid gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[1fr_1.1fr] lg:gap-10">
-          <div>
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
+          <div className="mb-8 max-w-2xl">
             <p className={EYEBROW}>Stocksbrew Pro</p>
             <h3 className="mt-2 text-balance font-medium tracking-tight text-oa-fg text-[22px] leading-tight sm:text-[28px]">
               The reading is free. The doing is Pro.
@@ -624,19 +617,18 @@ function ProPlate({ isSubscribed }: { isSubscribed: boolean }) {
               ${US_PRO_MONTHLY}/month · cancel anytime
             </p>
           </div>
-          <ul className="grid content-center gap-x-6 gap-y-3 sm:grid-cols-2">
-            {PRO_ITEMS.map(([title, body]) => (
-              <li key={title} className="flex items-start gap-2.5">
-                <AnimatedIcon
-                  name="check"
-                  size={16}
-                  className="mt-0.5 shrink-0"
-                  style={{ color: "var(--oa-primary)" }}
-                  aria-hidden
-                />
+          <ul className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            {PRO_POINTS.map((point) => (
+              <li key={point.icon} className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-oa-card text-oa-fg/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [&_svg]:size-4"
+                >
+                  <AnimatedIcon name={point.icon} size={16} />
+                </span>
                 <div className="min-w-0">
-                  <p className="text-[14.5px] font-medium leading-5 text-oa-fg">{title}</p>
-                  <p className="text-[13px] leading-5 text-oa-muted-fg">{body}</p>
+                  <p className="text-[15px] font-medium leading-5 text-oa-fg">{point.title}</p>
+                  <p className="mt-0.5 text-[14px] leading-5 text-oa-muted-fg">{point.body}</p>
                 </div>
               </li>
             ))}
@@ -667,7 +659,7 @@ export function WatchlistHub({
   freeLimit,
 }: WatchlistHubProps) {
   return (
-    <div className={`${FRAME} flex flex-col gap-10 pb-36 pt-8 sm:gap-12 sm:pb-36 sm:pt-10`}>
+    <div className={`mx-auto w-full max-w-[76rem] flex flex-col gap-10 px-0 pb-36 pt-8 sm:gap-12 sm:pb-36 sm:px-6 sm:pt-10`}>
       {/* title row: one h1, one cluster of controls */}
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">

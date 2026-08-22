@@ -352,6 +352,8 @@ export async function StockPageStream({ params }: Props) {
   const rsi =
     technicals?.rsi_14?.value ?? instrumentView?.momentum_signal?.rsi_14;
   const rsiValue = technicals?.rsi_14?.value;
+  const sma50 = technicals?.moving_averages?.sma_50;
+  const sma200 = technicals?.moving_averages?.sma_200;
   const analystConsensus = instrumentView?.analyst_consensus ?? stockFacts?.analyst;
 
   const aiSource = intelligence?.source ?? "";

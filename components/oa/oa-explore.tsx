@@ -21,6 +21,8 @@ import type { Near52WeekRow } from "@/lib/near-52-week";
 import type { RedditTicker } from "@/lib/reddit-cues";
 import { formatTrumpLogicDate } from "@/lib/trump-logic-format";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
+import { PRO_POINTS } from "@/lib/subscribe-benefits";
+import { AnimatedIcon } from "@/components/animated-icon";
 
 /* ── springs (oa-design: one spring family) ────────────────────────────── */
 const LAYOUT = { type: "spring", stiffness: 550, damping: 40 } as const;
@@ -450,21 +452,23 @@ function ProPlate() {
             You just saw what&rsquo;s moving. Pro tells you what to do about it.
           </h2>
         </div>
-        <ul className="mx-auto mt-8 grid max-w-2xl gap-x-8 gap-y-3.5 text-[16.5px] leading-7 text-oa-muted-fg sm:grid-cols-2">
-          <li className="flex items-start gap-2.5">
-            <Dot /> Every scan, every row, nothing blurred
-          </li>
-          <li className="flex items-start gap-2.5">
-            <Dot /> Track unlimited stocks (free stops at 3)
-          </li>
-          <li className="flex items-start gap-2.5">
-            <Dot /> Calls with add zones, trim zones and targets
-          </li>
-          <li className="flex items-start gap-2.5">
-            <Dot /> Alerts when earnings or price levels hit
-          </li>
+        <ul className="mx-auto mt-10 grid max-w-3xl gap-x-8 gap-y-8 sm:grid-cols-2">
+          {PRO_POINTS.map((point) => (
+            <li key={point.icon} className="flex items-start gap-3.5">
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-oa-card text-oa-fg/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [&_svg]:size-[18px]"
+              >
+                <AnimatedIcon name={point.icon} size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[17px] font-medium leading-6 text-oa-fg">{point.title}</span>
+                <span className="mt-0.5 block text-[16px] leading-6 text-oa-muted-fg">{point.body}</span>
+              </span>
+            </li>
+          ))}
         </ul>
-        <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <ProCheckoutButton className="h-11 px-6 text-base">Try Pro</ProCheckoutButton>
           <p className="text-[16.5px] text-oa-muted-fg">
             <span className="font-medium tabular-nums text-oa-fg">${US_PRO_MONTHLY}/mo</span> · 3-day full trial · cancel anytime
@@ -473,10 +477,6 @@ function ProPlate() {
       </div>
     </SquircleSurface>
   );
-}
-
-function Dot() {
-  return <span aria-hidden="true" className="mt-[9px] size-1.5 shrink-0 rounded-full bg-oa-primary" />;
 }
 
 /* ── reddit buzz ────────────────────────────────────────────────────────── */

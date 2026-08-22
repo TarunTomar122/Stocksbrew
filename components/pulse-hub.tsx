@@ -19,6 +19,7 @@ import {
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
+import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import type {
   OpeningCue,
   OpeningReport,
@@ -447,20 +448,20 @@ function MoverRow({
           onSelect();
         }
       }}
-      className={`flex w-full items-center gap-3 px-3 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:gap-3.5 sm:px-5 ${
+      className={`flex w-full items-start gap-2.5 px-3 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:items-center sm:gap-3.5 sm:px-5 ${
         active ? "bg-oa-accent" : ""
       }`}
       aria-current={active ? "true" : undefined}
     >
-      <StockLogo ticker={item.ticker} market="US" size={32} circle />
+      <StockLogo ticker={item.ticker} market="US" size={32} circle className="shrink-0 mt-0.5 sm:mt-0" />
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium leading-5 text-oa-fg">{item.ticker}</p>
         {item.company ? <p className="hidden truncate text-[16px] leading-4 text-oa-muted-fg sm:block">{item.company}</p> : null}
-        {reason ? <p className="mt-0.5 text-[16px] leading-5 text-oa-muted-fg sm:hidden sm:truncate">{reason}</p> : null}
+        {reason ? <p className="text-[15px] leading-5 text-oa-muted-fg sm:truncate">{reason}</p> : null}
       </div>
-      <div className="hidden shrink-0 flex-col items-end sm:flex">
+      <div className="shrink-0 flex flex-col items-end gap-0.5">
         <span className="text-[15px] font-medium tabular-nums leading-5 text-oa-fg">${money(item.price)}</span>
-        <span className="text-[16px] font-medium leading-5">{pctLabel(item.changePct)}</span>
+        <span className="text-[15px] font-medium leading-5">{pctLabel(item.changePct)}</span>
       </div>
     </Link>
   );
@@ -468,13 +469,13 @@ function MoverRow({
 
 function MoverGhostRow() {
   return (
-    <div className="flex items-center gap-3 px-3 py-4 sm:px-5">
-      <div className="size-8 shrink-0 rounded-full bg-oa-secondary" />
+    <div className="flex items-start gap-2.5 px-3 py-4 sm:items-center sm:gap-3 sm:px-5">
+      <div className="mt-0.5 size-8 shrink-0 rounded-full bg-oa-secondary sm:mt-0" />
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="h-3.5 w-14 rounded-full bg-oa-secondary" />
         <div className="h-2.5 w-20 rounded-full bg-oa-secondary" />
       </div>
-      <div className="shrink-0 flex-col items-end gap-1.5">
+      <div className="shrink-0 flex flex-col items-end gap-0.5">
         <div className="ml-auto h-3.5 w-14 rounded-full bg-oa-secondary" />
         <div className="ml-auto h-2.5 w-12 rounded-full bg-oa-secondary" />
       </div>
@@ -839,29 +840,6 @@ function EarningsPlate({ items }: { items: RecentEarningsCard[] }) {
 }
 
 /* ── the Pro plate: value stack, anchor price, risk reversal ────────────── */
-const PRO_POINTS = [
-  {
-    icon: "eye-off",
-    title: "Every mover, nothing held back",
-    body: "All the reads on this page, not just the first few.",
-  },
-  {
-    icon: "layout-grid",
-    title: "Track unlimited stocks",
-    body: "Free stops at 3. Pro never asks you to choose.",
-  },
-  {
-    icon: "gauge",
-    title: "Calls with zones and targets",
-    body: "Add zones, trim zones and a target for every name.",
-  },
-  {
-    icon: "bell",
-    title: "Alerts that reach you first",
-    body: "Earnings and price levels, without watching the tape.",
-  },
-] as const;
-
 function ProPlate() {
   return (
     <SquircleSurface className="bg-oa-bg shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
@@ -924,7 +902,7 @@ export function PulseHub({
   }, []);
 
   return (
-    <div className={`${FRAME} flex flex-col gap-12 py-8 sm:gap-16 sm:py-12`}>
+    <div className={`mx-auto w-full max-w-[76rem] flex flex-col gap-12 px-0 py-8 sm:gap-16 sm:px-6 sm:py-12`}>
       <OpensPlate movers={premarketMovers ?? null} report={premarketReport ?? null} />
       <LeaningPlate movers={premarketMovers ?? null} />
       <MoversBoard items={items} isSubscribed={isSubscribed} />

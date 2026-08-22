@@ -112,7 +112,7 @@ function SignInCta({ label }: { label: string }) {
  */
 export function WatchlistShowcase({ mode }: { mode: "signed_out" | "empty" }) {
   return (
-    <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 pb-36 pt-8 sm:gap-12 sm:px-6 sm:pt-10">
+    <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-0 pb-36 pt-8 sm:gap-12 sm:px-6 sm:pt-10">
       <div className="max-w-2xl">
         <p className={EYEBROW}>Your watchlist</p>
         <h1 className="mt-2 text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight">
