@@ -279,7 +279,7 @@ export function WatchlistShowcase({ mode }: { mode: "signed_out" | "empty" }) {
         </SquircleSurface>
       </section>
 
-      <div className="flex flex-col items-center gap-4 rounded-[28px] border border-oa-border bg-oa-card px-6 py-10 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-[28px] bg-oa-card px-6 py-10 text-center">
         <p className="text-balance text-[22px] font-medium leading-snug text-oa-fg sm:text-[26px]">
           Put your own stocks in here.
         </p>

@@ -441,7 +441,7 @@ function ProPlate() {
       <div className="rounded-[22px] bg-oa-bg px-6 py-10 sm:rounded-[44px] sm:px-10 sm:py-14">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl">
-            You just saw what&rsquo;s moving. Pro tells you what to do about it.
+            Pro tells you what to do about what just moved.
           </h2>
         </div>
         <ul className="mx-auto mt-10 grid max-w-3xl gap-x-8 gap-y-8 sm:grid-cols-2">

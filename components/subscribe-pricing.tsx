@@ -15,7 +15,8 @@ import {
 import { ProBenefitsGrid } from "@/components/pro-benefits-grid";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
 import { StartFreeButton } from "@/components/oa/start-free-button";
-import { SUBSCRIBE_BENEFITS } from "@/lib/subscribe-benefits";
+import { AnimatedIcon } from "@/components/animated-icon";
+import { SUBSCRIBE_BENEFITS, PRO_POINTS } from "@/lib/subscribe-benefits";
 import { US_PRO_MONTHLY_LABEL, US_PRO_YEARLY_LABEL, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
@@ -215,7 +216,7 @@ export function SubscribePricing({
       <header className="flex flex-col items-center gap-4 text-center">
         <p className="text-xs uppercase tracking-[0.12em] text-oa-muted-fg">Pricing</p>
         <h1 className="max-w-[560px] text-balance text-[26px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl">
-          Free to start. Pro when you follow more names.
+          Pro when you're ready to follow more names.
         </h1>
         {trackedCount > 0 ? (
           <p className="text-sm tabular-nums text-oa-muted-fg">
@@ -264,13 +265,19 @@ export function SubscribePricing({
               ) : null}
             </p>
           </div>
-          <ul className="flex flex-col gap-2.5">
-            {PRO_FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-2 text-sm text-oa-fg/80">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 size-4 shrink-0 text-oa-primary">
-                  <path d="m5 13 4 4L19 7" />
-                </svg>
-                {f}
+          <ul className="flex flex-col gap-3.5">
+            {PRO_POINTS.map((point) => (
+              <li key={point.icon} className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-oa-accent text-oa-fg/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [&_svg]:size-4"
+                >
+                  <AnimatedIcon name={point.icon} size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-oa-fg">{point.title}</p>
+                  <p className="mt-0.5 text-[13px] text-oa-muted-fg">{point.body}</p>
+                </div>
               </li>
             ))}
           </ul>
