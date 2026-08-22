@@ -274,7 +274,7 @@ async function LiveProofCards() {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:auto-rows-fr">
       <Reveal delay={80}>
-        <SquircleCard title="What moved and why" seeAllHref="/pulse">
+        <SquircleCard title="What moved and why" seeAllHref="/pulse" contentClassName="h-80 overflow-y-auto">
           {movers.length === 0 ? (
             <EmptyRow>Warming up. Check back in a few minutes.</EmptyRow>
           ) : (
@@ -306,7 +306,7 @@ async function LiveProofCards() {
       </Reveal>
 
       <Reveal delay={160}>
-        <SquircleCard title="Reddit buzz" seeAllHref="/reddit-buzz">
+        <SquircleCard title="Reddit buzz" seeAllHref="/reddit-buzz" contentClassName="h-80 overflow-y-auto">
           {buzz.length === 0 ? (
             <EmptyRow>Buzz refreshes through the day.</EmptyRow>
           ) : (
